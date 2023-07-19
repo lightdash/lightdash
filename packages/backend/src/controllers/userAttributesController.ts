@@ -1,9 +1,9 @@
 import {
-    ApiCreateOrgAttributesResponse,
+    ApiCreateUserAttributeResponse,
     ApiErrorPayload,
-    ApiOrgAttributesResponse,
     ApiSuccessEmpty,
-    CreateOrgAttribute,
+    ApiUserAttributesResponse,
+    CreateUserAttribute,
 } from '@lightdash/common';
 import { Controller, Delete, Post, Put } from '@tsoa/runtime';
 import express from 'express';
@@ -38,7 +38,7 @@ export class UserAttributesController extends Controller {
     @OperationId('getUserAttributes')
     async getUserAttributes(
         @Request() req: express.Request,
-    ): Promise<ApiOrgAttributesResponse> {
+    ): Promise<ApiUserAttributesResponse> {
         this.setStatus(200);
         return {
             status: 'ok',
@@ -60,8 +60,8 @@ export class UserAttributesController extends Controller {
     @OperationId('createUserAttribute')
     async createUserAttribute(
         @Request() req: express.Request,
-        @Body() body: CreateOrgAttribute,
-    ): Promise<ApiCreateOrgAttributesResponse> {
+        @Body() body: CreateUserAttribute,
+    ): Promise<ApiCreateUserAttributeResponse> {
         this.setStatus(201);
 
         return {
@@ -86,8 +86,8 @@ export class UserAttributesController extends Controller {
     async updateUserAttribute(
         @Path() userAttributeUuid: string,
         @Request() req: express.Request,
-        @Body() body: CreateOrgAttribute,
-    ): Promise<ApiCreateOrgAttributesResponse> {
+        @Body() body: CreateUserAttribute,
+    ): Promise<ApiCreateUserAttributeResponse> {
         this.setStatus(201);
 
         return {

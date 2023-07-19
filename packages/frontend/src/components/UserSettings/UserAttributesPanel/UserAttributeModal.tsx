@@ -1,4 +1,4 @@
-import { CreateOrgAttribute, UserAttribute } from '@lightdash/common';
+import { CreateUserAttribute, UserAttribute } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -27,7 +27,7 @@ const UserAttributeModal: FC<{
     allUserAttributes: UserAttribute[];
     onClose: () => void;
 }> = ({ opened, userAttribute, allUserAttributes, onClose }) => {
-    const form = useForm<CreateOrgAttribute>({
+    const form = useForm<CreateUserAttribute>({
         initialValues: {
             name: userAttribute?.name || '',
             description: userAttribute?.description,
@@ -45,7 +45,7 @@ const UserAttributeModal: FC<{
         setInputError(undefined);
         if (onClose) onClose();
     };
-    const handleSubmit = async (data: CreateOrgAttribute) => {
+    const handleSubmit = async (data: CreateUserAttribute) => {
         // Input validation
         if (!/^[a-z_][a-z0-9_]*$/.test(data.name)) {
             setInputError(
@@ -100,7 +100,7 @@ const UserAttributeModal: FC<{
         >
             <form
                 name="invite_user"
-                onSubmit={form.onSubmit((values: CreateOrgAttribute) =>
+                onSubmit={form.onSubmit((values: CreateUserAttribute) =>
                     handleSubmit(values),
                 )}
             >

@@ -1,4 +1,8 @@
-import { ApiError, CreateOrgAttribute, UserAttribute } from '@lightdash/common';
+import {
+    ApiError,
+    CreateUserAttribute,
+    UserAttribute,
+} from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
@@ -20,7 +24,7 @@ export const useUserAttributes = () => {
     });
 };
 
-const createUserAttributes = async (data: CreateOrgAttribute) =>
+const createUserAttributes = async (data: CreateUserAttribute) =>
     lightdashApi<undefined>({
         url: `/org/attributes`,
         method: 'POST',
@@ -31,7 +35,7 @@ export const useCreateUserAtributesMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
 
-    return useMutation<undefined, ApiError, CreateOrgAttribute>(
+    return useMutation<undefined, ApiError, CreateUserAttribute>(
         createUserAttributes,
         {
             mutationKey: ['user_attributes'],
@@ -53,7 +57,7 @@ export const useCreateUserAtributesMutation = () => {
 
 const updateUserAttributes = async (
     userAttributeUuid: string,
-    data: CreateOrgAttribute,
+    data: CreateUserAttribute,
 ) =>
     lightdashApi<undefined>({
         url: `/org/attributes/${userAttributeUuid}`,
@@ -65,7 +69,7 @@ export const useUpdateUserAtributesMutation = (userAttributeUuuid?: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
 
-    return useMutation<undefined, ApiError, CreateOrgAttribute>(
+    return useMutation<undefined, ApiError, CreateUserAttribute>(
         (data) => updateUserAttributes(userAttributeUuuid || '', data),
 
         {

@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import {
-    CreateOrgAttribute,
+    CreateUserAttribute,
     ForbiddenError,
     SessionUser,
     UserAttribute,
@@ -30,7 +30,7 @@ export class UserAttributesService {
 
     async create(
         user: SessionUser,
-        orgAttribute: CreateOrgAttribute,
+        orgAttribute: CreateUserAttribute,
     ): Promise<UserAttribute> {
         if (user.ability.cannot('manage', 'Organization')) {
             throw new ForbiddenError();
@@ -44,7 +44,7 @@ export class UserAttributesService {
     async update(
         user: SessionUser,
         orgAttributeUuid: string,
-        orgAttribute: CreateOrgAttribute,
+        orgAttribute: CreateUserAttribute,
     ): Promise<UserAttribute> {
         const savedAttribute = await this.userAttributesModel.get(
             orgAttributeUuid,

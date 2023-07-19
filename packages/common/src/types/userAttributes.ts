@@ -13,17 +13,20 @@ export type UserAttributeValue = {
     value: string;
 };
 
-export type CreateOrgAttribute = Omit<
+export type CreateUserAttributeValue = Omit<UserAttributeValue, 'email'>;
+export type CreateUserAttribute = Pick<
     UserAttribute,
-    'uuid' | 'createdAt' | 'organizationUuid'
->;
+    'name' | 'description'
+> & {
+    users: CreateUserAttributeValue[];
+};
 
-export type ApiOrgAttributesResponse = {
+export type ApiUserAttributesResponse = {
     status: 'ok';
     results: UserAttribute[];
 };
 
-export type ApiCreateOrgAttributesResponse = {
+export type ApiCreateUserAttributeResponse = {
     status: 'ok';
     results: UserAttribute;
 };

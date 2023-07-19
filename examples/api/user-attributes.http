@@ -20,7 +20,6 @@ Content-Type: application/json
     "description":"description",
     "users":[{
         "userUuid":"b264d83a-9000-426a-85ec-3f9c20f368ce",
-        "email":"",
         "value":"US"
     }]
 }

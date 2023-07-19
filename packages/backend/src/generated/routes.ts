@@ -2958,7 +2958,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiOrgAttributesResponse: {
+    ApiUserAttributesResponse: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -2974,7 +2974,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiCreateOrgAttributesResponse: {
+    ApiCreateUserAttributeResponse: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -2986,7 +2986,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_UserAttribute.Exclude_keyofUserAttribute.uuid-or-createdAt-or-organizationUuid__':
+    'Pick_UserAttribute.Exclude_keyofUserAttribute.uuid-or-createdAt-or-organizationUuid-or-users__':
         {
             dataType: 'refAlias',
             type: {
@@ -2994,31 +2994,66 @@ const models: TsoaRoute.Models = {
                 nestedProperties: {
                     name: { dataType: 'string', required: true },
                     description: { dataType: 'string' },
-                    users: {
-                        dataType: 'array',
-                        array: {
-                            dataType: 'refAlias',
-                            ref: 'UserAttributeValue',
-                        },
-                        required: true,
-                    },
                 },
                 validators: {},
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_UserAttribute.uuid-or-createdAt-or-organizationUuid_': {
+    'Omit_UserAttribute.uuid-or-createdAt-or-organizationUuid-or-users_': {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_UserAttribute.Exclude_keyofUserAttribute.uuid-or-createdAt-or-organizationUuid__',
+            ref: 'Pick_UserAttribute.Exclude_keyofUserAttribute.uuid-or-createdAt-or-organizationUuid-or-users__',
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CreateOrgAttribute: {
+    'Pick_UserAttributeValue.Exclude_keyofUserAttributeValue.email__': {
         dataType: 'refAlias',
         type: {
-            ref: 'Omit_UserAttribute.uuid-or-createdAt-or-organizationUuid_',
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                userUuid: { dataType: 'string', required: true },
+                value: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_UserAttributeValue.email_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_UserAttributeValue.Exclude_keyofUserAttributeValue.email__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CreateUserAttributeValue: {
+        dataType: 'refAlias',
+        type: { ref: 'Omit_UserAttributeValue.email_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CreateUserAttribute: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    ref: 'Omit_UserAttribute.uuid-or-createdAt-or-organizationUuid-or-users_',
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        users: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'CreateUserAttributeValue',
+                            },
+                            required: true,
+                        },
+                    },
+                },
+            ],
             validators: {},
         },
     },
@@ -5932,7 +5967,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'CreateOrgAttribute',
+                    ref: 'CreateUserAttribute',
                 },
             };
 
@@ -5984,7 +6019,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'CreateOrgAttribute',
+                    ref: 'CreateUserAttribute',
                 },
             };
 

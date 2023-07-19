@@ -1,4 +1,4 @@
-import { CreateOrgAttribute, UserAttribute } from '@lightdash/common';
+import { CreateUserAttribute, UserAttribute } from '@lightdash/common';
 import { Knex } from 'knex';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
@@ -143,7 +143,7 @@ export class UserAttributesModel {
 
     async create(
         organizationUuid: string,
-        orgAttribute: CreateOrgAttribute,
+        orgAttribute: CreateUserAttribute,
     ): Promise<UserAttribute> {
         const [organization] = await this.database(OrganizationTableName)
             .select('organization_id')
@@ -173,7 +173,7 @@ export class UserAttributesModel {
     async update(
         organizationUuid: string,
         orgAttributeUuid: string,
-        orgAttribute: CreateOrgAttribute,
+        orgAttribute: CreateUserAttribute,
     ): Promise<UserAttribute> {
         const [organization] = await this.database(OrganizationTableName)
             .select('organization_id')
