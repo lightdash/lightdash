@@ -1,3 +1,45 @@
+# [0.678.0](https://github.com/lightdash/lightdash/compare/0.677.0...0.678.0) (2023-07-19)
+
+
+### Features
+
+* add user attributes ([#6305](https://github.com/lightdash/lightdash/issues/6305)) ([223410c](https://github.com/lightdash/lightdash/commit/223410cc2a65cce3afa04f20419fde4e63364994)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
+# [0.677.0](https://github.com/lightdash/lightdash/compare/0.676.0...0.677.0) (2023-07-19)
+
+
+### Features
+
+* allow filtering by group_label ([#6380](https://github.com/lightdash/lightdash/issues/6380)) ([8161194](https://github.com/lightdash/lightdash/commit/81611947b1b679ad3572f0edd3104cbd253fbbc5))
+
+# [0.676.0](https://github.com/lightdash/lightdash/compare/0.675.2...0.676.0) (2023-07-19)
+
+
+### Features
+
+* conditional formatting color range ([#6360](https://github.com/lightdash/lightdash/issues/6360)) ([42a82e7](https://github.com/lightdash/lightdash/commit/42a82e720df1f0410dbed436f9d5f4cb572092ba))
+
+## [0.675.2](https://github.com/lightdash/lightdash/compare/0.675.1...0.675.2) (2023-07-19)
+
+
+### Bug Fixes
+
+* reference chart_count in all_spaces query ([#6368](https://github.com/lightdash/lightdash/issues/6368)) ([d54b260](https://github.com/lightdash/lightdash/commit/d54b260de9baa5a0669f844fb4e78c7e56505133))
+
+## [0.675.1](https://github.com/lightdash/lightdash/compare/0.675.0...0.675.1) (2023-07-19)
+
+
+### Bug Fixes
+
+* deduplicate metric sql from filters ([#6392](https://github.com/lightdash/lightdash/issues/6392)) ([cb08518](https://github.com/lightdash/lightdash/commit/cb08518a950ee9c592989547e75f6df7f6ef673e)), closes [#6389](https://github.com/lightdash/lightdash/issues/6389)
+
+# [0.675.0](https://github.com/lightdash/lightdash/compare/0.674.0...0.675.0) (2023-07-18)
+
+
+### Features
+
+* migrate table config conditional formatting to mantine ([#6367](https://github.com/lightdash/lightdash/issues/6367)) ([a1b6585](https://github.com/lightdash/lightdash/commit/a1b6585b6cfb76ebf9a5c890cf3248305293aa76))
+
 # [0.674.0](https://github.com/lightdash/lightdash/compare/0.673.1...0.674.0) (2023-07-18)
 
 

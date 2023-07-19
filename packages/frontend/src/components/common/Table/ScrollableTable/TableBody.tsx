@@ -1,4 +1,5 @@
 import {
+    getConditionalFormattingColor,
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
     isNumericItem,
@@ -7,7 +8,7 @@ import {
 import { flexRender, Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import React, { FC } from 'react';
-import { readableColor } from '../../../../utils/colorUtils';
+import { getColorFromRange, readableColor } from '../../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../../Filters/configs';
 import BodyCell from '../BodyCell';
 import { ROW_HEIGHT_PX, Tr } from '../Table.styles';
@@ -72,6 +73,13 @@ const TableRow: FC<TableRowProps> = ({
                         conditionalFormattings,
                     );
 
+                const conditionalFormattingColor =
+                    getConditionalFormattingColor(
+                        cellValue?.value.raw,
+                        conditionalFormattingConfig,
+                        getColorFromRange,
+                    );
+
                 const tooltipContent = getConditionalFormattingDescription(
                     field,
                     conditionalFormattingConfig,
@@ -83,10 +91,10 @@ const TableRow: FC<TableRowProps> = ({
                         minimal={minimal}
                         key={cell.id}
                         style={meta?.style}
-                        backgroundColor={conditionalFormattingConfig?.color}
+                        backgroundColor={conditionalFormattingColor}
                         fontColor={
-                            conditionalFormattingConfig?.color &&
-                            readableColor(conditionalFormattingConfig.color) ===
+                            conditionalFormattingColor &&
+                            readableColor(conditionalFormattingColor) ===
                                 'white'
                                 ? 'white'
                                 : undefined

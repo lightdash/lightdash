@@ -31,7 +31,7 @@ import {
 } from 'react-beautiful-dnd';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import ColorPicker from '../ColorSelector';
+import ColorSelector from '../ColorSelector';
 
 type ValueOptionsProps = {
     isValueLabelOverriden?: boolean;
@@ -184,7 +184,7 @@ const GroupItem = forwardRef<HTMLDivElement, StackProps & GroupItemProps>(
                         </Box>
                     )}
 
-                    <ColorPicker
+                    <ColorSelector
                         color={color}
                         defaultColor={defaultColor}
                         swatches={swatches}

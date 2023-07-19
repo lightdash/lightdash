@@ -13,7 +13,7 @@ interface ItemProps extends SelectItemProps {
 const FieldSelectItem = forwardRef<HTMLDivElement, ItemProps>(
     ({ icon, item, disabled, ...rest }: ItemProps, ref) => (
         <div ref={ref} {...rest}>
-            <Group spacing="xs">
+            <Group spacing="xs" noWrap>
                 <FieldIcon item={item} />
 
                 <Text color={disabled ? 'dimmed' : undefined}>

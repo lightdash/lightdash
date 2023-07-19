@@ -175,10 +175,8 @@ export const buildQuery = ({
             explore,
             compiledMetricQuery,
         );
-        return [
-            ...acc,
-            `  ${metric.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`,
-        ];
+        const renderedSql = `  ${metric.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
+        return acc.includes(renderedSql) ? acc : [...acc, renderedSql];
     }, []);
 
     const sqlSelect = `SELECT\n${[
