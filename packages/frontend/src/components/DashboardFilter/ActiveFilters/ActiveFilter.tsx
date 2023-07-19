@@ -8,16 +8,11 @@ import {
 } from '../../common/Filters/configs';
 import FilterConfiguration, { FilterTabs } from '../FilterConfiguration';
 import { FilterModalContainer } from '../FilterSearch/FilterSearch.styles';
-import {
-    FilterValues,
-    InvalidFilterTag,
-    TagContainer,
-} from './ActiveFilters.styles';
+import { FilterValues, TagContainer } from './ActiveFilters.styles';
 
 type Props = {
     isEditMode: boolean;
-    fieldId: string;
-    field: FilterableField | undefined;
+    field: FilterableField;
     filterRule: DashboardFilterRule;
     onClick?: () => void;
     onRemove: () => void;
@@ -26,7 +21,6 @@ type Props = {
 
 const ActiveFilter: FC<Props> = ({
     isEditMode,
-    fieldId,
     field,
     filterRule,
     onClick,
@@ -42,13 +36,6 @@ const ActiveFilter: FC<Props> = ({
         return null;
     }
 
-    if (!field) {
-        return (
-            <InvalidFilterTag onRemove={onRemove}>
-                Tried to reference field with unknown id: {fieldId}
-            </InvalidFilterTag>
-        );
-    }
     const filterRuleLabels = getConditionalRuleLabel(filterRule, field);
     const filterRuleTables = getFilterRuleTables(
         filterRule,
