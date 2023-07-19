@@ -20,6 +20,7 @@ import {
 } from '../../database/entities/dashboards';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
+import { projectUuid } from '../ProjectModel/ProjectModel.mock';
 import { DashboardModel } from './DashboardModel';
 import {
     addDashboardVersion,
@@ -135,7 +136,6 @@ describe('DashboardModel', () => {
     });
 
     test('should get all by project uuid', async () => {
-        const projectUuid = 'project uuid';
         tracker.on
             .select(queryMatcher(DashboardsTableName, [projectUuid]))
             .response([
@@ -243,7 +243,7 @@ describe('DashboardModel', () => {
             Promise.resolve(expectedDashboard),
         );
 
-        await model.create(spaceUuid, createDashboard, user);
+        await model.create(spaceUuid, createDashboard, user, projectUuid);
 
         expect(tracker.history.select).toHaveLength(2);
         expect(tracker.history.insert).toHaveLength(5);
@@ -349,7 +349,12 @@ describe('DashboardModel', () => {
             .response([]);
 
         await expect(
-            model.addVersion(expectedDashboard.uuid, addDashboardVersion, user),
+            model.addVersion(
+                expectedDashboard.uuid,
+                addDashboardVersion,
+                user,
+                projectUuid,
+            ),
         ).rejects.toThrowError(NotFoundError);
     });
 
@@ -480,6 +485,7 @@ describe('DashboardModel', () => {
             expectedDashboard.uuid,
             addDashboardVersionWithAllTiles,
             user,
+            projectUuid,
         );
 
         expect(tracker.history.select).toHaveLength(2);
@@ -560,6 +566,7 @@ describe('DashboardModel', () => {
             expectedDashboard.uuid,
             addDashboardVersionWithTileIds,
             user,
+            projectUuid,
         );
 
         expect(tracker.history.select).toHaveLength(2);
@@ -623,6 +630,7 @@ describe('DashboardModel', () => {
             expectedDashboard.uuid,
             addDashboardVersionWithoutChart,
             user,
+            projectUuid,
         );
 
         expect(tracker.history.select).toHaveLength(1);
@@ -679,7 +687,12 @@ describe('DashboardModel', () => {
             .response([]);
 
         await expect(
-            model.addVersion(expectedDashboard.uuid, addDashboardVersion, user),
+            model.addVersion(
+                expectedDashboard.uuid,
+                addDashboardVersion,
+                user,
+                projectUuid,
+            ),
         ).rejects.toThrowError(NotFoundError);
     });
 });
