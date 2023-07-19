@@ -1,4 +1,5 @@
 import {
+    ActionIcon,
     Button,
     Flex,
     Group,
@@ -10,7 +11,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconChartAreaLine } from '@tabler/icons-react';
+import { IconChartAreaLine, IconEye, IconEyeOff } from '@tabler/icons-react';
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
@@ -19,27 +20,38 @@ import MantineIcon from '../../common/MantineIcon';
 interface ChartUpdateModalProps extends ModalProps {
     chartTitle: string;
     onClose: () => void;
-    onConfirm?: (newTitle: string, newChartUuid: string) => void;
+    onConfirm?: (
+        newTitle: string,
+        newChartUuid: string,
+        shouldShowTitle: boolean,
+    ) => void;
+    shouldShowTitle: boolean;
 }
 
 const ChartUpdateModal = ({
     chartTitle,
     onClose,
     onConfirm,
+    shouldShowTitle,
     ...modalProps
 }: ChartUpdateModalProps) => {
     const form = useForm({
         initialValues: {
             uuid: '',
             title: '',
+            shouldShowTitle,
         },
     });
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: savedCharts, isLoading } = useChartSummaries(projectUuid);
 
     const handleConfirm = form.onSubmit(
-        ({ title: newTitle, uuid: newChartUuid }) => {
-            onConfirm?.(newTitle, newChartUuid);
+        ({
+            title: newTitle,
+            uuid: newChartUuid,
+            shouldShowTitle: showTitle,
+        }) => {
+            onConfirm?.(newTitle, newChartUuid, showTitle);
         },
     );
 
@@ -67,15 +79,41 @@ const ChartUpdateModal = ({
         >
             <form onSubmit={handleConfirm} name="Edit tile content">
                 <Stack spacing="md">
-                    <TextInput
-                        label="Title"
-                        placeholder={
-                            form.getInputProps('title').value.length > 0
-                                ? form.getInputProps('title').value
-                                : chartTitle
-                        }
-                        {...form.getInputProps('title')}
-                    />
+                    <Flex align="flex-end" gap="sm">
+                        <TextInput
+                            label="Title"
+                            placeholder={
+                                form.getInputProps('title').value.length > 0
+                                    ? form.getInputProps('title').value
+                                    : chartTitle
+                            }
+                            {...form.getInputProps('title')}
+                            style={{ flex: 1 }}
+                        />
+                        <ActionIcon
+                            variant="outline"
+                            color="gray.4"
+                            h={36}
+                            size="lg"
+                            radius="md"
+                            onClick={() =>
+                                form.setFieldValue(
+                                    'shouldShowTitle',
+                                    !form.values.shouldShowTitle,
+                                )
+                            }
+                        >
+                            <MantineIcon
+                                icon={
+                                    form.values.shouldShowTitle
+                                        ? IconEyeOff
+                                        : IconEye
+                                }
+                                size={25}
+                                color="dark.2"
+                            />
+                        </ActionIcon>
+                    </Flex>
                     <Select
                         styles={(theme) => ({
                             separator: {

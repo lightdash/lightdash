@@ -73,6 +73,15 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const belongsToDashboard: boolean =
         isChartTile(tile) && !!tile.properties.belongsToDashboard;
 
+    const toggleHideTitle = () =>
+        onEdit({
+            ...tile,
+            properties: {
+                ...tile.properties,
+                hideTitle: !hideTitle,
+            },
+        });
+
     return (
         <TileBaseWrapper
             className={isLoading ? Classes.SKELETON : undefined}
@@ -151,16 +160,8 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                                         ? 'Show'
                                                                         : 'Hide'
                                                                 } title`}
-                                                                onClick={() =>
-                                                                    onEdit({
-                                                                        ...tile,
-                                                                        properties:
-                                                                            {
-                                                                                ...tile.properties,
-                                                                                hideTitle:
-                                                                                    !hideTitle,
-                                                                            },
-                                                                    })
+                                                                onClick={
+                                                                    toggleHideTitle
                                                                 }
                                                             />
                                                         )}
@@ -214,7 +215,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             opened={isEditingChartTile}
                             chartTitle={chartName ?? ''}
                             onClose={() => setIsEditingChartTile(false)}
-                            onConfirm={(newTitle, newUuid) => {
+                            onConfirm={(newTitle, newUuid, shouldShowTitle) => {
                                 onEdit({
                                     ...tile,
                                     properties: {
@@ -235,10 +236,12 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                 ? newUuid
                                                 : tile.properties
                                                       .savedChartUuid,
+                                        hideTitle: shouldShowTitle,
                                     },
                                 });
                                 setIsEditingChartTile(false);
                             }}
+                            shouldShowTitle={!!hideTitle}
                         />
                     ) : (
                         <TileUpdateModal
