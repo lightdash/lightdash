@@ -123,7 +123,7 @@ const UserAttributeModal: FC<{
                         {...form.getInputProps('description')}
                     />
                     <Stack>
-                        <Text fw={500}>Assing to users</Text>
+                        <Text fw={500}>Assign to users</Text>
 
                         {form.values.users?.map((user, index) => {
                             return (
