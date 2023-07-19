@@ -1,0 +1,29 @@
+### Login
+POST http://localhost:8080/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+### Get user attributes
+GET http://localhost:8080/api/v1/org/attributes
+
+
+### Create user attributes
+POST http://localhost:8080/api/v1/org/attributes
+Content-Type: application/json
+
+{
+    "name":"country",
+    "description":"description",
+    "users":[{
+        "userUuid":"b264d83a-9000-426a-85ec-3f9c20f368ce",
+        "value":"US"
+    }]
+}
+
+### Delete user attributes
+DELETE http://localhost:8080/api/v1/org/attributes/a574dc49-3d64-4a5d-9786-f6599d9723a7
+

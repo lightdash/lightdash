@@ -1,5 +1,5 @@
-import { Checkbox, FormGroup } from '@blueprintjs/core';
-import { Box, Title, Tooltip } from '@mantine/core';
+import { FormGroup } from '@blueprintjs/core';
+import { Box, Checkbox, Stack, Title, Tooltip } from '@mantine/core';
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -174,7 +174,7 @@ const GeneralSettings: FC = () => {
                 }
                 position="top"
             >
-                <Box>
+                <Box my="sm">
                     <Checkbox
                         disabled={!canUsePivotTable}
                         label="Show metrics as rows"
@@ -199,7 +199,7 @@ const GeneralSettings: FC = () => {
                 ))}
             </FormGroup>
             <Title order={6}>Options</Title>
-            <FormGroup>
+            <Stack mt="sm" spacing="xs">
                 <Checkbox
                     label="Show table names"
                     checked={showTableNames}
@@ -238,7 +238,7 @@ const GeneralSettings: FC = () => {
                         setShowResultsTotal(!showResultsTotal);
                     }}
                 />
-            </FormGroup>
+            </Stack>
         </>
     );
 };

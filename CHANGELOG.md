@@ -1,3 +1,31 @@
+## [0.679.1](https://github.com/lightdash/lightdash/compare/0.679.0...0.679.1) (2023-07-19)
+
+
+### Bug Fixes
+
+* address ux after only chart with filter applied to is removed from dashboard ([#6411](https://github.com/lightdash/lightdash/issues/6411)) ([415f502](https://github.com/lightdash/lightdash/commit/415f502a95664d6300e69eea15e772fa08510c38))
+
+# [0.679.0](https://github.com/lightdash/lightdash/compare/0.678.0...0.679.0) (2023-07-19)
+
+
+### Features
+
+* migrate Space page - Add item menu component from Blueprint to Mantine ([#6408](https://github.com/lightdash/lightdash/issues/6408)) ([5fe5f43](https://github.com/lightdash/lightdash/commit/5fe5f435c78734318ccfe282a3c3ca3deeb97143))
+
+# [0.678.0](https://github.com/lightdash/lightdash/compare/0.677.0...0.678.0) (2023-07-19)
+
+
+### Features
+
+* add user attributes ([#6305](https://github.com/lightdash/lightdash/issues/6305)) ([223410c](https://github.com/lightdash/lightdash/commit/223410cc2a65cce3afa04f20419fde4e63364994)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
+# [0.677.0](https://github.com/lightdash/lightdash/compare/0.676.0...0.677.0) (2023-07-19)
+
+
+### Features
+
+* allow filtering by group_label ([#6380](https://github.com/lightdash/lightdash/issues/6380)) ([8161194](https://github.com/lightdash/lightdash/commit/81611947b1b679ad3572f0edd3104cbd253fbbc5))
+
 # [0.676.0](https://github.com/lightdash/lightdash/compare/0.675.2...0.676.0) (2023-07-19)
 
 

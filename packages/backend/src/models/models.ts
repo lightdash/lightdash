@@ -26,6 +26,7 @@ import { ShareModel } from './ShareModel';
 import { SlackAuthenticationModel } from './SlackAuthenticationModel';
 import { SpaceModel } from './SpaceModel';
 import { SshKeyPairModel } from './SshKeyPairModel';
+import { UserAttributesModel } from './UserAttributesModel';
 import { UserModel } from './UserModel';
 import { ValidationModel } from './ValidationModel/ValidationModel';
 
@@ -94,3 +95,5 @@ export const sshKeyPairModel = new SshKeyPairModel({
     database,
     encryptionService,
 });
+
+export const userAttributesModel = new UserAttributesModel({ database });
