@@ -402,7 +402,7 @@ export const convertTable = (
                 ? (meta.order_fields_by.toUpperCase() as OrderFieldsByStrategy)
                 : OrderFieldsByStrategy.LABEL,
         groupLabel: meta.group_label,
-        sqlWhere: meta.sql_where,
+        sqlWhere: meta.sql_filter || meta.sql_where,
     };
 };
 

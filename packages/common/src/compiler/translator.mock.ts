@@ -267,6 +267,15 @@ export const MODEL_WITH_SQL_WHERE: DbtModelNode & {
         sql_where: '${payment_method} IS NOT NULL',
     },
 };
+
+export const MODEL_WITH_SQL_FILTER: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    meta: {
+        sql_filter: '${payment_method} IS NOT NULL',
+    },
+};
 export const MODEL_WITH_NO_METRICS: DbtModelNode & { relation_name: string } = {
     ...model,
     columns: {

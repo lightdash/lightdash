@@ -190,6 +190,9 @@
                 },
                 "sql_where": {
                     "type": "string"
+                },
+                "sql_filter": {
+                    "type": "string"
                 }
             },
             "default": {}

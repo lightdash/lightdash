@@ -28,6 +28,7 @@ import {
     MODEL_WITH_NO_METRICS,
     MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS,
+    MODEL_WITH_SQL_FILTER,
     MODEL_WITH_SQL_WHERE,
     MODEL_WITH_WRONG_METRIC,
     MODEL_WITH_WRONG_METRICS,
@@ -258,6 +259,16 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_SQL_WHERE,
+                [],
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_SQL_WHERE);
+    });
+
+    it('should convert dbt model with sql filter', async () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_SQL_FILTER,
                 [],
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_SQL_WHERE);

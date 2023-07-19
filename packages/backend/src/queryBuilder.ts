@@ -245,21 +245,13 @@ export const buildQuery = ({
         return undefined;
     };
 
-    const tablesSqlWhere = [...joinedTables].reduce<string[]>(
-        (acc, tableName) => {
-            const table = explore.tables[tableName];
-
-            if (table.sqlWhere) {
-                return [...acc, table.sqlWhere];
-            }
-            return acc;
-        },
-        [],
-    );
+    const tableSqlWhere = explore.tables[explore.baseTable].sqlWhere
+        ? [explore.tables[explore.baseTable].sqlWhere]
+        : [];
 
     const nestedFilterSql = getNestedFilterSQLFromGroup(filters.dimensions);
     const nestedFilterWhere = nestedFilterSql ? [nestedFilterSql] : [];
-    const allSqlFilters = [...tablesSqlWhere, ...nestedFilterWhere];
+    const allSqlFilters = [...tableSqlWhere, ...nestedFilterWhere];
     const sqlWhere =
         allSqlFilters.length > 0 ? `WHERE ${allSqlFilters.join(' AND ')}` : '';
 
