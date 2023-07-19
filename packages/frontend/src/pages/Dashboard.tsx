@@ -5,7 +5,6 @@ import {
     DashboardTile,
     DashboardTileTypes,
 } from '@lightdash/common';
-import { useProfiler } from '@sentry/react';
 import React, {
     FC,
     memo,
@@ -79,8 +78,6 @@ const GridTile: FC<
     >
 > = memo((props) => {
     const { tile } = props;
-
-    useProfiler(`Dashboard-${tile.type}`);
 
     const savedChartUuid: string | undefined =
         tile.type === DashboardTileTypes.SAVED_CHART
@@ -486,7 +483,6 @@ const Dashboard: FC = () => {
 };
 
 const DashboardPage: FC = () => {
-    useProfiler('Dashboard');
     return (
         <DashboardProvider>
             <Dashboard />

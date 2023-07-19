@@ -1,10 +1,9 @@
+import { Menu, MenuDivider, PopoverPosition } from '@blueprintjs/core';
+import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
-import { ActionIcon, Box, Menu } from '@mantine/core';
-import { IconEdit, IconPin, IconPinned, IconTrash } from '@tabler/icons-react';
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
-import MantineIcon from '../../common/MantineIcon';
 
 interface Props {
     isPinned: boolean;
@@ -25,63 +24,44 @@ export const SpaceBrowserMenu: React.FC<Props> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     return (
-        <Menu
-            withinPortal
-            position="bottom-end"
-            withArrow
-            arrowPosition="center"
-            shadow="md"
-            closeOnItemClick
-            closeOnClickOutside
+        <Popover2
+            captureDismiss
+            position={PopoverPosition.BOTTOM_RIGHT}
+            content={
+                <Menu>
+                    <MenuItem2 icon="edit" text="Rename" onClick={onRename} />
+
+                    {user.data?.ability.can(
+                        'manage',
+                        subject('PinnedItems', {
+                            organizationUuid,
+                            projectUuid,
+                        }),
+                    ) ? (
+                        <MenuItem2
+                            role="menuitem"
+                            icon="pin"
+                            text={
+                                isPinned
+                                    ? 'Unpin from homepage'
+                                    : 'Pin to homepage'
+                            }
+                            onClick={onTogglePin}
+                        />
+                    ) : null}
+
+                    <MenuDivider />
+
+                    <MenuItem2
+                        icon="cross"
+                        intent="danger"
+                        text="Remove space"
+                        onClick={onDelete}
+                    />
+                </Menu>
+            }
         >
-            <Menu.Target>
-                <Box>
-                    <ActionIcon>{children}</ActionIcon>
-                </Box>
-            </Menu.Target>
-            <Menu.Dropdown>
-                <Menu.Item
-                    component="button"
-                    role="menuitem"
-                    icon={<MantineIcon icon={IconEdit} />}
-                    onClick={onRename}
-                >
-                    Rename
-                </Menu.Item>
-
-                {user.data?.ability.can(
-                    'manage',
-                    subject('PinnedItems', {
-                        organizationUuid,
-                        projectUuid,
-                    }),
-                ) && (
-                    <Menu.Item
-                        component="button"
-                        role="menuitem"
-                        icon={
-                            isPinned ? (
-                                <MantineIcon icon={IconPinned} />
-                            ) : (
-                                <MantineIcon icon={IconPin} />
-                            )
-                        }
-                        onClick={onTogglePin}
-                    >
-                        {isPinned ? 'Unpin from homepage' : 'Pin to homepage'}
-                    </Menu.Item>
-                )}
-
-                <Menu.Item
-                    component="button"
-                    role="menuitem"
-                    color="red"
-                    icon={<MantineIcon icon={IconTrash} />}
-                    onClick={onDelete}
-                >
-                    Delete space
-                </Menu.Item>
-            </Menu.Dropdown>
-        </Menu>
+            {children}
+        </Popover2>
     );
 };

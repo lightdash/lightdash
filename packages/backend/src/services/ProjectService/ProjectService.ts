@@ -1119,6 +1119,7 @@ export class ProjectService {
                         queryTags,
                     );
                     await sshTunnel.disconnect();
+                    span.end();
                     return rows;
                 } catch (e) {
                     span.setStatus({

@@ -219,8 +219,8 @@ export class SchedulerService {
         // Only allow editors to view scheduler logs
         if (
             user.ability.cannot(
-                'update',
-                subject('Project', {
+                'manage',
+                subject('Dashboard', {
                     organizationUuid: user.organizationUuid,
                     projectUuid,
                 }),

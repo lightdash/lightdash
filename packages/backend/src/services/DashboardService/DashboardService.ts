@@ -64,6 +64,44 @@ export class DashboardService {
         this.schedulerModel = schedulerModel;
     }
 
+    private async checkUpdateAccess(
+        user: SessionUser,
+        dashboardUuid: string,
+    ): Promise<Dashboard> {
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const { organizationUuid, projectUuid } = dashboard;
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Dashboard', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
+            throw new ForbiddenError();
+        }
+
+        return dashboard;
+    }
+
+    async hasDashboardSpaceAccess(
+        user: SessionUser,
+        spaceUuid: string,
+    ): Promise<boolean> {
+        let space: SpaceSummary;
+
+        try {
+            space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        } catch (e) {
+            Sentry.captureException(e);
+            console.error(e);
+            return false;
+        }
+
+        return hasSpaceAccess(user, space);
+    }
+
     static getCreateEventProperties(
         dashboard: Dashboard,
     ): CreateDashboardOrVersionEvent['properties'] {
@@ -85,23 +123,6 @@ export class DashboardService {
                 ({ type }) => type === DashboardTileTypes.LOOM,
             ).length,
         };
-    }
-
-    async hasDashboardSpaceAccess(
-        user: SessionUser,
-        spaceUuid: string,
-    ): Promise<boolean> {
-        let space: SpaceSummary;
-
-        try {
-            space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        } catch (e) {
-            Sentry.captureException(e);
-            console.error(e);
-            return false;
-        }
-
-        return hasSpaceAccess(user, space);
     }
 
     async getAllByProject(
@@ -209,7 +230,6 @@ export class DashboardService {
             space.uuid,
             dashboard,
             user,
-            projectUuid,
         );
         analytics.track({
             event: 'dashboard.created',
@@ -244,7 +264,6 @@ export class DashboardService {
             dashboard.spaceUuid,
             duplicatedDashboard,
             user,
-            projectUuid,
         );
 
         const dashboardProperties =
@@ -336,7 +355,6 @@ export class DashboardService {
                     filters: dashboard.filters,
                 },
                 user,
-                existingDashboard.projectUuid,
             );
             analytics.track({
                 event: 'dashboard_version.created',
@@ -539,26 +557,5 @@ export class DashboardService {
         );
         await schedulerClient.generateDailyJobsForScheduler(scheduler);
         return scheduler;
-    }
-
-    private async checkUpdateAccess(
-        user: SessionUser,
-        dashboardUuid: string,
-    ): Promise<Dashboard> {
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
-        const { organizationUuid, projectUuid } = dashboard;
-        if (
-            user.ability.cannot(
-                'update',
-                subject('Dashboard', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
-            throw new ForbiddenError();
-        }
-
-        return dashboard;
     }
 }

@@ -24,14 +24,11 @@
 // -- This will overwrite an existing command --
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 import {
-    ApiChartSummaryListResponse,
-    DashboardBasicDetails,
     OrganizationProject,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
     SEED_ORG_2_ADMIN_EMAIL,
     SEED_ORG_2_ADMIN_PASSWORD,
-    SEED_PROJECT,
 } from '@lightdash/common';
 import '@testing-library/cypress/add-commands';
 import 'cypress-file-upload';
@@ -40,35 +37,20 @@ declare global {
     namespace Cypress {
         interface Chainable {
             login(): Chainable<Element>;
-
             anotherLogin(): Chainable<Element>;
-
             logout(): Chainable<Element>;
-
             registerNewUser(): Chainable<Element>;
-
             invite(email, role): Chainable<string>;
-
             registerWithCode(email, inviteCode): Chainable<Element>;
-
             verifyEmail(): Chainable<Element>;
-
             addProjectPermission(email, role, projectUuid): Chainable<Element>;
-
             loginWithPermissions(
                 orgRole,
                 projectPermissions,
             ): Chainable<Element>;
-
             loginWithEmail: (email) => Chainable<Element>;
-
             getApiToken(): Chainable<string>;
-
             deleteProjectsByName(names: string[]): Chainable;
-
-            deleteDashboardsByName(names: string[]): Chainable;
-
-            deleteChartsByName(names: string[]): Chainable;
         }
     }
 }
@@ -287,44 +269,5 @@ Cypress.Commands.add('deleteProjectsByName', (names: string[]) => {
                 }
             },
         );
-    });
-});
-Cypress.Commands.add('deleteDashboardsByName', (names: string[]) => {
-    cy.request<{
-        results: DashboardBasicDetails[];
-    }>(`api/v1/projects/${SEED_PROJECT.project_uuid}/dashboards`).then(
-        (resp) => {
-            expect(resp.status).to.eq(200);
-            resp.body.results.forEach(({ uuid, name }) => {
-                if (names.includes(name)) {
-                    cy.request({
-                        url: `api/v1/dashboards/${uuid}`,
-                        headers: { 'Content-type': 'application/json' },
-                        method: 'DELETE',
-                    }).then((deleteResp) => {
-                        expect(deleteResp.status).to.eq(200);
-                    });
-                }
-            });
-        },
-    );
-});
-Cypress.Commands.add('deleteChartsByName', (names: string[]) => {
-    cy.request<ApiChartSummaryListResponse>({
-        url: `api/v1/projects/${SEED_PROJECT.project_uuid}/charts`,
-        headers: { 'Content-type': 'application/json' },
-    }).then((resp) => {
-        expect(resp.status).to.eq(200);
-        resp.body.results.forEach(({ uuid, name }) => {
-            if (names.includes(name)) {
-                cy.request({
-                    url: `api/v1/saved/${uuid}`,
-                    headers: { 'Content-type': 'application/json' },
-                    method: 'DELETE',
-                }).then((deleteResp) => {
-                    expect(deleteResp.status).to.eq(200);
-                });
-            }
-        });
     });
 });

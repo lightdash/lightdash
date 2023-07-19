@@ -21,14 +21,14 @@ const SettingsMenu: FC = () => {
     if (!user || !activeProjectUuid) return null;
 
     const userCanViewOrganization = user.ability.can(
-        'update',
+        'view',
         subject('Organization', {
             organizationUuid: user.organizationUuid,
         }),
     );
 
     const userCanCreateProject = user.ability.can(
-        'update',
+        'create',
         subject('Project', {
             organizationUuid: user.organizationUuid,
         }),
