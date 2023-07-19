@@ -67,7 +67,6 @@ export const SearchIconWithIndicator: FC<{
                 multiline: true,
                 offset: -2,
                 position: 'bottom',
-                zIndex: 201,
             }}
             tooltipLabel={
                 canUserManageValidation ? (

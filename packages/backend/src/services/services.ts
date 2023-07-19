@@ -25,6 +25,7 @@ import {
     shareModel,
     spaceModel,
     sshKeyPairModel,
+    userAttributesModel,
     userModel,
     validationModel,
 } from '../models/models';
@@ -45,6 +46,7 @@ import { ShareService } from './ShareService/ShareService';
 import { SpaceService } from './SpaceService/SpaceService';
 import { SshKeyPairService } from './SshKeyPairService';
 import { UnfurlService } from './UnfurlService/UnfurlService';
+import { UserAttributesService } from './UserAttributesService/UserAttributesService';
 import { UserService } from './UserService';
 import { ValidationService } from './ValidationService/ValidationService';
 
@@ -186,4 +188,8 @@ export const groupService = new GroupsService({
 
 export const sshKeyPairService = new SshKeyPairService({
     sshKeyPairModel,
+});
+
+export const userAttributesService = new UserAttributesService({
+    userAttributesModel,
 });

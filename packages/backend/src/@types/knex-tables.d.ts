@@ -148,6 +148,12 @@ import {
     SshKeyPairTableName,
 } from '../database/entities/ssh_key_pairs';
 import {
+    DbOrganizationMemberUserAttribute,
+    DbUserAttribute,
+    OrganizationMemberUserAttributesTable,
+    UserAttributesTable,
+} from '../database/entities/userAttributes';
+import {
     DbValidationTable,
     ValidationTableName,
 } from '../database/entities/validation';
@@ -208,5 +214,7 @@ declare module 'knex/types/tables' {
         [GroupTableName]: GroupTable;
         [GroupMembershipTableName]: GroupMembershipTable;
         [SshKeyPairTableName]: SshKeyPairTable;
+        [UserAttributesTable]: DbUserAttribute;
+        [OrganizationMemberUserAttributesTable]: DbOrganizationMemberUserAttribute;
     }
 }

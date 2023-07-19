@@ -251,8 +251,6 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
 
             <MantineProvider inherit theme={{ colorScheme: 'light' }}>
                 <SpotlightProvider
-                    // FIXME: remove setting of zIndex after Mantine migration is complete
-                    zIndex={200}
                     actions={
                         query && query.length >= GLOBAL_SEARCH_MIN_QUERY_LENGTH
                             ? searchItems

@@ -17,7 +17,7 @@ export const getSearchResults = (
     const results = new Set<string>();
     if (searchQuery && searchQuery !== '') {
         new Fuse(Object.entries(itemsMap), {
-            keys: ['1.label'],
+            keys: ['1.label', '1.groupLabel'],
             ignoreLocation: true,
             threshold: 0.3,
         })

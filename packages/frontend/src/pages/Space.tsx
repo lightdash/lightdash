@@ -1,29 +1,23 @@
-import {
-    Intent,
-    Menu,
-    NonIdealState,
-    PopoverPosition,
-} from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { Intent, NonIdealState } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import {
     LightdashMode,
     ResourceViewItemType,
     wrapResourceView,
 } from '@lightdash/common';
-import { ActionIcon, Group, Stack } from '@mantine/core';
+import { ActionIcon, Box, Group, Menu, Stack } from '@mantine/core';
 import {
-    IconChartAreaLine,
     IconDots,
     IconLayoutDashboard,
     IconPlus,
+    IconSquarePlus,
 } from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
-
 import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
+import MantineIcon from '../components/common/MantineIcon';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
@@ -33,7 +27,6 @@ import ShareSpaceModal from '../components/common/ShareSpaceModal';
 import SpaceActionModal, {
     ActionType,
 } from '../components/common/SpaceActionModal';
-import AddResourceToSpaceMenu from '../components/Explorer/SpaceBrowser/AddResourceToSpaceMenu';
 import AddResourceToSpaceModal, {
     AddToSpaceResources,
 } from '../components/Explorer/SpaceBrowser/AddResourceToSpaceModal';
@@ -149,80 +142,119 @@ const Space: FC = () => {
                             {!isDemo &&
                                 (userCanManageDashboards ||
                                     userCanManageCharts) && (
-                                    <Popover2
-                                        captureDismiss
-                                        position={PopoverPosition.BOTTOM_RIGHT}
-                                        content={
-                                            <Menu>
-                                                {userCanManageDashboards && (
-                                                    <MenuItem2
-                                                        icon={
-                                                            <IconLayoutDashboard
-                                                                size={20}
-                                                            />
-                                                        }
-                                                        text={`Add dashboard`}
-                                                    >
-                                                        <AddResourceToSpaceMenu
-                                                            resourceType={
-                                                                AddToSpaceResources.DASHBOARD
+                                    <Menu
+                                        position="bottom-end"
+                                        shadow="md"
+                                        closeOnItemClick
+                                        withArrow
+                                        arrowPosition="center"
+                                    >
+                                        <Menu.Target>
+                                            <Box>
+                                                <ActionIcon
+                                                    size={36}
+                                                    color="blue"
+                                                    variant="filled"
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconPlus}
+                                                        size="lg"
+                                                    />
+                                                </ActionIcon>
+                                            </Box>
+                                        </Menu.Target>
+
+                                        <Menu.Dropdown>
+                                            {userCanManageDashboards ? (
+                                                <>
+                                                    <Menu.Label>
+                                                        Add dashboard
+                                                    </Menu.Label>
+
+                                                    {dashboards.length > 0 ? (
+                                                        <Menu.Item
+                                                            icon={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconSquarePlus
+                                                                    }
+                                                                />
                                                             }
-                                                            onAdd={() =>
+                                                            onClick={() => {
                                                                 setAddToSpace(
                                                                     AddToSpaceResources.DASHBOARD,
-                                                                )
-                                                            }
-                                                            onCreate={() =>
-                                                                setIsCreateDashboardOpen(
-                                                                    true,
-                                                                )
-                                                            }
-                                                            hasSavedResources={
-                                                                !!dashboards.length
-                                                            }
-                                                        />
-                                                    </MenuItem2>
-                                                )}
-                                                {userCanManageCharts && (
-                                                    <MenuItem2
+                                                                );
+                                                            }}
+                                                        >
+                                                            Add existing
+                                                            dashboard
+                                                        </Menu.Item>
+                                                    ) : null}
+                                                    <Menu.Item
                                                         icon={
-                                                            <IconChartAreaLine
-                                                                size={20}
+                                                            <MantineIcon
+                                                                icon={IconPlus}
                                                             />
                                                         }
-                                                        text={`Add chart`}
+                                                        onClick={() => {
+                                                            setIsCreateDashboardOpen(
+                                                                true,
+                                                            );
+                                                        }}
                                                     >
-                                                        <AddResourceToSpaceMenu
-                                                            resourceType={
-                                                                AddToSpaceResources.CHART
+                                                        Create new dashboard
+                                                    </Menu.Item>
+                                                </>
+                                            ) : null}
+
+                                            {userCanManageDashboards &&
+                                                userCanManageCharts && (
+                                                    <Menu.Divider />
+                                                )}
+
+                                            {userCanManageCharts ? (
+                                                <>
+                                                    <Menu.Label>
+                                                        Add chart
+                                                    </Menu.Label>
+
+                                                    {savedCharts.length > 0 ? (
+                                                        <Menu.Item
+                                                            icon={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconSquarePlus
+                                                                    }
+                                                                />
                                                             }
-                                                            onAdd={() =>
+                                                            onClick={() => {
                                                                 setAddToSpace(
                                                                     AddToSpaceResources.CHART,
-                                                                )
-                                                            }
-                                                            onCreate={() =>
-                                                                setCreateToSpace(
-                                                                    AddToSpaceResources.CHART,
-                                                                )
-                                                            }
-                                                            hasSavedResources={
-                                                                !!savedCharts.length
-                                                            }
-                                                        />
-                                                    </MenuItem2>
-                                                )}
-                                            </Menu>
-                                        }
-                                    >
-                                        <ActionIcon
-                                            size={36}
-                                            color="blue"
-                                            variant="filled"
-                                        >
-                                            <IconPlus size={20} />
-                                        </ActionIcon>
-                                    </Popover2>
+                                                                );
+                                                            }}
+                                                        >
+                                                            Add existing chart
+                                                        </Menu.Item>
+                                                    ) : null}
+
+                                                    <Menu.Item
+                                                        icon={
+                                                            <MantineIcon
+                                                                icon={IconPlus}
+                                                            />
+                                                        }
+                                                        onClick={() => {
+                                                            setCreateToSpace(
+                                                                AddToSpaceResources.CHART,
+                                                            );
+                                                        }}
+                                                    >
+                                                        Create new chart
+                                                    </Menu.Item>
+                                                </>
+                                            ) : null}
+                                        </Menu.Dropdown>
+                                    </Menu>
                                 )}
                             <ShareSpaceModal
                                 space={space!}
@@ -237,7 +269,7 @@ const Space: FC = () => {
                                 isPinned={!!space?.pinnedListUuid}
                             >
                                 <ActionIcon variant="default" size={36}>
-                                    <IconDots size={20} />
+                                    <MantineIcon icon={IconDots} size="lg" />
                                 </ActionIcon>
                             </SpaceBrowserMenu>
                             {updateSpace && (
