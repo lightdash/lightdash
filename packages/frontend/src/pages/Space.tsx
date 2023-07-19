@@ -158,6 +158,7 @@ const Space: FC = () => {
                                                 >
                                                     <MantineIcon
                                                         icon={IconPlus}
+                                                        size="lg"
                                                     />
                                                 </ActionIcon>
                                             </Box>
@@ -268,7 +269,7 @@ const Space: FC = () => {
                                 isPinned={!!space?.pinnedListUuid}
                             >
                                 <ActionIcon variant="default" size={36}>
-                                    <IconDots size={20} />
+                                    <MantineIcon icon={IconDots} size="lg" />
                                 </ActionIcon>
                             </SpaceBrowserMenu>
                             {updateSpace && (
