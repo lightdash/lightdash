@@ -1,3 +1,10 @@
+## [0.675.2](https://github.com/lightdash/lightdash/compare/0.675.1...0.675.2) (2023-07-19)
+
+
+### Bug Fixes
+
+* reference chart_count in all_spaces query ([#6368](https://github.com/lightdash/lightdash/issues/6368)) ([d54b260](https://github.com/lightdash/lightdash/commit/d54b260de9baa5a0669f844fb4e78c7e56505133))
+
 ## [0.675.1](https://github.com/lightdash/lightdash/compare/0.675.0...0.675.1) (2023-07-19)
 
 
