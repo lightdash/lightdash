@@ -7,11 +7,10 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Menu, Stack } from '@mantine/core';
 import {
-    IconChartAreaLine,
-    IconChevronRight,
     IconDots,
     IconLayoutDashboard,
     IconPlus,
+    IconSquarePlus,
 } from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
@@ -28,7 +27,6 @@ import ShareSpaceModal from '../components/common/ShareSpaceModal';
 import SpaceActionModal, {
     ActionType,
 } from '../components/common/SpaceActionModal';
-import AddResourceToSpaceMenu from '../components/Explorer/SpaceBrowser/AddResourceToSpaceMenu';
 import AddResourceToSpaceModal, {
     AddToSpaceResources,
 } from '../components/Explorer/SpaceBrowser/AddResourceToSpaceModal';
@@ -144,7 +142,13 @@ const Space: FC = () => {
                             {!isDemo &&
                                 (userCanManageDashboards ||
                                     userCanManageCharts) && (
-                                    <Menu position="bottom-end">
+                                    <Menu
+                                        position="bottom-end"
+                                        shadow="md"
+                                        closeOnItemClick
+                                        withArrow
+                                        arrowPosition="center"
+                                    >
                                         <Menu.Target>
                                             <Box>
                                                 <ActionIcon
@@ -160,121 +164,94 @@ const Space: FC = () => {
                                         </Menu.Target>
 
                                         <Menu.Dropdown>
-                                            {userCanManageDashboards && (
-                                                <Menu
-                                                    withinPortal
-                                                    trigger="hover"
-                                                    offset={0}
-                                                    position="right-start"
-                                                    shadow="md"
-                                                    closeOnItemClick
-                                                >
-                                                    <Menu.Target>
+                                            {userCanManageDashboards ? (
+                                                <>
+                                                    <Menu.Label>
+                                                        Add dashboard
+                                                    </Menu.Label>
+
+                                                    {dashboards.length > 0 ? (
                                                         <Menu.Item
                                                             icon={
                                                                 <MantineIcon
                                                                     icon={
-                                                                        IconLayoutDashboard
+                                                                        IconSquarePlus
                                                                     }
                                                                 />
                                                             }
-                                                            rightSection={
-                                                                <Box
-                                                                    w={18}
-                                                                    h={18}
-                                                                    ml="lg"
-                                                                >
-                                                                    <MantineIcon
-                                                                        icon={
-                                                                            IconChevronRight
-                                                                        }
-                                                                    />
-                                                                </Box>
-                                                            }
-                                                        >
-                                                            Add dashboard
-                                                        </Menu.Item>
-                                                    </Menu.Target>
-                                                    <Menu.Dropdown>
-                                                        <AddResourceToSpaceMenu
-                                                            resourceType={
-                                                                AddToSpaceResources.DASHBOARD
-                                                            }
-                                                            onAdd={() =>
+                                                            onClick={() => {
                                                                 setAddToSpace(
                                                                     AddToSpaceResources.DASHBOARD,
-                                                                )
-                                                            }
-                                                            onCreate={() =>
-                                                                setIsCreateDashboardOpen(
-                                                                    true,
-                                                                )
-                                                            }
-                                                            hasSavedResources={
-                                                                !!dashboards.length
-                                                            }
-                                                        />
-                                                    </Menu.Dropdown>
-                                                </Menu>
-                                            )}
+                                                                );
+                                                            }}
+                                                        >
+                                                            Add existing
+                                                            dashboard
+                                                        </Menu.Item>
+                                                    ) : null}
+                                                    <Menu.Item
+                                                        icon={
+                                                            <MantineIcon
+                                                                icon={IconPlus}
+                                                            />
+                                                        }
+                                                        onClick={() => {
+                                                            setIsCreateDashboardOpen(
+                                                                true,
+                                                            );
+                                                        }}
+                                                    >
+                                                        Create new dashboard
+                                                    </Menu.Item>
+                                                </>
+                                            ) : null}
 
-                                            {userCanManageCharts && (
-                                                <Menu
-                                                    withinPortal
-                                                    trigger="hover"
-                                                    offset={0}
-                                                    position="right-start"
-                                                    shadow="md"
-                                                    closeOnItemClick
-                                                >
-                                                    <Menu.Target>
+                                            {userCanManageDashboards &&
+                                                userCanManageCharts && (
+                                                    <Menu.Divider />
+                                                )}
+
+                                            {userCanManageCharts ? (
+                                                <>
+                                                    <Menu.Label>
+                                                        Add chart
+                                                    </Menu.Label>
+
+                                                    {savedCharts.length > 0 ? (
                                                         <Menu.Item
                                                             icon={
                                                                 <MantineIcon
                                                                     icon={
-                                                                        IconChartAreaLine
+                                                                        IconSquarePlus
                                                                     }
                                                                 />
                                                             }
-                                                            rightSection={
-                                                                <Box
-                                                                    w={18}
-                                                                    h={18}
-                                                                    ml="lg"
-                                                                >
-                                                                    <MantineIcon
-                                                                        icon={
-                                                                            IconChevronRight
-                                                                        }
-                                                                    />
-                                                                </Box>
-                                                            }
-                                                        >
-                                                            Add chart
-                                                        </Menu.Item>
-                                                    </Menu.Target>
-                                                    <Menu.Dropdown>
-                                                        <AddResourceToSpaceMenu
-                                                            resourceType={
-                                                                AddToSpaceResources.CHART
-                                                            }
-                                                            onAdd={() =>
+                                                            onClick={() => {
                                                                 setAddToSpace(
                                                                     AddToSpaceResources.CHART,
-                                                                )
-                                                            }
-                                                            onCreate={() =>
-                                                                setCreateToSpace(
-                                                                    AddToSpaceResources.CHART,
-                                                                )
-                                                            }
-                                                            hasSavedResources={
-                                                                !!savedCharts.length
-                                                            }
-                                                        />
-                                                    </Menu.Dropdown>
-                                                </Menu>
-                                            )}
+                                                                );
+                                                            }}
+                                                        >
+                                                            Add existing chart
+                                                        </Menu.Item>
+                                                    ) : null}
+
+                                                    <Menu.Item
+                                                        icon={
+                                                            <MantineIcon
+                                                                icon={IconPlus}
+                                                            />
+                                                        }
+                                                        onClick={() => {
+                                                            setCreateToSpace(
+                                                                AddToSpaceResources.CHART,
+                                                            );
+                                                        }}
+                                                    >
+                                                        Create new chart
+                                                    </Menu.Item>
+                                                </>
+                                            ) : null}
                                         </Menu.Dropdown>
                                     </Menu>
                                 )}
