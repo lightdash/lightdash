@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import { UserAttribute } from '@lightdash/common';
 import {
-    ActionIcon,
     Button,
     Group,
     Modal,
@@ -66,14 +65,15 @@ const UserListItem: FC<{
                 </Stack>
             </td>
             <td width="1%">
-                <Group noWrap>
-                    <ActionIcon onClick={onEdit}>
-                        <MantineIcon
-                            size="xlg"
-                            icon={IconEdit}
-                            color="gray.7"
-                        />
-                    </ActionIcon>
+                <Group noWrap spacing="xs">
+                    <Button
+                        onClick={onEdit}
+                        variant="outline"
+                        color="blue.4"
+                        leftIcon={<MantineIcon icon={IconEdit} />}
+                    >
+                        Edit
+                    </Button>
 
                     <Button
                         leftIcon={<MantineIcon icon={IconTrash} />}
