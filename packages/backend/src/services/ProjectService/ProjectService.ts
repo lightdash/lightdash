@@ -1385,7 +1385,7 @@ export class ProjectService {
                         },
                         0,
                     ),
-                    rowAccessFiltersCount: explores.reduce<number>(
+                    modelsWithSqlFiltersCount: explores.reduce<number>(
                         (acc, explore) => {
                             if (
                                 explore.tables &&
