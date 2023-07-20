@@ -1,3 +1,10 @@
+## [0.680.2](https://github.com/lightdash/lightdash/compare/0.680.1...0.680.2) (2023-07-20)
+
+
+### Bug Fixes
+
+* unlock clipboard copy when visualising tables ([#6416](https://github.com/lightdash/lightdash/issues/6416)) ([ee85a93](https://github.com/lightdash/lightdash/commit/ee85a93831c9f7f7b48732468b18624b57001d1a))
+
 ## [0.680.1](https://github.com/lightdash/lightdash/compare/0.680.0...0.680.1) (2023-07-20)
 
 
