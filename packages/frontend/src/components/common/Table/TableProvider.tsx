@@ -1,5 +1,5 @@
 import { ConditionalFormattingConfig, ResultRow } from '@lightdash/common';
-import { useHotkeys } from '@mantine/hooks';
+import { getHotkeyHandler } from '@mantine/hooks';
 import {
     Cell,
     ColumnOrderState,
@@ -181,7 +181,7 @@ export const TableProvider: FC<Props> = ({
 
     const [copyingCellId, setCopyingCellId] = useState<string>();
 
-    const onCopyCell = () => {
+    const onCopyCell = useCallback(() => {
         if (!selectedCell) return;
 
         const value = (selectedCell.getValue() as ResultRow[0]).value;
@@ -195,9 +195,18 @@ export const TableProvider: FC<Props> = ({
             setTimeout(() => setCopyingCellId(undefined), 300);
             return selectedCell.id;
         });
-    };
+    }, [selectedCell, showToastSuccess]);
 
-    useHotkeys([['mod + c', onCopyCell]]);
+    useEffect(() => {
+        const handleKeyDown = getHotkeyHandler([['mod+C', onCopyCell]]);
+        if (selectedCell) {
+            document.body.addEventListener('keydown', handleKeyDown);
+        }
+
+        return () => {
+            document.body.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [onCopyCell, selectedCell]);
 
     return (
         <Context.Provider
