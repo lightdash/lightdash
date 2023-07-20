@@ -31,6 +31,7 @@ import PieChartLayout from './assets/pie-chart-layout.png';
 import PieChartSeries from './assets/pie-chart-series.png';
 import PieChartDisplay from './assets/pie-chart-display.png';
 import PieChart from './assets/pie-chart.png';
+import ColorRangesExample from './assets/color-ranges-example.jpg';
 
 # Chart types
 
@@ -78,7 +79,7 @@ The options for Big value include:
 
 ### Table
 
-<img src={TableChart} width="570" height="202" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={TableChart} width="593" height="201" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 The Table option is good for looking at (surprise, surprise) tabular data, or for lists of things like user IDs or transactions. 
 
@@ -135,13 +136,19 @@ If you have a very wide table, you may want some columns to always be locked to 
 
 Sometimes it’s helpful to highlight certain values in your tables when they meet a specific condition. You can set up conditional formatting rules by going to the Configure tab then clicking on Conditional Formatting.
 
-<img src={ConditionalFormatting} width="698" height="297" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={ConditionalFormatting} width="513" height="169" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-When you add a new rule, you’ll first need to pick which column should be affected, then you'll need to choose condition you want to match and the colour to change the cell if it matches that condition.
+When you add a new rule, you’ll first need to pick which column should be affected, the type of rule you'd like to use (`single color` or `color range`), then you'll need to choose condition you want to match and the colour to change the cell if it matches that condition.
 
-<img src={ConditionalFormattingRule} width="349" height="563" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={ConditionalFormattingRule} width="283" height="572" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 You can set as many rules on a table as you want. If two or more rules disagree with each other, the rule that’s on the bottom of your list of rules will win.
+
+To use color ranges for your rules, select `color range` as the type. The color range option highlights cells with color shades according to the value in a particular cell. 
+
+<img src={ColorRangesExample} width="676" height="431" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+By defult, the color range will use a set of 5 colors mapped across the min and max colors selected in your rule.
 
 ### Pie chart
 
