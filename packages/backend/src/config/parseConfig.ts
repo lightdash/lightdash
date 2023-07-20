@@ -159,7 +159,7 @@ export type AuthAzureADConfig = {
     oauth2TenantId: string | undefined;
     loginPath: string;
     callbackPath: string;
-}
+};
 
 export type AuthGoogleConfig = {
     oauth2ClientId: string | undefined;
@@ -325,12 +325,13 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 loginPath: '/login/oneLogin',
             },
             azuread: {
-                oauth2ClientId: process.env.AUTH_AZUREAD_OAUTH2_CLIENT_ID,
-                oauth2ClientSecret: process.env.AUTH_AZUREAD_OAUTH2_CLIENT_SECRET,
-                oauth2TenantId: process.env.AUTH_AZUREAD_OAUTH2_TENANT_ID,
+                oauth2ClientId: process.env.AUTH_AZURE_AD_OAUTH_CLIENT_ID,
+                oauth2ClientSecret:
+                    process.env.AUTH_AZURE_AD_OAUTH_CLIENT_SECRET,
+                oauth2TenantId: process.env.AUTH_AZURE_AD_OAUTH_TENANT_ID,
                 callbackPath: '/oauth/redirect/azuread',
                 loginPath: '/login/azuread',
-            }
+            },
         },
         intercom: {
             appId: process.env.INTERCOM_APP_ID || 'zppxyjpp',
