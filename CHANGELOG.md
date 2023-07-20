@@ -1,3 +1,10 @@
+# [0.682.0](https://github.com/lightdash/lightdash/compare/0.681.0...0.682.0) (2023-07-20)
+
+
+### Features
+
+* Add support for Azure AD SSO ([#6294](https://github.com/lightdash/lightdash/issues/6294)) ([797f7c9](https://github.com/lightdash/lightdash/commit/797f7c9716f9ee00833bc6dee458fcaefa3f65bd))
+
 # [0.681.0](https://github.com/lightdash/lightdash/compare/0.680.2...0.681.0) (2023-07-20)
 
 
