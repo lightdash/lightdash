@@ -3435,7 +3435,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_UserAttribute.Exclude_keyofUserAttribute.uuid-or-createdAt-or-organizationUuid-or-users__": {
+            "Pick_UserAttribute.name-or-description_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -3447,10 +3447,6 @@
                 "required": ["name"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_UserAttribute.uuid-or-createdAt-or-organizationUuid-or-users_": {
-                "$ref": "#/components/schemas/Pick_UserAttribute.Exclude_keyofUserAttribute.uuid-or-createdAt-or-organizationUuid-or-users__",
-                "description": "Construct a type with the properties of T except for those in type K."
             },
             "Pick_UserAttributeValue.Exclude_keyofUserAttributeValue.email__": {
                 "properties": {
@@ -3475,7 +3471,7 @@
             "CreateUserAttribute": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Omit_UserAttribute.uuid-or-createdAt-or-organizationUuid-or-users_"
+                        "$ref": "#/components/schemas/Pick_UserAttribute.name-or-description_"
                     },
                     {
                         "properties": {
@@ -3866,7 +3862,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.674.0",
+        "version": "0.680.1",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

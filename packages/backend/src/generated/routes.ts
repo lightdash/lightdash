@@ -2986,23 +2986,14 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_UserAttribute.Exclude_keyofUserAttribute.uuid-or-createdAt-or-organizationUuid-or-users__':
-        {
-            dataType: 'refAlias',
-            type: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    name: { dataType: 'string', required: true },
-                    description: { dataType: 'string' },
-                },
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_UserAttribute.uuid-or-createdAt-or-organizationUuid-or-users_': {
+    'Pick_UserAttribute.name-or-description_': {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_UserAttribute.Exclude_keyofUserAttribute.uuid-or-createdAt-or-organizationUuid-or-users__',
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                name: { dataType: 'string', required: true },
+                description: { dataType: 'string' },
+            },
             validators: {},
         },
     },
@@ -3037,9 +3028,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'intersection',
             subSchemas: [
-                {
-                    ref: 'Omit_UserAttribute.uuid-or-createdAt-or-organizationUuid-or-users_',
-                },
+                { ref: 'Pick_UserAttribute.name-or-description_' },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {

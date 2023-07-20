@@ -188,9 +188,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     {tile.type === DashboardTileTypes.SAVED_CHART ? (
                         <ChartUpdateModal
                             opened={isEditingChartTile}
-                            chartTitle={
-                                tile.properties.title ?? chartName ?? ''
-                            }
+                            chartTitle={chartName ?? ''}
                             onClose={() => setIsEditingChartTile(false)}
                             onConfirm={(newTitle, newUuid) => {
                                 onEdit({

@@ -483,6 +483,7 @@ export class DashboardModel {
                     title: string | null;
                     views: string;
                     first_viewed_at: Date | null;
+                    chart_name: string;
                 }[]
             >(
                 `${DashboardTilesTableName}.x_offset`,
@@ -495,7 +496,6 @@ export class DashboardModel {
                 this.database.raw(
                     `COALESCE(
                         ${DashboardTileChartTableName}.title,
-                        ${SavedChartsTableName}.name,
                         ${DashboardTileLoomsTableName}.title,
                         ${DashboardTileMarkdownsTableName}.title
                     ) AS title`,
@@ -508,6 +508,7 @@ export class DashboardModel {
                 ),
                 `${DashboardTileLoomsTableName}.url`,
                 `${DashboardTileMarkdownsTableName}.content`,
+                `${SavedChartsTableName}.name as chart_name`,
             )
             .leftJoin(DashboardTileChartTableName, function chartsJoin() {
                 this.on(
