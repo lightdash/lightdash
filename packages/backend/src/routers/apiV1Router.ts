@@ -106,6 +106,23 @@ apiV1Router.get(
 );
 
 apiV1Router.get(
+    lightdashConfig.auth.azuread.loginPath,
+    storeOIDCRedirect,
+    passport.authenticate('azuread', {
+        scope: ['openid', 'profile', 'email'],
+    }),
+);
+
+apiV1Router.get(
+    lightdashConfig.auth.azuread.callbackPath,
+    passport.authenticate('azuread', {
+        failureRedirect: '/api/v1/oauth/failure',
+        successRedirect: '/api/v1/oauth/success',
+        failureFlash: true,
+    }),
+);
+
+apiV1Router.get(
     lightdashConfig.auth.oneLogin.loginPath,
     storeOIDCRedirect,
     passport.authenticate('oneLogin', {

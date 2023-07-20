@@ -113,7 +113,8 @@ const Login: FC = () => {
     const ssoAvailable =
         !!health.data?.auth.google.oauth2ClientId ||
         health.data?.auth.okta.enabled ||
-        health.data?.auth.oneLogin.enabled;
+        health.data?.auth.oneLogin.enabled ||
+        health.data?.auth.azuread.enabled;
     const ssoLogins = ssoAvailable && (
         <Stack>
             {Object.values(OpenIdIdentityIssuerType).map((providerName) => (

@@ -582,6 +582,10 @@ export type HealthState = {
             enabled: boolean;
             loginPath: string;
         };
+        azuread: {
+            enabled: boolean;
+            loginPath: string;
+        };
     };
     cohere: {
         token: string;
