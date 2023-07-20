@@ -40,7 +40,14 @@
                     "properties": {
                         "name": {
                             "type": "string",
-                            "not": { "enum": ["lightdash", "ld"] }
+                            "allOf": [
+                                {
+                                    "not": { "enum": ["lightdash", "ld", ""] }
+                                },
+                                {
+                                    "pattern": "^[^.]*$"
+                                }
+                            ]
                         },
 
                         "meta": {
