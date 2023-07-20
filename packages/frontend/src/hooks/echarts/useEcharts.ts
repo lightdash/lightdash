@@ -620,7 +620,7 @@ const getSimpleSeries = ({
 }: GetSimpleSeriesArg) => ({
     ...series,
     xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
-    yAxisIndex: flipAxes ? undefined : series.yAxisIndex ?? 0,
+    yAxisIndex: flipAxes ? undefined : series.yAxisIndex,
     emphasis: {
         focus: 'series',
     },
@@ -890,8 +890,6 @@ const getEchartAxis = ({
     const leftAxisYField = leftAxisYId ? itemMap[leftAxisYId] : undefined;
     const topAxisXField = topAxisXId ? itemMap[topAxisXId] : undefined;
     const bottomAxisXField = bottomAxisXId ? itemMap[bottomAxisXId] : undefined;
-
-    // console.log({ rightAxisYId, leftAxisYId });
 
     const { bottomAxisType, topAxisType, rightAxisType, leftAxisType } =
         getAxisType({
@@ -1268,14 +1266,6 @@ const useEcharts = (validCartesianConfigLegend?: LegendValues) => {
         if (!explore || !validCartesianConfig || !resultsData) {
             return [];
         }
-
-        console.log({
-            items,
-            originalData,
-            validCartesianConfig,
-            pivotDimensions,
-            formats,
-        });
 
         return getEchartsSeries(
             items,
