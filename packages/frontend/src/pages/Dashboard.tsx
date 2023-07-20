@@ -478,7 +478,6 @@ const Dashboard: FC = () => {
                     <EmptyStateNoTiles
                         onAddTiles={handleAddTiles}
                         isEditMode={isEditMode}
-                        dashboardName={dashboard.name}
                     />
                 )}
             </Page>

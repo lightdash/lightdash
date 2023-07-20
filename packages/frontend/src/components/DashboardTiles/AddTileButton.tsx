@@ -11,6 +11,7 @@ import { Group, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
+import { useDashboardContext } from '../../providers/DashboardProvider';
 import MantineIcon from '../common/MantineIcon';
 import AddChartTilesModal from './TileForms/AddChartTilesModal';
 import { TileAddModal } from './TileForms/TileAddModal';
@@ -19,15 +20,9 @@ type Props = {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     intent?: Intent;
     popoverPosition?: PopoverPosition;
-    dashboardName?: string;
 };
 
-const AddTileButton: FC<Props> = ({
-    onAddTiles,
-    intent,
-    popoverPosition,
-    dashboardName,
-}) => {
+const AddTileButton: FC<Props> = ({ onAddTiles, intent, popoverPosition }) => {
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
@@ -37,11 +32,12 @@ const AddTileButton: FC<Props> = ({
         },
         [onAddTiles],
     );
-    const { projectUuid, dashboardUuid } = useParams<{
+    const { projectUuid } = useParams<{
         projectUuid: string;
-        dashboardUuid: string;
     }>();
+    const { dashboard } = useDashboardContext();
     const history = useHistory();
+
     return (
         <>
             <Popover2
@@ -74,11 +70,11 @@ const AddTileButton: FC<Props> = ({
                                     onClick={() => {
                                         sessionStorage.setItem(
                                             'fromDashboard',
-                                            dashboardName ?? '',
+                                            dashboard?.name ?? '',
                                         );
                                         sessionStorage.setItem(
                                             'dashboardUuid',
-                                            dashboardUuid ?? '',
+                                            dashboard?.uuid ?? '',
                                         );
 
                                         history.push(

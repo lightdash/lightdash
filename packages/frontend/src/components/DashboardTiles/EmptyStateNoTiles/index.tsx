@@ -20,13 +20,11 @@ import {
 interface SavedChartsAvailableProps {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     isEditMode: boolean;
-    dashboardName?: string;
 }
 
 const SavedChartsAvailable: FC<SavedChartsAvailableProps> = ({
     onAddTiles,
     isEditMode,
-    dashboardName,
 }) => {
     const { user } = useApp();
     const userCanManageDashboard = user.data?.ability.can(
@@ -47,7 +45,6 @@ const SavedChartsAvailable: FC<SavedChartsAvailableProps> = ({
                     onAddTiles={onAddTiles}
                     intent={Intent.PRIMARY}
                     popoverPosition={PopoverPosition.BOTTOM}
-                    dashboardName={dashboardName}
                 />
             ) : null}
         </EmptyStateWrapper>
@@ -74,7 +71,6 @@ const NoSavedChartsAvailable = () => (
 const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
     onAddTiles,
     isEditMode,
-    dashboardName,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const savedChartsRequest = useChartSummaries(projectUuid);
@@ -92,7 +88,6 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
                             <SavedChartsAvailable
                                 onAddTiles={onAddTiles}
                                 isEditMode={isEditMode}
-                                dashboardName={dashboardName}
                             />
                         ) : (
                             <NoSavedChartsAvailable />
