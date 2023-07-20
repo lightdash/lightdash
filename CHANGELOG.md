@@ -1,3 +1,10 @@
+# [0.680.0](https://github.com/lightdash/lightdash/compare/0.679.1...0.680.0) (2023-07-20)
+
+
+### Features
+
+* allow shorter dashboard tiles ([#6419](https://github.com/lightdash/lightdash/issues/6419)) ([8fa8996](https://github.com/lightdash/lightdash/commit/8fa899635f5e85ca06fd8b8e8389d5984dba3f99))
+
 ## [0.679.1](https://github.com/lightdash/lightdash/compare/0.679.0...0.679.1) (2023-07-19)
 
 
