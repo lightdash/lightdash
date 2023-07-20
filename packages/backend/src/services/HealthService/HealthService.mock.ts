@@ -58,5 +58,8 @@ export const Config = {
         oneLogin: {
             loginPath: '',
         },
+        azuread: {
+            loginPath: '',
+        },
     },
 } as LightdashConfig;
