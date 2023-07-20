@@ -65,6 +65,13 @@ export const lightdashConfigMock: LightdashConfig = {
             oauth2ClientId: undefined,
             oauth2Issuer: undefined,
         },
+        azuread: {
+            loginPath: '',
+            callbackPath: '',
+            oauth2ClientSecret: undefined,
+            oauth2ClientId: undefined,
+            oauth2TenantId: '',
+        },
     },
     intercom: {
         appId: '',

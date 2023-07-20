@@ -51,7 +51,7 @@ export const getReactGridLayoutConfig = (
     tile: DashboardTile,
     isEditMode = false,
 ): Layout => ({
-    minH: 3,
+    minH: 1,
     minW: 6,
     x: tile.x,
     y: tile.y,

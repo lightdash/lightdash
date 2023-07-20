@@ -1,5 +1,5 @@
-import { Colors, Icon } from '@blueprintjs/core';
-import { Text } from '@mantine/core';
+import { Box, Group, Text } from '@mantine/core';
+import { IconGripVertical } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import {
     Draggable,
@@ -7,6 +7,7 @@ import {
     Droppable,
 } from 'react-beautiful-dnd';
 import { createPortal } from 'react-dom';
+import MantineIcon from '../../common/MantineIcon';
 import ColumnConfiguration from './ColumnConfiguration';
 
 type DraggablePortalHandlerProps = {
@@ -39,18 +40,18 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
     return (
         <Droppable droppableId={droppableId}>
             {(dropProps, droppableSnapshot) => (
-                <div
+                <Box
                     {...dropProps.droppableProps}
                     ref={dropProps.innerRef}
-                    style={{
-                        minHeight: isDragging ? '30px' : undefined,
-                        margin: '7px 0',
-                        background: droppableSnapshot.isDraggingOver
-                            ? Colors.LIGHT_GRAY4
+                    mih={isDragging ? '30px' : undefined}
+                    p="xs"
+                    bg={
+                        droppableSnapshot.isDraggingOver
+                            ? 'gray.1'
                             : isDragging
-                            ? Colors.LIGHT_GRAY5
-                            : undefined,
-                    }}
+                            ? 'gray.0'
+                            : undefined
+                    }
                 >
                     {!isDragging && itemIds.length <= 0 ? (
                         <Text size="xs" color="gray.6" m="xs" ta="center">
@@ -68,14 +69,13 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                                 snapshot,
                             ) => (
                                 <DraggablePortalHandler snapshot={snapshot}>
-                                    <div
+                                    <Group
+                                        noWrap
+                                        spacing="xs"
+                                        mb="xs"
                                         ref={innerRef}
                                         {...draggableProps}
                                         style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            width: '100%',
-                                            marginBottom: '10px',
                                             visibility:
                                                 isDragging &&
                                                 disableReorder &&
@@ -85,22 +85,26 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                                             ...draggableProps.style,
                                         }}
                                     >
-                                        <Icon
-                                            tagName="div"
-                                            icon="drag-handle-vertical"
+                                        <Box
                                             {...dragHandleProps}
-                                        />
-
-                                        <div style={{ width: 6 }} />
+                                            sx={{
+                                                opacity: 0.6,
+                                                '&:hover': { opacity: 1 },
+                                            }}
+                                        >
+                                            <MantineIcon
+                                                icon={IconGripVertical}
+                                            />
+                                        </Box>
 
                                         <ColumnConfiguration fieldId={itemId} />
-                                    </div>
+                                    </Group>
                                 </DraggablePortalHandler>
                             )}
                         </Draggable>
                     ))}
                     {dropProps.placeholder}
-                </div>
+                </Box>
             )}
         </Droppable>
     );

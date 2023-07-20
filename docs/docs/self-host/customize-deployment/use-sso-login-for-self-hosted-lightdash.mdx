@@ -92,3 +92,34 @@ These variables enable you to control Single Sign On (SSO) functionality for One
 | `AUTH_ONE_LOGIN_OAUTH_CLIENT_SECRET`   | Required for One Login SSO                           | ✅        |         |
 | `AUTH_ONE_LOGIN_OAUTH_ISSUER`          | Required for One Login SSO                           | ✅        |         |
 
+## Azure Active Directory
+
+### Creating an Azure AD application
+
+In the admin panel, navigate to **App Registrations** and click **New registration**, choose the following
+settings for the redirect URI:
+
+- **Type**: Web
+- **URI**: `{{ lightdash_url }}/api/v1/oauth/redirect/azuread`
+
+On the following page you'll need to use the following settings, replace `{{ lightdash_url }}` with the URL of your
+Lightdash instance. For example if you normally access Lightdash at `https://lightdash.example.com/login` then you
+should use `https://lightdash.example.com` as your `{{ lightdash_url }}`.
+
+Hit **Register** and you'll be taken to the application settings page. Copy the "Application (client) ID" and "Directory
+(tenant) ID" values as you'll need them later.
+
+In the left hand menu, navigate to **Certificates & secrets** and click **New client secret**. Give the secret a
+description and choose an expiry time. Hit **Add** and you'll be shown the secret value. Copy this value as you'll
+need it later.
+
+### Configuring Lightdash for Azure AD
+
+These variables enable you to control Single Sign On (SSO) functionality for Azure Active Directory.
+
+| Variable                               | Description                                          | Required? | Default |
+|----------------------------------------|------------------------------------------------------|-----------|---------|
+| `AUTH_AZURE_AD_OAUTH_CLIENT_ID`        | Required for Azure AD                                | ✅        |         |
+| `AUTH_AZURE_AD_OAUTH_CLIENT_SECRET`    | Required for Azure AD                                | ✅        |         |
+| `AUTH_AZURE_AD_OAUTH_TENANT_ID`        | Required for Azure AD                                | ✅        |         |
+
