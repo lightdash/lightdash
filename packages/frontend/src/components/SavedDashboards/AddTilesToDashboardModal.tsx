@@ -127,7 +127,6 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                     type: DashboardTileTypes.SAVED_CHART,
                     properties: {
                         savedChartUuid: savedChart.uuid,
-                        title: savedChart.name,
                     },
                     ...getDefaultChartTileSize(savedChart.chartConfig?.type),
                 };
