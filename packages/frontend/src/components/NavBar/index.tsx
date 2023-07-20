@@ -13,7 +13,7 @@ import {
 } from '@mantine/core';
 import { IconInfoCircle, IconTool } from '@tabler/icons-react';
 import { FC, memo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useHistory, useParams } from 'react-router-dom';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProjects } from '../../hooks/useProjects';
 import { ReactComponent as Logo } from '../../svgs/logo-icon.svg';
@@ -29,7 +29,7 @@ import SettingsMenu from './SettingsMenu';
 import UserMenu from './UserMenu';
 
 export const NAVBAR_HEIGHT = 50;
-export const BANNER_HEIGHT = 30;
+export const BANNER_HEIGHT = 35;
 
 const PreviewBanner = () => (
     <Center pos="fixed" w="100%" h={BANNER_HEIGHT} bg="blue.6">
@@ -41,20 +41,37 @@ const PreviewBanner = () => (
     </Center>
 );
 
-const DashboardExplorerBanner: FC<{ dashboardName: string }> = ({
-    dashboardName,
-}) => {
+const DashboardExplorerBanner: FC<{
+    dashboardName: string;
+    projectUuid: string;
+    dashboardUuid: string;
+}> = ({ dashboardName, projectUuid, dashboardUuid }) => {
+    const history = useHistory();
     return (
         <Center w="100%" h={BANNER_HEIGHT} bg="blue.6">
             <MantineIcon icon={IconInfoCircle} color="white" size="sm" />
             <Text color="white" fw={500} fz="xs" mx="xxs">
                 You are creating this chart from within {dashboardName}
             </Text>
+            <Button
+                onClick={() => {
+                    history.push(
+                        `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+                    );
+                    sessionStorage.clear();
+                }}
+                size="xs"
+                fz="xs"
+                mx="xxs"
+            >
+                <Text color="white"> Cancel</Text>
+            </Button>
         </Center>
     );
 };
 
 const NavBar = memo(() => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: projects } = useProjects();
     const { activeProjectUuid, isLoading: isLoadingActiveProject } =
         useActiveProjectUuid();
@@ -69,9 +86,16 @@ const NavBar = memo(() => {
             project.type === ProjectType.PREVIEW,
     );
     const fromDashboard = sessionStorage.getItem('fromDashboard');
+    const dashboardUuid = sessionStorage.getItem('dashboardUuid');
 
-    if (fromDashboard !== null && fromDashboard.length > 0) {
-        return <DashboardExplorerBanner dashboardName={fromDashboard} />;
+    if (fromDashboard !== null && dashboardUuid !== null) {
+        return (
+            <DashboardExplorerBanner
+                dashboardName={fromDashboard}
+                projectUuid={projectUuid}
+                dashboardUuid={dashboardUuid}
+            />
+        );
     }
 
     return (

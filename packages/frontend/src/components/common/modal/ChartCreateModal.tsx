@@ -7,10 +7,15 @@ import {
     HTMLSelect,
     InputGroup,
 } from '@blueprintjs/core';
-import { CreateSavedChartVersion } from '@lightdash/common';
+import { CreateSavedChartVersion, DashboardTileTypes } from '@lightdash/common';
 import { Text } from '@mantine/core';
+import { uuid4 } from '@sentry/utils';
 import { FC, useCallback, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
+import {
+    useDashboardQuery,
+    useUpdateDashboard,
+} from '../../../hooks/dashboard/useDashboard';
 import { useCreateMutation } from '../../../hooks/useSavedQuery';
 import {
     useCreateMutation as useSpaceCreateMutation,
@@ -34,20 +39,26 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     defaultSpaceUuid,
     ...modalProps
 }) => {
+    const fromDashboard = sessionStorage.getItem('fromDashboard');
+    const dashboardUuid = sessionStorage.getItem('dashboardUuid') || '';
+
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { mutateAsync, isLoading: isCreating } = useCreateMutation();
     const { mutateAsync: createSpaceAsync, isLoading: isCreatingSpace } =
         useSpaceCreateMutation(projectUuid);
     const history = useHistory();
 
+    const { mutateAsync: updateDashboard } = useUpdateDashboard(
+        dashboardUuid,
+        false,
+    );
+    const { data: selectedDashboard } = useDashboardQuery(dashboardUuid);
+
     const [spaceUuid, setSpaceUuid] = useState<string | undefined>();
     const [name, setName] = useState('');
     const [description, setDescription] = useState<string>();
     const [newSpaceName, setNewSpaceName] = useState('');
     const [shouldCreateNewSpace, setShouldCreateNewSpace] = useState(false);
-
-    const fromDashboard = sessionStorage.getItem('fromDashboard');
-    const dashboardUuid = sessionStorage.getItem('dashboardUuid');
 
     const { data: spaces, isLoading: isLoadingSpaces } = useSpaceSummaries(
         projectUuid,
@@ -111,9 +122,24 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         showSpaceInput,
     ]);
 
-    const handleSaveChartInDashboard = () => {
+    const handleSaveChartInDashboard = async () => {
+        if (fromDashboard === null || dashboardUuid.length === 0) return;
         sessionStorage.clear();
-        // TODO: actually save the chart in the dashboard before redirecting
+        await updateDashboard({
+            name: fromDashboard,
+            filters: selectedDashboard?.filters,
+            tiles: [
+                // @ts-ignore
+                ...selectedDashboard?.tiles,
+                {
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: {
+                        chartUuid: uuid4(),
+                        newChartData: savedData,
+                    },
+                },
+            ],
+        });
         history.push(`/projects/${projectUuid}/dashboards/${dashboardUuid}`);
     };
 
