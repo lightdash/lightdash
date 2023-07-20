@@ -56,37 +56,39 @@ const AddTileButton: FC<Props> = ({
 
                         <MenuDivider />
 
-                        {/*{localStorage.getItem('CHARTS_IN_DASHBOARDS') && (*/}
-                        {/*    <>*/}
-                        <MenuItem2
-                            icon="chart"
-                            text={
-                                <Group spacing="xxs">
-                                    <Text>New chart</Text>
-                                    <Tooltip label="Charts generated from here are exclusive to this dashboard">
-                                        <MantineIcon
-                                            icon={IconInfoCircle}
-                                            color="gray.6"
-                                        />
-                                    </Tooltip>
-                                </Group>
-                            }
-                            onClick={() => {
-                                sessionStorage.setItem(
-                                    'fromDashboard',
-                                    dashboardName ?? '',
-                                );
-                                sessionStorage.setItem(
-                                    'dashboardUuid',
-                                    dashboardUuid ?? '',
-                                );
+                        {localStorage.getItem('CHARTS_IN_DASHBOARDS') && (
+                            <>
+                                <MenuItem2
+                                    icon="chart"
+                                    text={
+                                        <Group spacing="xxs">
+                                            <Text>New chart</Text>
+                                            <Tooltip label="Charts generated from here are exclusive to this dashboard">
+                                                <MantineIcon
+                                                    icon={IconInfoCircle}
+                                                    color="gray.6"
+                                                />
+                                            </Tooltip>
+                                        </Group>
+                                    }
+                                    onClick={() => {
+                                        sessionStorage.setItem(
+                                            'fromDashboard',
+                                            dashboardName ?? '',
+                                        );
+                                        sessionStorage.setItem(
+                                            'dashboardUuid',
+                                            dashboardUuid ?? '',
+                                        );
 
-                                history.push(`/projects/${projectUuid}/tables`);
-                            }}
-                        />
-                        <MenuDivider />
-                        {/*    </>*/}
-                        {/*)}*/}
+                                        history.push(
+                                            `/projects/${projectUuid}/tables`,
+                                        );
+                                    }}
+                                />
+                                <MenuDivider />
+                            </>
+                        )}
 
                         <MenuItem2
                             icon="new-text-box"
