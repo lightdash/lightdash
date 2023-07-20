@@ -12,7 +12,7 @@ import {
     Text,
 } from '@mantine/core';
 import { IconInfoCircle, IconTool } from '@tabler/icons-react';
-import { FC, memo } from 'react';
+import { FC, memo, useEffect } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProjects } from '../../hooks/useProjects';
@@ -87,6 +87,18 @@ const NavBar = memo(() => {
     );
     const fromDashboard = sessionStorage.getItem('fromDashboard');
     const dashboardUuid = sessionStorage.getItem('dashboardUuid');
+    const history = useHistory();
+
+    useEffect(() => {
+        if (fromDashboard === null) return;
+        history.listen((location) => {
+            if (
+                !location.pathname.startsWith(`/projects/${projectUuid}/tables`)
+            ) {
+                sessionStorage.clear();
+            }
+        });
+    }, [fromDashboard, history, projectUuid]);
 
     if (fromDashboard !== null && dashboardUuid !== null) {
         return (

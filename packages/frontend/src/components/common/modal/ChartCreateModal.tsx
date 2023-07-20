@@ -13,7 +13,6 @@ import {
     getDefaultChartTileSize,
 } from '@lightdash/common';
 import { Text } from '@mantine/core';
-import { uuid4 } from '@sentry/utils';
 import { FC, useCallback, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import {
@@ -50,13 +49,13 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     const { mutateAsync, isLoading: isCreating } = useCreateMutation();
     const { mutateAsync: createSpaceAsync, isLoading: isCreatingSpace } =
         useSpaceCreateMutation(projectUuid);
-    const history = useHistory();
 
     const { mutateAsync: updateDashboard } = useUpdateDashboard(
         dashboardUuid,
-        false,
+        true,
     );
     const { data: selectedDashboard } = useDashboardQuery(dashboardUuid);
+    const history = useHistory();
 
     const [spaceUuid, setSpaceUuid] = useState<string | undefined>();
     const [name, setName] = useState('');
@@ -88,7 +87,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         setNewSpaceName('');
         setSpaceUuid(undefined);
         setShouldCreateNewSpace(false);
-
+        sessionStorage.clear();
         onClose?.();
     }, [onClose]);
 
@@ -133,7 +132,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
             !selectedDashboard
         )
             return;
-        await updateDashboard({
+        const savedQuery = await updateDashboard({
             name: fromDashboard,
             filters: selectedDashboard?.filters,
             tiles: [
@@ -141,7 +140,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                 {
                     type: DashboardTileTypes.SAVED_CHART,
                     properties: {
-                        savedChartUuid: uuid4(),
+                        savedChartUuid: null,
                         newChartData: {
                             ...savedData,
                             name,
@@ -152,8 +151,9 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                 },
             ],
         });
-        history.push(`/projects/${projectUuid}/dashboards/${dashboardUuid}`);
         sessionStorage.clear();
+        handleClose();
+        history.push(`/projects/${projectUuid}/saved/${savedQuery.uuid}/view`);
     };
 
     if (isLoadingSpaces || !spaces) return null;
