@@ -250,7 +250,7 @@ if (oneLoginPassportStrategy) {
     passport.use('oneLogin', oneLoginPassportStrategy);
 }
 if (azureAdPassportStrategy) {
-    passport.use('azuread', azureAdPassportStrategy)
+    passport.use('azuread', azureAdPassportStrategy);
 }
 passport.serializeUser((user, done) => {
     // On login (user changes), user.userUuid is written to the session store in the `sess.passport.data` field

@@ -280,21 +280,21 @@ export const azureAdPassportStrategy = !(
 )
     ? undefined
     : new OpenIDConnectStrategy(
-            {
-                issuer: `https://login.microsoftonline.com/${lightdashConfig.auth.azuread.oauth2TenantId}/v2.0`,
-                authorizationURL: `https://login.microsoftonline.com/${lightdashConfig.auth.azuread.oauth2TenantId}/oauth2/v2.0/authorize`,
-                tokenURL: `https://login.microsoftonline.com/${lightdashConfig.auth.azuread.oauth2TenantId}/oauth2/v2.0/token`,
-                userInfoURL: 'https://graph.microsoft.com/oidc/userinfo',
-                clientID: lightdashConfig.auth.azuread.oauth2ClientId,
-                clientSecret: lightdashConfig.auth.azuread.oauth2ClientSecret,
-                callbackURL: new URL(
-                    `/api/v1${lightdashConfig.auth.azuread.callbackPath}`,
-                    lightdashConfig.siteUrl,
-                ).href,
-                passReqToCallback: true,
-            },
-            genericOidcHandler(OpenIdIdentityIssuerType.AZUREAD),
-        );
+          {
+              issuer: `https://login.microsoftonline.com/${lightdashConfig.auth.azuread.oauth2TenantId}/v2.0`,
+              authorizationURL: `https://login.microsoftonline.com/${lightdashConfig.auth.azuread.oauth2TenantId}/oauth2/v2.0/authorize`,
+              tokenURL: `https://login.microsoftonline.com/${lightdashConfig.auth.azuread.oauth2TenantId}/oauth2/v2.0/token`,
+              userInfoURL: 'https://graph.microsoft.com/oidc/userinfo',
+              clientID: lightdashConfig.auth.azuread.oauth2ClientId,
+              clientSecret: lightdashConfig.auth.azuread.oauth2ClientSecret,
+              callbackURL: new URL(
+                  `/api/v1${lightdashConfig.auth.azuread.callbackPath}`,
+                  lightdashConfig.siteUrl,
+              ).href,
+              passReqToCallback: true,
+          },
+          genericOidcHandler(OpenIdIdentityIssuerType.AZUREAD),
+      );
 
 export const oneLoginPassportStrategy = !(
     lightdashConfig.auth.oneLogin.oauth2ClientId &&

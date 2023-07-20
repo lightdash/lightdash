@@ -28,7 +28,7 @@ const isIssuerTypeAvailable = (
         case OpenIdIdentityIssuerType.ONELOGIN:
             return health.auth.oneLogin.enabled;
         case OpenIdIdentityIssuerType.AZUREAD:
-            return health.auth.azuread.enabled
+            return health.auth.azuread.enabled;
         default:
             return assertUnreachable(
                 issuerType,

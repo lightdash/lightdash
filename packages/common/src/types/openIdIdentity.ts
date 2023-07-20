@@ -2,7 +2,7 @@ export enum OpenIdIdentityIssuerType {
     GOOGLE = 'google',
     OKTA = 'okta',
     ONELOGIN = 'oneLogin',
-    AZUREAD = 'azuread'
+    AZUREAD = 'azuread',
 }
 
 export type CreateOpenIdIdentity = {
