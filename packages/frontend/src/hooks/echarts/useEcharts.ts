@@ -620,7 +620,7 @@ const getSimpleSeries = ({
 }: GetSimpleSeriesArg) => ({
     ...series,
     xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
-    yAxisIndex: flipAxes ? undefined : series.yAxisIndex,
+    yAxisIndex: flipAxes ? undefined : series.yAxisIndex ?? 0,
     emphasis: {
         focus: 'series',
     },
@@ -858,7 +858,7 @@ const getEchartAxis = ({
     const leftAxisYId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.xField
         : validCartesianConfig.eChartsConfig.series?.find(
-              (serie) => serie.yAxisIndex === 0,
+              (serie) => serie.yAxisIndex === 0 || !serie.yAxisIndex, // NOTE: yAxisIndex is undefined on first time adding a serie
           )?.encode.yRef.field || yAxisItemId;
     // There is no right Y axis when flipped
     const rightAxisYId =
@@ -890,6 +890,8 @@ const getEchartAxis = ({
     const leftAxisYField = leftAxisYId ? itemMap[leftAxisYId] : undefined;
     const topAxisXField = topAxisXId ? itemMap[topAxisXId] : undefined;
     const bottomAxisXField = bottomAxisXId ? itemMap[bottomAxisXId] : undefined;
+
+    // console.log({ rightAxisYId, leftAxisYId });
 
     const { bottomAxisType, topAxisType, rightAxisType, leftAxisType } =
         getAxisType({
@@ -1266,6 +1268,14 @@ const useEcharts = (validCartesianConfigLegend?: LegendValues) => {
         if (!explore || !validCartesianConfig || !resultsData) {
             return [];
         }
+
+        console.log({
+            items,
+            originalData,
+            validCartesianConfig,
+            pivotDimensions,
+            formats,
+        });
 
         return getEchartsSeries(
             items,
