@@ -269,6 +269,18 @@ export type DuplicatedChartCreatedEvent = BaseTrack & {
     };
 };
 
+export type ConditionalFormattingRuleSavedEvent = BaseTrack & {
+    event: 'conditional_formatting_rule.saved';
+    userId: string;
+    properties: {
+        projectId: string;
+        organizationId: string;
+        savedQueryId: string;
+        type: 'single color' | 'color range';
+        num_conditions: number;
+    };
+};
+
 type ProjectEvent = BaseTrack & {
     event: 'project.updated' | 'project.created';
     userId: string;
@@ -742,7 +754,8 @@ type Track =
     | DownloadCsv
     | SchedulerDashboardView
     | Validation
-    | ValidationErrorDismissed;
+    | ValidationErrorDismissed
+    | ConditionalFormattingRuleSavedEvent;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {
