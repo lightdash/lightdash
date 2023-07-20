@@ -1,4 +1,5 @@
 import { formatItemValue } from '@lightdash/common';
+import { PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 
@@ -24,7 +25,7 @@ const useEchartsPieConfig = () => {
         explore,
     } = context;
 
-    const series = useMemo(() => {
+    const seriesData = useMemo(() => {
         if (!selectedMetric) return;
 
         const sortedData =
@@ -47,7 +48,7 @@ const useEchartsPieConfig = () => {
                 groupValueOptionOverrides?.[name]?.showPercentage ??
                 showPercentageDefault;
 
-            return {
+            const config: NonNullable<PieSeriesOption['data']>[number] = {
                 name: groupLabelOverrides?.[name] ?? name,
                 value,
                 itemStyle: {
@@ -57,12 +58,8 @@ const useEchartsPieConfig = () => {
                 },
                 label: {
                     show: valueLabel !== 'hidden',
-                    position: valueLabel === 'hidden' ? 'none' : valueLabel,
-                    formatter: (params: {
-                        name: string;
-                        value: number;
-                        percent: number;
-                    }) => {
+                    position: valueLabel === 'outside' ? 'outside' : 'inside',
+                    formatter: (params) => {
                         const formattedValue = formatItemValue(
                             selectedMetric,
                             params.value,
@@ -79,25 +76,9 @@ const useEchartsPieConfig = () => {
                             : `${params.name}`;
                     },
                 },
-                labelLine: {
-                    show: valueLabel !== 'hidden',
-                },
-                tooltip: {
-                    formatter: (params: {
-                        marker: string;
-                        name: string;
-                        value: number;
-                        percent: number;
-                    }) => {
-                        const formattedValue = formatItemValue(
-                            selectedMetric,
-                            params.value,
-                        );
-
-                        return `${params.marker} <b>${params.name}</b><br />${params.percent}% - ${formattedValue}`;
-                    },
-                },
             };
+
+            return config;
         });
     }, [
         data,
@@ -112,42 +93,55 @@ const useEchartsPieConfig = () => {
         valueLabelDefault,
     ]);
 
-    const eChartsOptions = useMemo(
-        () => ({
-            tooltip: {
-                trigger: 'item',
-            },
+    const eChartsOptions = useMemo(() => {
+        const pieSeriesOption: PieSeriesOption = {
+            type: 'pie',
+            data: seriesData,
+            radius: isDonut ? ['30%', '70%'] : '70%',
+            center:
+                showLegend &&
+                valueLabelDefault === 'outside' &&
+                (showValueDefault || showPercentageDefault)
+                    ? ['50%', '55%']
+                    : showLegend
+                    ? ['50%', '52%']
+                    : ['50%', '50%'],
+        };
+
+        return {
             legend: {
                 show: showLegend,
                 orient: 'horizontal',
                 left: 'center',
                 type: 'scroll',
             },
-            series: [
-                {
-                    type: 'pie',
-                    radius: isDonut ? ['30%', '70%'] : '70%',
-                    center:
-                        showLegend &&
-                        valueLabelDefault === 'outside' &&
-                        (showValueDefault || showPercentageDefault)
-                            ? ['50%', '55%']
-                            : showLegend
-                            ? ['50%', '52%']
-                            : ['50%', '50%'],
-                    data: series,
+            series: [pieSeriesOption],
+            tooltip: {
+                trigger: 'item',
+                formatter: (params: {
+                    marker: string;
+                    name: string;
+                    value: number;
+                    percent: number;
+                }) => {
+                    const formattedValue = formatItemValue(
+                        selectedMetric,
+                        params.value,
+                    );
+
+                    return `${params.marker} <b>${params.name}</b><br />${params.percent}% - ${formattedValue}`;
                 },
-            ],
-        }),
-        [
-            series,
-            isDonut,
-            valueLabelDefault,
-            showValueDefault,
-            showPercentageDefault,
-            showLegend,
-        ],
-    );
+            },
+        };
+    }, [
+        selectedMetric,
+        seriesData,
+        isDonut,
+        valueLabelDefault,
+        showValueDefault,
+        showPercentageDefault,
+        showLegend,
+    ]);
 
     if (!explore || !data || data.length === 0) {
         return undefined;
