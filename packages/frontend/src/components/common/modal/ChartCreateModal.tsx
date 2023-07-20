@@ -7,7 +7,11 @@ import {
     HTMLSelect,
     InputGroup,
 } from '@blueprintjs/core';
-import { CreateSavedChartVersion, DashboardTileTypes } from '@lightdash/common';
+import {
+    CreateSavedChartVersion,
+    DashboardTileTypes,
+    getDefaultChartTileSize,
+} from '@lightdash/common';
 import { Text } from '@mantine/core';
 import { uuid4 } from '@sentry/utils';
 import { FC, useCallback, useState } from 'react';
@@ -123,24 +127,33 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     ]);
 
     const handleSaveChartInDashboard = async () => {
-        if (fromDashboard === null || dashboardUuid.length === 0) return;
-        sessionStorage.clear();
+        if (
+            fromDashboard === null ||
+            dashboardUuid.length === 0 ||
+            !selectedDashboard
+        )
+            return;
         await updateDashboard({
             name: fromDashboard,
             filters: selectedDashboard?.filters,
             tiles: [
-                // @ts-ignore
-                ...selectedDashboard?.tiles,
+                ...selectedDashboard.tiles,
                 {
                     type: DashboardTileTypes.SAVED_CHART,
                     properties: {
-                        chartUuid: uuid4(),
-                        newChartData: savedData,
+                        savedChartUuid: uuid4(),
+                        newChartData: {
+                            ...savedData,
+                            name,
+                            description,
+                        },
                     },
+                    ...getDefaultChartTileSize(savedData.chartConfig?.type),
                 },
             ],
         });
         history.push(`/projects/${projectUuid}/dashboards/${dashboardUuid}`);
+        sessionStorage.clear();
     };
 
     if (isLoadingSpaces || !spaces) return null;
