@@ -25,34 +25,38 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
 
     return (
         <ActiveDashboardFiltersWrapper>
-            {dashboardFilters.dimensions.map((item, index) => (
-                <ActiveFilter
-                    key={item.id}
-                    isEditMode={isEditMode}
-                    fieldId={item.target.fieldId}
-                    field={fieldMap[item.target.fieldId]}
-                    filterRule={item}
-                    onRemove={() =>
-                        removeDimensionDashboardFilter(index, false)
-                    }
-                    onUpdate={(value) =>
-                        updateDimensionDashboardFilter(value, index, false)
-                    }
-                />
-            ))}
-            {dashboardTemporaryFilters.dimensions.map((item, index) => (
-                <ActiveFilter
-                    key={item.id}
-                    isEditMode={isEditMode}
-                    fieldId={item.target.fieldId}
-                    field={fieldMap[item.target.fieldId]}
-                    filterRule={item}
-                    onRemove={() => removeDimensionDashboardFilter(index, true)}
-                    onUpdate={(value) =>
-                        updateDimensionDashboardFilter(value, index, true)
-                    }
-                />
-            ))}
+            {dashboardFilters.dimensions
+                .filter((item) => !!fieldMap[item.target.fieldId])
+                .map((item, index) => (
+                    <ActiveFilter
+                        key={item.id}
+                        isEditMode={isEditMode}
+                        field={fieldMap[item.target.fieldId]}
+                        filterRule={item}
+                        onRemove={() =>
+                            removeDimensionDashboardFilter(index, false)
+                        }
+                        onUpdate={(value) =>
+                            updateDimensionDashboardFilter(value, index, false)
+                        }
+                    />
+                ))}
+            {dashboardTemporaryFilters.dimensions
+                .filter((item) => !!fieldMap[item.target.fieldId])
+                .map((item, index) => (
+                    <ActiveFilter
+                        key={item.id}
+                        isEditMode={isEditMode}
+                        field={fieldMap[item.target.fieldId]}
+                        filterRule={item}
+                        onRemove={() =>
+                            removeDimensionDashboardFilter(index, true)
+                        }
+                        onUpdate={(value) =>
+                            updateDimensionDashboardFilter(value, index, true)
+                        }
+                    />
+                ))}
         </ActiveDashboardFiltersWrapper>
     );
 };
