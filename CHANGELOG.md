@@ -1,3 +1,10 @@
+## [0.680.1](https://github.com/lightdash/lightdash/compare/0.680.0...0.680.1) (2023-07-20)
+
+
+### Bug Fixes
+
+* add cursor: pointer to checkboxes and radios ([#6429](https://github.com/lightdash/lightdash/issues/6429)) ([331b46c](https://github.com/lightdash/lightdash/commit/331b46c4f084e3511b9045ace5fb8ea8d095f12b))
+
 # [0.680.0](https://github.com/lightdash/lightdash/compare/0.679.1...0.680.0) (2023-07-20)
 
 
