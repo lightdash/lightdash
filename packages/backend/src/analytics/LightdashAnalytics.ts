@@ -277,7 +277,7 @@ export type ConditionalFormattingRuleSavedEvent = BaseTrack & {
         organizationId: string;
         savedQueryId: string;
         type: 'single color' | 'color range';
-        num_conditions: number;
+        numConditions: number;
     };
 };
 

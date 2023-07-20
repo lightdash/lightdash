@@ -217,7 +217,7 @@ export class SavedChartService {
                     organizationId: savedChart.organizationUuid,
                     savedQueryId: savedChart.uuid,
                     type,
-                    num_conditions: numConditions,
+                    numConditions,
                 };
             });
 
