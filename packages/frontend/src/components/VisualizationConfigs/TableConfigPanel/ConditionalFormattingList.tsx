@@ -79,8 +79,6 @@ const ConditionalFormattingList = ({}) => {
         );
     }, [onSetConditionalFormattings, activeConfigs, defaultColors]);
 
-    console.log(activeConfigs);
-
     const handleRemove = useCallback(
         (index) =>
             onSetConditionalFormattings(
