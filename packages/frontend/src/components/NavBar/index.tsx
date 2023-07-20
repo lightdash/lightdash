@@ -51,7 +51,7 @@ const DashboardExplorerBanner: FC<{
         <Center w="100%" h={BANNER_HEIGHT} bg="blue.6">
             <MantineIcon icon={IconInfoCircle} color="white" size="sm" />
             <Text color="white" fw={500} fz="xs" mx="xxs">
-                You are creating this chart from within {dashboardName}
+                You are creating this chart from within "{dashboardName}"
             </Text>
             <Button
                 onClick={() => {
