@@ -1,3 +1,10 @@
+# [0.681.0](https://github.com/lightdash/lightdash/compare/0.680.2...0.681.0) (2023-07-20)
+
+
+### Features
+
+* update table column config to use mantine ([#6418](https://github.com/lightdash/lightdash/issues/6418)) ([f53fc47](https://github.com/lightdash/lightdash/commit/f53fc47748efe6711b63e4ab80dd5e9f8c05bdd0))
+
 ## [0.680.2](https://github.com/lightdash/lightdash/compare/0.680.1...0.680.2) (2023-07-20)
 
 
