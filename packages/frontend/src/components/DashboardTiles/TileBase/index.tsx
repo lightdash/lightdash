@@ -241,7 +241,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                 });
                                 setIsEditingChartTile(false);
                             }}
-                            shouldShowTitle={!!hideTitle}
+                            hideTitle={!!hideTitle}
                         />
                     ) : (
                         <TileUpdateModal

@@ -25,21 +25,21 @@ interface ChartUpdateModalProps extends ModalProps {
         newChartUuid: string,
         shouldShowTitle: boolean,
     ) => void;
-    shouldShowTitle: boolean;
+    hideTitle: boolean;
 }
 
 const ChartUpdateModal = ({
     chartTitle,
     onClose,
     onConfirm,
-    shouldShowTitle,
+    hideTitle,
     ...modalProps
 }: ChartUpdateModalProps) => {
     const form = useForm({
         initialValues: {
             uuid: '',
             title: '',
-            shouldShowTitle,
+            hideTitle,
         },
     });
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -49,9 +49,9 @@ const ChartUpdateModal = ({
         ({
             title: newTitle,
             uuid: newChartUuid,
-            shouldShowTitle: showTitle,
+            hideTitle: shouldHideTitle,
         }) => {
-            onConfirm?.(newTitle, newChartUuid, showTitle);
+            onConfirm?.(newTitle, newChartUuid, shouldHideTitle);
         },
     );
 
@@ -89,6 +89,7 @@ const ChartUpdateModal = ({
                             }
                             {...form.getInputProps('title')}
                             style={{ flex: 1 }}
+                            disabled={form.values.hideTitle}
                         />
                         <ActionIcon
                             variant="outline"
@@ -98,16 +99,14 @@ const ChartUpdateModal = ({
                             radius="md"
                             onClick={() =>
                                 form.setFieldValue(
-                                    'shouldShowTitle',
-                                    !form.values.shouldShowTitle,
+                                    'hideTitle',
+                                    !form.values.hideTitle,
                                 )
                             }
                         >
                             <MantineIcon
                                 icon={
-                                    form.values.shouldShowTitle
-                                        ? IconEyeOff
-                                        : IconEye
+                                    form.values.hideTitle ? IconEyeOff : IconEye
                                 }
                                 size={25}
                                 color="dark.2"
