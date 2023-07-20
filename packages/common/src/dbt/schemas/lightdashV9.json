@@ -38,6 +38,11 @@
                 {
                     "type": "object",
                     "properties": {
+                        "name": {
+                            "type": "string",
+                            "not": { "enum": ["lightdash", "ld"] }
+                        },
+
                         "meta": {
                             "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashModelMetadata"
                         },
