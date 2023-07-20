@@ -68,11 +68,13 @@ const ColumnConfiguration: React.FC<{ fieldId: string }> = ({ fieldId }) => {
                         }
                         variant="light"
                         onClick={() => {
-                            // Close the tooltip. This click causes a lot of
-                            // re-rendering and it's easy to move the mouse away
+                            // TODO: render perf issues on this page seem to be
+                            // causing the tooltips to stay open. This click causes a
+                            // lot of re-rendering and it's easy to move the mouse away
                             // before getting mouse events back, so the tooltip
-                            // stays open. Closing it is a workaround, but render
-                            // perf could use some work.
+                            // stays open. We could try to solve that wholistically,
+                            // but for now work around it by managing the tooltip
+                            // and closing it when the button is clicked.
                             setShowTooltipVisible(false);
                             if (!disableHidingDimensions) {
                                 updateColumnProperty(fieldId, {
