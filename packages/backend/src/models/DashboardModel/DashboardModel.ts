@@ -483,7 +483,6 @@ export class DashboardModel {
                     title: string | null;
                     views: string;
                     first_viewed_at: Date | null;
-                    chart_name: string;
                 }[]
             >(
                 `${DashboardTilesTableName}.x_offset`,
@@ -508,7 +507,6 @@ export class DashboardModel {
                 ),
                 `${DashboardTileLoomsTableName}.url`,
                 `${DashboardTileMarkdownsTableName}.content`,
-                `${SavedChartsTableName}.name as chart_name`,
             )
             .leftJoin(DashboardTileChartTableName, function chartsJoin() {
                 this.on(
