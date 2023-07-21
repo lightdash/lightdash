@@ -125,11 +125,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     ]);
 
     const handleSaveChartInDashboard = useCallback(async () => {
-        if (
-            fromDashboard === null ||
-            dashboardUuid.length === 0 ||
-            !selectedDashboard
-        )
+        if (!fromDashboard || dashboardUuid.length === 0 || !selectedDashboard)
             return;
         await updateDashboard({
             name: fromDashboard,
@@ -203,7 +199,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                         placeholder="A few words to give your team some context"
                     />
                 </FormGroupWrapper>
-                {fromDashboard !== null && fromDashboard.length > 0 && (
+                {fromDashboard && fromDashboard.length > 0 && (
                     <FormGroupWrapper
                         label={<span>Save to {fromDashboard}</span>}
                     >
@@ -214,7 +210,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                         </Text>
                     </FormGroupWrapper>
                 )}
-                {!showSpaceInput && fromDashboard === null && (
+                {!showSpaceInput && !fromDashboard && (
                     <>
                         <FormGroupWrapper
                             label="Select space"
@@ -263,7 +259,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                             intent="primary"
                             text="Save"
                             onClick={
-                                fromDashboard !== null && dashboardUuid !== null
+                                fromDashboard && dashboardUuid
                                     ? handleSaveChartInDashboard
                                     : handleConfirm
                             }
@@ -271,7 +267,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                                 isCreating ||
                                 isCreatingSpace ||
                                 !name ||
-                                (fromDashboard === null &&
+                                (!fromDashboard &&
                                     showSpaceInput &&
                                     !newSpaceName)
                             }

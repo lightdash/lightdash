@@ -87,20 +87,19 @@ const NavBar = memo(() => {
     );
     const fromDashboard = sessionStorage.getItem('fromDashboard');
     const dashboardUuid = sessionStorage.getItem('dashboardUuid');
-    const history = useHistory();
 
     useEffect(() => {
-        if (fromDashboard === null) return;
-        history.listen((location) => {
-            if (
-                !location.pathname.startsWith(`/projects/${projectUuid}/tables`)
-            ) {
+        const clearDashboardStorage = () => {
+            if (fromDashboard) {
                 sessionStorage.clear();
             }
-        });
-    }, [fromDashboard, history, projectUuid]);
+        };
+        window.addEventListener('beforeunload', clearDashboardStorage);
+        return () =>
+            window.removeEventListener('beforeunload', clearDashboardStorage);
+    }, [fromDashboard]);
 
-    if (fromDashboard !== null && dashboardUuid !== null) {
+    if (fromDashboard && dashboardUuid) {
         return (
             <DashboardExplorerBanner
                 dashboardName={fromDashboard}
