@@ -1,3 +1,10 @@
+# [0.684.0](https://github.com/lightdash/lightdash/compare/0.683.1...0.684.0) (2023-07-21)
+
+
+### Features
+
+* conditional formatting analytics events ([#6437](https://github.com/lightdash/lightdash/issues/6437)) ([d1d4281](https://github.com/lightdash/lightdash/commit/d1d428148d853a1dfcdc6e877e4055b2a7900b8f))
+
 ## [0.683.1](https://github.com/lightdash/lightdash/compare/0.683.0...0.683.1) (2023-07-21)
 
 
