@@ -1,5 +1,6 @@
 import {
     CartesianSeriesType,
+    ChartType,
     CompiledDimension,
     CompiledTable,
     DimensionType,
@@ -593,52 +594,40 @@ export const groupedMixedSeries: Array<{ index: number; value: Series[] }> = [
 ];
 
 export const useCartesianChartConfigParamsMock = {
-    chartType: 'cartesian',
+    pivotKeys: undefined,
+    setPivotDimensions: () => {},
+    chartType: ChartType.CARTESIAN,
     initialChartConfig: {
         layout: {
-            xField: 'orders_amount',
+            xField: 'orders_customer_id',
             yField: ['orders_total_order_amount', 'orders_fulfillment_rate'],
         },
         eChartsConfig: {
-            series: [
-                {
-                    type: 'bar',
-                    encode: {
-                        xRef: {
-                            field: 'orders_amount',
-                        },
-                        yRef: {
-                            field: 'orders_total_order_amount',
-                        },
-                    },
-                },
-                {
-                    type: 'bar',
-                    encode: {
-                        xRef: {
-                            field: 'orders_amount',
-                        },
-                        yRef: {
-                            field: 'orders_fulfillment_rate',
-                        },
-                    },
-                },
-            ],
+            series: [],
         },
     },
     resultsData: {
         rows: [],
         metricQuery: {
-            dimensions: [],
-            metrics: [],
+            dimensions: ['orders_customer_id'],
+            metrics: ['orders_total_order_amount', 'orders_fulfillment_rate'],
             filters: {},
-            sorts: [],
+            sorts: [
+                {
+                    fieldId: 'orders_total_order_amount',
+                    descending: true,
+                },
+            ],
             limit: 500,
             tableCalculations: [],
             additionalMetrics: [],
         },
     },
-    columnOrder: [],
+    columnOrder: [
+        'orders_customer_id',
+        'orders_total_order_amount',
+        'orders_fulfillment_rate',
+    ],
     explore: {
         name: 'orders',
         tags: [],
@@ -672,6 +661,7 @@ export const useCartesianChartConfigParamsMock = {
                             'customers.first_name',
                         ],
                     },
+
                     total_order_amount: {
                         sql: '${TABLE}.amount',
                         name: 'total_order_amount',
@@ -694,24 +684,37 @@ export const useCartesianChartConfigParamsMock = {
                 database: 'postgres',
                 sqlTable: '"postgres"."jaffle"."orders"',
                 dimensions: {
-                    amount: {
-                        sql: '${TABLE}.amount',
-                        name: 'amount',
+                    customer_id: {
+                        sql: '${TABLE}.customer_id',
+                        name: 'customer_id',
                         type: 'number',
-                        index: 5,
-                        label: 'Amount',
+                        index: 2,
+                        label: 'Customer id',
                         table: 'orders',
-                        hidden: true,
+                        hidden: false,
                         fieldType: 'dimension',
                         tableLabel: 'Orders',
-                        compiledSql: '"orders".amount',
-                        description: 'Total amount (USD) of the order',
+                        compiledSql: '"orders".customer_id',
+                        description: 'Foreign key to the customers table',
                         tablesReferences: ['orders'],
                     },
                 },
                 description:
                     'This table has basic information about orders, as well as some derived facts based on payments',
-                lineageGraph: {},
+                lineageGraph: {
+                    orders: [
+                        {
+                            name: 'stg_orders',
+                            type: 'model',
+                        },
+                        {
+                            name: 'stg_payments',
+                            type: 'model',
+                        },
+                    ],
+                    stg_orders: [],
+                    stg_payments: [],
+                },
                 orderFieldsBy: 'LABEL',
             },
         },

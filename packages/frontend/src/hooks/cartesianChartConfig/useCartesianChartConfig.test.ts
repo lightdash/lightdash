@@ -182,15 +182,14 @@ describe('getSeriesGroupedByField', () => {
 
 describe('useCartesianChartConfig', () => {
     test('should default series yAxisIndex to 0', () => {
-        const { result } = renderHook(() =>
+        const { result } = renderHook(
             // @ts-expect-error partially mock params for hook
-            useCartesianChartConfig(useCartesianChartConfigParamsMock),
+            () => useCartesianChartConfig(useCartesianChartConfigParamsMock),
         );
 
         const series =
             result.current.validCartesianConfig!.eChartsConfig.series!;
 
-        expect(series).toBeDefined();
         series.forEach((serie) => expect(serie.yAxisIndex).toBe(0));
     });
 });
