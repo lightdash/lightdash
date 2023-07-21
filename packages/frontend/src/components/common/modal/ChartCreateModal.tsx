@@ -52,7 +52,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
 
     const { mutateAsync: updateDashboard } = useUpdateDashboard(
         dashboardUuid,
-        true,
+        false,
     );
     const { data: selectedDashboard } = useDashboardQuery(dashboardUuid);
     const history = useHistory();
@@ -131,7 +131,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
             !selectedDashboard
         )
             return;
-        const dashboard = await updateDashboard({
+        await updateDashboard({
             name: fromDashboard,
             filters: selectedDashboard?.filters,
             tiles: [
@@ -150,17 +150,11 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                 },
             ],
         });
-        const newChartUuid =
-            dashboard?.tiles[dashboard.tiles.length - 1].properties
-                .savedChartUuid ?? '';
         sessionStorage.clear();
         handleClose();
-        if (newChartUuid.length > 0)
-            history.push(`/projects/${projectUuid}/saved/${newChartUuid}/view`);
-        else
-            history.push(
-                `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
-            );
+        history.push(
+            `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+        );
     }, [
         dashboardUuid,
         fromDashboard,

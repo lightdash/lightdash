@@ -56,7 +56,7 @@ const DashboardExplorerBanner: FC<{
             <Button
                 onClick={() => {
                     history.push(
-                        `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+                        `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
                     );
                     sessionStorage.clear();
                 }}

@@ -45,7 +45,7 @@ const AddTileButton: FC<Props> = ({ onAddTiles, intent, popoverPosition }) => {
                 content={
                     <Menu>
                         <MenuItem2
-                            icon="chart"
+                            icon="timeline-line-chart"
                             text="Saved chart"
                             onClick={() => setIsAddChartTilesModalOpen(true)}
                         />
@@ -55,7 +55,7 @@ const AddTileButton: FC<Props> = ({ onAddTiles, intent, popoverPosition }) => {
                         {localStorage.getItem('CHARTS_IN_DASHBOARDS') && (
                             <>
                                 <MenuItem2
-                                    icon="chart"
+                                    icon="series-add"
                                     text={
                                         <Group spacing="xxs">
                                             <Text>New chart</Text>
