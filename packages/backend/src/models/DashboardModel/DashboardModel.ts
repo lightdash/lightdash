@@ -495,7 +495,6 @@ export class DashboardModel {
                 this.database.raw(
                     `COALESCE(
                         ${DashboardTileChartTableName}.title,
-                        ${SavedChartsTableName}.name,
                         ${DashboardTileLoomsTableName}.title,
                         ${DashboardTileMarkdownsTableName}.title
                     ) AS title`,

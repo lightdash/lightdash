@@ -38,6 +38,7 @@ models:
       label: "My Custom Table Name"
       order_fields_by: "label"
       group_label: "Revenue"
+      sql_filter: ${date_dimension} > '2020-01-01'
       joins:
         - join: my_other_table
           sql_on: ${my_table.column_a} = ${my_other_table.column_a}
@@ -52,6 +53,7 @@ Here are all of the properties you can customize:
 | [joins](joins.md)                                 | array              | Join logic to join other data models to the Table. [Read more about joins in here.](joins.md)                                                                            |
 | [metrics](metrics.mdx#2-using-the-model-meta-tag) | object             | Model metrics. [Read more about model metrics in here](metrics.mdx#2-using-the-model-meta-tag)                                                                           |
 | [group_label](#group-label)                       | string             | Group tables in the sidebar.  [Read more about the group label in here](#group-label) |
+| [sql_filter](#sql-filter) | string | A permanent filter that will always be applied when querying this table directly. Read more about `sql_filter` [below](#sql-filter) |
 
 ### If you've added a new dbt model to your project, you need to do `dbt run` + `dbt refresh` before it before it will appear in Lightdash
 
@@ -115,3 +117,12 @@ The tables in your sidebar will appear in the following order:
 
 <img src={TableGroupLabelImg} width="300" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
+### SQL filter
+
+Use `sql_filter` to permanently filter the table for all queries made against it. `sql_filter` accepts a sql string that can reference
+
+- `${TABLE}` the current table
+- `${dimension_a}` a dimension from the current table
+- `${table_b.dimension_b} a dimension from a joined table
+
+The filter will only be applied when querying this table directly. If the current table (Table A) is included via a join to another table (Table B) then the `sql_where` for Table B will be applied but not for Table A.

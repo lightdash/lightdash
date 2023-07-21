@@ -1,4 +1,3 @@
-import { FormGroup } from '@blueprintjs/core';
 import { Box, Checkbox, Stack, Title, Tooltip } from '@mantine/core';
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
@@ -142,7 +141,7 @@ const GeneralSettings: FC = () => {
     );
 
     return (
-        <>
+        <Stack spacing={0}>
             <DragDropContext
                 onDragStart={() => setIsDragging(true)}
                 onDragEnd={onDragEnd}
@@ -183,21 +182,12 @@ const GeneralSettings: FC = () => {
                     />
                 </Box>
             </Tooltip>
-            <FormGroup>
+            <Stack spacing="xs" mb="md">
                 {metrics.map((itemId) => (
-                    <div
-                        key={itemId}
-                        style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            width: '100%',
-                            marginBottom: '10px',
-                        }}
-                    >
-                        <ColumnConfiguration fieldId={itemId} />
-                    </div>
+                    <ColumnConfiguration key={itemId} fieldId={itemId} />
                 ))}
-            </FormGroup>
+            </Stack>
+
             <Title order={6}>Options</Title>
             <Stack mt="sm" spacing="xs">
                 <Checkbox
@@ -239,7 +229,7 @@ const GeneralSettings: FC = () => {
                     }}
                 />
             </Stack>
-        </>
+        </Stack>
     );
 };
 

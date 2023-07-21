@@ -8,8 +8,8 @@ import {
     ResultValue,
     TableCalculation,
 } from '@lightdash/common';
-import { useClipboard, useHotkeys } from '@mantine/hooks';
-import { FC, useCallback, useMemo, useState } from 'react';
+import { getHotkeyHandler, useClipboard } from '@mantine/hooks';
+import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { getColorFromRange, readableColor } from '../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../Filters/configs';
@@ -81,13 +81,22 @@ const ValueCell: FC<ValueCellProps> = ({
         }
     }, [clipboard, value, isMenuOpen]);
 
-    useHotkeys([['mod+c', handleCopy]]);
-
     const { cx, classes } = usePivotTableCellStyles({
         conditionalFormatting,
     });
 
     const formattedValue = value?.formatted;
+
+    useEffect(() => {
+        const handleKeyDown = getHotkeyHandler([['mod+C', handleCopy]]);
+        if (isMenuOpen) {
+            document.body.addEventListener('keydown', handleKeyDown);
+        }
+
+        return () => {
+            document.body.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [handleCopy, isMenuOpen]);
 
     return (
         <ValueCellMenu
