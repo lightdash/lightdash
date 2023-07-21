@@ -23,6 +23,8 @@ import {
     exploreReferenceInJoinCompiled,
     exploreTableSelfReference,
     exploreTableSelfReferenceCompiled,
+    exploreTableSelfReferenceCompiledSqlWhere,
+    exploreTableSelfReferenceSqlWhere,
     exploreWithMetricNumber,
     exploreWithMetricNumberCompiled,
     joinedExploreOverridingAliasAndLabel,
@@ -74,6 +76,12 @@ test('Should compile table with TABLE reference', () => {
     expect(compiler.compileExplore(exploreTableSelfReference)).toStrictEqual(
         exploreTableSelfReferenceCompiled,
     );
+});
+
+test('Should compile table with TABLE reference on sql where', () => {
+    expect(
+        compiler.compileExplore(exploreTableSelfReferenceSqlWhere),
+    ).toStrictEqual(exploreTableSelfReferenceCompiledSqlWhere);
 });
 
 test('Should compile table with reference to another dimension', () => {

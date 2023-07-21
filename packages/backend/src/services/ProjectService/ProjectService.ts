@@ -1385,6 +1385,19 @@ export class ProjectService {
                         },
                         0,
                     ),
+                    rowAccessFiltersCount: explores.reduce<number>(
+                        (acc, explore) => {
+                            if (
+                                explore.tables &&
+                                explore.baseTable &&
+                                explore.tables[explore.baseTable].sqlWhere !==
+                                    undefined
+                            )
+                                return acc + 1;
+                            return acc;
+                        },
+                        0,
+                    ),
                 },
             });
             return explores;
