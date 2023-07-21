@@ -257,6 +257,17 @@ export class SavedChartService {
             userId: user.userUuid,
             properties: SavedChartService.getCreateEventProperties(savedChart),
         });
+
+        SavedChartService.getConditionalFormattingEventProperties(
+            savedChart,
+        )?.forEach((properties) => {
+            analytics.track({
+                event: 'conditional_formatting_rule.saved',
+                userId: user.userUuid,
+                properties,
+            });
+        });
+
         return savedChart;
     }
 
