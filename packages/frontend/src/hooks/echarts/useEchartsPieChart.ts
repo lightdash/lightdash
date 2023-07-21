@@ -1,9 +1,9 @@
 import { formatItemValue } from '@lightdash/common';
-import { PieSeriesOption } from 'echarts';
+import { EChartsOption, PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 
-const useEchartsPieConfig = () => {
+const useEchartsPieConfig = (): EChartsOption | undefined => {
     const context = useVisualizationContext();
     const {
         pieChartConfig: {
@@ -106,33 +106,33 @@ const useEchartsPieConfig = () => {
                     : showLegend
                     ? ['50%', '52%']
                     : ['50%', '50%'],
+            tooltip: {
+                trigger: 'item',
+                formatter: ({ marker, name, value, percent }) => {
+                    const formattedValue = formatItemValue(
+                        selectedMetric,
+                        value,
+                    );
+
+                    return `${marker} <b>${name}</b><br />${percent}% - ${formattedValue}`;
+                },
+            },
         };
 
-        return {
+        const config: EChartsOption = {
             legend: {
                 show: showLegend,
                 orient: 'horizontal',
                 left: 'center',
                 type: 'scroll',
             },
-            series: [pieSeriesOption],
             tooltip: {
                 trigger: 'item',
-                formatter: (params: {
-                    marker: string;
-                    name: string;
-                    value: number;
-                    percent: number;
-                }) => {
-                    const formattedValue = formatItemValue(
-                        selectedMetric,
-                        params.value,
-                    );
-
-                    return `${params.marker} <b>${params.name}</b><br />${params.percent}% - ${formattedValue}`;
-                },
             },
+            series: [pieSeriesOption],
         };
+
+        return config;
     }, [
         selectedMetric,
         seriesData,
