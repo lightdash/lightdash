@@ -99,7 +99,6 @@ export const expectedSimpleSeriesMap: Record<string, Series> = {
         stack: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         encode: {
             xRef: {
                 field: 'my_dimension',
@@ -115,7 +114,6 @@ export const expectedSimpleSeriesMap: Record<string, Series> = {
         stack: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         encode: {
             xRef: {
                 field: 'my_dimension',
@@ -139,7 +137,6 @@ export const expectedPivotedSeriesMap: Record<string, Series> = {
         stack: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         encode: {
             xRef: {
                 field: 'my_dimension',
@@ -156,7 +153,6 @@ export const expectedPivotedSeriesMap: Record<string, Series> = {
         stack: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         encode: {
             xRef: {
                 field: 'my_dimension',
@@ -173,7 +169,6 @@ export const expectedPivotedSeriesMap: Record<string, Series> = {
         stack: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         encode: {
             xRef: {
                 field: 'my_dimension',
@@ -190,7 +185,6 @@ export const expectedPivotedSeriesMap: Record<string, Series> = {
         stack: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         encode: {
             xRef: {
                 field: 'my_dimension',
@@ -252,7 +246,6 @@ export const expectedMultiPivotedSeriesMap: Record<string, Series> = {
         smooth: undefined,
         areaStyle: undefined,
         stack: undefined,
-        yAxisIndex: 0,
         encode: {
             xRef: {
                 field: 'my_dimension',
@@ -272,7 +265,6 @@ export const expectedMultiPivotedSeriesMap: Record<string, Series> = {
         stack: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         encode: {
             xRef: {
                 field: 'my_dimension',
@@ -291,7 +283,6 @@ export const expectedMultiPivotedSeriesMap: Record<string, Series> = {
         areaStyle: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         stack: undefined,
         encode: {
             xRef: {
@@ -312,7 +303,6 @@ export const expectedMultiPivotedSeriesMap: Record<string, Series> = {
         stack: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         encode: {
             xRef: {
                 field: 'my_dimension',
@@ -335,7 +325,6 @@ export const existingMixedSeries: Series[] = [
         stack: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         encode: {
             xRef: {
                 field: 'my_dimension',
@@ -351,7 +340,6 @@ export const existingMixedSeries: Series[] = [
         areaStyle: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         stack: undefined,
         encode: {
             xRef: {
@@ -373,7 +361,6 @@ export const expectedMixedSeriesMap: Record<string, Series> = {
         stack: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         encode: {
             xRef: {
                 field: 'my_dimension',
@@ -389,7 +376,6 @@ export const expectedMixedSeriesMap: Record<string, Series> = {
         stack: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         encode: {
             xRef: {
                 field: 'my_dimension',
@@ -405,7 +391,6 @@ export const expectedMixedSeriesMap: Record<string, Series> = {
         areaStyle: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         stack: undefined,
         encode: {
             xRef: {
@@ -423,7 +408,6 @@ export const expectedMixedSeriesMap: Record<string, Series> = {
         stack: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         encode: {
             xRef: {
                 field: 'my_dimension',
@@ -440,7 +424,6 @@ export const expectedMixedSeriesMap: Record<string, Series> = {
         stack: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         encode: {
             xRef: {
                 field: 'my_dimension',
@@ -457,7 +440,6 @@ export const expectedMixedSeriesMap: Record<string, Series> = {
         stack: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         encode: {
             xRef: {
                 field: 'my_dimension',
@@ -476,7 +458,6 @@ export const mergedMixedSeries: Series[] = [
         stack: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         encode: {
             xRef: {
                 field: 'my_dimension',
@@ -493,7 +474,6 @@ export const mergedMixedSeries: Series[] = [
         stack: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         encode: {
             xRef: {
                 field: 'my_dimension',
@@ -511,7 +491,6 @@ export const mergedMixedSeries: Series[] = [
         stack: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         encode: {
             xRef: {
                 field: 'my_dimension',
@@ -528,7 +507,6 @@ export const mergedMixedSeries: Series[] = [
         stack: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         encode: {
             xRef: {
                 field: 'my_dimension',
@@ -545,7 +523,6 @@ export const mergedMixedSeries: Series[] = [
         stack: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         encode: {
             xRef: {
                 field: 'my_dimension',
@@ -562,7 +539,6 @@ export const mergedMixedSeries: Series[] = [
         stack: undefined,
         showSymbol: undefined,
         smooth: undefined,
-        yAxisIndex: 0,
         encode: {
             xRef: {
                 field: 'my_dimension',

@@ -595,7 +595,13 @@ const useCartesianChartConfig = ({
 
                 return {
                     ...prev,
-                    series: seriesWithReferenceLines,
+                    series: seriesWithReferenceLines.map((serie) => ({
+                        ...serie,
+                        // NOTE: Addresses old chart configs where yAxisIndex was not set
+                        ...(!serie.yAxisIndex && {
+                            yAxisIndex: 0,
+                        }),
+                    })),
                 };
             });
         }

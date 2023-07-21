@@ -163,7 +163,7 @@ export type Series = {
     };
     name?: string;
     color?: string;
-    yAxisIndex: number;
+    yAxisIndex?: number;
     label?: {
         show?: boolean;
         position?: 'left' | 'top' | 'right' | 'bottom' | 'inside';
