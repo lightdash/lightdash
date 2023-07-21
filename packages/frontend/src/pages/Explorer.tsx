@@ -37,6 +37,9 @@ const ExplorerWithUrlParams = memo(() => {
             sidebar={<ExploreSideBar />}
             withFullHeight
             withPaddedContent
+            hasBanner={
+                sessionStorage.getItem('fromDashboard') !== null ? true : false
+            }
         >
             <Explorer />
         </Page>
