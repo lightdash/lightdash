@@ -1,3 +1,17 @@
+# [0.685.0](https://github.com/lightdash/lightdash/compare/0.684.0...0.685.0) (2023-07-21)
+
+
+### Features
+
+* save chart in dashboard ([#6382](https://github.com/lightdash/lightdash/issues/6382)) ([7a93c39](https://github.com/lightdash/lightdash/commit/7a93c398599503b0f0d611f94a542ed9a256d89f))
+
+# [0.684.0](https://github.com/lightdash/lightdash/compare/0.683.1...0.684.0) (2023-07-21)
+
+
+### Features
+
+* conditional formatting analytics events ([#6437](https://github.com/lightdash/lightdash/issues/6437)) ([d1d4281](https://github.com/lightdash/lightdash/commit/d1d428148d853a1dfcdc6e877e4055b2a7900b8f))
+
 ## [0.683.1](https://github.com/lightdash/lightdash/compare/0.683.0...0.683.1) (2023-07-21)
 
 

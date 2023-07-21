@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
     ChartSummary,
     ChartType,
     countTotalFilterRules,
@@ -8,6 +9,8 @@ import {
     CreateSchedulerAndTargetsWithoutIds,
     ForbiddenError,
     isChartScheduler,
+    isConditionalFormattingConfigWithColorRange,
+    isConditionalFormattingConfigWithSingleColor,
     isSlackTarget,
     isUserWithOrg,
     SavedChart,
@@ -19,7 +22,10 @@ import {
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import { analytics } from '../../analytics/client';
-import { CreateSavedChartOrVersionEvent } from '../../analytics/LightdashAnalytics';
+import {
+    ConditionalFormattingRuleSavedEvent,
+    CreateSavedChartOrVersionEvent,
+} from '../../analytics/LightdashAnalytics';
 import { schedulerClient, slackClient } from '../../clients/clients';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
@@ -176,6 +182,48 @@ export class SavedChartService {
         };
     }
 
+    static getConditionalFormattingEventProperties(
+        savedChart: SavedChart,
+    ): ConditionalFormattingRuleSavedEvent['properties'][] | undefined {
+        if (
+            savedChart.chartConfig.type !== ChartType.TABLE ||
+            !savedChart.chartConfig.config?.conditionalFormattings ||
+            savedChart.chartConfig.config.conditionalFormattings.length === 0
+        ) {
+            return undefined;
+        }
+
+        const eventProperties =
+            savedChart.chartConfig.config.conditionalFormattings.map((rule) => {
+                let type: 'color range' | 'single color';
+                let numConditions: number;
+
+                if (isConditionalFormattingConfigWithColorRange(rule)) {
+                    type = 'color range';
+                    numConditions = 1;
+                } else if (isConditionalFormattingConfigWithSingleColor(rule)) {
+                    type = 'single color';
+                    numConditions = rule.rules.length;
+                } else {
+                    type = assertUnreachable(
+                        rule,
+                        'Unknown conditional formatting',
+                    );
+                    numConditions = 0;
+                }
+
+                return {
+                    projectId: savedChart.projectUuid,
+                    organizationId: savedChart.organizationUuid,
+                    savedQueryId: savedChart.uuid,
+                    type,
+                    numConditions,
+                };
+            });
+
+        return eventProperties;
+    }
+
     async createVersion(
         user: SessionUser,
         savedChartUuid: string,
@@ -209,6 +257,17 @@ export class SavedChartService {
             userId: user.userUuid,
             properties: SavedChartService.getCreateEventProperties(savedChart),
         });
+
+        SavedChartService.getConditionalFormattingEventProperties(
+            savedChart,
+        )?.forEach((properties) => {
+            analytics.track({
+                event: 'conditional_formatting_rule.saved',
+                userId: user.userUuid,
+                properties,
+            });
+        });
+
         return savedChart;
     }
 
@@ -453,6 +512,17 @@ export class SavedChartService {
             properties:
                 SavedChartService.getCreateEventProperties(newSavedChart),
         });
+
+        SavedChartService.getConditionalFormattingEventProperties(
+            newSavedChart,
+        )?.forEach((properties) => {
+            analytics.track({
+                event: 'conditional_formatting_rule.saved',
+                userId: user.userUuid,
+                properties,
+            });
+        });
+
         return newSavedChart;
     }
 
