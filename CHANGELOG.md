@@ -1,3 +1,10 @@
+## [0.683.1](https://github.com/lightdash/lightdash/compare/0.683.0...0.683.1) (2023-07-21)
+
+
+### Bug Fixes
+
+* pie charts tooltip and label configuration ([#6436](https://github.com/lightdash/lightdash/issues/6436)) ([83b74ed](https://github.com/lightdash/lightdash/commit/83b74edc69e690d3af6c6f1cf981b237cf781a7d))
+
 # [0.683.0](https://github.com/lightdash/lightdash/compare/0.682.1...0.683.0) (2023-07-21)
 
 
