@@ -614,7 +614,13 @@ const useCartesianChartConfig = ({
             isCompleteEchartsConfig(dirtyEchartsConfig)
                 ? {
                       layout: dirtyLayout,
-                      eChartsConfig: dirtyEchartsConfig,
+                      eChartsConfig: {
+                          ...dirtyEchartsConfig,
+                          series: dirtyEchartsConfig.series.map((serie) => ({
+                              ...serie,
+                              ...(!serie.yAxisIndex && { yAxisIndex: 0 }),
+                          })),
+                      },
                   }
                 : undefined,
         [dirtyLayout, dirtyEchartsConfig],
