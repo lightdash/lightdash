@@ -172,14 +172,20 @@ const DashboardHeader = ({
             {userCanManageDashboard && isEditMode ? (
                 <PageActionsContainer>
                     <AddTileButton onAddTiles={onAddTiles} />
-
-                    <Button
-                        text="Save"
-                        disabled={!hasDashboardChanged || isSaving}
-                        intent={Intent.PRIMARY}
-                        onClick={onSaveDashboard}
-                    />
-
+                    <Tooltip2
+                        content={
+                            !hasDashboardChanged
+                                ? 'No changes to save'
+                                : undefined
+                        }
+                    >
+                        <Button
+                            text="Save"
+                            disabled={!hasDashboardChanged || isSaving}
+                            intent={Intent.PRIMARY}
+                            onClick={onSaveDashboard}
+                        />
+                    </Tooltip2>
                     <Button
                         text="Cancel"
                         disabled={isSaving}
