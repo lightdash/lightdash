@@ -676,7 +676,9 @@ export class SavedChartModel {
                 query.where('projects.project_uuid', filters.projectUuid);
             }
             if (filters.spaceUuids) {
-                query.whereIn('spaces.space_uuid', filters.spaceUuids);
+                query
+                    .whereNotNull(`${SavedChartsTableName}.space_id`)
+                    .whereIn('spaces.space_uuid', filters.spaceUuids);
             }
             return await query;
         } finally {
@@ -697,7 +699,22 @@ export class SavedChartModel {
                 pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
                 chartType: 'last_saved_query_version.chart_type',
             })
-            .leftJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
+            .innerJoin(SpaceTableName, function spaceJoin() {
+                this.on(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${DashboardsTableName}.space_id`,
+                ).orOn(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SavedChartsTableName}.space_id`,
+                );
+            })
             .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
             .leftJoin(
                 OrganizationTableName,

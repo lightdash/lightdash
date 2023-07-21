@@ -1,4 +1,5 @@
 import {
+    ApiChartSummaryListResponse,
     CreateDashboard,
     CreateSavedChart,
     Dashboard,
@@ -58,6 +59,7 @@ describe('Lightdash dashboard', () => {
     beforeEach(() => {
         cy.login();
     });
+    let chartUuid: string;
     it('Should create dashboard and chart at the same time', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
@@ -84,6 +86,7 @@ describe('Lightdash dashboard', () => {
                 expect(chartResponse.body.results.spaceUuid).to.eq(
                     createDashboardResponse.body.results.spaceUuid,
                 );
+                chartUuid = chartResponse.body.results.uuid;
             });
 
             const updateDashboardMock: UpdateDashboard = {
@@ -146,6 +149,34 @@ describe('Lightdash dashboard', () => {
                     );
                 });
             });
+        });
+    });
+    it('Should update chart that belongs to dashboard', () => {
+        const newDescription = 'updated chart description';
+        cy.request<{ results: SavedChart }>({
+            method: 'PATCH',
+            url: `${apiUrl}/saved/${chartUuid}`,
+            body: {
+                description: newDescription,
+            },
+        }).then((chartResponse) => {
+            expect(chartResponse.status).to.eq(200);
+            expect(chartResponse.body.results.name).to.eq(chartMock.name);
+            expect(chartResponse.body.results.description).to.eq(
+                newDescription,
+            );
+        });
+    });
+    it('Should get chart summaries without charts that belongs to dashboard', () => {
+        cy.request<ApiChartSummaryListResponse>(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
+        ).then((chartResponse) => {
+            expect(chartResponse.status).to.eq(200);
+            const projectChartsUuids = chartResponse.body.results.map(
+                ({ uuid }) => uuid,
+            );
+            expect(projectChartsUuids.length).to.not.eq(0);
+            expect(projectChartsUuids).to.not.include(chartUuid);
         });
     });
 });
