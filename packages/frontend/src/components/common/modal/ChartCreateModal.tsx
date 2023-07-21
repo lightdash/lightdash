@@ -112,7 +112,6 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         setNewSpaceName('');
         setSpaceUuid(undefined);
         setShouldCreateNewSpace(false);
-
         return savedQuery;
     }, [
         name,
@@ -125,14 +124,14 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         showSpaceInput,
     ]);
 
-    const handleSaveChartInDashboard = async () => {
+    const handleSaveChartInDashboard = useCallback(async () => {
         if (
             fromDashboard === null ||
             dashboardUuid.length === 0 ||
             !selectedDashboard
         )
             return;
-        const savedQuery = await updateDashboard({
+        const dashboard = await updateDashboard({
             name: fromDashboard,
             filters: selectedDashboard?.filters,
             tiles: [
@@ -151,10 +150,25 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                 },
             ],
         });
+        const newChartUuid =
+            dashboard?.tiles[dashboard.tiles.length - 1].properties
+                .savedChartUuid ?? '';
         sessionStorage.clear();
         handleClose();
-        history.push(`/projects/${projectUuid}/saved/${savedQuery.uuid}/view`);
-    };
+        if (newChartUuid.length > 0)
+            history.push(`/projects/${projectUuid}/saved/${newChartUuid}/view`);
+    }, [
+        dashboardUuid,
+        fromDashboard,
+        history,
+        handleClose,
+        savedData,
+        selectedDashboard,
+        updateDashboard,
+        name,
+        description,
+        projectUuid,
+    ]);
 
     if (isLoadingSpaces || !spaces) return null;
 
