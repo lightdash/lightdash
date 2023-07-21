@@ -80,6 +80,7 @@ export const dashboard: Dashboard = {
             properties: {
                 savedChartUuid: 'savedChartUuid',
                 title: 'savedChartName',
+                belongsToDashboard: false,
             },
             x: 4,
             y: 3,

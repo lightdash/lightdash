@@ -1,7 +1,7 @@
 import {
-    DashboardChartTile,
-    DashboardLoomTile,
-    DashboardMarkdownTile,
+    CreateDashboardChartTile,
+    CreateDashboardLoomTile,
+    CreateDashboardMarkdownTile,
     DashboardTileTypes,
     FilterOperator,
     SEED_ORG_1_ADMIN,
@@ -40,7 +40,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_ORG_1_ADMIN.user_uuid,
     );
 
-    const loomTile: DashboardLoomTile = {
+    const loomTile: CreateDashboardLoomTile = {
         uuid: uuidv4(),
         x: 0,
         y: 0,
@@ -53,7 +53,7 @@ export async function seed(knex: Knex): Promise<void> {
         },
     };
 
-    const markdownTile: DashboardMarkdownTile = {
+    const markdownTile: CreateDashboardMarkdownTile = {
         uuid: uuidv4(),
         x: 18,
         y: 0,
@@ -66,7 +66,7 @@ export async function seed(knex: Knex): Promise<void> {
         },
     };
 
-    const markdownRevenueTile: DashboardMarkdownTile = {
+    const markdownRevenueTile: CreateDashboardMarkdownTile = {
         uuid: uuidv4(),
         x: 0,
         y: 9,
@@ -79,7 +79,7 @@ export async function seed(knex: Knex): Promise<void> {
         },
     };
 
-    const barChart: DashboardChartTile = {
+    const barChart: CreateDashboardChartTile = {
         uuid: uuidv4(),
         x: 0,
         y: 12,
@@ -89,7 +89,7 @@ export async function seed(knex: Knex): Promise<void> {
         properties: { savedChartUuid: queries[0].uuid, title: queries[0].name },
     };
 
-    const bigNumberTile: DashboardChartTile = {
+    const bigNumberTile: CreateDashboardChartTile = {
         uuid: uuidv4(),
         x: 24,
         y: 12,
@@ -99,7 +99,7 @@ export async function seed(knex: Knex): Promise<void> {
         properties: { savedChartUuid: queries[1].uuid, title: queries[1].name },
     };
 
-    const lineChartTile: DashboardChartTile = {
+    const lineChartTile: CreateDashboardChartTile = {
         uuid: uuidv4(),
         x: 0,
         y: 24,
@@ -109,7 +109,7 @@ export async function seed(knex: Knex): Promise<void> {
         properties: { savedChartUuid: queries[2].uuid, title: queries[2].name },
     };
 
-    const barTile: DashboardChartTile = {
+    const barTile: CreateDashboardChartTile = {
         uuid: uuidv4(),
         x: 18,
         y: 24,
@@ -119,7 +119,7 @@ export async function seed(knex: Knex): Promise<void> {
         properties: { savedChartUuid: queries[3].uuid, title: queries[3].name },
     };
 
-    const tableTile: DashboardChartTile = {
+    const tableTile: CreateDashboardChartTile = {
         uuid: uuidv4(),
         x: 0,
         y: 33,
@@ -129,7 +129,7 @@ export async function seed(knex: Knex): Promise<void> {
         properties: { savedChartUuid: queries[4].uuid, title: queries[4].name },
     };
 
-    const markdownOrdersTile: DashboardMarkdownTile = {
+    const markdownOrdersTile: CreateDashboardMarkdownTile = {
         uuid: uuidv4(),
         x: 0,
         y: 21,

@@ -39,6 +39,10 @@ const tileWithoutId: CreateDashboardChartTile = {
 const tileWithId: DashboardChartTile = {
     uuid: '2a93d63d-ca81-421c-b88b-1124a2f02407',
     ...tileWithoutId,
+    properties: {
+        ...tileWithoutId.properties,
+        belongsToDashboard: false,
+    },
 };
 
 export const createDashboard: CreateDashboard = {

@@ -445,6 +445,7 @@ export class SavedChartModel {
                     (DbSavedChartDetails & {
                         space_uuid: string;
                         spaceName: string;
+                        dashboardName: string | null;
                     })[]
                 >([
                     `${ProjectTableName}.project_uuid`,
@@ -453,6 +454,7 @@ export class SavedChartModel {
                     `${SavedChartsTableName}.name`,
                     `${SavedChartsTableName}.description`,
                     `${SavedChartsTableName}.dashboard_uuid`,
+                    `${DashboardsTableName}.name as dashboardName`,
                     'saved_queries_versions.saved_queries_version_id',
                     'saved_queries_versions.explore_name',
                     'saved_queries_versions.filters',
@@ -629,6 +631,7 @@ export class SavedChartModel {
                 pinnedListUuid: savedQuery.pinned_list_uuid,
                 pinnedListOrder: null,
                 dashboardUuid: savedQuery.dashboard_uuid,
+                dashboardName: savedQuery.dashboardName,
             };
         } finally {
             span?.finish();
@@ -698,6 +701,24 @@ export class SavedChartModel {
                 organizationUuid: 'organizations.organization_uuid',
                 pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
                 chartType: 'last_saved_query_version.chart_type',
+                dashboardUuid: `${DashboardsTableName}.dashboard_uuid`,
+                dashboardName: `${DashboardsTableName}.name`,
+            })
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
+            .innerJoin(SpaceTableName, function spaceJoin() {
+                this.on(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${DashboardsTableName}.space_id`,
+                ).orOn(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SavedChartsTableName}.space_id`,
+                );
             })
             .leftJoin(
                 DashboardsTableName,

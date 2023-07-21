@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     CreateDashboard,
+    CreateDashboardChartTile,
     CreateSchedulerAndTargetsWithoutIds,
     Dashboard,
     DashboardBasicDetails,
@@ -239,6 +240,25 @@ export class DashboardService {
         const duplicatedDashboard = {
             ...dashboard,
             name: `Copy of ${dashboard.name}`,
+            tiles: dashboard.tiles.map<CreateDashboard['tiles'][number]>(
+                (tile) => {
+                    switch (tile.type) {
+                        case DashboardTileTypes.SAVED_CHART: {
+                            const { properties, ...rest } = tile;
+                            return <CreateDashboardChartTile>{
+                                ...rest,
+                                properties: {
+                                    title: properties.title,
+                                    hideTitle: properties.hideTitle,
+                                    savedChartUuid: properties.savedChartUuid,
+                                },
+                            };
+                        }
+                        default:
+                            return tile;
+                    }
+                },
+            ),
         };
         const newDashboard = await this.dashboardModel.create(
             dashboard.spaceUuid,

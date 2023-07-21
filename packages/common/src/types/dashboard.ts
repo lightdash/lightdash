@@ -44,15 +44,29 @@ export type DashboardChartTileProperties = {
         title?: string;
         hideTitle?: boolean;
         savedChartUuid: string | null;
+        belongsToDashboard: boolean;
     };
 };
 
-export type CreateDashboardChartTileProperties =
-    DashboardChartTileProperties & {
-        properties: DashboardChartTileProperties['properties'] & {
-            newChartData?: CreateSavedChart;
-        };
-    };
+export type CreateDashboardChartTileProperties = Omit<
+    DashboardChartTileProperties,
+    'properties'
+> & {
+    properties: Pick<
+        DashboardChartTileProperties['properties'],
+        'title' | 'hideTitle'
+    > &
+        (
+            | {
+                  savedChartUuid: null;
+                  newChartData: CreateSavedChart;
+              }
+            | {
+                  savedChartUuid: string | null;
+                  newChartData?: null;
+              }
+        );
+};
 
 export type CreateDashboardMarkdownTile = CreateDashboardTileBase &
     DashboardMarkdownTileProperties;
