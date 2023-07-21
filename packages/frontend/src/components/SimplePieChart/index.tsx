@@ -1,7 +1,8 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
+import { ECElementEvent } from 'echarts';
 import EChartsReact from 'echarts-for-react';
 import { EChartsReactProps, Opts } from 'echarts-for-react/lib/types';
-import { FC, memo, useEffect } from 'react';
+import { FC, memo, useCallback, useEffect } from 'react';
 import useEchartsPieConfig from '../../hooks/echarts/useEchartsPieChart';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
@@ -39,6 +40,11 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
         return () => window.removeEventListener('resize', listener);
     });
 
+    const handleMenuOpen = useCallback((e: ECElementEvent) => {
+        if (e.componentType !== 'series' || e.componentSubType !== 'pie')
+            return;
+    }, []);
+
     if (isLoading) return <LoadingChart />;
     if (!pieChartOptions) return <EmptyChart />;
 
@@ -63,6 +69,10 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
             opts={EchartOptions}
             option={pieChartOptions}
             notMerge
+            onEvents={{
+                contextmenu: handleMenuOpen,
+                click: handleMenuOpen,
+            }}
             {...props}
         />
     );
