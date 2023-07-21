@@ -618,6 +618,7 @@ const useCartesianChartConfig = ({
                           ...dirtyEchartsConfig,
                           series: dirtyEchartsConfig.series.map((serie) => ({
                               ...serie,
+                              // NOTE: default yAxisIndex to 0 when not set initially - this avoids breakage of functionality when changing positioning of series Y axis side  (left/right)
                               ...(!serie.yAxisIndex && { yAxisIndex: 0 }),
                           })),
                       },
