@@ -54,10 +54,7 @@ export const chart: SavedChart = {
     uuid: 'chartUuid',
     projectUuid: 'projectUuid',
     dashboardUuid: null,
-<<<<<<< HEAD
-=======
     dashboardName: null,
->>>>>>> a6c617dc5 (feat: identify charts that belong to a dashboard)
     name: 'Test chart',
     tableName: 'table',
     updatedAt: new Date('2021-01-01'),
