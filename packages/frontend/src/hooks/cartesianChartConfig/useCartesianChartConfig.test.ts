@@ -1,3 +1,5 @@
+import { renderHook } from '@testing-library/react-hooks';
+import useCartesianChartConfig from './useCartesianChartConfig';
 import {
     existingMixedSeries,
     expectedMixedSeriesMap,
@@ -10,6 +12,7 @@ import {
     multiPivotSeriesMapArgs,
     pivotSeriesMapArgs,
     simpleSeriesMapArgs,
+    useCartesianChartConfigParamsMock,
 } from './useCartesianChartConfig.mock';
 import {
     getExpectedSeriesMap,
@@ -174,5 +177,20 @@ describe('getSeriesGroupedByField', () => {
         expect(
             getSeriesGroupedByField(Object.values(mergedMixedSeries)),
         ).toStrictEqual(groupedMixedSeries);
+    });
+});
+
+describe('useCartesianChartConfig', () => {
+    test('should default series yAxisIndex to 0', () => {
+        const { result } = renderHook(() =>
+            // @ts-expect-error partially mock params for hook
+            useCartesianChartConfig(useCartesianChartConfigParamsMock),
+        );
+
+        const series =
+            result.current.validCartesianConfig!.eChartsConfig.series!;
+
+        expect(series).toBeDefined();
+        series.forEach((serie) => expect(serie.yAxisIndex).toBe(0));
     });
 });
