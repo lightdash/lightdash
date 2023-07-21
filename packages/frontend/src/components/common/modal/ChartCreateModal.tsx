@@ -157,6 +157,10 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         handleClose();
         if (newChartUuid.length > 0)
             history.push(`/projects/${projectUuid}/saved/${newChartUuid}/view`);
+        else
+            history.push(
+                `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
+            );
     }, [
         dashboardUuid,
         fromDashboard,
