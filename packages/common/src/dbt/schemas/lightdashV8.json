@@ -23,6 +23,10 @@
                 {
                     "type": "object",
                     "properties": {
+                        "name": {
+                            "type": "string",
+                            "not": { "enum": ["TABLE"] }
+                        },
                         "meta": {
                             "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashColumnMetadata"
                         }
@@ -38,6 +42,18 @@
                 {
                     "type": "object",
                     "properties": {
+                        "name": {
+                            "type": "string",
+                            "allOf": [
+                                {
+                                    "not": { "enum": ["lightdash", "ld", ""] }
+                                },
+                                {
+                                    "pattern": "^[^.]*$"
+                                }
+                            ]
+                        },
+
                         "meta": {
                             "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashModelMetadata"
                         },

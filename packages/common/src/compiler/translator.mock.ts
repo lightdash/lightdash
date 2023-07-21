@@ -219,6 +219,7 @@ export const BASE_LIGHTDASH_TABLE: Omit<Table, 'lineageGraph'> = {
     schema: model.schema,
     sqlTable: model.relation_name,
     description: model.description,
+    sqlWhere: undefined,
     dimensions: {
         myColumnName: {
             compact: undefined,
@@ -258,6 +259,23 @@ export const LIGHTDASH_TABLE_WITH_GROUP_LABEL: Omit<Table, 'lineageGraph'> = {
     groupLabel: 'revenue',
 };
 
+export const MODEL_WITH_SQL_WHERE: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    meta: {
+        sql_where: '${payment_method} IS NOT NULL',
+    },
+};
+
+export const MODEL_WITH_SQL_FILTER: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    meta: {
+        sql_filter: '${payment_method} IS NOT NULL',
+    },
+};
 export const MODEL_WITH_NO_METRICS: DbtModelNode & { relation_name: string } = {
     ...model,
     columns: {
@@ -650,6 +668,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             description: undefined,
             type: DimensionType.DATE,
             sql: 'TIMESTAMP_TRUNC(${TABLE}.user_created, WEEK)',
+
             name: 'user_created_week',
             label: 'User created week',
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
@@ -669,6 +688,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             description: undefined,
             type: DimensionType.DATE,
             sql: 'TIMESTAMP_TRUNC(${TABLE}.user_created, MONTH)',
+
             name: 'user_created_month',
             label: 'User created month',
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
@@ -707,6 +727,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             description: undefined,
             type: DimensionType.DATE,
             sql: 'TIMESTAMP_TRUNC(${TABLE}.user_created, YEAR)',
+
             name: 'user_created_year',
             label: 'User created year',
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
@@ -755,10 +776,8 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             type: DimensionType.TIMESTAMP,
             sql: "TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created))",
             name: 'user_created_raw',
-
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             tableLabel: 'My table',
-
             label: 'User created raw',
             source: undefined,
             group: 'user_created',
@@ -775,6 +794,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             description: undefined,
             type: DimensionType.DATE,
             sql: "DATE_TRUNC('DAY', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
+
             name: 'user_created_day',
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             tableLabel: 'My table',
@@ -797,12 +817,9 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             type: DimensionType.DATE,
             sql: "DATE_TRUNC('WEEK', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
             name: 'user_created_week',
-
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             tableLabel: 'My table',
-
             label: 'User created week',
-
             source: undefined,
             group: 'user_created',
             timeInterval: TimeFrames.WEEK,
@@ -819,12 +836,9 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             type: DimensionType.DATE,
             sql: "DATE_TRUNC('MONTH', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
             name: 'user_created_month',
-
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             tableLabel: 'My table',
-
             label: 'User created month',
-
             source: undefined,
             group: 'user_created',
             timeInterval: TimeFrames.MONTH,
@@ -848,6 +862,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             compact: undefined,
             source: undefined,
             sql: "DATE_TRUNC('QUARTER', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
+
             table: 'myTable',
             tableLabel: 'My table',
             timeInterval: TimeFrames.QUARTER,
@@ -860,10 +875,8 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             type: DimensionType.DATE,
             sql: "DATE_TRUNC('YEAR', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
             name: 'user_created_year',
-
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             tableLabel: 'My table',
-
             label: 'User created year',
             source: undefined,
             group: 'user_created',
@@ -1005,4 +1018,9 @@ export const expectedModelWithType: DbtModelNode = {
     columns: {
         myColumnName: { ...column, data_type: DimensionType.STRING },
     },
+};
+
+export const LIGHTDASH_TABLE_SQL_WHERE: Omit<Table, 'lineageGraph'> = {
+    ...BASE_LIGHTDASH_TABLE,
+    sqlWhere: '${payment_method} IS NOT NULL',
 };
