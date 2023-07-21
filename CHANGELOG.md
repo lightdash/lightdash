@@ -1,3 +1,10 @@
+# [0.686.0](https://github.com/lightdash/lightdash/compare/0.685.0...0.686.0) (2023-07-21)
+
+
+### Features
+
+* "add new chart" in dashboard menu ([#6415](https://github.com/lightdash/lightdash/issues/6415)) ([d6e9a55](https://github.com/lightdash/lightdash/commit/d6e9a558b6df9ffb7262e26d2dcb74428502acd6))
+
 # [0.685.0](https://github.com/lightdash/lightdash/compare/0.684.0...0.685.0) (2023-07-21)
 
 
