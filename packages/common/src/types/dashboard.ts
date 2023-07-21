@@ -44,7 +44,7 @@ export type DashboardChartTileProperties = {
         title?: string;
         hideTitle?: boolean;
         savedChartUuid: string | null;
-        belongsToDashboard: boolean;
+        belongsToDashboard?: boolean; // this should be required and not part of the "create" types, but we need to fix tech debt first. Open ticket https://github.com/lightdash/lightdash/issues/6450
     };
 };
 
@@ -52,10 +52,7 @@ export type CreateDashboardChartTileProperties = Omit<
     DashboardChartTileProperties,
     'properties'
 > & {
-    properties: Pick<
-        DashboardChartTileProperties['properties'],
-        'title' | 'hideTitle'
-    > &
+    properties: DashboardChartTileProperties['properties'] &
         (
             | {
                   savedChartUuid: null;
