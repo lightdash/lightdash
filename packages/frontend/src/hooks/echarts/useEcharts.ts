@@ -858,7 +858,7 @@ const getEchartAxis = ({
     const leftAxisYId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.xField
         : validCartesianConfig.eChartsConfig.series?.find(
-              (serie) => serie.yAxisIndex === 0 || !serie.yAxisIndex, // NOTE: yAxisIndex is undefined on first time adding a serie
+              (serie) => serie.yAxisIndex === 0,
           )?.encode.yRef.field || yAxisItemId;
     // There is no right Y axis when flipped
     const rightAxisYId =
