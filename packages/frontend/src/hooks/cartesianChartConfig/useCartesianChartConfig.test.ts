@@ -1,3 +1,4 @@
+import { CartesianSeriesType } from '@lightdash/common';
 import { renderHook } from '@testing-library/react-hooks';
 import useCartesianChartConfig from './useCartesianChartConfig';
 import {
@@ -191,5 +192,52 @@ describe('useCartesianChartConfig', () => {
             result.current.validCartesianConfig!.eChartsConfig.series!;
 
         series.forEach((serie) => expect(serie.yAxisIndex).toBe(0));
+    });
+    test('should set undefined yAxisIndex to 0', () => {
+        const seriesFromOldChart = [
+            {
+                type: CartesianSeriesType.BAR,
+                encode: {
+                    xRef: {
+                        field: 'orders_customer_id',
+                    },
+                    yRef: {
+                        field: 'orders_total_order_amount',
+                    },
+                },
+                yAxisIndex: 1,
+            },
+            {
+                type: CartesianSeriesType.BAR,
+                encode: {
+                    xRef: {
+                        field: 'orders_customer_id',
+                    },
+                    yRef: {
+                        field: 'orders_fulfillment_rate',
+                    },
+                },
+            },
+        ];
+
+        const { result } = renderHook(() =>
+            // @ts-expect-error partially mock params for hook
+            useCartesianChartConfig({
+                ...useCartesianChartConfigParamsMock,
+                initialChartConfig: {
+                    ...useCartesianChartConfigParamsMock.initialChartConfig,
+
+                    eChartsConfig: {
+                        series: seriesFromOldChart,
+                    },
+                },
+            }),
+        );
+
+        const series =
+            result.current.validCartesianConfig!.eChartsConfig.series!;
+
+        expect(series[0].yAxisIndex).toBe(1);
+        expect(series[1].yAxisIndex).toBe(0);
     });
 });
