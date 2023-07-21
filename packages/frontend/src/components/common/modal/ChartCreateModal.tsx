@@ -149,7 +149,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         sessionStorage.clear();
         handleClose();
         history.push(
-            `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+            `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
         );
     }, [
         dashboardUuid,

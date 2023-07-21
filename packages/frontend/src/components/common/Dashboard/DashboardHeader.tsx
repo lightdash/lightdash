@@ -173,6 +173,7 @@ const DashboardHeader = ({
                 <PageActionsContainer>
                     <AddTileButton onAddTiles={onAddTiles} />
                     <Tooltip2
+                        position="bottom"
                         content={
                             !hasDashboardChanged
                                 ? 'No changes to save'
