@@ -243,11 +243,15 @@ export const buildQuery = ({
         return undefined;
     };
 
+    const tableSqlWhere = explore.tables[explore.baseTable].sqlWhere
+        ? [explore.tables[explore.baseTable].sqlWhere]
+        : [];
+
     const nestedFilterSql = getNestedFilterSQLFromGroup(filters.dimensions);
+    const nestedFilterWhere = nestedFilterSql ? [nestedFilterSql] : [];
+    const allSqlFilters = [...tableSqlWhere, ...nestedFilterWhere];
     const sqlWhere =
-        filters.dimensions !== undefined && nestedFilterSql
-            ? `WHERE ${nestedFilterSql}`
-            : '';
+        allSqlFilters.length > 0 ? `WHERE ${allSqlFilters.join(' AND ')}` : '';
 
     const whereMetricFilters = getFilterRulesFromGroup(filters.metrics).map(
         (filter) => {

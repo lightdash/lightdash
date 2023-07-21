@@ -56,6 +56,7 @@ export type UncompiledExplore = {
     joinedTables: ExploreJoin[];
     tables: Record<string, Table>;
     targetDatabase: SupportedDbtAdapter;
+    sqlWhere?: string;
 };
 
 export class ExploreCompiler {
@@ -176,6 +177,7 @@ export class ExploreCompiler {
         const compiledJoins: CompiledExploreJoin[] = joinedTables.map((j) =>
             this.compileJoin(j, includedTables),
         );
+
         return {
             name,
             label,
@@ -213,8 +215,18 @@ export class ExploreCompiler {
             }),
             {},
         );
+        const compiledSqlWhere = table.sqlWhere
+            ? table.sqlWhere.replace(
+                  lightdashVariablePattern,
+                  (_, p1) =>
+                      this.compileDimensionReference(p1, tables, table.name)
+                          .sql,
+              )
+            : undefined;
+
         return {
             ...table,
+            sqlWhere: compiledSqlWhere,
             dimensions,
             metrics,
         };

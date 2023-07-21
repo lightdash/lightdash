@@ -187,6 +187,12 @@
                 "order_fields_by": {
                     "type": "string",
                     "enum": ["index", "label"]
+                },
+                "sql_where": {
+                    "type": "string"
+                },
+                "sql_filter": {
+                    "type": "string"
                 }
             },
             "default": {}
