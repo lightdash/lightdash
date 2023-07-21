@@ -1,3 +1,10 @@
+## [0.682.1](https://github.com/lightdash/lightdash/compare/0.682.0...0.682.1) (2023-07-21)
+
+
+### Bug Fixes
+
+* chart tile title undefined ([#6432](https://github.com/lightdash/lightdash/issues/6432)) ([b24442d](https://github.com/lightdash/lightdash/commit/b24442db2662d19a9c80289e97e862d88fb5dd46)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
 # [0.682.0](https://github.com/lightdash/lightdash/compare/0.681.0...0.682.0) (2023-07-20)
 
 
