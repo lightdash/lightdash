@@ -15,6 +15,7 @@ import {
     parseAllReferences,
     renderFilterRuleSql,
     SupportedDbtAdapter,
+    UserAttribute,
     WarehouseClient,
 } from '@lightdash/common';
 
@@ -57,11 +58,13 @@ export type BuildQueryProps = {
     compiledMetricQuery: CompiledMetricQuery;
 
     warehouseClient: WarehouseClient;
+    userAttributes: UserAttribute[];
 };
 export const buildQuery = ({
     explore,
     compiledMetricQuery,
     warehouseClient,
+    userAttributes,
 }: BuildQueryProps): { query: string; hasExampleMetric: boolean } => {
     let hasExampleMetric: boolean = false;
     const adapterType: SupportedDbtAdapter = warehouseClient.getAdapterType();

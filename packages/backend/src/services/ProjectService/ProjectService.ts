@@ -60,6 +60,7 @@ import {
     TableSelectionType,
     UpdateProject,
     UpdateProjectMember,
+    UserAttribute,
     WarehouseClient,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -83,6 +84,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
+import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
@@ -105,6 +107,7 @@ type ProjectServiceDependencies = {
     emailClient: EmailClient;
     spaceModel: SpaceModel;
     sshKeyPairModel: SshKeyPairModel;
+    userAttributesModel: UserAttributesModel;
 };
 
 export class ProjectService {
@@ -124,6 +127,8 @@ export class ProjectService {
 
     sshKeyPairModel: SshKeyPairModel;
 
+    userAttributesModel: UserAttributesModel;
+
     constructor({
         projectModel,
         onboardingModel,
@@ -132,6 +137,7 @@ export class ProjectService {
         emailClient,
         spaceModel,
         sshKeyPairModel,
+        userAttributesModel,
     }: ProjectServiceDependencies) {
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
@@ -141,6 +147,7 @@ export class ProjectService {
         this.emailClient = emailClient;
         this.spaceModel = spaceModel;
         this.sshKeyPairModel = sshKeyPairModel;
+        this.userAttributesModel = userAttributesModel;
     }
 
     private async _resolveWarehouseClientSshKeys<
@@ -685,6 +692,7 @@ export class ProjectService {
         metricQuery: MetricQuery,
         explore: Explore,
         warehouseClient: WarehouseClient,
+        userAttributes: UserAttribute[],
     ): Promise<{ query: string; hasExampleMetric: boolean }> {
         const compiledMetricQuery = compileMetricQuery({
             explore,
@@ -695,6 +703,7 @@ export class ProjectService {
             explore,
             compiledMetricQuery,
             warehouseClient,
+            userAttributes,
         });
     }
 
@@ -719,10 +728,15 @@ export class ProjectService {
             projectUuid,
         );
         const explore = await this.getExplore(user, projectUuid, exploreName);
+        const userAttributes = await this.userAttributesModel.find({
+            organizationUuid,
+            userUuid: user.userUuid,
+        });
         const compiledQuery = ProjectService._compileQuery(
             metricQuery,
             explore,
             warehouseClient,
+            userAttributes,
         );
         await sshTunnel.disconnect();
         return compiledQuery;
@@ -1034,11 +1048,17 @@ export class ProjectService {
                         projectUuid,
                         exploreName,
                     );
+                    const userAttributes = await this.userAttributesModel.find({
+                        organizationUuid,
+                        userUuid: user.userUuid,
+                    });
+
                     const { query, hasExampleMetric } =
                         await ProjectService._compileQuery(
                             metricQueryWithLimit,
                             explore,
                             warehouseClient,
+                            userAttributes,
                         );
 
                     const onboardingRecord =
@@ -1256,10 +1276,15 @@ export class ProjectService {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
         );
+        const userAttributes = await this.userAttributesModel.find({
+            organizationUuid,
+            userUuid: user.userUuid,
+        });
         const { query } = await ProjectService._compileQuery(
             metricQuery,
             explore,
             warehouseClient,
+            userAttributes,
         );
 
         Logger.debug(`Run query against warehouse`);
