@@ -8,11 +8,12 @@ import {
 import {
     assertUnreachable,
     Dashboard,
+    DashboardLoomTileProperties,
+    DashboardTile,
     DashboardTileTypes,
 } from '@lightdash/common';
+import { useForm, UseFormReturnType } from '@mantine/form';
 import produce from 'immer';
-import { useForm } from 'react-hook-form';
-import Form from '../../ReactHookForm/Form';
 import ChartTileForm from './ChartTileForm';
 import LoomTileForm from './LoomTileForm';
 import MarkdownTileForm from './MarkdownTileForm';
@@ -33,21 +34,44 @@ const TileUpdateModal = <T extends Tile>({
     ...modalProps
 }: TileUpdateModalProps<T>) => {
     const form = useForm<TileProperties>({
-        mode: 'onChange',
-        defaultValues: tile.properties,
+        initialValues: tile.properties,
     });
 
-    const handleConfirm = async (properties: TileProperties) => {
+    const handleConfirm = form.onSubmit(({ ...properties }) => {
         onConfirm?.(
             produce(tile, (draft) => {
                 draft.properties = properties;
             }),
         );
-    };
+    });
 
     const handleClose = () => {
         form.reset();
         onClose?.();
+    };
+
+    const getTileForm = (dashboardTile: DashboardTile) => {
+        switch (dashboardTile.type) {
+            case DashboardTileTypes.SAVED_CHART: {
+                return <ChartTileForm />;
+            }
+            case DashboardTileTypes.MARKDOWN: {
+                return <MarkdownTileForm />;
+            }
+            case DashboardTileTypes.LOOM: {
+                return (
+                    <LoomTileForm
+                        form={
+                            form as UseFormReturnType<
+                                DashboardLoomTileProperties['properties']
+                            >
+                        }
+                    />
+                );
+            }
+            default:
+                assertUnreachable(dashboardTile, 'Tile type not supported');
+        }
     };
 
     return (
@@ -58,22 +82,8 @@ const TileUpdateModal = <T extends Tile>({
             onClose={handleClose}
             backdropClassName="non-draggable"
         >
-            <Form
-                name="Edit tile content"
-                methods={form}
-                onSubmit={handleConfirm}
-            >
-                <DialogBody>
-                    {tile.type === DashboardTileTypes.SAVED_CHART ? (
-                        <ChartTileForm />
-                    ) : tile.type === DashboardTileTypes.MARKDOWN ? (
-                        <MarkdownTileForm />
-                    ) : tile.type === DashboardTileTypes.LOOM ? (
-                        <LoomTileForm />
-                    ) : (
-                        assertUnreachable(tile, 'Tile type not supported')
-                    )}
-                </DialogBody>
+            <form onSubmit={handleConfirm}>
+                <DialogBody>{getTileForm(tile)}</DialogBody>
 
                 <DialogFooter
                     actions={
@@ -83,14 +93,14 @@ const TileUpdateModal = <T extends Tile>({
                             <Button
                                 intent="primary"
                                 type="submit"
-                                disabled={!form.formState.isValid}
+                                disabled={!form.isValid}
                             >
                                 Save
                             </Button>
                         </>
                     }
                 />
-            </Form>
+            </form>
         </Dialog>
     );
 };
