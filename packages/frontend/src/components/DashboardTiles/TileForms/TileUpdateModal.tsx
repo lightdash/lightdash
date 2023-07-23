@@ -9,6 +9,7 @@ import {
     assertUnreachable,
     Dashboard,
     DashboardLoomTileProperties,
+    DashboardMarkdownTileProperties,
     DashboardTile,
     DashboardTileTypes,
 } from '@lightdash/common';
@@ -56,7 +57,15 @@ const TileUpdateModal = <T extends Tile>({
                 return <ChartTileForm />;
             }
             case DashboardTileTypes.MARKDOWN: {
-                return <MarkdownTileForm />;
+                return (
+                    <MarkdownTileForm
+                        form={
+                            form as UseFormReturnType<
+                                DashboardMarkdownTileProperties['properties']
+                            >
+                        }
+                    />
+                );
             }
             case DashboardTileTypes.LOOM: {
                 return (
