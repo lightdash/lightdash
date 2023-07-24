@@ -50,7 +50,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
             : series.type;
     return (
         <SeriesWrapper $isSingle={isSingle}>
-            <Group noWrap spacing="xs">
+            <Group noWrap spacing="xs" sx={{ justifyContent: 'flex-end' }}>
                 {isGrouped && (
                     <DragIcon
                         style={{
@@ -61,7 +61,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         {...dragHandleProps}
                     />
                 )}
-                <Box>
+                <Box sx={{ alignSelf: 'flex-end', marginBottom: '3px' }}>
                     <ColorSelector
                         color={series.color || fallbackColor}
                         onColorChange={(color) => {

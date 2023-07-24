@@ -62,8 +62,7 @@ export const SeriesWrapper = styled.div<{ $isSingle?: boolean }>`
         $isSingle &&
         `
         display: grid;
-        grid-template-columns: 2.143em auto;
-        column-gap: 0.714em;
+        grid-template-columns: auto auto;
   `}
 `;
 
