@@ -1,16 +1,22 @@
 import { Button, Popover } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
-import useEcharts from '../../../hooks/echarts/useEcharts';
 import {
     COLLAPSABLE_CARD_BUTTON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from '../../common/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import ChartConfigTabs from './ChartConfigTabs';
 
 const ChartConfigPanel: React.FC = () => {
-    const eChartsOptions = useEcharts();
-    const disabled = !eChartsOptions;
+    const { resultsData, explore, cartesianConfig } = useVisualizationContext();
+
+    const disabled =
+        !resultsData ||
+        resultsData?.rows.length === 0 ||
+        !explore ||
+        !cartesianConfig.validCartesianConfig;
+
     return (
         <Popover
             withinPortal={true}
