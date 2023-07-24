@@ -79,7 +79,7 @@ type DbtColumnLightdashDimension = {
     type?: DimensionType;
     description?: string;
     sql?: string;
-    time_intervals?: 'default' | 'OFF' | TimeFrames[];
+    time_intervals?: boolean | 'default' | 'OFF' | TimeFrames[];
     hidden?: boolean;
     round?: number;
     compact?: CompactOrAlias;

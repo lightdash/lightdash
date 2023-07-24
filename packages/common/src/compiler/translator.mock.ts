@@ -162,6 +162,18 @@ const COLUMN_WITH_NO_TIME_INTERVALS: Record<string, DbtModelColumn> = {
     },
 };
 
+const COLUMN_WITH_OFF_BOOLEAN_TIME_INTERVALS: Record<string, DbtModelColumn> = {
+    user_created: {
+        name: 'user_created',
+        data_type: DimensionType.TIMESTAMP,
+        meta: {
+            dimension: {
+                time_intervals: false,
+            },
+        },
+    },
+};
+
 const COLUMN_WITH_OFF_TIME_INTERVALS: Record<string, DbtModelColumn> = {
     user_created: {
         name: 'user_created',
@@ -898,6 +910,12 @@ export const MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS: DbtModelNode & {
     columns: COLUMN_WITH_OFF_TIME_INTERVALS,
 };
 
+export const MODEL_WITH_OFF_BOOLEAN_TIME_INTERVAL_DIMENSIONS: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: COLUMN_WITH_OFF_TIME_INTERVALS,
+};
 export const LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS: Omit<
     Table,
     'lineageGraph'
