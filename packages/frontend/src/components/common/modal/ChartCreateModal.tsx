@@ -14,7 +14,7 @@ import {
 } from '@lightdash/common';
 import { Text } from '@mantine/core';
 import { FC, useCallback, useState } from 'react';
-import { useHistory, useLocation, useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../../hooks/useSavedQuery';
 import {
     useCreateMutation as useSpaceCreateMutation,
@@ -40,8 +40,11 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
 }) => {
     const fromDashboard = sessionStorage.getItem('fromDashboard');
     const dashboardUuid = sessionStorage.getItem('dashboardUuid') || '';
+    const unsavedDashboardTiles = JSON.parse(
+        sessionStorage.getItem('unsavedDashbordTiles') ?? '[]',
+    );
+
     const history = useHistory();
-    const location = useLocation();
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { mutateAsync, isLoading: isCreating } = useCreateMutation();
@@ -78,7 +81,6 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         setNewSpaceName('');
         setSpaceUuid(undefined);
         setShouldCreateNewSpace(false);
-        sessionStorage.clear();
         onClose?.();
     }, [onClose]);
 
@@ -115,8 +117,15 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         showSpaceInput,
     ]);
 
-    const handleSaveChartInDashboard = useCallback(async () => {
-        if (!fromDashboard || dashboardUuid.length === 0) return;
+    console.log(unsavedDashboardTiles);
+
+    const handleSaveChartInDashboard = useCallback(() => {
+        if (
+            !fromDashboard ||
+            dashboardUuid.length === 0 ||
+            unsavedDashboardTiles.length === 0
+        )
+            return;
         const newTile = {
             uuid: '',
             type: DashboardTileTypes.SAVED_CHART,
@@ -130,16 +139,15 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
             },
             ...getDefaultChartTileSize(savedData.chartConfig?.type),
         };
-        sessionStorage.clear();
+        sessionStorage.setItem(
+            'unsavedDashboardTiles',
+            JSON.stringify([...(unsavedDashboardTiles ?? []), newTile]),
+        );
+        sessionStorage.removeItem('fromDashboard');
+        sessionStorage.removeItem('dashboardUuid');
         handleClose();
-        const unsavedDashboardTiles = location.state
-            ? location.state.unsavedDashboardTiles
-            : [];
         history.push(
             `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
-            {
-                unsavedDashboardTiles: [...unsavedDashboardTiles, newTile],
-            },
         );
     }, [
         description,
@@ -150,7 +158,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         handleClose,
         savedData,
         projectUuid,
-        location,
+        unsavedDashboardTiles,
     ]);
 
     if (isLoadingSpaces || !spaces) return null;

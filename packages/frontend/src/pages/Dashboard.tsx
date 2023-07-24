@@ -15,7 +15,7 @@ import React, {
     useState,
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
-import { useHistory, useLocation, useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
@@ -132,7 +132,6 @@ const GridTile: FC<
 
 const Dashboard: FC = () => {
     const history = useHistory();
-    const location = useLocation();
     const { projectUuid, dashboardUuid, mode } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
@@ -184,13 +183,22 @@ const Dashboard: FC = () => {
     );
 
     useEffect(() => {
-        if (location.state) {
-            setDashboardTiles(location.state.unsavedDashboardTiles);
-            setHaveTilesChanged(true);
-        } else if (dashboard?.tiles) {
-            setDashboardTiles(dashboard.tiles);
+        if (dashboard?.tiles) {
+            const unsavedDashboardTilesRaw = sessionStorage.getItem(
+                'unsavedDashboardTiles',
+            );
+            let unsavedDashbordTiles = undefined;
+            if (unsavedDashboardTilesRaw) {
+                try {
+                    unsavedDashbordTiles = JSON.parse(unsavedDashboardTilesRaw);
+                    sessionStorage.clear();
+                } catch {
+                    // do  nothing
+                }
+            }
+            setDashboardTiles(unsavedDashbordTiles || dashboard.tiles);
         }
-    }, [dashboard, setDashboardTiles, setHaveTilesChanged, location]);
+    }, [setDashboardTiles, dashboard]);
 
     useEffect(() => {
         if (isSuccess) {
