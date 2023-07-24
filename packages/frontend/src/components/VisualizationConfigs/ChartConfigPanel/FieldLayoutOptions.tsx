@@ -15,8 +15,10 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
+import { IconPlus } from '@tabler/icons-react';
 import { FC, useCallback, useMemo } from 'react';
 import { EMPTY_X_AXIS } from '../../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { MAX_PIVOTS } from '../TableConfigPanel/GeneralSettings';
 import FieldSelect from './FieldSelect';
@@ -134,9 +136,10 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                         sx={{
                             alignSelf: 'start',
                         }}
+                        leftIcon={<MantineIcon icon={IconPlus} />}
                         onClick={() => setXField(getItemId(items[0]))}
                     >
-                        + Add
+                        Add
                     </Button>
                 ) : (
                     <Group spacing="xs">
@@ -144,7 +147,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                             selectedField={xAxisField}
                             fieldOptions={items}
                             onChange={(newValue) => {
-                                setXField(newValue ?? '');
+                                setXField(newValue ?? undefined);
                             }}
                         />
                         <CloseButton
@@ -193,88 +196,94 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                         sx={{
                             alignSelf: 'start',
                         }}
+                        leftIcon={<MantineIcon icon={IconPlus} />}
                         onClick={() =>
                             addSingleSeries(getItemId(availableYFields[0]))
                         }
                     >
-                        + Add
+                        Add
                     </Button>
                 )}
             </Stack>
 
-            <Stack spacing="xs" mb="md">
-                <Tooltip
-                    label="You need at least one metric in your chart to add a group"
-                    position="left"
-                    disabled={chartHasMetricOrTableCalc}
-                >
+            <Tooltip
+                label="You need at least one metric in your chart to add a group"
+                position="left"
+                disabled={chartHasMetricOrTableCalc}
+            >
+                <Stack spacing="xs" mb="md">
                     <Text fw={500}>Group</Text>
-                </Tooltip>
-                {pivotDimensions &&
-                    pivotDimensions.map((pivotKey) => {
-                        // Group series logic
-                        const groupSelectedField = availableDimensions.find(
-                            (item) => getItemId(item) === pivotKey,
-                        );
-                        const fieldOptions = groupSelectedField
-                            ? [
-                                  groupSelectedField,
-                                  ...availableGroupByDimensions,
-                              ]
-                            : availableGroupByDimensions;
-                        const activeField = chartHasMetricOrTableCalc
-                            ? groupSelectedField
-                            : undefined;
-                        return (
-                            <Group spacing="xs" key={pivotKey}>
-                                <FieldSelect
-                                    selectedField={activeField}
-                                    fieldOptions={fieldOptions}
-                                    onChange={(newValue) => {
-                                        if (!newValue) return;
-                                        setPivotDimensions(
-                                            pivotDimensions
-                                                ? replaceStringInArray(
-                                                      pivotDimensions,
-                                                      pivotKey,
-                                                      newValue,
-                                                  )
-                                                : [newValue],
-                                        );
-                                    }}
-                                />
-                                {groupSelectedField && (
-                                    <CloseButton
-                                        onClick={() => {
+                    {pivotDimensions &&
+                        pivotDimensions.map((pivotKey) => {
+                            // Group series logic
+                            const groupSelectedField = availableDimensions.find(
+                                (item) => getItemId(item) === pivotKey,
+                            );
+                            const fieldOptions = groupSelectedField
+                                ? [
+                                      groupSelectedField,
+                                      ...availableGroupByDimensions,
+                                  ]
+                                : availableGroupByDimensions;
+                            const activeField = chartHasMetricOrTableCalc
+                                ? groupSelectedField
+                                : undefined;
+                            return (
+                                <Group spacing="xs" key={pivotKey}>
+                                    <FieldSelect
+                                        selectedField={activeField}
+                                        fieldOptions={fieldOptions}
+                                        disabled={!chartHasMetricOrTableCalc}
+                                        placeholder="Select a field to group by"
+                                        onChange={(newValue) => {
+                                            if (!newValue) return;
                                             setPivotDimensions(
-                                                pivotDimensions.filter(
-                                                    (key) => key !== pivotKey,
-                                                ),
+                                                pivotDimensions
+                                                    ? replaceStringInArray(
+                                                          pivotDimensions,
+                                                          pivotKey,
+                                                          newValue,
+                                                      )
+                                                    : [newValue],
                                             );
                                         }}
                                     />
-                                )}
-                            </Group>
-                        );
-                    })}
-                {canAddPivot && (
-                    <Button
-                        variant="subtle"
-                        compact
-                        sx={{
-                            alignSelf: 'start',
-                        }}
-                        onClick={() =>
-                            setPivotDimensions([
-                                ...(pivotDimensions || []),
-                                getItemId(availableGroupByDimensions[0]),
-                            ])
-                        }
-                    >
-                        + Add
-                    </Button>
-                )}
-            </Stack>
+                                    {groupSelectedField && (
+                                        <CloseButton
+                                            onClick={() => {
+                                                setPivotDimensions(
+                                                    pivotDimensions.filter(
+                                                        (key) =>
+                                                            key !== pivotKey,
+                                                    ),
+                                                );
+                                            }}
+                                        />
+                                    )}
+                                </Group>
+                            );
+                        })}
+                    {canAddPivot && (
+                        <Button
+                            variant="subtle"
+                            compact
+                            sx={{
+                                alignSelf: 'start',
+                            }}
+                            leftIcon={<MantineIcon icon={IconPlus} />}
+                            onClick={() =>
+                                setPivotDimensions([
+                                    ...(pivotDimensions || []),
+                                    getItemId(availableGroupByDimensions[0]),
+                                ])
+                            }
+                        >
+                            Add
+                        </Button>
+                    )}
+                </Stack>
+            </Tooltip>
+
             {pivotDimensions && pivotDimensions.length > 0 && canBeStacked && (
                 <Stack spacing="xs">
                     <Text fw={500}>Stacking</Text>
