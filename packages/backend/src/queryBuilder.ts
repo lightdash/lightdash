@@ -18,6 +18,7 @@ import {
     UserAttribute,
     WarehouseClient,
 } from '@lightdash/common';
+import { UserAttributesService } from './services/UserAttributesService/UserAttributesService';
 
 const getDimensionFromId = (dimId: FieldId, explore: Explore) => {
     const dimensions = getDimensions(explore);
@@ -58,13 +59,13 @@ export type BuildQueryProps = {
     compiledMetricQuery: CompiledMetricQuery;
 
     warehouseClient: WarehouseClient;
-    userAttributes: UserAttribute[];
+    userAttributes?: UserAttribute[];
 };
 export const buildQuery = ({
     explore,
     compiledMetricQuery,
     warehouseClient,
-    userAttributes,
+    userAttributes = [],
 }: BuildQueryProps): { query: string; hasExampleMetric: boolean } => {
     let hasExampleMetric: boolean = false;
     const adapterType: SupportedDbtAdapter = warehouseClient.getAdapterType();
@@ -246,8 +247,16 @@ export const buildQuery = ({
         return undefined;
     };
 
-    const tableSqlWhere = explore.tables[explore.baseTable].sqlWhere
-        ? [explore.tables[explore.baseTable].sqlWhere]
+    const baseTableSqlWhere = explore.tables[explore.baseTable].sqlWhere;
+
+    const tableSqlWhere = baseTableSqlWhere
+        ? [
+              UserAttributesService.replaceUserAttributes(
+                  baseTableSqlWhere,
+                  userAttributes,
+                  stringQuoteChar,
+              ),
+          ]
         : [];
 
     const nestedFilterSql = getNestedFilterSQLFromGroup(filters.dimensions);

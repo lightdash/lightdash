@@ -16,9 +16,12 @@ import {
     Metric,
 } from '../types/field';
 import { WarehouseClient } from '../types/warehouse';
+
 import { renderFilterRuleSql } from './filtersCompiler';
 
-export const lightdashVariablePattern = /\$\{([a-zA-Z0-9_.]+)\}/g;
+// exclude lightdash prefix from variable pattern
+export const lightdashVariablePattern =
+    /\$\{((?!lightdash\b)[a-zA-Z0-9_.]+)\}/g;
 
 type Reference = {
     refTable: string;

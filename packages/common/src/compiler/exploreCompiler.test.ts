@@ -1,6 +1,6 @@
 import { CompileError } from '../types/errors';
 import { friendlyName } from '../types/field';
-import { ExploreCompiler } from './exploreCompiler';
+import { ExploreCompiler, parseAllReferences } from './exploreCompiler';
 import {
     compiledJoinedExploreOverridingAliasAndLabel,
     compiledJoinedExploreOverridingJoinAlias,
@@ -205,5 +205,26 @@ describe('Compile metrics with filters', () => {
         ).toStrictEqual(
             `MAX(CASE WHEN (LOWER("table1".shared) LIKE LOWER('%foo%')) THEN (CASE WHEN "table1".number_column THEN 1 ELSE 0 END) ELSE NULL END)`,
         );
+    });
+});
+
+describe('Parse dimension reference', () => {
+    test('should parse dimensions', () => {
+        expect(parseAllReferences('${dimension} == 1', 'table')).toStrictEqual([
+            { refName: 'dimension}', refTable: 'table' },
+        ]);
+        expect(parseAllReferences('${table.dimension}', 'table')).toStrictEqual(
+            [{ refName: 'dimension}', refTable: 'table' }],
+        );
+    });
+    test('should parse TABLE', () => {
+        expect(parseAllReferences('${TABLE}', 'table')).toStrictEqual([
+            { refName: 'TABLE}', refTable: 'table' },
+        ]);
+    });
+    test('should not parse lightdash attribute', () => {
+        expect(
+            parseAllReferences('${lightdash.attribute.country}', 'table'),
+        ).toStrictEqual([]);
     });
 });

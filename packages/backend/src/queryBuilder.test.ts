@@ -1,9 +1,11 @@
+import { ForbiddenError, UserAttribute } from '@lightdash/common';
 import { buildQuery } from './queryBuilder';
 import {
     bigqueryClientMock,
     EXPLORE,
     EXPLORE_BIGQUERY,
     EXPLORE_JOIN_CHAIN,
+    EXPLORE_WITH_SQL_FILTER,
     METRIC_QUERY,
     METRIC_QUERY_JOIN_CHAIN,
     METRIC_QUERY_JOIN_CHAIN_SQL,
@@ -27,6 +29,7 @@ import {
     METRIC_QUERY_WITH_METRIC_FILTER_SQL,
     METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS,
     METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL,
+    METRIC_QUERY_WITH_SQL_FILTER,
     METRIC_QUERY_WITH_TABLE_REFERENCE,
     METRIC_QUERY_WITH_TABLE_REFERENCE_SQL,
     warehouseClientMock,
@@ -158,5 +161,43 @@ describe('Query builder', () => {
                 warehouseClient: warehouseClientMock,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_EMPTY_METRIC_FILTER_SQL);
+    });
+
+    test('Should throw error if user attributes are missing', () => {
+        expect(
+            () =>
+                buildQuery({
+                    explore: EXPLORE_WITH_SQL_FILTER,
+                    compiledMetricQuery: METRIC_QUERY,
+                    warehouseClient: warehouseClientMock,
+                    userAttributes: [],
+                }).query,
+        ).toThrowError(ForbiddenError);
+    });
+
+    test('Should replace user attributes from sql filter', () => {
+        const userAttributes: UserAttribute[] = [
+            {
+                uuid: '',
+                name: 'country',
+                createdAt: new Date(),
+                organizationUuid: '',
+                users: [
+                    {
+                        userUuid: '',
+                        email: '',
+                        value: 'EU',
+                    },
+                ],
+            },
+        ];
+        expect(
+            buildQuery({
+                explore: EXPLORE_WITH_SQL_FILTER,
+                compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
+                warehouseClient: warehouseClientMock,
+                userAttributes,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_WITH_SQL_FILTER);
     });
 });

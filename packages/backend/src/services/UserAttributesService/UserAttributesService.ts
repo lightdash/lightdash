@@ -94,13 +94,14 @@ export class UserAttributesService {
         await this.userAttributesModel.delete(orgAttributeUuid);
     }
 
-    static async replaceUserAttributes(
+    static replaceUserAttributes(
         sqlFilter: string,
         userAttributes: UserAttribute[],
-    ): Promise<string> {
+        stringQuoteChar: string = "'",
+    ): string {
         const userAttributeRegex =
             /\$\{(?:lightdash|ld)\.(?:attribute|attr)\.(\w+)\}/g;
-        const sqlAttributes = await sqlFilter.match(userAttributeRegex);
+        const sqlAttributes = sqlFilter.match(userAttributeRegex);
 
         if (sqlAttributes === null || sqlAttributes.length === 0) {
             return sqlFilter;
@@ -121,7 +122,10 @@ export class UserAttributesService {
                     `Invalid or missing user attribute "${attribute}" on sqlFilter "${sqlFilter}"`,
                 );
             }
-            return acc.replace(sqlAttribute, userAttribute.users[0].value);
+            return acc.replace(
+                sqlAttribute,
+                `${stringQuoteChar}${userAttribute.users[0].value}${stringQuoteChar}`,
+            );
         }, sqlFilter);
 
         return sq;
