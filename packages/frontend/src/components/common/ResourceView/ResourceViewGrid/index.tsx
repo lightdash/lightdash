@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { Anchor, Box, SimpleGrid, Stack, Text } from '@mantine/core';
 import { mergeRefs, useHover } from '@mantine/hooks';
-import { IconArrowsMove } from '@tabler/icons-react';
+import { IconGripVertical } from '@tabler/icons-react';
 import produce from 'immer';
 import orderBy from 'lodash/orderBy';
 import { FC, useMemo } from 'react';
@@ -63,7 +63,7 @@ const DraggableItem: FC<DraggableItemProps> = ({
                 const DragIcon = (
                     <Box
                         pos="absolute"
-                        right={0}
+                        left={0}
                         p={4}
                         {...dragProvided.dragHandleProps}
                     >
@@ -71,7 +71,7 @@ const DraggableItem: FC<DraggableItemProps> = ({
                             display={isHovered && hasReorder ? 'block' : 'none'}
                             size="sm"
                             color="gray.6"
-                            icon={IconArrowsMove}
+                            icon={IconGripVertical}
                         />
                     </Box>
                 );

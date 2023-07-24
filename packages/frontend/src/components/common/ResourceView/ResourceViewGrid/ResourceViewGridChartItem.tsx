@@ -43,7 +43,6 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
             bg={hovered ? theme.fn.rgba(theme.colors.gray[0], 0.5) : undefined}
             h="100%"
         >
-            {dragIcon}
             <Group
                 p="md"
                 align="center"
@@ -56,6 +55,7 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
                     borderBottomColor: theme.colors.gray[3],
                 }}
             >
+                {dragIcon}
                 <ResourceIcon item={item} />
 
                 <Tooltip
