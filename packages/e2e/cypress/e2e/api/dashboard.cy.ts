@@ -59,6 +59,7 @@ describe('Lightdash dashboard', () => {
     beforeEach(() => {
         cy.login();
     });
+    let dashboardUuid: string;
     let chartUuid: string;
     it('Should create dashboard and chart at the same time', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
@@ -72,6 +73,9 @@ describe('Lightdash dashboard', () => {
             const tile = createDashboardResponse.body.results.tiles[0];
 
             expect(tile.properties).to.have.property('savedChartUuid');
+            expect(
+                (tile as DashboardChartTile).properties.belongsToDashboard,
+            ).to.eq(true);
             // confirm chart was created
             cy.request<{ results: SavedChart }>(
                 `${apiUrl}/saved/${
@@ -87,6 +91,7 @@ describe('Lightdash dashboard', () => {
                     createDashboardResponse.body.results.spaceUuid,
                 );
                 chartUuid = chartResponse.body.results.uuid;
+                dashboardUuid = createDashboardResponse.body.results.uuid;
             });
 
             const updateDashboardMock: UpdateDashboard = {
@@ -164,6 +169,12 @@ describe('Lightdash dashboard', () => {
             expect(chartResponse.body.results.name).to.eq(chartMock.name);
             expect(chartResponse.body.results.description).to.eq(
                 newDescription,
+            );
+            expect(chartResponse.body.results.dashboardUuid).to.eq(
+                dashboardUuid,
+            );
+            expect(chartResponse.body.results.dashboardName).to.eq(
+                dashboardMock.name,
             );
         });
     });

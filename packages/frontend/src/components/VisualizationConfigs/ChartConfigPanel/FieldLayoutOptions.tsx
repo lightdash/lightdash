@@ -210,7 +210,6 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                 >
                     <Text fw={500}>Group</Text>
                 </Tooltip>
-
                 {pivotDimensions &&
                     pivotDimensions.map((pivotKey) => {
                         // Group series logic

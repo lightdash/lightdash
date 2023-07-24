@@ -485,6 +485,7 @@ export class DashboardModel {
                     title: string | null;
                     views: string;
                     first_viewed_at: Date | null;
+                    belongs_to_dashboard: boolean;
                 }[]
             >(
                 `${DashboardTilesTableName}.x_offset`,
@@ -494,6 +495,9 @@ export class DashboardModel {
                 `${DashboardTilesTableName}.height`,
                 `${DashboardTilesTableName}.dashboard_tile_uuid`,
                 `${SavedChartsTableName}.saved_query_uuid`,
+                this.database.raw(
+                    `${SavedChartsTableName}.dashboard_uuid IS NOT NULL AS belongs_to_dashboard`,
+                ),
                 this.database.raw(
                     `COALESCE(
                         ${DashboardTileChartTableName}.title,
@@ -578,6 +582,7 @@ export class DashboardModel {
                     hide_title,
                     url,
                     content,
+                    belongs_to_dashboard,
                 }) => {
                     const base: Omit<
                         Dashboard['tiles'][number],
@@ -603,6 +608,7 @@ export class DashboardModel {
                                 properties: {
                                     ...commonProperties,
                                     savedChartUuid: saved_query_uuid,
+                                    belongsToDashboard: belongs_to_dashboard,
                                 },
                             };
                         case DashboardTileTypes.MARKDOWN:
