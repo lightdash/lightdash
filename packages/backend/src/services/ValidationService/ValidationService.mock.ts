@@ -53,6 +53,7 @@ export const user: SessionUser = {
 export const chart: SavedChart = {
     uuid: 'chartUuid',
     projectUuid: 'projectUuid',
+    dashboardUuid: null,
     name: 'Test chart',
     tableName: 'table',
     updatedAt: new Date('2021-01-01'),

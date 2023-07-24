@@ -172,7 +172,6 @@ const DashboardHeader = ({
             {userCanManageDashboard && isEditMode ? (
                 <PageActionsContainer>
                     <AddTileButton onAddTiles={onAddTiles} />
-
                     <Tooltip2
                         position="bottom"
                         content={
@@ -188,7 +187,6 @@ const DashboardHeader = ({
                             onClick={onSaveDashboard}
                         />
                     </Tooltip2>
-
                     <Button
                         text="Cancel"
                         disabled={isSaving}
