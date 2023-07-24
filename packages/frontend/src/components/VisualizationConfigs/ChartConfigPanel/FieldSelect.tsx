@@ -21,7 +21,6 @@ const FieldSelect: FC<Props> = ({
     return (
         <Select
             sx={{ flexGrow: 1 }}
-            mr="xs"
             searchable
             placeholder={placeholder}
             icon={selectedField && <FieldIcon item={selectedField} />}
