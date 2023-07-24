@@ -42,6 +42,7 @@ export const getExpectedSeriesMap = ({
         showSymbol: defaultShowSymbol,
         type: defaultCartesianType,
         areaStyle: defaultAreaStyle,
+        yAxisIndex: 0,
     };
     if (pivotKeys && pivotKeys.length > 0) {
         const { rowKeyMap } = getPivotedData(
