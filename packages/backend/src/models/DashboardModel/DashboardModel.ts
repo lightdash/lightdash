@@ -495,11 +495,9 @@ export class DashboardModel {
                 `${DashboardTilesTableName}.height`,
                 `${DashboardTilesTableName}.dashboard_tile_uuid`,
                 `${SavedChartsTableName}.saved_query_uuid`,
-                this.database.raw(`CASE
-                     WHEN ${SavedChartsTableName}.dashboard_uuid IS NOT NULL
-                        THEN TRUE
-                        ELSE FALSE
-                     END AS belongs_to_dashboard`),
+                this.database.raw(
+                    `${SavedChartsTableName}.dashboard_uuid IS NOT NULL AS belongs_to_dashboard`,
+                ),
                 this.database.raw(
                     `COALESCE(
                         ${DashboardTileChartTableName}.title,
