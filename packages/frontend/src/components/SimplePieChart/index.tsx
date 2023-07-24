@@ -31,8 +31,9 @@ type SimplePieChartProps = Omit<EChartsReactProps, 'option'> & {
 const EchartOptions: Opts = { renderer: 'svg' };
 
 const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
-    const { chartRef, isLoading } = useVisualizationContext();
-    const pieChartOptions = useEchartsPieConfig();
+    const { chartRef, isLoading, onPieSeriesContextMenu } =
+        useVisualizationContext();
+    const pieConfig = useEchartsPieConfig();
 
     useEffect(() => {
         const listener = () => chartRef.current?.getEchartsInstance().resize();
@@ -40,13 +41,23 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
         return () => window.removeEventListener('resize', listener);
     });
 
-    const handleMenuOpen = useCallback((e: ECElementEvent) => {
-        if (e.componentType !== 'series' || e.componentSubType !== 'pie')
-            return;
-    }, []);
+    const handleMenuOpen = useCallback(
+        (e: ECElementEvent) => {
+            if (
+                !onPieSeriesContextMenu ||
+                !pieConfig ||
+                e.componentType !== 'series'
+            ) {
+                return;
+            }
+
+            onPieSeriesContextMenu(e, pieConfig.pieSeriesOption);
+        },
+        [onPieSeriesContextMenu, pieConfig],
+    );
 
     if (isLoading) return <LoadingChart />;
-    if (!pieChartOptions) return <EmptyChart />;
+    if (!pieConfig) return <EmptyChart />;
 
     return (
         <EChartsReact
@@ -67,7 +78,7 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
                       }
             }
             opts={EchartOptions}
-            option={pieChartOptions}
+            option={pieConfig.eChartsOption}
             notMerge
             onEvents={{
                 contextmenu: handleMenuOpen,

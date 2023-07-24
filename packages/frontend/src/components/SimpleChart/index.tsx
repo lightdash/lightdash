@@ -1,5 +1,5 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
-import { PivotReference } from '@lightdash/common';
+import { PivotReference, ResultRow } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import { EChartsReactProps, Opts } from 'echarts-for-react/lib/types';
 import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
@@ -36,7 +36,7 @@ type EchartBaseClickEvent = {
 
 export type EchartSeriesClickEvent = EchartBaseClickEvent & {
     componentType: 'series';
-    data: Record<string, any>;
+    data: Record<string, ResultRow>;
     seriesIndex: number;
     dimensionNames: string[];
     pivotReference?: PivotReference;
@@ -76,7 +76,7 @@ type SimpleChartProps = Omit<EChartsReactProps, 'option'> & {
 };
 
 const SimpleChart: FC<SimpleChartProps> = memo((props) => {
-    const { chartRef, isLoading, onSeriesContextMenu } =
+    const { chartRef, isLoading, onCartesianSeriesContextMenu } =
         useVisualizationContext();
 
     const [selectedLegends, setSelectedLegends] = useState({});
@@ -106,7 +106,7 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
 
     const onChartContextMenu = useCallback(
         (e: EchartClickEvent) => {
-            if (onSeriesContextMenu) {
+            if (onCartesianSeriesContextMenu) {
                 if (e.event.event.defaultPrevented) {
                     return;
                 }
@@ -116,12 +116,15 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
                         e.seriesIndex
                     ];
                     if (series && series.encode) {
-                        onSeriesContextMenu(e, eChartsOptions?.series || []);
+                        onCartesianSeriesContextMenu(
+                            e,
+                            eChartsOptions?.series || [],
+                        );
                     }
                 }
             }
         },
-        [onSeriesContextMenu, eChartsOptions],
+        [onCartesianSeriesContextMenu, eChartsOptions],
     );
 
     const opts = useMemo<Opts>(() => ({ renderer: 'svg' }), []);

@@ -3,13 +3,14 @@ import { EChartsOption, PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 
-const useEchartsPieConfig = (): EChartsOption | undefined => {
+const useEchartsPieConfig = () => {
     const context = useVisualizationContext();
     const {
         pieChartConfig: {
             groupColorDefaults,
             selectedMetric,
             data,
+            sortedGroupLabels,
             validPieChartConfig: {
                 isDonut,
                 valueLabel: valueLabelDefault,
@@ -18,7 +19,6 @@ const useEchartsPieConfig = (): EChartsOption | undefined => {
                 groupLabelOverrides,
                 groupColorOverrides,
                 groupValueOptionOverrides,
-                groupSortOverrides,
                 showLegend,
             },
         },
@@ -28,73 +28,76 @@ const useEchartsPieConfig = (): EChartsOption | undefined => {
     const seriesData = useMemo(() => {
         if (!selectedMetric) return;
 
-        const sortedData =
-            groupSortOverrides && groupSortOverrides.length > 0
-                ? data.sort(
-                      ([aLabel], [bLabel]) =>
-                          groupSortOverrides.indexOf(aLabel) -
-                          groupSortOverrides.indexOf(bLabel),
-                  )
-                : data;
+        return data
+            .sort(
+                ({ name: nameA }, { name: nameB }) =>
+                    sortedGroupLabels.indexOf(nameA) -
+                    sortedGroupLabels.indexOf(nameB),
+            )
+            .map(({ name, value, groupFieldIds, row }) => {
+                const valueLabel =
+                    groupValueOptionOverrides?.[name]?.valueLabel ??
+                    valueLabelDefault;
+                const showValue =
+                    groupValueOptionOverrides?.[name]?.showValue ??
+                    showValueDefault;
+                const showPercentage =
+                    groupValueOptionOverrides?.[name]?.showPercentage ??
+                    showPercentageDefault;
 
-        return sortedData.map(([name, value]) => {
-            const valueLabel =
-                groupValueOptionOverrides?.[name]?.valueLabel ??
-                valueLabelDefault;
-            const showValue =
-                groupValueOptionOverrides?.[name]?.showValue ??
-                showValueDefault;
-            const showPercentage =
-                groupValueOptionOverrides?.[name]?.showPercentage ??
-                showPercentageDefault;
-
-            const config: NonNullable<PieSeriesOption['data']>[number] = {
-                name: groupLabelOverrides?.[name] ?? name,
-                value,
-                itemStyle: {
-                    color:
-                        groupColorOverrides?.[name] ??
-                        groupColorDefaults?.[name],
-                },
-                label: {
-                    show: valueLabel !== 'hidden',
-                    position: valueLabel === 'outside' ? 'outside' : 'inside',
-                    formatter: (params) => {
-                        const formattedValue = formatItemValue(
-                            selectedMetric,
-                            params.value,
-                        );
-
-                        return valueLabel !== 'hidden' &&
-                            showValue &&
-                            showPercentage
-                            ? `${params.percent}% - ${formattedValue}`
-                            : showValue
-                            ? `${formattedValue}`
-                            : showPercentage
-                            ? `${params.percent}%`
-                            : `${params.name}`;
+                const config: NonNullable<PieSeriesOption['data']>[number] = {
+                    id: name,
+                    name: groupLabelOverrides?.[name] ?? name,
+                    value: value,
+                    itemStyle: {
+                        color:
+                            groupColorOverrides?.[name] ??
+                            groupColorDefaults?.[name],
                     },
-                },
-            };
+                    label: {
+                        show: valueLabel !== 'hidden',
+                        position:
+                            valueLabel === 'outside' ? 'outside' : 'inside',
+                        formatter: (params) => {
+                            const formattedValue = formatItemValue(
+                                selectedMetric,
+                                params.value,
+                            );
 
-            return config;
-        });
+                            return valueLabel !== 'hidden' &&
+                                showValue &&
+                                showPercentage
+                                ? `${params.percent}% - ${formattedValue}`
+                                : showValue
+                                ? `${formattedValue}`
+                                : showPercentage
+                                ? `${params.percent}%`
+                                : `${params.name}`;
+                        },
+                    },
+                    meta: {
+                        groupFieldIds,
+                        row,
+                    },
+                };
+
+                return config;
+            });
     }, [
         data,
+        sortedGroupLabels,
         groupColorDefaults,
         groupColorOverrides,
         groupLabelOverrides,
         groupValueOptionOverrides,
-        groupSortOverrides,
         selectedMetric,
         showPercentageDefault,
         showValueDefault,
         valueLabelDefault,
     ]);
 
-    const eChartsOptions = useMemo(() => {
-        const pieSeriesOption: PieSeriesOption = {
+    const pieSeriesOption: PieSeriesOption = useMemo(() => {
+        return {
             type: 'pie',
             data: seriesData,
             radius: isDonut ? ['30%', '70%'] : '70%',
@@ -118,8 +121,18 @@ const useEchartsPieConfig = (): EChartsOption | undefined => {
                 },
             },
         };
+    }, [
+        seriesData,
+        isDonut,
+        showLegend,
+        valueLabelDefault,
+        showValueDefault,
+        showPercentageDefault,
+        selectedMetric,
+    ]);
 
-        const config: EChartsOption = {
+    const eChartsOption: EChartsOption = useMemo(() => {
+        return {
             legend: {
                 show: showLegend,
                 orient: 'horizontal',
@@ -131,23 +144,13 @@ const useEchartsPieConfig = (): EChartsOption | undefined => {
             },
             series: [pieSeriesOption],
         };
-
-        return config;
-    }, [
-        selectedMetric,
-        seriesData,
-        isDonut,
-        valueLabelDefault,
-        showValueDefault,
-        showPercentageDefault,
-        showLegend,
-    ]);
+    }, [showLegend, pieSeriesOption]);
 
     if (!explore || !data || data.length === 0) {
         return undefined;
     }
 
-    return eChartsOptions;
+    return { eChartsOption, pieSeriesOption };
 };
 
 export default useEchartsPieConfig;

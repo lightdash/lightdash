@@ -27,6 +27,7 @@ import {
     useState,
 } from 'react';
 
+import { ECElementEvent, PieSeriesOption } from 'echarts';
 import useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import useTableConfig from '../../hooks/tableVisualization/useTableConfig';
@@ -56,9 +57,13 @@ type VisualizationContext = {
     allNumericMetrics: (Metric | AdditionalMetric | TableCalculation)[];
     customMetrics: AdditionalMetric[];
     tableCalculations: TableCalculation[];
-    onSeriesContextMenu?: (
+    onCartesianSeriesContextMenu?: (
         e: EchartSeriesClickEvent,
         series: EChartSeries[],
+    ) => void;
+    onPieSeriesContextMenu?: (
+        e: ECElementEvent,
+        series: PieSeriesOption,
     ) => void;
     setChartType: (value: ChartType) => void;
     setPivotDimensions: (value: string[] | undefined) => void;
@@ -74,9 +79,13 @@ type Props = {
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     columnOrder: string[];
-    onSeriesContextMenu?: (
+    onCartesianSeriesContextMenu?: (
         e: EchartSeriesClickEvent,
         series: EChartSeries[],
+    ) => void;
+    onPieSeriesContextMenu?: (
+        e: ECElementEvent,
+        series: PieSeriesOption,
     ) => void;
     onChartConfigChange?: (value: ChartConfig['config']) => void;
     onChartTypeChange?: (value: ChartType) => void;
@@ -92,7 +101,8 @@ const VisualizationProvider: FC<Props> = ({
     resultsData,
     isLoading,
     columnOrder,
-    onSeriesContextMenu,
+    onCartesianSeriesContextMenu,
+    onPieSeriesContextMenu,
     onChartConfigChange,
     onChartTypeChange,
     onPivotDimensionsChange,
@@ -304,7 +314,8 @@ const VisualizationProvider: FC<Props> = ({
             tableCalculations,
             allMetrics,
             allNumericMetrics,
-            onSeriesContextMenu,
+            onCartesianSeriesContextMenu,
+            onPieSeriesContextMenu,
             setChartType,
             setPivotDimensions,
         }),
@@ -327,7 +338,8 @@ const VisualizationProvider: FC<Props> = ({
             tableCalculations,
             allMetrics,
             allNumericMetrics,
-            onSeriesContextMenu,
+            onCartesianSeriesContextMenu,
+            onPieSeriesContextMenu,
             setChartType,
             setPivotDimensions,
         ],

@@ -8,13 +8,13 @@ import {
     isDimension,
     MetricQuery,
     PivotReference,
+    ResultRow,
     ResultValue,
     TableCalculation,
 } from '@lightdash/common';
 import { createContext, FC, useCallback, useContext, useState } from 'react';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import { useExplore } from '../../hooks/useExplore';
-import { EchartSeriesClickEvent } from '../SimpleChart';
 
 export type UnderlyingDataConfig = {
     item: Field | TableCalculation | undefined;
@@ -49,22 +49,22 @@ type MetricQueryDataContext = {
 };
 
 export const getDataFromChartClick = (
-    e: EchartSeriesClickEvent,
     itemsMap: Record<string, Field | TableCalculation>,
     series: EChartSeries[],
+    seriesIndex: number,
+    dimensionNames: string[],
+    data: Record<string, ResultRow>,
 ): UnderlyingDataConfig => {
-    const pivotReference = series[e.seriesIndex]?.pivotReference;
+    const pivotReference = series[seriesIndex]?.pivotReference;
     const selectedFields = Object.values(itemsMap).filter((item) => {
         if (
             !isDimension(item) &&
             pivotReference &&
             pivotReference.field === getItemId(item)
         ) {
-            return e.dimensionNames.includes(
-                hashFieldReference(pivotReference),
-            );
+            return dimensionNames.includes(hashFieldReference(pivotReference));
         }
-        return e.dimensionNames.includes(getItemId(item));
+        return dimensionNames.includes(getItemId(item));
     });
     const selectedMetricsAndTableCalculations = selectedFields.filter(
         (item) => !isDimension(item),
@@ -77,10 +77,10 @@ export const getDataFromChartClick = (
         selectedField = selectedFields[0];
     }
     const selectedValue = selectedField
-        ? e.data[getItemId(selectedField)]
+        ? data[getItemId(selectedField)]
         : undefined;
     const fieldValues: Record<string, ResultValue> = Object.entries(
-        e.data,
+        data,
     ).reduce((acc, entry) => {
         const [key, val] = entry;
         return { ...acc, [key]: { raw: val, formatted: val } };

@@ -2,6 +2,7 @@ import { NotFoundError } from '@lightdash/common';
 import { FC, memo, useCallback, useMemo, useState } from 'react';
 
 import { Space } from '@mantine/core';
+import { ECElementEvent } from 'echarts';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { downloadCsv } from '../../../hooks/useDownloadCsv';
 import { useExplore } from '../../../hooks/useExplore';
@@ -71,12 +72,15 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
 
         const { data: explore } = useExplore(unsavedChartVersion.tableName);
 
-        const [echartsClickEvent, setEchartsClickEvent] =
+        const [echartsCartesianClickEvent, setEchartsCartesianClickEvent] =
             useState<EchartsClickEvent>();
 
-        const onSeriesContextMenu = useCallback(
+        const [echartsPieClickEvent, setEchartsPieClickEvent] =
+            useState<ECElementEvent>();
+
+        const handleCartesianSeriesContextMenu = useCallback(
             (e: EchartSeriesClickEvent, series: EChartSeries[]) => {
-                setEchartsClickEvent({
+                setEchartsCartesianClickEvent({
                     event: e,
                     dimensions: unsavedChartVersion.metricQuery.dimensions,
                     series,
@@ -84,6 +88,11 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
             },
             [unsavedChartVersion],
         );
+
+        const handlePieSeriesContextMenu = useCallback((e: ECElementEvent) => {
+            console.log(e.event?.event.zrX, e.event?.event.zrY);
+            setEchartsPieClickEvent(e);
+        }, []);
 
         if (!unsavedChartVersion.tableName) {
             return <CollapsableCard title="Charts" disabled />;
@@ -130,7 +139,8 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
                 onChartTypeChange={setChartType}
                 onPivotDimensionsChange={setPivotFields}
                 columnOrder={unsavedChartVersion.tableConfig.columnOrder}
-                onSeriesContextMenu={onSeriesContextMenu}
+                onCartesianSeriesContextMenu={handleCartesianSeriesContextMenu}
+                onPieSeriesContextMenu={handlePieSeriesContextMenu}
             >
                 <CollapsableCard
                     title="Charts"
@@ -160,15 +170,49 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
                     }
                 >
                     <Space h="sm" />
+
                     <LightdashVisualization
                         className="sentry-block fs-block cohere-block"
                         data-testid="visualization"
                     />
-                    <SeriesContextMenu
-                        echartSeriesClickEvent={echartsClickEvent?.event}
-                        dimensions={echartsClickEvent?.dimensions}
-                        series={echartsClickEvent?.series}
-                    />
+
+                    {/* {echartsCartesianClickEvent ? (
+                        <SeriesContextMenu
+                            menuPosition={{
+                                left: echartsCartesianClickEvent.event.event
+                                    .event.clientX,
+                                top: echartsCartesianClickEvent.event.event
+                                    .event.clientY,
+                            }}
+                            dimensions={echartsCartesianClickEvent.dimensions}
+                            series={echartsCartesianClickEvent.series}
+                            seriesIndex={
+                                echartsCartesianClickEvent.event.seriesIndex
+                            }
+                            dimensionNames={
+                                echartsCartesianClickEvent.event.dimensionNames
+                            }
+                            data={echartsCartesianClickEvent.event.data}
+                        />
+                    ) : echartsPieClickEvent ? (
+                        <SeriesContextMenu
+                            menuPosition={
+                                echartsPieClickEvent.event
+                                    ? {
+                                          left: echartsPieClickEvent.event
+                                              ?.offsetX,
+                                          top: echartsPieClickEvent.event
+                                              ?.offsetY,
+                                      }
+                                    : undefined
+                            }
+                            dimensions={[]}
+                            series={[]}
+                            seriesIndex={0}
+                            dimensionNames={[]}
+                            data={{}}
+                        />
+                    ) : null} */}
                 </CollapsableCard>
             </VisualizationProvider>
         );

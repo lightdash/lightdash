@@ -130,11 +130,16 @@ const ValidDashboardChartTile: FC<{
     data: SavedChart;
     isTitleHidden?: boolean;
     project: string;
-    onSeriesContextMenu?: (
+    onCartesianSeriesContextMenu?: (
         e: EchartSeriesClickEvent,
         series: EChartSeries[],
     ) => void;
-}> = ({ tileUuid, isTitleHidden = false, data, onSeriesContextMenu }) => {
+}> = ({
+    tileUuid,
+    isTitleHidden = false,
+    data,
+    onCartesianSeriesContextMenu,
+}) => {
     const {
         data: resultData,
         isLoading,
@@ -173,7 +178,7 @@ const ValidDashboardChartTile: FC<{
             resultsData={resultData}
             explore={explore}
             isLoading={isLoading}
-            onSeriesContextMenu={onSeriesContextMenu}
+            onCartesianSeriesContextMenu={onCartesianSeriesContextMenu}
             columnOrder={data.tableConfig.columnOrder}
         >
             <LightdashVisualization
@@ -295,7 +300,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     }>();
     const [isCSVExportModalOpen, setIsCSVExportModalOpen] = useState(false);
 
-    const onSeriesContextMenu = useCallback(
+    const handleCartesianSeriesContextMenu = useCallback(
         (e: EchartSeriesClickEvent, series: EChartSeries[]) => {
             if (explore === undefined) {
                 return;
@@ -659,7 +664,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             data={savedQueryWithDashboardFilters}
                             project={projectUuid}
                             isTitleHidden={hideTitle}
-                            onSeriesContextMenu={onSeriesContextMenu}
+                            onCartesianSeriesContextMenu={
+                                handleCartesianSeriesContextMenu
+                            }
                         />
                     </>
                 ) : (
