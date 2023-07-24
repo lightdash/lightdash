@@ -1,3 +1,10 @@
+# [0.687.0](https://github.com/lightdash/lightdash/compare/0.686.1...0.687.0) (2023-07-24)
+
+
+### Features
+
+* Migrate Project settings > dbt Cloud to use Mantine  ([#6438](https://github.com/lightdash/lightdash/issues/6438)) ([80dfd97](https://github.com/lightdash/lightdash/commit/80dfd977fe1884c302004c157c6d14aafd2fe2e4))
+
 ## [0.686.1](https://github.com/lightdash/lightdash/compare/0.686.0...0.686.1) (2023-07-24)
 
 
