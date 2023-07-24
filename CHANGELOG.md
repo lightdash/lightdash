@@ -1,3 +1,17 @@
+# [0.688.0](https://github.com/lightdash/lightdash/compare/0.687.1...0.688.0) (2023-07-24)
+
+
+### Features
+
+* identify charts that belong to a dashboard ([#6448](https://github.com/lightdash/lightdash/issues/6448)) ([24fa1e9](https://github.com/lightdash/lightdash/commit/24fa1e9869af000d5d0b3744a8bddae86523cbc0))
+
+## [0.687.1](https://github.com/lightdash/lightdash/compare/0.687.0...0.687.1) (2023-07-24)
+
+
+### Bug Fixes
+
+* titles not showing on filters panel ([#6460](https://github.com/lightdash/lightdash/issues/6460)) ([34df0c2](https://github.com/lightdash/lightdash/commit/34df0c20cad79dcc90e658138f91057d4ee03a91))
+
 # [0.687.0](https://github.com/lightdash/lightdash/compare/0.686.1...0.687.0) (2023-07-24)
 
 
