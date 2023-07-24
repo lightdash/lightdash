@@ -15,10 +15,6 @@ import {
 import { Text } from '@mantine/core';
 import { FC, useCallback, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import {
-    useDashboardQuery,
-    useUpdateDashboard,
-} from '../../../hooks/dashboard/useDashboard';
 import { useCreateMutation } from '../../../hooks/useSavedQuery';
 import {
     useCreateMutation as useSpaceCreateMutation,
@@ -44,18 +40,12 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
 }) => {
     const fromDashboard = sessionStorage.getItem('fromDashboard');
     const dashboardUuid = sessionStorage.getItem('dashboardUuid') || '';
+    const history = useHistory();
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { mutateAsync, isLoading: isCreating } = useCreateMutation();
     const { mutateAsync: createSpaceAsync, isLoading: isCreatingSpace } =
         useSpaceCreateMutation(projectUuid);
-
-    const { mutateAsync: updateDashboard } = useUpdateDashboard(
-        dashboardUuid,
-        false,
-    );
-    const { data: selectedDashboard } = useDashboardQuery(dashboardUuid);
-    const history = useHistory();
 
     const [spaceUuid, setSpaceUuid] = useState<string | undefined>();
     const [name, setName] = useState('');
@@ -125,42 +115,34 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     ]);
 
     const handleSaveChartInDashboard = useCallback(async () => {
-        if (!fromDashboard || dashboardUuid.length === 0 || !selectedDashboard)
-            return;
-        await updateDashboard({
-            name: fromDashboard,
-            filters: selectedDashboard?.filters,
-            tiles: [
-                ...selectedDashboard.tiles,
-                {
-                    type: DashboardTileTypes.SAVED_CHART,
-                    properties: {
-                        savedChartUuid: null,
-                        newChartData: {
-                            ...savedData,
-                            name,
-                            description,
-                        },
-                    },
-                    ...getDefaultChartTileSize(savedData.chartConfig?.type),
+        if (!fromDashboard || dashboardUuid.length === 0) return;
+        const newTile = {
+            uuid: '',
+            type: DashboardTileTypes.SAVED_CHART,
+            properties: {
+                savedChartUuid: null,
+                newChartData: {
+                    ...savedData,
+                    name,
+                    description,
                 },
-            ],
-        });
+            },
+            ...getDefaultChartTileSize(savedData.chartConfig?.type),
+        };
         sessionStorage.clear();
         handleClose();
         history.push(
-            `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
+            `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+            { newTile },
         );
     }, [
+        description,
+        name,
         dashboardUuid,
         fromDashboard,
         history,
         handleClose,
         savedData,
-        selectedDashboard,
-        updateDashboard,
-        name,
-        description,
         projectUuid,
     ]);
 

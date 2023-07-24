@@ -15,7 +15,7 @@ import React, {
     useState,
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
@@ -132,6 +132,7 @@ const GridTile: FC<
 
 const Dashboard: FC = () => {
     const history = useHistory();
+    const location = useLocation();
     const { projectUuid, dashboardUuid, mode } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
@@ -186,7 +187,22 @@ const Dashboard: FC = () => {
         if (dashboard?.tiles) {
             setDashboardTiles(dashboard.tiles);
         }
-    }, [dashboard, setDashboardTiles]);
+        if (location.state) {
+            setDashboardTiles((currentDashboardTiles) => {
+                return appendNewTilesToBottom(currentDashboardTiles, [
+                    location.state.newTile,
+                ]); // this returns an arr with existing tiles + new tile
+            });
+            setHaveTilesChanged(true);
+        }
+        console.log(dashboardTiles); // this returns only existing tiles
+    }, [
+        dashboard,
+        setDashboardTiles,
+        setHaveTilesChanged,
+        location,
+        dashboardTiles,
+    ]);
 
     useEffect(() => {
         if (isSuccess) {
