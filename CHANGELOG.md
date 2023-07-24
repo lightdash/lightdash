@@ -1,3 +1,17 @@
+# [0.687.0](https://github.com/lightdash/lightdash/compare/0.686.1...0.687.0) (2023-07-24)
+
+
+### Features
+
+* Migrate Project settings > dbt Cloud to use Mantine  ([#6438](https://github.com/lightdash/lightdash/issues/6438)) ([80dfd97](https://github.com/lightdash/lightdash/commit/80dfd977fe1884c302004c157c6d14aafd2fe2e4))
+
+## [0.686.1](https://github.com/lightdash/lightdash/compare/0.686.0...0.686.1) (2023-07-24)
+
+
+### Bug Fixes
+
+* add default yAxisIndex value to avoid breaking series behaviour ([#6435](https://github.com/lightdash/lightdash/issues/6435)) ([184b3cd](https://github.com/lightdash/lightdash/commit/184b3cd4abdcf8d13bc0d63cec4eb33b9d496c6d))
+
 # [0.686.0](https://github.com/lightdash/lightdash/compare/0.685.0...0.686.0) (2023-07-21)
 
 
