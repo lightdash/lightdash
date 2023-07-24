@@ -182,23 +182,25 @@ const Dashboard: FC = () => {
         [dashboardTiles, isEditMode],
     );
 
+    const { tiles: savedTiles } = dashboard || {};
     useEffect(() => {
-        if (dashboard?.tiles) {
+        if (savedTiles) {
             const unsavedDashboardTilesRaw = sessionStorage.getItem(
                 'unsavedDashboardTiles',
             );
+            sessionStorage.clear();
             let unsavedDashbordTiles = undefined;
             if (unsavedDashboardTilesRaw) {
                 try {
                     unsavedDashbordTiles = JSON.parse(unsavedDashboardTilesRaw);
-                    sessionStorage.clear();
                 } catch {
                     // do  nothing
                 }
             }
-            setDashboardTiles(unsavedDashbordTiles || dashboard.tiles);
+            setDashboardTiles(unsavedDashbordTiles || savedTiles);
+            setHaveTilesChanged(!!unsavedDashbordTiles);
         }
-    }, [setDashboardTiles, dashboard]);
+    }, [setHaveTilesChanged, setDashboardTiles, savedTiles]);
 
     useEffect(() => {
         if (isSuccess) {

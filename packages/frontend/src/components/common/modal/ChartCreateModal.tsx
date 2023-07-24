@@ -13,6 +13,7 @@ import {
     getDefaultChartTileSize,
 } from '@lightdash/common';
 import { Text } from '@mantine/core';
+import { uuid4 } from '@sentry/utils';
 import { FC, useCallback, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../../hooks/useSavedQuery';
@@ -127,7 +128,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         )
             return;
         const newTile = {
-            uuid: '',
+            uuid: uuid4(),
             type: DashboardTileTypes.SAVED_CHART,
             properties: {
                 savedChartUuid: null,
