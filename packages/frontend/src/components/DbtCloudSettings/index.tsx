@@ -28,8 +28,8 @@ interface DbtCloudSettingsProps {
 const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
     const form = useForm<CreateDbtCloudIntegration>({
         initialValues: {
-            metricsJobId: '',
             serviceToken: '',
+            metricsJobId: '',
         },
     });
     const dbtCloudSettings = useProjectDbtCloud(projectUuid, {
@@ -74,7 +74,7 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
 
                     <Stack>
                         <PasswordInput
-                            name="serviceToken"
+                            {...form.getInputProps('serviceToken')}
                             label={
                                 <Group display="inline-flex" spacing="xs">
                                     Service Token
@@ -95,7 +95,7 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
                         />
 
                         <TextInput
-                            name="metricsJobId"
+                            {...form.getInputProps('metricsJobId')}
                             label={
                                 <Group display="inline-flex" spacing="xs">
                                     Job ID
