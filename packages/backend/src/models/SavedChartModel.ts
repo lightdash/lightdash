@@ -720,22 +720,6 @@ export class SavedChartModel {
                     `${SavedChartsTableName}.space_id`,
                 );
             })
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SavedChartsTableName}.dashboard_uuid`,
-            )
-            .innerJoin(SpaceTableName, function spaceJoin() {
-                this.on(
-                    `${SpaceTableName}.space_id`,
-                    '=',
-                    `${DashboardsTableName}.space_id`,
-                ).orOn(
-                    `${SpaceTableName}.space_id`,
-                    '=',
-                    `${SavedChartsTableName}.space_id`,
-                );
-            })
             .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
             .leftJoin(
                 OrganizationTableName,
