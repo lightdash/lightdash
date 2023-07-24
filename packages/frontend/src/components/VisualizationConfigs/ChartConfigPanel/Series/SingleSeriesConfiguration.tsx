@@ -4,18 +4,18 @@ import {
     CartesianSeriesType,
     Series,
 } from '@lightdash/common';
+import { Box, Group } from '@mantine/core';
 import React, { FC } from 'react';
 import { DraggableProvidedDragHandleProps } from 'react-beautiful-dnd';
+import ColorSelector from '../../ColorSelector';
 import {
     DragIcon,
     SeriesExtraInputs,
     SeriesExtraInputWrapper,
     SeriesExtraSelect,
-    SeriesMainInputs,
     SeriesOptionsWrapper,
     SeriesWrapper,
 } from './Series.styles';
-import SeriesColorPicker from './SeriesColorPicker';
 
 type Props = {
     isCollapsable?: boolean;
@@ -50,23 +50,28 @@ const SingleSeriesConfiguration: FC<Props> = ({
             : series.type;
     return (
         <SeriesWrapper $isSingle={isSingle}>
-            <SeriesMainInputs $isGrouped={isGrouped}>
+            <Group noWrap spacing="xs" sx={{ justifyContent: 'flex-end' }}>
                 {isGrouped && (
                     <DragIcon
+                        style={{
+                            marginTop: '0px',
+                        }}
                         tagName="div"
                         icon="drag-handle-vertical"
                         {...dragHandleProps}
                     />
                 )}
-                <SeriesColorPicker
-                    color={series.color || fallbackColor}
-                    onChange={(color) => {
-                        updateSingleSeries({
-                            ...series,
-                            color,
-                        });
-                    }}
-                />
+                <Box sx={{ alignSelf: 'flex-end', marginBottom: '3px' }}>
+                    <ColorSelector
+                        color={series.color || fallbackColor}
+                        onColorChange={(color) => {
+                            updateSingleSeries({
+                                ...series,
+                                color,
+                            });
+                        }}
+                    />
+                </Box>
                 {!isSingle && (
                     <InputGroup
                         fill
@@ -98,7 +103,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         onClick={toggleIsOpen}
                     />
                 )}
-            </SeriesMainInputs>
+            </Group>
             <SeriesOptionsWrapper
                 isOpen={!isCollapsable || isOpen}
                 $isGrouped={isGrouped}

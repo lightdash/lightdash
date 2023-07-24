@@ -6,6 +6,7 @@ import {
     fieldId as getFieldId,
     formatDate,
     getDateFormat,
+    getItemId,
     isDateItem,
     isDimension,
     isField,
@@ -18,13 +19,13 @@ import debounce from 'lodash/debounce';
 import moment from 'moment';
 import { FC, useCallback, useMemo, useState } from 'react';
 
-import FieldAutoComplete from '../../../common/Filters/FieldAutoComplete';
 import MonthAndYearInput from '../../../common/MonthAndYearInput';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
 import WeekPicker from '../../../common/WeekPicker';
 import YearInput from '../../../common/YearInput';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
-import SeriesColorPicker from '../Series/SeriesColorPicker';
+import ColorSelector from '../../ColorSelector';
+import FieldSelect from '../FieldSelect';
 import { SectionTitle } from './Legend.styles';
 import {
     CollapseWrapper,
@@ -255,16 +256,20 @@ export const ReferenceLine: FC<Props> = ({
             </Flex>
             <CollapseWrapper isOpen={isOpen}>
                 <FormGroup label="Field">
-                    <FieldAutoComplete
-                        fields={fieldsInAxes}
-                        activeField={selectedField}
-                        onChange={(item) => {
-                            setSelectedField(item);
+                    <FieldSelect
+                        selectedField={selectedField}
+                        fieldOptions={fieldsInAxes}
+                        placeholder="Search field..."
+                        onChange={(itemId) => {
+                            const field = fieldsInAxes.find(
+                                (f) => getItemId(f) === itemId,
+                            );
+                            setSelectedField(field);
 
-                            if (value !== undefined)
+                            if (value !== undefined && field !== undefined)
                                 updateReferenceLine(
                                     value,
-                                    item,
+                                    field,
                                     label,
                                     lineColor,
                                     referenceLine.data.name,
@@ -305,9 +310,9 @@ export const ReferenceLine: FC<Props> = ({
                 </FormGroup>
 
                 <FormGroup label="Color">
-                    <SeriesColorPicker
+                    <ColorSelector
                         color={lineColor}
-                        onChange={(color) => {
+                        onColorChange={(color) => {
                             setLineColor(color);
                             if (
                                 value !== undefined &&

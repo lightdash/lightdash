@@ -9,7 +9,6 @@ import {
 } from '@lightdash/common';
 import { FC, useCallback, useMemo } from 'react';
 import { EMPTY_X_AXIS } from '../../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 import SimpleButton from '../../common/SimpleButton';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { MAX_PIVOTS } from '../TableConfigPanel/GeneralSettings';
@@ -25,6 +24,7 @@ import {
     StackButton,
     StackingWrapper,
 } from './ChartConfigPanel.styles';
+import FieldSelect from './FieldSelect';
 
 type Props = {
     items: (Field | TableCalculation)[];
@@ -139,11 +139,11 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                     </Button>
                 ) : (
                     <AxisFieldDropdown>
-                        <FieldAutoComplete
-                            fields={items}
-                            activeField={xAxisField}
-                            onChange={(item) => {
-                                setXField(getItemId(item));
+                        <FieldSelect
+                            selectedField={xAxisField}
+                            fieldOptions={items}
+                            onChange={(newValue) => {
+                                setXField(newValue ?? undefined);
                             }}
                         />
                         <DeleteFieldButton
@@ -165,17 +165,16 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
 
                 {yFields.map((field, index) => {
                     const activeField = yActiveField(field);
+                    const yFieldsOptions = activeField
+                        ? [activeField, ...availableYFields]
+                        : availableYFields;
                     return (
                         <AxisFieldDropdown key={`${field}-y-axis`}>
-                            <FieldAutoComplete
-                                fields={
-                                    activeField
-                                        ? [activeField, ...availableYFields]
-                                        : availableYFields
-                                }
-                                activeField={activeField}
-                                onChange={(item) => {
-                                    updateYField(index, getItemId(item));
+                            <FieldSelect
+                                selectedField={activeField}
+                                fieldOptions={yFieldsOptions}
+                                onChange={(newValue) => {
+                                    updateYField(index, newValue ?? '');
                                 }}
                             />
                             {yFields?.length !== 1 && (
@@ -214,36 +213,32 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                             const groupSelectedField = availableDimensions.find(
                                 (item) => getItemId(item) === pivotKey,
                             );
-
+                            const fieldOptions = groupSelectedField
+                                ? [
+                                      groupSelectedField,
+                                      ...availableGroupByDimensions,
+                                  ]
+                                : availableGroupByDimensions;
+                            const activeField = chartHasMetricOrTableCalc
+                                ? groupSelectedField
+                                : undefined;
                             return (
                                 <AxisFieldDropdown key={pivotKey}>
-                                    <FieldAutoComplete
-                                        fields={
-                                            groupSelectedField
-                                                ? [
-                                                      groupSelectedField,
-                                                      ...availableGroupByDimensions,
-                                                  ]
-                                                : availableGroupByDimensions
-                                        }
-                                        placeholder="Select a field to group by"
-                                        activeField={
-                                            chartHasMetricOrTableCalc
-                                                ? groupSelectedField
-                                                : undefined
-                                        }
-                                        onChange={(item) => {
+                                    <FieldSelect
+                                        selectedField={activeField}
+                                        fieldOptions={fieldOptions}
+                                        onChange={(newValue) => {
+                                            if (!newValue) return;
                                             setPivotDimensions(
                                                 pivotDimensions
                                                     ? replaceStringInArray(
                                                           pivotDimensions,
                                                           pivotKey,
-                                                          getItemId(item),
+                                                          newValue,
                                                       )
-                                                    : [getItemId(item)],
+                                                    : [newValue],
                                             );
                                         }}
-                                        disabled={!chartHasMetricOrTableCalc}
                                     />
                                     {groupSelectedField && (
                                         <DeleteFieldButton
