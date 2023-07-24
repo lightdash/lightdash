@@ -84,13 +84,13 @@ import {
     SavedChartAdditionalMetricTable,
     SavedChartAdditionalMetricTableName,
     SavedChartsTableName,
+    SavedChartTable,
     SavedChartVersionFieldsTable,
     SavedChartVersionFieldsTableName,
     SavedChartVersionSortsTable,
     SavedChartVersionSortsTableName,
     SavedChartVersionsTable,
     SavedChartVersionsTableName,
-    SavedQueryTable,
     SavedQueryTableCalculationTable,
     SavedQueryTableCalculationTableName,
 } from '../database/entities/savedCharts';
@@ -167,7 +167,7 @@ declare module 'knex/types/tables' {
         [SessionTableName]: SessionTable;
         [WarehouseCredentialTableName]: WarehouseCredentialTable;
         [ProjectTableName]: ProjectTable;
-        [SavedChartsTableName]: SavedQueryTable;
+        [SavedChartsTableName]: SavedChartTable;
         [SavedChartVersionsTableName]: SavedChartVersionsTable;
         [SavedChartVersionFieldsTableName]: SavedChartVersionFieldsTable;
         [SavedChartVersionSortsTableName]: SavedChartVersionSortsTable;

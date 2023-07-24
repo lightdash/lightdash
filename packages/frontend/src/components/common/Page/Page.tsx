@@ -5,7 +5,7 @@ import { Helmet } from 'react-helmet';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import AboutFooter, { FOOTER_HEIGHT, FOOTER_MARGIN } from '../../AboutFooter';
-import { NAVBAR_HEIGHT } from '../../NavBar';
+import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../../NavBar';
 import { PAGE_HEADER_HEIGHT } from './PageHeader';
 import Sidebar from './Sidebar';
 
@@ -20,6 +20,7 @@ type StyleProps = {
     withPaddedContent?: boolean;
     withSidebar?: boolean;
     withSidebarFooter?: boolean;
+    hasBanner?: boolean;
 };
 
 export const PAGE_CONTENT_WIDTH = 900;
@@ -33,6 +34,9 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
     }
     if (params.withHeader) {
         containerHeight = `calc(${containerHeight} - ${PAGE_HEADER_HEIGHT}px)`;
+    }
+    if (params.hasBanner) {
+        containerHeight = `calc(${containerHeight} + ${BANNER_HEIGHT}px)`;
     }
 
     return {
@@ -128,6 +132,7 @@ type Props = {
     sidebar?: React.ReactNode;
     isSidebarOpen?: boolean;
     header?: React.ReactNode;
+    hasBanner?: boolean;
 } & Omit<StyleProps, 'withSidebar' | 'withHeader'>;
 
 const Page: FC<Props> = ({
@@ -144,6 +149,7 @@ const Page: FC<Props> = ({
     withNavbar = true,
     withPaddedContent = false,
     withSidebarFooter = false,
+    hasBanner = false,
 
     children,
 }) => {
@@ -159,6 +165,7 @@ const Page: FC<Props> = ({
             withPaddedContent,
             withSidebar: !!sidebar,
             withSidebarFooter,
+            hasBanner,
         },
         { name: 'Page' },
     );
