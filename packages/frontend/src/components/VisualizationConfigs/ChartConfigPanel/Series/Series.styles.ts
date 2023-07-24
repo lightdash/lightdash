@@ -127,25 +127,6 @@ export const SeriesExtraSelect = styled(HTMLSelect)`
     }
 `;
 
-export const ColorButton = styled.button`
-    height: 2.143em;
-    width: 2.143em;
-    cursor: pointer;
-    border: none;
-    background-color: transparent;
-
-    box-sizing: border-box;
-    box-shadow: 0 0 0 0 rgb(19 124 189 / 0%), 0 0 0 0 rgb(19 124 189 / 0%),
-        inset 0 0 0 1px rgb(16 22 26 / 15%), inset 0 1px 1px rgb(16 22 26 / 20%);
-    border-radius: 0.214em;
-    padding: 0.286em;
-`;
-
-export const ColorButtonInner = styled.div`
-    height: 100%;
-    width: 100%;
-`;
-
 export const SeriesDivider = styled.hr`
     height: 0.071em;
     width: 100%;
