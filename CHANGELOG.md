@@ -1,3 +1,10 @@
+## [0.686.1](https://github.com/lightdash/lightdash/compare/0.686.0...0.686.1) (2023-07-24)
+
+
+### Bug Fixes
+
+* add default yAxisIndex value to avoid breaking series behaviour ([#6435](https://github.com/lightdash/lightdash/issues/6435)) ([184b3cd](https://github.com/lightdash/lightdash/commit/184b3cd4abdcf8d13bc0d63cec4eb33b9d496c6d))
+
 # [0.686.0](https://github.com/lightdash/lightdash/compare/0.685.0...0.686.0) (2023-07-21)
 
 
