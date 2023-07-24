@@ -48,21 +48,25 @@ export type DashboardChartTileProperties = {
     };
 };
 
+type CreateChartTileWithSavedChartUuid =
+    DashboardChartTileProperties['properties'] & {
+        savedChartUuid: string | null;
+        newChartData?: null;
+    };
+
+type CreateChartTileWithNewChartData =
+    DashboardChartTileProperties['properties'] & {
+        savedChartUuid: null;
+        newChartData: CreateSavedChart;
+    };
+
 export type CreateDashboardChartTileProperties = Omit<
     DashboardChartTileProperties,
     'properties'
 > & {
-    properties: DashboardChartTileProperties['properties'] &
-        (
-            | {
-                  savedChartUuid: null;
-                  newChartData: CreateSavedChart;
-              }
-            | {
-                  savedChartUuid: string | null;
-                  newChartData?: null;
-              }
-        );
+    properties:
+        | CreateChartTileWithSavedChartUuid
+        | CreateChartTileWithNewChartData;
 };
 
 export type CreateDashboardMarkdownTile = CreateDashboardTileBase &
