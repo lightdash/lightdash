@@ -3,7 +3,7 @@ import { ActionIcon, Skeleton, Stack, TextInput } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 
 import { SummaryExplore } from '@lightdash/common';
 import { useExplores } from '../../../hooks/useExplores';
@@ -32,6 +32,7 @@ const LoadingSkeleton = () => (
 
 const BasePanel = () => {
     const history = useHistory();
+    const location = useLocation();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [search, setSearch] = useState<string>('');
     const exploresResult = useExplores(projectUuid, true);
@@ -120,6 +121,11 @@ const BasePanel = () => {
                                             onClick={() => {
                                                 history.push(
                                                     `/projects/${projectUuid}/tables/${explore.name}`,
+                                                    {
+                                                        unsavedDashboardTiles:
+                                                            location?.state
+                                                                ?.unsavedDashboardTiles,
+                                                    },
                                                 );
                                             }}
                                         />
@@ -136,6 +142,11 @@ const BasePanel = () => {
                                 onClick={() => {
                                     history.push(
                                         `/projects/${projectUuid}/tables/${explore.name}`,
+                                        {
+                                            unsavedDashboardTiles:
+                                                location?.state
+                                                    ?.unsavedDashboardTiles,
+                                        },
                                     );
                                 }}
                             />
@@ -160,11 +171,14 @@ const ExploreSideBar = memo(() => {
         (context) => context.actions.clearExplore,
     );
     const history = useHistory();
+    const location = useLocation();
 
     const handleBack = useCallback(() => {
         clearExplore();
-        history.push(`/projects/${projectUuid}/tables`);
-    }, [clearExplore, history, projectUuid]);
+        history.push(`/projects/${projectUuid}/tables`, {
+            unsavedDashboardTiles: location?.state?.unsavedDashboardTiles,
+        });
+    }, [clearExplore, history, projectUuid, location]);
 
     return (
         <TrackSection name={SectionName.SIDEBAR}>
