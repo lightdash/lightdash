@@ -73,18 +73,6 @@ export const SeriesTitle = styled.p`
     margin-bottom: 0.286em;
 `;
 
-export const SeriesMainInputs = styled.div<{ $isGrouped?: boolean }>`
-    ${GridTemplate}
-
-    ${({ $isGrouped }) =>
-        $isGrouped
-            ? `
-        grid-template-columns: 1em 2.143em 11.5em 2.143em 2.14em;
-        column-gap: 0.357em;
-        `
-            : `margin-top: 25px;`}
-`;
-
 export const DragIcon = styled(Icon)`
     margin-top: 6px;
 `;

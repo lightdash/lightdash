@@ -1,30 +1,38 @@
-import { Popover2 } from '@blueprintjs/popover2';
-import { Button } from '@mantine/core';
+import { Button, Popover } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
-import React from 'react';
 import useEcharts from '../../../hooks/echarts/useEcharts';
-import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard';
+import {
+    COLLAPSABLE_CARD_BUTTON_PROPS,
+    COLLAPSABLE_CARD_POPOVER_PROPS,
+} from '../../common/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import ChartConfigTabs from './ChartConfigTabs';
 
 const ChartConfigPanel: React.FC = () => {
     const eChartsOptions = useEcharts();
     const disabled = !eChartsOptions;
-
     return (
-        <Popover2
+        <Popover
+            withinPortal={true}
+            {...COLLAPSABLE_CARD_POPOVER_PROPS}
             disabled={disabled}
-            position="bottom"
-            content={<ChartConfigTabs />}
         >
-            <Button
-                {...COLLAPSABLE_CARD_BUTTON_PROPS}
-                disabled={disabled}
-                rightIcon={<MantineIcon icon={IconChevronDown} color="gray" />}
-            >
-                Configure
-            </Button>
-        </Popover2>
+            <Popover.Target>
+                <Button
+                    {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                    disabled={disabled}
+                    rightIcon={
+                        <MantineIcon icon={IconChevronDown} color="gray" />
+                    }
+                >
+                    Configure
+                </Button>
+            </Popover.Target>
+
+            <Popover.Dropdown>
+                <ChartConfigTabs />
+            </Popover.Dropdown>
+        </Popover>
     );
 };
 
