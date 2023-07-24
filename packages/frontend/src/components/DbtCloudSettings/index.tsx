@@ -11,9 +11,10 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
+import { useForm, zodResolver } from '@mantine/form';
 import { IconHelp } from '@tabler/icons-react';
 import { FC } from 'react';
+import { z } from 'zod';
 import {
     useProjectDbtCloud,
     useProjectDbtCloudDeleteMutation,
@@ -25,8 +26,19 @@ import { SettingsGridCard } from '../common/Settings/SettingsCard';
 interface DbtCloudSettingsProps {
     projectUuid: string;
 }
+
+const schema = z.object({
+    serviceToken: z.string().nonempty({
+        message: 'Service token is required',
+    }),
+    metricsJobId: z.string().nonempty({
+        message: 'Job ID is required',
+    }),
+});
+
 const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
     const form = useForm<CreateDbtCloudIntegration>({
+        validate: zodResolver(schema),
         initialValues: {
             serviceToken: '',
             metricsJobId: '',
@@ -91,7 +103,6 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
                             }
                             disabled={dbtCloudSettings.isLoading}
                             placeholder="Enter your token..."
-                            required
                         />
 
                         <TextInput
@@ -111,7 +122,6 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
                                 </Group>
                             }
                             disabled={dbtCloudSettings.isLoading}
-                            required
                         />
 
                         <Group ml="auto">
