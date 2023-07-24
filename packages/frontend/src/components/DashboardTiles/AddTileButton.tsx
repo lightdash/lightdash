@@ -79,6 +79,10 @@ const AddTileButton: FC<Props> = ({ onAddTiles, intent, popoverPosition }) => {
 
                                         history.push(
                                             `/projects/${projectUuid}/tables`,
+                                            {
+                                                unsavedDashbordTiles:
+                                                    dashboard?.tiles,
+                                            },
                                         );
                                     }}
                                 />

@@ -14,7 +14,7 @@ import {
 } from '@lightdash/common';
 import { Text } from '@mantine/core';
 import { FC, useCallback, useState } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../../hooks/useSavedQuery';
 import {
     useCreateMutation as useSpaceCreateMutation,
@@ -41,6 +41,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     const fromDashboard = sessionStorage.getItem('fromDashboard');
     const dashboardUuid = sessionStorage.getItem('dashboardUuid') || '';
     const history = useHistory();
+    const location = useLocation();
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { mutateAsync, isLoading: isCreating } = useCreateMutation();
@@ -131,9 +132,14 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         };
         sessionStorage.clear();
         handleClose();
+        const unsavedDashboardTiles = location.state
+            ? location.state.unsavedDashboardTiles
+            : [];
         history.push(
             `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
-            { newTile },
+            {
+                unsavedDashboardTiles: [...unsavedDashboardTiles, newTile],
+            },
         );
     }, [
         description,
@@ -144,6 +150,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         handleClose,
         savedData,
         projectUuid,
+        location,
     ]);
 
     if (isLoadingSpaces || !spaces) return null;

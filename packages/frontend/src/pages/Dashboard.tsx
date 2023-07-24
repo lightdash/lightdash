@@ -184,25 +184,13 @@ const Dashboard: FC = () => {
     );
 
     useEffect(() => {
-        if (dashboard?.tiles) {
+        if (location.state) {
+            setDashboardTiles(location.state.unsavedDashboardTiles);
+            setHaveTilesChanged(true);
+        } else if (dashboard?.tiles) {
             setDashboardTiles(dashboard.tiles);
         }
-        if (location.state) {
-            setDashboardTiles((currentDashboardTiles) => {
-                return appendNewTilesToBottom(currentDashboardTiles, [
-                    location.state.newTile,
-                ]); // this returns an arr with existing tiles + new tile
-            });
-            setHaveTilesChanged(true);
-        }
-        console.log(dashboardTiles); // this returns only existing tiles
-    }, [
-        dashboard,
-        setDashboardTiles,
-        setHaveTilesChanged,
-        location,
-        dashboardTiles,
-    ]);
+    }, [dashboard, setDashboardTiles, setHaveTilesChanged, location]);
 
     useEffect(() => {
         if (isSuccess) {
