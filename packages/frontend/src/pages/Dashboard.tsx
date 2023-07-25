@@ -182,11 +182,27 @@ const Dashboard: FC = () => {
         [dashboardTiles, isEditMode],
     );
 
+    const { tiles: savedTiles } = dashboard || {};
     useEffect(() => {
-        if (dashboard?.tiles) {
-            setDashboardTiles(dashboard.tiles);
+        if (savedTiles) {
+            const unsavedDashboardTilesRaw = sessionStorage.getItem(
+                'unsavedDashboardTiles',
+            );
+            sessionStorage.removeItem('unsavedDashboardTiles');
+            let unsavedDashboardTiles = undefined;
+            if (unsavedDashboardTilesRaw) {
+                try {
+                    unsavedDashboardTiles = JSON.parse(
+                        unsavedDashboardTilesRaw,
+                    );
+                } catch {
+                    // do nothing
+                }
+            }
+            setDashboardTiles(unsavedDashboardTiles || savedTiles);
+            setHaveTilesChanged(!!unsavedDashboardTiles);
         }
-    }, [dashboard, setDashboardTiles]);
+    }, [setHaveTilesChanged, setDashboardTiles, savedTiles]);
 
     useEffect(() => {
         if (isSuccess) {
@@ -275,6 +291,7 @@ const Dashboard: FC = () => {
     );
 
     const handleCancel = useCallback(() => {
+        sessionStorage.clear();
         setDashboardTiles(dashboard?.tiles || []);
         setHaveTilesChanged(false);
         if (dashboard) setDashboardFilters(dashboard.filters);
@@ -339,17 +356,21 @@ const Dashboard: FC = () => {
     }, [haveTilesChanged, haveFiltersChanged, isEditMode]);
 
     useEffect(() => {
+        const createChartInDashboardFlow = sessionStorage.getItem(
+            'unsavedDashboardTiles',
+        );
         history.block((prompt) => {
             if (
                 isEditMode &&
                 (haveTilesChanged || haveFiltersChanged) &&
                 !prompt.pathname.includes(
                     `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
-                )
+                ) &&
+                createChartInDashboardFlow
             ) {
                 setBlockedNavigationLocation(prompt.pathname);
                 setIsSaveWarningModalOpen(true);
-                return false; //blocks history
+                return false; // blocks history
             }
             return undefined; // allow history
         });
