@@ -1,3 +1,10 @@
+# [0.691.0](https://github.com/lightdash/lightdash/compare/0.690.1...0.691.0) (2023-07-25)
+
+
+### Features
+
+* delete orphan charts when updating dashboard ([#6462](https://github.com/lightdash/lightdash/issues/6462)) ([542d0bf](https://github.com/lightdash/lightdash/commit/542d0bf728e0e6e70206f572e16517d5e2545b11))
+
 ## [0.690.1](https://github.com/lightdash/lightdash/compare/0.690.0...0.690.1) (2023-07-25)
 
 
