@@ -42,7 +42,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     const fromDashboard = sessionStorage.getItem('fromDashboard');
     const dashboardUuid = sessionStorage.getItem('dashboardUuid');
     const unsavedDashboardTiles = JSON.parse(
-        sessionStorage.getItem('unsavedDashbordTiles') ?? '[]',
+        sessionStorage.getItem('unsavedDashboardTiles') ?? '[]',
     );
 
     const history = useHistory();

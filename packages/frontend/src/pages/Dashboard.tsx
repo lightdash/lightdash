@@ -189,16 +189,18 @@ const Dashboard: FC = () => {
                 'unsavedDashboardTiles',
             );
             sessionStorage.clear();
-            let unsavedDashbordTiles = undefined;
+            let unsavedDashboardTiles = undefined;
             if (unsavedDashboardTilesRaw) {
                 try {
-                    unsavedDashbordTiles = JSON.parse(unsavedDashboardTilesRaw);
+                    unsavedDashboardTiles = JSON.parse(
+                        unsavedDashboardTilesRaw,
+                    );
                 } catch {
                     // do nothing
                 }
             }
-            setDashboardTiles(unsavedDashbordTiles || savedTiles);
-            setHaveTilesChanged(!!unsavedDashbordTiles);
+            setDashboardTiles(unsavedDashboardTiles || savedTiles);
+            setHaveTilesChanged(!!unsavedDashboardTiles);
         }
     }, [setHaveTilesChanged, setDashboardTiles, savedTiles]);
 
@@ -354,6 +356,9 @@ const Dashboard: FC = () => {
     }, [haveTilesChanged, haveFiltersChanged, isEditMode]);
 
     useEffect(() => {
+        const createChartInDashboardFlow = sessionStorage.getItem(
+            'unsavedDashboardTiles',
+        );
         history.block((prompt) => {
             if (
                 isEditMode &&
@@ -361,11 +366,11 @@ const Dashboard: FC = () => {
                 !prompt.pathname.includes(
                     `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
                 ) &&
-                !prompt.pathname.includes(`/projects/${projectUuid}/tables`)
+                createChartInDashboardFlow
             ) {
                 setBlockedNavigationLocation(prompt.pathname);
                 setIsSaveWarningModalOpen(true);
-                return false; //blocks history
+                return false; // blocks history
             }
             return undefined; // allow history
         });

@@ -77,7 +77,7 @@ const AddTileButton: FC<Props> = ({ onAddTiles, intent, popoverPosition }) => {
                                             dashboard?.uuid ?? '',
                                         );
                                         sessionStorage.setItem(
-                                            'unsavedDashbordTiles',
+                                            'unsavedDashboardTiles',
                                             JSON.stringify(dashboardTiles),
                                         );
                                         history.push(
