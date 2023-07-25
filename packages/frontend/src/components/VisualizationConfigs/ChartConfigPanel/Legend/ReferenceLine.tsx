@@ -74,6 +74,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                     return (
                         <WeekPicker
                             value={moment(value).toDate()}
+                            popoverProps={{ usePortal: false }}
                             startOfWeek={startOfWeek}
                             onChange={(dateValue: Date) => {
                                 onChange(
@@ -125,6 +126,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                 <DateInput2
                     fill
                     value={value}
+                    popoverProps={{ usePortal: false }}
                     formatDate={(dateValue: Date) =>
                         formatDate(dateValue, undefined, false)
                     }
