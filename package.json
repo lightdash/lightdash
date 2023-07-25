@@ -10,7 +10,8 @@
         ]
     },
     "dependencies": {
-        "npm-run-all": "^4.1.5"
+        "concurrently": "^8.2.0",
+        "npm-run-all2": "^6.0.6"
     },
     "devDependencies": {
         "@types/jest": "^29.0.0",
@@ -91,7 +92,7 @@
         "fix-lint": "run-s common-fix-lint backend-fix-lint frontend-fix-lint e2e-fix-lint cli-fix-lint",
         "fix-format": "run-s common-fix-format backend-fix-format frontend-fix-format e2e-fix-format cli-fix-format",
         "test": "run-s common-test warehouses-test cli-test backend-test frontend-test",
-        "dev": "npm-run-all --parallel common-dev warehouses-dev backend-dev frontend-dev",
+        "dev": "concurrently -n \"common,warehouses,backend,frontend\" --prefix-colors \"bgWhite.bold,bgGreenBright.bold,bgMagenta.bold,bgBlue.bold\" \"yarn:common-dev\" \"yarn:warehouses-dev\" \"yarn:backend-dev\" \"yarn:frontend-dev\"",
         "build": "run-s common-build warehouses-build frontend-build backend-build",
         "build-published-packages": "run-s common-build warehouses-build cli-build",
         "start": "run-p backend-start",
