@@ -1,4 +1,3 @@
-import { Checkbox, HTMLSelect, InputGroup, Label } from '@blueprintjs/core';
 import {
     Field,
     getAxisName,
@@ -7,19 +6,20 @@ import {
     isNumericItem,
     TableCalculation,
 } from '@lightdash/common';
+import {
+    Checkbox,
+    Group,
+    SegmentedControl,
+    Stack,
+    Switch,
+    Text,
+    TextInput,
+} from '@mantine/core';
 import { FC, useCallback } from 'react';
 import { useToggle } from 'react-use';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import {
-    AutoRangeSwitch,
-    GridSettings,
-    InputWrapper,
-    MinMaxContainer,
-    MinMaxInput,
-    MinMaxWrapper,
-} from './ChartConfigPanel.styles';
 
 interface MinMaxProps {
     label: string;
@@ -42,11 +42,11 @@ const AxisMinMax: FC<MinMaxProps> = ({ label, min, max, setMin, setMax }) => {
     }, [isAuto, setMin, setMax]);
 
     return (
-        <MinMaxContainer>
-            <AutoRangeSwitch
-                name="auto-range"
-                checked={isAuto}
+        <>
+            <Switch
                 label={label}
+                checked={isAuto}
+                size="sm"
                 onChange={() => {
                     toggleAuto((prev: boolean) => !prev);
                     clearRange();
@@ -59,25 +59,23 @@ const AxisMinMax: FC<MinMaxProps> = ({ label, min, max, setMin, setMax }) => {
                 }}
             />
             {!isAuto && (
-                <MinMaxWrapper>
-                    <MinMaxInput label="Min">
-                        <InputGroup
-                            placeholder="Min"
-                            defaultValue={min || undefined}
-                            onBlur={(e) => setMin(e.currentTarget.value)}
-                        />
-                    </MinMaxInput>
+                <Group noWrap spacing="xs">
+                    <TextInput
+                        label="Min"
+                        placeholder="Min"
+                        defaultValue={min || undefined}
+                        onBlur={(e) => setMin(e.currentTarget.value)}
+                    />
 
-                    <MinMaxInput label="Max">
-                        <InputGroup
-                            placeholder="Max"
-                            defaultValue={max || undefined}
-                            onBlur={(e) => setMax(e.currentTarget.value)}
-                        />
-                    </MinMaxInput>
-                </MinMaxWrapper>
+                    <TextInput
+                        label="Max"
+                        placeholder="Max"
+                        defaultValue={max || undefined}
+                        onBlur={(e) => setMax(e.currentTarget.value)}
+                    />
+                </Group>
             )}
-        </MinMaxContainer>
+        </>
     );
 };
 
@@ -129,23 +127,27 @@ const AxesOptions: FC<Props> = ({ items }) => {
     );
 
     return (
-        <>
-            <InputWrapper
+        <Stack spacing="xs">
+            <TextInput
                 label={`${dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis label`}
-            >
-                <InputGroup
-                    placeholder="Enter axis label"
+                placeholder="Enter axis label"
+                defaultValue={
+                    dirtyEchartsConfig?.xAxis?.[0]?.name ||
+                    (xAxisField && getItemLabelWithoutTableName(xAxisField))
+                }
+                onBlur={(e) => setXAxisName(e.currentTarget.value)}
+            />
+            <Group noWrap>
+                <Text fw={600}> Sort </Text>
+                <SegmentedControl
+                    size="sm"
+                    color="blue"
                     defaultValue={
-                        dirtyEchartsConfig?.xAxis?.[0]?.name ||
-                        (xAxisField && getItemLabelWithoutTableName(xAxisField))
+                        dirtyEchartsConfig?.xAxis?.[0]?.inverse
+                            ? 'descending'
+                            : 'ascending'
                     }
-                    onBlur={(e) => setXAxisName(e.currentTarget.value)}
-                />
-            </InputWrapper>
-            <GridSettings style={{ marginTop: 10 }}>
-                <Label style={{ marginTop: 5 }}>Sort</Label>
-                <HTMLSelect
-                    options={[
+                    data={[
                         {
                             value: 'ascending',
                             label: 'Ascending',
@@ -155,38 +157,30 @@ const AxesOptions: FC<Props> = ({ items }) => {
                             label: 'Descending',
                         },
                     ]}
-                    defaultValue={
-                        dirtyEchartsConfig?.xAxis?.[0]?.inverse
-                            ? 'descending'
-                            : 'ascending'
-                    }
-                    onChange={(e) => {
-                        setInverseX(e.target.value === 'descending');
+                    onChange={(value) => {
+                        setInverseX(value === 'descending');
                     }}
                 />
-            </GridSettings>
-
-            <InputWrapper
+            </Group>
+            <TextInput
                 label={`${dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis label (${
                     dirtyLayout?.flipAxes ? 'bottom' : 'left'
                 })`}
-            >
-                <InputGroup
-                    placeholder="Enter axis label"
-                    defaultValue={
-                        dirtyEchartsConfig?.yAxis?.[0]?.name ||
-                        getAxisName({
-                            isAxisTheSameForAllSeries,
-                            selectedAxisIndex,
-                            axisReference: 'yRef',
-                            axisIndex: 0,
-                            series: dirtyEchartsConfig?.series,
-                            items,
-                        })
-                    }
-                    onBlur={(e) => setYAxisName(0, e.currentTarget.value)}
-                />
-            </InputWrapper>
+                mt="xs"
+                placeholder="Enter axis label"
+                defaultValue={
+                    dirtyEchartsConfig?.yAxis?.[0]?.name ||
+                    getAxisName({
+                        isAxisTheSameForAllSeries,
+                        selectedAxisIndex,
+                        axisReference: 'yRef',
+                        axisIndex: 0,
+                        series: dirtyEchartsConfig?.series,
+                        items,
+                    })
+                }
+                onBlur={(e) => setYAxisName(0, e.currentTarget.value)}
+            />
             {showFirstAxisRange && (
                 <AxisMinMax
                     label={`Auto ${
@@ -201,33 +195,31 @@ const AxesOptions: FC<Props> = ({ items }) => {
                 />
             )}
 
-            <InputWrapper
+            <TextInput
                 label={`${dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis label (${
                     dirtyLayout?.flipAxes ? 'top' : 'right'
                 })`}
-            >
-                <InputGroup
-                    placeholder="Enter axis label"
-                    defaultValue={
-                        dirtyEchartsConfig?.yAxis?.[1]?.name ||
-                        getAxisName({
-                            isAxisTheSameForAllSeries,
-                            selectedAxisIndex,
-                            axisReference: 'yRef',
-                            axisIndex: 1,
-                            series: dirtyEchartsConfig?.series,
-                            items,
-                        })
-                    }
-                    onBlur={(e) => setYAxisName(1, e.currentTarget.value)}
-                />
-            </InputWrapper>
+                mt="xs"
+                placeholder="Enter axis label"
+                defaultValue={
+                    dirtyEchartsConfig?.yAxis?.[1]?.name ||
+                    getAxisName({
+                        isAxisTheSameForAllSeries,
+                        selectedAxisIndex,
+                        axisReference: 'yRef',
+                        axisIndex: 1,
+                        series: dirtyEchartsConfig?.series,
+                        items,
+                    })
+                }
+                onBlur={(e) => setYAxisName(1, e.currentTarget.value)}
+            />
 
             {showSecondAxisRange && (
                 <AxisMinMax
                     label={`Auto ${
                         dirtyLayout?.flipAxes ? 'x' : 'y'
-                    }-axis range (${dirtyLayout?.flipAxes ? 'top' : 'right'})`}
+                    }-axis range? (${dirtyLayout?.flipAxes ? 'top' : 'right'})`}
                     min={dirtyEchartsConfig?.yAxis?.[1]?.min}
                     max={dirtyEchartsConfig?.yAxis?.[1]?.max}
                     setMin={(newValue) => setYMinValue(1, newValue)}
@@ -235,32 +227,31 @@ const AxesOptions: FC<Props> = ({ items }) => {
                 />
             )}
 
-            <InputWrapper label="Show grid">
-                <Checkbox
-                    label={`${dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis`}
-                    checked={!!dirtyLayout?.showGridX}
-                    onChange={() => {
-                        setShowGridX(!dirtyLayout?.showGridX);
-                    }}
-                />
+            <Text fw={600}>Show grid</Text>
+            <Checkbox
+                label={`${dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis`}
+                checked={!!dirtyLayout?.showGridX}
+                onChange={() => {
+                    setShowGridX(!dirtyLayout?.showGridX);
+                }}
+            />
 
-                <Checkbox
-                    label={`${dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis`}
-                    checked={
+            <Checkbox
+                label={`${dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis`}
+                checked={
+                    dirtyLayout?.showGridY !== undefined
+                        ? dirtyLayout?.showGridY
+                        : true
+                }
+                onChange={() => {
+                    setShowGridY(
                         dirtyLayout?.showGridY !== undefined
-                            ? dirtyLayout?.showGridY
-                            : true
-                    }
-                    onChange={() => {
-                        setShowGridY(
-                            dirtyLayout?.showGridY !== undefined
-                                ? !dirtyLayout?.showGridY
-                                : false,
-                        );
-                    }}
-                />
-            </InputWrapper>
-        </>
+                            ? !dirtyLayout?.showGridY
+                            : false,
+                    );
+                }}
+            />
+        </Stack>
     );
 };
 
