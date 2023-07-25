@@ -46,7 +46,7 @@ const AxisMinMax: FC<MinMaxProps> = ({ label, min, max, setMin, setMax }) => {
             <Switch
                 label={label}
                 checked={isAuto}
-                size="sm"
+                size="xs"
                 onChange={() => {
                     toggleAuto((prev: boolean) => !prev);
                     clearRange();
@@ -137,10 +137,10 @@ const AxesOptions: FC<Props> = ({ items }) => {
                 }
                 onBlur={(e) => setXAxisName(e.currentTarget.value)}
             />
-            <Group noWrap>
+            <Group noWrap spacing="xs">
                 <Text fw={600}> Sort </Text>
                 <SegmentedControl
-                    size="sm"
+                    size="xs"
                     color="blue"
                     defaultValue={
                         dirtyEchartsConfig?.xAxis?.[0]?.inverse
@@ -166,7 +166,7 @@ const AxesOptions: FC<Props> = ({ items }) => {
                 label={`${dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis label (${
                     dirtyLayout?.flipAxes ? 'bottom' : 'left'
                 })`}
-                mt="xs"
+                mt="sm"
                 placeholder="Enter axis label"
                 defaultValue={
                     dirtyEchartsConfig?.yAxis?.[0]?.name ||
@@ -199,7 +199,7 @@ const AxesOptions: FC<Props> = ({ items }) => {
                 label={`${dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis label (${
                     dirtyLayout?.flipAxes ? 'top' : 'right'
                 })`}
-                mt="xs"
+                mt="sm"
                 placeholder="Enter axis label"
                 defaultValue={
                     dirtyEchartsConfig?.yAxis?.[1]?.name ||
@@ -227,7 +227,9 @@ const AxesOptions: FC<Props> = ({ items }) => {
                 />
             )}
 
-            <Text fw={600}>Show grid</Text>
+            <Text fw={600} mt="sm">
+                Show grid
+            </Text>
             <Checkbox
                 label={`${dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis`}
                 checked={!!dirtyLayout?.showGridX}
