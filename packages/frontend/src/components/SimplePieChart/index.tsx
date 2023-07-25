@@ -1,5 +1,4 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
-import { ResultValue } from '@lightdash/common';
 import { useDisclosure } from '@mantine/hooks';
 import { ECElementEvent } from 'echarts';
 import EChartsReact from 'echarts-for-react';
@@ -43,7 +42,9 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
     const [isOpen, { open, close }] = useDisclosure();
     const [menuProps, setMenuProps] = useState<{
         position: PieChartContextMenuProps['menuPosition'];
-        value: ResultValue;
+        value: PieChartContextMenuProps['value'];
+        groupDimensions: PieChartContextMenuProps['groupDimensions'];
+        rows: PieChartContextMenuProps['rows'];
     }>();
 
     useEffect(() => {
@@ -58,11 +59,13 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
             const data = e.data as PieSeriesDataPoint;
 
             setMenuProps({
+                groupDimensions: data.meta.groupDimensions,
                 value: data.meta.value,
                 position: {
                     left: event.clientX,
                     top: event.clientY,
                 },
+                rows: data.meta.rows,
             });
 
             open();
@@ -110,6 +113,8 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
             <PieChartContextMenu
                 value={menuProps?.value}
                 menuPosition={menuProps?.position}
+                rows={menuProps?.rows}
+                groupDimensions={menuProps?.groupDimensions}
                 opened={isOpen}
                 onClose={handleCloseContextMenu}
             />

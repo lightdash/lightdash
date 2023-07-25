@@ -1,4 +1,5 @@
 import {
+    AdditionalMetric,
     DashboardFilters,
     Explore,
     Field,
@@ -6,6 +7,7 @@ import {
     getItemId,
     hashFieldReference,
     isDimension,
+    Metric,
     MetricQuery,
     PivotReference,
     ResultValue,
@@ -17,7 +19,7 @@ import { useExplore } from '../../hooks/useExplore';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 
 export type UnderlyingDataConfig = {
-    item: Field | TableCalculation | undefined;
+    item: Field | Metric | AdditionalMetric | TableCalculation | undefined;
     value: ResultValue;
     fieldValues: Record<string, ResultValue>;
     dimensions?: string[];
@@ -26,7 +28,7 @@ export type UnderlyingDataConfig = {
 };
 
 export type DrillDownConfig = {
-    item: Field | TableCalculation;
+    item: Field | Metric | AdditionalMetric | TableCalculation;
     fieldValues: Record<string, ResultValue>;
     pivotReference?: PivotReference;
     dashboardFilters?: DashboardFilters;

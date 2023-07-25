@@ -1,13 +1,21 @@
 import { subject } from '@casl/ability';
-import { ResultValue } from '@lightdash/common';
-import { Box, Menu, MenuProps, Portal } from '@mantine/core';
+import {
+    getItemId,
+    PivotValue,
+    ResultRow,
+    ResultValue,
+} from '@lightdash/common';
+import { Box, Menu, MenuProps, Portal, Text } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useApp } from '../../providers/AppProvider';
+import { useTracking } from '../../providers/TrackingProvider';
+import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
+import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
 export type PieChartContextMenuProps = {
@@ -16,40 +24,42 @@ export type PieChartContextMenuProps = {
         top: number;
     };
     value?: ResultValue;
+    groupDimensions?: string[];
+    rows?: ResultRow[];
 } & Pick<MenuProps, 'position' | 'opened' | 'onOpen' | 'onClose'>;
 
 const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     menuPosition,
     value,
+    groupDimensions,
+    rows,
     opened,
     onOpen,
     onClose,
 }) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
+    const { pieChartConfig } = useVisualizationContext();
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
-    // const tracking = useTracking(true);
+    const tracking = useTracking(true);
     const metricQueryData = useMetricQueryDataContext(true);
 
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-
-    if (!value || !metricQueryData) {
+    if (!value || !tracking || !metricQueryData) {
         return null;
     }
 
-    // const { openUnderlyingDataModal, openDrillDownModel } = metricQueryData;
-    // const { track } = tracking;
+    const { openUnderlyingDataModal /*, openDrillDownModel */ } =
+        metricQueryData;
+    const { track } = tracking;
 
-    const canViewUnderlyingData =
-        // TODO: implement this
-        false &&
-        user.data?.ability?.can(
-            'view',
-            subject('UnderlyingData', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid: projectUuid,
-            }),
-        );
+    const canViewUnderlyingData = user.data?.ability?.can(
+        'view',
+        subject('UnderlyingData', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid: projectUuid,
+        }),
+    );
 
     const canViewDrillInto =
         // TODO: implement this
@@ -72,20 +82,40 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     };
 
     const handleOpenUnderlyingDataModal = () => {
-        // TODO: implement this
-        // openUnderlyingDataModal({
-        //     item,
-        //     value,
-        //     fieldValues: underlyingFieldValues,
-        // });
-        // track({
-        //     name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-        //     properties: {
-        //         organizationId: user?.data?.organizationUuid,
-        //         userId: user?.data?.userUuid,
-        //         projectId: projectUuid,
-        //     },
-        // });
+        if (!pieChartConfig.selectedMetric) return;
+
+        openUnderlyingDataModal({
+            item: pieChartConfig.selectedMetric,
+            value,
+            fieldValues: {},
+            pivotReference: {
+                field: getItemId(pieChartConfig.selectedMetric),
+                pivotValues: groupDimensions
+                    ?.map<PivotValue | null>((dimension) => {
+                        const dimensionValue =
+                            rows?.[0]?.[dimension]?.value?.raw;
+
+                        if (dimensionValue === undefined) {
+                            return null;
+                        }
+
+                        return {
+                            field: dimension,
+                            value: dimensionValue,
+                        };
+                    })
+                    .filter((x): x is PivotValue => x !== null),
+            },
+        });
+
+        track({
+            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+            properties: {
+                organizationId: user?.data?.organizationUuid,
+                userId: user?.data?.userUuid,
+                projectId: projectUuid,
+            },
+        });
     };
 
     const handleOpenDrillIntoModal = () => {
@@ -137,7 +167,10 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
                     }
                     onClick={handleCopy}
                 >
-                    Copy
+                    Copy{' '}
+                    <Text span fw={500}>
+                        "{value.formatted}"
+                    </Text>
                 </Menu.Item>
 
                 {canViewUnderlyingData ? (

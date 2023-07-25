@@ -79,6 +79,7 @@ type PieChartConfig = {
             value: ResultValue;
             rows: ResultRow[];
             groupDimensions: string[];
+            metricId: string;
         };
     }[];
 };
@@ -272,6 +273,7 @@ const usePieChartConfig: PieChartConfigFn = (
                     },
                     rows,
                     groupDimensions,
+                    metricId,
                 },
             }))
             .sort((a, b) => b.value - a.value);

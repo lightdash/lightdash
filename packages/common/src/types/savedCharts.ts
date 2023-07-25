@@ -116,9 +116,14 @@ export enum CartesianSeriesType {
     AREA = 'area',
 }
 
+export type PivotValue = {
+    field: string;
+    value: unknown;
+};
+
 export type PivotReference = {
     field: string;
-    pivotValues?: { field: string; value: unknown }[];
+    pivotValues?: PivotValue[];
 };
 
 export const isPivotReferenceWithValues = (

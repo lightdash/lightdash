@@ -7,6 +7,7 @@ import {
 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import {
+    AdditionalMetric,
     ChartType,
     DashboardChartTile as IDashboardChartTile,
     DashboardFilterRule,
@@ -21,6 +22,7 @@ import {
     getVisibleFields,
     isFilterableField,
     isTableChartConfig,
+    Metric,
     PivotReference,
     ResultValue,
     SavedChart,
@@ -300,7 +302,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         DashboardFilterRule[]
     >([]);
     const [viewUnderlyingDataOptions, setViewUnderlyingDataOptions] = useState<{
-        item: Field | TableCalculation | undefined;
+        item: Field | Metric | AdditionalMetric | TableCalculation | undefined;
         value: ResultValue;
         fieldValues: Record<string, ResultValue>;
         dimensions: string[];
