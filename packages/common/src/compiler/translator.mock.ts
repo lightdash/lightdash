@@ -914,7 +914,7 @@ export const MODEL_WITH_OFF_BOOLEAN_TIME_INTERVAL_DIMENSIONS: DbtModelNode & {
     relation_name: string;
 } = {
     ...model,
-    columns: COLUMN_WITH_OFF_TIME_INTERVALS,
+    columns: COLUMN_WITH_OFF_BOOLEAN_TIME_INTERVALS,
 };
 export const LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS: Omit<
     Table,
