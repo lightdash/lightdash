@@ -194,7 +194,7 @@ const Dashboard: FC = () => {
                 try {
                     unsavedDashbordTiles = JSON.parse(unsavedDashboardTilesRaw);
                 } catch {
-                    // do  nothing
+                    // do nothing
                 }
             }
             setDashboardTiles(unsavedDashbordTiles || savedTiles);

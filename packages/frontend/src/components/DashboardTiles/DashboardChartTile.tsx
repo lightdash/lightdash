@@ -222,8 +222,9 @@ const ValidDashboardChartTileMinimal: FC<{
     );
 };
 
-const InvalidDashboardChartTile: FC<DashboardChartTileMainProps> = (props) => {
-    const { tile } = props;
+const InvalidDashboardChartTile: FC<
+    Pick<DashboardChartTileMainProps, 'tile'>
+> = ({ tile }) => {
     return tile.properties.newChartData ? (
         <NonIdealState
             title={tile.properties.newChartData?.name}
