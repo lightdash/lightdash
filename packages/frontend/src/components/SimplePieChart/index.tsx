@@ -31,6 +31,7 @@ const LoadingChart = () => (
 type SimplePieChartProps = Omit<EChartsReactProps, 'option'> & {
     $shouldExpand?: boolean;
     className?: string;
+    tileUuid?: string;
     'data-testid'?: string;
 };
 
@@ -111,6 +112,7 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
             />
 
             <PieChartContextMenu
+                tileUuid={props.tileUuid}
                 value={menuProps?.value}
                 menuPosition={menuProps?.position}
                 rows={menuProps?.rows}

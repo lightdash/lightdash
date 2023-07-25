@@ -10,6 +10,7 @@ import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
+import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
@@ -19,6 +20,7 @@ import { useVisualizationContext } from '../LightdashVisualization/Visualization
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
 export type PieChartContextMenuProps = {
+    tileUuid?: string;
     menuPosition?: {
         left: number;
         top: number;
@@ -29,6 +31,7 @@ export type PieChartContextMenuProps = {
 } & Pick<MenuProps, 'position' | 'opened' | 'onOpen' | 'onClose'>;
 
 const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
+    tileUuid,
     menuPosition,
     value,
     groupDimensions,
@@ -39,7 +42,12 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
-    const { pieChartConfig } = useVisualizationContext();
+    const { explore, pieChartConfig } = useVisualizationContext();
+    const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
+        tileUuid,
+        explore,
+        true,
+    );
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
     const tracking = useTracking(true);
@@ -88,6 +96,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
             item: pieChartConfig.selectedMetric,
             value,
             fieldValues: {},
+            dashboardFilters: dashboardFiltersThatApplyToChart,
             pivotReference: {
                 field: getItemId(pieChartConfig.selectedMetric),
                 pivotValues: groupDimensions

@@ -61,6 +61,7 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                 return (
                     <SimplePieChart
                         className={className}
+                        tileUuid={tileUuid}
                         $shouldExpand
                         data-testid={props['data-testid']}
                         {...props}
