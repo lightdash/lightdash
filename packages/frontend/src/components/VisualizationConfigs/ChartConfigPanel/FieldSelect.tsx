@@ -6,6 +6,7 @@ import { fieldLabelText } from '../../common/Filters/FieldLabel';
 import FieldSelectItem from '../FieldSelectItem';
 
 interface Props {
+    label?: string;
     selectedField?: Field | TableCalculation;
     fieldOptions: (Field | TableCalculation)[];
     placeholder?: string;
@@ -14,6 +15,7 @@ interface Props {
 }
 
 const FieldSelect: FC<Props> = ({
+    label,
     selectedField,
     fieldOptions,
     placeholder,
@@ -22,6 +24,7 @@ const FieldSelect: FC<Props> = ({
 }) => {
     return (
         <Select
+            label={label}
             sx={{ flexGrow: 1 }}
             searchable
             disabled={disabled}
