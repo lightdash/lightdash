@@ -118,8 +118,6 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         showSpaceInput,
     ]);
 
-    console.log(unsavedDashboardTiles);
-
     const handleSaveChartInDashboard = useCallback(() => {
         if (
             !fromDashboard ||

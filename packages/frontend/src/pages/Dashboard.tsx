@@ -265,6 +265,7 @@ const Dashboard: FC = () => {
 
     const handleDeleteTile = useCallback(
         async (tile: IDashboard['tiles'][number]) => {
+            console.log('here');
             setDashboardTiles((currentDashboardTiles) =>
                 currentDashboardTiles.filter(
                     (filteredTile) => filteredTile.uuid !== tile.uuid,
@@ -360,7 +361,8 @@ const Dashboard: FC = () => {
                 (haveTilesChanged || haveFiltersChanged) &&
                 !prompt.pathname.includes(
                     `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
-                )
+                ) &&
+                !prompt.pathname.includes(`/projects/${projectUuid}/tables`)
             ) {
                 setBlockedNavigationLocation(prompt.pathname);
                 setIsSaveWarningModalOpen(true);
