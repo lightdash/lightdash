@@ -1,8 +1,9 @@
-import { NotFoundError } from '@lightdash/common';
+import { NotFoundError, ResultRow } from '@lightdash/common';
 import { FC, memo, useCallback, useMemo, useState } from 'react';
 
 import { Space } from '@mantine/core';
-import { ECElementEvent } from 'echarts';
+import { PieSeriesOption } from 'echarts';
+import { mapValues } from 'lodash-es';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { downloadCsv } from '../../../hooks/useDownloadCsv';
 import { useExplore } from '../../../hooks/useExplore';
@@ -24,6 +25,13 @@ export type EchartsClickEvent = {
     event: EchartSeriesClickEvent;
     dimensions: string[];
     series: EChartSeries[];
+};
+
+export type EchartsPieClickEvent = {
+    position: { left: number; top: number };
+    dimensions: string[];
+    series: PieSeriesOption;
+    rows: ResultRow[];
 };
 
 const VisualizationCard: FC<{ projectUuid?: string }> = memo(
@@ -76,7 +84,7 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
             useState<EchartsClickEvent>();
 
         const [echartsPieClickEvent, setEchartsPieClickEvent] =
-            useState<ECElementEvent>();
+            useState<EchartsPieClickEvent>();
 
         const handleCartesianSeriesContextMenu = useCallback(
             (e: EchartSeriesClickEvent, series: EChartSeries[]) => {
@@ -89,10 +97,22 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
             [unsavedChartVersion],
         );
 
-        const handlePieSeriesContextMenu = useCallback((e: ECElementEvent) => {
-            console.log(e.event?.event.zrX, e.event?.event.zrY);
-            setEchartsPieClickEvent(e);
-        }, []);
+        const handlePieSeriesContextMenu = useCallback(
+            (
+                event: PointerEvent,
+                series: PieSeriesOption,
+                dimensions: string[],
+                rows: ResultRow[],
+            ) => {
+                setEchartsPieClickEvent({
+                    position: { left: event.clientX, top: event.clientY },
+                    dimensions,
+                    series,
+                    rows,
+                });
+            },
+            [],
+        );
 
         if (!unsavedChartVersion.tableName) {
             return <CollapsableCard title="Charts" disabled />;
@@ -176,8 +196,9 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
                         data-testid="visualization"
                     />
 
-                    {/* {echartsCartesianClickEvent ? (
+                    {echartsCartesianClickEvent ? (
                         <SeriesContextMenu
+                            type="cartesian"
                             menuPosition={{
                                 left: echartsCartesianClickEvent.event.event
                                     .event.clientX,
@@ -185,7 +206,7 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
                                     .event.clientY,
                             }}
                             dimensions={echartsCartesianClickEvent.dimensions}
-                            series={echartsCartesianClickEvent.series}
+                            cartesianSeries={echartsCartesianClickEvent.series}
                             seriesIndex={
                                 echartsCartesianClickEvent.event.seriesIndex
                             }
@@ -193,26 +214,27 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
                                 echartsCartesianClickEvent.event.dimensionNames
                             }
                             data={echartsCartesianClickEvent.event.data}
-                        />
-                    ) : echartsPieClickEvent ? (
-                        <SeriesContextMenu
-                            menuPosition={
-                                echartsPieClickEvent.event
-                                    ? {
-                                          left: echartsPieClickEvent.event
-                                              ?.offsetX,
-                                          top: echartsPieClickEvent.event
-                                              ?.offsetY,
-                                      }
-                                    : undefined
+                            onClose={() =>
+                                setEchartsCartesianClickEvent(undefined)
                             }
-                            dimensions={[]}
-                            series={[]}
-                            seriesIndex={0}
-                            dimensionNames={[]}
-                            data={{}}
                         />
-                    ) : null} */}
+                    ) : null}
+
+                    {echartsPieClickEvent ? (
+                        <SeriesContextMenu
+                            type="pie"
+                            menuPosition={echartsPieClickEvent.position}
+                            dimensions={echartsPieClickEvent.dimensions}
+                            pieSeries={echartsPieClickEvent.series}
+                            seriesIndex={0}
+                            dimensionNames={echartsPieClickEvent.dimensions}
+                            data={mapValues(
+                                echartsPieClickEvent.rows[0],
+                                (v) => v.value.raw,
+                            )}
+                            onClose={() => setEchartsPieClickEvent(undefined)}
+                        />
+                    ) : null}
                 </CollapsableCard>
             </VisualizationProvider>
         );

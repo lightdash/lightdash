@@ -3,7 +3,9 @@ import { ECElementEvent } from 'echarts';
 import EChartsReact from 'echarts-for-react';
 import { EChartsReactProps, Opts } from 'echarts-for-react/lib/types';
 import { FC, memo, useCallback, useEffect } from 'react';
-import useEchartsPieConfig from '../../hooks/echarts/useEchartsPieChart';
+import useEchartsPieConfig, {
+    PieSeriesDataPoint,
+} from '../../hooks/echarts/useEchartsPieChart';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
 const EmptyChart = () => (
@@ -44,6 +46,7 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
     const handleMenuOpen = useCallback(
         (e: ECElementEvent) => {
             if (
+                !e.event ||
                 !onPieSeriesContextMenu ||
                 !pieConfig ||
                 e.componentType !== 'series'
@@ -51,7 +54,15 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
                 return;
             }
 
-            onPieSeriesContextMenu(e, pieConfig.pieSeriesOption);
+            const data = e.data as PieSeriesDataPoint;
+            const event = e.event.event as unknown as PointerEvent;
+
+            onPieSeriesContextMenu(
+                event,
+                pieConfig.pieSeriesOption,
+                data.meta.groupDimensions,
+                data.meta.rows,
+            );
         },
         [onPieSeriesContextMenu, pieConfig],
     );

@@ -12,6 +12,7 @@ import {
     getMetrics,
     isNumericItem,
     Metric,
+    ResultRow,
     TableCalculation,
 } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
@@ -27,7 +28,7 @@ import {
     useState,
 } from 'react';
 
-import { ECElementEvent, PieSeriesOption } from 'echarts';
+import { PieSeriesOption } from 'echarts';
 import useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import useTableConfig from '../../hooks/tableVisualization/useTableConfig';
@@ -62,8 +63,10 @@ type VisualizationContext = {
         series: EChartSeries[],
     ) => void;
     onPieSeriesContextMenu?: (
-        e: ECElementEvent,
+        e: PointerEvent,
         series: PieSeriesOption,
+        dimensions: string[],
+        rows: ResultRow[],
     ) => void;
     setChartType: (value: ChartType) => void;
     setPivotDimensions: (value: string[] | undefined) => void;
@@ -84,8 +87,10 @@ type Props = {
         series: EChartSeries[],
     ) => void;
     onPieSeriesContextMenu?: (
-        e: ECElementEvent,
+        e: PointerEvent,
         series: PieSeriesOption,
+        dimensions: string[],
+        rows: ResultRow[],
     ) => void;
     onChartConfigChange?: (value: ChartConfig['config']) => void;
     onChartTypeChange?: (value: ChartType) => void;

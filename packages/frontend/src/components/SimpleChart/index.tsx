@@ -36,7 +36,7 @@ type EchartBaseClickEvent = {
 
 export type EchartSeriesClickEvent = EchartBaseClickEvent & {
     componentType: 'series';
-    data: Record<string, ResultRow>;
+    data: Record<string, unknown>;
     seriesIndex: number;
     dimensionNames: string[];
     pivotReference?: PivotReference;

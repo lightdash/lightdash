@@ -54,7 +54,7 @@ import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import {
-    getDataFromChartClick,
+    getDataFromCartesianChart,
     useMetricQueryDataContext,
 } from '../MetricQueryData/MetricQueryDataProvider';
 import { EchartSeriesClickEvent } from '../SimpleChart';
@@ -361,7 +361,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 savedQuery?.metricQuery.tableCalculations,
             );
 
-            const underlyingData = getDataFromChartClick(
+            const underlyingData = getDataFromCartesianChart(
                 e,
                 allItemsMap,
                 series,

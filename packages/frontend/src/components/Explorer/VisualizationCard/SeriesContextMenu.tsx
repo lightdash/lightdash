@@ -5,7 +5,8 @@ import {
     Popover2TargetProps,
 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
-import { getItemMap, ResultRow } from '@lightdash/common';
+import { assertUnreachable, getItemMap } from '@lightdash/common';
+import { PieSeriesOption } from 'echarts';
 import React, {
     FC,
     memo,
@@ -27,38 +28,36 @@ import { Can } from '../../common/Authorization';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import {
-    getDataFromChartClick,
+    getDataFromCartesianChart,
+    getDataFromPieChart,
     useMetricQueryDataContext,
 } from '../../MetricQueryData/MetricQueryDataProvider';
 
 type Props = {
+    type: 'pie' | 'cartesian';
     menuPosition: { left: number; top: number } | undefined;
     dimensions: string[] | undefined;
-    series: EChartSeries[] | undefined;
+    cartesianSeries?: EChartSeries[];
+    pieSeries?: PieSeriesOption;
     seriesIndex: number | undefined;
     dimensionNames: string[] | undefined;
-    data: Record<string, ResultRow> | undefined;
+    data: Record<string, unknown> | undefined;
+    onClose: () => void;
 };
 
 export const SeriesContextMenu: FC<Props> = memo(
     ({
+        type,
         menuPosition,
         dimensions,
-        series,
+        cartesianSeries,
+        pieSeries,
         seriesIndex,
         dimensionNames,
         data,
+        onClose,
     }) => {
         const { showToastSuccess } = useToaster();
-
-        console.log({
-            menuPosition,
-            dimensions,
-            series,
-            seriesIndex,
-            dimensionNames,
-            data,
-        });
 
         const tableName = useExplorerContext(
             (context) => context.state.unsavedChartVersion.tableName,
@@ -100,14 +99,33 @@ export const SeriesContextMenu: FC<Props> = memo(
                 metricQuery?.tableCalculations,
             );
 
-            return getDataFromChartClick(
-                allItemsMap,
-                series || [],
-                seriesIndex,
-                dimensionNames,
-                data,
-            );
-        }, [explore, metricQuery, series, seriesIndex, dimensionNames, data]);
+            switch (type) {
+                case 'cartesian':
+                    return getDataFromCartesianChart(
+                        allItemsMap,
+                        cartesianSeries || [],
+                        seriesIndex,
+                        dimensionNames,
+                        data,
+                    );
+                case 'pie':
+                    console.log(getDataFromPieChart(dimensionNames, data));
+                    return getDataFromPieChart(dimensionNames, data);
+                default:
+                    return assertUnreachable(
+                        type,
+                        `Unknown chart type: ${type}`,
+                    );
+            }
+        }, [
+            type,
+            explore,
+            metricQuery,
+            cartesianSeries,
+            seriesIndex,
+            dimensionNames,
+            data,
+        ]);
 
         const onViewUnderlyingData = useCallback(() => {
             if (underlyingData !== undefined) {
@@ -137,7 +155,10 @@ export const SeriesContextMenu: FC<Props> = memo(
             [],
         );
 
-        const onClose = useCallback(() => setContextMenuIsOpen(false), []);
+        const handleClose = useCallback(() => {
+            setContextMenuIsOpen(false);
+            onClose();
+        }, [onClose]);
 
         return (
             <Popover2
@@ -210,7 +231,7 @@ export const SeriesContextMenu: FC<Props> = memo(
                 hasBackdrop={true}
                 isOpen={contextMenuIsOpen}
                 minimal={true}
-                onClose={onClose}
+                onClose={handleClose}
                 placement="right-start"
                 positioningStrategy="fixed"
                 rootBoundary={'viewport'}

@@ -8,7 +8,6 @@ import {
     isDimension,
     MetricQuery,
     PivotReference,
-    ResultRow,
     ResultValue,
     TableCalculation,
 } from '@lightdash/common';
@@ -48,12 +47,12 @@ type MetricQueryDataContext = {
     closeDrillDownModal: () => void;
 };
 
-export const getDataFromChartClick = (
+export const getDataFromCartesianChart = (
     itemsMap: Record<string, Field | TableCalculation>,
     series: EChartSeries[],
     seriesIndex: number,
     dimensionNames: string[],
-    data: Record<string, ResultRow>,
+    data: Record<string, unknown>,
 ): UnderlyingDataConfig => {
     const pivotReference = series[seriesIndex]?.pivotReference;
     const selectedFields = Object.values(itemsMap).filter((item) => {
@@ -96,6 +95,25 @@ export const getDataFromChartClick = (
         pivotReference,
     };
 };
+
+export const getDataFromPieChart = (
+    dimensionNames: string[],
+    data: Record<string, unknown>,
+): UnderlyingDataConfig => {
+    return {
+        item: undefined,
+        dimensions: dimensionNames,
+        fieldValues: Object.entries(data).reduce((acc, entry) => {
+            const [key, val] = entry;
+            return { ...acc, [key]: { raw: val, formatted: val } };
+        }, {}),
+        value: {
+            raw: data[dimensionNames[0]],
+            formatted: formatItemValue(undefined, data[dimensionNames[0]]),
+        },
+    };
+};
+
 const Context = createContext<MetricQueryDataContext | undefined>(undefined);
 
 type Props = {

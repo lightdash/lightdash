@@ -1,7 +1,16 @@
-import { formatItemValue } from '@lightdash/common';
+import { formatItemValue, ResultRow } from '@lightdash/common';
 import { EChartsOption, PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
+
+export type PieSeriesDataPoint = NonNullable<
+    PieSeriesOption['data']
+>[number] & {
+    meta: {
+        groupDimensions: string[];
+        rows: ResultRow[];
+    };
+};
 
 const useEchartsPieConfig = () => {
     const context = useVisualizationContext();
@@ -34,7 +43,7 @@ const useEchartsPieConfig = () => {
                     sortedGroupLabels.indexOf(nameA) -
                     sortedGroupLabels.indexOf(nameB),
             )
-            .map(({ name, value, groupFieldIds, row }) => {
+            .map(({ name, value, groupDimensions, rows }) => {
                 const valueLabel =
                     groupValueOptionOverrides?.[name]?.valueLabel ??
                     valueLabelDefault;
@@ -45,8 +54,9 @@ const useEchartsPieConfig = () => {
                     groupValueOptionOverrides?.[name]?.showPercentage ??
                     showPercentageDefault;
 
-                const config: NonNullable<PieSeriesOption['data']>[number] = {
+                const config: PieSeriesDataPoint = {
                     id: name,
+                    groupId: name,
                     name: groupLabelOverrides?.[name] ?? name,
                     value: value,
                     itemStyle: {
@@ -76,8 +86,8 @@ const useEchartsPieConfig = () => {
                         },
                     },
                     meta: {
-                        groupFieldIds,
-                        row,
+                        groupDimensions,
+                        rows,
                     },
                 };
 

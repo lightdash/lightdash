@@ -73,8 +73,8 @@ type PieChartConfig = {
     data: {
         name: string;
         value: number;
-        row: ResultRow;
-        groupFieldIds: string[];
+        rows: ResultRow[];
+        groupDimensions: string[];
     }[];
 };
 
@@ -225,7 +225,7 @@ const usePieChartConfig: PieChartConfigFn = (
             return [];
         }
 
-        return resultsData.rows.map((row) => {
+        const mappedData = resultsData.rows.map((row) => {
             const name = groupFieldIds
                 .map((groupFieldId) => row[groupFieldId]?.value?.formatted)
                 .filter(Boolean)
@@ -233,22 +233,42 @@ const usePieChartConfig: PieChartConfigFn = (
 
             const value = Number(row[metricId].value.raw);
 
-            return { name, value, row, groupFieldIds };
+            return { name, value, row, groupDimensions: groupFieldIds };
         });
+
+        return Object.entries(
+            mappedData.reduce<
+                Record<
+                    string,
+                    {
+                        value: number;
+                        rows: ResultRow[];
+                        groupDimensions: string[];
+                    }
+                >
+            >((acc, { name, value, row, groupDimensions }) => {
+                return {
+                    ...acc,
+                    [name]: {
+                        value: (acc[name]?.value ?? 0) + value,
+                        rows: [...(acc[name]?.rows ?? []), row],
+                        groupDimensions,
+                    },
+                };
+            }, {}),
+        )
+            .map(([name, { value, rows, groupDimensions }]) => ({
+                name,
+                value,
+                rows,
+                groupDimensions,
+            }))
+            .sort((a, b) => b.value - a.value);
     }, [resultsData, groupFieldIds, selectedMetric, metricId]);
 
-    const summedData = useMemo(() => {
-        return Object.entries(
-            data.reduce<Record<string, number>>((acc, { name, value }) => {
-                const prevValue = acc[name] ?? 0;
-                return { ...acc, [name]: prevValue + value };
-            }, {}),
-        ).sort(([, a], [, b]) => b - a);
-    }, [data]);
-
     const groupLabels = useMemo(() => {
-        return summedData.map(([label]) => label);
-    }, [summedData]);
+        return data.map(({ name }) => name);
+    }, [data]);
 
     const sortedGroupLabels = useMemo(() => {
         const availableSortedOverrides = groupSortOverrides.filter((label) =>
