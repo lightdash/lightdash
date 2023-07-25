@@ -3,6 +3,7 @@ import {
     Field,
     getItemId,
     isDimension,
+    isNumericItem,
     replaceStringInArray,
     TableCalculation,
 } from '@lightdash/common';
@@ -55,6 +56,11 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     // X axis logic
     const xAxisField = items.find(
         (item) => getItemId(item) === dirtyLayout?.xField,
+    );
+
+    const isXAxisFieldNumeric = useMemo(
+        () => isNumericItem(xAxisField),
+        [xAxisField],
     );
 
     // Y axis logic
@@ -285,19 +291,25 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             </Tooltip>
 
             {pivotDimensions && pivotDimensions.length > 0 && canBeStacked && (
-                <Stack spacing="xs">
-                    <Text fw={500}>Stacking</Text>
-                    <SegmentedControl
-                        fullWidth
-                        color="blue"
-                        value={isStacked ? 'stack' : 'noStacking'}
-                        onChange={(value) => setStacking(value === 'stack')}
-                        data={[
-                            { label: 'No stacking', value: 'noStacking' },
-                            { label: 'Stack', value: 'stack' },
-                        ]}
-                    />
-                </Stack>
+                <Tooltip
+                    label="X axis field must not be numeric to enable stacking"
+                    disabled={!isXAxisFieldNumeric}
+                >
+                    <Stack spacing="xs">
+                        <Text fw={500}>Stacking</Text>
+                        <SegmentedControl
+                            disabled={isXAxisFieldNumeric}
+                            fullWidth
+                            color="blue"
+                            value={isStacked ? 'stack' : 'noStacking'}
+                            onChange={(value) => setStacking(value === 'stack')}
+                            data={[
+                                { label: 'No stacking', value: 'noStacking' },
+                                { label: 'Stack', value: 'stack' },
+                            ]}
+                        />
+                    </Stack>
+                </Tooltip>
             )}
         </>
     );
