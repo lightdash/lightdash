@@ -167,10 +167,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
                     }
                     onClick={handleCopy}
                 >
-                    Copy{' '}
-                    <Text span fw={500}>
-                        "{value.formatted}"
-                    </Text>
+                    Copy
                 </Menu.Item>
 
                 {canViewUnderlyingData ? (
@@ -199,7 +196,10 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
                         }
                         onClick={handleOpenDrillIntoModal}
                     >
-                        Drill into "{value.formatted}"
+                        Drill into{' '}
+                        <Text span fw={500}>
+                            "{value.formatted}"
+                        </Text>
                     </Menu.Item>
                 ) : null}
             </Menu.Dropdown>
