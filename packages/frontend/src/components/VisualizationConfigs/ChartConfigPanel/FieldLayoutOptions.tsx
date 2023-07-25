@@ -3,6 +3,7 @@ import {
     Field,
     getItemId,
     isDimension,
+    isNumericItem,
     replaceStringInArray,
     TableCalculation,
 } from '@lightdash/common';
@@ -55,6 +56,11 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     // X axis logic
     const xAxisField = items.find(
         (item) => getItemId(item) === dirtyLayout?.xField,
+    );
+
+    const isXAxisFieldNumeric = useMemo(
+        () => isNumericItem(xAxisField),
+        [xAxisField],
     );
 
     // Y axis logic
@@ -112,6 +118,19 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         ],
     );
 
+    const handleOnChangeOfXAxisField = useCallback(
+        (newValue) => {
+            setXField(newValue ?? undefined);
+            if (newValue && isStacked) {
+                const newXAxisField = items.find(
+                    (item) => getItemId(item) === newValue,
+                );
+                if (isNumericItem(newXAxisField)) setStacking(false);
+            }
+        },
+        [isStacked, items, setStacking, setXField],
+    );
+
     return (
         <>
             <Stack spacing="xs" mb="lg">
@@ -146,9 +165,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                         <FieldSelect
                             selectedField={xAxisField}
                             fieldOptions={items}
-                            onChange={(newValue) => {
-                                setXField(newValue ?? undefined);
-                            }}
+                            onChange={handleOnChangeOfXAxisField}
                         />
                         <CloseButton
                             onClick={() => {
@@ -285,19 +302,25 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             </Tooltip>
 
             {pivotDimensions && pivotDimensions.length > 0 && canBeStacked && (
-                <Stack spacing="xs">
-                    <Text fw={500}>Stacking</Text>
-                    <SegmentedControl
-                        fullWidth
-                        color="blue"
-                        value={isStacked ? 'stack' : 'noStacking'}
-                        onChange={(value) => setStacking(value === 'stack')}
-                        data={[
-                            { label: 'No stacking', value: 'noStacking' },
-                            { label: 'Stack', value: 'stack' },
-                        ]}
-                    />
-                </Stack>
+                <Tooltip
+                    label="x-axis must be non-numeric to enable stacking"
+                    disabled={!isXAxisFieldNumeric}
+                >
+                    <Stack spacing="xs">
+                        <Text fw={500}>Stacking</Text>
+                        <SegmentedControl
+                            disabled={isXAxisFieldNumeric}
+                            fullWidth
+                            color="blue"
+                            value={isStacked ? 'stack' : 'noStacking'}
+                            onChange={(value) => setStacking(value === 'stack')}
+                            data={[
+                                { label: 'No stacking', value: 'noStacking' },
+                                { label: 'Stack', value: 'stack' },
+                            ]}
+                        />
+                    </Stack>
+                </Tooltip>
             )}
         </>
     );
