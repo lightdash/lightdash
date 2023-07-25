@@ -58,7 +58,8 @@ const DashboardExplorerBanner: FC<{
                     history.push(
                         `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
                     );
-                    sessionStorage.clear();
+                    sessionStorage.removeItem('fromDashboard');
+                    sessionStorage.removeItem('dashboardUuid');
                 }}
                 size="sm"
                 mx="xxs"
