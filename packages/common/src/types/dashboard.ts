@@ -83,6 +83,10 @@ export type CreateDashboardChartTile = CreateDashboardTileBase &
 export type DashboardChartTile = DashboardTileBase &
     DashboardChartTileProperties;
 
+export const isChartTile = (
+    tile: DashboardTileBase,
+): tile is DashboardChartTile => tile.type === DashboardTileTypes.SAVED_CHART;
+
 export type CreateDashboard = {
     name: string;
     description?: string;
