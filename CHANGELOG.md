@@ -1,3 +1,10 @@
+## [0.690.1](https://github.com/lightdash/lightdash/compare/0.690.0...0.690.1) (2023-07-25)
+
+
+### Bug Fixes
+
+* check if configure is disabled with visualisation ctx ([#6468](https://github.com/lightdash/lightdash/issues/6468)) ([b06f622](https://github.com/lightdash/lightdash/commit/b06f622b186f8d75e3f0231617a226d5859a4810))
+
 # [0.690.0](https://github.com/lightdash/lightdash/compare/0.689.0...0.690.0) (2023-07-25)
 
 
