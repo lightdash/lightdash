@@ -24,7 +24,7 @@ import cronstrue from 'cronstrue';
 import { analytics } from '../../analytics/client';
 import {
     ConditionalFormattingRuleSavedEvent,
-    CreateSavedChartOrVersionEvent,
+    CreateSavedChartVersionEvent,
 } from '../../analytics/LightdashAnalytics';
 import { schedulerClient, slackClient } from '../../clients/clients';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
@@ -102,7 +102,7 @@ export class SavedChartService {
 
     static getCreateEventProperties(
         savedChart: SavedChart,
-    ): CreateSavedChartOrVersionEvent['properties'] {
+    ): CreateSavedChartVersionEvent['properties'] {
         const echartsConfig =
             savedChart.chartConfig.type === ChartType.CARTESIAN
                 ? savedChart.chartConfig.config.eChartsConfig
@@ -303,6 +303,7 @@ export class SavedChartService {
             properties: {
                 projectId: savedChart.projectUuid,
                 savedQueryId: savedChartUuid,
+                dashboardId: savedChart.dashboardUuid ?? undefined,
             },
         });
         return savedChart;
@@ -509,8 +510,10 @@ export class SavedChartService {
         analytics.track({
             event: 'saved_chart.created',
             userId: user.userUuid,
-            properties:
-                SavedChartService.getCreateEventProperties(newSavedChart),
+            properties: {
+                ...SavedChartService.getCreateEventProperties(newSavedChart),
+                dashboardId: newSavedChart.dashboardUuid ?? undefined,
+            },
         });
 
         SavedChartService.getConditionalFormattingEventProperties(
@@ -559,6 +562,7 @@ export class SavedChartService {
             properties: {
                 ...newSavedChartProperties,
                 duplicated: true,
+                dashboardId: newSavedChart.dashboardUuid ?? undefined,
             },
         });
 

@@ -18,10 +18,12 @@ import {
 
 import { DashboardService } from './DashboardService';
 import {
+    chart,
     createDashboard,
     createDashboardWithTileIds,
     dashboard,
     dashboardsDetails,
+    dashboardWithChartThatBelongsToDashboard,
     privateSpace,
     publicSpace,
     space,
@@ -72,6 +74,7 @@ jest.mock('../../models/models', () => ({
     pinnedListModel: {},
     schedulerModel: {},
     savedChartModel: {
+        get: jest.fn(async () => chart),
         delete: jest.fn(async () => ({
             uuid: 'chart_uuid',
             projectUuid: 'project_uuid',
@@ -249,6 +252,21 @@ describe('DashboardService', () => {
             2,
             expect.objectContaining({
                 event: 'dashboard_version.created',
+            }),
+        );
+    });
+    test('should track creation of chart in dashboard when updating dashboard version', async () => {
+        (dashboardModel.addVersion as jest.Mock).mockImplementationOnce(
+            async () => dashboardWithChartThatBelongsToDashboard,
+        );
+
+        await service.update(user, dashboardUuid, updateDashboardTiles);
+
+        expect(dashboardModel.addVersion).toHaveBeenCalledTimes(1);
+        expect(analytics.track).toHaveBeenCalledTimes(2);
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'saved_chart.created',
             }),
         );
     });
