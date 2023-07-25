@@ -27,6 +27,7 @@ import { getFirstAccessibleSpace } from '../../database/entities/spaces';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
+import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
@@ -37,6 +38,7 @@ type Dependencies = {
     analyticsModel: AnalyticsModel;
     pinnedListModel: PinnedListModel;
     schedulerModel: SchedulerModel;
+    savedChartModel: SavedChartModel;
 };
 
 export class DashboardService {
@@ -50,18 +52,22 @@ export class DashboardService {
 
     schedulerModel: SchedulerModel;
 
+    savedChartModel: SavedChartModel;
+
     constructor({
         dashboardModel,
         spaceModel,
         analyticsModel,
         pinnedListModel,
         schedulerModel,
+        savedChartModel,
     }: Dependencies) {
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
         this.analyticsModel = analyticsModel;
         this.pinnedListModel = pinnedListModel;
         this.schedulerModel = schedulerModel;
+        this.savedChartModel = savedChartModel;
     }
 
     static getCreateEventProperties(
@@ -85,6 +91,30 @@ export class DashboardService {
                 ({ type }) => type === DashboardTileTypes.LOOM,
             ).length,
         };
+    }
+
+    private async deleteOrphanedChartsInDashboards(
+        user: SessionUser,
+        dashboardUuid: string,
+    ) {
+        const orphanedCharts = await this.dashboardModel.getOrphanedCharts(
+            dashboardUuid,
+        );
+        await Promise.all(
+            orphanedCharts.map(async (chart) => {
+                const deletedChart = await this.savedChartModel.delete(
+                    chart.uuid,
+                );
+                analytics.track({
+                    event: 'saved_chart.deleted',
+                    userId: user.userUuid,
+                    properties: {
+                        savedQueryId: deletedChart.uuid,
+                        projectId: deletedChart.projectUuid,
+                    },
+                });
+            }),
+        );
     }
 
     async hasDashboardSpaceAccess(
@@ -344,6 +374,7 @@ export class DashboardService {
                 properties:
                     DashboardService.getCreateEventProperties(updatedDashboard),
             });
+            await this.deleteOrphanedChartsInDashboards(user, dashboardUuid);
         }
         return this.dashboardModel.getById(dashboardUuid);
     }
