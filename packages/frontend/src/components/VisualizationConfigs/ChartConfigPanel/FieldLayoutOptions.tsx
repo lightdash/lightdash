@@ -303,7 +303,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
 
             {pivotDimensions && pivotDimensions.length > 0 && canBeStacked && (
                 <Tooltip
-                    label="X axis field must not be numeric to enable stacking"
+                    label="x-axis must be non-numeric to enable stacking"
                     disabled={!isXAxisFieldNumeric}
                 >
                     <Stack spacing="xs">
