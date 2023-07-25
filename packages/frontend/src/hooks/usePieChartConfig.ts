@@ -5,12 +5,15 @@ import {
     Explore,
     Field,
     fieldId,
+    formatItemValue,
     isAdditionalMetric,
     isField,
     isMetric,
     Metric,
     PieChart,
     PieChartValueOptions,
+    ResultRow,
+    ResultValue,
     TableCalculation,
 } from '@lightdash/common';
 import { useDebouncedValue } from '@mantine/hooks';
@@ -69,7 +72,15 @@ type PieChartConfig = {
     showLegend: boolean;
     toggleShowLegend: () => void;
 
-    data: [string, number][];
+    data: {
+        name: string;
+        value: number;
+        meta: {
+            value: ResultValue;
+            rows: ResultRow[];
+            groupDimensions: string[];
+        };
+    }[];
 };
 
 type PieChartConfigFn = (
@@ -219,28 +230,55 @@ const usePieChartConfig: PieChartConfigFn = (
             return [];
         }
 
-        return Object.entries(
-            resultsData.rows.reduce<Record<string, number>>((acc, row) => {
-                const key = groupFieldIds
-                    .map((groupFieldId) => row[groupFieldId]?.value?.formatted)
-                    .filter(Boolean)
-                    .join(' - ');
+        const mappedData = resultsData.rows.map((row) => {
+            const name = groupFieldIds
+                .map((groupFieldId) => row[groupFieldId]?.value?.formatted)
+                .filter(Boolean)
+                .join(' - ');
 
-                const value = Number(row[metricId].value.raw);
+            const value = Number(row[metricId].value.raw);
 
-                if (key && value !== undefined) {
-                    acc[key] = (acc[key] ?? 0) + (isNaN(value) ? 0 : value);
-                }
-
-                return acc;
-            }, {}),
-        ).sort(([, aValue], [, bValue]) => {
-            return bValue - aValue;
+            return { name, value, row, groupDimensions: groupFieldIds };
         });
+
+        return Object.entries(
+            mappedData.reduce<
+                Record<
+                    string,
+                    {
+                        value: number;
+                        rows: ResultRow[];
+                        groupDimensions: string[];
+                    }
+                >
+            >((acc, { name, value, row, groupDimensions }) => {
+                return {
+                    ...acc,
+                    [name]: {
+                        value: (acc[name]?.value ?? 0) + value,
+                        rows: [...(acc[name]?.rows ?? []), row],
+                        groupDimensions,
+                    },
+                };
+            }, {}),
+        )
+            .map(([name, { value, rows, groupDimensions }]) => ({
+                name,
+                value,
+                meta: {
+                    value: {
+                        formatted: formatItemValue(selectedMetric, value),
+                        raw: value,
+                    },
+                    rows,
+                    groupDimensions,
+                },
+            }))
+            .sort((a, b) => b.value - a.value);
     }, [resultsData, groupFieldIds, selectedMetric, metricId]);
 
     const groupLabels = useMemo(() => {
-        return data.map(([label]) => label);
+        return data.map(({ name }) => name);
     }, [data]);
 
     const sortedGroupLabels = useMemo(() => {
