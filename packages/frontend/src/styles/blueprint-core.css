@@ -9006,6 +9006,10 @@ label.bp4-label:not(.bp4-inline) .bp4-popover-target {
     color: #abb3bf;
 }
 
+.bp4-datepicker-caption > .bp4-html-select > select {
+    padding-right: 4px;
+}
+
 .bp4-select::after {
     font-family: 'blueprint-icons-16', sans-serif;
     font-size: 16px;
