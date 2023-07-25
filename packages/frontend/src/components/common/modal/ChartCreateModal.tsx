@@ -40,7 +40,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     ...modalProps
 }) => {
     const fromDashboard = sessionStorage.getItem('fromDashboard');
-    const dashboardUuid = sessionStorage.getItem('dashboardUuid') || '';
+    const dashboardUuid = sessionStorage.getItem('dashboardUuid');
     const unsavedDashboardTiles = JSON.parse(
         sessionStorage.getItem('unsavedDashbordTiles') ?? '[]',
     );
@@ -119,12 +119,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     ]);
 
     const handleSaveChartInDashboard = useCallback(() => {
-        if (
-            !fromDashboard ||
-            dashboardUuid.length === 0 ||
-            unsavedDashboardTiles.length === 0
-        )
-            return;
+        if (!fromDashboard || !unsavedDashboardTiles || !dashboardUuid) return;
         const newTile = {
             uuid: uuid4(),
             type: DashboardTileTypes.SAVED_CHART,
