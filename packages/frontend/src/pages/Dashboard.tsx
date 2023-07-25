@@ -265,7 +265,6 @@ const Dashboard: FC = () => {
 
     const handleDeleteTile = useCallback(
         async (tile: IDashboard['tiles'][number]) => {
-            console.log('here');
             setDashboardTiles((currentDashboardTiles) =>
                 currentDashboardTiles.filter(
                     (filteredTile) => filteredTile.uuid !== tile.uuid,
