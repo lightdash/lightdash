@@ -118,6 +118,19 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         ],
     );
 
+    const handleOnChangeOfXAxisField = useCallback(
+        (newValue) => {
+            setXField(newValue ?? undefined);
+            if (newValue && isStacked) {
+                const newXAxisField = items.find(
+                    (item) => getItemId(item) === newValue,
+                );
+                if (isNumericItem(newXAxisField)) setStacking(false);
+            }
+        },
+        [isStacked, items, setStacking, setXField],
+    );
+
     return (
         <>
             <Stack spacing="xs" mb="lg">
@@ -152,9 +165,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                         <FieldSelect
                             selectedField={xAxisField}
                             fieldOptions={items}
-                            onChange={(newValue) => {
-                                setXField(newValue ?? undefined);
-                            }}
+                            onChange={handleOnChangeOfXAxisField}
                         />
                         <CloseButton
                             onClick={() => {
