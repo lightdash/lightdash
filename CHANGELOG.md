@@ -1,3 +1,15 @@
+# [0.689.0](https://github.com/lightdash/lightdash/compare/0.688.1...0.689.0) (2023-07-25)
+
+
+### Bug Fixes
+
+* time interval off boolean ([#6463](https://github.com/lightdash/lightdash/issues/6463)) ([7811c4e](https://github.com/lightdash/lightdash/commit/7811c4e16d0bc933416ed04f9260bb298c4f2485)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
+
+### Features
+
+* copy chart in dashboard preview ([#6466](https://github.com/lightdash/lightdash/issues/6466)) ([257cf73](https://github.com/lightdash/lightdash/commit/257cf739b09b821ff2d15867d59e992375b81827)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
 ## [0.688.1](https://github.com/lightdash/lightdash/compare/0.688.0...0.688.1) (2023-07-25)
 
 
