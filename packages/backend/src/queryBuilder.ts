@@ -60,7 +60,7 @@ export const replaceUserAttributes = (
     stringQuoteChar: string = "'",
 ): string => {
     const userAttributeRegex =
-        /\$\{(?:lightdash|ld)\.(?:attribute|attr)\.(\w+)\}/g;
+        /\$\{(?:lightdash|ld)\.(?:attribute|attributes|attr)\.(\w+)\}/g;
     const sqlAttributes = sqlFilter.match(userAttributeRegex);
 
     if (sqlAttributes === null || sqlAttributes.length === 0) {

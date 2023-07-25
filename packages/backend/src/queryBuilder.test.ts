@@ -318,5 +318,20 @@ describe('replaceUserAttributes', () => {
         expect(
             replaceUserAttributes('${ld.attr.test} > 1', userAttributes),
         ).toEqual(expected);
+
+        expect(
+            replaceUserAttributes(
+                '${lightdash.attributes.test} > 1',
+                userAttributes,
+            ),
+        ).toEqual(expected);
+    });
+
+    it('method should not replace any invalid attribute', async () => {
+        const expected = "'1' > 1";
+
+        expect(replaceUserAttributes('${lightdash.foo.test} > 1', [])).toEqual(
+            '${lightdash.foo.test} > 1',
+        );
     });
 });
