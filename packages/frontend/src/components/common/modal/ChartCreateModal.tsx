@@ -124,6 +124,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
             uuid: uuid4(),
             type: DashboardTileTypes.SAVED_CHART,
             properties: {
+                belongsToDashboard: true,
                 savedChartUuid: null,
                 newChartData: {
                     ...savedData,
@@ -139,6 +140,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         );
         sessionStorage.removeItem('fromDashboard');
         sessionStorage.removeItem('dashboardUuid');
+        sessionStorage.setItem('newChartName', name);
         handleClose();
         history.push(
             `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,

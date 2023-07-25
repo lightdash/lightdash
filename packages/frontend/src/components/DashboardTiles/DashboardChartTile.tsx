@@ -225,9 +225,11 @@ const ValidDashboardChartTileMinimal: FC<{
 const InvalidDashboardChartTile: FC<
     Pick<DashboardChartTileMainProps, 'tile'>
 > = ({ tile }) => {
-    return tile.properties.newChartData ? (
+    const newChartName = sessionStorage.getItem('newChartName');
+    console.log(newChartName);
+    return tile.properties.belongsToDashboard ? (
         <NonIdealState
-            title={tile.properties.newChartData?.name}
+            title={newChartName}
             icon="chart"
             description="Save your dashboard to see this new chart appear in the tile"
         />

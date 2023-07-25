@@ -188,7 +188,7 @@ const Dashboard: FC = () => {
             const unsavedDashboardTilesRaw = sessionStorage.getItem(
                 'unsavedDashboardTiles',
             );
-            sessionStorage.clear();
+            sessionStorage.removeItem('unsavedDashboardTiles');
             let unsavedDashboardTiles = undefined;
             if (unsavedDashboardTilesRaw) {
                 try {
