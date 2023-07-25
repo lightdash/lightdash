@@ -129,6 +129,9 @@ const SavedChartsHeader: FC = () => {
                 isEditMode &&
                 !prompt.pathname.includes(
                     `/projects/${projectUuid}/saved/${savedChart?.uuid}`,
+                ) &&
+                !prompt.pathname.includes(
+                    `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
                 )
             ) {
                 setBlockedNavigationLocation(prompt.pathname);

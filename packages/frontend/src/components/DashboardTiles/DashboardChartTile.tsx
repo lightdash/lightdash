@@ -226,7 +226,6 @@ const InvalidDashboardChartTile: FC<
     Pick<DashboardChartTileMainProps, 'tile'>
 > = ({ tile }) => {
     const newChartName = sessionStorage.getItem('newChartName');
-    console.log(newChartName);
     return tile.properties.belongsToDashboard ? (
         <NonIdealState
             title={newChartName}
