@@ -140,7 +140,6 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         );
         sessionStorage.removeItem('fromDashboard');
         sessionStorage.removeItem('dashboardUuid');
-        sessionStorage.setItem('newChartName', name);
         handleClose();
         history.push(
             `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
