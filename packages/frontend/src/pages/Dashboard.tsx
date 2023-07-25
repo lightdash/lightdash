@@ -289,6 +289,7 @@ const Dashboard: FC = () => {
     );
 
     const handleCancel = useCallback(() => {
+        sessionStorage.clear();
         setDashboardTiles(dashboard?.tiles || []);
         setHaveTilesChanged(false);
         if (dashboard) setDashboardFilters(dashboard.filters);

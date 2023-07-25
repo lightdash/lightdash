@@ -222,13 +222,18 @@ const ValidDashboardChartTileMinimal: FC<{
     );
 };
 
-const InvalidDashboardChartTile: FC = () => (
-    <NonIdealState
-        title="No chart available"
-        description="Chart might have been deleted or you don't have permissions to see it."
-        icon="search"
-    />
-);
+const InvalidDashboardChartTile: FC<{ isChartInDashboardTile: boolean }> = (
+    isChartInDashboardTile,
+) =>
+    isChartInDashboardTile ? (
+        <NonIdealState title="Hit save to see your new chart!!" icon="chart" />
+    ) : (
+        <NonIdealState
+            title="No chart available"
+            description="Chart might have been deleted or you don't have permissions to see it."
+            icon="search"
+        />
+    );
 
 interface DashboardChartTileMainProps
     extends Pick<
@@ -663,7 +668,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         />
                     </>
                 ) : (
-                    <InvalidDashboardChartTile />
+                    <InvalidDashboardChartTile
+                        isChartInDashboardTile={
+                            !!props.tile.properties.newChartData
+                        }
+                    />
                 )}
             </TileBase>
 
@@ -708,7 +717,11 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     title={title || data.name}
                 />
             ) : (
-                <InvalidDashboardChartTile />
+                <InvalidDashboardChartTile
+                    isChartInDashboardTile={
+                        !!props.tile.properties.newChartData
+                    }
+                />
             )}
         </TileBase>
     );
