@@ -1,3 +1,10 @@
+## [0.691.1](https://github.com/lightdash/lightdash/compare/0.691.0...0.691.1) (2023-07-25)
+
+
+### Bug Fixes
+
+* disable stacking if x axis field isnt numeric ([#6475](https://github.com/lightdash/lightdash/issues/6475)) ([3ef0054](https://github.com/lightdash/lightdash/commit/3ef00547ae258588e19f29020f685f5ca99381e2))
+
 # [0.691.0](https://github.com/lightdash/lightdash/compare/0.690.1...0.691.0) (2023-07-25)
 
 
