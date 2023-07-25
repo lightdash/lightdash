@@ -9,6 +9,7 @@ interface Props {
     selectedField?: Field | TableCalculation;
     fieldOptions: (Field | TableCalculation)[];
     placeholder?: string;
+    disabled?: boolean;
     onChange: (newValue: string | null) => void;
 }
 
@@ -16,13 +17,14 @@ const FieldSelect: FC<Props> = ({
     selectedField,
     fieldOptions,
     placeholder,
+    disabled,
     onChange,
 }) => {
     return (
         <Select
             sx={{ flexGrow: 1 }}
-            mr="xs"
             searchable
+            disabled={disabled}
             placeholder={placeholder}
             icon={selectedField && <FieldIcon item={selectedField} />}
             value={selectedField ? getItemId(selectedField) : null}

@@ -1,4 +1,3 @@
-import { Button } from '@blueprintjs/core';
 import {
     CartesianSeriesType,
     Field,
@@ -7,23 +6,21 @@ import {
     replaceStringInArray,
     TableCalculation,
 } from '@lightdash/common';
+import {
+    Button,
+    CloseButton,
+    Group,
+    SegmentedControl,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import { IconPlus } from '@tabler/icons-react';
 import { FC, useCallback, useMemo } from 'react';
 import { EMPTY_X_AXIS } from '../../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import SimpleButton from '../../common/SimpleButton';
+import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { MAX_PIVOTS } from '../TableConfigPanel/GeneralSettings';
-import { AddPivotButton } from '../TableConfigPanel/TableConfig.styles';
-import {
-    AxisFieldDropdown,
-    AxisGroup,
-    AxisTitle,
-    AxisTitleWrapper,
-    BlockTooltip,
-    DeleteFieldButton,
-    GridLabel,
-    StackButton,
-    StackingWrapper,
-} from './ChartConfigPanel.styles';
 import FieldSelect from './FieldSelect';
 
 type Props = {
@@ -117,28 +114,35 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
 
     return (
         <>
-            <AxisGroup>
-                <AxisTitleWrapper>
-                    <AxisTitle>
+            <Stack spacing="xs" mb="lg">
+                <Group position="apart">
+                    <Text fw={500} sx={{ alignSelf: 'end' }}>
                         {`${
                             validCartesianConfig?.layout.flipAxes ? 'Y' : 'X'
                         }-axis`}
-                    </AxisTitle>
-                    <SimpleButton
-                        text="Flip axes"
+                    </Text>
+                    <Button
+                        variant="subtle"
+                        compact
                         onClick={() => setFlipAxis(!dirtyLayout?.flipAxes)}
-                    />
-                </AxisTitleWrapper>
+                    >
+                        Flip axes
+                    </Button>
+                </Group>
                 {dirtyLayout?.xField === EMPTY_X_AXIS ? (
                     <Button
-                        minimal
-                        intent="primary"
+                        variant="subtle"
+                        compact
+                        sx={{
+                            alignSelf: 'start',
+                        }}
+                        leftIcon={<MantineIcon icon={IconPlus} />}
                         onClick={() => setXField(getItemId(items[0]))}
                     >
-                        + Add
+                        Add
                     </Button>
                 ) : (
-                    <AxisFieldDropdown>
+                    <Group spacing="xs">
                         <FieldSelect
                             selectedField={xAxisField}
                             fieldOptions={items}
@@ -146,22 +150,20 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                                 setXField(newValue ?? undefined);
                             }}
                         />
-                        <DeleteFieldButton
-                            minimal
-                            icon="cross"
+                        <CloseButton
                             onClick={() => {
                                 setXField(EMPTY_X_AXIS);
                             }}
                         />
-                    </AxisFieldDropdown>
+                    </Group>
                 )}
-            </AxisGroup>
-            <AxisGroup>
-                <AxisTitle>
+            </Stack>
+            <Stack spacing="xs" mb="md">
+                <Text fw={500}>
                     {`${
                         validCartesianConfig?.layout.flipAxes ? 'X' : 'Y'
                     }-axis`}
-                </AxisTitle>
+                </Text>
 
                 {yFields.map((field, index) => {
                     const activeField = yActiveField(field);
@@ -169,7 +171,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                         ? [activeField, ...availableYFields]
                         : availableYFields;
                     return (
-                        <AxisFieldDropdown key={`${field}-y-axis`}>
+                        <Group spacing="xs" key={`${field}-y-axis`}>
                             <FieldSelect
                                 selectedField={activeField}
                                 fieldOptions={yFieldsOptions}
@@ -178,35 +180,39 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                                 }}
                             />
                             {yFields?.length !== 1 && (
-                                <DeleteFieldButton
-                                    minimal
-                                    icon="cross"
+                                <CloseButton
                                     onClick={() => {
                                         removeSingleSeries(index);
                                     }}
                                 />
                             )}
-                        </AxisFieldDropdown>
+                        </Group>
                     );
                 })}
                 {availableYFields.length > 0 && (
                     <Button
-                        minimal
-                        intent="primary"
+                        variant="subtle"
+                        compact
+                        sx={{
+                            alignSelf: 'start',
+                        }}
+                        leftIcon={<MantineIcon icon={IconPlus} />}
                         onClick={() =>
                             addSingleSeries(getItemId(availableYFields[0]))
                         }
                     >
-                        + Add
+                        Add
                     </Button>
                 )}
-            </AxisGroup>
-            <BlockTooltip
-                content="You need at least one metric in your chart to add a group"
+            </Stack>
+
+            <Tooltip
+                label="You need at least one metric in your chart to add a group"
+                position="left"
                 disabled={chartHasMetricOrTableCalc}
             >
-                <AxisGroup>
-                    <AxisTitle>Group</AxisTitle>
+                <Stack spacing="xs" mb="md">
+                    <Text fw={500}>Group</Text>
                     {pivotDimensions &&
                         pivotDimensions.map((pivotKey) => {
                             // Group series logic
@@ -223,10 +229,12 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                                 ? groupSelectedField
                                 : undefined;
                             return (
-                                <AxisFieldDropdown key={pivotKey}>
+                                <Group spacing="xs" key={pivotKey}>
                                     <FieldSelect
                                         selectedField={activeField}
                                         fieldOptions={fieldOptions}
+                                        disabled={!chartHasMetricOrTableCalc}
+                                        placeholder="Select a field to group by"
                                         onChange={(newValue) => {
                                             if (!newValue) return;
                                             setPivotDimensions(
@@ -241,9 +249,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                                         }}
                                     />
                                     {groupSelectedField && (
-                                        <DeleteFieldButton
-                                            minimal
-                                            icon="cross"
+                                        <CloseButton
                                             onClick={() => {
                                                 setPivotDimensions(
                                                     pivotDimensions.filter(
@@ -254,13 +260,17 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                                             }}
                                         />
                                     )}
-                                </AxisFieldDropdown>
+                                </Group>
                             );
                         })}
                     {canAddPivot && (
-                        <AddPivotButton
-                            minimal
-                            intent="primary"
+                        <Button
+                            variant="subtle"
+                            compact
+                            sx={{
+                                alignSelf: 'start',
+                            }}
+                            leftIcon={<MantineIcon icon={IconPlus} />}
                             onClick={() =>
                                 setPivotDimensions([
                                     ...(pivotDimensions || []),
@@ -268,29 +278,26 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                                 ])
                             }
                         >
-                            + Add
-                        </AddPivotButton>
+                            Add
+                        </Button>
                     )}
-                </AxisGroup>
-            </BlockTooltip>
+                </Stack>
+            </Tooltip>
+
             {pivotDimensions && pivotDimensions.length > 0 && canBeStacked && (
-                <AxisGroup>
-                    <GridLabel>Stacking</GridLabel>
-                    <StackingWrapper fill>
-                        <StackButton
-                            onClick={() => setStacking(false)}
-                            active={!isStacked}
-                        >
-                            No stacking
-                        </StackButton>
-                        <StackButton
-                            onClick={() => setStacking(true)}
-                            active={isStacked}
-                        >
-                            Stack
-                        </StackButton>
-                    </StackingWrapper>
-                </AxisGroup>
+                <Stack spacing="xs">
+                    <Text fw={500}>Stacking</Text>
+                    <SegmentedControl
+                        fullWidth
+                        color="blue"
+                        value={isStacked ? 'stack' : 'noStacking'}
+                        onChange={(value) => setStacking(value === 'stack')}
+                        data={[
+                            { label: 'No stacking', value: 'noStacking' },
+                            { label: 'Stack', value: 'stack' },
+                        ]}
+                    />
+                </Stack>
             )}
         </>
     );

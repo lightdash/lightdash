@@ -277,6 +277,7 @@ export const convertTable = (
                 [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
                     dimension.type,
                 ) &&
+                column.meta.dimension?.time_intervals !== false &&
                 ((column.meta.dimension?.time_intervals &&
                     column.meta.dimension.time_intervals !== 'OFF') ||
                     !column.meta.dimension?.time_intervals)
