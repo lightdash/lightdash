@@ -1139,7 +1139,7 @@ export class ProjectModel {
                 `Updating ${chartsInDashboards.length} charts in dashboards`,
             );
             // Update chart in dashboards with new dashboardUuids
-            await chartsInDashboards.map(async (chart) => {
+            await newChartsInDashboards.map(async (chart) => {
                 const newDashboardUuid = dashboardMapping.find(
                     (m) => m.uuid === chart.dashboard_uuid,
                 )?.newUuid;
