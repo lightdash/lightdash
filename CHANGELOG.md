@@ -1,3 +1,10 @@
+## [0.688.1](https://github.com/lightdash/lightdash/compare/0.688.0...0.688.1) (2023-07-25)
+
+
+### Bug Fixes
+
+* address ux on pinned items drag-and-drop ([#6464](https://github.com/lightdash/lightdash/issues/6464)) ([f27bfc8](https://github.com/lightdash/lightdash/commit/f27bfc8440bcc4fb15c70cb84a9f2b0601b0391b))
+
 # [0.688.0](https://github.com/lightdash/lightdash/compare/0.687.1...0.688.0) (2023-07-24)
 
 
