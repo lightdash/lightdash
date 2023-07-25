@@ -222,11 +222,14 @@ const ValidDashboardChartTileMinimal: FC<{
     );
 };
 
-const InvalidDashboardChartTile: FC<{ isChartInDashboardTile: boolean }> = (
-    isChartInDashboardTile,
-) =>
-    isChartInDashboardTile ? (
-        <NonIdealState title="Hit save to see your new chart!!" icon="chart" />
+const InvalidDashboardChartTile: FC<DashboardChartTileMainProps> = (props) => {
+    const { tile } = props;
+    return tile.properties.newChartData ? (
+        <NonIdealState
+            title={tile.properties.newChartData?.name}
+            icon="chart"
+            description="Save your dashboard to see this new chart appear in the tile"
+        />
     ) : (
         <NonIdealState
             title="No chart available"
@@ -234,6 +237,7 @@ const InvalidDashboardChartTile: FC<{ isChartInDashboardTile: boolean }> = (
             icon="search"
         />
     );
+};
 
 interface DashboardChartTileMainProps
     extends Pick<
@@ -668,11 +672,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         />
                     </>
                 ) : (
-                    <InvalidDashboardChartTile
-                        isChartInDashboardTile={
-                            !!props.tile.properties.newChartData
-                        }
-                    />
+                    <InvalidDashboardChartTile tile={props.tile} />
                 )}
             </TileBase>
 
@@ -717,11 +717,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     title={title || data.name}
                 />
             ) : (
-                <InvalidDashboardChartTile
-                    isChartInDashboardTile={
-                        !!props.tile.properties.newChartData
-                    }
-                />
+                <InvalidDashboardChartTile tile={props.tile} />
             )}
         </TileBase>
     );
