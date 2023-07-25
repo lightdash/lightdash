@@ -89,7 +89,6 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                 case TimeFrames.MONTH:
                     return (
                         <Group noWrap spacing={0}>
-                            {' '}
                             <MonthAndYearInput
                                 value={moment(value).toDate()}
                                 onChange={(dateValue: Date) => {
