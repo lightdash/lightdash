@@ -1,3 +1,10 @@
+# [0.690.0](https://github.com/lightdash/lightdash/compare/0.689.0...0.690.0) (2023-07-25)
+
+
+### Features
+
+* 6262 migrate chart config layout tab to mantine ([#6465](https://github.com/lightdash/lightdash/issues/6465)) ([8bc8cf5](https://github.com/lightdash/lightdash/commit/8bc8cf5beab1834ffd24d96e94b61562dedd35f9))
+
 # [0.689.0](https://github.com/lightdash/lightdash/compare/0.688.1...0.689.0) (2023-07-25)
 
 
