@@ -6,6 +6,7 @@ import {
     FieldReferenceError,
     FilterGroup,
     FilterRule,
+    ForbiddenError,
     getDimensions,
     getFields,
     getFilterRulesFromGroup,
@@ -18,7 +19,6 @@ import {
     UserAttribute,
     WarehouseClient,
 } from '@lightdash/common';
-import { UserAttributesService } from './services/UserAttributesService/UserAttributesService';
 
 const getDimensionFromId = (dimId: FieldId, explore: Explore) => {
     const dimensions = getDimensions(explore);
@@ -54,6 +54,42 @@ const getOperatorSql = (filterGroup: FilterGroup | undefined) => {
     return ' AND ';
 };
 
+export const replaceUserAttributes = (
+    sqlFilter: string,
+    userAttributes: UserAttribute[],
+    stringQuoteChar: string = "'",
+): string => {
+    const userAttributeRegex =
+        /\$\{(?:lightdash|ld)\.(?:attribute|attr)\.(\w+)\}/g;
+    const sqlAttributes = sqlFilter.match(userAttributeRegex);
+
+    if (sqlAttributes === null || sqlAttributes.length === 0) {
+        return sqlFilter;
+    }
+
+    const sq = sqlAttributes.reduce<string>((acc, sqlAttribute) => {
+        const attribute = sqlAttribute.replace(userAttributeRegex, '$1');
+        const userAttribute = userAttributes.find(
+            (ua) => ua.name === attribute,
+        );
+        if (userAttribute === undefined) {
+            throw new ForbiddenError(
+                `Missing user attribute "${attribute}" on sqlFilter "${sqlFilter}"`,
+            );
+        }
+        if (userAttribute.users.length !== 1) {
+            throw new ForbiddenError(
+                `Invalid or missing user attribute "${attribute}" on sqlFilter "${sqlFilter}"`,
+            );
+        }
+        return acc.replace(
+            sqlAttribute,
+            `${stringQuoteChar}${userAttribute.users[0].value}${stringQuoteChar}`,
+        );
+    }, sqlFilter);
+
+    return sq;
+};
 export type BuildQueryProps = {
     explore: Explore;
     compiledMetricQuery: CompiledMetricQuery;
@@ -61,6 +97,7 @@ export type BuildQueryProps = {
     warehouseClient: WarehouseClient;
     userAttributes?: UserAttribute[];
 };
+
 export const buildQuery = ({
     explore,
     compiledMetricQuery,
@@ -251,7 +288,7 @@ export const buildQuery = ({
 
     const tableSqlWhere = baseTableSqlWhere
         ? [
-              UserAttributesService.replaceUserAttributes(
+              replaceUserAttributes(
                   baseTableSqlWhere,
                   userAttributes,
                   stringQuoteChar,

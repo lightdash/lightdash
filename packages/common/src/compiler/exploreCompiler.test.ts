@@ -227,4 +227,10 @@ describe('Parse dimension reference', () => {
             parseAllReferences('${lightdash.attribute.country}', 'table'),
         ).toStrictEqual([]);
     });
+
+    test('should not parse short lightdash attribute', () => {
+        expect(parseAllReferences('${ld.attr.country}', 'table')).toStrictEqual(
+            [],
+        );
+    });
 });

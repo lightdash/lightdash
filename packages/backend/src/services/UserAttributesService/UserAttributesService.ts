@@ -93,41 +93,4 @@ export class UserAttributesService {
         }
         await this.userAttributesModel.delete(orgAttributeUuid);
     }
-
-    static replaceUserAttributes(
-        sqlFilter: string,
-        userAttributes: UserAttribute[],
-        stringQuoteChar: string = "'",
-    ): string {
-        const userAttributeRegex =
-            /\$\{(?:lightdash|ld)\.(?:attribute|attr)\.(\w+)\}/g;
-        const sqlAttributes = sqlFilter.match(userAttributeRegex);
-
-        if (sqlAttributes === null || sqlAttributes.length === 0) {
-            return sqlFilter;
-        }
-
-        const sq = sqlAttributes.reduce<string>((acc, sqlAttribute) => {
-            const attribute = sqlAttribute.replace(userAttributeRegex, '$1');
-            const userAttribute = userAttributes.find(
-                (ua) => ua.name === attribute,
-            );
-            if (userAttribute === undefined) {
-                throw new ForbiddenError(
-                    `Missing user attribute "${attribute}" on sqlFilter "${sqlFilter}"`,
-                );
-            }
-            if (userAttribute.users.length !== 1) {
-                throw new ForbiddenError(
-                    `Invalid or missing user attribute "${attribute}" on sqlFilter "${sqlFilter}"`,
-                );
-            }
-            return acc.replace(
-                sqlAttribute,
-                `${stringQuoteChar}${userAttribute.users[0].value}${stringQuoteChar}`,
-            );
-        }, sqlFilter);
-
-        return sq;
-    }
 }
