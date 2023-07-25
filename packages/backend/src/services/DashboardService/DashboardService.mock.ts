@@ -1,11 +1,13 @@
 import { Ability } from '@casl/ability';
 import {
+    ChartType,
     CreateDashboard,
     CreateDashboardChartTile,
     Dashboard,
     DashboardBasicDetails,
     DashboardTileTypes,
     OrganizationMemberRole,
+    SavedChart,
     SessionUser,
     Space,
     UpdateDashboard,
@@ -97,6 +99,54 @@ export const dashboard: Dashboard = {
     pinnedListOrder: null,
     views: 1,
     firstViewedAt: new Date(1),
+};
+
+export const dashboardWithChartThatBelongsToDashboard: Dashboard = {
+    ...dashboard,
+    tiles: [
+        ...dashboard.tiles,
+        {
+            uuid: 'my-tile',
+            type: DashboardTileTypes.SAVED_CHART,
+            x: 4,
+            y: 3,
+            h: 2,
+            w: 1,
+            properties: {
+                savedChartUuid: 'chart_in_dashboard',
+                belongsToDashboard: true,
+            },
+        },
+    ],
+};
+
+export const chart: SavedChart = {
+    uuid: 'chart_uuid',
+    projectUuid: dashboard.projectUuid,
+    name: 'chart name',
+    tableName: 'table_name',
+    metricQuery: {
+        dimensions: [],
+        metrics: [],
+        filters: {},
+        sorts: [],
+        limit: 0,
+        tableCalculations: [],
+    },
+    chartConfig: {
+        type: ChartType.TABLE,
+    },
+    tableConfig: {
+        columnOrder: [],
+    },
+    updatedAt: new Date(),
+    organizationUuid: user.organizationUuid!,
+    spaceUuid: 'spaceUuid',
+    spaceName: 'space name',
+    pinnedListUuid: null,
+    pinnedListOrder: null,
+    dashboardUuid: dashboard.uuid,
+    dashboardName: dashboard.name,
 };
 
 export const dashboardsDetails: DashboardBasicDetails[] = [

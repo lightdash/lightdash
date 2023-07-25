@@ -7,6 +7,7 @@ import {
     DashboardTileTypes,
     ForbiddenError,
     isChartScheduler,
+    isChartTile,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     isSlackTarget,
@@ -30,6 +31,7 @@ import { PinnedListModel } from '../../models/PinnedListModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type Dependencies = {
@@ -199,6 +201,40 @@ export class DashboardService {
         return dashboard;
     }
 
+    static findChartsThatBelongToDashboard(
+        dashboard: Pick<Dashboard, 'tiles'>,
+    ): string[] {
+        return dashboard.tiles.reduce<string[]>((acc, tile) => {
+            if (
+                isChartTile(tile) &&
+                !!tile.properties.belongsToDashboard &&
+                !!tile.properties.savedChartUuid
+            ) {
+                return [...acc, tile.properties.savedChartUuid];
+            }
+            return acc;
+        }, []);
+    }
+
+    private async trackChartsCreatedInDashboard(
+        user: SessionUser,
+        chartUuids: string[],
+    ) {
+        await Promise.all(
+            chartUuids.map(async (chartUuid) => {
+                const chart = await this.savedChartModel.get(chartUuid);
+                analytics.track({
+                    event: 'saved_chart.created',
+                    userId: user.userUuid,
+                    properties: {
+                        ...SavedChartService.getCreateEventProperties(chart),
+                        dashboardId: chart.dashboardUuid ?? undefined,
+                    },
+                });
+            }),
+        );
+    }
+
     async create(
         user: SessionUser,
         projectUuid: string,
@@ -246,6 +282,15 @@ export class DashboardService {
             userId: user.userUuid,
             properties: DashboardService.getCreateEventProperties(newDashboard),
         });
+
+        // Track charts created in dashboard
+        const chartsCreatedInDashboard =
+            DashboardService.findChartsThatBelongToDashboard(newDashboard);
+        await this.trackChartsCreatedInDashboard(
+            user,
+            chartsCreatedInDashboard,
+        );
+
         return this.dashboardModel.getById(newDashboard.uuid);
     }
 
@@ -375,6 +420,24 @@ export class DashboardService {
                     DashboardService.getCreateEventProperties(updatedDashboard),
             });
             await this.deleteOrphanedChartsInDashboards(user, dashboardUuid);
+
+            // Track charts created in dashboard
+            const chartsInExistingDashboard =
+                DashboardService.findChartsThatBelongToDashboard(
+                    existingDashboard,
+                );
+            const chartsInUpdatedDashboard =
+                DashboardService.findChartsThatBelongToDashboard(
+                    updatedDashboard,
+                );
+            const chartsCreatedInDashboard = chartsInUpdatedDashboard.filter(
+                (chart) => !chartsInExistingDashboard.includes(chart),
+            );
+
+            await this.trackChartsCreatedInDashboard(
+                user,
+                chartsCreatedInDashboard,
+            );
         }
         return this.dashboardModel.getById(dashboardUuid);
     }
