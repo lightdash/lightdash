@@ -1,3 +1,10 @@
+# [0.696.0](https://github.com/lightdash/lightdash/compare/0.695.0...0.696.0) (2023-07-26)
+
+
+### Features
+
+* show tooltip on hover of fields in filter list ([#6489](https://github.com/lightdash/lightdash/issues/6489)) ([4917358](https://github.com/lightdash/lightdash/commit/4917358ef5d058a0ee3c6003998d1532ff7dbd9f))
+
 # [0.695.0](https://github.com/lightdash/lightdash/compare/0.694.0...0.695.0) (2023-07-26)
 
 
