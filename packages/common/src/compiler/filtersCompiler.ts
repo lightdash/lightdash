@@ -301,6 +301,10 @@ export const renderFilterRuleSql = (
     startOfWeek: WeekDay | null | undefined,
     adapterType: SupportedDbtAdapter,
 ): string => {
+    if ('disabled' in filterRule && filterRule.disabled) {
+        return `WHERE 1=1`;
+    }
+
     const fieldType = field.type;
     const fieldSql = isMetric(field)
         ? `${fieldQuoteChar}${fieldId(field)}${fieldQuoteChar}`
