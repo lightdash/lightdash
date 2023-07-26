@@ -122,6 +122,10 @@ export class ProjectController extends Controller {
 
     /**
      * Get a project member's access for a project.
+     *
+     * NOTE:
+     * We don't use the API on the frontend. Instead, we can call the API
+     * so that we make sure of the user's access to the project.
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
