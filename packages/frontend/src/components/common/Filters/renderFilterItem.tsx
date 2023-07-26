@@ -53,6 +53,7 @@ const createFilterItemRenderer =
                 disabled={
                     !isField(item) || (isField(item) && !item.description)
                 }
+                multiline
                 openDelay={500}
             >
                 <FilterItem
