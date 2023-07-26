@@ -310,11 +310,48 @@ export class DashboardService {
                 "You don't have access to the space this dashboard belongs to",
             );
         }
+        const hasChartsInDashboard = dashboard.tiles.some(
+            (tile) => isChartTile(tile) && tile.properties.belongsToDashboard,
+        );
+        const chartsInDashboardTiles = dashboard.tiles.filter(
+            (tile) => isChartTile(tile) && tile.properties.belongsToDashboard,
+        );
+
+        if (hasChartsInDashboard) {
+            const chartsInDashboard = chartsInDashboardTiles.map(
+                async (tile) => {
+                    const chartInDashboard = isChartTile(tile)
+                        ? await this.savedChartModel.get(
+                              tile.properties.savedChartUuid ?? '',
+                          )
+                        : undefined;
+
+                    return chartInDashboard;
+                },
+            );
+
+            chartsInDashboard.map((chart) =>
+                chart.then((chartInDashboard) =>
+                    chartInDashboard
+                        ? this.savedChartModel.create(
+                              dashboard.projectUuid,
+                              user.userUuid,
+                              // @ts-ignore
+                              {
+                                  ...chartInDashboard,
+                                  name: `Copy of ${chartInDashboard?.name}`,
+                              },
+                          )
+                        : undefined,
+                ),
+            );
+        }
 
         const duplicatedDashboard = {
             ...dashboard,
             name: `Copy of ${dashboard.name}`,
         };
+
         const newDashboard = await this.dashboardModel.create(
             dashboard.spaceUuid,
             duplicatedDashboard,
