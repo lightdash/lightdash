@@ -1,6 +1,7 @@
 import {
     AdditionalMetric,
     ChartConfig,
+    ChartKind,
     ChartSummary,
     CreateSavedChart,
     CreateSavedChartVersion,
@@ -232,10 +233,17 @@ export const createSavedChart = async (
 ): Promise<string> =>
     db.transaction(async (trx) => {
         let chart: InsertChart;
+        const baseChart = {
+            name,
+            description,
+            last_version_chart_kind:
+                getChartType(chartConfig.type, chartConfig.config) ||
+                ChartKind.VERTICAL_BAR,
+            last_version_updated_by_user_uuid: userUuid,
+        };
         if (dashboardUuid) {
             chart = {
-                name,
-                description,
+                ...baseChart,
                 dashboard_uuid: dashboardUuid,
                 space_id: null,
             };
@@ -246,8 +254,7 @@ export const createSavedChart = async (
                       .space_id;
             if (!spaceId) throw new NotFoundError('No space found');
             chart = {
-                name,
-                description,
+                ...baseChart,
                 dashboard_uuid: null,
                 space_id: spaceId,
             };
