@@ -1,3 +1,10 @@
+## [0.698.1](https://github.com/lightdash/lightdash/compare/0.698.0...0.698.1) (2023-07-26)
+
+
+### Bug Fixes
+
+* legend settings not working ([#6501](https://github.com/lightdash/lightdash/issues/6501)) ([4e20dbf](https://github.com/lightdash/lightdash/commit/4e20dbf4cc01fc50807b8d62feae97ce9e281196))
+
 # [0.698.0](https://github.com/lightdash/lightdash/compare/0.697.0...0.698.0) (2023-07-26)
 
 
