@@ -243,7 +243,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                 case ResourceViewItemType.DASHBOARD:
                     return (
                         <DashboardDeleteModal
-                            isOpen
+                            opened
                             uuid={action.item.data.uuid}
                             onClose={handleReset}
                             onConfirm={handleReset}
