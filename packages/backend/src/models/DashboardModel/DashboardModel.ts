@@ -562,7 +562,6 @@ export class DashboardModel {
                 `${DashboardTilesTableName}.dashboard_version_id`,
                 dashboard.dashboard_version_id,
             );
-        console.log(tiles);
 
         return {
             organizationUuid: dashboard.organization_uuid,
