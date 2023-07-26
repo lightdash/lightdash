@@ -8,6 +8,7 @@ import {
     MetricType,
 } from '../types/field';
 import {
+    DashboardFilterRule,
     DateFilterRule,
     FilterOperator,
     FilterRule,
@@ -293,7 +294,7 @@ const renderBooleanFilterSql = (
 };
 
 export const renderFilterRuleSql = (
-    filterRule: FilterRule<FilterOperator, unknown>,
+    filterRule: FilterRule<FilterOperator, unknown> | DashboardFilterRule,
     field: CompiledField,
     fieldQuoteChar: string,
     stringQuoteChar: string,
