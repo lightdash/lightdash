@@ -1,3 +1,10 @@
+# [0.695.0](https://github.com/lightdash/lightdash/compare/0.694.0...0.695.0) (2023-07-26)
+
+
+### Features
+
+* sql filter user attributes ([#6445](https://github.com/lightdash/lightdash/issues/6445)) ([3af6021](https://github.com/lightdash/lightdash/commit/3af6021a140feaccacdf828e5278db33f0c53a48)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
 # [0.694.0](https://github.com/lightdash/lightdash/compare/0.693.0...0.694.0) (2023-07-26)
 
 
