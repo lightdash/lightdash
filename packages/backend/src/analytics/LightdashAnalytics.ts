@@ -347,7 +347,7 @@ type ProjectCompiledEvent = BaseTrack & {
         roundCount?: number;
         formattedFieldsCount?: number;
         urlsCount?: number;
-        rowAccessFiltersCount: number;
+        modelsWithSqlFiltersCount: number;
     };
 };
 

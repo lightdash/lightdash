@@ -403,6 +403,16 @@ export const METRIC_QUERY_JOIN_CHAIN: CompiledMetricQuery = {
     compiledAdditionalMetrics: [],
 };
 
+export const EXPLORE_WITH_SQL_FILTER = {
+    ...EXPLORE,
+    tables: {
+        ...EXPLORE.tables,
+        table1: {
+            ...EXPLORE.tables.table1,
+            sqlWhere: "${lightdash.attribute.country} = 'US'",
+        },
+    },
+};
 export const METRIC_QUERY_JOIN_CHAIN_SQL = `SELECT
   "table5".dim1 AS "table5_dim1",
   MAX("table5".number_column) AS "table5_metric1"
@@ -872,5 +882,15 @@ FROM metrics
 WHERE (
   ("table1_metric1") IN (0)
 )
+ORDER BY "table1_metric1" DESC
+LIMIT 10`;
+
+export const METRIC_QUERY_WITH_SQL_FILTER = `SELECT
+  "table1".dim1 AS "table1_dim1",
+  MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
+WHERE 'EU' = 'US'
+GROUP BY 1
 ORDER BY "table1_metric1" DESC
 LIMIT 10`;
