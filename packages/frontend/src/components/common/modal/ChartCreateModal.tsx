@@ -13,12 +13,9 @@ import {
     getDefaultChartTileSize,
 } from '@lightdash/common';
 import { Text } from '@mantine/core';
+import { uuid4 } from '@sentry/utils';
 import { FC, useCallback, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import {
-    useDashboardQuery,
-    useUpdateDashboard,
-} from '../../../hooks/dashboard/useDashboard';
 import { useCreateMutation } from '../../../hooks/useSavedQuery';
 import {
     useCreateMutation as useSpaceCreateMutation,
@@ -43,19 +40,17 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     ...modalProps
 }) => {
     const fromDashboard = sessionStorage.getItem('fromDashboard');
-    const dashboardUuid = sessionStorage.getItem('dashboardUuid') || '';
+    const dashboardUuid = sessionStorage.getItem('dashboardUuid');
+    const unsavedDashboardTiles = JSON.parse(
+        sessionStorage.getItem('unsavedDashboardTiles') ?? '[]',
+    );
+
+    const history = useHistory();
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { mutateAsync, isLoading: isCreating } = useCreateMutation();
     const { mutateAsync: createSpaceAsync, isLoading: isCreatingSpace } =
         useSpaceCreateMutation(projectUuid);
-
-    const { mutateAsync: updateDashboard } = useUpdateDashboard(
-        dashboardUuid,
-        false,
-    );
-    const { data: selectedDashboard } = useDashboardQuery(dashboardUuid);
-    const history = useHistory();
 
     const [spaceUuid, setSpaceUuid] = useState<string | undefined>();
     const [name, setName] = useState('');
@@ -87,7 +82,6 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         setNewSpaceName('');
         setSpaceUuid(undefined);
         setShouldCreateNewSpace(false);
-        sessionStorage.clear();
         onClose?.();
     }, [onClose]);
 
@@ -124,44 +118,42 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         showSpaceInput,
     ]);
 
-    const handleSaveChartInDashboard = useCallback(async () => {
-        if (!fromDashboard || dashboardUuid.length === 0 || !selectedDashboard)
-            return;
-        await updateDashboard({
-            name: fromDashboard,
-            filters: selectedDashboard?.filters,
-            tiles: [
-                ...selectedDashboard.tiles,
-                {
-                    type: DashboardTileTypes.SAVED_CHART,
-                    properties: {
-                        savedChartUuid: null,
-                        newChartData: {
-                            ...savedData,
-                            name,
-                            description,
-                        },
-                    },
-                    ...getDefaultChartTileSize(savedData.chartConfig?.type),
+    const handleSaveChartInDashboard = useCallback(() => {
+        if (!fromDashboard || !unsavedDashboardTiles || !dashboardUuid) return;
+        const newTile = {
+            uuid: uuid4(),
+            type: DashboardTileTypes.SAVED_CHART,
+            properties: {
+                belongsToDashboard: true,
+                savedChartUuid: null,
+                newChartData: {
+                    ...savedData,
+                    name,
+                    description,
                 },
-            ],
-        });
-        sessionStorage.clear();
+            },
+            ...getDefaultChartTileSize(savedData.chartConfig?.type),
+        };
+        sessionStorage.setItem(
+            'unsavedDashboardTiles',
+            JSON.stringify([...(unsavedDashboardTiles ?? []), newTile]),
+        );
+        sessionStorage.removeItem('fromDashboard');
+        sessionStorage.removeItem('dashboardUuid');
         handleClose();
         history.push(
-            `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
+            `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
         );
     }, [
+        description,
+        name,
         dashboardUuid,
         fromDashboard,
         history,
         handleClose,
         savedData,
-        selectedDashboard,
-        updateDashboard,
-        name,
-        description,
         projectUuid,
+        unsavedDashboardTiles,
     ]);
 
     if (isLoadingSpaces || !spaces) return null;

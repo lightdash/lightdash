@@ -37,6 +37,7 @@ export type SavedChartTable = Knex.CompositeTableType<
             | 'last_version_chart_kind'
             | 'last_version_updated_at'
             | 'last_version_updated_by_user_uuid'
+            | 'dashboard_uuid'
         >
     >
 >;

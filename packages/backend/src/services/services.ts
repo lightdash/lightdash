@@ -102,6 +102,7 @@ export const dashboardService = new DashboardService({
     analyticsModel,
     pinnedListModel,
     schedulerModel,
+    savedChartModel,
 });
 
 export const savedChartsService = new SavedChartService({

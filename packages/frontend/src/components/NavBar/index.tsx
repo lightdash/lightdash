@@ -11,7 +11,7 @@ import {
     MantineProvider,
     Text,
 } from '@mantine/core';
-import { IconInfoCircle, IconTool } from '@tabler/icons-react';
+import { IconInfoCircle, IconTool, IconX } from '@tabler/icons-react';
 import { FC, memo, useEffect } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
@@ -53,19 +53,21 @@ const DashboardExplorerBanner: FC<{
             <Text color="white" fw={500} fz="xs" mx="xxs">
                 You are creating this chart from within "{dashboardName}"
             </Text>
-            <Button
+            <ActionIcon
                 onClick={() => {
                     history.push(
                         `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
                     );
-                    sessionStorage.clear();
+                    sessionStorage.removeItem('fromDashboard');
+                    sessionStorage.removeItem('dashboardUuid');
                 }}
-                size="xs"
-                fz="xs"
+                size="sm"
                 mx="xxs"
+                variant="outline"
+                color="white"
             >
-                <Text color="white"> Cancel</Text>
-            </Button>
+                <MantineIcon icon={IconX} color="white" size="sm" />
+            </ActionIcon>
         </Center>
     );
 };

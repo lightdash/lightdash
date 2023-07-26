@@ -11,16 +11,19 @@ import {
     analyticsModel,
     dashboardModel,
     pinnedListModel,
+    savedChartModel,
     schedulerModel,
     spaceModel,
 } from '../../models/models';
 
 import { DashboardService } from './DashboardService';
 import {
+    chart,
     createDashboard,
     createDashboardWithTileIds,
     dashboard,
     dashboardsDetails,
+    dashboardWithChartThatBelongsToDashboard,
     privateSpace,
     publicSpace,
     space,
@@ -57,6 +60,8 @@ jest.mock('../../models/models', () => ({
         delete: jest.fn(async () => dashboard),
 
         addVersion: jest.fn(async () => dashboard),
+
+        getOrphanedCharts: jest.fn(async () => []),
     },
 
     spaceModel: {
@@ -68,6 +73,13 @@ jest.mock('../../models/models', () => ({
     },
     pinnedListModel: {},
     schedulerModel: {},
+    savedChartModel: {
+        get: jest.fn(async () => chart),
+        delete: jest.fn(async () => ({
+            uuid: 'chart_uuid',
+            projectUuid: 'project_uuid',
+        })),
+    },
 }));
 
 describe('DashboardService', () => {
@@ -79,6 +91,7 @@ describe('DashboardService', () => {
         analyticsModel,
         pinnedListModel,
         schedulerModel,
+        savedChartModel,
     });
     afterEach(() => {
         jest.clearAllMocks();
@@ -239,6 +252,36 @@ describe('DashboardService', () => {
             2,
             expect.objectContaining({
                 event: 'dashboard_version.created',
+            }),
+        );
+    });
+    test('should track creation of chart in dashboard when updating dashboard version', async () => {
+        (dashboardModel.addVersion as jest.Mock).mockImplementationOnce(
+            async () => dashboardWithChartThatBelongsToDashboard,
+        );
+
+        await service.update(user, dashboardUuid, updateDashboardTiles);
+
+        expect(dashboardModel.addVersion).toHaveBeenCalledTimes(1);
+        expect(analytics.track).toHaveBeenCalledTimes(2);
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'saved_chart.created',
+            }),
+        );
+    });
+    test('should delete orphan charts when updating dashboard version', async () => {
+        (dashboardModel.getOrphanedCharts as jest.Mock).mockImplementationOnce(
+            async () => [{ uuid: 'chart_uuid' }],
+        );
+
+        await service.update(user, dashboardUuid, updateDashboardTiles);
+
+        expect(savedChartModel.delete).toHaveBeenCalledTimes(1);
+        expect(analytics.track).toHaveBeenCalledTimes(2);
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'saved_chart.deleted',
             }),
         );
     });

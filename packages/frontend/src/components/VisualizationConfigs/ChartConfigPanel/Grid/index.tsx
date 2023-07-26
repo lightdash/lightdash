@@ -1,10 +1,9 @@
-import { FormGroup } from '@blueprintjs/core';
 import { EchartsGrid } from '@lightdash/common';
-import startCase from 'lodash/startCase';
+import { SimpleGrid } from '@mantine/core';
+import startCase from 'lodash-es/startCase';
 import { FC, useMemo } from 'react';
 import UnitInput from '../../../common/UnitInput';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
-import { SectionRow } from './Grid.styles';
 
 export const defaultGrid = {
     containLabel: true,
@@ -12,14 +11,9 @@ export const defaultGrid = {
     right: '5%', // small padding
     top: '70px', // pixels from top (makes room for legend)
     bottom: '30px', // pixels from bottom (makes room for x-axis)
-};
+} as const;
 
-enum Positions {
-    Left = 'left',
-    Right = 'right',
-    Top = 'top',
-    Bottom = 'bottom',
-}
+const POSITIONS = ['left', 'right', 'top', 'bottom'] as const;
 
 enum Units {
     Pixels = 'px',
@@ -41,42 +35,26 @@ const GridPanel: FC = () => {
         [dirtyEchartsConfig?.grid],
     );
 
-    const handleUpdate = (
-        position: Positions,
-        newValue: string | undefined,
-    ) => {
+    const handleUpdate = (position: string, newValue: string | undefined) => {
         const newState = { ...config, [position]: newValue };
         setGrid(newState);
         return newState;
     };
 
     return (
-        <>
-            {[
-                [Positions.Left, Positions.Right],
-                [Positions.Top, Positions.Bottom],
-            ].map((positionGroup) => (
-                <SectionRow key={positionGroup.join(',')}>
-                    {positionGroup.map((position) => (
-                        <FormGroup
-                            key={position}
-                            label={startCase(position)}
-                            labelFor={`${position}-input`}
-                        >
-                            <UnitInput
-                                name={position}
-                                units={units}
-                                value={config[position] || ''}
-                                defaultValue={defaultGrid[position]}
-                                onChange={(value) =>
-                                    handleUpdate(position, value)
-                                }
-                            />
-                        </FormGroup>
-                    ))}
-                </SectionRow>
+        <SimpleGrid cols={2} spacing="md">
+            {POSITIONS.map((position) => (
+                <UnitInput
+                    key={position}
+                    name={position}
+                    label={startCase(position)}
+                    units={units}
+                    value={config[position] || ''}
+                    defaultValue={defaultGrid[position]}
+                    onChange={(value) => handleUpdate(position, value)}
+                />
             ))}
-        </>
+        </SimpleGrid>
     );
 };
 

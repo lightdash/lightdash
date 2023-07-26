@@ -1,3 +1,76 @@
+# [0.693.0](https://github.com/lightdash/lightdash/compare/0.692.1...0.693.0) (2023-07-26)
+
+
+### Features
+
+* unit input in mantine ([#6483](https://github.com/lightdash/lightdash/issues/6483)) ([43fe2d8](https://github.com/lightdash/lightdash/commit/43fe2d87b8f5a034484fd26894c7cb756e844522))
+
+## [0.692.1](https://github.com/lightdash/lightdash/compare/0.692.0...0.692.1) (2023-07-25)
+
+
+### Bug Fixes
+
+* date pickers in chart config close popup ([#6482](https://github.com/lightdash/lightdash/issues/6482)) ([c476560](https://github.com/lightdash/lightdash/commit/c476560416be6a5cc2e0e3acdae1c1a495aa7301))
+
+# [0.692.0](https://github.com/lightdash/lightdash/compare/0.691.1...0.692.0) (2023-07-25)
+
+
+### Bug Fixes
+
+* improve ux on creating chart in dash ([#6467](https://github.com/lightdash/lightdash/issues/6467)) ([86844a2](https://github.com/lightdash/lightdash/commit/86844a21e56ea93290b390a52f4547e668e7620e))
+
+
+### Features
+
+* migrate chart config axes tab to mantine ([#6472](https://github.com/lightdash/lightdash/issues/6472)) ([bf029ce](https://github.com/lightdash/lightdash/commit/bf029ce2f567246d39462bc252557d8b45b4d059))
+
+## [0.691.1](https://github.com/lightdash/lightdash/compare/0.691.0...0.691.1) (2023-07-25)
+
+
+### Bug Fixes
+
+* disable stacking if x axis field isnt numeric ([#6475](https://github.com/lightdash/lightdash/issues/6475)) ([3ef0054](https://github.com/lightdash/lightdash/commit/3ef00547ae258588e19f29020f685f5ca99381e2))
+
+# [0.691.0](https://github.com/lightdash/lightdash/compare/0.690.1...0.691.0) (2023-07-25)
+
+
+### Features
+
+* delete orphan charts when updating dashboard ([#6462](https://github.com/lightdash/lightdash/issues/6462)) ([542d0bf](https://github.com/lightdash/lightdash/commit/542d0bf728e0e6e70206f572e16517d5e2545b11))
+
+## [0.690.1](https://github.com/lightdash/lightdash/compare/0.690.0...0.690.1) (2023-07-25)
+
+
+### Bug Fixes
+
+* check if configure is disabled with visualisation ctx ([#6468](https://github.com/lightdash/lightdash/issues/6468)) ([b06f622](https://github.com/lightdash/lightdash/commit/b06f622b186f8d75e3f0231617a226d5859a4810))
+
+# [0.690.0](https://github.com/lightdash/lightdash/compare/0.689.0...0.690.0) (2023-07-25)
+
+
+### Features
+
+* 6262 migrate chart config layout tab to mantine ([#6465](https://github.com/lightdash/lightdash/issues/6465)) ([8bc8cf5](https://github.com/lightdash/lightdash/commit/8bc8cf5beab1834ffd24d96e94b61562dedd35f9))
+
+# [0.689.0](https://github.com/lightdash/lightdash/compare/0.688.1...0.689.0) (2023-07-25)
+
+
+### Bug Fixes
+
+* time interval off boolean ([#6463](https://github.com/lightdash/lightdash/issues/6463)) ([7811c4e](https://github.com/lightdash/lightdash/commit/7811c4e16d0bc933416ed04f9260bb298c4f2485)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
+
+### Features
+
+* copy chart in dashboard preview ([#6466](https://github.com/lightdash/lightdash/issues/6466)) ([257cf73](https://github.com/lightdash/lightdash/commit/257cf739b09b821ff2d15867d59e992375b81827)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
+## [0.688.1](https://github.com/lightdash/lightdash/compare/0.688.0...0.688.1) (2023-07-25)
+
+
+### Bug Fixes
+
+* address ux on pinned items drag-and-drop ([#6464](https://github.com/lightdash/lightdash/issues/6464)) ([f27bfc8](https://github.com/lightdash/lightdash/commit/f27bfc8440bcc4fb15c70cb84a9f2b0601b0391b))
+
 # [0.688.0](https://github.com/lightdash/lightdash/compare/0.687.1...0.688.0) (2023-07-24)
 
 
