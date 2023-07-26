@@ -44,6 +44,7 @@ export interface FilterRule<
     id: string;
     target: T;
     settings?: S;
+    disabled?: boolean;
 }
 
 export interface MetricFilterRule
@@ -62,7 +63,6 @@ export type DashboardFilterRule<
 > = FilterRule<O, T, V, S> & {
     tileTargets?: Record<string, DashboardFieldTarget>;
     label: undefined | string;
-    disabled?: boolean;
 };
 
 export type DateFilterRule = FilterRule<
