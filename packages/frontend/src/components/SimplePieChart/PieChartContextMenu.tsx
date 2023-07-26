@@ -5,7 +5,7 @@ import {
     ResultRow,
     ResultValue,
 } from '@lightdash/common';
-import { Box, Menu, MenuProps, Portal, Text } from '@mantine/core';
+import { Box, Menu, MenuProps, Portal } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import { FC } from 'react';
@@ -205,10 +205,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
                         }
                         onClick={handleOpenDrillIntoModal}
                     >
-                        Drill into{' '}
-                        <Text span fw={500}>
-                            "{value.formatted}"
-                        </Text>
+                        Drill into "{value.formatted}"
                     </Menu.Item>
                 ) : null}
             </Menu.Dropdown>
