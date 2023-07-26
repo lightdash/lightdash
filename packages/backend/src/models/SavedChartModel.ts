@@ -707,7 +707,7 @@ export class SavedChartModel {
                 projectUuid: 'projects.project_uuid',
                 organizationUuid: 'organizations.organization_uuid',
                 pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
-                chartType: 'last_saved_query_version.chart_type',
+                chartType: 'saved_queries.last_version_chart_kind',
                 dashboardUuid: `${DashboardsTableName}.dashboard_uuid`,
                 dashboardName: `${DashboardsTableName}.name`,
             })
@@ -733,16 +733,7 @@ export class SavedChartModel {
                 'organizations.organization_id',
                 'projects.organization_id',
             )
-            .innerJoin(
-                this.database('saved_queries_versions')
-                    .distinctOn('saved_query_id')
-                    .orderBy('saved_query_id')
-                    .orderBy('created_at', 'desc')
-                    .select('chart_type', 'saved_query_id')
-                    .as('last_saved_query_version'),
-                `saved_queries.saved_query_id`,
-                'last_saved_query_version.saved_query_id',
-            )
+
             .leftJoin(
                 PinnedChartTableName,
                 `${PinnedChartTableName}.saved_chart_uuid`,

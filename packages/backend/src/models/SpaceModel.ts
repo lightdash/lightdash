@@ -474,16 +474,7 @@ export class SpaceModel {
                     ) as validation_errors
                 `),
             ])
-            .orderBy([
-                {
-                    column: `saved_queries.saved_query_uuid`,
-                },
-                {
-                    column: `saved_queries.last_version_updated_at`,
-                    order: 'desc',
-                },
-            ])
-            .distinctOn(`saved_queries.saved_query_uuid`)
+            .orderBy(`saved_queries.last_version_updated_at`, 'desc')
 
             .where(`${SpaceTableName}.space_uuid`, spaceUuid);
 

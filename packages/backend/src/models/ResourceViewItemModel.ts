@@ -26,17 +26,15 @@ const getCharts = async (
             pinned_list_uuid: 'pinned_list.pinned_list_uuid',
             space_uuid: 'spaces.space_uuid',
             saved_chart_uuid: 'pinned_chart.saved_chart_uuid',
-            updated_by_user_uuid: 'users.user_uuid',
-            chart_config: 'sqv.chart_config',
-            order: 'pinned_chart.order',
-        })
-        .max({
-            name: 'saved_queries.name',
-            description: 'saved_queries.description',
-            updated_at: 'sqv.updated_at',
-            chart_type: 'sqv.chart_type',
             updated_by_user_first_name: 'users.first_name',
             updated_by_user_last_name: 'users.last_name',
+            updated_by_user_uuid:
+                'saved_queries.last_version_updated_by_user_uuid',
+            order: 'pinned_chart.order',
+            chart_kind: `saved_queries.last_version_chart_kind`,
+            name: 'saved_queries.name',
+            description: 'saved_queries.description',
+            updated_at: 'saved_queries.last_version_updated_at',
         })
         .min({
             first_viewed_at: 'analytics_chart_views.timestamp',
@@ -55,33 +53,24 @@ const getCharts = async (
             'saved_queries.saved_query_uuid',
         )
         .innerJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
-        .innerJoin(
-            knex('saved_queries_versions')
-                .distinctOn('saved_query_id')
-                .orderBy('saved_query_id')
-                .orderBy('created_at', 'desc')
-                .select(
-                    'saved_query_id',
-                    'created_at as updated_at',
-                    'updated_by_user_uuid',
-                    'chart_type',
-                    'chart_config',
-                )
-                .as('sqv'),
-            'saved_queries.saved_query_id',
-            'sqv.saved_query_id',
+        .leftJoin(
+            'users',
+            'saved_queries.last_version_updated_by_user_uuid',
+            'users.user_uuid',
         )
         .leftJoin(
             'analytics_chart_views',
             'saved_queries.saved_query_uuid',
             'analytics_chart_views.chart_uuid',
         )
-        .leftJoin('users', 'sqv.updated_by_user_uuid', 'users.user_uuid')
         .whereIn('spaces.space_uuid', allowedSpaceUuids)
         .andWhere('pinned_list.pinned_list_uuid', pinnedListUuid)
         .andWhere('pinned_list.project_uuid', projectUuid)
         .orderBy('pinned_chart.order', 'asc')
-        .groupBy(1, 2, 3, 4, 5, 6, 7)) as Record<string, any>[];
+        .groupBy(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)) as Record<
+        string,
+        any
+    >[];
     const resourceType: ResourceViewItemType.CHART = ResourceViewItemType.CHART;
     const items = rows.map((row) => ({
         type: resourceType,
@@ -95,7 +84,7 @@ const getCharts = async (
             updatedAt: row.updated_at,
             views: row.views,
             firstViewedAt: row.first_viewed_at,
-            chartType: getChartType(row.chart_type, row.chart_config),
+            chartType: row.chart_kind,
             updatedByUser: row.updated_by_user_uuid && {
                 userUuid: row.updated_by_user_uuid,
                 firstName: row.updated_by_user_first_name,
