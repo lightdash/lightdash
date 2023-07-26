@@ -1,4 +1,3 @@
-import { Button } from '@blueprintjs/core';
 import {
     CompiledDimension,
     Field,
@@ -10,10 +9,12 @@ import {
 import { FC, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
+import { Button, Stack, Text } from '@mantine/core';
+import { IconPlus } from '@tabler/icons-react';
 import { useProject } from '../../../../hooks/useProject';
+import MantineIcon from '../../../common/MantineIcon';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
-import { SectionTitle } from '../ChartConfigPanel.styles';
 import { ReferenceLine } from './ReferenceLine';
 
 type Props = {
@@ -129,8 +130,8 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
     );
 
     return (
-        <>
-            <SectionTitle>Reference lines</SectionTitle>
+        <Stack spacing="xs">
+            <Text fw={600}>Reference lines</Text>
             {referenceLines &&
                 referenceLines.map((line, index) => {
                     return (
@@ -146,9 +147,17 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                         />
                     );
                 })}
-            <Button minimal intent="primary" onClick={addReferenceLine}>
-                + Add
+            <Button
+                sx={{
+                    alignSelf: 'start',
+                }}
+                variant="subtle"
+                compact
+                leftIcon={<MantineIcon icon={IconPlus} />}
+                onClick={addReferenceLine}
+            >
+                Add
             </Button>
-        </>
+        </Stack>
     );
 };
