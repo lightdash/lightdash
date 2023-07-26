@@ -54,7 +54,7 @@ const DashboardDeleteModal: FC<DashboardDeleteModalProps> = ({
             }
             {...modalProps}
         >
-            <Stack mx="xs">
+            <Stack>
                 {hasChartsInDashboard(dashboard) ? (
                     <Stack>
                         <Text>
