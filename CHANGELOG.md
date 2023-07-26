@@ -1,3 +1,10 @@
+# [0.693.0](https://github.com/lightdash/lightdash/compare/0.692.1...0.693.0) (2023-07-26)
+
+
+### Features
+
+* unit input in mantine ([#6483](https://github.com/lightdash/lightdash/issues/6483)) ([43fe2d8](https://github.com/lightdash/lightdash/commit/43fe2d87b8f5a034484fd26894c7cb756e844522))
+
 ## [0.692.1](https://github.com/lightdash/lightdash/compare/0.692.0...0.692.1) (2023-07-25)
 
 
