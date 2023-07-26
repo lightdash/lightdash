@@ -1,3 +1,12 @@
+# [0.698.0](https://github.com/lightdash/lightdash/compare/0.697.0...0.698.0) (2023-07-26)
+
+
+### Features
+
+* delete dashboard modal updated ([#6492](https://github.com/lightdash/lightdash/issues/6492)) ([55c107f](https://github.com/lightdash/lightdash/commit/55c107f61070333f2815d8693891c25cb601b639))
+* limit dashboard chart options ([#6491](https://github.com/lightdash/lightdash/issues/6491)) ([895b4e2](https://github.com/lightdash/lightdash/commit/895b4e2ffe5fbaa01385d28677e11d1cb030d1d1))
+* update delete chart tile modal and options ([#6496](https://github.com/lightdash/lightdash/issues/6496)) ([2ca0227](https://github.com/lightdash/lightdash/commit/2ca0227bfb86195781ad9b081736b9d279a7d7ec))
+
 # [0.697.0](https://github.com/lightdash/lightdash/compare/0.696.0...0.697.0) (2023-07-26)
 
 
