@@ -17,6 +17,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
+import { DashboardsTableName } from '../database/entities/dashboards';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
     PinnedChartTableName,
@@ -29,6 +30,7 @@ import {
     DBFilteredAdditionalMetrics,
     DbSavedChartAdditionalMetricInsert,
     DbSavedChartTableCalculationInsert,
+    InsertChart,
     SavedChartAdditionalMetricTableName,
     SavedChartsTableName,
 } from '../database/entities/savedCharts';
@@ -58,6 +60,7 @@ type DbSavedChartDetails = {
     first_name: string;
     last_name: string;
     pinned_list_uuid: string;
+    dashboard_uuid: string | null;
 };
 
 const createSavedChartVersionField = async (
@@ -210,6 +213,59 @@ const createSavedChartVersion = async (
     });
 };
 
+export const createSavedChart = async (
+    db: Knex,
+    projectUuid: string,
+    userUuid: string,
+    dashboardUuid: string | undefined,
+    {
+        name,
+        description,
+        tableName,
+        metricQuery,
+        chartConfig,
+        tableConfig,
+        pivotConfig,
+        updatedByUser,
+        spaceUuid,
+    }: CreateSavedChart,
+): Promise<string> =>
+    db.transaction(async (trx) => {
+        let chart: InsertChart;
+        if (dashboardUuid) {
+            chart = {
+                name,
+                description,
+                dashboard_uuid: dashboardUuid,
+                space_id: null,
+            };
+        } else {
+            const spaceId = spaceUuid
+                ? await getSpaceId(trx, spaceUuid)
+                : (await getFirstAccessibleSpace(trx, projectUuid, userUuid))
+                      .space_id;
+            if (!spaceId) throw new NotFoundError('No space found');
+            chart = {
+                name,
+                description,
+                dashboard_uuid: null,
+                space_id: spaceId,
+            };
+        }
+        const [newSavedChart] = await trx(SavedChartsTableName)
+            .insert(chart)
+            .returning('*');
+        await createSavedChartVersion(trx, newSavedChart.saved_query_id, {
+            tableName,
+            metricQuery,
+            chartConfig,
+            tableConfig,
+            pivotConfig,
+            updatedByUser,
+        });
+        return newSavedChart.saved_query_uuid;
+    });
+
 type Dependencies = {
     database: Knex;
 };
@@ -236,33 +292,21 @@ export class SavedChartModel {
             spaceUuid,
         }: CreateSavedChart & { updatedByUser: UpdatedByUser },
     ): Promise<SavedChart> {
-        const newSavedChartUuid = await this.database.transaction(
-            async (trx) => {
-                const spaceId = spaceUuid
-                    ? await getSpaceId(trx, spaceUuid)
-                    : (
-                          await getFirstAccessibleSpace(
-                              trx,
-                              projectUuid,
-                              userUuid,
-                          )
-                      ).space_id;
-                const [newSavedChart] = await trx('saved_queries')
-                    .insert({ name, space_id: spaceId, description })
-                    .returning('*');
-                await createSavedChartVersion(
-                    trx,
-                    newSavedChart.saved_query_id,
-                    {
-                        tableName,
-                        metricQuery,
-                        chartConfig,
-                        tableConfig,
-                        pivotConfig,
-                        updatedByUser,
-                    },
-                );
-                return newSavedChart.saved_query_uuid;
+        const newSavedChartUuid = await createSavedChart(
+            this.database,
+            projectUuid,
+            userUuid,
+            undefined,
+            {
+                name,
+                description,
+                tableName,
+                metricQuery,
+                chartConfig,
+                tableConfig,
+                pivotConfig,
+                updatedByUser,
+                spaceUuid,
             },
         );
         return this.get(newSavedChartUuid);
@@ -351,11 +395,22 @@ export class SavedChartModel {
         try {
             const [savedQuery] = await this.database
                 .from<DbSavedChartDetails>(SavedChartsTableName)
-                .innerJoin(
-                    SpaceTableName,
-                    `${SavedChartsTableName}.space_id`,
-                    `${SpaceTableName}.space_id`,
+                .leftJoin(
+                    DashboardsTableName,
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    `${SavedChartsTableName}.dashboard_uuid`,
                 )
+                .innerJoin(SpaceTableName, function spaceJoin() {
+                    this.on(
+                        `${SpaceTableName}.space_id`,
+                        '=',
+                        `${DashboardsTableName}.space_id`,
+                    ).orOn(
+                        `${SpaceTableName}.space_id`,
+                        '=',
+                        `${SavedChartsTableName}.space_id`,
+                    );
+                })
                 .innerJoin(
                     ProjectTableName,
                     `${SpaceTableName}.project_id`,
@@ -390,6 +445,7 @@ export class SavedChartModel {
                     (DbSavedChartDetails & {
                         space_uuid: string;
                         spaceName: string;
+                        dashboardName: string | null;
                     })[]
                 >([
                     `${ProjectTableName}.project_uuid`,
@@ -397,6 +453,8 @@ export class SavedChartModel {
                     `${SavedChartsTableName}.saved_query_uuid`,
                     `${SavedChartsTableName}.name`,
                     `${SavedChartsTableName}.description`,
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                    `${DashboardsTableName}.name as dashboardName`,
                     'saved_queries_versions.saved_queries_version_id',
                     'saved_queries_versions.explore_name',
                     'saved_queries_versions.filters',
@@ -572,6 +630,8 @@ export class SavedChartModel {
                 spaceName: savedQuery.spaceName,
                 pinnedListUuid: savedQuery.pinned_list_uuid,
                 pinnedListOrder: null,
+                dashboardUuid: savedQuery.dashboard_uuid,
+                dashboardName: savedQuery.dashboardName,
             };
         } finally {
             span?.finish();
@@ -619,7 +679,9 @@ export class SavedChartModel {
                 query.where('projects.project_uuid', filters.projectUuid);
             }
             if (filters.spaceUuids) {
-                query.whereIn('spaces.space_uuid', filters.spaceUuids);
+                query
+                    .whereNotNull(`${SavedChartsTableName}.space_id`)
+                    .whereIn('spaces.space_uuid', filters.spaceUuids);
             }
             return await query;
         } finally {
@@ -639,8 +701,25 @@ export class SavedChartModel {
                 organizationUuid: 'organizations.organization_uuid',
                 pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
                 chartType: 'last_saved_query_version.chart_type',
+                dashboardUuid: `${DashboardsTableName}.dashboard_uuid`,
+                dashboardName: `${DashboardsTableName}.name`,
             })
-            .leftJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
+            .innerJoin(SpaceTableName, function spaceJoin() {
+                this.on(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${DashboardsTableName}.space_id`,
+                ).orOn(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SavedChartsTableName}.space_id`,
+                );
+            })
             .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
             .leftJoin(
                 OrganizationTableName,

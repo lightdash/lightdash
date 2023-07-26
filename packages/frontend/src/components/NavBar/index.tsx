@@ -5,14 +5,15 @@ import {
     Button,
     Center,
     Divider,
+    getDefaultZIndex,
     Group,
     Header,
     MantineProvider,
     Text,
 } from '@mantine/core';
-import { IconTool } from '@tabler/icons-react';
-import { memo } from 'react';
-import { Link } from 'react-router-dom';
+import { IconInfoCircle, IconTool, IconX } from '@tabler/icons-react';
+import { FC, memo, useEffect } from 'react';
+import { Link, useHistory, useParams } from 'react-router-dom';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProjects } from '../../hooks/useProjects';
 import { ReactComponent as Logo } from '../../svgs/logo-icon.svg';
@@ -28,19 +29,51 @@ import SettingsMenu from './SettingsMenu';
 import UserMenu from './UserMenu';
 
 export const NAVBAR_HEIGHT = 50;
-const PREVIEW_BANNER_HEIGHT = 20;
+export const BANNER_HEIGHT = 35;
 
 const PreviewBanner = () => (
-    <Center pos="fixed" w="100%" h={PREVIEW_BANNER_HEIGHT} bg="blue.6">
+    <Center pos="fixed" w="100%" h={BANNER_HEIGHT} bg="blue.6">
         <MantineIcon icon={IconTool} color="white" size="sm" />
-        <Text color="white" fw={500} fz="xs">
+        <Text color="white" fw={500} fz="xs" mx="xxs">
             This is a preview environment. Any changes you make here will not
             affect production.
         </Text>
     </Center>
 );
 
+const DashboardExplorerBanner: FC<{
+    dashboardName: string;
+    projectUuid: string;
+    dashboardUuid: string;
+}> = ({ dashboardName, projectUuid, dashboardUuid }) => {
+    const history = useHistory();
+    return (
+        <Center w="100%" h={BANNER_HEIGHT} bg="blue.6">
+            <MantineIcon icon={IconInfoCircle} color="white" size="sm" />
+            <Text color="white" fw={500} fz="xs" mx="xxs">
+                You are creating this chart from within "{dashboardName}"
+            </Text>
+            <ActionIcon
+                onClick={() => {
+                    history.push(
+                        `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+                    );
+                    sessionStorage.removeItem('fromDashboard');
+                    sessionStorage.removeItem('dashboardUuid');
+                }}
+                size="sm"
+                mx="xxs"
+                variant="outline"
+                color="white"
+            >
+                <MantineIcon icon={IconX} color="white" size="sm" />
+            </ActionIcon>
+        </Center>
+    );
+};
+
 const NavBar = memo(() => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: projects } = useProjects();
     const { activeProjectUuid, isLoading: isLoadingActiveProject } =
         useActiveProjectUuid();
@@ -54,6 +87,29 @@ const NavBar = memo(() => {
             project.projectUuid === activeProjectUuid &&
             project.type === ProjectType.PREVIEW,
     );
+    const fromDashboard = sessionStorage.getItem('fromDashboard');
+    const dashboardUuid = sessionStorage.getItem('dashboardUuid');
+
+    useEffect(() => {
+        const clearDashboardStorage = () => {
+            if (fromDashboard) {
+                sessionStorage.clear();
+            }
+        };
+        window.addEventListener('beforeunload', clearDashboardStorage);
+        return () =>
+            window.removeEventListener('beforeunload', clearDashboardStorage);
+    }, [fromDashboard]);
+
+    if (fromDashboard && dashboardUuid) {
+        return (
+            <DashboardExplorerBanner
+                dashboardName={fromDashboard}
+                projectUuid={projectUuid}
+                dashboardUuid={dashboardUuid}
+            />
+        );
+    }
 
     return (
         <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
@@ -62,17 +118,16 @@ const NavBar = memo(() => {
             <Box
                 h={
                     NAVBAR_HEIGHT +
-                    (isCurrentProjectPreview ? PREVIEW_BANNER_HEIGHT : 0)
+                    (isCurrentProjectPreview ? BANNER_HEIGHT : 0)
                 }
             />
             <Header
                 height={NAVBAR_HEIGHT}
                 fixed
-                mt={isCurrentProjectPreview ? PREVIEW_BANNER_HEIGHT : 'none'}
+                mt={isCurrentProjectPreview ? BANNER_HEIGHT : 'none'}
                 display="flex"
                 px="md"
-                // FIXME: adjust after removing Blueprint
-                zIndex={300}
+                zIndex={getDefaultZIndex('app')}
                 sx={{
                     alignItems: 'center',
                     boxShadow: 'lg',

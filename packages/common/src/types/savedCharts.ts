@@ -273,6 +273,8 @@ export type SavedChart = {
     spaceName: string;
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
+    dashboardUuid: string | null;
+    dashboardName: string | null;
 };
 
 export type CreateSavedChart = Omit<
@@ -287,6 +289,8 @@ export type CreateSavedChart = Omit<
     | 'pinnedListOrder'
     | 'views'
     | 'firstViewedAt'
+    | 'dashboardUuid'
+    | 'dashboardName'
 > & { spaceUuid?: string };
 
 export type CreateSavedChartVersion = Omit<
@@ -302,6 +306,8 @@ export type CreateSavedChartVersion = Omit<
     | 'pinnedListOrder'
     | 'views'
     | 'firstViewedAt'
+    | 'dashboardUuid'
+    | 'dashboardName'
 >;
 
 export type UpdateSavedChart = Partial<

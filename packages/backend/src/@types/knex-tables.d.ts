@@ -84,13 +84,13 @@ import {
     SavedChartAdditionalMetricTable,
     SavedChartAdditionalMetricTableName,
     SavedChartsTableName,
+    SavedChartTable,
     SavedChartVersionFieldsTable,
     SavedChartVersionFieldsTableName,
     SavedChartVersionSortsTable,
     SavedChartVersionSortsTableName,
     SavedChartVersionsTable,
     SavedChartVersionsTableName,
-    SavedQueryTable,
     SavedQueryTableCalculationTable,
     SavedQueryTableCalculationTableName,
 } from '../database/entities/savedCharts';
@@ -148,6 +148,12 @@ import {
     SshKeyPairTableName,
 } from '../database/entities/ssh_key_pairs';
 import {
+    DbOrganizationMemberUserAttribute,
+    DbUserAttribute,
+    OrganizationMemberUserAttributesTable,
+    UserAttributesTable,
+} from '../database/entities/userAttributes';
+import {
     DbValidationTable,
     ValidationTableName,
 } from '../database/entities/validation';
@@ -161,7 +167,7 @@ declare module 'knex/types/tables' {
         [SessionTableName]: SessionTable;
         [WarehouseCredentialTableName]: WarehouseCredentialTable;
         [ProjectTableName]: ProjectTable;
-        [SavedChartsTableName]: SavedQueryTable;
+        [SavedChartsTableName]: SavedChartTable;
         [SavedChartVersionsTableName]: SavedChartVersionsTable;
         [SavedChartVersionFieldsTableName]: SavedChartVersionFieldsTable;
         [SavedChartVersionSortsTableName]: SavedChartVersionSortsTable;
@@ -208,5 +214,7 @@ declare module 'knex/types/tables' {
         [GroupTableName]: GroupTable;
         [GroupMembershipTableName]: GroupMembershipTable;
         [SshKeyPairTableName]: SshKeyPairTable;
+        [UserAttributesTable]: DbUserAttribute;
+        [OrganizationMemberUserAttributesTable]: DbOrganizationMemberUserAttribute;
     }
 }

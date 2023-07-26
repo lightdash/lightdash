@@ -16,6 +16,7 @@ import {
     IconUserCircle,
     IconUserPlus,
     IconUsers,
+    IconUserShield,
 } from '@tabler/icons-react';
 import { FC } from 'react';
 import { Redirect, Route, Switch } from 'react-router-dom';
@@ -39,6 +40,7 @@ import ProfilePanel from '../components/UserSettings/ProfilePanel';
 import ProjectManagementPanel from '../components/UserSettings/ProjectManagementPanel';
 import SlackSettingsPanel from '../components/UserSettings/SlackSettingsPanel';
 import SocialLoginsPanel from '../components/UserSettings/SocialLoginsPanel';
+import UserAttributesPanel from '../components/UserSettings/UserAttributesPanel';
 import UserManagementPanel from '../components/UserSettings/UserManagementPanel';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
@@ -102,7 +104,8 @@ const Settings: FC = () => {
     const hasSocialLogin =
         health.auth.google.oauth2ClientId ||
         health.auth.okta.enabled ||
-        health.auth.oneLogin.enabled;
+        health.auth.oneLogin.enabled ||
+        health.auth.azuread.enabled;
 
     return (
         <Page
@@ -176,7 +179,7 @@ const Settings: FC = () => {
                                 )}
 
                                 {user.ability.can(
-                                    'view',
+                                    'update',
                                     'OrganizationMemberProfile',
                                 ) && (
                                     <RouterNavLink
@@ -188,13 +191,36 @@ const Settings: FC = () => {
                                         }
                                     />
                                 )}
+                                {localStorage.getItem('USER_ATTRIBUTES') &&
+                                    user.ability.can(
+                                        'manage',
+                                        subject('Organization', {
+                                            organizationUuid:
+                                                organization.organizationUuid,
+                                        }),
+                                    ) && (
+                                        <RouterNavLink
+                                            label="User attributes"
+                                            to="/generalSettings/userAttributes"
+                                            exact
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconUserShield}
+                                                />
+                                            }
+                                        />
+                                    )}
 
-                                <RouterNavLink
-                                    label="Appearance"
-                                    exact
-                                    to="/generalSettings/appearance"
-                                    icon={<MantineIcon icon={IconPalette} />}
-                                />
+                                {user.ability.can('update', 'Organization') && (
+                                    <RouterNavLink
+                                        label="Appearance"
+                                        exact
+                                        to="/generalSettings/appearance"
+                                        icon={
+                                            <MantineIcon icon={IconPalette} />
+                                        }
+                                    />
+                                )}
 
                                 {health.hasSlack &&
                                     user.ability.can(
@@ -232,7 +258,7 @@ const Settings: FC = () => {
                         !organization.needsProject &&
                         project &&
                         user.ability.can(
-                            'view',
+                            'update',
                             subject('Project', {
                                 organizationUuid: organization.organizationUuid,
                                 projectUuid: project.projectUuid,
@@ -267,15 +293,25 @@ const Settings: FC = () => {
                                     to={`/generalSettings/projectManagement/${project.projectUuid}/projectAccess`}
                                     icon={<MantineIcon icon={IconUsers} />}
                                 />
-
-                                <RouterNavLink
-                                    label="dbt Cloud"
-                                    exact
-                                    to={`/generalSettings/projectManagement/${project.projectUuid}/integrations/dbtCloud`}
-                                    icon={
-                                        <MantineIcon icon={IconCloudSearch} />
-                                    }
-                                />
+                                {user.ability?.can(
+                                    'manage',
+                                    subject('Project', {
+                                        organizationUuid:
+                                            project.organizationUuid,
+                                        projectUuid: project.projectUuid,
+                                    }),
+                                ) ? (
+                                    <RouterNavLink
+                                        label="dbt Cloud"
+                                        exact
+                                        to={`/generalSettings/projectManagement/${project.projectUuid}/integrations/dbtCloud`}
+                                        icon={
+                                            <MantineIcon
+                                                icon={IconCloudSearch}
+                                            />
+                                        }
+                                    />
+                                ) : null}
 
                                 {user.ability.can(
                                     'view',
@@ -410,6 +446,17 @@ const Settings: FC = () => {
                 {user.ability.can('view', 'OrganizationMemberProfile') && (
                     <Route path="/generalSettings/userManagement">
                         <UserManagementPanel />
+                    </Route>
+                )}
+
+                {user.ability.can(
+                    'manage',
+                    subject('Organization', {
+                        organizationUuid: organization.organizationUuid,
+                    }),
+                ) && (
+                    <Route path="/generalSettings/userAttributes">
+                        <UserAttributesPanel />
                     </Route>
                 )}
 

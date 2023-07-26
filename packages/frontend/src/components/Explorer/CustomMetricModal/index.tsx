@@ -184,7 +184,6 @@ export const CustomMetricModal = () => {
     return item ? (
         <Modal
             size="xl"
-            zIndex={15}
             onClick={(e) => e.stopPropagation()}
             opened={isOpen}
             onClose={() => toggleModal(undefined)}

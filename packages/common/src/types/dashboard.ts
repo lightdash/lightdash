@@ -1,6 +1,6 @@
 import { FilterableField } from './field';
 import { DashboardFilters } from './filter';
-import { SavedChartType } from './savedCharts';
+import { CreateSavedChart, SavedChartType } from './savedCharts';
 import { UpdatedByUser } from './user';
 import { ValidationSummary } from './validation';
 
@@ -44,7 +44,29 @@ export type DashboardChartTileProperties = {
         title?: string;
         hideTitle?: boolean;
         savedChartUuid: string | null;
+        belongsToDashboard?: boolean; // this should be required and not part of the "create" types, but we need to fix tech debt first. Open ticket https://github.com/lightdash/lightdash/issues/6450
     };
+};
+
+type CreateChartTileWithSavedChartUuid =
+    DashboardChartTileProperties['properties'] & {
+        savedChartUuid: string | null;
+        newChartData?: null;
+    };
+
+type CreateChartTileWithNewChartData =
+    DashboardChartTileProperties['properties'] & {
+        savedChartUuid: null;
+        newChartData: CreateSavedChart;
+    };
+
+export type CreateDashboardChartTileProperties = Omit<
+    DashboardChartTileProperties,
+    'properties'
+> & {
+    properties:
+        | CreateChartTileWithSavedChartUuid
+        | CreateChartTileWithNewChartData;
 };
 
 export type CreateDashboardMarkdownTile = CreateDashboardTileBase &
@@ -57,9 +79,13 @@ export type CreateDashboardLoomTile = CreateDashboardTileBase &
 export type DashboardLoomTile = DashboardTileBase & DashboardLoomTileProperties;
 
 export type CreateDashboardChartTile = CreateDashboardTileBase &
-    DashboardChartTileProperties;
+    CreateDashboardChartTileProperties;
 export type DashboardChartTile = DashboardTileBase &
     DashboardChartTileProperties;
+
+export const isChartTile = (
+    tile: DashboardTileBase,
+): tile is DashboardChartTile => tile.type === DashboardTileTypes.SAVED_CHART;
 
 export type CreateDashboard = {
     name: string;

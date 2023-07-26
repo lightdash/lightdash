@@ -1,6 +1,4 @@
-import { Checkbox, FormGroup } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
-import { Title } from '@mantine/core';
+import { Box, Checkbox, Stack, Title, Tooltip } from '@mantine/core';
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -143,7 +141,7 @@ const GeneralSettings: FC = () => {
     );
 
     return (
-        <>
+        <Stack spacing={0}>
             <DragDropContext
                 onDragStart={() => setIsDragging(true)}
                 onDragEnd={onDragEnd}
@@ -168,37 +166,30 @@ const GeneralSettings: FC = () => {
             </DragDropContext>
 
             <Title order={6}>Metrics</Title>
-            <Tooltip2
+            <Tooltip
                 disabled={!!canUsePivotTable}
-                content={
+                label={
                     'To use metrics as rows, you need to move a dimension to "Columns".'
                 }
                 position="top"
             >
-                <Checkbox
-                    disabled={!canUsePivotTable}
-                    label="Show metrics as rows"
-                    checked={metricsAsRows}
-                    onChange={() => handleToggleMetricsAsRows()}
-                />
-            </Tooltip2>
-            <FormGroup>
+                <Box my="sm">
+                    <Checkbox
+                        disabled={!canUsePivotTable}
+                        label="Show metrics as rows"
+                        checked={metricsAsRows}
+                        onChange={() => handleToggleMetricsAsRows()}
+                    />
+                </Box>
+            </Tooltip>
+            <Stack spacing="xs" mb="md">
                 {metrics.map((itemId) => (
-                    <div
-                        key={itemId}
-                        style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            width: '100%',
-                            marginBottom: '10px',
-                        }}
-                    >
-                        <ColumnConfiguration fieldId={itemId} />
-                    </div>
+                    <ColumnConfiguration key={itemId} fieldId={itemId} />
                 ))}
-            </FormGroup>
+            </Stack>
+
             <Title order={6}>Options</Title>
-            <FormGroup>
+            <Stack mt="sm" spacing="xs">
                 <Checkbox
                     label="Show table names"
                     checked={showTableNames}
@@ -237,8 +228,8 @@ const GeneralSettings: FC = () => {
                         setShowResultsTotal(!showResultsTotal);
                     }}
                 />
-            </FormGroup>
-        </>
+            </Stack>
+        </Stack>
     );
 };
 

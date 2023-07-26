@@ -133,6 +133,7 @@ export * from './types/SshKeyPair';
 export * from './types/table';
 export * from './types/timeFrames';
 export * from './types/user';
+export * from './types/userAttributes';
 export * from './types/validation';
 export * from './types/warehouse';
 export * from './utils/api';
@@ -578,6 +579,10 @@ export type HealthState = {
             loginPath: string;
         };
         oneLogin: {
+            enabled: boolean;
+            loginPath: string;
+        };
+        azuread: {
             enabled: boolean;
             loginPath: string;
         };

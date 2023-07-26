@@ -62,8 +62,7 @@ export const SeriesWrapper = styled.div<{ $isSingle?: boolean }>`
         $isSingle &&
         `
         display: grid;
-        grid-template-columns: 2.143em auto;
-        column-gap: 0.714em;
+        grid-template-columns: auto auto;
   `}
 `;
 
@@ -71,18 +70,6 @@ export const SeriesTitle = styled.p`
     color: ${Colors.DARK_GRAY1};
     font-weight: 600;
     margin-bottom: 0.286em;
-`;
-
-export const SeriesMainInputs = styled.div<{ $isGrouped?: boolean }>`
-    ${GridTemplate}
-
-    ${({ $isGrouped }) =>
-        $isGrouped
-            ? `
-        grid-template-columns: 1em 2.143em 11.5em 2.143em 2.14em;
-        column-gap: 0.357em;
-        `
-            : `margin-top: 25px;`}
 `;
 
 export const DragIcon = styled(Icon)`
@@ -137,25 +124,6 @@ export const SeriesExtraSelect = styled(HTMLSelect)`
     select {
         ${InputStyle}
     }
-`;
-
-export const ColorButton = styled.button`
-    height: 2.143em;
-    width: 2.143em;
-    cursor: pointer;
-    border: none;
-    background-color: transparent;
-
-    box-sizing: border-box;
-    box-shadow: 0 0 0 0 rgb(19 124 189 / 0%), 0 0 0 0 rgb(19 124 189 / 0%),
-        inset 0 0 0 1px rgb(16 22 26 / 15%), inset 0 1px 1px rgb(16 22 26 / 20%);
-    border-radius: 0.214em;
-    padding: 0.286em;
-`;
-
-export const ColorButtonInner = styled.div`
-    height: 100%;
-    width: 100%;
 `;
 
 export const SeriesDivider = styled.hr`

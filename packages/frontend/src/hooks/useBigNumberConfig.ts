@@ -136,7 +136,8 @@ const useBigNumberConfig = (
 
     const [selectedField, setSelectedField] = useState<string | undefined>();
     const getField = useCallback(
-        (fieldNameOrId: string) => {
+        (fieldNameOrId: string | undefined) => {
+            if (fieldNameOrId === undefined) return;
             return availableFields.find((f) => {
                 return isField(f)
                     ? fieldId(f) === fieldNameOrId

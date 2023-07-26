@@ -56,6 +56,8 @@ type DbtModelLightdashConfig = {
     metrics?: Record<string, DbtModelLightdashMetric>;
     order_fields_by?: OrderFieldsByStrategy;
     group_label?: string;
+    sql_filter?: string;
+    sql_where?: string; // alias for sql_filter
 };
 type DbtModelJoin = {
     join: string;
@@ -77,7 +79,7 @@ type DbtColumnLightdashDimension = {
     type?: DimensionType;
     description?: string;
     sql?: string;
-    time_intervals?: 'default' | 'OFF' | TimeFrames[];
+    time_intervals?: boolean | 'default' | 'OFF' | TimeFrames[];
     hidden?: boolean;
     round?: number;
     compact?: CompactOrAlias;

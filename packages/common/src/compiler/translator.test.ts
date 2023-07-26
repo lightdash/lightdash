@@ -10,6 +10,7 @@ import {
     DBT_V9_METRIC,
     expectedModelWithType,
     INVALID_ID_COLUMN_NAMES,
+    LIGHTDASH_TABLE_SQL_WHERE,
     LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS,
     LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
     LIGHTDASH_TABLE_WITH_DBT_METRICS,
@@ -26,7 +27,10 @@ import {
     MODEL_WITH_METRIC,
     MODEL_WITH_NO_METRICS,
     MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS,
+    MODEL_WITH_OFF_BOOLEAN_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS,
+    MODEL_WITH_SQL_FILTER,
+    MODEL_WITH_SQL_WHERE,
     MODEL_WITH_WRONG_METRIC,
     MODEL_WITH_WRONG_METRICS,
     VALID_ID_COLUMN_NAMES,
@@ -200,6 +204,15 @@ describe('convert tables from dbt models', () => {
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS);
     });
+    it('should convert dbt model with dimension with off boolean time intervals', () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_OFF_BOOLEAN_TIME_INTERVAL_DIMENSIONS,
+                [],
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS);
+    });
     it('should convert dbt model with dimension with custom time intervals', () => {
         expect(
             convertTable(
@@ -249,5 +262,25 @@ describe('convert tables from dbt models', () => {
                 [],
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_GROUP_LABEL);
+    });
+
+    it('should convert dbt model with sql where', async () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_SQL_WHERE,
+                [],
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_SQL_WHERE);
+    });
+
+    it('should convert dbt model with sql filter', async () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_SQL_FILTER,
+                [],
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_SQL_WHERE);
     });
 });

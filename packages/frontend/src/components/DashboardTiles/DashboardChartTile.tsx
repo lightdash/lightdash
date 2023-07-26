@@ -45,6 +45,7 @@ import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';
+import ErrorState from '../common/ErrorState';
 import { getConditionalRuleLabel } from '../common/Filters/configs';
 import LinkMenuItem from '../common/LinkMenuItem';
 import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.styles';
@@ -76,12 +77,23 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
     onClose,
     onConfirm,
 }) => {
-    const { data: resultData, isLoading } = useChartResults(
-        savedChart.uuid,
-        savedChart.metricQuery.filters,
-    );
+    const { showToastError } = useToaster();
+    const {
+        data: resultData,
+        isLoading,
+        error,
+    } = useChartResults(savedChart.uuid, savedChart.metricQuery.filters);
 
-    if (isLoading || !resultData) return null;
+    useEffect(() => {
+        if (error) {
+            showToastError({
+                title: 'Error exporting CSV',
+                subtitle: error.error.message,
+                key: 'error-exporting-csv',
+            });
+        }
+    }, [error, showToastError]);
+    if (isLoading || error || !resultData) return null;
 
     const rows = resultData?.rows;
     const getCsvLink = async (limit: number | null, onlyRaw: boolean) => {
@@ -123,10 +135,11 @@ const ValidDashboardChartTile: FC<{
         series: EChartSeries[],
     ) => void;
 }> = ({ tileUuid, isTitleHidden = false, data, onSeriesContextMenu }) => {
-    const { data: resultData, isLoading } = useChartResults(
-        data.uuid,
-        data.metricQuery.filters,
-    );
+    const {
+        data: resultData,
+        isLoading,
+        error,
+    } = useChartResults(data.uuid, data.metricQuery.filters);
     const { addSuggestions } = useDashboardContext();
     const { data: explore } = useExplore(data.tableName);
 
@@ -147,6 +160,10 @@ const ValidDashboardChartTile: FC<{
             );
         }
     }, [addSuggestions, resultData]);
+
+    if (error) {
+        return <ErrorState error={error.error} />;
+    }
 
     return (
         <VisualizationProvider
@@ -174,11 +191,16 @@ const ValidDashboardChartTileMinimal: FC<{
     title: string;
     data: SavedChart;
 }> = ({ tileUuid, data, isTitleHidden = false }) => {
-    const { data: resultData, isLoading } = useChartResults(
-        data.uuid,
-        data.metricQuery.filters,
-    );
+    const {
+        data: resultData,
+        isLoading,
+        error,
+    } = useChartResults(data.uuid, data.metricQuery.filters);
     const { data: explore } = useExplore(data.tableName);
+
+    if (error) {
+        return <ErrorState error={error.error} />;
+    }
 
     return (
         <VisualizationProvider
@@ -200,13 +222,26 @@ const ValidDashboardChartTileMinimal: FC<{
     );
 };
 
-const InvalidDashboardChartTile: FC = () => (
-    <NonIdealState
-        title="No chart available"
-        description="Chart might have been deleted or you don't have permissions to see it."
-        icon="search"
-    />
-);
+const InvalidDashboardChartTile: FC<
+    Pick<DashboardChartTileMainProps, 'tile'>
+> = ({ tile }) => {
+    //TODO fix typing for dashboard tiles, ticket open here: https://github.com/lightdash/lightdash/issues/6450
+    // @ts-ignore
+    return tile.properties.newChartData ? (
+        <NonIdealState
+            // @ts-ignore
+            title={tile.properties.newChartData.name}
+            icon="chart"
+            description="Save your dashboard to see this new chart appear in the tile"
+        />
+    ) : (
+        <NonIdealState
+            title="No chart available"
+            description="Chart might have been deleted or you don't have permissions to see it."
+            icon="search"
+        />
+    );
+};
 
 interface DashboardChartTileMainProps
     extends Pick<
@@ -641,7 +676,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         />
                     </>
                 ) : (
-                    <InvalidDashboardChartTile />
+                    <InvalidDashboardChartTile tile={props.tile} />
                 )}
             </TileBase>
 
@@ -686,7 +721,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     title={title || data.name}
                 />
             ) : (
-                <InvalidDashboardChartTile />
+                <InvalidDashboardChartTile tile={props.tile} />
             )}
         </TileBase>
     );

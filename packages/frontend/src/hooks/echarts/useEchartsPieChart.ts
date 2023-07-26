@@ -1,39 +1,7 @@
-import {
-    AdditionalMetric,
-    formatItemValue,
-    Metric,
-    PieChartValueOptions,
-    TableCalculation,
-} from '@lightdash/common';
+import { formatItemValue } from '@lightdash/common';
+import { PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
-
-const getFormattedLabelOptions = (
-    selectedMetric: Metric | AdditionalMetric | TableCalculation,
-    { valueLabel, showValue, showPercentage }: Partial<PieChartValueOptions>,
-) => {
-    const show = valueLabel !== 'hidden' && (showValue || showPercentage);
-
-    const labelConfig = {
-        show,
-        position: valueLabel,
-        formatter: ({ value, percent }: { value: number; percent: number }) => {
-            return valueLabel !== 'hidden' && showValue && showPercentage
-                ? `${percent}% - ${formatItemValue(selectedMetric, value)}`
-                : showValue
-                ? formatItemValue(selectedMetric, value)
-                : showPercentage
-                ? `${percent}%`
-                : undefined;
-        },
-    };
-
-    return {
-        label: labelConfig,
-        labelLine: { show: show && valueLabel === 'outside' },
-        tooltip: { ...labelConfig, position: undefined },
-    };
-};
 
 const useEchartsPieConfig = () => {
     const context = useVisualizationContext();
@@ -44,9 +12,9 @@ const useEchartsPieConfig = () => {
             data,
             validPieChartConfig: {
                 isDonut,
-                valueLabel,
-                showValue,
-                showPercentage,
+                valueLabel: valueLabelDefault,
+                showValue: showValueDefault,
+                showPercentage: showPercentageDefault,
                 groupLabelOverrides,
                 groupColorOverrides,
                 groupValueOptionOverrides,
@@ -57,7 +25,7 @@ const useEchartsPieConfig = () => {
         explore,
     } = context;
 
-    const series = useMemo(() => {
+    const seriesData = useMemo(() => {
         if (!selectedMetric) return;
 
         const sortedData =
@@ -70,17 +38,17 @@ const useEchartsPieConfig = () => {
                 : data;
 
         return sortedData.map(([name, value]) => {
-            const labelOptions = getFormattedLabelOptions(selectedMetric, {
-                valueLabel:
-                    groupValueOptionOverrides?.[name]?.valueLabel ?? valueLabel,
-                showValue:
-                    groupValueOptionOverrides?.[name]?.showValue ?? showValue,
-                showPercentage:
-                    groupValueOptionOverrides?.[name]?.showPercentage ??
-                    showPercentage,
-            });
+            const valueLabel =
+                groupValueOptionOverrides?.[name]?.valueLabel ??
+                valueLabelDefault;
+            const showValue =
+                groupValueOptionOverrides?.[name]?.showValue ??
+                showValueDefault;
+            const showPercentage =
+                groupValueOptionOverrides?.[name]?.showPercentage ??
+                showPercentageDefault;
 
-            return {
+            const config: NonNullable<PieSeriesOption['data']>[number] = {
                 name: groupLabelOverrides?.[name] ?? name,
                 value,
                 itemStyle: {
@@ -88,8 +56,29 @@ const useEchartsPieConfig = () => {
                         groupColorOverrides?.[name] ??
                         groupColorDefaults?.[name],
                 },
-                ...labelOptions,
+                label: {
+                    show: valueLabel !== 'hidden',
+                    position: valueLabel === 'outside' ? 'outside' : 'inside',
+                    formatter: (params) => {
+                        const formattedValue = formatItemValue(
+                            selectedMetric,
+                            params.value,
+                        );
+
+                        return valueLabel !== 'hidden' &&
+                            showValue &&
+                            showPercentage
+                            ? `${params.percent}% - ${formattedValue}`
+                            : showValue
+                            ? `${formattedValue}`
+                            : showPercentage
+                            ? `${params.percent}%`
+                            : `${params.name}`;
+                    },
+                },
             };
+
+            return config;
         });
     }, [
         data,
@@ -99,40 +88,60 @@ const useEchartsPieConfig = () => {
         groupValueOptionOverrides,
         groupSortOverrides,
         selectedMetric,
-        showPercentage,
-        showValue,
-        valueLabel,
+        showPercentageDefault,
+        showValueDefault,
+        valueLabelDefault,
     ]);
 
-    const eChartsOptions = useMemo(
-        () => ({
-            tooltip: {
-                trigger: 'item',
-            },
+    const eChartsOptions = useMemo(() => {
+        const pieSeriesOption: PieSeriesOption = {
+            type: 'pie',
+            data: seriesData,
+            radius: isDonut ? ['30%', '70%'] : '70%',
+            center:
+                showLegend &&
+                valueLabelDefault === 'outside' &&
+                (showValueDefault || showPercentageDefault)
+                    ? ['50%', '55%']
+                    : showLegend
+                    ? ['50%', '52%']
+                    : ['50%', '50%'],
+        };
+
+        return {
             legend: {
                 show: showLegend,
                 orient: 'horizontal',
                 left: 'center',
                 type: 'scroll',
             },
-            series: [
-                {
-                    type: 'pie',
-                    radius: isDonut ? ['30%', '70%'] : '70%',
-                    center:
-                        showLegend &&
-                        valueLabel === 'outside' &&
-                        (showValue || showPercentage)
-                            ? ['50%', '55%']
-                            : showLegend
-                            ? ['50%', '52%']
-                            : ['50%', '50%'],
-                    data: series,
+            series: [pieSeriesOption],
+            tooltip: {
+                trigger: 'item',
+                formatter: (params: {
+                    marker: string;
+                    name: string;
+                    value: number;
+                    percent: number;
+                }) => {
+                    const formattedValue = formatItemValue(
+                        selectedMetric,
+                        params.value,
+                    );
+
+                    return `${params.marker} <b>${params.name}</b><br />${params.percent}% - ${formattedValue}`;
                 },
-            ],
-        }),
-        [series, isDonut, valueLabel, showValue, showPercentage, showLegend],
-    );
+            },
+        };
+    }, [
+        selectedMetric,
+        seriesData,
+        isDonut,
+        valueLabelDefault,
+        showValueDefault,
+        showPercentageDefault,
+        showLegend,
+    ]);
 
     if (!explore || !data || data.length === 0) {
         return undefined;

@@ -49,6 +49,8 @@ export const getMantineThemeOverride = (overrides?: {
 
     lineHeight: 1.2858142857,
 
+    cursorType: 'pointer',
+
     components: {
         TextInput: {
             styles: (theme, _params) => ({
@@ -112,25 +114,10 @@ export const getMantineThemeOverride = (overrides?: {
             }),
         },
 
-        Indicator: {
-            styles: () => ({
-                // FIXME: this is a hack to fix position of the Indicator under overlays. Remove after Blueprint migration is complete
-                root: {
-                    zIndex: 20,
-                },
-            }),
-        },
-
         Tooltip: {
             defaultProps: {
                 withArrow: true,
             },
-            styles: () => ({
-                // FIXME: this is a hack to fix tooltip position. remove after Blueprint migration is complete
-                root: {
-                    zIndex: 20,
-                },
-            }),
         },
 
         Modal: {

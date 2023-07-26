@@ -1,12 +1,14 @@
-// WARNING: We need to import the datetime css until this bug is fixed: https://github.com/palantir/blueprint/issues/5388
-import '@blueprintjs/datetime/lib/css/blueprint-datetime.css';
-import '@blueprintjs/datetime2/lib/css/blueprint-datetime2.css';
-import '@blueprintjs/popover2/lib/css/blueprint-popover2.css';
-import '@blueprintjs/select/lib/css/blueprint-select.css';
-// WARNING: exposes global overrides. DO NOT IMPORT THIS FILE.
+// FIXME: remove after blueprint migration is complete
+// WARNING: DO NOT IMPORT THESE FILES - EXPOSES GLOBAL STYLES
 // import '@blueprintjs/core/lib/css/blueprint.css';
+// import '@blueprintjs/popover2/lib/css/blueprint-popover2.css';
 // below is a cleaner version of the above
 import './../styles/blueprint-core.css';
+import './../styles/blueprint-popover2.css';
+// NOTE: imports below does not have a conflicting z-indexes
+import '@blueprintjs/datetime/lib/css/blueprint-datetime.css';
+import '@blueprintjs/datetime2/lib/css/blueprint-datetime2.css';
+import '@blueprintjs/select/lib/css/blueprint-select.css';
 
 import { Colors, Dialog, FocusStyleManager } from '@blueprintjs/core';
 import { FC } from 'react';

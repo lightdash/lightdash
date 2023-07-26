@@ -13,10 +13,40 @@ import { Knex } from 'knex';
 export const SavedChartsTableName = 'saved_queries';
 export const SavedChartVersionsTableName = 'saved_queries_versions';
 
+type InsertChartInSpace = Pick<DbSavedChart, 'name' | 'description'> & {
+    space_id: number;
+    dashboard_uuid: null;
+};
+
+type InsertChartInDashboard = Pick<DbSavedChart, 'name' | 'description'> & {
+    space_id: null;
+    dashboard_uuid: string;
+};
+
+export type InsertChart = InsertChartInSpace | InsertChartInDashboard;
+
+export type SavedChartTable = Knex.CompositeTableType<
+    DbSavedChart,
+    InsertChart,
+    Partial<
+        Pick<
+            DbSavedChart,
+            | 'space_id'
+            | 'name'
+            | 'description'
+            | 'last_version_chart_kind'
+            | 'last_version_updated_at'
+            | 'last_version_updated_by_user_uuid'
+            | 'dashboard_uuid'
+        >
+    >
+>;
+
 export type DbSavedChart = {
     saved_query_id: number;
     saved_query_uuid: string;
-    space_id: number;
+    space_id: number | null;
+    dashboard_uuid: string | null;
     name: string;
     created_at: Date;
     description: string | undefined;
@@ -24,12 +54,6 @@ export type DbSavedChart = {
     last_version_updated_at: Date;
     last_version_updated_by_user_uuid: string | undefined;
 };
-
-export type SavedChartTable = Knex.CompositeTableType<
-    DbSavedChart,
-    Pick<DbSavedChart, 'name' | 'space_id' | 'description'>,
-    Pick<DbSavedChart, 'name' | 'description'>
->;
 
 export type DbSavedChartVersion = {
     saved_queries_version_id: number;

@@ -1,26 +1,25 @@
 import {
-    Button,
-    FormGroup,
-    HTMLSelect,
-    InputGroup,
-    Radio,
-    RadioGroup,
-    Switch,
-    Tab,
-    Tabs,
-} from '@blueprintjs/core';
-import {
     CompactConfigMap,
     CompactOrAlias,
     ComparisonFormatTypes,
-    getItemId,
+    fieldId,
+    isField,
 } from '@lightdash/common';
-import { Box } from '@mantine/core';
+import {
+    ActionIcon,
+    Radio,
+    Select,
+    Stack,
+    Switch,
+    Tabs,
+    TextInput,
+} from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
-import { useState } from 'react';
-import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
+import FieldIcon from '../../common/Filters/FieldIcon';
+import { fieldLabelText } from '../../common/Filters/FieldLabel';
+import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import { InputWrapper } from '../ChartConfigPanel/ChartConfigPanel.styles';
+import FieldSelectItem from '../FieldSelectItem';
 
 const StyleOptions = [
     { value: '', label: 'none' },
@@ -55,183 +54,140 @@ const BigNumberConfigTabs = () => {
             setComparisonLabel,
         },
     } = useVisualizationContext();
-    const [tab, setTab] = useState<string | number>('layout');
+
+    const selectedFieldObject = getField(selectedField);
+
     return (
-        <Box w={320} p="md">
-            <Tabs
-                onChange={setTab}
-                selectedTabId={tab}
-                renderActiveTabPanelOnly
-            >
-                <Tab
-                    id="layout"
-                    title="Layout"
-                    panel={
-                        <InputWrapper>
-                            <FormGroup labelFor="bignumber-field" label="Field">
-                                <FieldAutoComplete
-                                    id="bignumber-field"
-                                    fields={availableFields}
-                                    activeField={
-                                        selectedField
-                                            ? getField(selectedField)
-                                            : undefined
-                                    }
-                                    onChange={(item) => {
-                                        setSelectedField(getItemId(item));
-                                    }}
-                                />
-                            </FormGroup>
+        <Tabs w={320} defaultValue="layout">
+            <Tabs.List>
+                <Tabs.Tab value="layout">Layout</Tabs.Tab>
+                <Tabs.Tab value="comparison">Comparison</Tabs.Tab>
+            </Tabs.List>
+            <Tabs.Panel value="layout">
+                <Stack spacing="md" mt="sm">
+                    <Select
+                        label="Field"
+                        searchable
+                        icon={
+                            selectedFieldObject && (
+                                <FieldIcon item={selectedFieldObject} />
+                            )
+                        }
+                        value={selectedField ? selectedField : undefined}
+                        data={availableFields.map((field) => {
+                            const id = isField(field)
+                                ? fieldId(field)
+                                : field.name;
+                            return {
+                                item: field,
+                                value: id,
+                                label: fieldLabelText(field),
+                                disabled: id === selectedField,
+                            };
+                        })}
+                        itemComponent={FieldSelectItem}
+                        onChange={(newValue) => {
+                            setSelectedField(newValue ?? undefined);
+                        }}
+                    />
 
-                            <FormGroup labelFor="bignumber-label" label="Label">
-                                <InputGroup
-                                    id="bignumber-label"
-                                    placeholder={defaultLabel}
-                                    defaultValue={bigNumberLabel}
-                                    onBlur={(e) =>
-                                        setBigNumberLabel(e.currentTarget.value)
-                                    }
-                                    rightElement={
-                                        <Button
-                                            active={showBigNumberLabel}
-                                            icon={
-                                                showBigNumberLabel ? (
-                                                    <IconEye size={18} />
-                                                ) : (
-                                                    <IconEyeOff size={18} />
-                                                )
-                                            }
-                                            onClick={() => {
-                                                setShowBigNumberLabel(
-                                                    !showBigNumberLabel,
-                                                );
-                                            }}
-                                        />
-                                    }
-                                />
-                            </FormGroup>
-
-                            {showStyle && (
-                                <FormGroup
-                                    labelFor="bignumber-style"
-                                    label="Format"
-                                >
-                                    <HTMLSelect
-                                        id="bignumber-style"
-                                        fill
-                                        options={StyleOptions}
-                                        value={bigNumberStyle}
-                                        onChange={(e) => {
-                                            if (e.target.value === '') {
-                                                setBigNumberStyle(undefined);
-                                            } else {
-                                                setBigNumberStyle(
-                                                    e.target
-                                                        .value as CompactOrAlias,
-                                                );
-                                            }
-                                        }}
-                                    />
-                                </FormGroup>
-                            )}
-                        </InputWrapper>
-                    }
-                />
-
-                <Tab
-                    id="comparison"
-                    title="Comparison"
-                    panel={
-                        <InputWrapper>
-                            <FormGroup
-                                labelFor="bignumber-comparison"
-                                label="Compare to previous row"
-                                inline
-                                style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    marginBottom: 'none',
+                    <TextInput
+                        label="Label"
+                        value={bigNumberLabel}
+                        placeholder={defaultLabel}
+                        onChange={(e) =>
+                            setBigNumberLabel(e.currentTarget.value)
+                        }
+                        rightSection={
+                            <ActionIcon
+                                onClick={() => {
+                                    setShowBigNumberLabel(!showBigNumberLabel);
                                 }}
                             >
-                                <Switch
-                                    alignIndicator="right"
-                                    checked={showComparison}
-                                    onChange={() => {
-                                        setShowComparison(!showComparison);
-                                    }}
-                                />
-                            </FormGroup>
-                            {showComparison ? (
-                                <>
-                                    <FormGroup
-                                        labelFor="comparison-format"
-                                        label="Compare by:"
-                                    >
-                                        <RadioGroup
-                                            onChange={(e) => {
-                                                setComparisonFormat(
-                                                    e.currentTarget.value ===
-                                                        'raw'
-                                                        ? ComparisonFormatTypes.RAW
-                                                        : ComparisonFormatTypes.PERCENTAGE,
-                                                );
-                                            }}
-                                            selectedValue={comparisonFormat}
-                                        >
-                                            <Radio
-                                                label="Raw value"
-                                                value={
-                                                    ComparisonFormatTypes.RAW
-                                                }
-                                            />
-                                            <Radio
-                                                label="Percentage"
-                                                value={
-                                                    ComparisonFormatTypes.PERCENTAGE
-                                                }
-                                            />
-                                        </RadioGroup>
-                                    </FormGroup>
-                                    <FormGroup
-                                        labelFor="comparison-color"
-                                        label="Flip positive color"
-                                        inline
-                                        style={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            marginBottom: 'none',
-                                        }}
-                                    >
-                                        <Switch
-                                            alignIndicator="right"
-                                            checked={flipColors}
-                                            onChange={() => {
-                                                setFlipColors(!flipColors);
-                                            }}
-                                        />
-                                    </FormGroup>
-                                    <FormGroup
-                                        labelFor="comparison-label"
-                                        label="Comparison label"
-                                    >
-                                        <InputGroup
-                                            id="comparison-label"
-                                            placeholder="Add an optional label"
-                                            defaultValue={comparisonLabel}
-                                            onBlur={(e) =>
-                                                setComparisonLabel(
-                                                    e.currentTarget.value,
-                                                )
-                                            }
-                                        />
-                                    </FormGroup>
-                                </>
-                            ) : null}
-                        </InputWrapper>
-                    }
-                />
-            </Tabs>
-        </Box>
+                                {showBigNumberLabel ? (
+                                    <MantineIcon icon={IconEye} />
+                                ) : (
+                                    <MantineIcon icon={IconEyeOff} />
+                                )}
+                            </ActionIcon>
+                        }
+                    />
+
+                    {showStyle && (
+                        <Select
+                            label="Format"
+                            data={StyleOptions}
+                            value={bigNumberStyle ?? ''}
+                            onChange={(newValue) => {
+                                if (!newValue) {
+                                    setBigNumberStyle(undefined);
+                                } else {
+                                    setBigNumberStyle(
+                                        newValue as CompactOrAlias,
+                                    );
+                                }
+                            }}
+                        />
+                    )}
+                </Stack>
+            </Tabs.Panel>
+
+            <Tabs.Panel value="comparison">
+                <Stack spacing="lg" mt="sm">
+                    <Switch
+                        label="Compare to previous row"
+                        checked={showComparison}
+                        onChange={() => {
+                            setShowComparison(!showComparison);
+                        }}
+                    />
+
+                    {showComparison ? (
+                        <>
+                            <Radio.Group
+                                label="Compare by:"
+                                value={comparisonFormat}
+                                onChange={(e) => {
+                                    setComparisonFormat(
+                                        e === 'raw'
+                                            ? ComparisonFormatTypes.RAW
+                                            : ComparisonFormatTypes.PERCENTAGE,
+                                    );
+                                }}
+                            >
+                                <Stack spacing="xs" mt="sm">
+                                    <Radio
+                                        label="Raw value"
+                                        value={ComparisonFormatTypes.RAW}
+                                    />
+                                    <Radio
+                                        label="Percentage"
+                                        value={ComparisonFormatTypes.PERCENTAGE}
+                                    />
+                                </Stack>
+                            </Radio.Group>
+
+                            <Switch
+                                label="Flip positive color"
+                                checked={flipColors}
+                                onChange={() => {
+                                    setFlipColors(!flipColors);
+                                }}
+                            />
+
+                            <TextInput
+                                label="Comparison label"
+                                value={comparisonLabel ?? ''}
+                                placeholder={'Add an optional label'}
+                                onChange={(e) =>
+                                    setComparisonLabel(e.currentTarget.value)
+                                }
+                            />
+                        </>
+                    ) : null}
+                </Stack>
+            </Tabs.Panel>
+        </Tabs>
     );
 };
 

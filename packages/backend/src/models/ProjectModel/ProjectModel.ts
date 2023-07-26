@@ -40,7 +40,7 @@ import {
     DbProject,
     ProjectTableName,
 } from '../../database/entities/projects';
-import { DbSavedChart } from '../../database/entities/savedCharts';
+import { DbSavedChart, InsertChart } from '../../database/entities/savedCharts';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import Logger from '../../logging/logger';
@@ -904,7 +904,6 @@ export class ProjectModel {
                 .where('spaces.project_id', projectId)
                 .select<DbSavedChart[]>('saved_queries.*');
 
-            const chartIds = charts.map((d) => d.saved_query_id);
             Logger.debug(
                 `Duplicating ${charts.length} charts on ${previewProjectUuid}`,
             );
@@ -914,11 +913,17 @@ export class ProjectModel {
                     ? await trx('saved_queries')
                           .insert(
                               charts.map((d) => {
+                                  if (!d.space_id) {
+                                      throw new Error(
+                                          `Chart ${d.saved_query_id} has no space_id`,
+                                      );
+                                  }
                                   const createChart = {
                                       ...d,
                                       saved_query_id: undefined,
                                       saved_query_uuid: undefined,
                                       space_id: getNewSpace(d.space_id),
+                                      dashboard_uuid: null,
                                   };
                                   delete createChart.saved_query_id;
                                   delete createChart.saved_query_uuid;
@@ -928,10 +933,61 @@ export class ProjectModel {
                           .returning('*')
                     : [];
 
-            const chartMapping = charts.map((c, i) => ({
+            const chartsInDashboards = await trx('saved_queries')
+                .leftJoin(
+                    'dashboards',
+                    'saved_queries.dashboard_uuid',
+                    'dashboards.dashboard_uuid',
+                )
+                .leftJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
+                .where('spaces.project_id', projectId)
+                .select<DbSavedChart[]>('saved_queries.*');
+
+            Logger.debug(
+                `Duplicating ${chartsInDashboards.length} charts in dashboards on ${previewProjectUuid}`,
+            );
+
+            // We also copy charts in dashboards, we will replace the dashboard_uuid later
+            const newChartsInDashboards =
+                chartsInDashboards.length > 0
+                    ? await trx('saved_queries')
+                          .insert(
+                              chartsInDashboards.map((d) => {
+                                  if (!d.dashboard_uuid) {
+                                      throw new Error(
+                                          `Chart in dashboard ${d.saved_query_id} has no dashboard_uuid`,
+                                      );
+                                  }
+                                  const createChart = {
+                                      ...d,
+                                      saved_query_id: undefined,
+                                      saved_query_uuid: undefined,
+                                      space_id: null,
+                                      dashboard_uuid: d.dashboard_uuid,
+                                  };
+                                  delete createChart.saved_query_id;
+                                  delete createChart.saved_query_uuid;
+
+                                  return createChart;
+                              }),
+                          )
+                          .returning('*')
+                    : [];
+            const chartInSpacesMapping = charts.map((c, i) => ({
                 id: c.saved_query_id,
                 newId: newCharts[i].saved_query_id,
             }));
+            const chartInDashboardsMapping = chartsInDashboards.map((c, i) => ({
+                id: c.saved_query_id,
+                newId: newChartsInDashboards[i].saved_query_id,
+            }));
+
+            const chartMapping = [
+                ...chartInSpacesMapping,
+                ...chartInDashboardsMapping,
+            ];
+
+            const chartIds = chartMapping.map((c) => c.id);
 
             // only get last chart version
             const lastVersionIds = await trx('saved_queries_versions')
@@ -955,13 +1011,19 @@ export class ProjectModel {
                     ? await trx('saved_queries_versions')
                           .insert(
                               chartVersions.map((d) => {
+                                  const newSavedQueryId = chartMapping.find(
+                                      (m) => m.id === d.saved_query_id,
+                                  )?.newId;
+                                  if (!newSavedQueryId) {
+                                      throw new Error(
+                                          `Cannot find new chart id for ${d.saved_query_id}`,
+                                      );
+                                  }
                                   const createChartVersion = {
                                       ...d,
                                       saved_queries_version_id: undefined,
                                       saved_queries_version_uuid: undefined,
-                                      saved_query_id: chartMapping.find(
-                                          (m) => m.id === d.saved_query_id,
-                                      )?.newId,
+                                      saved_query_id: newSavedQueryId,
                                   };
                                   delete createChartVersion.saved_queries_version_id;
                                   delete createChartVersion.saved_queries_version_uuid;
@@ -1057,6 +1119,8 @@ export class ProjectModel {
             const dashboardMapping = dashboards.map((c, i) => ({
                 id: c.dashboard_id,
                 newId: newDashboards[i].dashboard_id,
+                uuid: c.dashboard_uuid,
+                newUuid: newDashboards[i].dashboard_uuid,
             }));
 
             // Get last version of a dashboard
@@ -1109,6 +1173,22 @@ export class ProjectModel {
             const dashboardTileUuids = dashboardTiles.map(
                 (dv) => dv.dashboard_tile_uuid,
             );
+
+            Logger.debug(
+                `Updating ${chartsInDashboards.length} charts in dashboards`,
+            );
+            // Update chart in dashboards with new dashboardUuids
+            await newChartsInDashboards.map(async (chart) => {
+                const newDashboardUuid = dashboardMapping.find(
+                    (m) => m.uuid === chart.dashboard_uuid,
+                )?.newUuid;
+
+                return trx('saved_queries')
+                    .update({
+                        dashboard_uuid: newDashboardUuid,
+                    })
+                    .where('saved_query_id', chart.saved_query_id);
+            });
 
             const newDashboardTiles =
                 dashboardTiles.length > 0

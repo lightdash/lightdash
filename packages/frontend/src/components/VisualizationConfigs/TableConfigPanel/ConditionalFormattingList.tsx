@@ -1,25 +1,35 @@
-import { Button, FormGroup } from '@blueprintjs/core';
 import {
-    createConditionalFormattingConfig,
+    createConditionalFormattingConfigWithSingleColor,
+    ECHARTS_DEFAULT_COLORS,
     FilterableItem,
     getItemId,
     getItemMap,
     isFilterableItem,
     isNumericItem,
 } from '@lightdash/common';
+import { Button, Stack } from '@mantine/core';
+import { IconPlus } from '@tabler/icons-react';
 import produce from 'immer';
 import { useCallback, useMemo, useState } from 'react';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
+import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import ConditionalFormatting from './ConditionalFormatting';
-import { ConditionalFormattingListWrapper } from './ConditionalFormatting.styles';
 
 const ConditionalFormattingList = ({}) => {
+    const { data: org } = useOrganization();
+
     const [isAddingNew, setIsAddingNew] = useState(false);
     const {
         explore,
         resultsData,
         tableConfig: { conditionalFormattings, onSetConditionalFormattings },
     } = useVisualizationContext();
+
+    const defaultColors = useMemo(
+        () => org?.chartColors ?? ECHARTS_DEFAULT_COLORS,
+        [org],
+    );
 
     const activeFields = useMemo(() => {
         if (!resultsData) return new Set<string>();
@@ -60,10 +70,14 @@ const ConditionalFormattingList = ({}) => {
         setIsAddingNew(true);
         onSetConditionalFormattings(
             produce(activeConfigs, (draft) => {
-                draft.push(createConditionalFormattingConfig());
+                draft.push(
+                    createConditionalFormattingConfigWithSingleColor(
+                        defaultColors[0],
+                    ),
+                );
             }),
         );
-    }, [onSetConditionalFormattings, activeConfigs]);
+    }, [onSetConditionalFormattings, activeConfigs, defaultColors]);
 
     const handleRemove = useCallback(
         (index) =>
@@ -86,7 +100,7 @@ const ConditionalFormattingList = ({}) => {
     );
 
     return (
-        <ConditionalFormattingListWrapper>
+        <Stack spacing="xs">
             {activeConfigs.map((conditionalFormatting, index) => (
                 <ConditionalFormatting
                     key={index}
@@ -99,12 +113,16 @@ const ConditionalFormattingList = ({}) => {
                 />
             ))}
 
-            <FormGroup>
-                <Button icon="plus" onClick={handleAdd}>
-                    Add new rule
-                </Button>
-            </FormGroup>
-        </ConditionalFormattingListWrapper>
+            <Button
+                sx={{ alignSelf: 'start' }}
+                size="xs"
+                variant="outline"
+                leftIcon={<MantineIcon icon={IconPlus} />}
+                onClick={handleAdd}
+            >
+                Add new rule
+            </Button>
+        </Stack>
     );
 };
 

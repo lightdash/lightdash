@@ -96,7 +96,8 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
 
                 const title =
                     tile &&
-                    tile.properties.title === undefined &&
+                    (!tile.properties.title ||
+                        tile.properties.title.length === 0) &&
                     isDashboardChartTileType(tile)
                         ? savedCharts?.find(
                               (chart) =>

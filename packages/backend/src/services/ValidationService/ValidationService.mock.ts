@@ -53,6 +53,8 @@ export const user: SessionUser = {
 export const chart: SavedChart = {
     uuid: 'chartUuid',
     projectUuid: 'projectUuid',
+    dashboardUuid: null,
+    dashboardName: null,
     name: 'Test chart',
     tableName: 'table',
     updatedAt: new Date('2021-01-01'),
@@ -83,6 +85,12 @@ export const chart: SavedChart = {
                         id: '',
                         target: { fieldId: 'table_metric' },
                         values: ['2018-01-01'],
+                        operator: FilterOperator.EQUALS,
+                    },
+                    {
+                        id: '',
+                        target: { fieldId: 'table_custom_metric' },
+                        values: [10],
                         operator: FilterOperator.EQUALS,
                     },
                 ],
@@ -161,6 +169,7 @@ export const dashboard: Dashboard = {
             properties: {
                 title: 'test chart',
                 savedChartUuid: 'chartUuid',
+                belongsToDashboard: false,
             },
             x: 0,
             y: 0,

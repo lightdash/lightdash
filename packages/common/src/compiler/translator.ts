@@ -277,6 +277,7 @@ export const convertTable = (
                 [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
                     dimension.type,
                 ) &&
+                column.meta.dimension?.time_intervals !== false &&
                 ((column.meta.dimension?.time_intervals &&
                     column.meta.dimension.time_intervals !== 'OFF') ||
                     !column.meta.dimension?.time_intervals)
@@ -384,6 +385,7 @@ export const convertTable = (
     if (!model.relation_name) {
         throw new Error(`Model "${model.name}" has no table relation`);
     }
+
     return {
         name: model.name,
         label: tableLabel,
@@ -401,6 +403,7 @@ export const convertTable = (
                 ? (meta.order_fields_by.toUpperCase() as OrderFieldsByStrategy)
                 : OrderFieldsByStrategy.LABEL,
         groupLabel: meta.group_label,
+        sqlWhere: meta.sql_filter || meta.sql_where,
     };
 };
 

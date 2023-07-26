@@ -202,16 +202,24 @@ type TrackUserDeletedEvent = BaseTrack & {
     };
 };
 
-type TrackSavedChart = BaseTrack & {
-    event: 'saved_chart.updated' | 'saved_chart.deleted';
+type UpdateSavedChartEvent = BaseTrack & {
+    event: 'saved_chart.updated';
+    properties: {
+        projectId: string;
+        savedQueryId: string;
+        dashboardId: string | undefined;
+    };
+};
+type DeleteSavedChartEvent = BaseTrack & {
+    event: 'saved_chart.deleted';
     properties: {
         projectId: string;
         savedQueryId: string;
     };
 };
 
-export type CreateSavedChartOrVersionEvent = BaseTrack & {
-    event: 'saved_chart.created' | 'saved_chart_version.created';
+export type CreateSavedChartVersionEvent = BaseTrack & {
+    event: 'saved_chart_version.created';
     properties: {
         projectId: string;
         savedQueryId: string;
@@ -243,6 +251,13 @@ export type CreateSavedChartOrVersionEvent = BaseTrack & {
         bigValue?: {
             hasBigValueComparison?: boolean;
         };
+    };
+};
+
+export type CreateSavedChartEvent = BaseTrack & {
+    event: 'saved_chart.created';
+    properties: CreateSavedChartVersionEvent['properties'] & {
+        dashboardId: string | undefined;
         duplicated?: boolean;
     };
 };
@@ -266,6 +281,18 @@ export type DuplicatedChartCreatedEvent = BaseTrack & {
             seriesCount: number;
             seriesTypes: CartesianSeriesType[];
         };
+    };
+};
+
+export type ConditionalFormattingRuleSavedEvent = BaseTrack & {
+    event: 'conditional_formatting_rule.saved';
+    userId: string;
+    properties: {
+        projectId: string;
+        organizationId: string;
+        savedQueryId: string;
+        type: 'single color' | 'color range';
+        numConditions: number;
     };
 };
 
@@ -320,6 +347,7 @@ type ProjectCompiledEvent = BaseTrack & {
         roundCount?: number;
         formattedFieldsCount?: number;
         urlsCount?: number;
+        rowAccessFiltersCount: number;
     };
 };
 
@@ -698,8 +726,10 @@ type Track =
     | VerifiedUserEvent
     | UserJoinOrganizationEvent
     | QueryExecutionEvent
-    | TrackSavedChart
-    | CreateSavedChartOrVersionEvent
+    | UpdateSavedChartEvent
+    | DeleteSavedChartEvent
+    | CreateSavedChartEvent
+    | CreateSavedChartVersionEvent
     | TrackUserDeletedEvent
     | ProjectErrorEvent
     | ApiErrorEvent
@@ -741,7 +771,8 @@ type Track =
     | DownloadCsv
     | SchedulerDashboardView
     | Validation
-    | ValidationErrorDismissed;
+    | ValidationErrorDismissed
+    | ConditionalFormattingRuleSavedEvent;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {
