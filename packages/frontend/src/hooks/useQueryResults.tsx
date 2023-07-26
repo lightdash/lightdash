@@ -9,6 +9,7 @@ import { useMutation, useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
+import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
 type QueryResultsProps = {
@@ -58,7 +59,7 @@ export const useQueryResults = (props?: {
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const setErrorResponse = useQueryError();
-
+    const { showToastError } = useToaster();
     const fetchQuery =
         props?.isViewOnly === true ? getChartResults : getQueryResults;
     const mutation = useMutation<ApiQueryResults, ApiError, QueryResultsProps>(
@@ -66,8 +67,15 @@ export const useQueryResults = (props?: {
         {
             mutationKey: ['queryResults'],
             onError: useCallback(
-                (result) => setErrorResponse(result),
-                [setErrorResponse],
+                (result) => {
+                    showToastError({
+                        title: 'Error running query',
+                        subtitle: result.error.message,
+                    });
+
+                    return setErrorResponse(result);
+                },
+                [setErrorResponse, showToastError],
             ),
         },
     );

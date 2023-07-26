@@ -1,3 +1,31 @@
+# [0.697.0](https://github.com/lightdash/lightdash/compare/0.696.0...0.697.0) (2023-07-26)
+
+
+### Features
+
+* migrate reference line config to mantine ([#6479](https://github.com/lightdash/lightdash/issues/6479)) ([8c6f171](https://github.com/lightdash/lightdash/commit/8c6f171220bd3d6b3400e4c4050d06b3f27a1d70))
+
+# [0.696.0](https://github.com/lightdash/lightdash/compare/0.695.0...0.696.0) (2023-07-26)
+
+
+### Features
+
+* show tooltip on hover of fields in filter list ([#6489](https://github.com/lightdash/lightdash/issues/6489)) ([4917358](https://github.com/lightdash/lightdash/commit/4917358ef5d058a0ee3c6003998d1532ff7dbd9f))
+
+# [0.695.0](https://github.com/lightdash/lightdash/compare/0.694.0...0.695.0) (2023-07-26)
+
+
+### Features
+
+* sql filter user attributes ([#6445](https://github.com/lightdash/lightdash/issues/6445)) ([3af6021](https://github.com/lightdash/lightdash/commit/3af6021a140feaccacdf828e5278db33f0c53a48)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
+# [0.694.0](https://github.com/lightdash/lightdash/compare/0.693.0...0.694.0) (2023-07-26)
+
+
+### Features
+
+* pie charts menu with copy ([#6485](https://github.com/lightdash/lightdash/issues/6485)) ([b272fae](https://github.com/lightdash/lightdash/commit/b272faed47102bd5d6771351df9c7534cad9c3cd))
+
 # [0.693.0](https://github.com/lightdash/lightdash/compare/0.692.1...0.693.0) (2023-07-26)
 
 

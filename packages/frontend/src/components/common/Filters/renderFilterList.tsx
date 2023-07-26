@@ -100,6 +100,7 @@ const renderFilterList = <T extends Field | TableCalculation>(
                         offset={-2}
                         maw={300}
                         multiline
+                        openDelay={500}
                         position="bottom"
                         withinPortal
                         label={groupedItem.group.description}

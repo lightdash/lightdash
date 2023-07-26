@@ -22,6 +22,7 @@ export class UserAttributesModel {
     async find(filters: {
         organizationUuid?: string;
         userAttributeUuid?: string;
+        userUuid?: string;
     }): Promise<UserAttribute[]> {
         const query = this.database(UserAttributesTable)
             .leftJoin(
@@ -72,6 +73,9 @@ export class UserAttributesModel {
                 `${UserAttributesTable}.user_attribute_uuid`,
                 filters.userAttributeUuid,
             );
+        }
+        if (filters.userUuid) {
+            query.where(`users.user_uuid`, filters.userUuid);
         }
 
         const orgAttributes = await query;

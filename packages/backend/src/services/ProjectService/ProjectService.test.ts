@@ -14,6 +14,7 @@ import {
     savedChartModel,
     spaceModel,
     sshKeyPairModel,
+    userAttributesModel,
 } from '../../models/models';
 import { METRIC_QUERY, warehouseClientMock } from '../../queryBuilder.mock';
 import { projectService } from '../services';
@@ -71,6 +72,7 @@ jest.mock('../../models/models', () => ({
         getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
     },
     sshKeyPairModel: {},
+    userAttributesModel: {},
 }));
 
 describe('ProjectService', () => {
@@ -85,6 +87,7 @@ describe('ProjectService', () => {
         }),
         spaceModel,
         sshKeyPairModel,
+        userAttributesModel,
     });
     afterEach(() => {
         jest.clearAllMocks();
