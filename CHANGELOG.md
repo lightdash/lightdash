@@ -1,3 +1,10 @@
+# [0.694.0](https://github.com/lightdash/lightdash/compare/0.693.0...0.694.0) (2023-07-26)
+
+
+### Features
+
+* pie charts menu with copy ([#6485](https://github.com/lightdash/lightdash/issues/6485)) ([b272fae](https://github.com/lightdash/lightdash/commit/b272faed47102bd5d6771351df9c7534cad9c3cd))
+
 # [0.693.0](https://github.com/lightdash/lightdash/compare/0.692.1...0.693.0) (2023-07-26)
 
 
