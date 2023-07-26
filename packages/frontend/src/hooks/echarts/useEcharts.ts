@@ -4,7 +4,6 @@ import {
     CartesianSeriesType,
     convertAdditionalMetric,
     DimensionType,
-    EchartsLegend,
     ECHARTS_DEFAULT_COLORS,
     Field,
     findItem,
@@ -266,14 +265,21 @@ const removeEmptyProperties = <T = Record<any, any>>(obj: T | undefined) => {
     );
 };
 
-const removeEmptyLegends = <T = Record<any, any>>(
-    obj: T | undefined,
+const mergeLegendSettings = <T = Record<any, any>>(
+    legendConfig: T | undefined,
     legendsSelected: LegendValues,
+    series: EChartSeries[],
 ) => {
-    if (!obj) return undefined;
-    if ((obj as EchartsLegend).show) return undefined;
+    const normalizedConfig = removeEmptyProperties(legendConfig);
+    if (!normalizedConfig) {
+        return {
+            show: series.length > 1,
+            type: 'scroll',
+            selected: legendsSelected,
+        };
+    }
     return {
-        show: false,
+        ...normalizedConfig,
         selected: legendsSelected,
     };
 };
@@ -1399,14 +1405,11 @@ const useEcharts = (validCartesianConfigLegend?: LegendValues) => {
             yAxis: axis.yAxis,
             useUTC: true,
             series: stackedSeries,
-            legend: removeEmptyLegends(
+            legend: mergeLegendSettings(
                 validCartesianConfig?.eChartsConfig.legend,
                 validCartesianConfigLegend,
-            ) || {
-                show: series.length > 1,
-                type: 'scroll',
-                selected: validCartesianConfigLegend,
-            },
+                series,
+            ),
             dataset: {
                 id: 'lightdashResults',
                 source: sortedResults,
