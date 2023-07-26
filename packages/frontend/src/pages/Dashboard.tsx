@@ -331,24 +331,6 @@ const Dashboard: FC = () => {
     const handleDeleteDashboard = () => {
         if (!dashboard) return;
         setIsDeleteModalOpen(true);
-        // if (hasChartsInDashboard(dashboard)) {
-        //     return (
-        // );
-        // }
-        // deleteDashboard(dashboard.uuid).then(() => {
-        //     history.replace(`/projects/${projectUuid}/dashboards`);
-        // });
-
-        // return (
-        //     <DashboardDeleteModal
-        //         opened
-        //         uuid={dashboard.uuid}
-        //         onClose={() =>
-        //             history.replace(`/projects/${projectUuid}/dashboards`)
-        //         }
-        //         onConfirm={() => deleteDashboard(dashboard.uuid)}
-        //     />
-        // );
     };
 
     const handleExportDashboard = () => {
