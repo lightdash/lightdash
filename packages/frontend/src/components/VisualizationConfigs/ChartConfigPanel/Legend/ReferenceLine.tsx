@@ -1,6 +1,7 @@
 import { DateInput2 } from '@blueprintjs/datetime2';
 import {
     CompiledDimension,
+    ECHARTS_DEFAULT_COLORS,
     Field,
     fieldId as getFieldId,
     formatDate,
@@ -22,6 +23,7 @@ import {
     ActionIcon,
     Box,
     Collapse,
+    ColorInput,
     Group,
     Stack,
     Text,
@@ -29,13 +31,13 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
+import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import MantineIcon from '../../../common/MantineIcon';
 import MonthAndYearInput from '../../../common/MonthAndYearInput';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
 import WeekPicker from '../../../common/WeekPicker';
 import YearInput from '../../../common/YearInput';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
-import ColorSelector from '../../ColorSelector';
 import FieldSelect from '../FieldSelect';
 
 type Props = {
@@ -177,6 +179,12 @@ export const ReferenceLine: FC<Props> = ({
     const {
         cartesianConfig: { dirtyLayout },
     } = useVisualizationContext();
+    const { data: org } = useOrganization();
+
+    const defaultColors = useMemo(
+        () => org?.chartColors ?? ECHARTS_DEFAULT_COLORS,
+        [org],
+    );
 
     const fieldsInAxes = useMemo(() => {
         const fieldNames = [
@@ -324,26 +332,29 @@ export const ReferenceLine: FC<Props> = ({
                         }}
                     />
 
-                    <Group noWrap spacing="sm">
-                        <Text fw={600}>Color</Text>
-                        <ColorSelector
-                            color={lineColor}
-                            onColorChange={(color) => {
-                                setLineColor(color);
-                                if (
-                                    value !== undefined &&
-                                    selectedField !== undefined
-                                )
-                                    updateReferenceLine(
-                                        value,
-                                        selectedField,
-                                        label,
-                                        color,
-                                        referenceLine.data.name,
-                                    );
-                            }}
-                        />
-                    </Group>
+                    <ColorInput
+                        label="Color"
+                        value={lineColor}
+                        withinPortal={false}
+                        withEyeDropper={false}
+                        format="hex"
+                        swatches={defaultColors}
+                        swatchesPerRow={defaultColors.length}
+                        onChange={(color) => {
+                            setLineColor(color);
+                            if (
+                                value !== undefined &&
+                                selectedField !== undefined
+                            )
+                                updateReferenceLine(
+                                    value,
+                                    selectedField,
+                                    label,
+                                    color,
+                                    referenceLine.data.name,
+                                );
+                        }}
+                    />
                 </Stack>
             </Collapse>
         </Stack>
