@@ -1,3 +1,10 @@
+# [0.697.0](https://github.com/lightdash/lightdash/compare/0.696.0...0.697.0) (2023-07-26)
+
+
+### Features
+
+* migrate reference line config to mantine ([#6479](https://github.com/lightdash/lightdash/issues/6479)) ([8c6f171](https://github.com/lightdash/lightdash/commit/8c6f171220bd3d6b3400e4c4050d06b3f27a1d70))
+
 # [0.696.0](https://github.com/lightdash/lightdash/compare/0.695.0...0.696.0) (2023-07-26)
 
 
