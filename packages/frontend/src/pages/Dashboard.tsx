@@ -32,7 +32,6 @@ import MetricQueryDataProvider from '../components/MetricQueryData/MetricQueryDa
 import UnderlyingDataModal from '../components/MetricQueryData/UnderlyingDataModal';
 import {
     appendNewTilesToBottom,
-    useDashboardDeleteMutation,
     useDuplicateDashboardMutation,
     useExportDashboard,
     useMoveDashboardMutation,
@@ -171,7 +170,6 @@ const Dashboard: FC = () => {
     const { mutate: duplicateDashboard } = useDuplicateDashboardMutation({
         showRedirectButton: true,
     });
-    const { mutateAsync: deleteDashboard } = useDashboardDeleteMutation();
     const { mutate: exportDashboard } = useExportDashboard();
 
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -509,7 +507,6 @@ const Dashboard: FC = () => {
                         uuid={dashboard.uuid}
                         onClose={() => setIsDeleteModalOpen(false)}
                         onConfirm={() => {
-                            deleteDashboard(dashboard.uuid);
                             history.replace(
                                 `/projects/${projectUuid}/dashboards`,
                             );
