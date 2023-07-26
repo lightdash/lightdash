@@ -303,7 +303,7 @@ export const renderFilterRuleSql = (
     adapterType: SupportedDbtAdapter,
 ): string => {
     if ('disabled' in filterRule && filterRule.disabled) {
-        return `WHERE 1=1`;
+        return `1=1`; // When filter is disabled, we want to return all rows
     }
 
     const fieldType = field.type;
