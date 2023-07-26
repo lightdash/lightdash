@@ -5,12 +5,18 @@ import InputWrapper, { InputWrapperProps } from './InputWrapper';
 type UnitInputWrapperProps = Omit<UnitInputProps, 'value' | 'onChange'> &
     Omit<InputWrapperProps, 'render'>;
 
-const UnitInput: FC<UnitInputWrapperProps> = ({ ...unitInputProps }) => (
+const UnitInput: FC<UnitInputWrapperProps> = ({ label, ...unitInputProps }) => (
     <InputWrapper
         {...unitInputProps}
         render={(props, { field }) => (
-            <UnitInputOriginal {...unitInputProps} {...field} {...props} />
+            <UnitInputOriginal
+                label={label}
+                {...unitInputProps}
+                {...field}
+                {...props}
+            />
         )}
     />
 );
+
 export default UnitInput;

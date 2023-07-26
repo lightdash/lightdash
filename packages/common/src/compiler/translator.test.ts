@@ -27,6 +27,7 @@ import {
     MODEL_WITH_METRIC,
     MODEL_WITH_NO_METRICS,
     MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS,
+    MODEL_WITH_OFF_BOOLEAN_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_SQL_FILTER,
     MODEL_WITH_SQL_WHERE,
@@ -199,6 +200,15 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS,
+                [],
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS);
+    });
+    it('should convert dbt model with dimension with off boolean time intervals', () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_OFF_BOOLEAN_TIME_INTERVAL_DIMENSIONS,
                 [],
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS);

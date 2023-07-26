@@ -252,11 +252,11 @@ const useCartesianChartConfig = ({
         }));
     }, []);
 
-    const updateYField = useCallback((index: number, type: string) => {
+    const updateYField = useCallback((index: number, fieldId: string) => {
         setDirtyLayout((prev) => ({
             ...prev,
             yField: prev?.yField?.map((field, i) => {
-                return i === index ? type : field;
+                return i === index ? fieldId : field;
             }),
         }));
     }, []);

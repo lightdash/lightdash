@@ -222,13 +222,26 @@ const ValidDashboardChartTileMinimal: FC<{
     );
 };
 
-const InvalidDashboardChartTile: FC = () => (
-    <NonIdealState
-        title="No chart available"
-        description="Chart might have been deleted or you don't have permissions to see it."
-        icon="search"
-    />
-);
+const InvalidDashboardChartTile: FC<
+    Pick<DashboardChartTileMainProps, 'tile'>
+> = ({ tile }) => {
+    //TODO fix typing for dashboard tiles, ticket open here: https://github.com/lightdash/lightdash/issues/6450
+    // @ts-ignore
+    return tile.properties.newChartData ? (
+        <NonIdealState
+            // @ts-ignore
+            title={tile.properties.newChartData.name}
+            icon="chart"
+            description="Save your dashboard to see this new chart appear in the tile"
+        />
+    ) : (
+        <NonIdealState
+            title="No chart available"
+            description="Chart might have been deleted or you don't have permissions to see it."
+            icon="search"
+        />
+    );
+};
 
 interface DashboardChartTileMainProps
     extends Pick<
@@ -663,7 +676,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         />
                     </>
                 ) : (
-                    <InvalidDashboardChartTile />
+                    <InvalidDashboardChartTile tile={props.tile} />
                 )}
             </TileBase>
 
@@ -708,7 +721,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     title={title || data.name}
                 />
             ) : (
-                <InvalidDashboardChartTile />
+                <InvalidDashboardChartTile tile={props.tile} />
             )}
         </TileBase>
     );

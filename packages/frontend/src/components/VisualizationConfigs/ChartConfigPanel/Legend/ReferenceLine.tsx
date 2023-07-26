@@ -1,11 +1,12 @@
-import { Button, FormGroup, InputGroup } from '@blueprintjs/core';
 import { DateInput2 } from '@blueprintjs/datetime2';
 import {
     CompiledDimension,
+    ECHARTS_DEFAULT_COLORS,
     Field,
     fieldId as getFieldId,
     formatDate,
     getDateFormat,
+    getItemId,
     isDateItem,
     isDimension,
     isField,
@@ -18,19 +19,26 @@ import debounce from 'lodash/debounce';
 import moment from 'moment';
 import { FC, useCallback, useMemo, useState } from 'react';
 
-import FieldAutoComplete from '../../../common/Filters/FieldAutoComplete';
+import {
+    ActionIcon,
+    Box,
+    Collapse,
+    ColorInput,
+    Group,
+    Stack,
+    Text,
+    TextInput,
+    Tooltip,
+} from '@mantine/core';
+import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
+import { useOrganization } from '../../../../hooks/organization/useOrganization';
+import MantineIcon from '../../../common/MantineIcon';
 import MonthAndYearInput from '../../../common/MonthAndYearInput';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
 import WeekPicker from '../../../common/WeekPicker';
 import YearInput from '../../../common/YearInput';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
-import SeriesColorPicker from '../Series/SeriesColorPicker';
-import { SectionTitle } from './Legend.styles';
-import {
-    CollapseWrapper,
-    DeleteButtonTooltip,
-    Flex,
-} from './ReferenceLine.styles';
+import FieldSelect from '../FieldSelect';
 
 type Props = {
     index: number;
@@ -68,6 +76,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                     return (
                         <WeekPicker
                             value={moment(value).toDate()}
+                            popoverProps={{ usePortal: false }}
                             startOfWeek={startOfWeek}
                             onChange={(dateValue: Date) => {
                                 onChange(
@@ -82,8 +91,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                     );
                 case TimeFrames.MONTH:
                     return (
-                        <Flex>
-                            {' '}
+                        <Group noWrap spacing={0}>
                             <MonthAndYearInput
                                 value={moment(value).toDate()}
                                 onChange={(dateValue: Date) => {
@@ -96,7 +104,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                                     );
                                 }}
                             />
-                        </Flex>
+                        </Group>
                     );
 
                 case TimeFrames.YEAR:
@@ -120,6 +128,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                 <DateInput2
                     fill
                     value={value}
+                    popoverProps={{ usePortal: false }}
                     formatDate={(dateValue: Date) =>
                         formatDate(dateValue, undefined, false)
                     }
@@ -142,8 +151,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
     }
 
     return (
-        <InputGroup
-            fill
+        <TextInput
             disabled={!isNumericItem(field)}
             title={
                 isNumericItem(field)
@@ -171,6 +179,12 @@ export const ReferenceLine: FC<Props> = ({
     const {
         cartesianConfig: { dirtyLayout },
     } = useVisualizationContext();
+    const { data: org } = useOrganization();
+
+    const defaultColors = useMemo(
+        () => org?.chartColors ?? ECHARTS_DEFAULT_COLORS,
+        [org],
+    );
 
     const fieldsInAxes = useMemo(() => {
         const fieldNames = [
@@ -233,67 +247,82 @@ export const ReferenceLine: FC<Props> = ({
     );
 
     return (
-        <>
-            <Flex>
-                <Button
-                    minimal
-                    icon={isOpen ? 'chevron-down' : 'chevron-right'}
-                    onClick={() => setIsOpen(!isOpen)}
-                />
-                <SectionTitle>Line {index}</SectionTitle>
+        <Stack spacing="xs">
+            <Group noWrap position="apart">
+                <Group spacing="xs">
+                    <ActionIcon onClick={() => setIsOpen(!isOpen)} size="sm">
+                        <MantineIcon
+                            icon={isOpen ? IconChevronUp : IconChevronDown}
+                        />
+                    </ActionIcon>
 
-                <DeleteButtonTooltip content="Remove reference line">
-                    <Button
-                        small
-                        minimal
-                        icon="cross"
+                    <Text fw={500}>Line {index}</Text>
+                </Group>
+
+                <Tooltip label="Remove reference line" position="left">
+                    <ActionIcon
                         onClick={() =>
                             removeReferenceLine(referenceLine.data.name)
                         }
-                    />
-                </DeleteButtonTooltip>
-            </Flex>
-            <CollapseWrapper isOpen={isOpen}>
-                <FormGroup label="Field">
-                    <FieldAutoComplete
-                        fields={fieldsInAxes}
-                        activeField={selectedField}
-                        onChange={(item) => {
-                            setSelectedField(item);
+                        size="sm"
+                    >
+                        <MantineIcon icon={IconX} />
+                    </ActionIcon>
+                </Tooltip>
+            </Group>
+            <Collapse in={isOpen}>
+                <Stack
+                    bg={'gray.0'}
+                    p="sm"
+                    spacing="sm"
+                    sx={(theme) => ({
+                        borderRadius: theme.radius.sm,
+                    })}
+                >
+                    <FieldSelect
+                        label="Field"
+                        selectedField={selectedField}
+                        fieldOptions={fieldsInAxes}
+                        placeholder="Search field..."
+                        onChange={(itemId) => {
+                            const field = fieldsInAxes.find(
+                                (f) => getItemId(f) === itemId,
+                            );
+                            setSelectedField(field);
 
-                            if (value !== undefined)
+                            if (value !== undefined && field !== undefined)
                                 updateReferenceLine(
                                     value,
-                                    item,
+                                    field,
                                     label,
                                     lineColor,
                                     referenceLine.data.name,
                                 );
                         }}
                     />
-                </FormGroup>
-                <FormGroup label="Value">
-                    <ReferenceLineValue
-                        field={selectedField}
-                        startOfWeek={startOfWeek}
-                        value={value}
-                        onChange={(newValue: string) => {
-                            setValue(newValue);
-                            if (selectedField !== undefined)
-                                updateReferenceLine(
-                                    newValue,
-                                    selectedField,
-                                    label,
-                                    lineColor,
-                                    referenceLine.data.name,
-                                );
-                        }}
-                    />
-                </FormGroup>
-
-                <FormGroup label="Label">
-                    <InputGroup
-                        fill
+                    <Box>
+                        <Text fw={600} mb={3}>
+                            Value
+                        </Text>
+                        <ReferenceLineValue
+                            field={selectedField}
+                            startOfWeek={startOfWeek}
+                            value={value}
+                            onChange={(newValue: string) => {
+                                setValue(newValue);
+                                if (selectedField !== undefined)
+                                    updateReferenceLine(
+                                        newValue,
+                                        selectedField,
+                                        label,
+                                        lineColor,
+                                        referenceLine.data.name,
+                                    );
+                            }}
+                        />
+                    </Box>
+                    <TextInput
+                        label="Label"
                         disabled={!value}
                         value={label}
                         placeholder={value}
@@ -302,11 +331,15 @@ export const ReferenceLine: FC<Props> = ({
                             debouncedUpdateLabel(e.target.value);
                         }}
                     />
-                </FormGroup>
 
-                <FormGroup label="Color">
-                    <SeriesColorPicker
-                        color={lineColor}
+                    <ColorInput
+                        label="Color"
+                        value={lineColor}
+                        withinPortal={false}
+                        withEyeDropper={false}
+                        format="hex"
+                        swatches={defaultColors}
+                        swatchesPerRow={defaultColors.length}
                         onChange={(color) => {
                             setLineColor(color);
                             if (
@@ -322,8 +355,8 @@ export const ReferenceLine: FC<Props> = ({
                                 );
                         }}
                     />
-                </FormGroup>
-            </CollapseWrapper>
-        </>
+                </Stack>
+            </Collapse>
+        </Stack>
     );
 };

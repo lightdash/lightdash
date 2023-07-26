@@ -54,6 +54,7 @@ export const chart: SavedChart = {
     uuid: 'chartUuid',
     projectUuid: 'projectUuid',
     dashboardUuid: null,
+    dashboardName: null,
     name: 'Test chart',
     tableName: 'table',
     updatedAt: new Date('2021-01-01'),
@@ -168,6 +169,7 @@ export const dashboard: Dashboard = {
             properties: {
                 title: 'test chart',
                 savedChartUuid: 'chartUuid',
+                belongsToDashboard: false,
             },
             x: 0,
             y: 0,

@@ -58,6 +58,9 @@
                             "const": "default"
                         },
                         {
+                            "type": "boolean"
+                        },
+                        {
                             "const": "OFF"
                         },
                         {

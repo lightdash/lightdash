@@ -10,7 +10,7 @@ import {
 } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconEye } from '@tabler/icons-react';
-import { FC } from 'react';
+import { FC, ReactNode } from 'react';
 import { ResourceIcon } from '../../ResourceIcon';
 import ResourceViewActionMenu, {
     ResourceViewActionMenuCommonProps,
@@ -20,11 +20,13 @@ import { getResourceViewsSinceWhenDescription } from '../resourceUtils';
 interface ResourceViewGridDashboardItemProps
     extends Pick<ResourceViewActionMenuCommonProps, 'onAction'> {
     item: ResourceViewDashboardItem;
+    dragIcon: ReactNode;
 }
 
 const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
     item,
     onAction,
+    dragIcon,
 }) => {
     const { hovered, ref } = useHover();
     const [opened, handlers] = useDisclosure(false);
@@ -34,36 +36,37 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
         <Paper
             ref={ref}
             component={Flex}
+            pos="relative"
             direction="column"
             p={0}
             withBorder
             bg={hovered ? theme.fn.rgba(theme.colors.gray[0], 0.5) : undefined}
             h="100%"
         >
-            <Tooltip
-                label={item.data.description}
-                position="top"
-                disabled={!item.data.description}
+            <Group
+                p="md"
+                align="center"
+                spacing="md"
+                noWrap
+                sx={{
+                    flexGrow: 1,
+                    borderBottomWidth: 1,
+                    borderBottomStyle: 'solid',
+                    borderBottomColor: theme.colors.gray[3],
+                }}
             >
-                <Group
-                    p="md"
-                    align="center"
-                    spacing="md"
-                    noWrap
-                    sx={{
-                        flexGrow: 1,
-                        borderBottomWidth: 1,
-                        borderBottomStyle: 'solid',
-                        borderBottomColor: theme.colors.gray[3],
-                    }}
+                {dragIcon}
+                <ResourceIcon item={item} />
+                <Tooltip
+                    position="top"
+                    label={item.data.description}
+                    disabled={!item.data.description}
                 >
-                    <ResourceIcon item={item} />
-
                     <Text lineClamp={2} fz="sm" fw={600}>
                         {item.data.name}
                     </Text>
-                </Group>
-            </Tooltip>
+                </Tooltip>
+            </Group>
 
             <Flex pl="md" pr="xs" h={32} justify="space-between" align="center">
                 <Tooltip
