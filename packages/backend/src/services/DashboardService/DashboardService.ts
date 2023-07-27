@@ -326,27 +326,14 @@ export class DashboardService {
 
         if (hasChartsInDashboard(dashboard)) {
             const chartsInDashboard = await Promise.all(
-                chartsInDashboardTilesUuids.map(async (uuid) => {
-                    const chart = await this.savedChartModel.get(uuid ?? '');
-                    analytics.track({
-                        event: 'saved_chart.created',
-                        userId: user.userUuid,
-                        properties: {
-                            ...SavedChartService.getCreateEventProperties(
-                                chart,
-                            ),
-                            dashboardId: chart.dashboardUuid ?? undefined,
-                            duplicated: true,
-                        },
-                    });
-                    return chart;
-                }),
+                chartsInDashboardTilesUuids.map(async (uuid) =>
+                    this.savedChartModel.get(uuid ?? ''),
+                ),
             );
 
             await Promise.all(
-                chartsInDashboard.map(
-                    async (chart) =>
-                        chart &&
+                chartsInDashboard.map(async (chart) => {
+                    if (chart) {
                         this.savedChartModel.create(
                             dashboard.projectUuid,
                             user.userUuid,
@@ -357,9 +344,22 @@ export class DashboardService {
                                     firstName: user.firstName,
                                     lastName: user.lastName,
                                 },
+                                spaceUuid: undefined,
                             },
-                        ),
-                ),
+                        );
+                        analytics.track({
+                            event: 'saved_chart.created',
+                            userId: user.userUuid,
+                            properties: {
+                                ...SavedChartService.getCreateEventProperties(
+                                    chart,
+                                ),
+                                dashboardId: chart.dashboardUuid ?? undefined,
+                                duplicated: true,
+                            },
+                        });
+                    }
+                }),
             );
         }
 
