@@ -7,10 +7,11 @@ import { useCallback, useMemo } from 'react';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 
 const useDashboardFiltersForExplore = (
-    tileUuid: string | undefined,
+    tileUuid: string,
     explore: Explore | undefined,
-): DashboardFilters | undefined => {
-    const dashboardContext = useDashboardContext();
+): DashboardFilters => {
+    const { dashboardFilters, dashboardTemporaryFilters } =
+        useDashboardContext();
 
     const tables = useMemo(
         () => (explore ? Object.keys(explore.tables) : []),
@@ -18,10 +19,8 @@ const useDashboardFiltersForExplore = (
     );
 
     const overrideTileFilters = useCallback(
-        (rules: DashboardFilterRule[]) => {
-            if (!tileUuid) return [];
-
-            return rules
+        (rules: DashboardFilterRule[]) =>
+            rules
                 .filter((f) => f.tileTargets?.[tileUuid] ?? true)
                 .map((filter) => {
                     const { tileTargets, ...rest } = filter;
@@ -39,26 +38,22 @@ const useDashboardFiltersForExplore = (
                     };
                 })
                 .filter((f): f is DashboardFilterRule => f !== null)
-                .filter((f) => tables.includes(f.target.tableName));
-        },
+                .filter((f) => tables.includes(f.target.tableName)),
         [tables, tileUuid],
     );
 
     return useMemo(() => {
-        if (!dashboardContext) return undefined;
-
         return {
             dimensions: overrideTileFilters([
-                ...dashboardContext.dashboardFilters.dimensions,
-                ...(dashboardContext.dashboardTemporaryFilters.dimensions ??
-                    []),
+                ...dashboardFilters.dimensions,
+                ...(dashboardTemporaryFilters?.dimensions ?? []),
             ]),
             metrics: overrideTileFilters([
-                ...dashboardContext.dashboardFilters.metrics,
-                ...(dashboardContext.dashboardTemporaryFilters?.metrics ?? []),
+                ...dashboardFilters.metrics,
+                ...(dashboardTemporaryFilters?.metrics ?? []),
             ]),
         };
-    }, [dashboardContext, overrideTileFilters]);
+    }, [dashboardFilters, dashboardTemporaryFilters, overrideTileFilters]);
 };
 
 export default useDashboardFiltersForExplore;
