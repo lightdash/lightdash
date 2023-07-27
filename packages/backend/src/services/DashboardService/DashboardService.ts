@@ -310,22 +310,35 @@ export class DashboardService {
                 "You don't have access to the space this dashboard belongs to",
             );
         }
-        const hasChartsInDashboard = dashboard.tiles.some(
-            (tile) => isChartTile(tile) && tile.properties.belongsToDashboard,
-        );
-        const chartsInDashboardTiles = dashboard.tiles.filter(
-            (tile) => isChartTile(tile) && tile.properties.belongsToDashboard,
-        );
+        const hasChartsInDashboard = (dash: Dashboard) =>
+            dash.tiles.some(
+                (tile) =>
+                    isChartTile(tile) && tile.properties.belongsToDashboard,
+            );
+        const chartsInDashboardTilesUuids = dashboard.tiles
+            .filter(
+                (tile) =>
+                    isChartTile(tile) && tile.properties.belongsToDashboard,
+            )
+            .map((tile) => tile.uuid);
 
-        if (hasChartsInDashboard) {
+        if (hasChartsInDashboard(dashboard)) {
             const chartsInDashboard = await Promise.all(
-                chartsInDashboardTiles.map(
-                    async (tile) =>
-                        isChartTile(tile) &&
-                        this.savedChartModel.get(
-                            tile.properties.savedChartUuid ?? '',
-                        ),
-                ),
+                chartsInDashboardTilesUuids.map(async (uuid) => {
+                    const chart = await this.savedChartModel.get(uuid);
+                    analytics.track({
+                        event: 'saved_chart.created',
+                        userId: user.userUuid,
+                        properties: {
+                            ...SavedChartService.getCreateEventProperties(
+                                chart,
+                            ),
+                            dashboardId: chart.dashboardUuid ?? undefined,
+                            duplicated: true,
+                        },
+                    });
+                    return chart;
+                }),
             );
 
             await Promise.all(
