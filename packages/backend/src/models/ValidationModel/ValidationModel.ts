@@ -115,17 +115,9 @@ export class ValidationModel {
         projectUuid: string,
         jobId?: string,
     ): Promise<ValidationResponse[]> {
-        const chartValidationErrorsRows: (DbValidationTable &
-            Pick<SavedChartTable['base'], 'name'> &
-            Pick<UserTable['base'], 'first_name' | 'last_name'> &
-            Pick<DbSpace, 'space_uuid'> &
-            Pick<
-                SavedChartVersionsTable['base'],
-                'chart_config' | 'chart_type'
-            > & {
-                last_updated_at: Date;
-                views: string;
-            })[] = await this.database(ValidationTableName)
+        const chartValidationErrorsRows = await this.database(
+            ValidationTableName,
+        )
             .leftJoin(
                 SavedChartsTableName,
                 `${SavedChartsTableName}.saved_query_uuid`,
@@ -136,14 +128,10 @@ export class ValidationModel {
                 `${SpaceTableName}.space_id`,
                 `${SavedChartsTableName}.space_id`,
             )
-            .leftJoin(
-                `${SavedChartVersionsTableName}`,
-                `${SavedChartVersionsTableName}.saved_query_id`,
-                `${SavedChartsTableName}.saved_query_id`,
-            )
+
             .leftJoin(
                 UserTableName,
-                `${SavedChartVersionsTableName}.updated_by_user_uuid`,
+                `${SavedChartsTableName}.last_version_updated_by_user_uuid`,
                 `${UserTableName}.user_uuid`,
             )
             .where('project_uuid', projectUuid)
@@ -158,12 +146,28 @@ export class ValidationModel {
                 `${ValidationTableName}.source`,
                 ValidationSourceType.Chart,
             )
-            .select([
+            .select<
+                (DbValidationTable &
+                    Pick<
+                        SavedChartTable['base'],
+                        | 'name'
+                        | 'last_version_updated_at'
+                        | 'last_version_chart_kind'
+                    > &
+                    Pick<UserTable['base'], 'first_name' | 'last_name'> &
+                    Pick<DbSpace, 'space_uuid'> &
+                    Pick<
+                        SavedChartVersionsTable['base'],
+                        'chart_config' | 'chart_type'
+                    > & {
+                        last_updated_at: Date;
+                        views: string;
+                    })[]
+            >([
                 `${ValidationTableName}.*`,
                 `${SavedChartsTableName}.name`,
-                `${SavedChartVersionsTableName}.created_at as last_updated_at`,
-                `${SavedChartVersionsTableName}.chart_type`,
-                `${SavedChartVersionsTableName}.chart_config`,
+                `${SavedChartsTableName}.last_version_updated_at`,
+                `${SavedChartsTableName}.last_version_chart_kind`,
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
                 `${SpaceTableName}.space_uuid`,
@@ -177,7 +181,7 @@ export class ValidationModel {
                     order: 'asc',
                 },
                 {
-                    column: `${SavedChartVersionsTableName}.saved_query_id`,
+                    column: `${SavedChartsTableName}.saved_query_id`,
                     order: 'desc',
                 },
                 {
@@ -187,7 +191,7 @@ export class ValidationModel {
             ])
             .distinctOn([
                 `${SavedChartsTableName}.name`,
-                `${SavedChartVersionsTableName}.saved_query_id`,
+                `${SavedChartsTableName}.saved_query_id`,
                 `${ValidationTableName}.error`,
             ]);
 
@@ -205,13 +209,10 @@ export class ValidationModel {
                 lastUpdatedBy: validationError.first_name
                     ? `${validationError.first_name} ${validationError.last_name}`
                     : undefined,
-                lastUpdatedAt: validationError.last_updated_at,
+                lastUpdatedAt: validationError.last_version_updated_at,
                 validationId: validationError.validation_id,
                 spaceUuid: validationError.space_uuid,
-                chartType: getChartType(
-                    validationError.chart_type,
-                    validationError.chart_config,
-                ),
+                chartType: validationError.last_version_chart_kind,
                 errorType: validationError.error_type,
                 fieldName: validationError.field_name ?? undefined,
                 source: ValidationSourceType.Chart,

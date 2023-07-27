@@ -68,18 +68,19 @@ const getCharts = async (
         .andWhere('pinned_list.project_uuid', projectUuid)
         .orderBy('pinned_chart.order', 'asc')
         .groupBy([
-            'project_uuid',
-            'pinned_list_uuid',
-            'space_uuid',
-            'saved_chart_uuid',
-            'updated_by_user_first_name',
-            'updated_by_user_last_name',
-            'updated_by_user_uuid',
-            'order',
-            'chart_kind',
-            'name',
-            'description',
-            'updated_at',
+            'pinned_list.project_uuid',
+            'pinned_list.pinned_list_uuid',
+            'spaces.space_uuid',
+            'pinned_chart.saved_chart_uuid',
+            'users.first_name',
+            'users.last_name',
+
+            'saved_queries.last_version_updated_by_user_uuid',
+            'pinned_chart.order',
+            `saved_queries.last_version_chart_kind`,
+            'saved_queries.name',
+            'saved_queries.description',
+            'saved_queries.last_version_updated_at',
         ])) as Record<string, any>[];
     const resourceType: ResourceViewItemType.CHART = ResourceViewItemType.CHART;
     const items = rows.map((row) => ({
