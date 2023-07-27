@@ -10,6 +10,7 @@ import {
     createConditionalFormattingConfigWithSingleColor,
     ECHARTS_DEFAULT_COLORS,
     FilterableItem,
+    Format,
     getConditionalFormattingConfigType,
     getItemId,
     isConditionalFormattingConfigWithColorRange,
@@ -31,6 +32,7 @@ import {
 import {
     IconChevronDown,
     IconChevronUp,
+    IconPercentage,
     IconPlus,
     IconX,
 } from '@tabler/icons-react';
@@ -412,6 +414,13 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                 <NumberInput
                                     label="Min value"
                                     value={config.rule.min}
+                                    icon={
+                                        field?.format === Format.PERCENT ? (
+                                            <MantineIcon
+                                                icon={IconPercentage}
+                                            />
+                                        ) : null
+                                    }
                                     onChange={(newMin) => {
                                         if (newMin === '') return;
 
@@ -423,6 +432,13 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
 
                                 <NumberInput
                                     label="Max value"
+                                    icon={
+                                        field?.format === Format.PERCENT ? (
+                                            <MantineIcon
+                                                icon={IconPercentage}
+                                            />
+                                        ) : null
+                                    }
                                     value={config.rule.max}
                                     onChange={(newMax) => {
                                         if (newMax === '') return;
