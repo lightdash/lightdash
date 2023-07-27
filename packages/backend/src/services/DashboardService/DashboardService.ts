@@ -382,7 +382,14 @@ export class DashboardService {
             return this.dashboardModel.addVersion(
                 newDashboard.uuid,
                 {
-                    tiles: [...duplicatedChartsTiles] as DashboardTile[],
+                    tiles: [
+                        ...newDashboard.tiles.filter(
+                            (tile) =>
+                                isChartTile(tile) &&
+                                !tile.properties.belongsToDashboard,
+                        ),
+                        ...duplicatedChartsTiles,
+                    ] as DashboardTile[],
                 },
                 user,
                 projectUuid,
