@@ -12,6 +12,7 @@ import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useProject } from '../../hooks/useProject';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
@@ -42,6 +43,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
+    const { data: project } = useProject(projectUuid);
     const { explore, pieChartConfig } = useVisualizationContext();
     const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
         tileUuid,
@@ -53,7 +55,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     const tracking = useTracking(true);
     const metricQueryData = useMetricQueryDataContext(true);
 
-    if (!value || !tracking || !metricQueryData) {
+    if (!value || !tracking || !metricQueryData || !project) {
         return null;
     }
 
@@ -64,8 +66,8 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     const canViewUnderlyingData = user.data?.ability?.can(
         'view',
         subject('UnderlyingData', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid: projectUuid,
+            organizationUuid: project?.organizationUuid,
+            projectUuid: project?.projectUuid,
         }),
     );
 
@@ -75,8 +77,8 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
         user.data?.ability?.can(
             'manage',
             subject('Explore', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid: projectUuid,
+                organizationUuid: project?.organizationUuid,
+                projectUuid: project?.projectUuid,
             }),
         );
 
