@@ -327,13 +327,13 @@ export class DashboardService {
 
         if (hasChartsInDashboard(newDashboard)) {
             const updatedTiles = await Promise.all(
-                newDashboard.tiles.map(async (currentTile) => {
+                newDashboard.tiles.map(async (tile) => {
                     if (
-                        isChartTile(currentTile) &&
-                        currentTile.properties.belongsToDashboard
+                        isChartTile(tile) &&
+                        tile.properties.belongsToDashboard
                     ) {
                         const chartInDashboard = await this.savedChartModel.get(
-                            currentTile.properties.savedChartUuid!,
+                            tile.properties.savedChartUuid!,
                         );
                         const duplicatedChart =
                             await this.savedChartModel.create(
@@ -363,15 +363,15 @@ export class DashboardService {
                             },
                         });
                         return {
-                            ...currentTile,
+                            ...tile,
                             uuid: uuidv4(),
                             properties: {
-                                ...currentTile.properties,
+                                ...tile.properties,
                                 savedChartUuid: duplicatedChart.uuid,
                             },
                         };
                     }
-                    return currentTile;
+                    return tile;
                 }),
             );
 
