@@ -1,15 +1,11 @@
 import {
-    AdditionalMetric,
     ApiQueryResults,
     ECHARTS_DEFAULT_COLORS,
     Explore,
     Field,
     fieldId,
     formatItemValue,
-    isAdditionalMetric,
     isField,
-    isMetric,
-    Metric,
     PieChart,
     PieChartValueOptions,
     ResultRow,
@@ -36,7 +32,7 @@ type PieChartConfig = {
     groupRemove: (dimensionId: any) => void;
 
     metricId: string | null;
-    selectedMetric: Metric | AdditionalMetric | TableCalculation | undefined;
+    selectedMetric: Field | TableCalculation | undefined;
     metricChange: (metricId: string | null) => void;
 
     isDonut: boolean;
@@ -78,8 +74,6 @@ type PieChartConfig = {
         meta: {
             value: ResultValue;
             rows: ResultRow[];
-            groupDimensions: string[];
-            metricId: string;
         };
     }[];
 };
@@ -89,7 +83,7 @@ type PieChartConfigFn = (
     resultsData: ApiQueryResults | undefined,
     pieChartConfig: PieChart | undefined,
     dimensions: Field[],
-    allNumericMetrics: (Metric | AdditionalMetric | TableCalculation)[],
+    allNumericMetrics: (Field | TableCalculation)[],
 ) => PieChartConfig;
 
 const usePieChartConfig: PieChartConfigFn = (
@@ -159,12 +153,7 @@ const usePieChartConfig: PieChartConfigFn = (
     const dimensionIds = useMemo(() => dimensions.map(fieldId), [dimensions]);
 
     const allNumericMetricIds = useMemo(
-        () =>
-            allNumericMetrics.map((m) =>
-                (isField(m) && isMetric(m)) || isAdditionalMetric(m)
-                    ? fieldId(m)
-                    : m.name,
-            ),
+        () => allNumericMetrics.map((m) => (isField(m) ? fieldId(m) : m.name)),
         [allNumericMetrics],
     );
 
@@ -239,7 +228,7 @@ const usePieChartConfig: PieChartConfigFn = (
 
             const value = Number(row[metricId].value.raw);
 
-            return { name, value, row, groupDimensions: groupFieldIds };
+            return { name, value, row };
         });
 
         return Object.entries(
@@ -249,21 +238,19 @@ const usePieChartConfig: PieChartConfigFn = (
                     {
                         value: number;
                         rows: ResultRow[];
-                        groupDimensions: string[];
                     }
                 >
-            >((acc, { name, value, row, groupDimensions }) => {
+            >((acc, { name, value, row }) => {
                 return {
                     ...acc,
                     [name]: {
                         value: (acc[name]?.value ?? 0) + value,
                         rows: [...(acc[name]?.rows ?? []), row],
-                        groupDimensions,
                     },
                 };
             }, {}),
         )
-            .map(([name, { value, rows, groupDimensions }]) => ({
+            .map(([name, { value, rows }]) => ({
                 name,
                 value,
                 meta: {
@@ -272,8 +259,6 @@ const usePieChartConfig: PieChartConfigFn = (
                         raw: value,
                     },
                     rows,
-                    groupDimensions,
-                    metricId,
                 },
             }))
             .sort((a, b) => b.value - a.value);

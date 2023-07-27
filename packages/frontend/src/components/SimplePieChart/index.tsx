@@ -44,7 +44,6 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
     const [menuProps, setMenuProps] = useState<{
         position: PieChartContextMenuProps['menuPosition'];
         value: PieChartContextMenuProps['value'];
-        groupDimensions: PieChartContextMenuProps['groupDimensions'];
         rows: PieChartContextMenuProps['rows'];
     }>();
 
@@ -60,7 +59,6 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
             const data = e.data as PieSeriesDataPoint;
 
             setMenuProps({
-                groupDimensions: data.meta.groupDimensions,
                 value: data.meta.value,
                 position: {
                     left: event.clientX,
@@ -116,7 +114,6 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
                 value={menuProps?.value}
                 menuPosition={menuProps?.position}
                 rows={menuProps?.rows}
-                groupDimensions={menuProps?.groupDimensions}
                 opened={isOpen}
                 onClose={handleCloseContextMenu}
             />

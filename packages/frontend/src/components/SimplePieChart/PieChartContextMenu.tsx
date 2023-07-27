@@ -27,7 +27,6 @@ export type PieChartContextMenuProps = {
         top: number;
     };
     value?: ResultValue;
-    groupDimensions?: string[];
     rows?: ResultRow[];
 } & Pick<MenuProps, 'position' | 'opened' | 'onOpen' | 'onClose'>;
 
@@ -35,7 +34,6 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     tileUuid,
     menuPosition,
     value,
-    groupDimensions,
     rows,
     opened,
     onOpen,
@@ -101,7 +99,8 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
             dashboardFilters: dashboardFiltersThatApplyToChart,
             pivotReference: {
                 field: getItemId(pieChartConfig.selectedMetric),
-                pivotValues: groupDimensions
+                pivotValues: pieChartConfig.groupFieldIds
+                    ?.filter((x): x is string => x !== null)
                     ?.map<PivotValue | null>((dimension) => {
                         const dimensionValue =
                             rows?.[0]?.[dimension]?.value?.raw;
