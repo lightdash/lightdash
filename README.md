@@ -42,7 +42,7 @@ Come join the team, [we're hiring](https://lightdash.notion.site/Lightdash-Job-B
 
 ## Features:
 
-- [x] 🙏 Familiar interface rfrfrrfrfrfrfrnernf for your users to self-serve using pre-defined metrics
+- [x] 🙏 Familiar interface for your users to self-serve using pre-defined metrics
 - [x] 👩‍💻 Declare dimensions and metrics in yaml alongside your dbt project
 - [x] 🤖 Automatically creates dimensions from your dbt models
 - [x] 📖 All dbt descriptions synced for your users
