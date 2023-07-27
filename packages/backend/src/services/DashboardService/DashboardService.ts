@@ -318,31 +318,32 @@ export class DashboardService {
         );
 
         if (hasChartsInDashboard) {
-            const chartsInDashboard = chartsInDashboardTiles.map(
-                async (tile) => {
-                    const chartInDashboard = isChartTile(tile)
-                        ? await this.savedChartModel.get(
-                              tile.properties.savedChartUuid ?? '',
-                          )
-                        : undefined;
-
-                    return chartInDashboard;
-                },
+            const chartsInDashboard = await Promise.all(
+                chartsInDashboardTiles.map(
+                    async (tile) =>
+                        isChartTile(tile) &&
+                        this.savedChartModel.get(
+                            tile.properties.savedChartUuid ?? '',
+                        ),
+                ),
             );
 
-            chartsInDashboard.map((chart) =>
-                chart.then((chartInDashboard) =>
-                    chartInDashboard
-                        ? this.savedChartModel.create(
-                              dashboard.projectUuid,
-                              user.userUuid,
-                              // @ts-ignore
-                              {
-                                  ...chartInDashboard,
-                                  name: `Copy of ${chartInDashboard?.name}`,
-                              },
-                          )
-                        : undefined,
+            await Promise.all(
+                chartsInDashboard.map(
+                    async (chart) =>
+                        chart &&
+                        this.savedChartModel.create(
+                            dashboard.projectUuid,
+                            user.userUuid,
+                            {
+                                ...chart,
+                                updatedByUser: {
+                                    userUuid: user.userUuid,
+                                    firstName: user.firstName,
+                                    lastName: user.lastName,
+                                },
+                            },
+                        ),
                 ),
             );
         }
