@@ -342,33 +342,32 @@ export class DashboardService {
 
             await Promise.all(
                 chartsInDashboard.map(async (chart) => {
-                    if (chart) {
-                        await this.savedChartModel.create(
-                            dashboard.projectUuid,
-                            user.userUuid,
-                            newDashboard.uuid,
-                            {
-                                ...chart,
-                                spaceUuid: undefined,
-                                updatedByUser: {
-                                    userUuid: user.userUuid,
-                                    firstName: user.firstName,
-                                    lastName: user.lastName,
-                                },
+                    const duplicatedChart = await this.savedChartModel.create(
+                        dashboard.projectUuid,
+                        user.userUuid,
+                        newDashboard.uuid,
+                        {
+                            ...chart,
+                            spaceUuid: undefined,
+                            updatedByUser: {
+                                userUuid: user.userUuid,
+                                firstName: user.firstName,
+                                lastName: user.lastName,
                             },
-                        );
-                        analytics.track({
-                            event: 'saved_chart.created',
-                            userId: user.userUuid,
-                            properties: {
-                                ...SavedChartService.getCreateEventProperties(
-                                    chart,
-                                ),
-                                dashboardId: newDashboard.uuid ?? undefined,
-                                duplicated: true,
-                            },
-                        });
-                    }
+                        },
+                    );
+                    analytics.track({
+                        event: 'saved_chart.created',
+                        userId: user.userUuid,
+                        properties: {
+                            ...SavedChartService.getCreateEventProperties(
+                                duplicatedChart,
+                            ),
+                            dashboardId:
+                                duplicatedChart.dashboardUuid ?? undefined,
+                            duplicated: true,
+                        },
+                    });
                 }),
             );
         }
