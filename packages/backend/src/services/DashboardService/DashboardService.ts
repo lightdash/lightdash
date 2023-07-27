@@ -320,12 +320,14 @@ export class DashboardService {
                 (tile) =>
                     isChartTile(tile) && tile.properties.belongsToDashboard,
             )
-            .map((tile) => tile.uuid);
+            .map((tile) =>
+                isChartTile(tile) ? tile.properties.savedChartUuid : '',
+            );
 
         if (hasChartsInDashboard(dashboard)) {
             const chartsInDashboard = await Promise.all(
                 chartsInDashboardTilesUuids.map(async (uuid) => {
-                    const chart = await this.savedChartModel.get(uuid);
+                    const chart = await this.savedChartModel.get(uuid ?? '');
                     analytics.track({
                         event: 'saved_chart.created',
                         userId: user.userUuid,
