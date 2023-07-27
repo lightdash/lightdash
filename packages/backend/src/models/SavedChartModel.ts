@@ -290,6 +290,7 @@ export class SavedChartModel {
             pivotConfig,
             updatedByUser,
             spaceUuid,
+            dashboardUuid,
         }: CreateSavedChart & { updatedByUser: UpdatedByUser },
     ): Promise<SavedChart> {
         const newSavedChartUuid = await createSavedChart(
@@ -307,6 +308,7 @@ export class SavedChartModel {
                 pivotConfig,
                 updatedByUser,
                 spaceUuid,
+                dashboardUuid,
             },
         );
         return this.get(newSavedChartUuid);

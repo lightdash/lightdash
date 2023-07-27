@@ -6,6 +6,7 @@ import {
     DashboardBasicDetails,
     DashboardTileTypes,
     ForbiddenError,
+    hasChartsInDashboard,
     isChartScheduler,
     isChartTile,
     isDashboardUnversionedFields,
@@ -310,11 +311,7 @@ export class DashboardService {
                 "You don't have access to the space this dashboard belongs to",
             );
         }
-        const hasChartsInDashboard = (dash: Dashboard) =>
-            dash.tiles.some(
-                (tile) =>
-                    isChartTile(tile) && tile.properties.belongsToDashboard,
-            );
+
         const chartsInDashboardTilesUuids = dashboard.tiles
             .filter(
                 (tile) =>
@@ -324,7 +321,19 @@ export class DashboardService {
                 isChartTile(tile) ? tile.properties.savedChartUuid : '',
             );
 
-        if (hasChartsInDashboard(dashboard)) {
+        const duplicatedDashboard = {
+            ...dashboard,
+            name: `Copy of ${dashboard.name}`,
+        };
+
+        const newDashboard = await this.dashboardModel.create(
+            dashboard.spaceUuid,
+            duplicatedDashboard,
+            user,
+            projectUuid,
+        );
+
+        if (hasChartsInDashboard(newDashboard)) {
             const chartsInDashboard = await Promise.all(
                 chartsInDashboardTilesUuids.map(async (uuid) =>
                     this.savedChartModel.get(uuid ?? ''),
@@ -345,6 +354,7 @@ export class DashboardService {
                                     lastName: user.lastName,
                                 },
                                 spaceUuid: undefined,
+                                dashboardUuid: newDashboard.uuid,
                             },
                         );
                         analytics.track({
@@ -362,18 +372,6 @@ export class DashboardService {
                 }),
             );
         }
-
-        const duplicatedDashboard = {
-            ...dashboard,
-            name: `Copy of ${dashboard.name}`,
-        };
-
-        const newDashboard = await this.dashboardModel.create(
-            dashboard.spaceUuid,
-            duplicatedDashboard,
-            user,
-            projectUuid,
-        );
 
         const dashboardProperties =
             DashboardService.getCreateEventProperties(newDashboard);
