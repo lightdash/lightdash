@@ -58,6 +58,7 @@ export const replaceUserAttributes = (
     sqlFilter: string,
     userAttributes: UserAttribute[],
     stringQuoteChar: string = "'",
+    filter: string = 'sql_filter',
 ): string => {
     const userAttributeRegex =
         /\$\{(?:lightdash|ld)\.(?:attribute|attributes|attr)\.(\w+)\}/g;
@@ -74,12 +75,12 @@ export const replaceUserAttributes = (
         );
         if (userAttribute === undefined) {
             throw new ForbiddenError(
-                `Missing user attribute "${attribute}" on sqlFilter "${sqlFilter}"`,
+                `Missing user attribute "${attribute}" on ${filter}: "${sqlFilter}"`,
             );
         }
         if (userAttribute.users.length !== 1) {
             throw new ForbiddenError(
-                `Invalid or missing user attribute "${attribute}" on sqlFilter "${sqlFilter}"`,
+                `Invalid or missing user attribute "${attribute}" on ${filter}: "${sqlFilter}"`,
             );
         }
         return acc.replace(
@@ -197,7 +198,13 @@ export const buildQuery = ({
         .map((join) => {
             const joinTable = explore.tables[join.table].sqlTable;
             const alias = join.table;
-            return `LEFT JOIN ${joinTable} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}\n  ON ${join.compiledSqlOn}`;
+            const parsedSqlOn = replaceUserAttributes(
+                join.compiledSqlOn,
+                userAttributes,
+                stringQuoteChar,
+                'sql_on',
+            );
+            return `LEFT JOIN ${joinTable} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}\n  ON ${parsedSqlOn}`;
         })
         .join('\n');
 
