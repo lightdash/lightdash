@@ -16,7 +16,7 @@ import {
 import { useForm, UseFormReturnType } from '@mantine/form';
 import produce from 'immer';
 import ChartTileForm from './ChartTileForm';
-import LoomTileForm from './LoomTileForm';
+import LoomTileForm, { getLoomId } from './LoomTileForm';
 import MarkdownTileForm from './MarkdownTileForm';
 
 type Tile = Dashboard['tiles'][number];
@@ -34,8 +34,25 @@ const TileUpdateModal = <T extends Tile>({
     onConfirm,
     ...modalProps
 }: TileUpdateModalProps<T>) => {
+    const buildValidators = () => {
+        const urlValidator = {
+            url: (value: string | undefined) =>
+                getLoomId(value) ? null : 'Loom url not valid',
+        };
+        const titleValidator = {
+            title: (value: string | undefined) => {
+                return !value || !value.length ? 'Required field' : null;
+            },
+        };
+
+        if (tile.type === DashboardTileTypes.LOOM)
+            return { ...urlValidator, ...titleValidator };
+    };
+
     const form = useForm<TileProperties>({
         initialValues: tile.properties,
+        validate: buildValidators(),
+        validateInputOnChange: ['title', 'url'],
     });
 
     const handleConfirm = form.onSubmit(({ ...properties }) => {
@@ -75,6 +92,7 @@ const TileUpdateModal = <T extends Tile>({
                                 DashboardLoomTileProperties['properties']
                             >
                         }
+                        withHideTitle
                     />
                 );
             }
@@ -102,7 +120,7 @@ const TileUpdateModal = <T extends Tile>({
                             <Button
                                 intent="primary"
                                 type="submit"
-                                disabled={!form.isValid}
+                                disabled={!form.isValid()}
                             >
                                 Save
                             </Button>

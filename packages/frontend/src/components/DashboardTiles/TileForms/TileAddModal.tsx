@@ -8,15 +8,16 @@ import {
 import {
     assertUnreachable,
     Dashboard,
+    DashboardLoomTileProperties,
+    DashboardMarkdownTileProperties,
     DashboardTileTypes,
     defaultTileSize,
 } from '@lightdash/common';
+import { useForm, UseFormReturnType } from '@mantine/form';
 import { FC, useState } from 'react';
-import { useForm } from 'react-hook-form';
 import { v4 as uuid4 } from 'uuid';
-import Form from '../../ReactHookForm/Form';
 import ChartTileForm from './ChartTileForm';
-import LoomTileForm from './LoomTileForm';
+import LoomTileForm, { getLoomId } from './LoomTileForm';
 import MarkdownTileForm from './MarkdownTileForm';
 
 type Tile = Dashboard['tiles'][number];
@@ -36,13 +37,27 @@ export const TileAddModal: FC<AddProps> = ({
 }) => {
     const [errorMessage, setErrorMessage] = useState<string>();
 
+    const buildValidators = () => {
+        const urlValidator = {
+            url: (value: string | undefined) =>
+                getLoomId(value) ? null : 'Loom url not valid',
+        };
+        const titleValidator = {
+            title: (value: string | undefined) =>
+                !value || !value.length ? 'Required field' : null,
+        };
+        if (type === DashboardTileTypes.LOOM)
+            return { ...urlValidator, ...titleValidator };
+    };
+
     const form = useForm<TileProperties>({
-        mode: 'onChange',
+        validate: buildValidators(),
+        validateInputOnChange: ['title', 'url', 'content'],
     });
 
     if (!type) return null;
 
-    const handleConfirm = (properties: TileProperties) => {
+    const handleConfirm = form.onSubmit(({ ...properties }) => {
         if (type === DashboardTileTypes.MARKDOWN) {
             const markdownForm = properties as any;
             if (!markdownForm.title && !markdownForm.content) {
@@ -57,7 +72,7 @@ export const TileAddModal: FC<AddProps> = ({
             type,
             ...defaultTileSize,
         });
-    };
+    });
 
     const handleClose = () => {
         form.reset();
@@ -71,18 +86,27 @@ export const TileAddModal: FC<AddProps> = ({
             {...modalProps}
             onClose={handleClose}
         >
-            <Form
-                title="Add tile to dashboard"
-                methods={form}
-                onSubmit={handleConfirm}
-            >
+            <form onSubmit={handleConfirm}>
                 <DialogBody>
                     {type === DashboardTileTypes.SAVED_CHART ? (
                         <ChartTileForm />
                     ) : type === DashboardTileTypes.MARKDOWN ? (
-                        <MarkdownTileForm />
+                        <MarkdownTileForm
+                            form={
+                                form as UseFormReturnType<
+                                    DashboardMarkdownTileProperties['properties']
+                                >
+                            }
+                        />
                     ) : type === DashboardTileTypes.LOOM ? (
-                        <LoomTileForm />
+                        <LoomTileForm
+                            form={
+                                form as UseFormReturnType<
+                                    DashboardLoomTileProperties['properties']
+                                >
+                            }
+                            withHideTitle={false}
+                        />
                     ) : (
                         assertUnreachable(type, 'Tile type not supported')
                     )}
@@ -98,14 +122,14 @@ export const TileAddModal: FC<AddProps> = ({
                             <Button
                                 intent="primary"
                                 type="submit"
-                                disabled={!form.formState.isValid}
+                                disabled={!form.isValid()}
                             >
                                 Add
                             </Button>
                         </>
                     }
                 />
-            </Form>
+            </form>
         </Dialog>
     );
 };
