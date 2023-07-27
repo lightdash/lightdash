@@ -364,7 +364,7 @@ export class DashboardService {
                                 ...SavedChartService.getCreateEventProperties(
                                     chart,
                                 ),
-                                dashboardId: chart.dashboardUuid ?? undefined,
+                                dashboardId: newDashboard.uuid ?? undefined,
                                 duplicated: true,
                             },
                         });
