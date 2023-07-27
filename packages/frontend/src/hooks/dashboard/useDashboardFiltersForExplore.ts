@@ -6,11 +6,11 @@ import {
 import { useCallback, useMemo } from 'react';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 
-function useDashboardFiltersForExplore(
+const useDashboardFiltersForExplore = (
     tileUuid: string | undefined,
     explore: Explore | undefined,
     failSilently: boolean = false,
-): DashboardFilters | undefined {
+): DashboardFilters | undefined => {
     const dashboardContext = useDashboardContext(failSilently);
 
     const tables = useMemo(
@@ -60,6 +60,6 @@ function useDashboardFiltersForExplore(
             ]),
         };
     }, [dashboardContext, overrideTileFilters]);
-}
+};
 
 export default useDashboardFiltersForExplore;
