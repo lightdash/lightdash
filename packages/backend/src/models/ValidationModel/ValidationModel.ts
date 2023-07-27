@@ -155,11 +155,7 @@ export class ValidationModel {
                         | 'last_version_chart_kind'
                     > &
                     Pick<UserTable['base'], 'first_name' | 'last_name'> &
-                    Pick<DbSpace, 'space_uuid'> &
-                    Pick<
-                        SavedChartVersionsTable['base'],
-                        'chart_config' | 'chart_type'
-                    > & {
+                    Pick<DbSpace, 'space_uuid'> & {
                         last_updated_at: Date;
                         views: string;
                     })[]
