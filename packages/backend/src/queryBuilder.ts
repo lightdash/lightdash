@@ -91,6 +91,18 @@ export const replaceUserAttributes = (
 
     return sq;
 };
+
+const hasUserAttribute = (
+    userAttributes: UserAttribute[],
+    attributeName: string,
+    value: string,
+) =>
+    userAttributes.some(
+        (ua) =>
+            ua.name === attributeName &&
+            ua.users.some((u) => u.value === value),
+    );
+
 export type BuildQueryProps = {
     explore: Explore;
     compiledMetricQuery: CompiledMetricQuery;
@@ -118,6 +130,17 @@ export const buildQuery = ({
     const dimensionSelects = dimensions.map((field) => {
         const alias = field;
         const dimension = getDimensionFromId(field, explore);
+        // Throw error if user does not have the right requiredAttribute for this dimension
+        if (dimension.requiredAttributes)
+            Object.entries(dimension.requiredAttributes).map((attribute) => {
+                const [attributeName, value] = attribute;
+                if (!hasUserAttribute(userAttributes, attributeName, value)) {
+                    throw new ForbiddenError(
+                        `Invalid or missing user attribute "${attribute}" on dimension: "${field}"`,
+                    );
+                }
+                return undefined;
+            });
         return `  ${dimension.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
     });
 
