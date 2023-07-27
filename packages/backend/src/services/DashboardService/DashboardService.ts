@@ -22,8 +22,8 @@ import {
     UpdateMultipleDashboards,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { uuid4 } from '@sentry/utils';
 import cronstrue from 'cronstrue';
+import { v4 as uuidv4 } from 'uuid';
 import { analytics } from '../../analytics/client';
 import { CreateDashboardOrVersionEvent } from '../../analytics/LightdashAnalytics';
 import { schedulerClient, slackClient } from '../../clients/clients';
@@ -365,7 +365,7 @@ export class DashboardService {
                         },
                     });
                     const newTile = {
-                        uuid: uuid4(),
+                        uuid: uuidv4(),
                         type: DashboardTileTypes.SAVED_CHART,
                         properties: {
                             belongsToDashboard: true,
