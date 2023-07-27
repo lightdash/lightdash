@@ -4,8 +4,10 @@ import {
     CreateSchedulerAndTargetsWithoutIds,
     Dashboard,
     DashboardBasicDetails,
+    DashboardTile,
     DashboardTileTypes,
     ForbiddenError,
+    getDefaultChartTileSize,
     hasChartsInDashboard,
     isChartScheduler,
     isChartTile,
@@ -20,6 +22,7 @@ import {
     UpdateMultipleDashboards,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import { uuid4 } from '@sentry/utils';
 import cronstrue from 'cronstrue';
 import { analytics } from '../../analytics/client';
 import { CreateDashboardOrVersionEvent } from '../../analytics/LightdashAnalytics';
@@ -312,15 +315,6 @@ export class DashboardService {
             );
         }
 
-        const chartsInDashboardTilesUuids = dashboard.tiles
-            .filter(
-                (tile) =>
-                    isChartTile(tile) && tile.properties.belongsToDashboard,
-            )
-            .map((tile) =>
-                isChartTile(tile) ? tile.properties.savedChartUuid : '',
-            );
-
         const duplicatedDashboard = {
             ...dashboard,
             name: `Copy of ${dashboard.name}`,
@@ -334,13 +328,15 @@ export class DashboardService {
         );
 
         if (hasChartsInDashboard(newDashboard)) {
+            const chartsInDashboardTilesUuids =
+                DashboardService.findChartsThatBelongToDashboard(dashboard);
+
             const chartsInDashboard = await Promise.all(
                 chartsInDashboardTilesUuids.map(async (uuid) =>
-                    this.savedChartModel.get(uuid ?? ''),
+                    this.savedChartModel.get(uuid),
                 ),
             );
-
-            await Promise.all(
+            const duplicatedChartsTiles = await Promise.all(
                 chartsInDashboard.map(async (chart) => {
                     const duplicatedChart = await this.savedChartModel.create(
                         dashboard.projectUuid,
@@ -368,7 +364,28 @@ export class DashboardService {
                             duplicated: true,
                         },
                     });
+                    const newTile = {
+                        uuid: uuid4(),
+                        type: DashboardTileTypes.SAVED_CHART,
+                        properties: {
+                            belongsToDashboard: true,
+                            savedChartUuid: duplicatedChart.uuid,
+                            chartName: duplicatedChart.name,
+                        },
+                        ...getDefaultChartTileSize(
+                            duplicatedChart.chartConfig?.type,
+                        ),
+                    };
+                    return newTile;
                 }),
+            );
+            return this.dashboardModel.addVersion(
+                newDashboard.uuid,
+                {
+                    tiles: [...duplicatedChartsTiles] as DashboardTile[],
+                },
+                user,
+                projectUuid,
             );
         }
 
