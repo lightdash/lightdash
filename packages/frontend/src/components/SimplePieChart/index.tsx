@@ -11,6 +11,7 @@ import { useVisualizationContext } from '../LightdashVisualization/Visualization
 import PieChartContextMenu, {
     PieChartContextMenuProps,
 } from './PieChartContextMenu';
+import PieChartDashboardContextMenu from './PieChartDashboardContextMenu';
 
 const EmptyChart = () => (
     <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
@@ -109,14 +110,24 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
                 }}
             />
 
-            <PieChartContextMenu
-                tileUuid={props.tileUuid}
-                value={menuProps?.value}
-                menuPosition={menuProps?.position}
-                rows={menuProps?.rows}
-                opened={isOpen}
-                onClose={handleCloseContextMenu}
-            />
+            {props.tileUuid ? (
+                <PieChartDashboardContextMenu
+                    tileUuid={props.tileUuid}
+                    value={menuProps?.value}
+                    menuPosition={menuProps?.position}
+                    rows={menuProps?.rows}
+                    opened={isOpen}
+                    onClose={handleCloseContextMenu}
+                />
+            ) : (
+                <PieChartContextMenu
+                    value={menuProps?.value}
+                    menuPosition={menuProps?.position}
+                    rows={menuProps?.rows}
+                    opened={isOpen}
+                    onClose={handleCloseContextMenu}
+                />
+            )}
         </>
     );
 });

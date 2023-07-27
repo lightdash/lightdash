@@ -9,9 +9,8 @@ import { useDashboardContext } from '../../providers/DashboardProvider';
 const useDashboardFiltersForExplore = (
     tileUuid: string | undefined,
     explore: Explore | undefined,
-    failSilently: boolean = false,
 ): DashboardFilters | undefined => {
-    const dashboardContext = useDashboardContext(failSilently);
+    const dashboardContext = useDashboardContext();
 
     const tables = useMemo(
         () => (explore ? Object.keys(explore.tables) : []),

@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    DashboardFilters,
     getItemId,
     PivotValue,
     ResultRow,
@@ -10,7 +11,6 @@ import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
-import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
 import { useApp } from '../../providers/AppProvider';
@@ -21,7 +21,7 @@ import { useVisualizationContext } from '../LightdashVisualization/Visualization
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
 export type PieChartContextMenuProps = {
-    tileUuid?: string;
+    dashboardFilters?: DashboardFilters | undefined;
     menuPosition?: {
         left: number;
         top: number;
@@ -31,8 +31,8 @@ export type PieChartContextMenuProps = {
 } & Pick<MenuProps, 'position' | 'opened' | 'onOpen' | 'onClose'>;
 
 const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
-    tileUuid,
     menuPosition,
+    dashboardFilters,
     value,
     rows,
     opened,
@@ -42,12 +42,8 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
     const { data: project } = useProject(projectUuid);
-    const { explore, pieChartConfig } = useVisualizationContext();
-    const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
-        tileUuid,
-        explore,
-        true,
-    );
+    const { pieChartConfig } = useVisualizationContext();
+
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
     const tracking = useTracking(true);
@@ -96,7 +92,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
             item: pieChartConfig.selectedMetric,
             value,
             fieldValues: {},
-            dashboardFilters: dashboardFiltersThatApplyToChart,
+            dashboardFilters,
             pivotReference: {
                 field: getItemId(pieChartConfig.selectedMetric),
                 pivotValues: pieChartConfig.groupFieldIds

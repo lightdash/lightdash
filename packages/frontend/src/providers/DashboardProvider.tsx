@@ -344,16 +344,14 @@ export const DashboardProvider: React.FC = ({ children }) => {
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };
 
-export function useDashboardContext<S extends boolean = false>(
-    failSilently?: S,
-): S extends false ? DashboardContext : DashboardContext | undefined {
+export const useDashboardContext = (): DashboardContext => {
     const context = useContext(Context);
 
-    if (context === undefined && failSilently !== true) {
+    if (context === undefined) {
         throw new Error(
             'useDashboardContext must be used within a DashboardProvider',
         );
     }
 
-    return context!;
-}
+    return context;
+};
