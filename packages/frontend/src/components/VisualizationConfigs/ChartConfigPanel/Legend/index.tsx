@@ -5,7 +5,6 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import {
-    Checkbox,
     Collapse,
     SegmentedControl,
     SimpleGrid,
@@ -61,7 +60,7 @@ const LegendPanel: FC<Props> = ({ items }) => {
     const showDefault = (dirtyEchartsConfig?.series || []).length > 1;
     return (
         <Stack>
-            <Checkbox
+            <Switch
                 label="Show legend"
                 checked={legendConfig.show ?? showDefault}
                 onChange={(e) => handleChange('show', e.currentTarget.checked)}
