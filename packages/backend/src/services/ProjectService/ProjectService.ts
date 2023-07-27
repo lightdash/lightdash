@@ -1865,6 +1865,37 @@ export class ProjectService {
         }
     }
 
+    async getProjectMemberAccess(
+        user: SessionUser,
+        projectUuid: string,
+        userUuid: string,
+    ): Promise<ProjectMemberProfile> {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const projectMemberProfile =
+            await this.projectModel.getProjectMemberAccess(
+                projectUuid,
+                userUuid,
+            );
+        if (projectMemberProfile !== undefined) {
+            return projectMemberProfile;
+        }
+        throw new NotFoundError(
+            `User UUID ${userUuid} is not found in project ${projectUuid}`,
+        );
+    }
+
     async getProjectAccess(
         user: SessionUser,
         projectUuid: string,

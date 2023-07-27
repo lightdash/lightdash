@@ -19,6 +19,7 @@ import { useHistory, useParams } from 'react-router-dom';
 
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
+import DashboardDeleteModal from '../components/common/modal/DashboardDeleteModal';
 import Page from '../components/common/Page/Page';
 import DashboardFilter from '../components/DashboardFilter';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
@@ -31,7 +32,6 @@ import MetricQueryDataProvider from '../components/MetricQueryData/MetricQueryDa
 import UnderlyingDataModal from '../components/MetricQueryData/UnderlyingDataModal';
 import {
     appendNewTilesToBottom,
-    useDashboardDeleteMutation,
     useDuplicateDashboardMutation,
     useExportDashboard,
     useMoveDashboardMutation,
@@ -170,8 +170,9 @@ const Dashboard: FC = () => {
     const { mutate: duplicateDashboard } = useDuplicateDashboardMutation({
         showRedirectButton: true,
     });
-    const { mutateAsync: deleteDashboard } = useDashboardDeleteMutation();
     const { mutate: exportDashboard } = useExportDashboard();
+
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
     const layouts = useMemo(
         () => ({
@@ -327,9 +328,7 @@ const Dashboard: FC = () => {
 
     const handleDeleteDashboard = () => {
         if (!dashboard) return;
-        deleteDashboard(dashboard.uuid).then(() => {
-            history.replace(`/projects/${projectUuid}/dashboards`);
-        });
+        setIsDeleteModalOpen(true);
     };
 
     const handleExportDashboard = () => {
@@ -501,11 +500,23 @@ const Dashboard: FC = () => {
                         isEditMode={isEditMode}
                     />
                 )}
+
+                {isDeleteModalOpen && (
+                    <DashboardDeleteModal
+                        opened
+                        uuid={dashboard.uuid}
+                        onClose={() => setIsDeleteModalOpen(false)}
+                        onConfirm={() => {
+                            history.replace(
+                                `/projects/${projectUuid}/dashboards`,
+                            );
+                        }}
+                    />
+                )}
             </Page>
         </>
     );
 };
-
 const DashboardPage: FC = () => {
     useProfiler('Dashboard');
     return (
