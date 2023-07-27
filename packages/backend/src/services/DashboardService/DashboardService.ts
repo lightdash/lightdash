@@ -330,10 +330,11 @@ export class DashboardService {
                 newDashboard.tiles.map(async (tile) => {
                     if (
                         isChartTile(tile) &&
-                        tile.properties.belongsToDashboard
+                        tile.properties.belongsToDashboard &&
+                        tile.properties.savedChartUuid
                     ) {
                         const chartInDashboard = await this.savedChartModel.get(
-                            tile.properties.savedChartUuid!,
+                            tile.properties.savedChartUuid,
                         );
                         const duplicatedChart =
                             await this.savedChartModel.create(
