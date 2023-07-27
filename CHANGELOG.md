@@ -1,3 +1,10 @@
+# [0.700.0](https://github.com/lightdash/lightdash/compare/0.699.0...0.700.0) (2023-07-27)
+
+
+### Features
+
+* sql on reference user attribute ([#6498](https://github.com/lightdash/lightdash/issues/6498)) ([563f8f0](https://github.com/lightdash/lightdash/commit/563f8f003a6af6920bc9875d6c554ef3533f4704)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
 # [0.699.0](https://github.com/lightdash/lightdash/compare/0.698.1...0.699.0) (2023-07-27)
 
 
