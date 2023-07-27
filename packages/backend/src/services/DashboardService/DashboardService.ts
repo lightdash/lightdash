@@ -7,7 +7,6 @@ import {
     DashboardTile,
     DashboardTileTypes,
     ForbiddenError,
-    getDefaultChartTileSize,
     hasChartsInDashboard,
     isChartScheduler,
     isChartTile,
@@ -338,6 +337,9 @@ export class DashboardService {
             );
             const duplicatedChartsTiles = await Promise.all(
                 chartsInDashboard.map(async (chart) => {
+                    const chartTile = dashboard.tiles.find(
+                        (tile) => tile.uuid === chart.uuid,
+                    );
                     const duplicatedChart = await this.savedChartModel.create(
                         dashboard.projectUuid,
                         user.userUuid,
@@ -365,21 +367,16 @@ export class DashboardService {
                         },
                     });
                     const newTile = {
+                        ...chartTile,
                         uuid: uuidv4(),
-                        type: DashboardTileTypes.SAVED_CHART,
                         properties: {
-                            belongsToDashboard: true,
                             savedChartUuid: duplicatedChart.uuid,
-                            chartName: duplicatedChart.name,
                         },
-                        ...getDefaultChartTileSize(
-                            duplicatedChart.chartConfig?.type,
-                        ),
                     };
                     return newTile;
                 }),
             );
-            return this.dashboardModel.addVersion(
+            this.dashboardModel.addVersion(
                 newDashboard.uuid,
                 {
                     tiles: [
