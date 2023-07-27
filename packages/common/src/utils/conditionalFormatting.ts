@@ -14,7 +14,10 @@ import {
 import {
     Field,
     FilterableItem,
+    Format,
+    isField,
     isFilterableItem,
+    isMetric,
     TableCalculation,
 } from '../types/field';
 import { FieldTarget } from '../types/filter';
@@ -53,32 +56,49 @@ export const createConditionalFormattingConfigWithColorRange = (
     },
 });
 
+const convertFormattedValue = (
+    value: unknown,
+    field: Field | TableCalculation | undefined,
+) => {
+    if (!field) return value;
+    if (!isField(field)) return value;
+
+    switch (field.format) {
+        case Format.PERCENT:
+            return typeof value === 'number' ? value * 100 : value;
+        default:
+            return value;
+    }
+};
+
 export const hasMatchingConditionalRules = (
+    field: Field | TableCalculation,
     value: unknown,
     config: ConditionalFormattingConfig | undefined,
 ) => {
     if (!config) return false;
 
     const parsedValue = typeof value === 'string' ? Number(value) : value;
+    const convertedValue = convertFormattedValue(parsedValue, field);
 
     if (isConditionalFormattingConfigWithSingleColor(config)) {
         return config.rules.every((rule) => {
             switch (rule.operator) {
                 case ConditionalOperator.NULL:
-                    return parsedValue === null;
+                    return convertedValue === null;
                 case ConditionalOperator.NOT_NULL:
-                    return parsedValue !== null;
+                    return convertedValue !== null;
                 case ConditionalOperator.EQUALS:
-                    return rule.values.some((v) => parsedValue === v);
+                    return rule.values.some((v) => convertedValue === v);
                 case ConditionalOperator.NOT_EQUALS:
-                    return rule.values.some((v) => parsedValue !== v);
+                    return rule.values.some((v) => convertedValue !== v);
                 case ConditionalOperator.LESS_THAN:
-                    return typeof parsedValue === 'number'
-                        ? rule.values.some((v) => parsedValue < v)
+                    return typeof convertedValue === 'number'
+                        ? rule.values.some((v) => convertedValue < v)
                         : false;
                 case ConditionalOperator.GREATER_THAN:
-                    return typeof parsedValue === 'number'
-                        ? rule.values.some((v) => parsedValue > v)
+                    return typeof convertedValue === 'number'
+                        ? rule.values.some((v) => convertedValue > v)
                         : false;
                 case ConditionalOperator.STARTS_WITH:
                 case ConditionalOperator.ENDS_WITH:
@@ -102,9 +122,12 @@ export const hasMatchingConditionalRules = (
     }
 
     if (isConditionalFormattingConfigWithColorRange(config)) {
-        if (typeof parsedValue !== 'number') return false;
+        if (typeof convertedValue !== 'number') return false;
 
-        return parsedValue >= config.rule.min && parsedValue <= config.rule.max;
+        return (
+            convertedValue >= config.rule.min &&
+            convertedValue <= config.rule.max
+        );
     }
 
     return assertUnreachable(config, 'Unknown conditional formatting config');
@@ -124,7 +147,7 @@ export const getConditionalFormattingConfig = (
 
     return fieldConfigs
         .reverse()
-        .find((c) => hasMatchingConditionalRules(value, c));
+        .find((config) => hasMatchingConditionalRules(field, value, config));
 };
 
 export const getConditionalFormattingDescription = (
@@ -166,6 +189,7 @@ export const getConditionalFormattingDescription = (
 };
 
 export const getConditionalFormattingColor = (
+    field: Field | TableCalculation | undefined,
     value: unknown,
     conditionalFormattingConfig: ConditionalFormattingConfig | undefined,
     getColorFromRange: (
@@ -191,9 +215,10 @@ export const getConditionalFormattingColor = (
         isConditionalFormattingConfigWithColorRange(conditionalFormattingConfig)
     ) {
         const numericValue = typeof value === 'string' ? Number(value) : value;
-        if (typeof numericValue !== 'number') return undefined;
+        const convertedValue = convertFormattedValue(numericValue, field);
+        if (typeof convertedValue !== 'number') return undefined;
 
-        return getColorFromRange(numericValue, conditionalFormattingConfig);
+        return getColorFromRange(convertedValue, conditionalFormattingConfig);
     }
 
     if (
