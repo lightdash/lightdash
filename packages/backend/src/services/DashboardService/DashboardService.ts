@@ -4,7 +4,6 @@ import {
     CreateSchedulerAndTargetsWithoutIds,
     Dashboard,
     DashboardBasicDetails,
-    DashboardTile,
     DashboardTileTypes,
     ForbiddenError,
     hasChartsInDashboard,
@@ -327,66 +326,58 @@ export class DashboardService {
         );
 
         if (hasChartsInDashboard(newDashboard)) {
-            const chartsInDashboardTilesUuids =
-                DashboardService.findChartsThatBelongToDashboard(dashboard);
-
-            const chartsInDashboard = await Promise.all(
-                chartsInDashboardTilesUuids.map(async (uuid) =>
-                    this.savedChartModel.get(uuid),
-                ),
-            );
-            const duplicatedChartsTiles = await Promise.all(
-                chartsInDashboard.map(async (chart) => {
-                    const chartTile = dashboard.tiles.find(
-                        (tile) => tile.uuid === chart.uuid,
-                    );
-                    const duplicatedChart = await this.savedChartModel.create(
-                        dashboard.projectUuid,
-                        user.userUuid,
-                        newDashboard.uuid,
-                        {
-                            ...chart,
-                            spaceUuid: undefined,
-                            updatedByUser: {
-                                userUuid: user.userUuid,
-                                firstName: user.firstName,
-                                lastName: user.lastName,
+            const updatedTiles = await Promise.all(
+                newDashboard.tiles.map(async (currentTile) => {
+                    if (
+                        isChartTile(currentTile) &&
+                        currentTile.properties.belongsToDashboard
+                    ) {
+                        const chartInDashboard = await this.savedChartModel.get(
+                            currentTile.properties.savedChartUuid!,
+                        );
+                        const duplicatedChart =
+                            await this.savedChartModel.create(
+                                newDashboard.projectUuid,
+                                user.userUuid,
+                                newDashboard.uuid,
+                                {
+                                    ...chartInDashboard,
+                                    spaceUuid: undefined,
+                                    updatedByUser: {
+                                        userUuid: user.userUuid,
+                                        firstName: user.firstName,
+                                        lastName: user.lastName,
+                                    },
+                                },
+                            );
+                        analytics.track({
+                            event: 'saved_chart.created',
+                            userId: user.userUuid,
+                            properties: {
+                                ...SavedChartService.getCreateEventProperties(
+                                    duplicatedChart,
+                                ),
+                                dashboardId:
+                                    duplicatedChart.dashboardUuid ?? undefined,
+                                duplicated: true,
                             },
-                        },
-                    );
-                    analytics.track({
-                        event: 'saved_chart.created',
-                        userId: user.userUuid,
-                        properties: {
-                            ...SavedChartService.getCreateEventProperties(
-                                duplicatedChart,
-                            ),
-                            dashboardId:
-                                duplicatedChart.dashboardUuid ?? undefined,
-                            duplicated: true,
-                        },
-                    });
-                    const newTile = {
-                        ...chartTile,
-                        uuid: uuidv4(),
-                        properties: {
-                            savedChartUuid: duplicatedChart.uuid,
-                        },
-                    };
-                    return newTile;
+                        });
+                        return {
+                            ...currentTile,
+                            uuid: uuidv4(),
+                            properties: {
+                                ...currentTile.properties,
+                                savedChartUuid: duplicatedChart.uuid,
+                            },
+                        };
+                    }
+                    return currentTile;
                 }),
             );
             this.dashboardModel.addVersion(
                 newDashboard.uuid,
                 {
-                    tiles: [
-                        ...newDashboard.tiles.filter(
-                            (tile) =>
-                                isChartTile(tile) &&
-                                !tile.properties.belongsToDashboard,
-                        ),
-                        ...duplicatedChartsTiles,
-                    ] as DashboardTile[],
+                    tiles: [...updatedTiles],
                 },
                 user,
                 projectUuid,
