@@ -375,7 +375,7 @@ export class DashboardService {
                 }),
             );
 
-            this.dashboardModel.addVersion(
+            await this.dashboardModel.addVersion(
                 newDashboard.uuid,
                 {
                     tiles: [...updatedTiles],
