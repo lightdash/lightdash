@@ -1,3 +1,10 @@
+# [0.699.0](https://github.com/lightdash/lightdash/compare/0.698.1...0.699.0) (2023-07-27)
+
+
+### Features
+
+* Add an API to get a project member ([#6338](https://github.com/lightdash/lightdash/issues/6338)) ([acff5bd](https://github.com/lightdash/lightdash/commit/acff5bd98b1c4d63041b467cbdfb1b06d0343f03))
+
 ## [0.698.1](https://github.com/lightdash/lightdash/compare/0.698.0...0.698.1) (2023-07-26)
 
 
