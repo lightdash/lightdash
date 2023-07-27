@@ -12,7 +12,7 @@ import {
     Text,
 } from '@mantine/core';
 import { IconInfoCircle, IconTool, IconX } from '@tabler/icons-react';
-import { FC, memo, useEffect } from 'react';
+import { FC, memo, useEffect, useMemo } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProjects } from '../../hooks/useProjects';
@@ -47,16 +47,37 @@ const DashboardExplorerBanner: FC<{
     dashboardUuid: string;
 }> = ({ dashboardName, projectUuid, dashboardUuid }) => {
     const history = useHistory();
+    const { savedQueryUuid, mode } = useParams<{
+        savedQueryUuid: string;
+        mode?: string;
+    }>();
+
+    const action = useMemo(() => {
+        if (!savedQueryUuid) {
+            return 'creating';
+        }
+        switch (mode) {
+            case 'edit':
+                return 'editing';
+            case 'view':
+                return 'viewing';
+            default:
+                return 'viewing';
+        }
+    }, [savedQueryUuid, mode]);
+
     return (
         <Center w="100%" h={BANNER_HEIGHT} bg="blue.6">
             <MantineIcon icon={IconInfoCircle} color="white" size="sm" />
             <Text color="white" fw={500} fz="xs" mx="xxs">
-                You are creating this chart from within "{dashboardName}"
+                You are {action} this chart from within "{dashboardName}"
             </Text>
             <ActionIcon
                 onClick={() => {
                     history.push(
-                        `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+                        `/projects/${projectUuid}/dashboards/${dashboardUuid}/${
+                            savedQueryUuid ? 'view' : 'edit'
+                        }`,
                     );
                     sessionStorage.removeItem('fromDashboard');
                     sessionStorage.removeItem('dashboardUuid');
