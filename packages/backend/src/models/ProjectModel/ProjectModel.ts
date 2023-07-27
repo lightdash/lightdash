@@ -583,6 +583,45 @@ export class ProjectModel {
         return cachedWarehouse;
     }
 
+    async getProjectMemberAccess(
+        projectUuid: string,
+        userUuid: string,
+    ): Promise<ProjectMemberProfile | undefined> {
+        type QueryResult = {
+            user_uuid: string;
+            email: string;
+            role: ProjectMemberRole;
+            first_name: string;
+            last_name: string;
+        };
+        const [projectMemberProfile] = await this.database(
+            'project_memberships',
+        )
+            .leftJoin('users', 'project_memberships.user_id', 'users.user_id')
+            .leftJoin('emails', 'emails.user_id', 'users.user_id')
+            .leftJoin(
+                'projects',
+                'project_memberships.project_id',
+                'projects.project_id',
+            )
+            .select<QueryResult[]>()
+            .where('project_uuid', projectUuid)
+            .where('users.user_id', userUuid)
+            .andWhere('is_primary', true);
+
+        if (projectMemberProfile === undefined) {
+            return undefined;
+        }
+        return {
+            userUuid: projectMemberProfile.user_uuid,
+            projectUuid,
+            role: projectMemberProfile.role,
+            email: projectMemberProfile.email,
+            firstName: projectMemberProfile.first_name,
+            lastName: projectMemberProfile.last_name,
+        };
+    }
+
     async getProjectAccess(
         projectUuid: string,
     ): Promise<ProjectMemberProfile[]> {

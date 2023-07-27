@@ -1768,6 +1768,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiGetProjectMemberResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'ProjectMemberProfile', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CreateProjectMember: {
         dataType: 'refAlias',
         type: {
@@ -2986,23 +2998,14 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_UserAttribute.Exclude_keyofUserAttribute.uuid-or-createdAt-or-organizationUuid-or-users__':
-        {
-            dataType: 'refAlias',
-            type: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    name: { dataType: 'string', required: true },
-                    description: { dataType: 'string' },
-                },
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_UserAttribute.uuid-or-createdAt-or-organizationUuid-or-users_': {
+    'Pick_UserAttribute.name-or-description_': {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_UserAttribute.Exclude_keyofUserAttribute.uuid-or-createdAt-or-organizationUuid-or-users__',
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                name: { dataType: 'string', required: true },
+                description: { dataType: 'string' },
+            },
             validators: {},
         },
     },
@@ -3037,9 +3040,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'intersection',
             subSchemas: [
-                {
-                    ref: 'Omit_UserAttribute.uuid-or-createdAt-or-organizationUuid-or-users_',
-                },
+                { ref: 'Pick_UserAttribute.name-or-description_' },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -4742,6 +4743,58 @@ export function RegisterRoutes(app: express.Router) {
                 const controller = new ProjectController();
 
                 const promise = controller.getProjectAccessList.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/projects/:projectUuid/user/$:userUuid',
+        ...fetchMiddlewares<RequestHandler>(ProjectController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectController.prototype.getProjectMember,
+        ),
+
+        function ProjectController_getProjectMember(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                userUuid: {
+                    in: 'path',
+                    name: 'userUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new ProjectController();
+
+                const promise = controller.getProjectMember.apply(
                     controller,
                     validatedArgs as any,
                 );
