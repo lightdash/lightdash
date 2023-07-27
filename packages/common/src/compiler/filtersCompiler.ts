@@ -301,7 +301,7 @@ export const renderFilterRuleSql = (
     startOfWeek: WeekDay | null | undefined,
     adapterType: SupportedDbtAdapter,
 ): string => {
-    if ('disabled' in filterRule && filterRule.disabled) {
+    if (filterRule.disabled) {
         return `1=1`; // When filter is disabled, we want to return all rows
     }
 
