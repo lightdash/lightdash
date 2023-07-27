@@ -73,15 +73,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const belongsToDashboard: boolean =
         isChartTile(tile) && !!tile.properties.belongsToDashboard;
 
-    const toggleHideTitle = () =>
-        onEdit({
-            ...tile,
-            properties: {
-                ...tile.properties,
-                hideTitle: !hideTitle,
-            },
-        });
-
     return (
         <TileBaseWrapper
             className={isLoading ? Classes.SKELETON : undefined}
@@ -147,24 +138,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                                 }
                                                             />
                                                         )}
-                                                        {tile.type !==
-                                                            DashboardTileTypes.MARKDOWN && (
-                                                            <MenuItem2
-                                                                icon={
-                                                                    hideTitle
-                                                                        ? 'eye-open'
-                                                                        : 'eye-off'
-                                                                }
-                                                                text={`${
-                                                                    hideTitle
-                                                                        ? 'Show'
-                                                                        : 'Hide'
-                                                                } title`}
-                                                                onClick={
-                                                                    toggleHideTitle
-                                                                }
-                                                            />
-                                                        )}
                                                         <MenuDivider />
                                                         {belongsToDashboard ? (
                                                             <MenuItem2
@@ -215,7 +188,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             opened={isEditingChartTile}
                             chartTitle={chartName ?? ''}
                             onClose={() => setIsEditingChartTile(false)}
-                            onConfirm={(newTitle, newUuid, shouldShowTitle) => {
+                            onConfirm={(newTitle, newUuid, shouldHideTitle) => {
                                 onEdit({
                                     ...tile,
                                     properties: {
@@ -236,7 +209,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                 ? newUuid
                                                 : tile.properties
                                                       .savedChartUuid,
-                                        hideTitle: shouldShowTitle,
+                                        hideTitle: shouldHideTitle,
                                     },
                                 });
                                 setIsEditingChartTile(false);

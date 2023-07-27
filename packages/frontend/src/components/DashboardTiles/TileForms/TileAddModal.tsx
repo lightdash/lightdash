@@ -37,7 +37,7 @@ export const TileAddModal: FC<AddProps> = ({
 }) => {
     const [errorMessage, setErrorMessage] = useState<string>();
 
-    const buildValidators = () => {
+    const getValidators = () => {
         const urlValidator = {
             url: (value: string | undefined) =>
                 getLoomId(value) ? null : 'Loom url not valid',
@@ -51,7 +51,7 @@ export const TileAddModal: FC<AddProps> = ({
     };
 
     const form = useForm<TileProperties>({
-        validate: buildValidators(),
+        validate: getValidators(),
         validateInputOnChange: ['title', 'url', 'content'],
     });
 

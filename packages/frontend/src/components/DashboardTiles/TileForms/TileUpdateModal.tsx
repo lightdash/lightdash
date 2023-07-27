@@ -10,7 +10,6 @@ import {
     Dashboard,
     DashboardLoomTileProperties,
     DashboardMarkdownTileProperties,
-    DashboardTile,
     DashboardTileTypes,
 } from '@lightdash/common';
 import { useForm, UseFormReturnType } from '@mantine/form';
@@ -34,7 +33,7 @@ const TileUpdateModal = <T extends Tile>({
     onConfirm,
     ...modalProps
 }: TileUpdateModalProps<T>) => {
-    const buildValidators = () => {
+    const getValidators = () => {
         const urlValidator = {
             url: (value: string | undefined) =>
                 getLoomId(value) ? null : 'Loom url not valid',
@@ -51,7 +50,7 @@ const TileUpdateModal = <T extends Tile>({
 
     const form = useForm<TileProperties>({
         initialValues: tile.properties,
-        validate: buildValidators(),
+        validate: getValidators(),
         validateInputOnChange: ['title', 'url'],
     });
 
@@ -68,39 +67,6 @@ const TileUpdateModal = <T extends Tile>({
         onClose?.();
     };
 
-    const getTileForm = (dashboardTile: DashboardTile) => {
-        switch (dashboardTile.type) {
-            case DashboardTileTypes.SAVED_CHART: {
-                return <ChartTileForm />;
-            }
-            case DashboardTileTypes.MARKDOWN: {
-                return (
-                    <MarkdownTileForm
-                        form={
-                            form as UseFormReturnType<
-                                DashboardMarkdownTileProperties['properties']
-                            >
-                        }
-                    />
-                );
-            }
-            case DashboardTileTypes.LOOM: {
-                return (
-                    <LoomTileForm
-                        form={
-                            form as UseFormReturnType<
-                                DashboardLoomTileProperties['properties']
-                            >
-                        }
-                        withHideTitle
-                    />
-                );
-            }
-            default:
-                assertUnreachable(dashboardTile, 'Tile type not supported');
-        }
-    };
-
     return (
         <Dialog
             lazy
@@ -110,7 +76,30 @@ const TileUpdateModal = <T extends Tile>({
             backdropClassName="non-draggable"
         >
             <form onSubmit={handleConfirm}>
-                <DialogBody>{getTileForm(tile)}</DialogBody>
+                <DialogBody>
+                    {tile.type === DashboardTileTypes.SAVED_CHART ? (
+                        <ChartTileForm />
+                    ) : tile.type === DashboardTileTypes.MARKDOWN ? (
+                        <MarkdownTileForm
+                            form={
+                                form as UseFormReturnType<
+                                    DashboardMarkdownTileProperties['properties']
+                                >
+                            }
+                        />
+                    ) : tile.type === DashboardTileTypes.LOOM ? (
+                        <LoomTileForm
+                            form={
+                                form as UseFormReturnType<
+                                    DashboardLoomTileProperties['properties']
+                                >
+                            }
+                            withHideTitle
+                        />
+                    ) : (
+                        assertUnreachable(tile, 'Tile type not supported')
+                    )}
+                </DialogBody>
 
                 <DialogFooter
                     actions={
