@@ -374,6 +374,7 @@ export class DashboardService {
                     return currentTile;
                 }),
             );
+
             this.dashboardModel.addVersion(
                 newDashboard.uuid,
                 {
