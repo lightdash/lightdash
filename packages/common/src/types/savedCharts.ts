@@ -289,6 +289,7 @@ export type CreateSavedChart = Omit<
     | 'pinnedListOrder'
     | 'views'
     | 'firstViewedAt'
+    | 'dashboardUuid'
     | 'dashboardName'
 > & { spaceUuid?: string };
 

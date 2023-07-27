@@ -280,6 +280,7 @@ export class SavedChartModel {
     async create(
         projectUuid: string,
         userUuid: string,
+        dashboardUuid: string | undefined,
         {
             name,
             description,
@@ -290,14 +291,13 @@ export class SavedChartModel {
             pivotConfig,
             updatedByUser,
             spaceUuid,
-            dashboardUuid,
         }: CreateSavedChart & { updatedByUser: UpdatedByUser },
     ): Promise<SavedChart> {
         const newSavedChartUuid = await createSavedChart(
             this.database,
             projectUuid,
             userUuid,
-            undefined,
+            dashboardUuid,
             {
                 name,
                 description,
@@ -308,7 +308,6 @@ export class SavedChartModel {
                 pivotConfig,
                 updatedByUser,
                 spaceUuid,
-                dashboardUuid,
             },
         );
         return this.get(newSavedChartUuid);

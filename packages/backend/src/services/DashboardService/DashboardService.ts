@@ -343,18 +343,18 @@ export class DashboardService {
             await Promise.all(
                 chartsInDashboard.map(async (chart) => {
                     if (chart) {
-                        this.savedChartModel.create(
+                        await this.savedChartModel.create(
                             dashboard.projectUuid,
                             user.userUuid,
+                            newDashboard.uuid,
                             {
                                 ...chart,
+                                spaceUuid: undefined,
                                 updatedByUser: {
                                     userUuid: user.userUuid,
                                     firstName: user.firstName,
                                     lastName: user.lastName,
                                 },
-                                spaceUuid: undefined,
-                                dashboardUuid: newDashboard.uuid,
                             },
                         );
                         analytics.track({
