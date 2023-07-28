@@ -1,21 +1,29 @@
-import { Button, Checkbox, FormGroup, InputGroup } from '@blueprintjs/core';
 import {
     CartesianChartLayout,
     CartesianSeriesType,
     Series,
 } from '@lightdash/common';
-import { Box, Group } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Checkbox,
+    Collapse,
+    Group,
+    Select,
+    Stack,
+    TextInput,
+} from '@mantine/core';
+import {
+    IconChevronDown,
+    IconChevronUp,
+    IconEye,
+    IconEyeOff,
+    IconGripVertical,
+} from '@tabler/icons-react';
 import React, { FC } from 'react';
 import { DraggableProvidedDragHandleProps } from 'react-beautiful-dnd';
+import MantineIcon from '../../../common/MantineIcon';
 import ColorSelector from '../../ColorSelector';
-import {
-    DragIcon,
-    SeriesExtraInputs,
-    SeriesExtraInputWrapper,
-    SeriesExtraSelect,
-    SeriesOptionsWrapper,
-    SeriesWrapper,
-} from './Series.styles';
 
 type Props = {
     isCollapsable?: boolean;
@@ -49,32 +57,43 @@ const SingleSeriesConfiguration: FC<Props> = ({
             ? CartesianSeriesType.AREA
             : series.type;
     return (
-        <SeriesWrapper $isSingle={isSingle}>
-            <Group noWrap spacing="xs" sx={{ justifyContent: 'flex-end' }}>
+        <Group noWrap={!isGrouped} spacing={0}>
+            <Group
+                noWrap
+                spacing="xs"
+                sx={
+                    // TODO: this is here to position the color
+                    // picker correctly in the grouped vs ungrouped cases.
+                    // This isn't a great answer and we probably could
+                    // clean up the layout in this file after the other parts
+                    // of this panel are also migrated.
+                    isGrouped
+                        ? { justifyContent: 'flex-end' }
+                        : { alignSelf: 'flex-start', marginTop: 32 }
+                }
+            >
                 {isGrouped && (
-                    <DragIcon
-                        style={{
-                            marginTop: '0px',
-                        }}
-                        tagName="div"
-                        icon="drag-handle-vertical"
+                    <Box
                         {...dragHandleProps}
-                    />
-                )}
-                <Box sx={{ alignSelf: 'flex-end', marginBottom: '3px' }}>
-                    <ColorSelector
-                        color={series.color || fallbackColor}
-                        onColorChange={(color) => {
-                            updateSingleSeries({
-                                ...series,
-                                color,
-                            });
+                        sx={{
+                            opacity: 0.6,
+                            '&:hover': { opacity: 1 },
                         }}
-                    />
-                </Box>
+                    >
+                        <MantineIcon icon={IconGripVertical} />
+                    </Box>
+                )}
+                <ColorSelector
+                    color={series.color || fallbackColor}
+                    onColorChange={(color) => {
+                        updateSingleSeries({
+                            ...series,
+                            color,
+                        });
+                    }}
+                />
                 {!isSingle && (
-                    <InputGroup
-                        fill
+                    <TextInput
                         disabled={series.hidden}
                         defaultValue={series.name || seriesLabel}
                         onBlur={(e) => {
@@ -86,35 +105,35 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     />
                 )}
                 {isGrouped && (
-                    <Button
-                        icon={series.hidden ? 'eye-open' : 'eye-off'}
+                    <ActionIcon
                         onClick={() => {
                             updateSingleSeries({
                                 ...series,
                                 hidden: !series.hidden,
                             });
                         }}
-                    />
+                    >
+                        <MantineIcon
+                            icon={series.hidden ? IconEye : IconEyeOff}
+                        />
+                    </ActionIcon>
                 )}
                 {isCollapsable && (
-                    <Button
-                        disabled={series.hidden}
-                        icon={isOpen ? 'caret-up' : 'caret-down'}
-                        onClick={toggleIsOpen}
-                    />
+                    <ActionIcon onClick={toggleIsOpen}>
+                        <MantineIcon
+                            icon={isOpen ? IconChevronUp : IconChevronDown}
+                        />
+                    </ActionIcon>
                 )}
             </Group>
-            <SeriesOptionsWrapper
-                isOpen={!isCollapsable || isOpen}
-                $isGrouped={isGrouped}
-                $isSingle={isSingle}
-            >
-                <SeriesExtraInputs>
-                    <SeriesExtraInputWrapper label={!isGrouped && 'Chart type'}>
-                        <SeriesExtraSelect
-                            fill
+            <Collapse in={!isCollapsable || isOpen || false}>
+                <Box ml={isGrouped ? 'xl' : 'xs'} mt="xs" mr="sm" mb="md">
+                    <Group spacing="xs" noWrap>
+                        <Select
                             value={type}
-                            options={[
+                            size="xs"
+                            label={!isGrouped && 'Chart type'}
+                            data={[
                                 {
                                     value: CartesianSeriesType.BAR,
                                     label: 'Bar',
@@ -132,8 +151,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                     label: 'Scatter',
                                 },
                             ]}
-                            onChange={(e) => {
-                                const value = e.target.value;
+                            onChange={(value) => {
                                 const newType =
                                     value === CartesianSeriesType.AREA
                                         ? CartesianSeriesType.LINE
@@ -148,36 +166,32 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 });
                             }}
                         />
-                    </SeriesExtraInputWrapper>
-                    <SeriesExtraInputWrapper label={!isGrouped && 'Axis'}>
-                        <SeriesExtraSelect
-                            fill
-                            value={series.yAxisIndex}
-                            options={[
+                        <Select
+                            label={!isGrouped && 'Axis'}
+                            size="xs"
+                            value={String(series.yAxisIndex)}
+                            data={[
                                 {
-                                    value: 0,
+                                    value: '0',
                                     label: layout?.flipAxes ? 'Bottom' : 'Left',
                                 },
                                 {
-                                    value: 1,
+                                    value: '1',
                                     label: layout?.flipAxes ? 'Top' : 'Right',
                                 },
                             ]}
-                            onChange={(e) => {
+                            onChange={(value) => {
                                 updateSingleSeries({
                                     ...series,
-                                    yAxisIndex: parseInt(e.target.value, 10),
+                                    yAxisIndex: parseInt(value || '0', 10),
                                 });
                             }}
                         />
-                    </SeriesExtraInputWrapper>
-                    <SeriesExtraInputWrapper
-                        label={!isGrouped && 'Value labels'}
-                    >
-                        <SeriesExtraSelect
-                            fill
+                        <Select
+                            label={!isGrouped && 'Value labels'}
+                            size="xs"
                             value={series.label?.position || 'hidden'}
-                            options={[
+                            data={[
                                 { value: 'hidden', label: 'Hidden' },
                                 { value: 'top', label: 'Top' },
                                 { value: 'bottom', label: 'Bottom' },
@@ -185,49 +199,50 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 { value: 'right', label: 'Right' },
                                 { value: 'inside', label: 'Inside' },
                             ]}
-                            onChange={(e) => {
-                                const option = e.target.value;
+                            onChange={(value) => {
                                 updateSingleSeries({
                                     ...series,
                                     label:
-                                        option === 'hidden'
+                                        value === 'hidden'
                                             ? { show: false }
                                             : {
                                                   show: true,
-                                                  position: option as any,
+                                                  position: value as any,
                                               },
                                 });
                             }}
                         />
-                    </SeriesExtraInputWrapper>
-                </SeriesExtraInputs>
-                {(type === CartesianSeriesType.LINE ||
-                    type === CartesianSeriesType.AREA) && (
-                    <FormGroup>
-                        <Checkbox
-                            checked={series.showSymbol ?? true}
-                            label="Show symbol"
-                            onChange={() => {
-                                updateSingleSeries({
-                                    ...series,
-                                    showSymbol: !(series.showSymbol ?? true),
-                                });
-                            }}
-                        />
-                        <Checkbox
-                            checked={series.smooth}
-                            label="Smooth"
-                            onChange={() => {
-                                updateSingleSeries({
-                                    ...series,
-                                    smooth: !series.smooth,
-                                });
-                            }}
-                        />
-                    </FormGroup>
-                )}
-            </SeriesOptionsWrapper>
-        </SeriesWrapper>
+                    </Group>
+                    {(type === CartesianSeriesType.LINE ||
+                        type === CartesianSeriesType.AREA) && (
+                        <Stack spacing="xs" mt="xs">
+                            <Checkbox
+                                checked={series.showSymbol ?? true}
+                                label="Show symbol"
+                                onChange={() => {
+                                    updateSingleSeries({
+                                        ...series,
+                                        showSymbol: !(
+                                            series.showSymbol ?? true
+                                        ),
+                                    });
+                                }}
+                            />
+                            <Checkbox
+                                checked={series.smooth}
+                                label="Smooth"
+                                onChange={() => {
+                                    updateSingleSeries({
+                                        ...series,
+                                        smooth: !series.smooth,
+                                    });
+                                }}
+                            />
+                        </Stack>
+                    )}
+                </Box>
+            </Collapse>
+        </Group>
     );
 };
 
