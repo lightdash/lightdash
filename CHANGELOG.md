@@ -1,3 +1,10 @@
+# [0.705.0](https://github.com/lightdash/lightdash/compare/0.704.0...0.705.0) (2023-07-28)
+
+
+### Features
+
+* add way to reset form state on appearance settings ([#6532](https://github.com/lightdash/lightdash/issues/6532)) ([68e3ee5](https://github.com/lightdash/lightdash/commit/68e3ee529c0b717048e399d8eca19b9d684068ee))
+
 # [0.704.0](https://github.com/lightdash/lightdash/compare/0.703.1...0.704.0) (2023-07-28)
 
 
