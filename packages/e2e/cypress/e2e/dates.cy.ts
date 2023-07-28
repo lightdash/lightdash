@@ -137,7 +137,7 @@ describe('Date tests', () => {
         cy.get('.bp4-code').contains(
             `(DATE_TRUNC('YEAR', "orders".order_date)) = ('2018-01-01')`,
         );
-        cy.get('[icon="cross"]').click({ multiple: true });
+        cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by month
         cy.get('tbody > :nth-child(1) > :nth-child(4)').click();
@@ -149,7 +149,7 @@ describe('Date tests', () => {
         cy.get('.bp4-code').contains(
             `(DATE_TRUNC('MONTH', "orders".order_date)) = ('2018-04-01')`,
         );
-        cy.get('[icon="cross"]').click({ multiple: true });
+        cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by week
         cy.get('tbody > :nth-child(1) > :nth-child(3)').click();
@@ -158,7 +158,7 @@ describe('Date tests', () => {
         cy.get('.bp4-code').contains(
             `(DATE_TRUNC('WEEK', "orders".order_date)) = ('2018-04-09')`,
         );
-        cy.get('[icon="cross"]').click({ multiple: true });
+        cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by day
         cy.get('tbody > :nth-child(1) > :nth-child(2)').click();
@@ -167,7 +167,7 @@ describe('Date tests', () => {
         cy.get('.bp4-code').contains(
             `(DATE_TRUNC('DAY', "orders".order_date)) = ('2018-04-09')`,
         );
-        cy.get('[icon="cross"]').click({ multiple: true });
+        cy.get('.tabler-icon-x').click({ multiple: true });
     });
 
     it.skip('Should filter by datetimes on results table', () => {
@@ -193,7 +193,7 @@ describe('Date tests', () => {
         );
 
         cy.scrollTo('top');
-        cy.get('[icon="cross"]').click({ multiple: true, force: true });
+        cy.get('.tabler-icon-x').click({ multiple: true, force: true });
         // Filter by Milisecond
         // FIXME: selecting a different cell is not working
         cy.get('tbody > :nth-child(1) > :nth-child(3)').click();
@@ -205,7 +205,7 @@ describe('Date tests', () => {
         cy.get('.bp4-code').contains(
             `(DATE_TRUNC('MILLISECOND', "events".timestamp_tz)) = ('2019-12-02 00:00:00')`, // Known Milisecond limitation
         );
-        cy.get('[icon="cross"]').click({ multiple: true });
+        cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by Second
         cy.get('tbody > :nth-child(1) > :nth-child(4)').click();
@@ -217,7 +217,7 @@ describe('Date tests', () => {
         cy.get('.bp4-code').contains(
             `(DATE_TRUNC('SECOND', "events".timestamp_tz)) = ('2019-12-02 00:00:00')`,
         );
-        cy.get('[icon="cross"]').click({ multiple: true });
+        cy.get('.tabler-icon-x').click({ multiple: true });
         // Filter by Minute
         cy.get('tbody > :nth-child(1) > :nth-child(5)').click();
         cy.contains('Filter by "2019-12-02, 00:00 (+00:00)').click();
@@ -228,7 +228,7 @@ describe('Date tests', () => {
         cy.get('.bp4-code').contains(
             `(DATE_TRUNC('MINUTE', "events".timestamp_tz)) = ('2019-12-02 00:00:00')`,
         );
-        cy.get('[icon="cross"]').click({ multiple: true });
+        cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by Hour
         cy.get('tbody > :nth-child(1) > :nth-child(6)').click();
@@ -240,7 +240,7 @@ describe('Date tests', () => {
         cy.get('.bp4-code').contains(
             `(DATE_TRUNC('HOUR', "events".timestamp_tz)) = ('2020-08-11 23:00:00')`,
         );
-        cy.get('[icon="cross"]').click({ multiple: true });
+        cy.get('.tabler-icon-x').click({ multiple: true });
     });
 
     it('Should change dates on filters', () => {
@@ -266,7 +266,7 @@ describe('Date tests', () => {
             `(DATE_TRUNC('YEAR', "customers".created)) = ('2018-01-01')`,
         );
 
-        cy.get('[icon="cross"]').click({ multiple: true });
+        cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by month
         cy.contains('Add filter').click();
@@ -283,7 +283,7 @@ describe('Date tests', () => {
             `(DATE_TRUNC('MONTH', "customers".created)) = ('2018`,
         );
 
-        cy.get('[icon="cross"]').click({ multiple: true });
+        cy.get('.tabler-icon-x').click({ multiple: true });
     });
 
     it('Should keep value when changing date operator', () => {
@@ -321,7 +321,7 @@ describe('Date tests', () => {
             `(DATE_TRUNC('DAY', "customers".created)) != ('${todayDate}')`,
         );
 
-        cy.get('[icon="cross"]').click({ multiple: true });
+        cy.get('.tabler-icon-x').click({ multiple: true });
     });
 
     it('Should filter by date on dimension', () => {
@@ -350,7 +350,7 @@ describe('Date tests', () => {
         cy.get('.bp4-code').contains(
             `(DATE_TRUNC('YEAR', "orders".order_date)) = ('${now.getFullYear()}-01-01')`,
         );
-        cy.get('[icon="cross"]').click({ multiple: true });
+        cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by month
         cy.findByRole('button', { name: 'Month' }).findByRole('button').click();
@@ -368,7 +368,7 @@ describe('Date tests', () => {
                 now,
             )}-01')`,
         );
-        cy.get('[icon="cross"]').click({ multiple: true });
+        cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by week
         function startOfTheWeek(): string {
@@ -386,7 +386,7 @@ describe('Date tests', () => {
         cy.get('.bp4-code').contains(
             `(DATE_TRUNC('WEEK', "orders".order_date)) = ('${weekDate}')`,
         );
-        cy.get('[icon="cross"]').click({ multiple: true });
+        cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by day
         cy.findByRole('button', { name: 'Day' }).findByRole('button').click();
@@ -398,7 +398,7 @@ describe('Date tests', () => {
         cy.get('.bp4-code').contains(
             `(DATE_TRUNC('DAY', "orders".order_date)) = ('${todayDate}')`,
         );
-        cy.get('[icon="cross"]').click({ multiple: true });
+        cy.get('.tabler-icon-x').click({ multiple: true });
     });
 
     it.skip('Should filter by datetime on dimension', () => {
@@ -437,7 +437,7 @@ describe('Date tests', () => {
         cy.get('.bp4-date-input input')
             .should('be.visible')
             .then(($value) => checkDatetime($value, '"events".timestamp_tz'));
-        cy.get('[icon="cross"]').click({ multiple: true });
+        cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by millisecond
         cy.get('span:contains("Millisecond") ~ div').click();
@@ -450,7 +450,7 @@ describe('Date tests', () => {
                     `DATE_TRUNC('MILLISECOND', "events".timestamp_tz)`,
                 ),
             );
-        cy.get('[icon="cross"]').click({ multiple: true });
+        cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by second
         cy.get('span:contains("Second") ~ div').click();
@@ -463,7 +463,7 @@ describe('Date tests', () => {
                     `DATE_TRUNC('SECOND', "events".timestamp_tz)`,
                 ),
             );
-        cy.get('[icon="cross"]').click({ multiple: true });
+        cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by minute
         cy.get('span:contains("Minute") ~ div').click();
@@ -476,7 +476,7 @@ describe('Date tests', () => {
                     `DATE_TRUNC('MINUTE', "events".timestamp_tz)`,
                 ),
             );
-        cy.get('[icon="cross"]').click({ multiple: true });
+        cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by hour
         cy.get('span:contains("Hour") ~ div').click();
@@ -489,6 +489,6 @@ describe('Date tests', () => {
                     `DATE_TRUNC('HOUR', "events".timestamp_tz)`,
                 ),
             );
-        cy.get('[icon="cross"]').click({ multiple: true });
+        cy.get('.tabler-icon-x').click({ multiple: true });
     });
 });
