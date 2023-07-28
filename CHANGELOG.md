@@ -1,3 +1,10 @@
+## [0.703.1](https://github.com/lightdash/lightdash/compare/0.703.0...0.703.1) (2023-07-28)
+
+
+### Bug Fixes
+
+* add mantine tooltip and wrap button with box ([#6529](https://github.com/lightdash/lightdash/issues/6529)) ([5ef7246](https://github.com/lightdash/lightdash/commit/5ef7246d45f7ef5806a69c00fa6da568d4999423))
+
 # [0.703.0](https://github.com/lightdash/lightdash/compare/0.702.1...0.703.0) (2023-07-28)
 
 
