@@ -1,3 +1,10 @@
+# [0.703.0](https://github.com/lightdash/lightdash/compare/0.702.1...0.703.0) (2023-07-28)
+
+
+### Features
+
+* duplicate charts that belong to dashboard on dashboard duplication ([#6499](https://github.com/lightdash/lightdash/issues/6499)) ([6039d4a](https://github.com/lightdash/lightdash/commit/6039d4a1f1c582526f8ce340a59a5d331f8433dd))
+
 ## [0.702.1](https://github.com/lightdash/lightdash/compare/0.702.0...0.702.1) (2023-07-28)
 
 
