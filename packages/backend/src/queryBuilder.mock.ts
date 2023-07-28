@@ -581,6 +581,32 @@ export const METRIC_QUERY_WITH_FILTER_OR_OPERATOR: CompiledMetricQuery = {
     compiledAdditionalMetrics: [],
 };
 
+export const METRIC_QUERY_WITH_DISABLED_FILTER: CompiledMetricQuery = {
+    dimensions: ['table1_dim1'],
+    metrics: ['table1_metric1'],
+    filters: {
+        metrics: {
+            id: 'root',
+            and: [
+                {
+                    id: '1',
+                    target: {
+                        fieldId: 'table1_metric1',
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: [],
+                    disabled: true,
+                },
+            ],
+        },
+    },
+    sorts: [{ fieldId: 'table1_metric1', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+};
+
 export const METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS: CompiledMetricQuery = {
     dimensions: ['table1_dim1'],
     metrics: [],
@@ -832,6 +858,24 @@ WHERE ((
 ))
 GROUP BY 1
 ORDER BY "table1_dim1" DESC
+LIMIT 10`;
+
+export const METRIC_QUERY_WITH_DISABLED_FILTER_SQL = `WITH metrics AS (
+SELECT
+  "table1".dim1 AS "table1_dim1",
+  MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
+
+GROUP BY 1
+)
+SELECT
+  *
+FROM metrics
+WHERE (
+  1=1
+)
+ORDER BY "table1_metric1" DESC
 LIMIT 10`;
 
 export const METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL = `SELECT
