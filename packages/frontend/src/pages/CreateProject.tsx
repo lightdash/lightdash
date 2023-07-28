@@ -82,9 +82,6 @@ const CreateProject: FC = () => {
                                     <ConnectUsingCLI
                                         siteUrl={health.siteUrl}
                                         version={health.version}
-                                        isCreatingFirstProject={
-                                            isCreatingFirstProject
-                                        }
                                         onBack={() => {
                                             history.replace('/createProject');
                                         }}

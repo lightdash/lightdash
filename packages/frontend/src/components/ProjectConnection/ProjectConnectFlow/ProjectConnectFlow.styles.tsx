@@ -1,4 +1,4 @@
-import { Colors, H3, Icon, NonIdealState } from '@blueprintjs/core';
+import { Colors, H3, Icon } from '@blueprintjs/core';
 import styled, { keyframes } from 'styled-components';
 
 export const Wrapper = styled.div`
@@ -37,47 +37,11 @@ export const StyledSuccessIcon = styled(Icon)`
     }
 `;
 
-export const StyledNonIdealState = styled(NonIdealState)`
-    margin-top: 15px;
-
-    svg {
-        fill-opacity: unset !important;
-    }
-`;
-
 export const Title = styled(H3)``;
 
 export const Subtitle = styled.p`
     color: ${Colors.GRAY2};
     margin: 5px 0 20px 0;
-`;
-
-export const CodeLabel = styled.p`
-    text-align: left;
-    color: ${Colors.GRAY1};
-    margin-top: 10px;
-    margin-bottom: 10px;
-`;
-
-export const Codeblock = styled.div`
-    position: relative;
-    margin-bottom: 8px;
-    background: #ebf1f5;
-    border-radius: 3px;
-    text-align: initial;
-
-    pre {
-        margin: 0;
-        padding: 10px 15px;
-        color: ${Colors.GRAY1};
-        overflow-x: scroll;
-    }
-
-    button {
-        position: absolute;
-        bottom: 10px;
-        right: 10px;
-    }
 `;
 
 export const ButtonsWrapper = styled.div`
@@ -89,14 +53,4 @@ export const FormFooterCopy = styled.p`
     margin: 35px auto 0;
     color: ${Colors.GRAY2};
     text-align: center;
-`;
-
-interface SpacerProps {
-    $width?: number;
-    $height?: number;
-}
-
-export const Spacer = styled.div<SpacerProps>`
-    ${({ $width }) => $width && `width: ${$width}px;`}
-    ${({ $height }) => $height && `height: ${$height}px;`}
 `;

@@ -6,10 +6,12 @@ interface ConnectTitleProps {
 }
 
 const ConnectTitle: FC<ConnectTitleProps> = ({ isCreatingFirstProject }) => {
-    return isCreatingFirstProject ? (
-        <Title order={2}>Let's get you set up!</Title>
-    ) : (
-        <Title order={2}>Connect new project</Title>
+    return (
+        <Title order={2} fw={600}>
+            {isCreatingFirstProject
+                ? "Let's get you set up!"
+                : 'Connect new project'}
+        </Title>
     );
 };
 

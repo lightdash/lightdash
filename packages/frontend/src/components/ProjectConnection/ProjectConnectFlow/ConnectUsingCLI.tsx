@@ -1,12 +1,13 @@
-import { Button, Intent } from '@blueprintjs/core';
 import {
     getDateFormat,
     OrganizationProject,
     TimeFrames,
 } from '@lightdash/common';
+import { Avatar, Box, Button, Stack, Text, Title } from '@mantine/core';
+import { useClipboard } from '@mantine/hooks';
+import { IconClock, IconCopy } from '@tabler/icons-react';
 import moment from 'moment';
-import { FC, useEffect, useRef } from 'react';
-import CopyToClipboard from 'react-copy-to-clipboard';
+import { FC, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useQueryClient } from 'react-query';
 import { useHistory } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -15,24 +16,13 @@ import { useProjects } from '../../../hooks/useProjects';
 import { FloatingBackButton } from '../../../pages/CreateProject.styles';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import LinkButton from '../../common/LinkButton';
+import MantineIcon from '../../common/MantineIcon';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
-import ConnectTitle from './common/ConnectTitle';
-import InviteExpertFooter from './InviteExpertFooter';
-import {
-    Codeblock,
-    CodeLabel,
-    Spacer,
-    StyledNonIdealState,
-    Subtitle,
-    Wrapper,
-} from './ProjectConnectFlow.styles';
+import { Wrapper } from './ProjectConnectFlow.styles';
 
 interface ConnectUsingCliProps {
     siteUrl: string;
     version: string;
-    loginToken?: string;
-    isCreatingFirstProject: boolean;
     onBack: () => void;
 }
 
@@ -40,7 +30,11 @@ const codeBlock = ({
     siteUrl,
     loginToken,
     version,
-}: Pick<ConnectUsingCliProps, 'siteUrl' | 'version' | 'loginToken'>) =>
+}: {
+    siteUrl: string;
+    loginToken?: string;
+    version: string;
+}) =>
     String.raw`
 #1 install lightdash CLI
 npm install -g @lightdash/cli@${version}
@@ -53,7 +47,6 @@ lightdash deploy --create
 `.trim();
 
 const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
-    isCreatingFirstProject,
     siteUrl,
     version,
     onBack,
@@ -64,6 +57,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
     const { showToastSuccess } = useToaster();
     const queryClient = useQueryClient();
     const { track } = useTracking();
+    const clipboard = useClipboard({ timeout: 200 });
 
     const {
         mutate: mutateAccessToken,
@@ -118,6 +112,21 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
         },
     });
 
+    const codeBlockText = useMemo(() => {
+        return codeBlock({
+            siteUrl,
+            version,
+            loginToken: tokenData?.token,
+        });
+    }, [siteUrl, version, tokenData?.token]);
+
+    const handleCopy = useCallback(() => {
+        clipboard.copy(codeBlockText);
+
+        showToastSuccess({ title: 'Commands copied to clipboard!' });
+        track({ name: EventName.COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED });
+    }, [showToastSuccess, track, clipboard, codeBlockText]);
+
     if (isTokenCreating || !isTokenCreated || !tokenData) {
         // TODO: loader?
         return null;
@@ -132,98 +141,59 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
             />
 
             <ProjectCreationCard>
-                <ConnectTitle isCreatingFirstProject={isCreatingFirstProject} />
+                <Stack>
+                    <Stack align="center" spacing="sm">
+                        <Avatar size="lg" radius="xl">
+                            <MantineIcon
+                                icon={IconClock}
+                                size="xxl"
+                                strokeWidth={1.5}
+                                color="black"
+                            />
+                        </Avatar>
 
-                <Subtitle>
-                    To get started, upload your dbt project to Lightdash using
-                    our CLI tool.
-                </Subtitle>
+                        <Stack spacing="xxs">
+                            <Title order={3} fw={500}>
+                                Waiting for data
+                            </Title>
+                            <Text color="dimmed">
+                                Inside your dbt project, run:
+                            </Text>
+                        </Stack>
+                    </Stack>
 
-                <LinkButton
-                    minimal
-                    intent={Intent.PRIMARY}
-                    rightIcon="share"
-                    href="https://docs.lightdash.com/get-started/setup-lightdash/get-project-lightdash-ready"
-                    target="_blank"
-                    trackingEvent={{
-                        name: EventName.DOCUMENTATION_BUTTON_CLICKED,
-                        properties: {
-                            action: 'getting_started',
-                        },
-                    }}
-                >
-                    Read more about getting started.
-                </LinkButton>
+                    <Box pos="relative">
+                        <Box
+                            m={0}
+                            py="sm"
+                            px="md"
+                            component="pre"
+                            ff="monospace"
+                            bg="gray.0"
+                            c="gray.8"
+                            ta="left"
+                            sx={(theme) => ({
+                                overflowX: 'auto',
+                                borderRadius: theme.radius.sm,
+                            })}
+                        >
+                            {codeBlockText}
+                        </Box>
 
-                <CodeLabel>Inside your dbt project, run:</CodeLabel>
-
-                <Codeblock>
-                    <pre>
-                        {codeBlock({
-                            siteUrl,
-                            version,
-                            loginToken: tokenData?.token,
-                        })}
-                    </pre>
-
-                    <CopyToClipboard
-                        text={codeBlock({
-                            siteUrl,
-                            version,
-                            loginToken: tokenData?.token,
-                        })}
-                        options={{ message: 'Copied' }}
-                        onCopy={() => {
-                            showToastSuccess({
-                                title: 'Commands copied to clipboard!',
-                            });
-                            track({
-                                name: EventName.COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED,
-                            });
-                        }}
-                    >
-                        <Button small minimal outlined icon="clipboard">
+                        <Button
+                            pos="absolute"
+                            right={12}
+                            bottom={12}
+                            variant="outline"
+                            size="xs"
+                            leftIcon={<MantineIcon icon={IconCopy} />}
+                            onClick={handleCopy}
+                        >
                             Copy
                         </Button>
-                    </CopyToClipboard>
-                </Codeblock>
-
-                <StyledNonIdealState
-                    title="Waiting for data"
-                    icon="stopwatch"
-                />
+                    </Box>
+                </Stack>
             </ProjectCreationCard>
-
-            <LinkButton
-                minimal
-                intent={Intent.PRIMARY}
-                href="/createProject/manual"
-                trackingEvent={{
-                    name: EventName.CREATE_PROJECT_MANUALLY_BUTTON_CLICKED,
-                }}
-            >
-                Create project manually
-            </LinkButton>
-
-            {isCreatingFirstProject && (
-                <>
-                    <Spacer $height={8} />
-
-                    <LinkButton
-                        minimal
-                        intent={Intent.PRIMARY}
-                        href="https://demo.lightdash.com/"
-                        target="_blank"
-                        trackingEvent={{
-                            name: EventName.TRY_DEMO_CLICKED,
-                        }}
-                    >
-                        ...or try our demo project instead
-                    </LinkButton>
-                </>
-            )}
-
-            <InviteExpertFooter />
         </Wrapper>
     );
 };
