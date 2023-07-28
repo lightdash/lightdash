@@ -1,9 +1,10 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { Button, Stack, Title } from '@mantine/core';
+import { Button, Stack } from '@mantine/core';
 import { IconChevronLeft } from '@tabler/icons-react';
 import { FC } from 'react';
 import { CreateProjectConnection } from '../..';
 import MantineIcon from '../../../common/MantineIcon';
+import { OnboardingTitle } from '../common/OnboardingTitle';
 import { getWarehouseLabel } from '../SelectWarehouse';
 
 interface ConnectManuallyStep2Props {
@@ -30,9 +31,9 @@ const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
                     Back
                 </Button>
 
-                <Title order={3} fw={500}>
+                <OnboardingTitle>
                     Create a {getWarehouseLabel(selectedWarehouse)} connection
-                </Title>
+                </OnboardingTitle>
 
                 <CreateProjectConnection
                     isCreatingFirstProject={isCreatingFirstProject}

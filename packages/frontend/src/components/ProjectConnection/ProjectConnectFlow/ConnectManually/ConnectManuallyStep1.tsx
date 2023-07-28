@@ -4,9 +4,9 @@ import { FC } from 'react';
 import MantineIcon from '../../../common/MantineIcon';
 import { ProjectCreationCard } from '../../../common/Settings/SettingsCard';
 import CodeBlock from '../common/CodeBlock';
-import ConnectTitle from '../common/ConnectTitle';
+import { OnboardingConnectTitle } from '../common/OnboardingTitle';
+import OnboardingWrapper from '../common/OnboardingWrapper';
 import InviteExpertFooter from '../InviteExpertFooter';
-import { Wrapper } from './../ProjectConnectFlow.styles';
 
 const codeBlock = String.raw`models:
 - name: my_model
@@ -27,7 +27,7 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
     onForward,
 }) => {
     return (
-        <Wrapper>
+        <OnboardingWrapper>
             <Button
                 pos="absolute"
                 variant="subtle"
@@ -41,7 +41,7 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
 
             <ProjectCreationCard>
                 <Stack>
-                    <ConnectTitle
+                    <OnboardingConnectTitle
                         isCreatingFirstProject={isCreatingFirstProject}
                     />
 
@@ -78,7 +78,7 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
             </ProjectCreationCard>
 
             <InviteExpertFooter />
-        </Wrapper>
+        </OnboardingWrapper>
     );
 };
 

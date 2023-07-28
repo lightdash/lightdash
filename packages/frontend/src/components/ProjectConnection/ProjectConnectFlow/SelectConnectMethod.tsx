@@ -8,9 +8,9 @@ import { FC } from 'react';
 import { ConnectMethod } from '../../../pages/CreateProject';
 import MantineIcon from '../../common/MantineIcon';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
-import ConnectTitle from './common/ConnectTitle';
 import OnboardingButton from './common/OnboardingButton';
-import { Wrapper } from './ProjectConnectFlow.styles';
+import { OnboardingConnectTitle } from './common/OnboardingTitle';
+import OnboardingWrapper from './common/OnboardingWrapper';
 
 interface SelectConnectMethodProps {
     isCreatingFirstProject: boolean;
@@ -24,7 +24,7 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
     onBack,
 }) => {
     return (
-        <Wrapper>
+        <OnboardingWrapper>
             <Button
                 pos="absolute"
                 variant="subtle"
@@ -38,7 +38,7 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
 
             <ProjectCreationCard>
                 <Stack>
-                    <ConnectTitle
+                    <OnboardingConnectTitle
                         isCreatingFirstProject={isCreatingFirstProject}
                     />
 
@@ -87,7 +87,7 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                     </Stack>
                 </Stack>
             </ProjectCreationCard>
-        </Wrapper>
+        </OnboardingWrapper>
     );
 };
 

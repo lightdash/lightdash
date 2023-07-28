@@ -4,16 +4,16 @@ import { Icon, IconDots } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
-import BigQuery from './Assets/bigquery.svg';
-import Databricks from './Assets/databricks.svg';
-import PostgressLogo from './Assets/postgresql.svg';
-import Redshift from './Assets/redshift.svg';
-import Snowflake from './Assets/snowflake.svg';
-import Trino from './Assets/trino.svg';
-import ConnectTitle from './common/ConnectTitle';
+import BigQuery from './assets/bigquery.svg';
+import Databricks from './assets/databricks.svg';
+import PostgressLogo from './assets/postgresql.svg';
+import Redshift from './assets/redshift.svg';
+import Snowflake from './assets/snowflake.svg';
+import Trino from './assets/trino.svg';
 import OnboardingButton from './common/OnboardingButton';
+import { OnboardingConnectTitle } from './common/OnboardingTitle';
+import OnboardingWrapper from './common/OnboardingWrapper';
 import InviteExpertFooter from './InviteExpertFooter';
-import { Wrapper } from './ProjectConnectFlow.styles';
 
 export enum OtherWarehouse {
     Other = 'Other',
@@ -92,7 +92,11 @@ export const getWarehouseIcon = (key: SelectedWarehouse, size = 'md') => {
         case 'image':
             return <Avatar size={size} src={item.image} alt={item.label} />;
         case 'icon':
-            return <MantineIcon size={size} icon={item.Icon} />;
+            return (
+                <Avatar radius="xl" size={size} bg="transparent">
+                    <MantineIcon size={size} icon={item.Icon} />
+                </Avatar>
+            );
         default:
             return assertUnreachable(item, 'Unknown icon type');
     }
@@ -108,10 +112,10 @@ const SelectWarehouse: FC<SelectWarehouseProps> = ({
     onSelect,
 }) => {
     return (
-        <Wrapper>
+        <OnboardingWrapper>
             <ProjectCreationCard>
                 <Stack>
-                    <ConnectTitle
+                    <OnboardingConnectTitle
                         isCreatingFirstProject={isCreatingFirstProject}
                     />
 
@@ -132,7 +136,7 @@ const SelectWarehouse: FC<SelectWarehouseProps> = ({
             </ProjectCreationCard>
 
             <InviteExpertFooter />
-        </Wrapper>
+        </OnboardingWrapper>
     );
 };
 export default SelectWarehouse;

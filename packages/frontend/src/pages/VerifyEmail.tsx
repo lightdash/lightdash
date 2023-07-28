@@ -16,7 +16,7 @@ import { useIntercom } from 'react-use-intercom';
 
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
-import { StyledSuccessIcon } from '../components/ProjectConnection/ProjectConnectFlow/ProjectConnectFlow.styles';
+import { StyledSuccessIcon } from '../components/RegisterForms/ProjectConnectFlow.styles';
 import VerifyEmailForm from '../components/RegisterForms/VerifyEmailForm';
 import { useEmailStatus } from '../hooks/useEmailVerification';
 import { useApp } from '../providers/AppProvider';

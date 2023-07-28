@@ -3,7 +3,14 @@ import {
     OrganizationProject,
     TimeFrames,
 } from '@lightdash/common';
-import { Avatar, Box, Button, Stack, Text, Title } from '@mantine/core';
+import {
+    Avatar,
+    Box,
+    Button,
+    LoadingOverlay,
+    Stack,
+    Text,
+} from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconChevronLeft, IconClock, IconCopy } from '@tabler/icons-react';
 import moment from 'moment';
@@ -18,7 +25,8 @@ import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
 import CodeBlock from './common/CodeBlock';
-import { Wrapper } from './ProjectConnectFlow.styles';
+import { OnboardingTitle } from './common/OnboardingTitle';
+import OnboardingWrapper from './common/OnboardingWrapper';
 
 interface ConnectUsingCliProps {
     siteUrl: string;
@@ -127,13 +135,8 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
         track({ name: EventName.COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED });
     }, [showToastSuccess, track, clipboard, codeBlockText]);
 
-    if (isTokenCreating || !isTokenCreated || !tokenData) {
-        // TODO: loader?
-        return null;
-    }
-
     return (
-        <Wrapper>
+        <OnboardingWrapper>
             <Button
                 pos="absolute"
                 variant="subtle"
@@ -146,6 +149,8 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
             </Button>
 
             <ProjectCreationCard>
+                <LoadingOverlay visible={isTokenCreating} overlayBlur={2} />
+
                 <Stack>
                     <Stack align="center" spacing="sm">
                         <Avatar size="lg" radius="xl">
@@ -158,9 +163,8 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                         </Avatar>
 
                         <Stack spacing="xxs">
-                            <Title order={3} fw={500}>
-                                Waiting for data
-                            </Title>
+                            <OnboardingTitle>Waiting for data</OnboardingTitle>
+
                             <Text color="dimmed">
                                 Inside your dbt project, run:
                             </Text>
@@ -184,7 +188,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                     </Box>
                 </Stack>
             </ProjectCreationCard>
-        </Wrapper>
+        </OnboardingWrapper>
     );
 };
 

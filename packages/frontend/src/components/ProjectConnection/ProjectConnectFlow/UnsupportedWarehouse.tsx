@@ -1,12 +1,10 @@
-import { H6, Intent, NonIdealState } from '@blueprintjs/core';
-import { Anchor, Button } from '@mantine/core';
-import { IconChevronLeft } from '@tabler/icons-react';
+import { Anchor, Avatar, Button } from '@mantine/core';
+import { IconChevronLeft, IconExclamationCircle } from '@tabler/icons-react';
 import { FC } from 'react';
-import { EventName } from '../../../types/Events';
-import LinkButton from '../../common/LinkButton';
+import { EmptyState } from '../../common/EmptyState';
 import MantineIcon from '../../common/MantineIcon';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
-import { Wrapper } from './ProjectConnectFlow.styles';
+import OnboardingWrapper from './common/OnboardingWrapper';
 
 interface UnsupportedWarehouseProps {
     onBack: () => void;
@@ -14,7 +12,7 @@ interface UnsupportedWarehouseProps {
 
 const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
     return (
-        <Wrapper>
+        <OnboardingWrapper>
             <Button
                 pos="absolute"
                 variant="subtle"
@@ -27,10 +25,20 @@ const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
             </Button>
 
             <ProjectCreationCard>
-                <NonIdealState
-                    icon="error"
+                <EmptyState
+                    py="unset"
+                    icon={
+                        <Avatar size="lg" radius="xl">
+                            <MantineIcon
+                                icon={IconExclamationCircle}
+                                size="xxl"
+                                strokeWidth={1.5}
+                                color="black"
+                            />
+                        </Avatar>
+                    }
                     title={
-                        <H6>
+                        <>
                             We only support warehouses that have{' '}
                             <Anchor
                                 href="https://docs.getdbt.com/docs/supported-data-platforms#verified-adapters"
@@ -40,7 +48,7 @@ const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
                                 verified dbt adapters
                             </Anchor>{' '}
                             for now
-                        </H6>
+                        </>
                     }
                     description={
                         <>
@@ -55,21 +63,23 @@ const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
                             or create a new issue if you can't see yours there.
                         </>
                     }
-                    action={
-                        <LinkButton
-                            intent={Intent.PRIMARY}
-                            href="https://demo.lightdash.com/"
-                            target="_blank"
-                            trackingEvent={{
-                                name: EventName.TRY_DEMO_CLICKED,
-                            }}
-                        >
-                            Try our demo project
-                        </LinkButton>
-                    }
-                />
+                >
+                    <Button
+                        component="a"
+                        href="https://demo.lightdash.com/"
+                        target="_blank"
+                        onClick={() => {
+                            // TODO: fixme
+                            // trackingEvent={{
+                            //     name: EventName.TRY_DEMO_CLICKED,
+                            // }}
+                        }}
+                    >
+                        Try our demo project
+                    </Button>
+                </EmptyState>
             </ProjectCreationCard>
-        </Wrapper>
+        </OnboardingWrapper>
     );
 };
 export default UnsupportedWarehouse;
