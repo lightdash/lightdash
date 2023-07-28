@@ -1,3 +1,10 @@
+# [0.704.0](https://github.com/lightdash/lightdash/compare/0.703.1...0.704.0) (2023-07-28)
+
+
+### Features
+
+* enable new columns chart_kind on saved_chart and remove joins ([#6486](https://github.com/lightdash/lightdash/issues/6486)) ([4315c9f](https://github.com/lightdash/lightdash/commit/4315c9fa527afa58ae028d452d85d3dcf04f893a)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
 ## [0.703.1](https://github.com/lightdash/lightdash/compare/0.703.0...0.703.1) (2023-07-28)
 
 
