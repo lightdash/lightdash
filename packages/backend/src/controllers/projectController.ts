@@ -1,6 +1,7 @@
 import {
     ApiChartSummaryListResponse,
     ApiErrorPayload,
+    ApiGetProjectMemberResponse,
     ApiProjectAccessListResponse,
     ApiProjectResponse,
     ApiSpaceSummaryListResponse,
@@ -113,6 +114,35 @@ export class ProjectController extends Controller {
             req.user!,
             projectUuid,
         );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get a project member's access for a project.
+     *
+     * NOTE:
+     * We don't use the API on the frontend. Instead, we can call the API
+     * so that we make sure of the user's access to the project.
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/user/${userUuid}')
+    @OperationId('GetProjectMemberAccess')
+    @Tags('Roles & Permissions')
+    async getProjectMember(
+        @Path() projectUuid: string,
+        @Path() userUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiGetProjectMemberResponse> {
+        const results = await projectService.getProjectMemberAccess(
+            req.user!,
+            projectUuid,
+            userUuid,
+        );
+        this.setStatus(200);
         return {
             status: 'ok',
             results,
