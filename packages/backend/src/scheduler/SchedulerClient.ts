@@ -336,4 +336,25 @@ export class SchedulerClient {
 
         return { jobId };
     }
+
+    async getAllJobs() {
+        const graphileClient = await this.graphileUtils;
+
+        const errorJobs = await graphileClient.withPgClient((pgClient) =>
+            pgClient.query(
+                'select id, run_at, created_at, last_error, locked_at from graphile_worker.jobs where last_error is not NULL',
+            ),
+        );
+        const queuedJobs = await graphileClient.withPgClient((pgClient) =>
+            pgClient.query(
+                'select id, run_at, created_at, locked_at from graphile_worker.jobs where attempts = 0',
+            ),
+        );
+        return {
+            errorSize: errorJobs.rows.length,
+            errors: errorJobs.rows,
+            queueSize: queuedJobs.rows.length,
+            queued: queuedJobs.rows,
+        };
+    }
 }

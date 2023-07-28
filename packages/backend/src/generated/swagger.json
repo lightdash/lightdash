@@ -3876,7 +3876,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.692.1",
+        "version": "0.702.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -5246,7 +5246,7 @@
                         }
                     }
                 },
-                "description": "Get a project member's access for a project.\n\nNOTE: \nWe don't use the API on the frontend. Instead, we can call the API\nso that we make sure of the user's access to the project.",
+                "description": "Get a project member's access for a project.\n\nNOTE:\nWe don't use the API on the frontend. Instead, we can call the API\nso that we make sure of the user's access to the project.",
                 "tags": ["Roles & Permissions", "Projects"],
                 "security": [],
                 "parameters": [
@@ -5621,6 +5621,72 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/schedulers": {
+            "get": {
+                "operationId": "getAllScheduledJobs",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "properties": {
+                                                "queued": {
+                                                    "items": {},
+                                                    "type": "array"
+                                                },
+                                                "errors": {
+                                                    "items": {},
+                                                    "type": "array"
+                                                },
+                                                "queueSize": {
+                                                    "type": "number",
+                                                    "format": "double"
+                                                },
+                                                "errorSize": {
+                                                    "type": "number",
+                                                    "format": "double"
+                                                }
+                                            },
+                                            "required": [
+                                                "queued",
+                                                "errors",
+                                                "queueSize",
+                                                "errorSize"
+                                            ],
+                                            "type": "object"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get all scheduler jobs\nThis can be used to monitor the status of the scheduled jobs",
+                "tags": ["Schedulers"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/schedulers/{projectUuid}/logs": {

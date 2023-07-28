@@ -5,6 +5,7 @@ import * as http from 'http';
 import { lightdashConfig } from './config/lightdashConfig';
 import Logger from './logging/logger';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
+import { schedulerService } from './services/services';
 import { VERSION } from './version';
 
 process
