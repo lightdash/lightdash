@@ -3,7 +3,7 @@ import { FC } from 'react';
 
 const SettingsCard: FC<PaperProps> = ({ children, ...rest }) => {
     return (
-        <Paper shadow="sm" withBorder p="md" {...rest}>
+        <Paper shadow="sm" withBorder p="md" maw={1200} {...rest}>
             {children}
         </Paper>
     );
