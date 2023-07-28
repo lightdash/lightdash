@@ -1,5 +1,6 @@
 import { Box, Button, createStyles, keyframes, Stack } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
+import confetti from 'canvas-confetti';
 import { FC } from 'react';
 import { Link } from 'react-router-dom';
 import MantineIcon from '../../common/MantineIcon';
@@ -41,10 +42,32 @@ const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
                     </OnboardingTitle>
 
                     <Box
+                        component="div"
                         className={classes.container}
                         p="sm"
                         bg="green.6"
                         sx={{ borderRadius: 999 }}
+                        ref={(el) => {
+                            if (!el) return;
+
+                            const rect = el.getBoundingClientRect();
+
+                            confetti({
+                                disableForReducedMotion: true,
+                                startVelocity: 30,
+                                particleCount: 100,
+                                spread: 90,
+                                gravity: 0.7,
+                                origin: {
+                                    x:
+                                        (rect.left + rect.width / 2) /
+                                        window.innerWidth,
+                                    y:
+                                        (rect.top + rect.height / 2) /
+                                        window.innerHeight,
+                                },
+                            });
+                        }}
                     >
                         <MantineIcon
                             icon={IconCheck}
