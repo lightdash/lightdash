@@ -117,26 +117,26 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                 <DialogBody>
                     <Input
                         label="Enter a memorable name for your dashboard"
-                        name="dashboardName"
                         placeholder="eg. KPI Dashboards"
                         disabled={isCreatingDashboard}
                         rules={{ required: 'Name field is required' }}
+                        {...form.register('dashboardName')}
                     />
                     <Input
                         label="Description"
-                        name="dashboardDescription"
                         placeholder="A few words to give your team some context"
                         disabled={isCreatingDashboard}
+                        {...form.register('dashboardDescription')}
                     />
                     {!isLoadingSpaces && !showNewSpaceInput ? (
                         <>
                             <Select
-                                name="spaceUuid"
                                 label="Select a space"
                                 options={spaces?.map((space) => ({
                                     value: space.uuid,
                                     label: space.name,
                                 }))}
+                                {...form.register('spaceUuid')}
                             />
                             <Button
                                 minimal
@@ -151,9 +151,9 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                         <>
                             <Input
                                 label="Name your space"
-                                name="newSpaceName"
                                 placeholder="eg. KPIs"
                                 rules={{ required: 'Name field is required' }}
+                                {...form.register('newSpaceName')}
                             />
                             <Button
                                 minimal
