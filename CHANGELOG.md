@@ -1,3 +1,24 @@
+# [0.702.0](https://github.com/lightdash/lightdash/compare/0.701.0...0.702.0) (2023-07-27)
+
+
+### Features
+
+* migrate legend config to Mantine ([#6513](https://github.com/lightdash/lightdash/issues/6513)) ([5330af5](https://github.com/lightdash/lightdash/commit/5330af54c888c9354b2cde9787ebe25200a45adc))
+
+# [0.701.0](https://github.com/lightdash/lightdash/compare/0.700.1...0.701.0) (2023-07-27)
+
+
+### Features
+
+* show dashboard banner when editing chart that belongs to dashboard ([#6504](https://github.com/lightdash/lightdash/issues/6504)) ([6a18d68](https://github.com/lightdash/lightdash/commit/6a18d68ef658f88c800c54ab36e1bf1c915ea53f))
+
+## [0.700.1](https://github.com/lightdash/lightdash/compare/0.700.0...0.700.1) (2023-07-27)
+
+
+### Bug Fixes
+
+* do not add column to columns if not part of columnOrder ([#6507](https://github.com/lightdash/lightdash/issues/6507)) ([553a7a0](https://github.com/lightdash/lightdash/commit/553a7a04990d59825e31a42b923163ec0c2def95))
+
 # [0.700.0](https://github.com/lightdash/lightdash/compare/0.699.0...0.700.0) (2023-07-27)
 
 

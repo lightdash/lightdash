@@ -1,24 +1,23 @@
-import { Collapse, Switch } from '@blueprintjs/core';
 import {
     CompiledDimension,
     EchartsLegend,
     Field,
-    friendlyName,
     TableCalculation,
 } from '@lightdash/common';
+import {
+    Collapse,
+    SegmentedControl,
+    SimpleGrid,
+    Stack,
+    Switch,
+    Text,
+} from '@mantine/core';
 import startCase from 'lodash-es/startCase';
-import React, { FC } from 'react';
-import { useForm } from 'react-hook-form';
+import { FC, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
+import UnitInput from '../../../common/UnitInput';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
-import Checkbox from '../../../ReactHookForm/Checkbox';
-import Form from '../../../ReactHookForm/Form';
-import Select from '../../../ReactHookForm/Select';
-import UnitInput from '../../../ReactHookForm/UnitInput';
-import { SectionRow, SectionTitle } from './Legend.styles';
 import { ReferenceLines } from './ReferenceLines';
-
-const triggerSubmitFields = ['show', 'orient'];
 
 enum Positions {
     Left = 'left',
@@ -42,88 +41,87 @@ const LegendPanel: FC<Props> = ({ items }) => {
     } = useVisualizationContext();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const methods = useForm<EchartsLegend>({
-        mode: 'onBlur',
-        defaultValues: dirtyEchartsConfig?.legend,
-    });
-    const { watch, handleSubmit } = methods;
+    const legendConfig = useMemo<EchartsLegend>(
+        () => ({
+            ...dirtyEchartsConfig?.legend,
+        }),
+        [dirtyEchartsConfig?.legend],
+    );
 
-    React.useEffect(() => {
-        const subscription = watch((value, { name }) => {
-            if (name && triggerSubmitFields.includes(name)) {
-                setLegend(value);
-            }
-        });
-        return () => subscription.unsubscribe();
-    }, [handleSubmit, setLegend, watch]);
+    const handleChange = (
+        prop: string,
+        newValue: string | boolean | undefined,
+    ) => {
+        const newState = { ...legendConfig, [prop]: newValue };
+        setLegend(newState);
+        return newState;
+    };
 
     const showDefault = (dirtyEchartsConfig?.series || []).length > 1;
     return (
-        <Form
-            name="legend"
-            methods={methods}
-            onSubmit={() => undefined}
-            onBlur={handleSubmit(setLegend)}
-        >
-            <Checkbox
-                name="show"
-                checkboxProps={{ label: 'Show legend' }}
-                defaultValue={showDefault}
+        <Stack>
+            <Switch
+                label="Show legend"
+                checked={legendConfig.show ?? showDefault}
+                onChange={(e) => handleChange('show', e.currentTarget.checked)}
             />
-
-            <Collapse
-                isOpen={
-                    dirtyEchartsConfig?.legend
-                        ? dirtyEchartsConfig?.legend.show
-                        : showDefault
-                }
-            >
-                <SectionTitle>Scroll</SectionTitle>
+            <Collapse in={legendConfig.show ?? showDefault}>
                 <Switch
-                    large
+                    label="Scroll legend"
+                    mb="md"
                     checked={dirtyEchartsConfig?.legend?.type !== 'plain'}
-                    onChange={() => {
-                        const type: 'scroll' | 'plain' =
-                            dirtyEchartsConfig?.legend?.type !== 'plain'
-                                ? 'plain'
-                                : 'scroll';
-                        methods.setValue('type', type);
-                        handleSubmit(setLegend)();
-                    }}
+                    onChange={(e) =>
+                        handleChange(
+                            'type',
+                            e.currentTarget.checked ? 'scroll' : 'plain',
+                        )
+                    }
                 />
-                <SectionTitle>Position</SectionTitle>
-
+                <Text fw={600}>Position</Text>
                 {[
                     [Positions.Left, Positions.Right],
                     [Positions.Top, Positions.Bottom],
                 ].map((positionGroup) => (
-                    <SectionRow key={positionGroup.join(',')}>
+                    <SimpleGrid
+                        cols={2}
+                        mt="xs"
+                        ml="xs"
+                        mb="md"
+                        spacing="md"
+                        key={positionGroup.join(',')}
+                    >
                         {positionGroup.map((position) => (
                             <UnitInput
                                 key={position}
-                                label={startCase(position)}
+                                label={
+                                    <Text fw={400}>{startCase(position)} </Text>
+                                }
                                 name={position}
                                 units={units}
+                                value={legendConfig[position] ?? 'auto'}
                                 defaultValue="auto"
+                                onChange={(e) => handleChange(position, e)}
                             />
                         ))}
-                    </SectionRow>
+                    </SimpleGrid>
                 ))}
 
-                <SectionTitle>Orientation</SectionTitle>
-                <SectionRow>
-                    <Select
-                        name="orient"
-                        options={['horizontal', 'vertical'].map((x) => ({
-                            value: x,
-                            label: friendlyName(x),
-                        }))}
-                        defaultValue="horizontal"
-                    />
-                </SectionRow>
+                <Text fw={600}>Orientation</Text>
+                <SegmentedControl
+                    name="orient"
+                    color="blue"
+                    size="sm"
+                    fullWidth
+                    value={legendConfig.orient ?? 'horizontal'}
+                    onChange={(val) => handleChange('orient', val)}
+                    data={[
+                        { label: 'Horizontal', value: 'horizontal' },
+                        { label: 'Vertical', value: 'vertical' },
+                    ]}
+                />
             </Collapse>
             <ReferenceLines items={items} projectUuid={projectUuid} />
-        </Form>
+        </Stack>
     );
 };
 
