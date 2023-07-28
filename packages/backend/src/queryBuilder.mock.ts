@@ -736,23 +736,6 @@ FROM metrics
 ORDER BY "table1_metric1" DESC
 LIMIT 10`;
 
-export const METRIC_QUERY_SQL_WITH_NO_LIMIT = `WITH metrics AS (
-SELECT
-  "table1".dim1 AS "table1_dim1",
-  MAX("table1".number_column) AS "table1_metric1"
-FROM "db"."schema"."table1" AS "table1"
-
-
-GROUP BY 1
-)
-SELECT
-  *,
-  table1_dim1 + table1_metric1 AS "calc3"
-FROM metrics
-
-ORDER BY "table1_metric1" DESC
-`;
-
 export const METRIC_QUERY_SQL_BIGQUERY = `WITH metrics AS (
 SELECT
   \`table1\`.dim1 AS \`table1_dim1\`,

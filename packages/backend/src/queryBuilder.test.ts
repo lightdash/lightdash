@@ -11,7 +11,6 @@ import {
     METRIC_QUERY_JOIN_CHAIN_SQL,
     METRIC_QUERY_SQL,
     METRIC_QUERY_SQL_BIGQUERY,
-    METRIC_QUERY_SQL_WITH_NO_LIMIT,
     METRIC_QUERY_TWO_TABLES,
     METRIC_QUERY_TWO_TABLES_SQL,
     METRIC_QUERY_WITH_ADDITIONAL_METRIC,
@@ -328,8 +327,6 @@ describe('replaceUserAttributes', () => {
     });
 
     it('method should not replace any invalid attribute', async () => {
-        const expected = "'1' > 1";
-
         expect(replaceUserAttributes('${lightdash.foo.test} > 1', [])).toEqual(
             '${lightdash.foo.test} > 1',
         );
