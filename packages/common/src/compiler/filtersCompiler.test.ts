@@ -3,12 +3,14 @@ import { FilterOperator, UnitOfTime } from '../types/filter';
 import { WeekDay } from '../utils/timeFrames';
 import {
     renderDateFilterSql,
+    renderFilterRuleSql,
     renderNumberFilterSql,
     renderStringFilterSql,
 } from './filtersCompiler';
 import {
     adapterType,
     DimensionSqlMock,
+    disabledFilterMock,
     ExpectedInTheCurrentFilterSQL,
     ExpectedInTheCurrentWeekFilterSQLWithCustomStartOfWeek,
     ExpectedInTheNextCompleteFilterSQL,
@@ -730,5 +732,19 @@ describe('Filter SQL', () => {
                 "'",
             ),
         ).toBe(stringFilterRuleMocks.equalsFilterWithMultiUnescapedValueSQL);
+    });
+
+    test('should return 1=1 if filter is disabled', () => {
+        expect(
+            renderFilterRuleSql(
+                disabledFilterMock.filterRule,
+                disabledFilterMock.field,
+                disabledFilterMock.fieldQuoteChar,
+                disabledFilterMock.stringQuoteChar,
+                disabledFilterMock.escapeStringQuoteChar,
+                disabledFilterMock.startOfWeek,
+                disabledFilterMock.adapterType,
+            ),
+        ).toBe('1=1');
     });
 });

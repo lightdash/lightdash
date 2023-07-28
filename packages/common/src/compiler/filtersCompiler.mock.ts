@@ -1,6 +1,9 @@
+import { ConditionalOperator } from '../types/conditionalRule';
 import { SupportedDbtAdapter } from '../types/dbt';
+import { DimensionType, FieldType } from '../types/field';
 import { FilterOperator, UnitOfTime } from '../types/filter';
 import { WeekDay } from '../utils/timeFrames';
+import { renderFilterRuleSql } from './filtersCompiler';
 
 export const DimensionSqlMock = 'customers.created';
 export const NumberDimensionMock = 'customers.age';
@@ -467,4 +470,43 @@ export const stringFilterRuleMocks = {
         ...stringMultiUnescapedValueFilter,
         operator: FilterOperator.EQUALS,
     },
+};
+
+type RenderFilterRuleSqlParams = Parameters<typeof renderFilterRuleSql>; // [string, number]
+
+export const disabledFilterMock: {
+    filterRule: RenderFilterRuleSqlParams[0];
+    field: RenderFilterRuleSqlParams[1];
+    fieldQuoteChar: RenderFilterRuleSqlParams[2];
+    stringQuoteChar: RenderFilterRuleSqlParams[3];
+    escapeStringQuoteChar: RenderFilterRuleSqlParams[4];
+    startOfWeek: RenderFilterRuleSqlParams[5];
+    adapterType: RenderFilterRuleSqlParams[6];
+} = {
+    filterRule: {
+        id: '3cf51ddc-fa2b-4442-afaa-9eee4f348d7a',
+        target: { fieldId: 'payments_payment_method' },
+        values: [],
+        operator: ConditionalOperator.NOT_EQUALS,
+        disabled: true,
+    },
+    field: {
+        sql: '${TABLE}.payment_method',
+        name: 'payment_method',
+        type: DimensionType.STRING,
+        index: 2,
+        label: 'Payment method',
+        table: 'payments',
+        hidden: false,
+        fieldType: FieldType.DIMENSION,
+        tableLabel: 'Payments',
+        compiledSql: '"payments".payment_method',
+        description: 'Method of payment used, for example credit card',
+        tablesReferences: ['payments'],
+    },
+    fieldQuoteChar: '"',
+    stringQuoteChar: "'",
+    escapeStringQuoteChar: "'",
+    startOfWeek: null,
+    adapterType: SupportedDbtAdapter.POSTGRES,
 };
