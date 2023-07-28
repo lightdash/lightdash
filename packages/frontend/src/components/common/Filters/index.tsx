@@ -120,8 +120,10 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                             <Divider
                                 style={{
                                     position: 'absolute',
-                                    height: 'calc(100% - 30px)',
-                                    top: 15,
+                                    height: showMandatoryAndOperator
+                                        ? 'calc(100% - 10px)'
+                                        : 'calc(100% + 10px)',
+                                    top: 0,
                                     left: 25,
                                 }}
                             />
