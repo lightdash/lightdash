@@ -122,9 +122,7 @@ const ChartUpdateModal = ({
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={}>
-                            Update
-                        </Button>
+                        <Button type="submit">Update</Button>
                     </Group>
                 </Stack>
             </form>
