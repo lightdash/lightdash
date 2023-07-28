@@ -17,13 +17,13 @@ import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import MantineIcon from '../../common/MantineIcon';
 
 interface ChartUpdateModalProps extends ModalProps {
-    chartTitle: string;
+    chartName: string;
     onClose: () => void;
     onConfirm?: (newTitle: string, newChartUuid: string) => void;
 }
 
 const ChartUpdateModal = ({
-    chartTitle,
+    chartName,
     onClose,
     onConfirm,
     ...modalProps
@@ -42,6 +42,9 @@ const ChartUpdateModal = ({
             onConfirm?.(newTitle, newChartUuid);
         },
     );
+
+    const [chartUuid, setChartUuid] = React.useState<string | null>('');
+    const [chartTitle, setChartTitle] = React.useState<string>(chartName);
 
     const handleClose = () => {
         form.reset();
@@ -72,9 +75,12 @@ const ChartUpdateModal = ({
                         placeholder={
                             form.getInputProps('title').value.length > 0
                                 ? form.getInputProps('title').value
-                                : chartTitle
+                                : chartName
                         }
-                        {...form.getInputProps('title')}
+                        value={chartTitle}
+                        onChange={(event) => {
+                            setChartTitle(event.currentTarget.value);
+                        }}
                     />
                     <Select
                         styles={(theme) => ({
@@ -102,9 +108,11 @@ const ChartUpdateModal = ({
                         )}
                         disabled={isLoading}
                         withinPortal
-                        {...form.getInputProps('uuid')}
                         searchable
-                        placeholder="Search..."
+                        value={chartUuid}
+                        onChange={(value) => {
+                            setChartUuid(value);
+                        }}
                     />
                     <Group spacing="xs" position="right" mt="md">
                         <Button
