@@ -4,6 +4,7 @@ import styled, { createGlobalStyle, css } from 'styled-components';
 interface HeaderContainerProps {
     $isEditMode: boolean;
     $isHovering?: boolean;
+    $isEmpty?: boolean;
 }
 
 export const TileBaseWrapper = styled.div<HeaderContainerProps>`
@@ -45,6 +46,14 @@ export const HeaderContainer = styled.div<HeaderContainerProps>`
                 }
             `
             : ''}
+
+    ${({ $isEmpty }) =>
+        $isEmpty
+            ? css`
+                  position: absolute;
+                  right: 16px;
+              `
+            : ''}
 `;
 
 export const GlobalTileStyles = createGlobalStyle`
@@ -55,6 +64,7 @@ export const GlobalTileStyles = createGlobalStyle`
 
 interface TileTitleProps {
     $hovered?: boolean;
+    $test?: boolean;
 }
 
 export const TitleWrapper = styled.div<TileTitleProps>`
