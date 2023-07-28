@@ -1,4 +1,4 @@
-import { Avatar, Button, createStyles, keyframes, Stack } from '@mantine/core';
+import { Box, Button, createStyles, keyframes, Stack } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { FC } from 'react';
 import { Link } from 'react-router-dom';
@@ -40,14 +40,19 @@ const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
                         Your project's been created!
                     </OnboardingTitle>
 
-                    <Avatar
+                    <Box
                         className={classes.container}
-                        size="xl"
-                        color="green"
-                        radius={999}
+                        p="sm"
+                        bg="green.6"
+                        sx={{ borderRadius: 999 }}
                     >
-                        <MantineIcon icon={IconCheck} size="4xl" />
-                    </Avatar>
+                        <MantineIcon
+                            icon={IconCheck}
+                            size="4xl"
+                            color="white"
+                            stroke={3}
+                        />
+                    </Box>
 
                     <Button
                         component={Link}
