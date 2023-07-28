@@ -47,7 +47,7 @@ const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
                             <Anchor
                                 href="https://docs.getdbt.com/docs/supported-data-platforms#verified-adapters"
                                 target="_blank"
-                                rel="noreferrer"
+                                rel="noreferrer noopener"
                             >
                                 verified dbt adapters
                             </Anchor>{' '}
@@ -60,7 +60,7 @@ const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
                             <Anchor
                                 href="https://github.com/lightdash/lightdash/issues"
                                 target="_blank"
-                                rel="noreferrer"
+                                rel="noreferrer noopener"
                             >
                                 GitHub issues
                             </Anchor>{' '}
@@ -72,6 +72,7 @@ const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
                         component="a"
                         href="https://demo.lightdash.com/"
                         target="_blank"
+                        rel="noreferrer noopener"
                         onClick={() => {
                             track({ name: EventName.TRY_DEMO_CLICKED });
                         }}

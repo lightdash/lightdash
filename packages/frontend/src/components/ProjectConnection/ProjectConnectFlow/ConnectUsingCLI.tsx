@@ -188,6 +188,18 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                     </Box>
                 </Stack>
             </ProjectCreationCard>
+
+            <Button
+                component="a"
+                variant="subtle"
+                mx="auto"
+                w="fit-content"
+                target="_blank"
+                rel="noreferrer noopener"
+                href="https://docs.lightdash.com/get-started/setup-lightdash/get-project-lightdash-ready"
+            >
+                View docs
+            </Button>
         </OnboardingWrapper>
     );
 };

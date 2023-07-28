@@ -6,7 +6,6 @@ import { ProjectCreationCard } from '../../../common/Settings/SettingsCard';
 import CodeBlock from '../common/CodeBlock';
 import { OnboardingConnectTitle } from '../common/OnboardingTitle';
 import OnboardingWrapper from '../common/OnboardingWrapper';
-import InviteExpertFooter from '../InviteExpertFooter';
 
 const codeBlock = String.raw`models:
 - name: my_model
@@ -64,6 +63,7 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
                                 variant="outline"
                                 href="https://docs.lightdash.com/guides/how-to-create-dimensions"
                                 target="_blank"
+                                rel="noreferrer noopener"
                                 rightIcon={
                                     <MantineIcon icon={IconChevronRight} />
                                 }
@@ -76,8 +76,6 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
                     </Stack>
                 </Stack>
             </ProjectCreationCard>
-
-            <InviteExpertFooter />
         </OnboardingWrapper>
     );
 };
