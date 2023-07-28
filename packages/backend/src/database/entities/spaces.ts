@@ -1,11 +1,4 @@
-import {
-    ChartConfig,
-    ChartKind,
-    ChartType,
-    getChartType,
-    NotFoundError,
-    Space,
-} from '@lightdash/common';
+import { ChartKind, NotFoundError, Space } from '@lightdash/common';
 import { Knex } from 'knex';
 import database from '../database';
 import { AnalyticsChartViewsTableName } from './analytics';

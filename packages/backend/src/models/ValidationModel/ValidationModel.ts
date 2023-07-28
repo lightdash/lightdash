@@ -1,6 +1,5 @@
 import {
     CreateValidation,
-    getChartType,
     isChartValidationError,
     isDashboardValidationError,
     isTableValidationError,

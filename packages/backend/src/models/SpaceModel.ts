@@ -1,8 +1,5 @@
 import {
-    ChartConfig,
     ChartKind,
-    ChartType,
-    getChartType,
     NotFoundError,
     OrganizationMemberRole,
     ProjectMemberRole,

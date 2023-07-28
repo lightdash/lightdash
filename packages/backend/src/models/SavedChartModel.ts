@@ -6,6 +6,7 @@ import {
     CreateSavedChart,
     CreateSavedChartVersion,
     DBFieldTypes,
+    getChartKind,
     getChartType,
     isFormat,
     NotFoundError,
@@ -237,7 +238,7 @@ export const createSavedChart = async (
             name,
             description,
             last_version_chart_kind:
-                getChartType(chartConfig.type, chartConfig.config) ||
+                getChartKind(chartConfig.type, chartConfig.config) ||
                 ChartKind.VERTICAL_BAR,
             last_version_updated_by_user_uuid: userUuid,
         };
@@ -336,7 +337,7 @@ export class SavedChartModel {
 
             await trx('saved_queries')
                 .update({
-                    last_version_chart_kind: getChartType(
+                    last_version_chart_kind: getChartKind(
                         data.chartConfig.type,
                         data.chartConfig.config,
                     ),
@@ -690,7 +691,11 @@ export class SavedChartModel {
                     .whereNotNull(`${SavedChartsTableName}.space_id`)
                     .whereIn('spaces.space_uuid', filters.spaceUuids);
             }
-            return await query;
+            const chartSummaries = await query;
+            return chartSummaries.map((chart) => ({
+                ...chart,
+                chartType: getChartType(chart.chartKind),
+            }));
         } finally {
             span?.finish();
         }
@@ -707,7 +712,7 @@ export class SavedChartModel {
                 projectUuid: 'projects.project_uuid',
                 organizationUuid: 'organizations.organization_uuid',
                 pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
-                chartType: 'saved_queries.last_version_chart_kind',
+                chartKind: 'saved_queries.last_version_chart_kind',
                 dashboardUuid: `${DashboardsTableName}.dashboard_uuid`,
                 dashboardName: `${DashboardsTableName}.name`,
             })

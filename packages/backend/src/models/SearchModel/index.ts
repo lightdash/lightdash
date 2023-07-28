@@ -3,7 +3,6 @@ import {
     Explore,
     ExploreError,
     FieldSearchResult,
-    getChartType,
     hasIntersection,
     isExploreError,
     NotExistsError,
