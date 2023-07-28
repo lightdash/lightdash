@@ -12,7 +12,6 @@ export const FilterGroupWrapper = styled.div`
 `;
 
 export const FilterGroupHeader = styled.div`
-    width: 100%;
     height: 30px;
     display: inline-flex;
     align-items: center;

@@ -1,6 +1,5 @@
 import { Divider, HTMLSelect } from '@blueprintjs/core';
 import {
-    AndFilterGroup,
     createFilterRuleFromField,
     FilterableField,
     FilterGroup,
@@ -25,6 +24,8 @@ import FilterRuleForm from './FilterRuleForm';
 
 type Props = {
     hideButtons?: boolean;
+    hideLine?: boolean;
+    allowConvertToGroup?: boolean;
     conditionLabel: string;
     fields: FilterableField[];
     filterGroup: FilterGroup;
@@ -35,6 +36,8 @@ type Props = {
 
 const FilterGroupForm: FC<Props> = ({
     hideButtons,
+    hideLine,
+    allowConvertToGroup,
     conditionLabel,
     fields,
     filterGroup,
@@ -87,23 +90,6 @@ const FilterGroupForm: FC<Props> = ({
         }
     }, [fields, filterGroup, items, onChange]);
 
-    const addFieldGroup = useCallback(() => {
-        if (fields.length > 0) {
-            const newGroup: AndFilterGroup = {
-                id: uuidv4(),
-                and: [createFilterRuleFromField(fields[0])],
-            };
-
-            onChange({
-                ...filterGroup,
-                [getFilterGroupItemsPropertyName(filterGroup)]: [
-                    ...items,
-                    newGroup,
-                ],
-            });
-        }
-    }, [fields, filterGroup, items, onChange]);
-
     const onChangeOperator = useCallback(
         (value: FilterGroupOperator) => {
             onChange({
@@ -116,14 +102,17 @@ const FilterGroupForm: FC<Props> = ({
 
     return (
         <FilterGroupWrapper>
-            <Divider
-                style={{
-                    position: 'absolute',
-                    height: 'calc(100% - 10px)',
-                    top: 0,
-                    left: 25,
-                }}
-            />
+            {!hideLine && (
+                <Divider
+                    style={{
+                        position: 'absolute',
+                        height: 'calc(100% - 10px)',
+                        top: 0,
+                        left: 25,
+                    }}
+                />
+            )}
+
             <FilterGroupHeader>
                 <HTMLSelect
                     className={!isEditMode ? 'disabled-filter' : ''}
@@ -154,31 +143,6 @@ const FilterGroupForm: FC<Props> = ({
                 <p style={{ marginLeft: 10 }}>
                     of the following {conditionLabel} conditions match:
                 </p>
-                <div style={{ flex: 1 }}></div>
-                {!hideButtons && fields.length > 0 && (
-                    <div
-                        style={{
-                            display: 'flex',
-                            gap: 10,
-                        }}
-                    >
-                        {/*<Button*/}
-                        {/*    variant="light"*/}
-                        {/*    size="xs"*/}
-                        {/*    leftIcon={<MantineIcon icon={IconPlus} />}*/}
-                        {/*    onClick={onAddFilterRule}*/}
-                        {/*>*/}
-                        {/*    Add filter*/}
-                        {/*</Button>*/}
-                        <Button
-                            variant="subtle"
-                            size="xs"
-                            onClick={addFieldGroup}
-                        >
-                            Add group
-                        </Button>
-                    </div>
-                )}
             </FilterGroupHeader>
             <FilterGroupItemsWrapper>
                 {items.map((item, index) => (
@@ -190,9 +154,19 @@ const FilterGroupForm: FC<Props> = ({
                                 isEditMode={isEditMode}
                                 onChange={(value) => onChangeItem(index, value)}
                                 onDelete={() => onDeleteItem(index)}
+                                onConvertToGroup={
+                                    allowConvertToGroup
+                                        ? () =>
+                                              onChangeItem(index, {
+                                                  id: uuidv4(),
+                                                  and: [item],
+                                              })
+                                        : undefined
+                                }
                             />
                         ) : (
                             <FilterGroupForm
+                                allowConvertToGroup={false}
                                 isEditMode={isEditMode}
                                 filterGroup={item}
                                 conditionLabel={conditionLabel}
@@ -205,28 +179,14 @@ const FilterGroupForm: FC<Props> = ({
                 ))}
             </FilterGroupItemsWrapper>
             {!hideButtons && fields.length > 0 && (
-                <div
-                    style={{
-                        display: 'flex',
-                        gap: 10,
-                    }}
+                <Button
+                    variant="light"
+                    size="xs"
+                    leftIcon={<MantineIcon icon={IconPlus} />}
+                    onClick={onAddFilterRule}
                 >
-                    <Button
-                        variant="light"
-                        size="xs"
-                        leftIcon={<MantineIcon icon={IconPlus} />}
-                        onClick={onAddFilterRule}
-                    >
-                        Add filter
-                    </Button>
-                    {/*<Button*/}
-                    {/*    variant="subtle"*/}
-                    {/*    size="xs"*/}
-                    {/*    onClick={addFieldGroup}*/}
-                    {/*>*/}
-                    {/*    Add group*/}
-                    {/*</Button>*/}
-                </div>
+                    Add filter
+                </Button>
             )}
         </FilterGroupWrapper>
     );
