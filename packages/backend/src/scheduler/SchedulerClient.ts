@@ -340,15 +340,13 @@ export class SchedulerClient {
     async getAllJobs() {
         const graphileClient = await this.graphileUtils;
 
+        const query =
+            'select id, run_at, created_at, locked_at from graphile_worker.jobs';
         const errorJobs = await graphileClient.withPgClient((pgClient) =>
-            pgClient.query(
-                'select id, run_at, created_at, last_error, locked_at from graphile_worker.jobs where last_error is not NULL',
-            ),
+            pgClient.query(`${query} where last_error is not NULL`),
         );
         const queuedJobs = await graphileClient.withPgClient((pgClient) =>
-            pgClient.query(
-                'select id, run_at, created_at, locked_at from graphile_worker.jobs where attempts = 0',
-            ),
+            pgClient.query(`${query} where attempts = 0`),
         );
         return {
             errorSize: errorJobs.rows.length,
