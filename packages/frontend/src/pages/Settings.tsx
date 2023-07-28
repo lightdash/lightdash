@@ -191,25 +191,24 @@ const Settings: FC = () => {
                                         }
                                     />
                                 )}
-                                {localStorage.getItem('USER_ATTRIBUTES') &&
-                                    user.ability.can(
-                                        'manage',
-                                        subject('Organization', {
-                                            organizationUuid:
-                                                organization.organizationUuid,
-                                        }),
-                                    ) && (
-                                        <RouterNavLink
-                                            label="User attributes"
-                                            to="/generalSettings/userAttributes"
-                                            exact
-                                            icon={
-                                                <MantineIcon
-                                                    icon={IconUserShield}
-                                                />
-                                            }
-                                        />
-                                    )}
+                                {user.ability.can(
+                                    'manage',
+                                    subject('Organization', {
+                                        organizationUuid:
+                                            organization.organizationUuid,
+                                    }),
+                                ) && (
+                                    <RouterNavLink
+                                        label="User attributes"
+                                        to="/generalSettings/userAttributes"
+                                        exact
+                                        icon={
+                                            <MantineIcon
+                                                icon={IconUserShield}
+                                            />
+                                        }
+                                    />
+                                )}
 
                                 {user.ability.can('update', 'Organization') && (
                                     <RouterNavLink
