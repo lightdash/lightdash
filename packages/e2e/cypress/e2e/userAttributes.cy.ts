@@ -32,8 +32,8 @@ describe('User attributes', () => {
 
         cy.contains('Error running query');
 
-        // eslint-disable-next-line no-template-curly-in-string
         cy.contains(
+            // eslint-disable-next-line no-template-curly-in-string
             'Missing user attribute "customer_id" on sql_filter: "customer_id = ${ld.attr.customer_id}"',
         );
     });
