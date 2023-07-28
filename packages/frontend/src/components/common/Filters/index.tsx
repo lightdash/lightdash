@@ -120,10 +120,8 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                             <Divider
                                 style={{
                                     position: 'absolute',
-                                    height: showMandatoryAndOperator
-                                        ? 'calc(100% - 10px)'
-                                        : 'calc(100% + 10px)',
-                                    top: 0,
+                                    height: '100%',
+                                    top: 10,
                                     left: 25,
                                 }}
                             />
@@ -132,7 +130,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                                 <FilterGroupForm
                                     allowConvertToGroup
                                     hideLine
-                                    hideButtons={!showMandatoryAndOperator}
+                                    hideButtons
                                     conditionLabel="dimension"
                                     filterGroup={filters.dimensions}
                                     fields={dimensions}
@@ -177,7 +175,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                                 <FilterGroupForm
                                     allowConvertToGroup
                                     hideLine
-                                    hideButtons={!showMandatoryAndOperator}
+                                    hideButtons
                                     conditionLabel="metric"
                                     filterGroup={filters.metrics}
                                     fields={metrics}
@@ -225,19 +223,17 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                         </ActionIcon>
                     </FieldAutoCompleteWrapper>
                 )}
-                {isEditMode &&
-                    !isOpen &&
-                    (showSimplifiedForm || !showMandatoryAndOperator) && (
-                        <Button
-                            variant="light"
-                            size="xs"
-                            leftIcon={<MantineIcon icon={IconPlus} />}
-                            disabled={fields.length <= 0}
-                            onClick={toggleFieldInput}
-                        >
-                            Add filter
-                        </Button>
-                    )}
+                {isEditMode && !isOpen && (
+                    <Button
+                        variant="light"
+                        size="xs"
+                        leftIcon={<MantineIcon icon={IconPlus} />}
+                        disabled={fields.length <= 0}
+                        onClick={toggleFieldInput}
+                    >
+                        Add filter
+                    </Button>
+                )}
             </div>
         </div>
     );
