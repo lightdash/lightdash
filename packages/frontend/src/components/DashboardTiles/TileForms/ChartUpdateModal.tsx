@@ -1,3 +1,4 @@
+import { DashboardChartTile } from '@lightdash/common';
 import {
     Button,
     Flex,
@@ -17,37 +18,30 @@ import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import MantineIcon from '../../common/MantineIcon';
 
 interface ChartUpdateModalProps extends ModalProps {
-    chartName: string;
     onClose: () => void;
     onConfirm?: (newTitle: string, newChartUuid: string) => void;
+    tile: DashboardChartTile;
 }
 
 const ChartUpdateModal = ({
-    chartName,
     onClose,
     onConfirm,
+    tile,
     ...modalProps
 }: ChartUpdateModalProps) => {
-    const form = useForm({
-        initialValues: {
-            uuid: '',
-            title: '',
-        },
-    });
+    const form = useForm({});
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: savedCharts, isLoading } = useChartSummaries(projectUuid);
 
-    const handleConfirm = form.onSubmit(
-        ({ title: newTitle, uuid: newChartUuid }) => {
-            onConfirm?.(newTitle, newChartUuid);
-        },
+    const [chartUuid, setChartUuid] = React.useState<string>(
+        tile.properties.savedChartUuid ?? '',
     );
+    const [chartTitle, setChartTitle] = React.useState<string>('');
 
-    const [chartUuid, setChartUuid] = React.useState<string | null>('');
-    const [chartTitle, setChartTitle] = React.useState<string>(chartName);
-
+    const handleConfirm = form.onSubmit(() => {
+        onConfirm?.(chartTitle, chartUuid);
+    });
     const handleClose = () => {
-        form.reset();
         onClose?.();
     };
 
@@ -73,12 +67,15 @@ const ChartUpdateModal = ({
                     <TextInput
                         label="Title"
                         placeholder={
-                            form.getInputProps('title').value.length > 0
-                                ? form.getInputProps('title').value
-                                : chartName
+                            chartTitle.length > 0
+                                ? chartTitle
+                                : savedCharts?.find(
+                                      (chart) => chart.uuid === chartUuid,
+                                  )?.name
                         }
                         value={chartTitle}
                         onChange={(event) => {
+                            event.preventDefault();
                             setChartTitle(event.currentTarget.value);
                         }}
                     />
@@ -111,7 +108,7 @@ const ChartUpdateModal = ({
                         searchable
                         value={chartUuid}
                         onChange={(value) => {
-                            setChartUuid(value);
+                            if (value) setChartUuid(value);
                         }}
                     />
                     <Group spacing="xs" position="right" mt="md">
