@@ -110,7 +110,6 @@ const AppearancePanel: FC = () => {
                         <Flex justify="flex-end" gap="sm">
                             {form.isDirty() && (
                                 <Button
-                                    color="gray"
                                     variant="outline"
                                     onClick={() => {
                                         setFormValuesFromData();
