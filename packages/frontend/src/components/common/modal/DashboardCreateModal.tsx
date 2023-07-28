@@ -78,7 +78,6 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
             let newSpace: Space | undefined;
 
             if (isCreatingNewSpace) {
-                console.log(data.newSpaceName);
                 newSpace = await createSpace({
                     name: data.newSpaceName,
                     isPrivate: false,
