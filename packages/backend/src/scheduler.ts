@@ -1,3 +1,6 @@
+// organize-imports-ignore
+import './otel'; // must be imported first
+
 import { createTerminus } from '@godaddy/terminus';
 import * as Sentry from '@sentry/node';
 import express from 'express';
@@ -5,8 +8,8 @@ import * as http from 'http';
 import { lightdashConfig } from './config/lightdashConfig';
 import Logger from './logging/logger';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
-import { schedulerService } from './services/services';
 import { VERSION } from './version';
+import { registerWorkerMetrics } from './schedulerMetrics';
 
 process
     .on('unhandledRejection', (reason, p) => {
@@ -31,6 +34,7 @@ Sentry.init({
 let worker: SchedulerWorker;
 if (process.env.CI !== 'true') {
     worker = new SchedulerWorker({ lightdashConfig });
+    registerWorkerMetrics(worker);
     worker.run().catch((e) => {
         Logger.error('Error starting standalone scheduler worker', e);
     });

@@ -111,7 +111,8 @@ const sdk = new NodeSDK({
     // Resource detection automatically sets resource attributes.
     autoDetectResources: true,
     resource: new Resource({
-        [SemanticResourceAttributes.SERVICE_NAME]: 'lightdash',
+        [SemanticResourceAttributes.SERVICE_NAME]:
+            process.env.OTEL_SERVICE_NAME || 'lightdash',
     }),
     resourceDetectors: [gcpDetector],
 });

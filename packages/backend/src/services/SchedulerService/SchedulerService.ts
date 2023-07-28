@@ -89,10 +89,6 @@ export class SchedulerService {
         return this.schedulerModel.getAllSchedulers();
     }
 
-    static async getAllJobs() {
-        return schedulerClient.getAllJobs();
-    }
-
     async getScheduler(
         user: SessionUser,
         schedulerUuid: string,
