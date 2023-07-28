@@ -4,7 +4,6 @@ import {
     ApiScheduledJobsResponse,
     ApiSchedulerAndTargetsResponse,
     ApiSchedulerLogsResponse,
-    SchedulerAndTargets,
 } from '@lightdash/common';
 import { Delete } from '@tsoa/runtime';
 import express from 'express';
@@ -22,7 +21,6 @@ import {
     SuccessResponse,
     Tags,
 } from 'tsoa';
-import { SchedulerService } from '../services/SchedulerService/SchedulerService';
 import { schedulerService } from '../services/services';
 import {
     allowApiKeyAuthentication,
@@ -34,30 +32,6 @@ import {
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Schedulers')
 export class SchedulerController extends Controller {
-    /**
-     * Get all scheduler jobs
-     * This can be used to monitor the status of the scheduled jobs
-     */
-    @Middlewares([])
-    @SuccessResponse('200', 'Success')
-    @Get('/')
-    @OperationId('getAllScheduledJobs')
-    async getAllScheduledJobs(): Promise<{
-        status: 'ok';
-        results: {
-            errorSize: number;
-            queueSize: number;
-            errors: any[];
-            queued: any[];
-        };
-    }> {
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await SchedulerService.getAllJobs(),
-        };
-    }
-
     /**
      * Get scheduled logs
      * @param req express request
