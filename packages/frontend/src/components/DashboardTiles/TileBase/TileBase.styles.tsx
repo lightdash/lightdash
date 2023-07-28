@@ -64,7 +64,6 @@ export const GlobalTileStyles = createGlobalStyle`
 
 interface TileTitleProps {
     $hovered?: boolean;
-    $test?: boolean;
 }
 
 export const TitleWrapper = styled.div<TileTitleProps>`
