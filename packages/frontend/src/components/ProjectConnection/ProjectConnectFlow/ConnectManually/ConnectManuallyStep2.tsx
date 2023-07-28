@@ -25,8 +25,7 @@ const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
                 <BackButton icon="chevron-left" text="Back" onClick={onBack} />
 
                 <Title>
-                    Create a {getWarehouseLabel(selectedWarehouse).label}{' '}
-                    connection
+                    Create a {getWarehouseLabel(selectedWarehouse)} connection
                 </Title>
             </CreateHeaderWrapper>
 

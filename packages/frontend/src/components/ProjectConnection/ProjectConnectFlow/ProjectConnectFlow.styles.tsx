@@ -1,4 +1,4 @@
-import { Button, Colors, H3, Icon, NonIdealState } from '@blueprintjs/core';
+import { Colors, H3, Icon, NonIdealState } from '@blueprintjs/core';
 import styled, { keyframes } from 'styled-components';
 
 export const Wrapper = styled.div`
@@ -50,27 +50,6 @@ export const Title = styled(H3)``;
 export const Subtitle = styled.p`
     color: ${Colors.GRAY2};
     margin: 5px 0 20px 0;
-`;
-
-export const WarehouseGrid = styled.div`
-    display: grid;
-    grid-template-columns: auto auto;
-    gap: 10px;
-`;
-
-export const WarehouseButton = styled(Button)`
-    padding: 5px 12px;
-    height: 50px;
-    justify-content: flex-start;
-    font-weight: 600;
-`;
-
-export const WarehouseIcon = styled.img`
-    width: 25px;
-`;
-
-export const OtherIcon = styled(Icon)`
-    padding: 0 5px;
 `;
 
 export const CodeLabel = styled.p`

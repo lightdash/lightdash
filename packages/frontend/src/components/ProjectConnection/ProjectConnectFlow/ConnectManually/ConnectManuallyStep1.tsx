@@ -3,7 +3,7 @@ import { Tooltip2 } from '@blueprintjs/popover2';
 import { FC } from 'react';
 import { FloatingBackButton } from '../../../../pages/CreateProject.styles';
 import { ProjectCreationCard } from '../../../common/Settings/SettingsCard';
-import ConnectTitle from '../ConnectTitle';
+import ConnectTitle from '../common/ConnectTitle';
 import InviteExpertFooter from '../InviteExpertFooter';
 import {
     ButtonsWrapper,

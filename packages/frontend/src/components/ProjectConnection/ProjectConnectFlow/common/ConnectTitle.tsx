@@ -1,5 +1,5 @@
+import { Title } from '@mantine/core';
 import { FC } from 'react';
-import { Title } from './ProjectConnectFlow.styles';
 
 interface ConnectTitleProps {
     isCreatingFirstProject: boolean;
@@ -7,9 +7,9 @@ interface ConnectTitleProps {
 
 const ConnectTitle: FC<ConnectTitleProps> = ({ isCreatingFirstProject }) => {
     return isCreatingFirstProject ? (
-        <Title>Let's get you set up! 🎉</Title>
+        <Title order={2}>Let's get you set up!</Title>
     ) : (
-        <Title>Connect new project</Title>
+        <Title order={2}>Connect new project</Title>
     );
 };
 
