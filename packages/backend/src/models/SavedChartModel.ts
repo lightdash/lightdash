@@ -280,6 +280,7 @@ export class SavedChartModel {
     async create(
         projectUuid: string,
         userUuid: string,
+        dashboardUuid: string | undefined,
         {
             name,
             description,
@@ -296,7 +297,7 @@ export class SavedChartModel {
             this.database,
             projectUuid,
             userUuid,
-            undefined,
+            dashboardUuid,
             {
                 name,
                 description,
