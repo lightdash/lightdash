@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { Avatar, Box, Button, Stack, Text, Title } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
-import { IconClock, IconCopy } from '@tabler/icons-react';
+import { IconChevronLeft, IconClock, IconCopy } from '@tabler/icons-react';
 import moment from 'moment';
 import { FC, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useQueryClient } from 'react-query';
@@ -13,11 +13,11 @@ import { useHistory } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateAccessToken } from '../../../hooks/useAccessToken';
 import { useProjects } from '../../../hooks/useProjects';
-import { FloatingBackButton } from '../../../pages/CreateProject.styles';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
+import CodeBlock from './common/CodeBlock';
 import { Wrapper } from './ProjectConnectFlow.styles';
 
 interface ConnectUsingCliProps {
@@ -134,11 +134,16 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
 
     return (
         <Wrapper>
-            <FloatingBackButton
-                icon="chevron-left"
-                text="Back"
+            <Button
+                pos="absolute"
+                variant="subtle"
+                size="sm"
+                top={-40}
+                leftIcon={<MantineIcon icon={IconChevronLeft} />}
                 onClick={onBack}
-            />
+            >
+                Back
+            </Button>
 
             <ProjectCreationCard>
                 <Stack>
@@ -163,22 +168,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                     </Stack>
 
                     <Box pos="relative">
-                        <Box
-                            m={0}
-                            py="sm"
-                            px="md"
-                            component="pre"
-                            ff="monospace"
-                            bg="gray.0"
-                            c="gray.8"
-                            ta="left"
-                            sx={(theme) => ({
-                                overflowX: 'auto',
-                                borderRadius: theme.radius.sm,
-                            })}
-                        >
-                            {codeBlockText}
-                        </Box>
+                        <CodeBlock>{codeBlockText}</CodeBlock>
 
                         <Button
                             pos="absolute"

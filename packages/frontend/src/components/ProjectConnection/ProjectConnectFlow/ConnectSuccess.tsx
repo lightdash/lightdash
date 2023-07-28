@@ -1,9 +1,10 @@
 import { Colors } from '@blueprintjs/core';
+import { Title } from '@mantine/core';
 import { FC } from 'react';
 import LinkButton from '../../common/LinkButton';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
 import InviteExpertFooter from './InviteExpertFooter';
-import { StyledSuccessIcon, Title, Wrapper } from './ProjectConnectFlow.styles';
+import { StyledSuccessIcon, Wrapper } from './ProjectConnectFlow.styles';
 
 interface ConnectSuccessProps {
     projectUuid: string;
@@ -13,7 +14,9 @@ const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
     return (
         <Wrapper>
             <ProjectCreationCard>
-                <Title>Your project's been created! 🎉</Title>
+                <Title order={2} fw={600}>
+                    Your project's been created! 🎉
+                </Title>
 
                 <StyledSuccessIcon
                     icon="tick-circle"

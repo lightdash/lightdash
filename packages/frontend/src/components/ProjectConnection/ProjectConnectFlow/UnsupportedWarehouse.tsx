@@ -1,9 +1,10 @@
 import { H6, Intent, NonIdealState } from '@blueprintjs/core';
-import { Anchor } from '@mantine/core';
+import { Anchor, Button } from '@mantine/core';
+import { IconChevronLeft } from '@tabler/icons-react';
 import { FC } from 'react';
-import { FloatingBackButton } from '../../../pages/CreateProject.styles';
 import { EventName } from '../../../types/Events';
 import LinkButton from '../../common/LinkButton';
+import MantineIcon from '../../common/MantineIcon';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
 import { Wrapper } from './ProjectConnectFlow.styles';
 
@@ -14,11 +15,16 @@ interface UnsupportedWarehouseProps {
 const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
     return (
         <Wrapper>
-            <FloatingBackButton
-                icon="chevron-left"
-                text="Back"
+            <Button
+                pos="absolute"
+                variant="subtle"
+                size="sm"
+                top={-40}
+                leftIcon={<MantineIcon icon={IconChevronLeft} />}
                 onClick={onBack}
-            />
+            >
+                Back
+            </Button>
 
             <ProjectCreationCard>
                 <NonIdealState

@@ -1,8 +1,11 @@
-import { Avatar, Stack, Text } from '@mantine/core';
-import { IconChecklist, IconTerminal } from '@tabler/icons-react';
+import { Avatar, Button, Stack, Text } from '@mantine/core';
+import {
+    IconChecklist,
+    IconChevronLeft,
+    IconTerminal,
+} from '@tabler/icons-react';
 import { FC } from 'react';
 import { ConnectMethod } from '../../../pages/CreateProject';
-import { FloatingBackButton } from '../../../pages/CreateProject.styles';
 import MantineIcon from '../../common/MantineIcon';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
 import ConnectTitle from './common/ConnectTitle';
@@ -22,11 +25,16 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
 }) => {
     return (
         <Wrapper>
-            <FloatingBackButton
-                icon="chevron-left"
-                text="Back"
+            <Button
+                pos="absolute"
+                variant="subtle"
+                size="sm"
+                top={-40}
+                leftIcon={<MantineIcon icon={IconChevronLeft} />}
                 onClick={onBack}
-            />
+            >
+                Back
+            </Button>
 
             <ProjectCreationCard>
                 <Stack>

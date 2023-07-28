@@ -1,4 +1,4 @@
-import { Colors, H3, Icon } from '@blueprintjs/core';
+import { Colors, Icon } from '@blueprintjs/core';
 import styled, { keyframes } from 'styled-components';
 
 export const Wrapper = styled.div`
@@ -35,17 +35,6 @@ export const StyledSuccessIcon = styled(Icon)`
     svg {
         display: inline-block;
     }
-`;
-
-export const Title = styled(H3)``;
-
-export const Subtitle = styled.p`
-    color: ${Colors.GRAY2};
-    margin: 5px 0 20px 0;
-`;
-
-export const ButtonsWrapper = styled.div`
-    margin: 10px 0;
 `;
 
 export const FormFooterCopy = styled.p`
