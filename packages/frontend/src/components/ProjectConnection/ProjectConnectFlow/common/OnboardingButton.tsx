@@ -1,5 +1,5 @@
 import {
-    Group,
+    Flex,
     Stack,
     Text,
     UnstyledButton,
@@ -10,13 +10,15 @@ import { FC } from 'react';
 type OnboardingButtonProps = UnstyledButtonProps &
     React.ComponentPropsWithRef<'div'> & {
         leftIcon?: React.ReactNode;
+        rightIcon?: React.ReactNode;
         description?: React.ReactNode;
     };
 
 const OnboardingButton: FC<OnboardingButtonProps> = ({
-    leftIcon,
     children,
     description,
+    leftIcon,
+    rightIcon,
     ...rest
 }) => (
     <UnstyledButton
@@ -26,28 +28,29 @@ const OnboardingButton: FC<OnboardingButtonProps> = ({
             display: 'flex',
             alignItems: 'center',
             height: theme.spacing['5xl'],
-            border: `1px solid ${theme.colors.gray[3]}`,
+            borderWidth: 1,
+            borderStyle: 'solid',
+            borderColor: theme.colors.gray[3],
             paddingLeft: theme.spacing.md,
             paddingRight: theme.spacing.md,
             borderRadius: theme.radius.sm,
 
             '&:hover': {
-                border: `1px solid ${theme.colors.gray[4]}`,
+                borderColor: theme.colors.gray[4],
                 backgroundColor: theme.colors.gray[0],
             },
 
             '&:active': {
-                backgroundColor: theme.colors.gray[1],
                 position: 'relative',
                 top: 1,
             },
         })}
     >
-        <Stack justify="left">
-            <Group spacing="sm" noWrap>
+        <Stack sx={{ flexGrow: 1 }}>
+            <Flex gap="sm" align="center">
                 {leftIcon}
 
-                <Stack spacing="xxs">
+                <Stack spacing="xxs" sx={{ flexGrow: 1 }}>
                     <Text size="sm" fw={500}>
                         {children}
                     </Text>
@@ -58,7 +61,9 @@ const OnboardingButton: FC<OnboardingButtonProps> = ({
                         </Text>
                     )}
                 </Stack>
-            </Group>
+
+                {rightIcon}
+            </Flex>
         </Stack>
     </UnstyledButton>
 );

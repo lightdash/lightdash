@@ -31,7 +31,7 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
                 pos="absolute"
                 variant="subtle"
                 size="sm"
-                top={-40}
+                top={-50}
                 leftIcon={<MantineIcon icon={IconChevronLeft} />}
                 onClick={onBack}
             >

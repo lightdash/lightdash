@@ -2,6 +2,7 @@ import { Avatar, Button, Stack, Text } from '@mantine/core';
 import {
     IconChecklist,
     IconChevronLeft,
+    IconChevronRight,
     IconTerminal,
 } from '@tabler/icons-react';
 import { FC } from 'react';
@@ -29,7 +30,7 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                 pos="absolute"
                 variant="subtle"
                 size="sm"
-                top={-40}
+                top={-50}
                 leftIcon={<MantineIcon icon={IconChevronLeft} />}
                 onClick={onBack}
             >
@@ -55,8 +56,15 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                                     <MantineIcon
                                         icon={IconTerminal}
                                         color="black"
+                                        size="lg"
                                     />
                                 </Avatar>
+                            }
+                            rightIcon={
+                                <MantineIcon
+                                    icon={IconChevronRight}
+                                    color="black"
+                                />
                             }
                             description={
                                 <>
@@ -77,8 +85,15 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                                     <MantineIcon
                                         icon={IconChecklist}
                                         color="black"
+                                        size="lg"
                                     />
                                 </Avatar>
+                            }
+                            rightIcon={
+                                <MantineIcon
+                                    icon={IconChevronRight}
+                                    color="black"
+                                />
                             }
                             description="Pull project from git repository"
                         >

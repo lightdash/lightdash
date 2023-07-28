@@ -19,8 +19,8 @@ const useStyles = createStyles(() => ({
         opacity: 0,
         textAlign: 'center',
         animationName: animate,
-        animationDuration: '0.7s',
-        animationDelay: '1s',
+        animationDuration: '700ms',
+        animationDelay: '500ms',
         animationFillMode: 'forwards',
     },
 }));
