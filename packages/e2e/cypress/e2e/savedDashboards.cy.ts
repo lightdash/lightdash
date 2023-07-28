@@ -18,7 +18,7 @@ describe('Dashboard List', () => {
         cy.findByRole('menuitem', { name: 'All dashboards' }).click();
         cy.findByRole('button', { name: 'Create dashboard' }).click();
 
-        cy.findByLabelText('Name your dashboard').type('Untitled dashboard');
+        cy.findByLabelText('Name your dashboard *').type('Untitled dashboard');
         cy.findByLabelText('Dashboard description').type('Description');
         cy.findByText('Create').click();
 

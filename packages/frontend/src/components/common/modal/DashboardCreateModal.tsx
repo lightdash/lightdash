@@ -116,14 +116,14 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
             >
                 <DialogBody>
                     <Input
-                        label="Enter a memorable name for your dashboard"
+                        label="Name your dashboard"
                         placeholder="eg. KPI Dashboards"
                         disabled={isCreatingDashboard}
                         rules={{ required: 'Name field is required' }}
                         {...form.register('dashboardName')}
                     />
                     <Input
-                        label="Description"
+                        label="Dashboard description"
                         placeholder="A few words to give your team some context"
                         disabled={isCreatingDashboard}
                         {...form.register('dashboardDescription')}
@@ -178,7 +178,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                                 intent="primary"
                                 type="submit"
                             >
-                                Save
+                                Create
                             </Button>
                         </>
                     }
