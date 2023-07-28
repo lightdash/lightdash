@@ -1,6 +1,8 @@
 import { Anchor, Avatar, Button } from '@mantine/core';
 import { IconChevronLeft, IconExclamationCircle } from '@tabler/icons-react';
 import { FC } from 'react';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 import { EmptyState } from '../../common/EmptyState';
 import MantineIcon from '../../common/MantineIcon';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
@@ -11,6 +13,8 @@ interface UnsupportedWarehouseProps {
 }
 
 const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
+    const { track } = useTracking();
+
     return (
         <OnboardingWrapper>
             <Button
@@ -69,10 +73,7 @@ const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
                         href="https://demo.lightdash.com/"
                         target="_blank"
                         onClick={() => {
-                            // TODO: fixme
-                            // trackingEvent={{
-                            //     name: EventName.TRY_DEMO_CLICKED,
-                            // }}
+                            track({ name: EventName.TRY_DEMO_CLICKED });
                         }}
                     >
                         Try our demo project
