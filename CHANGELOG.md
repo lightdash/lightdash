@@ -1,3 +1,10 @@
+## [0.705.1](https://github.com/lightdash/lightdash/compare/0.705.0...0.705.1) (2023-07-28)
+
+
+### Bug Fixes
+
+* no unnamed dashboards or spaces ([#6533](https://github.com/lightdash/lightdash/issues/6533)) ([5856913](https://github.com/lightdash/lightdash/commit/58569139344df05bfb3ee1fccd2b45422f019a3e))
+
 # [0.705.0](https://github.com/lightdash/lightdash/compare/0.704.0...0.705.0) (2023-07-28)
 
 
