@@ -1,5 +1,6 @@
-import { Button, HTMLSelect } from '@blueprintjs/core';
+import { Divider, HTMLSelect } from '@blueprintjs/core';
 import {
+    AndFilterGroup,
     createFilterRuleFromField,
     FilterableField,
     FilterGroup,
@@ -10,7 +11,11 @@ import {
     isAndFilterGroup,
     isFilterGroup,
 } from '@lightdash/common';
+import { Button } from '@mantine/core';
+import { IconPlus } from '@tabler/icons-react';
 import React, { FC, useCallback } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import MantineIcon from '../MantineIcon';
 import {
     FilterGroupHeader,
     FilterGroupItemsWrapper,
@@ -82,6 +87,23 @@ const FilterGroupForm: FC<Props> = ({
         }
     }, [fields, filterGroup, items, onChange]);
 
+    const addFieldGroup = useCallback(() => {
+        if (fields.length > 0) {
+            const newGroup: AndFilterGroup = {
+                id: uuidv4(),
+                and: [createFilterRuleFromField(fields[0])],
+            };
+
+            onChange({
+                ...filterGroup,
+                [getFilterGroupItemsPropertyName(filterGroup)]: [
+                    ...items,
+                    newGroup,
+                ],
+            });
+        }
+    }, [fields, filterGroup, items, onChange]);
+
     const onChangeOperator = useCallback(
         (value: FilterGroupOperator) => {
             onChange({
@@ -94,6 +116,14 @@ const FilterGroupForm: FC<Props> = ({
 
     return (
         <FilterGroupWrapper>
+            <Divider
+                style={{
+                    position: 'absolute',
+                    height: 'calc(100% - 10px)',
+                    top: 0,
+                    left: 25,
+                }}
+            />
             <FilterGroupHeader>
                 <HTMLSelect
                     className={!isEditMode ? 'disabled-filter' : ''}
@@ -124,6 +154,31 @@ const FilterGroupForm: FC<Props> = ({
                 <p style={{ marginLeft: 10 }}>
                     of the following {conditionLabel} conditions match:
                 </p>
+                <div style={{ flex: 1 }}></div>
+                {!hideButtons && fields.length > 0 && (
+                    <div
+                        style={{
+                            display: 'flex',
+                            gap: 10,
+                        }}
+                    >
+                        {/*<Button*/}
+                        {/*    variant="light"*/}
+                        {/*    size="xs"*/}
+                        {/*    leftIcon={<MantineIcon icon={IconPlus} />}*/}
+                        {/*    onClick={onAddFilterRule}*/}
+                        {/*>*/}
+                        {/*    Add filter*/}
+                        {/*</Button>*/}
+                        <Button
+                            variant="subtle"
+                            size="xs"
+                            onClick={addFieldGroup}
+                        >
+                            Add group
+                        </Button>
+                    </div>
+                )}
             </FilterGroupHeader>
             <FilterGroupItemsWrapper>
                 {items.map((item, index) => (
@@ -150,14 +205,28 @@ const FilterGroupForm: FC<Props> = ({
                 ))}
             </FilterGroupItemsWrapper>
             {!hideButtons && fields.length > 0 && (
-                <Button
-                    minimal
-                    icon="plus"
-                    intent="primary"
-                    onClick={onAddFilterRule}
+                <div
+                    style={{
+                        display: 'flex',
+                        gap: 10,
+                    }}
                 >
-                    Add filter
-                </Button>
+                    <Button
+                        variant="light"
+                        size="xs"
+                        leftIcon={<MantineIcon icon={IconPlus} />}
+                        onClick={onAddFilterRule}
+                    >
+                        Add filter
+                    </Button>
+                    {/*<Button*/}
+                    {/*    variant="subtle"*/}
+                    {/*    size="xs"*/}
+                    {/*    onClick={addFieldGroup}*/}
+                    {/*>*/}
+                    {/*    Add group*/}
+                    {/*</Button>*/}
+                </div>
             )}
         </FilterGroupWrapper>
     );

@@ -1,4 +1,4 @@
-import { Button, Colors, Divider, Tag } from '@blueprintjs/core';
+import { Colors, Tag } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     addFilterRule,
@@ -8,6 +8,7 @@ import {
     Filters,
     getFilterRulesByFieldType,
     getTotalFilterRules,
+    hasNestedGroups,
     isDimension,
     isField,
     isFilterableField,
@@ -15,9 +16,12 @@ import {
     Metric,
     TableCalculation,
 } from '@lightdash/common';
-import { FC, useCallback, useMemo } from 'react';
+import { Button } from '@mantine/core';
+import { IconCross, IconPlus } from '@tabler/icons-react';
+import React, { FC, useCallback, useMemo } from 'react';
 import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
+import MantineIcon from '../MantineIcon';
 import FieldAutoComplete from './FieldAutoComplete';
 import { FieldAutoCompleteWrapper } from './FieldAutoComplete.styles';
 import FilterGroupForm from './FilterGroupForm';
@@ -51,7 +55,8 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
     );
     const showSimplifiedForm: boolean =
         filterRulesPerFieldType.dimensions.length <= 1 &&
-        filterRulesPerFieldType.metrics.length <= 1;
+        filterRulesPerFieldType.metrics.length <= 1 &&
+        !hasNestedGroups(filters);
     const showMandatoryAndOperator: boolean =
         filterRulesPerFieldType.dimensions.length >= 1 &&
         filterRulesPerFieldType.metrics.length >= 1;
@@ -96,7 +101,11 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
         [fields, filters, setFilters],
     );
     return (
-        <>
+        <div
+            style={{
+                margin: '10px',
+            }}
+        >
             {totalFilterRules.length >= 1 && (
                 <>
                     {showSimplifiedForm ? (
@@ -109,19 +118,19 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                     ) : (
                         <>
                             <div style={{ position: 'relative' }}>
-                                {showMandatoryAndOperator && (
-                                    <Divider
-                                        style={{
-                                            position: 'absolute',
-                                            height: '100%',
-                                            top: 15,
-                                            left: 35,
-                                        }}
-                                    />
-                                )}
+                                {/*{showMandatoryAndOperator && (*/}
+                                {/*    <Divider*/}
+                                {/*        style={{*/}
+                                {/*            position: 'absolute',*/}
+                                {/*            height: '100%',*/}
+                                {/*            top: 15,*/}
+                                {/*            left: 25,*/}
+                                {/*        }}*/}
+                                {/*    />*/}
+                                {/*)}*/}
                                 {filters.dimensions && (
                                     <FilterGroupForm
-                                        hideButtons
+                                        hideButtons={false}
                                         conditionLabel="dimension"
                                         filterGroup={filters.dimensions}
                                         fields={dimensions}
@@ -153,7 +162,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                                             round
                                             style={{
                                                 background: Colors.LIGHT_GRAY2,
-                                                marginLeft: 20,
+                                                marginLeft: 10,
                                                 marginBottom: 10,
                                             }}
                                         >
@@ -164,7 +173,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                             </div>
                             {filters.metrics && (
                                 <FilterGroupForm
-                                    hideButtons
+                                    hideButtons={false}
                                     conditionLabel="metric"
                                     filterGroup={filters.metrics}
                                     fields={metrics}
@@ -208,25 +217,34 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                             hasGrouping
                         />
                         <Button
-                            minimal
-                            icon="cross"
+                            leftIcon={<MantineIcon icon={IconCross} />}
                             onClick={toggleFieldInput}
                         />
                     </FieldAutoCompleteWrapper>
                 )}
-                {isEditMode && !isOpen && (
-                    <Button
-                        minimal
-                        icon="plus"
-                        intent="primary"
-                        onClick={toggleFieldInput}
-                        disabled={fields.length <= 0}
-                    >
-                        Add filter
-                    </Button>
-                )}
+                {isEditMode &&
+                    !isOpen &&
+                    (showSimplifiedForm || !showMandatoryAndOperator) && (
+                        // <Button
+                        //     icon="plus"
+                        //     intent="primary"
+                        //     onClick={toggleFieldInput}
+                        //     disabled={fields.length <= 0}
+                        // >
+                        //     Add filter
+                        // </Button>
+                        <Button
+                            variant="light"
+                            size="xs"
+                            leftIcon={<MantineIcon icon={IconPlus} />}
+                            disabled={fields.length <= 0}
+                            onClick={toggleFieldInput}
+                        >
+                            Add filter
+                        </Button>
+                    )}
             </div>
-        </>
+        </div>
     );
 };
 
