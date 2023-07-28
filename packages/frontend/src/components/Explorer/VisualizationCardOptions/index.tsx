@@ -157,6 +157,8 @@ const VisualizationCardOptions: FC = memo(() => {
     return (
         <Menu
             {...COLLAPSABLE_CARD_POPOVER_PROPS}
+            withinPortal={true}
+            zIndex={2000}
             closeOnItemClick
             disabled={disabled}
         >
