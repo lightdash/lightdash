@@ -36,7 +36,9 @@ const ChartUpdateModal = ({
     const [chartUuid, setChartUuid] = React.useState<string>(
         tile.properties.savedChartUuid ?? '',
     );
-    const [chartTitle, setChartTitle] = React.useState<string>('');
+    const [chartTitle, setChartTitle] = React.useState<string>(
+        tile.properties.title ?? '',
+    );
 
     const handleConfirm = form.onSubmit(() => {
         onConfirm?.(chartTitle, chartUuid);
@@ -75,9 +77,9 @@ const ChartUpdateModal = ({
                         }
                         value={chartTitle}
                         onChange={(event) => {
-                            event.preventDefault();
                             setChartTitle(event.currentTarget.value);
                         }}
+                        defaultValue={tile.properties.title}
                     />
                     <Select
                         styles={(theme) => ({
@@ -120,7 +122,9 @@ const ChartUpdateModal = ({
                         >
                             Cancel
                         </Button>
-                        <Button type="submit">Update</Button>
+                        <Button type="submit" disabled={}>
+                            Update
+                        </Button>
                     </Group>
                 </Stack>
             </form>
