@@ -48,14 +48,14 @@ const server = http.createServer(app);
 
 async function onSignal() {
     Logger.debug('SIGTERM signal received: closing HTTP server');
+    if (worker && worker.runner) {
+        await worker?.runner?.stop();
+    }
     try {
         await otelSdk.shutdown();
         Logger.debug('OpenTelemetry SDK has been shutdown');
     } catch (e) {
         Logger.error('Error shutting down OpenTelemetry SDK', e);
-    }
-    if (worker && worker.runner) {
-        await worker?.runner?.stop();
     }
 }
 
