@@ -71,7 +71,7 @@ export class SchedulerWorker {
             connectionString: this.lightdashConfig.database.connectionUri,
             logger: workerLogger,
             concurrency: this.lightdashConfig.scheduler?.concurrency,
-            noHandleSignals: false,
+            noHandleSignals: true,
             pollInterval: 1000,
             parsedCronItems: parseCronItems([
                 {

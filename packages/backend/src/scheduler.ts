@@ -70,7 +70,7 @@ async function onHealthCheck() {
 }
 
 createTerminus(server, {
-    signal: 'SIGINT',
+    signals: ['SIGUSR2', 'SIGTERM', 'SIGINT', 'SIGHUP', 'SIGABRT'],
     healthChecks: {
         '/api/v1/health': onHealthCheck,
         '/api/v1/livez': () => Promise.resolve(),
