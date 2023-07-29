@@ -1,5 +1,6 @@
 // organize-imports-ignore
-import './otel'; // must be imported first
+// eslint-disable-next-line import/order
+import otelSdk from './otel'; // must be imported first
 
 import { LightdashMode, SessionUser } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -280,3 +281,13 @@ if (lightdashConfig.scheduler?.enabled) {
         Logger.error('Error starting scheduler worker', e);
     });
 }
+
+process.on('SIGTERM', () => {
+    otelSdk
+        .shutdown()
+        .then(() => console.log('OpenTelemetry SDK has been shutdown'))
+        .catch((error) =>
+            console.log('Error shutting down OpenTelemetry SDK', error),
+        )
+        .finally(() => process.exit(0));
+});

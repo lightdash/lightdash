@@ -124,11 +124,5 @@ try {
 } catch (e) {
     diag.error('Error starting OpenTelemetry SDK. No telemetry exporting', e);
 }
-process.on('SIGTERM', () => {
-    sdk.shutdown()
-        .then(() => console.log('OpenTelemetry SDK has been shutdown'))
-        .catch((error) =>
-            console.log('Error shutting down OpenTelemetry SDK', error),
-        )
-        .finally(() => process.exit(0));
-});
+
+export default sdk;
