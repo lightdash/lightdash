@@ -72,10 +72,13 @@ export const TileAddModal: FC<AddProps> = ({
             type,
             ...defaultTileSize,
         });
+        form.reset();
+        setErrorMessage('');
     });
 
     const handleClose = () => {
         form.reset();
+        setErrorMessage('');
         onClose?.();
     };
 
