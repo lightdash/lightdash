@@ -23,3 +23,8 @@ export type ApiProjectAccessListResponse = {
     status: 'ok';
     results: ProjectMemberProfile[];
 };
+
+export type ApiGetProjectMemberResponse = {
+    status: 'ok';
+    results: ProjectMemberProfile;
+};

@@ -502,6 +502,7 @@ export class SavedChartService {
         const newSavedChart = await this.savedChartModel.create(
             projectUuid,
             user.userUuid,
+            undefined,
             {
                 ...savedChart,
                 updatedByUser: user,
@@ -551,6 +552,7 @@ export class SavedChartService {
         const newSavedChart = await this.savedChartModel.create(
             projectUuid,
             user.userUuid,
+            undefined,
             duplicatedChart,
         );
         const newSavedChartProperties =

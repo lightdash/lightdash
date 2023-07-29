@@ -1,9 +1,16 @@
 import { Spinner } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
-import { Button, ColorInput, SimpleGrid, Stack, Title } from '@mantine/core';
+import {
+    Button,
+    ColorInput,
+    Flex,
+    SimpleGrid,
+    Stack,
+    Title,
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { FC, useEffect } from 'react';
+import { FC, useCallback, useEffect } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
 import { isHexCodeColor } from '../../../utils/colorUtils';
@@ -36,14 +43,17 @@ const AppearancePanel: FC = () => {
         ),
     });
 
-    useEffect(() => {
+    const setFormValuesFromData = useCallback(() => {
         if (data?.chartColors) {
             form.setValues(getColorFormFields(data.chartColors));
             form.resetDirty(getColorFormFields(data.chartColors));
         }
-
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [data?.chartColors]);
+
+    useEffect(() => {
+        setFormValuesFromData();
+    }, [setFormValuesFromData]);
 
     const handleOnSubmit = form.onSubmit((newColors) => {
         if (data) {
@@ -97,14 +107,25 @@ const AppearancePanel: FC = () => {
                             organizationUuid: data?.organizationUuid,
                         })}
                     >
-                        <Button
-                            type="submit"
-                            loading={updateMutation.isLoading}
-                            ml="auto"
-                            display="block"
-                        >
-                            Save changes
-                        </Button>
+                        <Flex justify="flex-end" gap="sm">
+                            {form.isDirty() && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setFormValuesFromData();
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+                            )}
+                            <Button
+                                type="submit"
+                                loading={updateMutation.isLoading}
+                                disabled={!form.isDirty()}
+                            >
+                                Save changes
+                            </Button>
+                        </Flex>
                     </Can>
                 </Stack>
             </form>

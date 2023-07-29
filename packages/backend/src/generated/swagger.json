@@ -2039,6 +2039,20 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiGetProjectMemberResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ProjectMemberProfile"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "CreateProjectMember": {
                 "properties": {
                     "sendEmail": {
@@ -3435,7 +3449,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_UserAttribute.Exclude_keyofUserAttribute.uuid-or-createdAt-or-organizationUuid-or-users__": {
+            "Pick_UserAttribute.name-or-description_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -3447,10 +3461,6 @@
                 "required": ["name"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_UserAttribute.uuid-or-createdAt-or-organizationUuid-or-users_": {
-                "$ref": "#/components/schemas/Pick_UserAttribute.Exclude_keyofUserAttribute.uuid-or-createdAt-or-organizationUuid-or-users__",
-                "description": "Construct a type with the properties of T except for those in type K."
             },
             "Pick_UserAttributeValue.Exclude_keyofUserAttributeValue.email__": {
                 "properties": {
@@ -3475,7 +3485,7 @@
             "CreateUserAttribute": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Omit_UserAttribute.uuid-or-createdAt-or-organizationUuid-or-users_"
+                        "$ref": "#/components/schemas/Pick_UserAttribute.name-or-description_"
                     },
                     {
                         "properties": {
@@ -3866,7 +3876,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.674.0",
+        "version": "0.692.1",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -5209,6 +5219,54 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/user/${userUuid}": {
+            "get": {
+                "operationId": "GetProjectMemberAccess",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetProjectMemberResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get a project member's access for a project.\n\nNOTE: \nWe don't use the API on the frontend. Instead, we can call the API\nso that we make sure of the user's access to the project.",
+                "tags": ["Roles & Permissions", "Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "userUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/access/{userUuid}": {

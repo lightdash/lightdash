@@ -38,7 +38,7 @@ const ProjectSwitcher = () => {
     const { showToastSuccess } = useToaster();
     const history = useHistory();
 
-    const { isLoading: isLoadingProjects, data: projects = [] } = useProjects();
+    const { isLoading: isLoadingProjects, data: projects } = useProjects();
     const { isLoading: isLoadingActiveProjectUuid, activeProjectUuid } =
         useActiveProjectUuid();
     const { mutate: setLastProjectMutation } = useUpdateActiveProjectMutation();
@@ -56,7 +56,12 @@ const ProjectSwitcher = () => {
 
     const shouldSwapProjectRoute = !!swappableRouteMatch && activeProjectUuid;
 
-    if (isLoadingProjects || isLoadingActiveProjectUuid) {
+    if (
+        isLoadingProjects ||
+        isLoadingActiveProjectUuid ||
+        !projects ||
+        projects.length === 0
+    ) {
         return null;
     }
 
@@ -109,11 +114,7 @@ const ProjectSwitcher = () => {
                     whiteSpace: 'nowrap',
                 },
             }}
-            disabled={
-                isLoadingProjects ||
-                isLoadingActiveProjectUuid ||
-                projects.length <= 0
-            }
+            disabled={isLoadingProjects || isLoadingActiveProjectUuid}
             data={projects.map((item) => ({
                 value: item.projectUuid,
                 label: `${

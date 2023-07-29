@@ -1,10 +1,4 @@
-import {
-    ChartConfig,
-    ChartType,
-    getChartType,
-    NotFoundError,
-    Space,
-} from '@lightdash/common';
+import { ChartKind, NotFoundError, Space } from '@lightdash/common';
 import { Knex } from 'knex';
 import database from '../database';
 import { AnalyticsChartViewsTableName } from './analytics';
@@ -131,13 +125,8 @@ export const getSpaceWithQueries = async (
     );
     const savedQueries = await database('saved_queries')
         .leftJoin(
-            'saved_queries_versions',
-            `saved_queries.saved_query_id`,
-            `saved_queries_versions.saved_query_id`,
-        )
-        .leftJoin(
             'users',
-            'saved_queries_versions.updated_by_user_uuid',
+            'saved_queries.last_version_updated_by_user_uuid',
             'users.user_uuid',
         )
         .leftJoin(
@@ -161,8 +150,7 @@ export const getSpaceWithQueries = async (
                 last_name: string;
                 pinned_list_uuid: string | null;
                 order: number | null;
-                chart_config: ChartConfig['config'];
-                chart_type: ChartType;
+                chart_kind: ChartKind;
                 views: string;
                 first_viewed_at: Date | null;
             }[]
@@ -170,9 +158,8 @@ export const getSpaceWithQueries = async (
             `saved_queries.saved_query_uuid`,
             `saved_queries.name`,
             `saved_queries.description`,
-            `saved_queries_versions.created_at`,
-            `saved_queries_versions.chart_config`,
-            `saved_queries_versions.chart_type`,
+            `saved_queries.last_version_updated_at`,
+            `saved_queries.last_version_chart_kind`,
             `users.user_uuid`,
             `users.first_name`,
             `users.last_name`,
@@ -186,16 +173,7 @@ export const getSpaceWithQueries = async (
                 `(SELECT ${AnalyticsChartViewsTableName}.timestamp FROM ${AnalyticsChartViewsTableName} WHERE saved_queries.saved_query_uuid = ${AnalyticsChartViewsTableName}.chart_uuid ORDER BY ${AnalyticsChartViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
             ),
         ])
-        .orderBy([
-            {
-                column: `saved_queries_versions.saved_query_id`,
-            },
-            {
-                column: `saved_queries_versions.created_at`,
-                order: 'desc',
-            },
-        ])
-        .distinctOn(`saved_queries_versions.saved_query_id`)
+        .orderBy('saved_queries.last_version_updated_at', 'desc')
         .where('space_id', space.space_id);
 
     return {
@@ -218,10 +196,7 @@ export const getSpaceWithQueries = async (
             spaceUuid: space.space_uuid,
             pinnedListUuid: savedQuery.pinned_list_uuid,
             pinnedListOrder: savedQuery.order,
-            chartType: getChartType(
-                savedQuery.chart_type,
-                savedQuery.chart_config,
-            ),
+            chartType: savedQuery.chart_kind,
             views: parseInt(savedQuery.views, 10) || 0,
             firstViewedAt: savedQuery.first_viewed_at,
         })),
