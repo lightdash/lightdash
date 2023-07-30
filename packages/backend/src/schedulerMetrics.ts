@@ -1,6 +1,5 @@
 import opentelemetry, { ValueType } from '@opentelemetry/api';
 import { schedulerClient } from './clients/clients';
-import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { VERSION } from './version';
 
 const meter = opentelemetry.metrics.getMeter('lightdash-worker', VERSION);
@@ -12,7 +11,7 @@ const queueSizeCounter = meter.createObservableUpDownCounter<{
     valueType: ValueType.INT,
 });
 
-export const registerWorkerMetrics = (worker: SchedulerWorker) => {
+export const registerWorkerMetrics = () => {
     queueSizeCounter.addCallback(async (result) => {
         const jobStats = await schedulerClient.getJobStatistics();
         jobStats.forEach((stats) => {

@@ -35,7 +35,7 @@ Sentry.init({
 let worker: SchedulerWorker;
 if (process.env.CI !== 'true') {
     worker = new SchedulerWorker({ lightdashConfig });
-    registerWorkerMetrics(worker);
+    registerWorkerMetrics();
     worker.run().catch((e) => {
         Logger.error('Error starting standalone scheduler worker', e);
     });
