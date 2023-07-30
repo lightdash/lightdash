@@ -16,7 +16,7 @@ export const registerWorkerMetrics = (worker: SchedulerWorker) => {
     queueSizeCounter.addCallback(async (result) => {
         const jobStats = await schedulerClient.getJobStatistics();
         jobStats.forEach((stats) => {
-            result.observe(stats.count, {
+            result.observe(Math.trunc(stats.count), {
                 'job.locked': stats.locked,
                 'job.error': stats.error,
             });
