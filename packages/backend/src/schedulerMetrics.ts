@@ -7,7 +7,7 @@ const queueSizeCounter = meter.createObservableUpDownCounter<{
     'job.locked': boolean;
     'job.error': boolean;
 }>('queue.jobs.count', {
-    description: 'Total count of all jobs in the graphile queue',
+    description: 'Total count jobs in the graphile queue (jobs table)',
     valueType: ValueType.INT,
 });
 

@@ -37,7 +37,9 @@ const tracer = opentelemetry.trace.getTracer('lightdash-worker', VERSION);
 const taskDurationHistogram = meter.createHistogram<{
     task_name: string;
     error: boolean;
-}>('worker.task.duration_ms');
+}>('worker.task.duration_ms', {
+    description: 'Duration of worker tasks in milliseconds',
+});
 
 const traceTask = (taskName: string, task: Task): Task => {
     const tracedTask: Task = async (payload, helpers) => {
