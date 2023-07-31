@@ -23,6 +23,7 @@ const OnboardingButton: FC<OnboardingButtonProps> = ({
 }) => (
     <UnstyledButton
         component="div"
+        role="button"
         {...rest}
         sx={(theme) => ({
             display: 'flex',
