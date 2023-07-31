@@ -13,12 +13,24 @@ import { Knex } from 'knex';
 export const SavedChartsTableName = 'saved_queries';
 export const SavedChartVersionsTableName = 'saved_queries_versions';
 
-type InsertChartInSpace = Pick<DbSavedChart, 'name' | 'description'> & {
+type InsertChartInSpace = Pick<
+    DbSavedChart,
+    | 'name'
+    | 'description'
+    | 'last_version_chart_kind'
+    | 'last_version_updated_by_user_uuid'
+> & {
     space_id: number;
     dashboard_uuid: null;
 };
 
-type InsertChartInDashboard = Pick<DbSavedChart, 'name' | 'description'> & {
+type InsertChartInDashboard = Pick<
+    DbSavedChart,
+    | 'name'
+    | 'description'
+    | 'last_version_chart_kind'
+    | 'last_version_updated_by_user_uuid'
+> & {
     space_id: null;
     dashboard_uuid: string;
 };
