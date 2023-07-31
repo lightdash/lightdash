@@ -200,6 +200,14 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                 target="_blank"
                 rel="noreferrer noopener"
                 href="https://docs.lightdash.com/get-started/setup-lightdash/get-project-lightdash-ready"
+                onClick={() => {
+                    track({
+                        name: EventName.DOCUMENTATION_BUTTON_CLICKED,
+                        properties: {
+                            action: 'getting_started',
+                        },
+                    });
+                }}
             >
                 View docs
             </Button>

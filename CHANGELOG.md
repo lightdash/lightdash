@@ -1,3 +1,22 @@
+# [0.709.0](https://github.com/lightdash/lightdash/compare/0.708.0...0.709.0) (2023-07-31)
+
+
+### Features
+
+* onboarding analytics update ([#6557](https://github.com/lightdash/lightdash/issues/6557)) ([fef9b61](https://github.com/lightdash/lightdash/commit/fef9b617cccf38d62fbcea5feae902340df20268))
+
+# [0.708.0](https://github.com/lightdash/lightdash/compare/0.707.2...0.708.0) (2023-07-31)
+
+
+### Bug Fixes
+
+* edit tile content fields are empty ([#6539](https://github.com/lightdash/lightdash/issues/6539)) ([34aae99](https://github.com/lightdash/lightdash/commit/34aae99d714186ddf206f523f1981085ac1b7222))
+
+
+### Features
+
+* allow filters to be disabled ([#6500](https://github.com/lightdash/lightdash/issues/6500)) ([1468b3f](https://github.com/lightdash/lightdash/commit/1468b3f1a871a78dffe1465c5a54e97ed755619c))
+
 ## [0.707.2](https://github.com/lightdash/lightdash/compare/0.707.1...0.707.2) (2023-07-31)
 
 
