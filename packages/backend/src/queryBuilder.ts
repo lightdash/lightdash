@@ -21,6 +21,7 @@ import {
     UserAttribute,
     WarehouseClient,
 } from '@lightdash/common';
+import { hasUserAttribute } from './services/UserAttributesService/UserAttributeUtils';
 
 const getDimensionFromId = (dimId: FieldId, explore: Explore) => {
     const dimensions = getDimensions(explore);
@@ -93,17 +94,6 @@ export const replaceUserAttributes = (
 
     return sq;
 };
-
-const hasUserAttribute = (
-    userAttributes: UserAttribute[],
-    attributeName: string,
-    value: string,
-) =>
-    userAttributes.some(
-        (ua) =>
-            ua.name === attributeName &&
-            ua.users.some((u) => u.value === value),
-    );
 
 const assertValidDimensionRequiredAttribute = (
     dimension: CompiledDimension,
