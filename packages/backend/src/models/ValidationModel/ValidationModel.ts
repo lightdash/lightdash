@@ -117,7 +117,7 @@ export class ValidationModel {
         const chartValidationErrorsRows = await this.database(
             ValidationTableName,
         )
-            .leftJoin(
+            .innerJoin(
                 SavedChartsTableName,
                 `${SavedChartsTableName}.saved_query_uuid`,
                 `${ValidationTableName}.saved_chart_uuid`,
