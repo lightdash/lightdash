@@ -10,14 +10,11 @@ import {
     createConditionalFormattingConfigWithSingleColor,
     ECHARTS_DEFAULT_COLORS,
     FilterableItem,
-    Format,
     getConditionalFormattingConfigType,
     getItemId,
+    hasPercentageFormat,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
-    isField,
-    isTableCalculation,
-    TableCalculationFormatType,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -249,15 +246,6 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
         [handleChange, config],
     );
 
-    const hasPercentageFormat = useMemo(() => {
-        return (
-            field &&
-            ((isField(field) && field?.format === Format.PERCENT) ||
-                (isTableCalculation(field) &&
-                    field.format?.type === TableCalculationFormatType.PERCENT))
-        );
-    }, [field]);
-
     return (
         <FiltersProvider>
             <Stack spacing="xs">
@@ -427,7 +415,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                     label="Min value"
                                     value={config.rule.min}
                                     icon={
-                                        hasPercentageFormat ? (
+                                        hasPercentageFormat(field) ? (
                                             <MantineIcon
                                                 icon={IconPercentage}
                                             />
@@ -445,7 +433,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                 <NumberInput
                                     label="Max value"
                                     icon={
-                                        hasPercentageFormat ? (
+                                        hasPercentageFormat(field) ? (
                                             <MantineIcon
                                                 icon={IconPercentage}
                                             />

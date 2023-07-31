@@ -58,20 +58,25 @@ export const createConditionalFormattingConfigWithColorRange = (
     },
 });
 
+export const hasPercentageFormat = (
+    field: Field | TableCalculation | undefined,
+) => {
+    if (!field) return false;
+
+    return (
+        (isField(field) && field?.format === Format.PERCENT) ||
+        (isTableCalculation(field) &&
+            field.format?.type === TableCalculationFormatType.PERCENT)
+    );
+};
+
 const convertFormattedValue = (
     value: unknown,
     field: Field | TableCalculation | undefined,
 ) => {
     if (!field) return value;
 
-    if (isField(field) && field.format === Format.PERCENT) {
-        return typeof value === 'number' ? value * 100 : value;
-    }
-
-    if (
-        isTableCalculation(field) &&
-        field.format?.type === TableCalculationFormatType.PERCENT
-    ) {
+    if (hasPercentageFormat(field)) {
         return typeof value === 'number' ? value * 100 : value;
     }
 
