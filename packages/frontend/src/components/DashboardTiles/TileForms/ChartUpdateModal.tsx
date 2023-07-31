@@ -1,3 +1,4 @@
+import { DashboardChartTile } from '@lightdash/common';
 import {
     Button,
     Flex,
@@ -17,21 +18,21 @@ import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import MantineIcon from '../../common/MantineIcon';
 
 interface ChartUpdateModalProps extends ModalProps {
-    chartTitle: string;
     onClose: () => void;
-    onConfirm?: (newTitle: string, newChartUuid: string) => void;
+    onConfirm?: (newTitle: string | undefined, newChartUuid: string) => void;
+    tile: DashboardChartTile;
 }
 
 const ChartUpdateModal = ({
-    chartTitle,
     onClose,
     onConfirm,
+    tile,
     ...modalProps
 }: ChartUpdateModalProps) => {
     const form = useForm({
         initialValues: {
-            uuid: '',
-            title: '',
+            uuid: tile.properties.savedChartUuid,
+            title: tile.properties.title,
         },
     });
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -39,7 +40,9 @@ const ChartUpdateModal = ({
 
     const handleConfirm = form.onSubmit(
         ({ title: newTitle, uuid: newChartUuid }) => {
-            onConfirm?.(newTitle, newChartUuid);
+            if (newChartUuid) {
+                onConfirm?.(newTitle, newChartUuid);
+            }
         },
     );
 
@@ -70,9 +73,12 @@ const ChartUpdateModal = ({
                     <TextInput
                         label="Title"
                         placeholder={
-                            form.getInputProps('title').value.length > 0
-                                ? form.getInputProps('title').value
-                                : chartTitle
+                            form.values.uuid
+                                ? savedCharts?.find(
+                                      (chart) =>
+                                          chart.uuid === form.values.uuid,
+                                  )?.name
+                                : undefined
                         }
                         {...form.getInputProps('title')}
                     />
