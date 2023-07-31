@@ -19,7 +19,7 @@ import MantineIcon from '../../common/MantineIcon';
 
 interface ChartUpdateModalProps extends ModalProps {
     onClose: () => void;
-    onConfirm?: (newTitle: string, newChartUuid: string) => void;
+    onConfirm?: (newTitle: string | undefined, newChartUuid: string) => void;
     tile: DashboardChartTile;
 }
 
@@ -29,21 +29,25 @@ const ChartUpdateModal = ({
     tile,
     ...modalProps
 }: ChartUpdateModalProps) => {
-    const form = useForm({});
+    const form = useForm({
+        initialValues: {
+            uuid: tile.properties.savedChartUuid,
+            title: tile.properties.title,
+        },
+    });
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: savedCharts, isLoading } = useChartSummaries(projectUuid);
 
-    const [chartUuid, setChartUuid] = React.useState<string>(
-        tile.properties.savedChartUuid ?? '',
-    );
-    const [chartTitle, setChartTitle] = React.useState<string>(
-        tile.properties.title ?? '',
+    const handleConfirm = form.onSubmit(
+        ({ title: newTitle, uuid: newChartUuid }) => {
+            if (newChartUuid) {
+                onConfirm?.(newTitle, newChartUuid);
+            }
+        },
     );
 
-    const handleConfirm = form.onSubmit(() => {
-        onConfirm?.(chartTitle, chartUuid);
-    });
     const handleClose = () => {
+        form.reset();
         onClose?.();
     };
 
@@ -69,17 +73,14 @@ const ChartUpdateModal = ({
                     <TextInput
                         label="Title"
                         placeholder={
-                            chartTitle.length > 0
-                                ? chartTitle
-                                : savedCharts?.find(
-                                      (chart) => chart.uuid === chartUuid,
+                            form.values.uuid
+                                ? savedCharts?.find(
+                                      (chart) =>
+                                          chart.uuid === form.values.uuid,
                                   )?.name
+                                : undefined
                         }
-                        value={chartTitle}
-                        onChange={(event) => {
-                            setChartTitle(event.currentTarget.value);
-                        }}
-                        defaultValue={tile.properties.title}
+                        {...form.getInputProps('title')}
                     />
                     <Select
                         styles={(theme) => ({
@@ -107,11 +108,9 @@ const ChartUpdateModal = ({
                         )}
                         disabled={isLoading}
                         withinPortal
+                        {...form.getInputProps('uuid')}
                         searchable
-                        value={chartUuid}
-                        onChange={(value) => {
-                            if (value) setChartUuid(value);
-                        }}
+                        placeholder="Search..."
                     />
                     <Group spacing="xs" position="right" mt="md">
                         <Button
