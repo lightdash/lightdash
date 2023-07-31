@@ -79,7 +79,7 @@ const ChartUpdateModal = ({
         >
             <form onSubmit={handleConfirm} name="Edit tile content">
                 <Stack spacing="md">
-                    <Flex align="flex-end" gap="sm">
+                    <Flex align="flex-end" gap="xs">
                         <TextInput
                             label="Title"
                             placeholder={
@@ -92,11 +92,9 @@ const ChartUpdateModal = ({
                             disabled={form.values.hideTitle}
                         />
                         <ActionIcon
-                            variant="outline"
-                            color="gray.4"
-                            h={36}
+                            variant="subtle"
+                            color="gray"
                             size="lg"
-                            radius="md"
                             onClick={() =>
                                 form.setFieldValue(
                                     'hideTitle',
@@ -108,8 +106,6 @@ const ChartUpdateModal = ({
                                 icon={
                                     form.values.hideTitle ? IconEyeOff : IconEye
                                 }
-                                size={25}
-                                color="dark.2"
                             />
                         </ActionIcon>
                     </Flex>

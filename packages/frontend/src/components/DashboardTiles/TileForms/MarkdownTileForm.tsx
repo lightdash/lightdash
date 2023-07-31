@@ -19,7 +19,7 @@ const MarkdownTileForm = ({ form }: MarkdownTileFormProps) => (
                 preview="edit"
                 height={400}
                 overflow={false}
-                style={{ marginTop: '0.25rem' }}
+                style={{ marginTop: '6px' }}
                 value={form.values.content}
                 onChange={(v) => form.setFieldValue('content', v || '')}
             />

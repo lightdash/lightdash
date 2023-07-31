@@ -18,7 +18,7 @@ const LoomTileForm = ({ form, withHideTitle }: LoomTileFormProps) => (
     <Stack spacing="md">
         <Flex
             align={form.getInputProps('title').error ? 'center' : 'flex-end'}
-            gap="sm"
+            gap="xs"
         >
             <TextInput
                 label="Title"
@@ -30,19 +30,14 @@ const LoomTileForm = ({ form, withHideTitle }: LoomTileFormProps) => (
             />
             {withHideTitle && (
                 <ActionIcon
-                    variant="outline"
-                    color="gray.4"
-                    h={36}
+                    variant="subtle"
                     size="lg"
-                    radius="md"
                     onClick={() => {
                         form.setFieldValue('hideTitle', !form.values.hideTitle);
                     }}
                 >
                     <MantineIcon
                         icon={form.values.hideTitle ? IconEyeOff : IconEye}
-                        size={25}
-                        color="dark.2"
                     />
                 </ActionIcon>
             )}
