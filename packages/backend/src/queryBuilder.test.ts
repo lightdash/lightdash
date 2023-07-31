@@ -26,7 +26,9 @@ import {
     METRIC_QUERY_WITH_FILTER_OR_OPERATOR,
     METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL,
     METRIC_QUERY_WITH_FILTER_SQL,
+    METRIC_QUERY_WITH_METRIC_DISABLED_FILTER,
     METRIC_QUERY_WITH_METRIC_FILTER,
+    METRIC_QUERY_WITH_METRIC_FILTER_DISABLED_SQL,
     METRIC_QUERY_WITH_METRIC_FILTER_SQL,
     METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS,
     METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL,
@@ -145,6 +147,16 @@ describe('Query builder', () => {
                 warehouseClient: warehouseClientMock,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_METRIC_FILTER_SQL);
+    });
+
+    test('Should build query with metric filter (where filter is disabled) and metric references a dimension from a joined table', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_METRIC_DISABLED_FILTER,
+                warehouseClient: warehouseClientMock,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_WITH_METRIC_FILTER_DISABLED_SQL);
     });
 
     test('Should build query with additional metric', () => {

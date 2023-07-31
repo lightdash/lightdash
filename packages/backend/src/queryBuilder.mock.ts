@@ -549,6 +549,32 @@ export const METRIC_QUERY_WITH_METRIC_FILTER: CompiledMetricQuery = {
     compiledAdditionalMetrics: [],
 };
 
+export const METRIC_QUERY_WITH_METRIC_DISABLED_FILTER: CompiledMetricQuery = {
+    dimensions: ['table1_dim1'],
+    metrics: [],
+    filters: {
+        dimensions: {
+            id: 'root',
+            and: [
+                {
+                    id: '1',
+                    target: {
+                        fieldId: 'table2_dim2',
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: [],
+                    disabled: true,
+                },
+            ],
+        },
+    },
+    sorts: [{ fieldId: 'table1_dim1', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+};
+
 export const METRIC_QUERY_WITH_FILTER_OR_OPERATOR: CompiledMetricQuery = {
     dimensions: ['table1_dim1'],
     metrics: [],
@@ -910,6 +936,18 @@ WHERE (
   ("table1_metric1") IN (0)
 )
 ORDER BY "table1_metric1" DESC
+LIMIT 10`;
+
+export const METRIC_QUERY_WITH_METRIC_FILTER_DISABLED_SQL = `SELECT
+  "table1".dim1 AS "table1_dim1"
+FROM "db"."schema"."table1" AS "table1"
+LEFT JOIN "db"."schema"."table2" AS "table2"
+  ON ("table1".shared) = ("table2".shared)
+WHERE ((
+  1=1
+))
+GROUP BY 1
+ORDER BY "table1_dim1" DESC
 LIMIT 10`;
 
 export const METRIC_QUERY_WITH_SQL_FILTER = `SELECT
