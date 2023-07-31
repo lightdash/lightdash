@@ -11,21 +11,26 @@ import {
     METRIC_QUERY_JOIN_CHAIN_SQL,
     METRIC_QUERY_SQL,
     METRIC_QUERY_SQL_BIGQUERY,
-    METRIC_QUERY_SQL_WITH_NO_LIMIT,
     METRIC_QUERY_TWO_TABLES,
     METRIC_QUERY_TWO_TABLES_SQL,
     METRIC_QUERY_WITH_ADDITIONAL_METRIC,
     METRIC_QUERY_WITH_ADDITIONAL_METRIC_SQL,
+    METRIC_QUERY_WITH_DISABLED_FILTER,
+    METRIC_QUERY_WITH_DISABLED_FILTER_SQL,
     METRIC_QUERY_WITH_EMPTY_FILTER,
     METRIC_QUERY_WITH_EMPTY_FILTER_GROUPS,
     METRIC_QUERY_WITH_EMPTY_FILTER_SQL,
     METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
     METRIC_QUERY_WITH_EMPTY_METRIC_FILTER_SQL,
     METRIC_QUERY_WITH_FILTER,
+    METRIC_QUERY_WITH_FILTER_AND_DISABLED_FILTER,
     METRIC_QUERY_WITH_FILTER_OR_OPERATOR,
     METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL,
     METRIC_QUERY_WITH_FILTER_SQL,
+    METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM,
+    METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM_SQL,
     METRIC_QUERY_WITH_METRIC_FILTER,
+    METRIC_QUERY_WITH_METRIC_FILTER_AND_ONE_DISABLED_SQL,
     METRIC_QUERY_WITH_METRIC_FILTER_SQL,
     METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS,
     METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL,
@@ -105,6 +110,28 @@ describe('Query builder', () => {
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL);
     });
+
+    test('Should build query with disabled filter', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_DISABLED_FILTER,
+                warehouseClient: warehouseClientMock,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_WITH_DISABLED_FILTER_SQL);
+    });
+
+    test('Should build query with a filter and one disabled filter', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery:
+                    METRIC_QUERY_WITH_FILTER_AND_DISABLED_FILTER,
+                warehouseClient: warehouseClientMock,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_WITH_METRIC_FILTER_AND_ONE_DISABLED_SQL);
+    });
+
     test('Should build query with nested filter operators', () => {
         expect(
             buildQuery({
@@ -114,6 +141,7 @@ describe('Query builder', () => {
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL);
     });
+
     test('Should build query with no filter when there are only empty filter groups ', () => {
         expect(
             buildQuery({
@@ -123,6 +151,7 @@ describe('Query builder', () => {
             }).query,
         ).toStrictEqual(METRIC_QUERY_SQL);
     });
+
     test('Should build second query with metric filter', () => {
         expect(
             buildQuery({
@@ -131,6 +160,19 @@ describe('Query builder', () => {
                 warehouseClient: warehouseClientMock,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_METRIC_FILTER_SQL);
+    });
+
+    test('Should build query with metric filter (where filter is disabled) and metric references a dimension from a joined table', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery:
+                    METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM,
+                warehouseClient: warehouseClientMock,
+            }).query,
+        ).toStrictEqual(
+            METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM_SQL,
+        );
     });
 
     test('Should build query with additional metric', () => {
@@ -328,8 +370,6 @@ describe('replaceUserAttributes', () => {
     });
 
     it('method should not replace any invalid attribute', async () => {
-        const expected = "'1' > 1";
-
         expect(replaceUserAttributes('${lightdash.foo.test} > 1', [])).toEqual(
             '${lightdash.foo.test} > 1',
         );
