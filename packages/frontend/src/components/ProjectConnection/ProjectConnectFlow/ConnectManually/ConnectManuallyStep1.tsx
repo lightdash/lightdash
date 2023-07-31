@@ -1,6 +1,8 @@
 import { Button, Stack, Text, Tooltip } from '@mantine/core';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { FC } from 'react';
+import { useTracking } from '../../../../providers/TrackingProvider';
+import { EventName } from '../../../../types/Events';
 import MantineIcon from '../../../common/MantineIcon';
 import { ProjectCreationCard } from '../../../common/Settings/SettingsCard';
 import CodeBlock from '../common/CodeBlock';
@@ -25,6 +27,8 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
     onBack,
     onForward,
 }) => {
+    const { track } = useTracking();
+
     return (
         <OnboardingWrapper>
             <Button
@@ -67,6 +71,14 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
                                 rightIcon={
                                     <MantineIcon icon={IconChevronRight} />
                                 }
+                                onClick={() => {
+                                    track({
+                                        name: EventName.DOCUMENTATION_BUTTON_CLICKED,
+                                        properties: {
+                                            action: 'define_metrics',
+                                        },
+                                    });
+                                }}
                             >
                                 Learn how to define them
                             </Button>
