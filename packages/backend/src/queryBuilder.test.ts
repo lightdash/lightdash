@@ -23,11 +23,13 @@ import {
     METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
     METRIC_QUERY_WITH_EMPTY_METRIC_FILTER_SQL,
     METRIC_QUERY_WITH_FILTER,
+    METRIC_QUERY_WITH_FILTER_AND_DISABLED_FILTER,
     METRIC_QUERY_WITH_FILTER_OR_OPERATOR,
     METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL,
     METRIC_QUERY_WITH_FILTER_SQL,
     METRIC_QUERY_WITH_METRIC_DISABLED_FILTER,
     METRIC_QUERY_WITH_METRIC_FILTER,
+    METRIC_QUERY_WITH_METRIC_FILTER_AND_ONE_DISABLED_SQL,
     METRIC_QUERY_WITH_METRIC_FILTER_DISABLED_SQL,
     METRIC_QUERY_WITH_METRIC_FILTER_SQL,
     METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS,
@@ -117,6 +119,17 @@ describe('Query builder', () => {
                 warehouseClient: warehouseClientMock,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_DISABLED_FILTER_SQL);
+    });
+
+    test('Should build query with a filter and one disabled filter', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery:
+                    METRIC_QUERY_WITH_FILTER_AND_DISABLED_FILTER,
+                warehouseClient: warehouseClientMock,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_WITH_METRIC_FILTER_AND_ONE_DISABLED_SQL);
     });
 
     test('Should build query with nested filter operators', () => {
