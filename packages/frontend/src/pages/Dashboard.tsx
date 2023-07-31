@@ -200,30 +200,35 @@ const Dashboard: FC = () => {
                     // do nothing
                 }
             }
+            const unsavedDashboardFiltersRaw = sessionStorage.getItem(
+                'unsavedDashboardFilters',
+            );
+            sessionStorage.removeItem('unsavedDashboardTiles');
+            let unsavedDashboardFilters = undefined;
+            if (unsavedDashboardFiltersRaw) {
+                try {
+                    unsavedDashboardFilters = JSON.parse(
+                        unsavedDashboardFiltersRaw,
+                    );
+                } catch {
+                    // do nothing
+                }
+            }
             setDashboardTiles(unsavedDashboardTiles || savedTiles);
             setHaveTilesChanged(!!unsavedDashboardTiles);
-        }
-    }, [setHaveTilesChanged, setDashboardTiles, savedTiles]);
-
-    useEffect(() => {
-        const unsavedDashboardFiltersRaw = sessionStorage.getItem(
-            'unsavedDashboardFilters',
-        );
-        sessionStorage.removeItem('unsavedDashboardFilters');
-        let unsavedDashboardFilters = undefined;
-        if (unsavedDashboardFiltersRaw) {
-            try {
-                unsavedDashboardFilters = JSON.parse(
-                    unsavedDashboardFiltersRaw,
-                );
-            } catch {
-                // do nothing
+            if (unsavedDashboardFilters) {
+                setHaveFiltersChanged(true);
+                setDashboardFilters(unsavedDashboardFilters);
             }
         }
-        if (unsavedDashboardFilters) {
-            setDashboardTemporaryFilters(unsavedDashboardFilters);
-        }
-    }, [setHaveFiltersChanged, setDashboardTemporaryFilters]);
+    }, [
+        setHaveTilesChanged,
+        setDashboardTiles,
+        savedTiles,
+        setDashboardFilters,
+        setDashboardTemporaryFilters,
+        setHaveFiltersChanged,
+    ]);
 
     useEffect(() => {
         if (isSuccess) {
