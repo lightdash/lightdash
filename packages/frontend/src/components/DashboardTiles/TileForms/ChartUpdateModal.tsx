@@ -23,7 +23,7 @@ interface ChartUpdateModalProps extends ModalProps {
     onConfirm?: (
         newTitle: string,
         newChartUuid: string,
-        shouldShowTitle: boolean,
+        shouldHideTitle: boolean,
     ) => void;
     hideTitle: boolean;
 }
@@ -55,14 +55,9 @@ const ChartUpdateModal = ({
         },
     );
 
-    const handleClose = () => {
-        form.reset();
-        onClose?.();
-    };
-
     return (
         <Modal
-            onClose={handleClose}
+            onClose={() => onClose?.()}
             title={
                 <Flex align="center" gap="xs">
                     <MantineIcon
@@ -140,12 +135,7 @@ const ChartUpdateModal = ({
                         placeholder="Search..."
                     />
                     <Group spacing="xs" position="right" mt="md">
-                        <Button
-                            onClick={() => {
-                                if (onClose) onClose();
-                            }}
-                            variant="outline"
-                        >
+                        <Button onClick={() => onClose?.()} variant="outline">
                             Cancel
                         </Button>
                         <Button type="submit">Update</Button>

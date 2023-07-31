@@ -49,7 +49,7 @@ const TileUpdateModal = <T extends Tile>({
     };
 
     const form = useForm<TileProperties>({
-        initialValues: tile.properties,
+        initialValues: { ...tile.properties },
         validate: getValidators(),
         validateInputOnChange: ['title', 'url'],
     });
@@ -62,17 +62,12 @@ const TileUpdateModal = <T extends Tile>({
         );
     });
 
-    const handleClose = () => {
-        form.reset();
-        onClose?.();
-    };
-
     return (
         <Dialog
             lazy
             title="Edit tile content"
             {...modalProps}
-            onClose={handleClose}
+            onClose={() => onClose?.()}
             backdropClassName="non-draggable"
         >
             <form onSubmit={handleConfirm}>
@@ -104,7 +99,7 @@ const TileUpdateModal = <T extends Tile>({
                 <DialogFooter
                     actions={
                         <>
-                            <Button onClick={handleClose}>Cancel</Button>
+                            <Button onClick={() => onClose?.()}>Cancel</Button>
 
                             <Button
                                 intent="primary"

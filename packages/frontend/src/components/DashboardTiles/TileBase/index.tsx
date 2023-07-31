@@ -6,7 +6,12 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
-import { Dashboard, DashboardTileTypes, isChartTile } from '@lightdash/common';
+import {
+    Dashboard,
+    DashboardChartTile,
+    DashboardTileTypes,
+    isChartTile,
+} from '@lightdash/common';
 import { Tooltip } from '@mantine/core';
 import { useHover, useToggle } from '@mantine/hooks';
 import React, { ReactNode, useState } from 'react';
@@ -72,6 +77,38 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             : false;
     const belongsToDashboard: boolean =
         isChartTile(tile) && !!tile.properties.belongsToDashboard;
+
+    const handleChartUpdateConfirm = (
+        newTitle: string,
+        newUuid: string,
+        shouldHideTitle: boolean,
+    ) => {
+        onEdit({
+            ...tile,
+            properties: {
+                ...tile.properties,
+                title:
+                    newTitle.length > 0
+                        ? newTitle
+                        : savedCharts?.find(
+                              (chart) =>
+                                  chart.uuid ===
+                                  (newUuid.length > 0
+                                      ? newUuid
+                                      : (
+                                            tile.properties as DashboardChartTile['properties']
+                                        ).savedChartUuid),
+                          )?.name,
+                savedChartUuid:
+                    newUuid.length > 0
+                        ? newUuid
+                        : (tile.properties as DashboardChartTile['properties'])
+                              .savedChartUuid,
+                hideTitle: shouldHideTitle,
+            },
+        });
+        setIsEditingChartTile(false);
+    };
 
     return (
         <TileBaseWrapper
@@ -183,51 +220,27 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     <ChartContainer className="non-draggable sentry-block fs-block cohere-block">
                         {children}
                     </ChartContainer>
-                    {tile.type === DashboardTileTypes.SAVED_CHART ? (
-                        <ChartUpdateModal
-                            opened={isEditingChartTile}
-                            chartTitle={chartName ?? ''}
-                            onClose={() => setIsEditingChartTile(false)}
-                            onConfirm={(newTitle, newUuid, shouldHideTitle) => {
-                                onEdit({
-                                    ...tile,
-                                    properties: {
-                                        ...tile.properties,
-                                        title:
-                                            newTitle.length > 0
-                                                ? newTitle
-                                                : savedCharts?.find(
-                                                      (chart) =>
-                                                          chart.uuid ===
-                                                          (newUuid.length > 0
-                                                              ? newUuid
-                                                              : tile.properties
-                                                                    .savedChartUuid),
-                                                  )?.name,
-                                        savedChartUuid:
-                                            newUuid.length > 0
-                                                ? newUuid
-                                                : tile.properties
-                                                      .savedChartUuid,
-                                        hideTitle: shouldHideTitle,
-                                    },
-                                });
-                                setIsEditingChartTile(false);
-                            }}
-                            hideTitle={!!hideTitle}
-                        />
-                    ) : (
-                        <TileUpdateModal
-                            className="non-draggable"
-                            isOpen={isEditingChartTile}
-                            tile={tile}
-                            onClose={() => setIsEditingChartTile(false)}
-                            onConfirm={(newTile) => {
-                                onEdit(newTile);
-                                setIsEditingChartTile(false);
-                            }}
-                        />
-                    )}
+                    {isEditingChartTile &&
+                        (tile.type === DashboardTileTypes.SAVED_CHART ? (
+                            <ChartUpdateModal
+                                opened={isEditingChartTile}
+                                chartTitle={chartName ?? ''}
+                                onClose={() => setIsEditingChartTile(false)}
+                                onConfirm={handleChartUpdateConfirm}
+                                hideTitle={!!hideTitle}
+                            />
+                        ) : (
+                            <TileUpdateModal
+                                className="non-draggable"
+                                isOpen={isEditingChartTile}
+                                tile={tile}
+                                onClose={() => setIsEditingChartTile(false)}
+                                onConfirm={(newTile) => {
+                                    onEdit(newTile);
+                                    setIsEditingChartTile(false);
+                                }}
+                            />
+                        ))}
                     <DeleteChartTileThatBelongsToDashboardModal
                         className={'non-draggable'}
                         name={chartName ?? ''}
