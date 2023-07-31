@@ -7,6 +7,8 @@ import {
 } from '@tabler/icons-react';
 import { FC } from 'react';
 import { ConnectMethod } from '../../../pages/CreateProject';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
 import OnboardingButton from './common/OnboardingButton';
@@ -24,6 +26,8 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
     onSelect,
     onBack,
 }) => {
+    const { track } = useTracking();
+
     return (
         <OnboardingWrapper>
             <Button
@@ -50,7 +54,12 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
 
                     <Stack>
                         <OnboardingButton
-                            onClick={() => onSelect(ConnectMethod.CLI)}
+                            onClick={() => {
+                                track({
+                                    name: EventName.CREATE_PROJECT_CLI_BUTTON_CLICKED,
+                                });
+                                onSelect(ConnectMethod.CLI);
+                            }}
                             leftIcon={
                                 <Avatar radius="xl">
                                     <MantineIcon
@@ -79,7 +88,12 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                         </OnboardingButton>
 
                         <OnboardingButton
-                            onClick={() => onSelect(ConnectMethod.MANUAL)}
+                            onClick={() => {
+                                track({
+                                    name: EventName.CREATE_PROJECT_MANUALLY_BUTTON_CLICKED,
+                                });
+                                onSelect(ConnectMethod.MANUAL);
+                            }}
                             leftIcon={
                                 <Avatar radius="xl">
                                     <MantineIcon
