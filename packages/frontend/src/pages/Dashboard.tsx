@@ -200,10 +200,18 @@ const Dashboard: FC = () => {
                     // do nothing
                 }
             }
+
+            setDashboardTiles(unsavedDashboardTiles || savedTiles);
+            setHaveTilesChanged(!!unsavedDashboardTiles);
+        }
+    }, [setHaveTilesChanged, setDashboardTiles, savedTiles]);
+
+    useEffect(() => {
+        if (dashboardFilters) {
             const unsavedDashboardFiltersRaw = sessionStorage.getItem(
                 'unsavedDashboardFilters',
             );
-            sessionStorage.removeItem('unsavedDashboardTiles');
+            sessionStorage.removeItem('unsavedDashboardFilters');
             let unsavedDashboardFilters = undefined;
             if (unsavedDashboardFiltersRaw) {
                 try {
@@ -214,21 +222,10 @@ const Dashboard: FC = () => {
                     // do nothing
                 }
             }
-            setDashboardTiles(unsavedDashboardTiles || savedTiles);
-            setHaveTilesChanged(!!unsavedDashboardTiles);
-            if (unsavedDashboardFilters) {
-                setHaveFiltersChanged(true);
-                setDashboardFilters(unsavedDashboardFilters);
-            }
+            setDashboardFilters(unsavedDashboardFilters || dashboardFilters);
+            setHaveFiltersChanged(true);
         }
-    }, [
-        setHaveTilesChanged,
-        setDashboardTiles,
-        savedTiles,
-        setDashboardFilters,
-        setDashboardTemporaryFilters,
-        setHaveFiltersChanged,
-    ]);
+    }, [dashboardFilters, setDashboardFilters, setHaveFiltersChanged]);
 
     useEffect(() => {
         if (isSuccess) {
