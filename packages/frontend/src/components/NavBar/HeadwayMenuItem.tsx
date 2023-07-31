@@ -72,7 +72,7 @@ const HeadwayMenuItem: FC<Props> = ({ projectUuid }) => {
                 pos="relative"
                 id="headway-trigger"
             >
-                <MantineIcon icon={IconSparkles} size="lg" />
+                <MantineIcon icon={IconSparkles} />
                 <Box
                     id="headway-badge"
                     pos="absolute"

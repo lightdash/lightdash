@@ -73,6 +73,9 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const belongsToDashboard: boolean =
         isChartTile(tile) && !!tile.properties.belongsToDashboard;
 
+    const isMarkdownTileTitleEmpty =
+        tile.type === DashboardTileTypes.MARKDOWN && !title;
+
     return (
         <TileBaseWrapper
             className={isLoading ? Classes.SKELETON : undefined}
@@ -86,6 +89,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         $isEditMode={isEditMode}
                         onMouseEnter={() => setIsHovering(true)}
                         onMouseLeave={() => setIsHovering(false)}
+                        $isEmpty={isMarkdownTileTitleEmpty}
                     >
                         <Tooltip
                             disabled={!description}

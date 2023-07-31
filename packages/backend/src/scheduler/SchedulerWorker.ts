@@ -1,4 +1,5 @@
 import { SchedulerJobStatus } from '@lightdash/common';
+import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
 import { getSchedule, stringToArray } from 'cron-converter';
 import {
     JobHelpers,
@@ -6,12 +7,15 @@ import {
     parseCronItems,
     run as runGraphileWorker,
     Runner,
+    Task,
+    TaskList,
 } from 'graphile-worker';
 import moment from 'moment';
 import { schedulerClient } from '../clients/clients';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { schedulerService } from '../services/services';
+import { VERSION } from '../version';
 import { tryJobOrTimeout } from './SchedulerJobTimeout';
 import {
     compileProject,
@@ -26,6 +30,82 @@ import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
 
 type SchedulerWorkerDependencies = {
     lightdashConfig: LightdashConfig;
+};
+
+const meter = opentelemetry.metrics.getMeter('lightdash-worker', VERSION);
+const tracer = opentelemetry.trace.getTracer('lightdash-worker', VERSION);
+const taskDurationHistogram = meter.createHistogram<{
+    task_name: string;
+    error: boolean;
+}>('worker.task.duration_ms', {
+    description: 'Duration of worker tasks in milliseconds',
+});
+
+const traceTask = (taskName: string, task: Task): Task => {
+    const tracedTask: Task = async (payload, helpers) => {
+        await tracer.startActiveSpan(
+            `worker.task.${taskName}`,
+            async (span) => {
+                const { job } = helpers;
+                span.setAttributes({
+                    'worker.task.name': taskName,
+                    'worker.job.id': job.id,
+                    'worker.job.task_identifier': job.task_identifier,
+                    'worker.job.attempts': job.attempts,
+                    'worker.job.max_attempts': job.max_attempts,
+                });
+                if (job.locked_at) {
+                    span.setAttribute(
+                        'worker.job.locked_at',
+                        moment(job.locked_at).toISOString(),
+                    );
+                }
+                if (job.created_at) {
+                    span.setAttribute(
+                        'worker.job.created_at',
+                        job.created_at.toISOString(),
+                    );
+                }
+                if (job.locked_by) {
+                    span.setAttribute('worker.job.locked_by', job.locked_by);
+                }
+                if (job.key) {
+                    span.setAttribute('worker.job.key', job.key);
+                }
+                const startTime = Date.now();
+                let hasError = false;
+                try {
+                    await task(payload, helpers);
+                } catch (e) {
+                    hasError = true;
+                    span.recordException(e);
+                    span.setStatus({
+                        code: SpanStatusCode.ERROR,
+                    });
+                    throw e;
+                } finally {
+                    span.end();
+                    const executionTime = Date.now() - startTime;
+                    taskDurationHistogram.record(executionTime, {
+                        task_name: taskName,
+                        error: hasError,
+                    });
+                }
+            },
+        );
+    };
+    return tracedTask;
+};
+
+const traceTasks = (tasks: TaskList) => {
+    const tracedTasks = Object.keys(tasks).reduce<TaskList>(
+        (accTasks, taskName) => ({
+            ...accTasks,
+            [taskName]: traceTask(taskName, tasks[taskName]),
+        }),
+        {} as TaskList,
+    );
+    return tracedTasks;
 };
 
 export const getDailyDatesFromCron = (
@@ -71,7 +151,7 @@ export class SchedulerWorker {
             connectionString: this.lightdashConfig.database.connectionUri,
             logger: workerLogger,
             concurrency: this.lightdashConfig.scheduler?.concurrency,
-            noHandleSignals: false,
+            noHandleSignals: true,
             pollInterval: 1000,
             parsedCronItems: parseCronItems([
                 {
@@ -83,7 +163,7 @@ export class SchedulerWorker {
                     },
                 },
             ]),
-            taskList: {
+            taskList: traceTasks({
                 generateDailyJobs: async () => {
                     const schedulers =
                         await schedulerService.getAllSchedulers();
@@ -211,7 +291,7 @@ export class SchedulerWorker {
                         payload,
                     );
                 },
-            },
+            }),
             events: schedulerWorkerEventEmitter,
         });
 
