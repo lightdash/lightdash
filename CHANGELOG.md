@@ -1,3 +1,10 @@
+# [0.707.0](https://github.com/lightdash/lightdash/compare/0.706.0...0.707.0) (2023-07-31)
+
+
+### Features
+
+* onboarding in mantine ([#6540](https://github.com/lightdash/lightdash/issues/6540)) ([b4bce38](https://github.com/lightdash/lightdash/commit/b4bce38fb3d5cbc28fa4e01b832bddfa6316a84c))
+
 # [0.706.0](https://github.com/lightdash/lightdash/compare/0.705.1...0.706.0) (2023-07-31)
 
 
