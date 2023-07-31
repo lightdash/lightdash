@@ -206,6 +206,26 @@ const Dashboard: FC = () => {
     }, [setHaveTilesChanged, setDashboardTiles, savedTiles]);
 
     useEffect(() => {
+        const unsavedDashboardFiltersRaw = sessionStorage.getItem(
+            'unsavedDashboardFilters',
+        );
+        sessionStorage.removeItem('unsavedDashboardFilters');
+        let unsavedDashboardFilters = undefined;
+        if (unsavedDashboardFiltersRaw) {
+            try {
+                unsavedDashboardFilters = JSON.parse(
+                    unsavedDashboardFiltersRaw,
+                );
+            } catch {
+                // do nothing
+            }
+        }
+        if (unsavedDashboardFilters) {
+            setDashboardTemporaryFilters(unsavedDashboardFilters);
+        }
+    }, [setHaveFiltersChanged, setDashboardTemporaryFilters]);
+
+    useEffect(() => {
         if (isSuccess) {
             setHaveTilesChanged(false);
             setHaveFiltersChanged(false);
