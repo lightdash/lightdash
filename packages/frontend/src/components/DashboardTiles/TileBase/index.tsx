@@ -51,7 +51,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     extraHeaderElement,
     titleHref,
 }: Props<T>) => {
-    const [isEditingChartTile, setIsEditingChartTile] = useState(false);
+    const [isEditingTileContent, setIsEditingTileContent] = useState(false);
     const [
         isDeletingChartThatBelongsToDashboard,
         setIsDeletingChartThatBelongsToDashboard,
@@ -132,7 +132,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                                 icon="edit"
                                                                 text="Edit tile content"
                                                                 onClick={() =>
-                                                                    setIsEditingChartTile(
+                                                                    setIsEditingTileContent(
                                                                         true,
                                                                     )
                                                                 }
@@ -183,12 +183,12 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     <ChartContainer className="non-draggable sentry-block fs-block cohere-block">
                         {children}
                     </ChartContainer>
-                    {isEditingChartTile &&
+                    {isEditingTileContent &&
                         (tile.type === DashboardTileTypes.SAVED_CHART ? (
                             <ChartUpdateModal
-                                opened={isEditingChartTile}
+                                opened={isEditingTileContent}
                                 tile={tile}
-                                onClose={() => setIsEditingChartTile(false)}
+                                onClose={() => setIsEditingTileContent(false)}
                                 onConfirm={(
                                     newTitle,
                                     newUuid,
@@ -203,19 +203,19 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                             hideTitle: shouldHideTitle,
                                         },
                                     });
-                                    setIsEditingChartTile(false);
+                                    setIsEditingTileContent(false);
                                 }}
                                 hideTitle={!!hideTitle}
                             />
                         ) : (
                             <TileUpdateModal
                                 className="non-draggable"
-                                isOpen={isEditingChartTile}
+                                isOpen={isEditingTileContent}
                                 tile={tile}
-                                onClose={() => setIsEditingChartTile(false)}
+                                onClose={() => setIsEditingTileContent(false)}
                                 onConfirm={(newTile) => {
                                     onEdit(newTile);
-                                    setIsEditingChartTile(false);
+                                    setIsEditingTileContent(false);
                                 }}
                             />
                         ))}
