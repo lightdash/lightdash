@@ -1,11 +1,5 @@
 import { subject } from '@casl/ability';
-import {
-    DashboardFilters,
-    getItemId,
-    PivotValue,
-    ResultRow,
-    ResultValue,
-} from '@lightdash/common';
+import { DashboardFilters, ResultRow, ResultValue } from '@lightdash/common';
 import { Box, Menu, MenuProps, Portal } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
@@ -88,30 +82,22 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     const handleOpenUnderlyingDataModal = () => {
         if (!pieChartConfig.selectedMetric) return;
 
+        const fieldValues = pieChartConfig.groupFieldIds.reduce<
+            Record<string, ResultValue>
+        >((acc, fieldId) => {
+            if (!fieldId) return acc;
+
+            const fieldValue = rows?.[0]?.[fieldId]?.value;
+            if (!fieldValue) return acc;
+
+            return { ...acc, [fieldId]: fieldValue };
+        }, {});
+
         openUnderlyingDataModal({
             item: pieChartConfig.selectedMetric,
             value,
-            fieldValues: {},
+            fieldValues,
             dashboardFilters,
-            pivotReference: {
-                field: getItemId(pieChartConfig.selectedMetric),
-                pivotValues: pieChartConfig.groupFieldIds
-                    ?.filter((x): x is string => x !== null)
-                    ?.map<PivotValue | null>((dimension) => {
-                        const dimensionValue =
-                            rows?.[0]?.[dimension]?.value?.raw;
-
-                        if (dimensionValue === undefined) {
-                            return null;
-                        }
-
-                        return {
-                            field: dimension,
-                            value: dimensionValue,
-                        };
-                    })
-                    .filter((x): x is PivotValue => x !== null),
-            },
         });
 
         track({
