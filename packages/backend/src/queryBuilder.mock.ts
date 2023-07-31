@@ -590,6 +590,52 @@ export const METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TAB
         compiledAdditionalMetrics: [],
     };
 
+export const METRIC_QUERY_WITH_NESTED_METRIC_FILTERS: CompiledMetricQuery = {
+    dimensions: ['table1_dim1'],
+    metrics: ['table1_metric1'],
+    filters: {
+        metrics: {
+            id: 'root',
+            and: [
+                {
+                    id: '1',
+                    target: {
+                        fieldId: 'table1_metric1',
+                    },
+                    operator: FilterOperator.NOT_NULL,
+                    values: [],
+                },
+                {
+                    id: 'root',
+                    or: [
+                        {
+                            id: '1',
+                            target: {
+                                fieldId: 'table1_metric1',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: [0],
+                        },
+                        {
+                            id: '1',
+                            target: {
+                                fieldId: 'table1_metric1',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: [1],
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+    sorts: [{ fieldId: 'table1_metric1', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+};
+
 export const METRIC_QUERY_WITH_FILTER_OR_OPERATOR: CompiledMetricQuery = {
     dimensions: ['table1_dim1'],
     metrics: [],
@@ -947,9 +993,9 @@ GROUP BY 1
 SELECT
   *
 FROM metrics
-WHERE (
+WHERE ((
   1=1
-)
+))
 ORDER BY "table1_metric1" DESC
 LIMIT 10`;
 
@@ -981,9 +1027,9 @@ GROUP BY 1
 SELECT
   *
 FROM metrics
-WHERE (
+WHERE ((
   ("table1_metric1") IN (0)
-)
+))
 ORDER BY "table1_metric1" DESC
 LIMIT 10`;
 
@@ -999,9 +1045,9 @@ LEFT JOIN "db"."schema"."table2" AS "table2"
 SELECT
   *
 FROM metrics
-WHERE (
+WHERE ((
   1=1
-)
+))
 
 LIMIT 10`;
 
@@ -1026,5 +1072,27 @@ FROM "db"."schema"."table1" AS "table1"
 
 WHERE 'EU' = 'US'
 GROUP BY 1
+ORDER BY "table1_metric1" DESC
+LIMIT 10`;
+
+export const METRIC_QUERY_WITH_NESTED_METRIC_FILTERS_SQL = `WITH metrics AS (
+SELECT
+  "table1".dim1 AS "table1_dim1",
+  MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
+
+GROUP BY 1
+)
+SELECT
+  *
+FROM metrics
+WHERE ((
+  ("table1_metric1") IS NOT NULL
+) AND ((
+  ("table1_metric1") IN (0)
+) OR (
+  ("table1_metric1") IN (1)
+)))
 ORDER BY "table1_metric1" DESC
 LIMIT 10`;

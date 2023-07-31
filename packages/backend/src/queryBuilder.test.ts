@@ -34,6 +34,8 @@ import {
     METRIC_QUERY_WITH_METRIC_FILTER_SQL,
     METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS,
     METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL,
+    METRIC_QUERY_WITH_NESTED_METRIC_FILTERS,
+    METRIC_QUERY_WITH_NESTED_METRIC_FILTERS_SQL,
     METRIC_QUERY_WITH_SQL_FILTER,
     METRIC_QUERY_WITH_TABLE_REFERENCE,
     METRIC_QUERY_WITH_TABLE_REFERENCE_SQL,
@@ -173,6 +175,16 @@ describe('Query builder', () => {
         ).toStrictEqual(
             METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM_SQL,
         );
+    });
+
+    test('Should build second query with nested metric filters', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_NESTED_METRIC_FILTERS,
+                warehouseClient: warehouseClientMock,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_WITH_NESTED_METRIC_FILTERS_SQL);
     });
 
     test('Should build query with additional metric', () => {
