@@ -56,8 +56,11 @@ const SingleSeriesConfiguration: FC<Props> = ({
         series.type === CartesianSeriesType.LINE && !!series.areaStyle
             ? CartesianSeriesType.AREA
             : series.type;
+
+    const wrapExtraComponents =
+        (isGrouped && !isSingle) || (!isGrouped && !isSingle);
     return (
-        <Group noWrap={!isGrouped} spacing={0}>
+        <Group noWrap={!wrapExtraComponents} spacing={0}>
             <Group
                 noWrap
                 spacing="xs"
@@ -67,7 +70,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     // This isn't a great answer and we probably could
                     // clean up the layout in this file after the other parts
                     // of this panel are also migrated.
-                    isGrouped
+                    wrapExtraComponents
                         ? { justifyContent: 'flex-end' }
                         : { alignSelf: 'flex-start', marginTop: 32 }
                 }

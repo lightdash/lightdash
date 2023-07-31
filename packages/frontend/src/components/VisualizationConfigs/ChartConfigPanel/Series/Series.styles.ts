@@ -69,5 +69,5 @@ export const SeriesDivider = styled.hr`
     width: 100%;
     background: ${Colors.LIGHT_GRAY2};
     border: none;
-    margin: 1.857em 0;
+    margin-bottom: 24px;
 `;
