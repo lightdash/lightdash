@@ -472,7 +472,7 @@ export const stringFilterRuleMocks = {
     },
 };
 
-type RenderFilterRuleSqlParams = Parameters<typeof renderFilterRuleSql>; // [string, number]
+type RenderFilterRuleSqlParams = Parameters<typeof renderFilterRuleSql>;
 
 export const disabledFilterMock: {
     filterRule: RenderFilterRuleSqlParams[0];
