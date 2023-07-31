@@ -15,6 +15,9 @@ import {
     getItemId,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
+    isField,
+    isTableCalculation,
+    TableCalculationFormatType,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -246,6 +249,15 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
         [handleChange, config],
     );
 
+    const hasPercentageFormat = useMemo(() => {
+        return (
+            field &&
+            ((isField(field) && field?.format === Format.PERCENT) ||
+                (isTableCalculation(field) &&
+                    field.format?.type === TableCalculationFormatType.PERCENT))
+        );
+    }, [field]);
+
     return (
         <FiltersProvider>
             <Stack spacing="xs">
@@ -415,7 +427,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                     label="Min value"
                                     value={config.rule.min}
                                     icon={
-                                        field?.format === Format.PERCENT ? (
+                                        hasPercentageFormat ? (
                                             <MantineIcon
                                                 icon={IconPercentage}
                                             />
@@ -433,7 +445,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                 <NumberInput
                                     label="Max value"
                                     icon={
-                                        field?.format === Format.PERCENT ? (
+                                        hasPercentageFormat ? (
                                             <MantineIcon
                                                 icon={IconPercentage}
                                             />

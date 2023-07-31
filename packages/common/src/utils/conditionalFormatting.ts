@@ -18,7 +18,9 @@ import {
     isField,
     isFilterableItem,
     isMetric,
+    isTableCalculation,
     TableCalculation,
+    TableCalculationFormatType,
 } from '../types/field';
 import { FieldTarget } from '../types/filter';
 import assertUnreachable from './assertUnreachable';
@@ -61,14 +63,19 @@ const convertFormattedValue = (
     field: Field | TableCalculation | undefined,
 ) => {
     if (!field) return value;
-    if (!isField(field)) return value;
 
-    switch (field.format) {
-        case Format.PERCENT:
-            return typeof value === 'number' ? value * 100 : value;
-        default:
-            return value;
+    if (isField(field) && field.format === Format.PERCENT) {
+        return typeof value === 'number' ? value * 100 : value;
     }
+
+    if (
+        isTableCalculation(field) &&
+        field.format?.type === TableCalculationFormatType.PERCENT
+    ) {
+        return typeof value === 'number' ? value * 100 : value;
+    }
+
+    return value;
 };
 
 export const hasMatchingConditionalRules = (
@@ -216,6 +223,9 @@ export const getConditionalFormattingColor = (
     ) {
         const numericValue = typeof value === 'string' ? Number(value) : value;
         const convertedValue = convertFormattedValue(numericValue, field);
+
+        console.log('აეეეეეე', convertedValue);
+
         if (typeof convertedValue !== 'number') return undefined;
 
         return getColorFromRange(convertedValue, conditionalFormattingConfig);
