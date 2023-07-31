@@ -1,3 +1,10 @@
+## [0.707.2](https://github.com/lightdash/lightdash/compare/0.707.1...0.707.2) (2023-07-31)
+
+
+### Bug Fixes
+
+* error validation null chart ([#6562](https://github.com/lightdash/lightdash/issues/6562)) ([3db2ebb](https://github.com/lightdash/lightdash/commit/3db2ebb6821dac4a14f355dc067b5f0c4da328d3)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
 ## [0.707.1](https://github.com/lightdash/lightdash/compare/0.707.0...0.707.1) (2023-07-31)
 
 
