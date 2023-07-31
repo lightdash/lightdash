@@ -224,8 +224,6 @@ export const getConditionalFormattingColor = (
         const numericValue = typeof value === 'string' ? Number(value) : value;
         const convertedValue = convertFormattedValue(numericValue, field);
 
-        console.log('აეეეეეე', convertedValue);
-
         if (typeof convertedValue !== 'number') return undefined;
 
         return getColorFromRange(convertedValue, conditionalFormattingConfig);
