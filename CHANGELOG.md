@@ -1,3 +1,22 @@
+# [0.707.0](https://github.com/lightdash/lightdash/compare/0.706.0...0.707.0) (2023-07-31)
+
+
+### Features
+
+* onboarding in mantine ([#6540](https://github.com/lightdash/lightdash/issues/6540)) ([b4bce38](https://github.com/lightdash/lightdash/commit/b4bce38fb3d5cbc28fa4e01b832bddfa6316a84c))
+
+# [0.706.0](https://github.com/lightdash/lightdash/compare/0.705.1...0.706.0) (2023-07-31)
+
+
+### Bug Fixes
+
+* check if markdown tile title is empty and reduce height ([#6535](https://github.com/lightdash/lightdash/issues/6535)) ([7190112](https://github.com/lightdash/lightdash/commit/71901129a1d66c01601d431190e02e8d7f926f8b))
+
+
+### Features
+
+* conditional formatting percent values ([#6506](https://github.com/lightdash/lightdash/issues/6506)) ([ffd1bda](https://github.com/lightdash/lightdash/commit/ffd1bda19c31d74ca9b1abd33ca62b39a87360bc))
+
 ## [0.705.1](https://github.com/lightdash/lightdash/compare/0.705.0...0.705.1) (2023-07-28)
 
 

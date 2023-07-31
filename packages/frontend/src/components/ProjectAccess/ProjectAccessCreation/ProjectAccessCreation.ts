@@ -1,6 +1,5 @@
 import { Button, FormGroup } from '@blueprintjs/core';
 import styled from 'styled-components';
-import SimpleButton from '../../common/SimpleButton';
 import Form from '../../ReactHookForm/Form';
 import Select from '../../ReactHookForm/Select';
 
@@ -8,12 +7,6 @@ export const Panel = styled.div`
     height: 100%;
     display: flex;
     flex-direction: column;
-`;
-
-export const BackButton = styled(SimpleButton)`
-    align-self: flex-start;
-    padding-left: 0;
-    margin-bottom: 20px;
 `;
 
 export const ProjectAccessForm = styled(Form)`
