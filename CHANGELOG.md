@@ -1,3 +1,10 @@
+## [0.707.1](https://github.com/lightdash/lightdash/compare/0.707.0...0.707.1) (2023-07-31)
+
+
+### Bug Fixes
+
+* make sql lowercase ([#6558](https://github.com/lightdash/lightdash/issues/6558)) ([30f31bc](https://github.com/lightdash/lightdash/commit/30f31bc814af42b2a67cf4e28fef5c3aba9096b4))
+
 # [0.707.0](https://github.com/lightdash/lightdash/compare/0.706.0...0.707.0) (2023-07-31)
 
 
