@@ -4,20 +4,19 @@ import {
     DialogBody,
     DialogFooter,
     DialogProps,
-    FormGroup,
-    HTMLSelect,
-    InputGroup,
-    Intent,
 } from '@blueprintjs/core';
 import { Dashboard, Space } from '@lightdash/common';
 import { FC, useCallback, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,
 } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
-import {} from '../ShareSpaceModal/ShareSpaceModal.style';
+import Form from '../../ReactHookForm/Form';
+import Input from '../../ReactHookForm/Input';
+import Select from '../../ReactHookForm/Select';
 
 interface DashboardCreateModalProps extends DialogProps {
     projectUuid: string;
@@ -37,15 +36,17 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     const { mutateAsync: createSpace, isLoading: isCreatingSpace } =
         useSpaceCreateMutation(projectUuid);
     const { user } = useApp();
+    const [isCreatingNewSpace, setIsCreatingNewSpace] = useState(false);
 
-    const [dashboardName, setDashboardName] = useState<string>('');
-    const [dashboardDescription, setDashboardDescription] =
-        useState<string>('');
-
-    const [spaceUuid, setSpaceUuid] = useState<string>();
-    const [isCreatingNewSpace, setIsCreatingnewSpace] =
-        useState<boolean>(false);
-    const [newSpaceName, setNewSpaceName] = useState('');
+    const form = useForm({
+        mode: 'onChange',
+        defaultValues: {
+            dashboardName: '',
+            dashboardDescription: '',
+            spaceUuid: '',
+            newSpaceName: '',
+        },
+    });
 
     const { data: spaces, isLoading: isLoadingSpaces } = useSpaceSummaries(
         projectUuid,
@@ -56,55 +57,45 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                     const currentSpace = defaultSpaceUuid
                         ? data.find((space) => space.uuid === defaultSpaceUuid)
                         : data[0];
-                    setSpaceUuid(currentSpace?.uuid);
+                    return currentSpace?.uuid
+                        ? form.setValue('spaceUuid', currentSpace?.uuid)
+                        : null;
                 } else {
-                    setIsCreatingnewSpace(true);
+                    setIsCreatingNewSpace(true);
                 }
             },
         },
     );
     const showNewSpaceInput = isCreatingNewSpace || spaces?.length === 0;
 
-    const handleReset = () => {
-        setDashboardName('');
-        setDashboardDescription('');
-        setNewSpaceName('');
-        setIsCreatingnewSpace(false);
-    };
     const handleClose: DashboardCreateModalProps['onClose'] = (event) => {
-        handleReset();
+        form.reset();
         onClose?.(event);
     };
 
-    const handleConfirm = useCallback(async () => {
-        let newSpace: Space | undefined;
+    const handleConfirm = useCallback(
+        async (data) => {
+            let newSpace: Space | undefined;
 
-        if (isCreatingNewSpace) {
-            newSpace = await createSpace({
-                name: newSpaceName,
-                isPrivate: false,
-                access: [],
+            if (isCreatingNewSpace) {
+                newSpace = await createSpace({
+                    name: data.newSpaceName,
+                    isPrivate: false,
+                    access: [],
+                });
+            }
+
+            const dashboard = await createDashboard({
+                name: data.dashboardName,
+                description: data.dashboardDescription,
+                spaceUuid: newSpace?.uuid || data.spaceUuid,
+                tiles: [],
             });
-        }
-
-        const dashboard = await createDashboard({
-            name: dashboardName,
-            description: dashboardDescription,
-            spaceUuid: newSpace?.uuid || spaceUuid,
-            tiles: [],
-        });
-        onConfirm?.(dashboard);
-        handleReset();
-    }, [
-        createDashboard,
-        createSpace,
-        spaceUuid,
-        dashboardName,
-        newSpaceName,
-        isCreatingNewSpace,
-        dashboardDescription,
-        onConfirm,
-    ]);
+            onConfirm?.(dashboard);
+            form.reset();
+        },
+        [createDashboard, createSpace, onConfirm, form, isCreatingNewSpace],
+    );
 
     if (user.data?.ability?.cannot('manage', 'Dashboard')) return null;
 
@@ -118,111 +109,81 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
             {...modalProps}
             onClose={handleClose}
         >
-            <DialogBody>
-                <FormGroup label="Name your dashboard" labelFor="chart-name">
-                    <InputGroup
-                        id="chart-name"
-                        type="text"
-                        value={dashboardName}
-                        onChange={(e) => setDashboardName(e.target.value)}
-                        placeholder="eg. KPI dashboard"
+            <Form
+                title="Create Dashboard"
+                methods={form}
+                onSubmit={handleConfirm}
+            >
+                <DialogBody>
+                    <Input
+                        label="Name your dashboard"
+                        placeholder="eg. KPI Dashboards"
+                        disabled={isCreatingDashboard}
+                        rules={{ required: 'Name field is required' }}
+                        {...form.register('dashboardName')}
                     />
-                </FormGroup>
-                <FormGroup
-                    label="Dashboard description"
-                    labelFor="chart-description"
-                >
-                    <InputGroup
-                        id="chart-description"
-                        type="text"
-                        value={dashboardDescription}
-                        onChange={(e) =>
-                            setDashboardDescription(e.target.value)
-                        }
+                    <Input
+                        label="Dashboard description"
                         placeholder="A few words to give your team some context"
+                        disabled={isCreatingDashboard}
+                        {...form.register('dashboardDescription')}
                     />
-                </FormGroup>
-                {!isLoadingSpaces && !showNewSpaceInput ? (
-                    <>
-                        <FormGroup
-                            label="Select a space"
-                            labelFor="select-space"
-                        >
-                            <HTMLSelect
-                                id="select-space"
-                                fill={true}
-                                value={spaceUuid}
-                                onChange={(e) =>
-                                    setSpaceUuid(e.currentTarget.value)
-                                }
+                    {!isLoadingSpaces && !showNewSpaceInput ? (
+                        <>
+                            <Select
+                                label="Select a space"
                                 options={spaces?.map((space) => ({
                                     value: space.uuid,
                                     label: space.name,
                                 }))}
+                                {...form.register('spaceUuid')}
                             />
-                        </FormGroup>
-                        <Button
-                            minimal
-                            icon="plus"
-                            intent="primary"
-                            onClick={() => setIsCreatingnewSpace(true)}
-                        >
-                            Create new space
-                        </Button>
-                    </>
-                ) : (
-                    <>
-                        <FormGroup
-                            label="Name your space"
-                            labelFor="dashboard-space"
-                        >
-                            <InputGroup
-                                id="dashboard-space"
-                                type="text"
-                                value={newSpaceName}
-                                onChange={(e) =>
-                                    setNewSpaceName(e.target.value)
-                                }
+                            <Button
+                                minimal
+                                icon="plus"
+                                intent="primary"
+                                onClick={() => setIsCreatingNewSpace(true)}
+                            >
+                                Create new space
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Input
+                                label="Name your space"
                                 placeholder="eg. KPIs"
+                                rules={{ required: 'Name field is required' }}
+                                {...form.register('newSpaceName')}
                             />
-                        </FormGroup>
-                        <Button
-                            minimal
-                            icon="arrow-left"
-                            intent="primary"
-                            onClick={() => setIsCreatingnewSpace(false)}
-                        >
-                            Save to existing space
-                        </Button>
-                    </>
-                )}
-            </DialogBody>
-
-            <DialogFooter
-                actions={
-                    <>
-                        <Button
-                            onClick={(e) => {
-                                handleClose(e);
-                                if (onClose) onClose(e);
-                            }}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            intent={Intent.PRIMARY}
-                            text="Create"
-                            type="submit"
-                            loading={isCreatingDashboard || isCreatingSpace}
-                            onClick={handleConfirm}
-                            disabled={
-                                (isCreatingDashboard && dashboardName === '') ||
-                                (isCreatingNewSpace && newSpaceName === '')
-                            }
-                        />
-                    </>
-                }
-            />
+                            <Button
+                                minimal
+                                icon="arrow-left"
+                                intent="primary"
+                                onClick={() => setIsCreatingNewSpace(false)}
+                            >
+                                Save to existing space
+                            </Button>
+                        </>
+                    )}
+                </DialogBody>
+                <DialogFooter
+                    actions={
+                        <>
+                            <Button onClick={() => modalProps.onClosed}>
+                                Cancel
+                            </Button>
+                            <Button
+                                disabled={!form.formState.isValid}
+                                loading={isCreatingDashboard || isCreatingSpace}
+                                intent="primary"
+                                type="submit"
+                            >
+                                Create
+                            </Button>
+                        </>
+                    }
+                />
+            </Form>
         </Dialog>
     );
 };

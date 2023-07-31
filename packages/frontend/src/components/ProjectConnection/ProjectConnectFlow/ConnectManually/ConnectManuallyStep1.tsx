@@ -1,16 +1,13 @@
-import { AnchorButton, Button, Intent, Position } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
+import { Button, Stack, Text, Tooltip } from '@mantine/core';
+import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { FC } from 'react';
-import { FloatingBackButton } from '../../../../pages/CreateProject.styles';
+import { useTracking } from '../../../../providers/TrackingProvider';
+import { EventName } from '../../../../types/Events';
+import MantineIcon from '../../../common/MantineIcon';
 import { ProjectCreationCard } from '../../../common/Settings/SettingsCard';
-import ConnectTitle from '../ConnectTitle';
-import InviteExpertFooter from '../InviteExpertFooter';
-import {
-    ButtonsWrapper,
-    Codeblock,
-    Subtitle,
-    Wrapper,
-} from './../ProjectConnectFlow.styles';
+import CodeBlock from '../common/CodeBlock';
+import { OnboardingConnectTitle } from '../common/OnboardingTitle';
+import OnboardingWrapper from '../common/OnboardingWrapper';
 
 const codeBlock = String.raw`models:
 - name: my_model
@@ -30,59 +27,68 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
     onBack,
     onForward,
 }) => {
+    const { track } = useTracking();
+
     return (
-        <Wrapper>
-            <FloatingBackButton
-                icon="chevron-left"
-                text="Back"
+        <OnboardingWrapper>
+            <Button
+                pos="absolute"
+                variant="subtle"
+                size="sm"
+                top={-50}
+                leftIcon={<MantineIcon icon={IconChevronLeft} />}
                 onClick={onBack}
-            />
+            >
+                Back
+            </Button>
 
             <ProjectCreationCard>
-                <ConnectTitle isCreatingFirstProject={isCreatingFirstProject} />
+                <Stack>
+                    <OnboardingConnectTitle
+                        isCreatingFirstProject={isCreatingFirstProject}
+                    />
 
-                <Subtitle>
-                    We strongly recommend that you define columns in your .yml
-                    to see a table in Lightdash. eg:
-                </Subtitle>
+                    <Text color="dimmed">
+                        We strongly recommend that you define columns in your
+                        .yml to see a table in Lightdash. eg:
+                    </Text>
 
-                <Codeblock>
-                    <pre>{codeBlock}</pre>
-                </Codeblock>
+                    <CodeBlock>{codeBlock}</CodeBlock>
 
-                <ButtonsWrapper>
-                    <Tooltip2
-                        position={Position.TOP}
-                        content={
-                            'Add the columns you want to explore to your .yml files in your dbt project. Click to view docs.'
-                        }
-                        targetTagName="div"
-                    >
-                        <AnchorButton
-                            large
-                            minimal
-                            outlined
-                            fill
-                            href="https://docs.lightdash.com/guides/how-to-create-dimensions"
-                            target="_blank"
-                            rightIcon="chevron-right"
+                    <Stack spacing="xs">
+                        <Tooltip
+                            position="top"
+                            label={
+                                'Add the columns you want to explore to your .yml files in your dbt project. Click to view docs.'
+                            }
                         >
-                            Learn how to define them
-                        </AnchorButton>
-                    </Tooltip2>
-                </ButtonsWrapper>
+                            <Button
+                                component="a"
+                                variant="outline"
+                                href="https://docs.lightdash.com/guides/how-to-create-dimensions"
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                rightIcon={
+                                    <MantineIcon icon={IconChevronRight} />
+                                }
+                                onClick={() => {
+                                    track({
+                                        name: EventName.DOCUMENTATION_BUTTON_CLICKED,
+                                        properties: {
+                                            action: 'define_metrics',
+                                        },
+                                    });
+                                }}
+                            >
+                                Learn how to define them
+                            </Button>
+                        </Tooltip>
 
-                <Button
-                    type="submit"
-                    large
-                    intent={Intent.PRIMARY}
-                    text="I’ve defined them!"
-                    onClick={onForward}
-                />
+                        <Button onClick={onForward}>I’ve defined them!</Button>
+                    </Stack>
+                </Stack>
             </ProjectCreationCard>
-
-            <InviteExpertFooter />
-        </Wrapper>
+        </OnboardingWrapper>
     );
 };
 

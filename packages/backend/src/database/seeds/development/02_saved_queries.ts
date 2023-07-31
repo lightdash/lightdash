@@ -22,6 +22,7 @@ export async function seed(knex: Knex): Promise<void> {
     await savedChartModel.create(
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
+        undefined,
         {
             name: 'How much revenue do we have per payment method?',
             description:
@@ -92,6 +93,7 @@ export async function seed(knex: Knex): Promise<void> {
     await savedChartModel.create(
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
+        undefined,
         {
             name: `What's our total revenue to date?`,
             description: `A single number showing the sum of all historical revenue`,
@@ -135,6 +137,7 @@ export async function seed(knex: Knex): Promise<void> {
     await savedChartModel.create(
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
+        undefined,
         {
             name: 'How many orders we have over time ?',
             description:
@@ -207,6 +210,7 @@ export async function seed(knex: Knex): Promise<void> {
     await savedChartModel.create(
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
+        undefined,
         {
             name: "What's the average spend per customer?",
             description: 'Average order size for each customer id',
@@ -258,6 +262,7 @@ export async function seed(knex: Knex): Promise<void> {
     await savedChartModel.create(
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
+        undefined,
         {
             name: 'Which customers have not recently ordered an item?',
             description:
@@ -303,6 +308,7 @@ export async function seed(knex: Knex): Promise<void> {
     await savedChartModel.create(
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
+        undefined,
         {
             name: 'How many orders did we get on February?',
             description:

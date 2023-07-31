@@ -6,17 +6,10 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
-import {
-    Dashboard,
-    DashboardChartTile,
-    DashboardTileTypes,
-    isChartTile,
-} from '@lightdash/common';
+import { Dashboard, DashboardTileTypes, isChartTile } from '@lightdash/common';
 import { Tooltip } from '@mantine/core';
 import { useHover, useToggle } from '@mantine/hooks';
 import React, { ReactNode, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/DeleteChartTileThatBelongsToDashboardModal';
 import ChartUpdateModal from '../TileForms/ChartUpdateModal';
 import TileUpdateModal from '../TileForms/TileUpdateModal';
@@ -68,8 +61,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const { hovered: titleHovered, ref: titleRef } =
         useHover<HTMLAnchorElement>();
     const [isMenuOpen, toggleMenu] = useToggle([false, true]);
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: savedCharts } = useChartSummaries(projectUuid);
 
     const hideTitle =
         tile.type !== DashboardTileTypes.MARKDOWN
@@ -78,37 +69,8 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const belongsToDashboard: boolean =
         isChartTile(tile) && !!tile.properties.belongsToDashboard;
 
-    const handleChartUpdateConfirm = (
-        newTitle: string,
-        newUuid: string,
-        shouldHideTitle: boolean,
-    ) => {
-        onEdit({
-            ...tile,
-            properties: {
-                ...tile.properties,
-                title:
-                    newTitle.length > 0
-                        ? newTitle
-                        : savedCharts?.find(
-                              (chart) =>
-                                  chart.uuid ===
-                                  (newUuid.length > 0
-                                      ? newUuid
-                                      : (
-                                            tile.properties as DashboardChartTile['properties']
-                                        ).savedChartUuid),
-                          )?.name,
-                savedChartUuid:
-                    newUuid.length > 0
-                        ? newUuid
-                        : (tile.properties as DashboardChartTile['properties'])
-                              .savedChartUuid,
-                hideTitle: shouldHideTitle,
-            },
-        });
-        setIsEditingChartTile(false);
-    };
+    const isMarkdownTileTitleEmpty =
+        tile.type === DashboardTileTypes.MARKDOWN && !title;
 
     return (
         <TileBaseWrapper
@@ -123,6 +85,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         $isEditMode={isEditMode}
                         onMouseEnter={() => setIsHovering(true)}
                         onMouseLeave={() => setIsHovering(false)}
+                        $isEmpty={isMarkdownTileTitleEmpty}
                     >
                         <Tooltip
                             disabled={!description}
@@ -224,9 +187,24 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         (tile.type === DashboardTileTypes.SAVED_CHART ? (
                             <ChartUpdateModal
                                 opened={isEditingChartTile}
-                                chartTitle={chartName ?? ''}
+                                tile={tile}
                                 onClose={() => setIsEditingChartTile(false)}
-                                onConfirm={handleChartUpdateConfirm}
+                                onConfirm={(
+                                    newTitle,
+                                    newUuid,
+                                    shouldHideTitle,
+                                ) => {
+                                    onEdit({
+                                        ...tile,
+                                        properties: {
+                                            ...tile.properties,
+                                            title: newTitle,
+                                            savedChartUuid: newUuid,
+                                            hideTitle: shouldHideTitle,
+                                        },
+                                    });
+                                    setIsEditingChartTile(false);
+                                }}
                                 hideTitle={!!hideTitle}
                             />
                         ) : (

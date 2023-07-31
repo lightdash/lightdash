@@ -1,3 +1,4 @@
+import { DashboardChartTile } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -18,27 +19,27 @@ import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import MantineIcon from '../../common/MantineIcon';
 
 interface ChartUpdateModalProps extends ModalProps {
-    chartTitle: string;
     onClose: () => void;
+    hideTitle: boolean;
     onConfirm?: (
-        newTitle: string,
+        newTitle: string | undefined,
         newChartUuid: string,
         shouldHideTitle: boolean,
     ) => void;
-    hideTitle: boolean;
+    tile: DashboardChartTile;
 }
 
 const ChartUpdateModal = ({
-    chartTitle,
     onClose,
     onConfirm,
     hideTitle,
+    tile,
     ...modalProps
 }: ChartUpdateModalProps) => {
     const form = useForm({
         initialValues: {
-            uuid: '',
-            title: '',
+            uuid: tile.properties.savedChartUuid,
+            title: tile.properties.title,
             hideTitle,
         },
     });
@@ -51,7 +52,9 @@ const ChartUpdateModal = ({
             uuid: newChartUuid,
             hideTitle: shouldHideTitle,
         }) => {
-            onConfirm?.(newTitle, newChartUuid, shouldHideTitle);
+            if (newChartUuid) {
+                onConfirm?.(newTitle, newChartUuid, shouldHideTitle);
+            }
         },
     );
 
@@ -78,9 +81,12 @@ const ChartUpdateModal = ({
                         <TextInput
                             label="Title"
                             placeholder={
-                                form.getInputProps('title').value.length > 0
-                                    ? form.getInputProps('title').value
-                                    : chartTitle
+                                form.values.uuid
+                                    ? savedCharts?.find(
+                                          (chart) =>
+                                              chart.uuid === form.values.uuid,
+                                      )?.name
+                                    : undefined
                             }
                             {...form.getInputProps('title')}
                             style={{ flex: 1 }}

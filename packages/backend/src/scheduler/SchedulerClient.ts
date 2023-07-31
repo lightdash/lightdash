@@ -336,4 +336,23 @@ export class SchedulerClient {
 
         return { jobId };
     }
+
+    async getJobStatistics(): Promise<
+        { error: boolean; locked: boolean; count: number }[]
+    > {
+        const graphileClient = await this.graphileUtils;
+        const query = `
+            select 
+              last_error is not null as error, 
+              locked_by is not null as locked, 
+              count(*) as count
+            from graphile_worker.jobs
+            group by 1, 2
+        `;
+        const stats = await graphileClient.withPgClient(async (pgClient) => {
+            const { rows } = await pgClient.query(query);
+            return rows;
+        });
+        return stats;
+    }
 }

@@ -55,6 +55,7 @@ const ValueCell: FC<ValueCellProps> = ({
         );
 
         const conditionalFormattingColor = getConditionalFormattingColor(
+            item,
             value?.raw,
             conditionalFormattingConfig,
             getColorFromRange,

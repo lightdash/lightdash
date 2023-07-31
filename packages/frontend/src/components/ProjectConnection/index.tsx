@@ -8,7 +8,7 @@ import {
     ProjectType,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Anchor, Card, Flex, Stack } from '@mantine/core';
+import { Anchor, Avatar, Card, Flex, Stack } from '@mantine/core';
 import { FC, useEffect, useMemo, useState } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
@@ -29,8 +29,7 @@ import DocumentationHelpButton from '../DocumentationHelpButton';
 import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
-import { WarehouseIcon } from './ProjectConnectFlow/ProjectConnectFlow.styles';
-import { getWarehouseLabel } from './ProjectConnectFlow/SelectWarehouse';
+import { getWarehouseIcon } from './ProjectConnectFlow/SelectWarehouse';
 import {
     CompileProjectButton,
     FormContainer,
@@ -65,7 +64,7 @@ const ProjectForm: FC<Props> = ({
     isProjectUpdate,
 }) => {
     const { health } = useApp();
-    const [hasWarehouse, setHasWarehouse] = useState(selectedWarehouse);
+    const [warehouse, setWarehouse] = useState(selectedWarehouse);
 
     return (
         <Stack spacing="xl">
@@ -90,7 +89,7 @@ const ProjectForm: FC<Props> = ({
 
             <SettingsGridCard>
                 <div>
-                    {hasWarehouse && getWarehouseLabel(hasWarehouse).icon}
+                    {warehouse && getWarehouseIcon(warehouse)}
                     <LeftPanelTitle>
                         <H5>Warehouse connection</H5>
                         <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
@@ -107,8 +106,8 @@ const ProjectForm: FC<Props> = ({
                 <div>
                     <WarehouseSettingsForm
                         disabled={disabled}
-                        setSelectedWarehouse={setHasWarehouse}
-                        selectedWarehouse={hasWarehouse}
+                        setSelectedWarehouse={setWarehouse}
+                        selectedWarehouse={warehouse}
                         isProjectUpdate={isProjectUpdate}
                     />
                 </div>
@@ -116,7 +115,8 @@ const ProjectForm: FC<Props> = ({
 
             <SettingsGridCard>
                 <div>
-                    <WarehouseIcon src={DbtLogo} alt="dbt icon" />
+                    <Avatar size="md" src={DbtLogo} alt="dbt icon" />
+
                     <LeftPanelTitle>
                         <H5>dbt connection</H5>
                         <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
@@ -138,7 +138,7 @@ const ProjectForm: FC<Props> = ({
                     <DbtSettingsForm
                         disabled={disabled}
                         defaultType={defaultType}
-                        selectedWarehouse={hasWarehouse}
+                        selectedWarehouse={warehouse}
                     />
                 </div>
             </SettingsGridCard>

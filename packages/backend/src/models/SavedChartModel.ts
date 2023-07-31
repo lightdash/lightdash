@@ -1,10 +1,12 @@
 import {
     AdditionalMetric,
     ChartConfig,
+    ChartKind,
     ChartSummary,
     CreateSavedChart,
     CreateSavedChartVersion,
     DBFieldTypes,
+    getChartKind,
     getChartType,
     isFormat,
     NotFoundError,
@@ -232,10 +234,17 @@ export const createSavedChart = async (
 ): Promise<string> =>
     db.transaction(async (trx) => {
         let chart: InsertChart;
+        const baseChart = {
+            name,
+            description,
+            last_version_chart_kind:
+                getChartKind(chartConfig.type, chartConfig.config) ||
+                ChartKind.VERTICAL_BAR,
+            last_version_updated_by_user_uuid: userUuid,
+        };
         if (dashboardUuid) {
             chart = {
-                name,
-                description,
+                ...baseChart,
                 dashboard_uuid: dashboardUuid,
                 space_id: null,
             };
@@ -246,8 +255,7 @@ export const createSavedChart = async (
                       .space_id;
             if (!spaceId) throw new NotFoundError('No space found');
             chart = {
-                name,
-                description,
+                ...baseChart,
                 dashboard_uuid: null,
                 space_id: spaceId,
             };
@@ -280,6 +288,7 @@ export class SavedChartModel {
     async create(
         projectUuid: string,
         userUuid: string,
+        dashboardUuid: string | undefined,
         {
             name,
             description,
@@ -296,7 +305,7 @@ export class SavedChartModel {
             this.database,
             projectUuid,
             userUuid,
-            undefined,
+            dashboardUuid,
             {
                 name,
                 description,
@@ -329,7 +338,7 @@ export class SavedChartModel {
 
             await trx('saved_queries')
                 .update({
-                    last_version_chart_kind: getChartType(
+                    last_version_chart_kind: getChartKind(
                         data.chartConfig.type,
                         data.chartConfig.config,
                     ),
@@ -683,7 +692,11 @@ export class SavedChartModel {
                     .whereNotNull(`${SavedChartsTableName}.space_id`)
                     .whereIn('spaces.space_uuid', filters.spaceUuids);
             }
-            return await query;
+            const chartSummaries = await query;
+            return chartSummaries.map((chart) => ({
+                ...chart,
+                chartType: getChartType(chart.chartKind),
+            }));
         } finally {
             span?.finish();
         }
@@ -700,7 +713,7 @@ export class SavedChartModel {
                 projectUuid: 'projects.project_uuid',
                 organizationUuid: 'organizations.organization_uuid',
                 pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
-                chartType: 'last_saved_query_version.chart_type',
+                chartKind: 'saved_queries.last_version_chart_kind',
                 dashboardUuid: `${DashboardsTableName}.dashboard_uuid`,
                 dashboardName: `${DashboardsTableName}.name`,
             })
@@ -726,16 +739,7 @@ export class SavedChartModel {
                 'organizations.organization_id',
                 'projects.organization_id',
             )
-            .innerJoin(
-                this.database('saved_queries_versions')
-                    .distinctOn('saved_query_id')
-                    .orderBy('saved_query_id')
-                    .orderBy('created_at', 'desc')
-                    .select('chart_type', 'saved_query_id')
-                    .as('last_saved_query_version'),
-                `saved_queries.saved_query_id`,
-                'last_saved_query_version.saved_query_id',
-            )
+
             .leftJoin(
                 PinnedChartTableName,
                 `${PinnedChartTableName}.saved_chart_uuid`,

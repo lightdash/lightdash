@@ -75,6 +75,7 @@ const TableRow: FC<TableRowProps> = ({
 
                 const conditionalFormattingColor =
                     getConditionalFormattingColor(
+                        field,
                         cellValue?.value.raw,
                         conditionalFormattingConfig,
                         getColorFromRange,
