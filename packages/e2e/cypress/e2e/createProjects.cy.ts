@@ -156,7 +156,7 @@ const testCompile = (): Cypress.Chainable<string> => {
     cy.contains('Step 2/3', { timeout: 60000 });
     cy.contains('Successfully synced dbt project!', { timeout: 60000 });
 
-    cy.contains('selected 7 models');
+    cy.contains('selected 8 models');
     // Configure
     cy.findByText('Save changes')
         .parent('button')
@@ -338,18 +338,18 @@ describe('Create projects', () => {
 
         cy.findByText('Projects').click();
         cy.findByText('Create new').click();
-        cy.contains('button', 'PostgreSQL').click();
+        cy.get('[role="button"').contains('PostgreSQL').click();
 
         cy.url().should('include', '/createProject/cli');
 
-        cy.contains('a', 'Create project manually');
+        cy.get('[role="button"').contains('Manually').click();
     });
 
     it('Should create a Postgres project', () => {
         cy.visit(`/createProject`);
 
-        cy.contains('button', 'PostgreSQL').click();
-        cy.contains('a', 'Create project manually').click();
+        cy.get('[role="button"').contains('PostgreSQL').click();
+        cy.get('[role="button"').contains('Manually').click();
         cy.contains('button', 'I’ve defined them!').click();
 
         cy.get('[name="name"]').clear().type(warehouseConfig.postgresSQL.name);
@@ -368,8 +368,8 @@ describe('Create projects', () => {
 
         cy.visit(`/createProject`);
 
-        cy.contains('button', 'Redshift').click();
-        cy.contains('a', 'Create project manually').click();
+        cy.get('[role="button"').contains('Redshift').click();
+        cy.get('[role="button"').contains('Manually').click();
         cy.contains('button', 'I’ve defined them!').click();
 
         cy.get('[name="name"]').clear().type(warehouseConfig.redshift.name);
@@ -384,8 +384,8 @@ describe('Create projects', () => {
     it('Should create a Bigquery project', () => {
         cy.visit(`/createProject`);
 
-        cy.contains('button', 'BigQuery').click();
-        cy.contains('a', 'Create project manually').click();
+        cy.get('[role="button"').contains('BigQuery').click();
+        cy.get('[role="button"').contains('Manually').click();
         cy.contains('button', 'I’ve defined them!').click();
 
         cy.get('[name="name"]').clear().type(warehouseConfig.bigQuery.name);
@@ -431,8 +431,8 @@ describe('Create projects', () => {
     it.skip('Should create a Trino project', () => {
         cy.visit(`/createProject`);
 
-        cy.contains('button', 'Trino').click();
-        cy.contains('a', 'Create project manually').click();
+        cy.get('[role="button"').contains('Trino').click();
+        cy.get('[role="button"').contains('Manually').click();
         cy.contains('button', 'I’ve defined them!').click();
 
         cy.get('[name="name"]').clear().type(warehouseConfig.trino.name);
@@ -470,8 +470,8 @@ describe('Create projects', () => {
     it.skip('Should create a Databricks project', () => {
         cy.visit(`/createProject`);
 
-        cy.contains('button', 'Databricks').click();
-        cy.contains('a', 'Create project manually').click();
+        cy.get('[role="button"').contains('Databricks').click();
+        cy.get('[role="button"').contains('Manually').click();
         cy.contains('button', 'I’ve defined them!').click();
 
         cy.get('[name="name"]').clear().type(warehouseConfig.databricks.name);
@@ -510,8 +510,8 @@ describe('Create projects', () => {
     it('Should create a Snowflake project', () => {
         cy.visit(`/createProject`);
 
-        cy.contains('button', 'Snowflake').click();
-        cy.contains('a', 'Create project manually').click();
+        cy.get('[role="button"').contains('Snowflake').click();
+        cy.get('[role="button"').contains('Manually').click();
         cy.contains('button', 'I’ve defined them!').click();
 
         cy.get('[name="name"]').clear().type(warehouseConfig.snowflake.name);

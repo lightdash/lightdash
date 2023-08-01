@@ -44,6 +44,7 @@ export interface FilterRule<
     id: string;
     target: T;
     settings?: S;
+    disabled?: boolean;
 }
 
 export interface MetricFilterRule

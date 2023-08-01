@@ -200,6 +200,7 @@ const Dashboard: FC = () => {
                     // do nothing
                 }
             }
+
             setDashboardTiles(unsavedDashboardTiles || savedTiles);
             setHaveTilesChanged(!!unsavedDashboardTiles);
         }

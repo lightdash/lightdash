@@ -8,7 +8,6 @@ export type PieSeriesDataPoint = NonNullable<
 >[number] & {
     meta: {
         value: ResultValue;
-        groupDimensions: string[];
         rows: ResultRow[];
     };
 };
