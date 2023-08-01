@@ -1,3 +1,10 @@
+# [0.713.0](https://github.com/lightdash/lightdash/compare/0.712.0...0.713.0) (2023-08-01)
+
+
+### Features
+
+* nested filters ([#6530](https://github.com/lightdash/lightdash/issues/6530)) ([6d2b43f](https://github.com/lightdash/lightdash/commit/6d2b43f29c943779b8a8d4cbd0e5d2da6c723de6))
+
 # [0.712.0](https://github.com/lightdash/lightdash/compare/0.711.0...0.712.0) (2023-08-01)
 
 
