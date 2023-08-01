@@ -4,6 +4,7 @@ import {
     ExploreError,
     FieldSearchResult,
     hasIntersection,
+    isDimension,
     isExploreError,
     NotExistsError,
     SavedChartSearchResult,
@@ -274,6 +275,9 @@ export class SearchModel {
                                     tableLabel: field.tableLabel,
                                     explore: explore.name,
                                     exploreLabel: explore.label,
+                                    requiredAttributes: isDimension(field)
+                                        ? field.requiredAttributes
+                                        : undefined,
                                 });
                             }
                         });

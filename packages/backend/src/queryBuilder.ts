@@ -1,4 +1,5 @@
 import {
+    CompiledDimension,
     CompiledMetricQuery,
     Explore,
     fieldId,
@@ -8,6 +9,7 @@ import {
     FilterGroup,
     FilterRule,
     ForbiddenError,
+    getCustomMetricDimensionId,
     getDimensions,
     getFilterRulesFromGroup,
     getMetrics,
@@ -19,6 +21,7 @@ import {
     UserAttribute,
     WarehouseClient,
 } from '@lightdash/common';
+import { hasUserAttribute } from './services/UserAttributesService/UserAttributeUtils';
 
 const getDimensionFromId = (dimId: FieldId, explore: Explore) => {
     const dimensions = getDimensions(explore);
@@ -84,6 +87,25 @@ export const replaceUserAttributes = (
 
     return sq;
 };
+
+export const assertValidDimensionRequiredAttribute = (
+    dimension: CompiledDimension,
+    userAttributes: UserAttribute[],
+    field: string,
+) => {
+    // Throw error if user does not have the right requiredAttribute for this dimension
+    if (dimension.requiredAttributes)
+        Object.entries(dimension.requiredAttributes).map((attribute) => {
+            const [attributeName, value] = attribute;
+            if (!hasUserAttribute(userAttributes, attributeName, value)) {
+                throw new ForbiddenError(
+                    `Invalid or missing user attribute "${attribute}" on ${field}`,
+                );
+            }
+            return undefined;
+        });
+};
+
 export type BuildQueryProps = {
     explore: Explore;
     compiledMetricQuery: CompiledMetricQuery;
@@ -100,7 +122,8 @@ export const buildQuery = ({
 }: BuildQueryProps): { query: string; hasExampleMetric: boolean } => {
     let hasExampleMetric: boolean = false;
     const adapterType: SupportedDbtAdapter = warehouseClient.getAdapterType();
-    const { dimensions, metrics, filters, sorts, limit } = compiledMetricQuery;
+    const { dimensions, metrics, filters, sorts, limit, additionalMetrics } =
+        compiledMetricQuery;
     const baseTable = explore.tables[explore.baseTable].sqlTable;
     const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
     const stringQuoteChar = warehouseClient.getStringQuoteChar();
@@ -111,6 +134,12 @@ export const buildQuery = ({
     const dimensionSelects = dimensions.map((field) => {
         const alias = field;
         const dimension = getDimensionFromId(field, explore);
+
+        assertValidDimensionRequiredAttribute(
+            dimension,
+            userAttributes,
+            `dimension: "${field}"`,
+        );
         return `  ${dimension.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
     });
 
@@ -123,6 +152,22 @@ export const buildQuery = ({
         return `  ${metric.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
     });
 
+    if (additionalMetrics)
+        additionalMetrics.forEach((metric) => {
+            if (
+                metric.baseDimensionName === undefined ||
+                !metrics.includes(`${metric.table}_${metric.name}`)
+            )
+                return;
+
+            const dimensionId = getCustomMetricDimensionId(metric);
+            const dimension = getDimensionFromId(dimensionId, explore);
+            assertValidDimensionRequiredAttribute(
+                dimension,
+                userAttributes,
+                `custom metric: "${metric.name}"`,
+            );
+        });
     const selectedTables = new Set<string>([
         ...metrics.reduce<string[]>((acc, field) => {
             const metric = getMetricFromId(field, explore, compiledMetricQuery);
