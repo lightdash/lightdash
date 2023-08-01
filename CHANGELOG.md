@@ -1,3 +1,10 @@
+# [0.712.0](https://github.com/lightdash/lightdash/compare/0.711.0...0.712.0) (2023-08-01)
+
+
+### Features
+
+* pie charts underlying data ([#6488](https://github.com/lightdash/lightdash/issues/6488)) ([3c18e1f](https://github.com/lightdash/lightdash/commit/3c18e1f3d7035b2e7206bc98065acf9c300d6dfb))
+
 # [0.711.0](https://github.com/lightdash/lightdash/compare/0.710.0...0.711.0) (2023-08-01)
 
 
