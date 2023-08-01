@@ -1,4 +1,3 @@
-import { Icon } from '@blueprintjs/core';
 import {
     CartesianChartLayout,
     Field,
@@ -7,9 +6,11 @@ import {
     Series,
     TableCalculation,
 } from '@lightdash/common';
+import { Box, Group, Stack, Text } from '@mantine/core';
+import { IconGripVertical } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import { DraggableProvidedDragHandleProps } from 'react-beautiful-dnd';
-import { SeriesBlock, SeriesTitle } from './Series.styles';
+import MantineIcon from '../../../common/MantineIcon';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
 type BasicSeriesConfigurationProps = {
@@ -32,15 +33,19 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
     dragHandleProps,
 }) => {
     return (
-        <SeriesBlock>
-            <SeriesTitle>
-                <Icon
-                    tagName="div"
-                    icon="drag-handle-vertical"
+        <Stack spacing="xs">
+            <Group noWrap spacing="two">
+                <Box
                     {...dragHandleProps}
-                />
-                {getItemLabelWithoutTableName(item)}
-            </SeriesTitle>
+                    sx={{
+                        opacity: 0.6,
+                        '&:hover': { opacity: 1 },
+                    }}
+                >
+                    <MantineIcon icon={IconGripVertical} />
+                </Box>
+                <Text fw={500}> {getItemLabelWithoutTableName(item)} </Text>
+            </Group>
             <SingleSeriesConfiguration
                 layout={layout}
                 series={series}
@@ -49,7 +54,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                 fallbackColor={getSeriesColor(getSeriesId(series))}
                 updateSingleSeries={updateSingleSeries}
             />
-        </SeriesBlock>
+        </Stack>
     );
 };
 
