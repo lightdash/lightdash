@@ -294,18 +294,18 @@ export const applyDefaultTileTargets = (
 export const createDashboardFilterRuleFromField = (
     field: FilterableField,
     availableTileFilters: Record<string, FilterableField[] | undefined>,
-): DashboardFilterRule =>
-    getFilterRuleWithDefaultValue(field, {
-        id: uuidv4(),
-        operator: FilterOperator.EQUALS,
-        target: {
-            fieldId: fieldId(field),
-            tableName: field.table,
-        },
-        tileTargets: getDefaultTileTargets(field, availableTileFilters),
-        disabled: true,
-        label: undefined,
-    });
+): DashboardFilterRule => ({
+    id: uuidv4(),
+    operator: FilterOperator.EQUALS,
+    target: {
+        fieldId: fieldId(field),
+        tableName: field.table,
+    },
+    tileTargets: getDefaultTileTargets(field, availableTileFilters),
+    disabled: true,
+    label: undefined,
+    values: [],
+});
 
 type AddFilterRuleArgs = {
     filters: Filters;
