@@ -34,7 +34,7 @@ const getPlaceholderByFilterTypeAndOperator = (
                 case FilterOperator.NOT_EQUALS:
                 case FilterOperator.LESS_THAN:
                 case FilterOperator.GREATER_THAN:
-                    return 'Enter Value(s)';
+                    return 'Enter value(s)';
                 case FilterOperator.NULL:
                 case FilterOperator.NOT_NULL:
                 default:
