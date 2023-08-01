@@ -1,5 +1,5 @@
-import { Anchor, AnchorProps, Tooltip, TooltipProps } from '@mantine/core';
-import { IconHelpCircle } from '@tabler/icons-react';
+import { ActionIcon, AnchorProps, Tooltip, TooltipProps } from '@mantine/core';
+import { IconHelp } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon, { MantineIconProps } from './common/MantineIcon';
 
@@ -9,11 +9,7 @@ type Props = React.AnchorHTMLAttributes<HTMLAnchorElement> &
         tooltipProps?: Partial<TooltipProps>;
     };
 
-const DocumentationHelpButton: FC<Props> = ({
-    iconProps,
-    tooltipProps,
-    ...anchorProps
-}) => (
+const DocumentationHelpButton: FC<Props> = ({ iconProps, tooltipProps }) => (
     <Tooltip
         withinPortal
         label="Open documentation"
@@ -21,20 +17,19 @@ const DocumentationHelpButton: FC<Props> = ({
         maw={350}
         {...tooltipProps}
     >
-        <Anchor
-            role="button"
+        <ActionIcon
+            component="a"
             target="_blank"
             rel="noreferrer"
-            color="dimmed"
-            {...anchorProps}
+            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project"
         >
             <MantineIcon
-                icon={IconHelpCircle}
+                icon={IconHelp}
                 size="md"
                 display="inline"
                 {...iconProps}
             />
-        </Anchor>
+        </ActionIcon>
     </Tooltip>
 );
 

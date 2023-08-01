@@ -8,7 +8,7 @@ import {
     ProjectType,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Anchor, Avatar, Card, Flex, Stack } from '@mantine/core';
+import { Anchor, Avatar, Card, Flex, Stack, Title } from '@mantine/core';
 import { FC, useEffect, useMemo, useState } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
@@ -90,9 +90,13 @@ const ProjectForm: FC<Props> = ({
             <SettingsGridCard>
                 <div>
                     {warehouse && getWarehouseIcon(warehouse)}
-                    <LeftPanelTitle>
-                        <H5>Warehouse connection</H5>
-                        <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
+                    <LeftPanelTitle
+                        style={{ display: 'flex', alignItems: 'center' }}
+                    >
+                        <Title order={5} style={{ marginRight: '0px' }}>
+                            Warehouse connection
+                        </Title>
+                        <DocumentationHelpButton />
                     </LeftPanelTitle>
 
                     {health.data?.staticIp && (
@@ -117,9 +121,13 @@ const ProjectForm: FC<Props> = ({
                 <div>
                     <Avatar size="md" src={DbtLogo} alt="dbt icon" />
 
-                    <LeftPanelTitle>
-                        <H5>dbt connection</H5>
-                        <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
+                    <LeftPanelTitle
+                        style={{ display: 'flex', alignItems: 'center' }}
+                    >
+                        <Title order={5} style={{ marginRight: '0px' }}>
+                            dbt connection
+                        </Title>
+                        <DocumentationHelpButton />
                     </LeftPanelTitle>
 
                     <LeftPanelMessage>
