@@ -11,7 +11,6 @@ import {
     FilterableField,
     FilterOperator,
     FilterRule,
-    getFilterRuleWithDefaultValue,
     matchFieldByType,
     matchFieldByTypeAndName,
     matchFieldExact,
@@ -90,14 +89,12 @@ const FilterConfiguration: FC<Props> = ({
 
     const handleChangeFilterOperator = useCallback(
         (operator: FilterRule['operator']) => {
-            setInternalFilterRule((prevState) =>
-                getFilterRuleWithDefaultValue(field, {
-                    ...prevState,
-                    operator: operator,
-                }),
-            );
+            setInternalFilterRule((prevState) => ({
+                ...prevState,
+                operator,
+            }));
         },
-        [field],
+        [],
     );
 
     const handleChangeTileConfiguration = useCallback(
@@ -135,6 +132,22 @@ const FilterConfiguration: FC<Props> = ({
         },
         [field, availableTileFilters],
     );
+
+    const noValueRequiredOperators = [
+        FilterOperator.NULL,
+        FilterOperator.NOT_NULL,
+        FilterOperator.IN_THE_CURRENT,
+    ];
+    const isOperatorRequiringValues = !noValueRequiredOperators.includes(
+        internalFilterRule.operator,
+    );
+    const isValuesEmpty =
+        !internalFilterRule.values || internalFilterRule.values.length <= 0;
+
+    const isApplyButtonDisabled =
+        !internalFilterRule.disabled &&
+        isOperatorRequiringValues &&
+        isValuesEmpty;
 
     return (
         <ConfigureFilterWrapper>
@@ -205,15 +218,7 @@ const FilterConfiguration: FC<Props> = ({
                     className={Classes.POPOVER2_DISMISS}
                     intent={Intent.PRIMARY}
                     text="Apply"
-                    disabled={
-                        !internalFilterRule.disabled &&
-                        ![
-                            FilterOperator.NULL,
-                            FilterOperator.NOT_NULL,
-                        ].includes(internalFilterRule.operator) &&
-                        (!internalFilterRule.values ||
-                            internalFilterRule.values.length <= 0)
-                    }
+                    disabled={isApplyButtonDisabled}
                     onClick={() => onSave(internalFilterRule)}
                 />
             </ActionsWrapper>
