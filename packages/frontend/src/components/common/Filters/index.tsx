@@ -126,35 +126,37 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                                 }}
                             />
 
-                            {filters.dimensions && (
-                                <FilterGroupForm
-                                    allowConvertToGroup
-                                    hideLine
-                                    hideButtons
-                                    conditionLabel="dimension"
-                                    filterGroup={filters.dimensions}
-                                    fields={dimensions}
-                                    isEditMode={isEditMode}
-                                    onChange={(value) =>
-                                        setFilters(
-                                            {
-                                                ...filters,
-                                                dimensions: value,
-                                            },
-                                            false,
-                                        )
-                                    }
-                                    onDelete={() =>
-                                        setFilters(
-                                            {
-                                                ...filters,
-                                                dimensions: undefined,
-                                            },
-                                            true,
-                                        )
-                                    }
-                                />
-                            )}
+                            {filters.dimensions &&
+                                filterRulesPerFieldType.dimensions.length >=
+                                    1 && (
+                                    <FilterGroupForm
+                                        allowConvertToGroup
+                                        hideLine
+                                        hideButtons
+                                        conditionLabel="dimension"
+                                        filterGroup={filters.dimensions}
+                                        fields={dimensions}
+                                        isEditMode={isEditMode}
+                                        onChange={(value) =>
+                                            setFilters(
+                                                {
+                                                    ...filters,
+                                                    dimensions: value,
+                                                },
+                                                false,
+                                            )
+                                        }
+                                        onDelete={() =>
+                                            setFilters(
+                                                {
+                                                    ...filters,
+                                                    dimensions: undefined,
+                                                },
+                                                true,
+                                            )
+                                        }
+                                    />
+                                )}
                             {showMandatoryAndOperator && (
                                 <Tooltip2 content="You can only use the 'and' operator when combining metrics & dimensions">
                                     <Tag
@@ -171,35 +173,36 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                                 </Tooltip2>
                             )}
 
-                            {filters.metrics && (
-                                <FilterGroupForm
-                                    allowConvertToGroup
-                                    hideLine
-                                    hideButtons
-                                    conditionLabel="metric"
-                                    filterGroup={filters.metrics}
-                                    fields={metrics}
-                                    isEditMode={isEditMode}
-                                    onChange={(value) =>
-                                        setFilters(
-                                            {
-                                                ...filters,
-                                                metrics: value,
-                                            },
-                                            false,
-                                        )
-                                    }
-                                    onDelete={() =>
-                                        setFilters(
-                                            {
-                                                ...filters,
-                                                metrics: undefined,
-                                            },
-                                            true,
-                                        )
-                                    }
-                                />
-                            )}
+                            {filters.metrics &&
+                                filterRulesPerFieldType.metrics.length >= 1 && (
+                                    <FilterGroupForm
+                                        allowConvertToGroup
+                                        hideLine
+                                        hideButtons
+                                        conditionLabel="metric"
+                                        filterGroup={filters.metrics}
+                                        fields={metrics}
+                                        isEditMode={isEditMode}
+                                        onChange={(value) =>
+                                            setFilters(
+                                                {
+                                                    ...filters,
+                                                    metrics: value,
+                                                },
+                                                false,
+                                            )
+                                        }
+                                        onDelete={() =>
+                                            setFilters(
+                                                {
+                                                    ...filters,
+                                                    metrics: undefined,
+                                                },
+                                                true,
+                                            )
+                                        }
+                                    />
+                                )}
                         </div>
                     )}
                 </>
