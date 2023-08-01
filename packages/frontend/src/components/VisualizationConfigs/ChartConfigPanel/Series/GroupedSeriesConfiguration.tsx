@@ -311,7 +311,11 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     />
                 </Stack>
             )}
-            <Box bg="gray.1" p={5} sx={{ borderRadius: 3 }}>
+            <Box
+                bg="gray.1"
+                p="xxs"
+                sx={(theme) => ({ borderRadius: theme.radius.sm })}
+            >
                 <DragDropContext onDragEnd={onDragEnd}>
                     <Droppable droppableId="grouped-series-sort-fields">
                         {(dropProps) => (
@@ -360,7 +364,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                                         {...draggableProps}
                                                     >
                                                         <Box
-                                                            mb={5}
+                                                            mb="xxs"
                                                             key={getSeriesId(
                                                                 singleSeries,
                                                             )}
