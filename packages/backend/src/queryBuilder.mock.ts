@@ -1,4 +1,5 @@
 import {
+    CompiledDimension,
     CompiledMetricQuery,
     CompiledTable,
     CreateWarehouseCredentials,
@@ -717,6 +718,19 @@ export const METRIC_QUERY_WITH_EMPTY_FILTER_GROUPS = {
             ],
         },
     },
+};
+
+export const COMPILED_DIMENSION: CompiledDimension = {
+    type: DimensionType.NUMBER,
+    name: 'dim1',
+    label: 'dim1',
+    table: 'table5',
+    tableLabel: 'table5',
+    fieldType: FieldType.DIMENSION,
+    sql: '${TABLE}.dim1',
+    compiledSql: '"table5".dim1',
+    tablesReferences: ['table5'],
+    hidden: false,
 };
 
 export const METRIC_QUERY_SQL = `WITH metrics AS (

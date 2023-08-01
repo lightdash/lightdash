@@ -1430,10 +1430,13 @@ export class ProjectService {
                     columnAccessFiltersCount: explores.reduce<number>(
                         (acc, explore) => {
                             if (!isExploreError(explore)) {
-                                return getDimensions(explore).filter(
-                                    ({ requiredAttributes }) =>
-                                        requiredAttributes !== undefined,
-                                ).length;
+                                return (
+                                    acc +
+                                    getDimensions(explore).filter(
+                                        ({ requiredAttributes }) =>
+                                            requiredAttributes !== undefined,
+                                    ).length
+                                );
                             }
                             return acc;
                         },

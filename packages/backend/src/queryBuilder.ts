@@ -95,7 +95,7 @@ export const replaceUserAttributes = (
     return sq;
 };
 
-const assertValidDimensionRequiredAttribute = (
+export const assertValidDimensionRequiredAttribute = (
     dimension: CompiledDimension,
     userAttributes: UserAttribute[],
     field: string,
