@@ -206,6 +206,7 @@ const FilterConfiguration: FC<Props> = ({
                     intent={Intent.PRIMARY}
                     text="Apply"
                     disabled={
+                        !internalFilterRule.disabled &&
                         ![
                             FilterOperator.NULL,
                             FilterOperator.NOT_NULL,
