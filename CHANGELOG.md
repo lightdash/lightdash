@@ -1,3 +1,10 @@
+# [0.710.0](https://github.com/lightdash/lightdash/compare/0.709.1...0.710.0) (2023-08-01)
+
+
+### Features
+
+* migrate chart config series to mantine ([#6559](https://github.com/lightdash/lightdash/issues/6559)) ([5889b0c](https://github.com/lightdash/lightdash/commit/5889b0c770f462cdd0c261ba958882caf9d3cf22))
+
 ## [0.709.1](https://github.com/lightdash/lightdash/compare/0.709.0...0.709.1) (2023-08-01)
 
 
