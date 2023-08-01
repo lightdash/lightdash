@@ -17,7 +17,6 @@ import {
     Format,
     isField,
     isFilterableItem,
-    isMetric,
     isTableCalculation,
     TableCalculation,
     TableCalculationFormatType,
