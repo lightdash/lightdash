@@ -22,6 +22,7 @@ type Props = {
     popoverProps?: Popover2Props;
     disabled?: boolean;
     onChange: (values: string[]) => void;
+    placeholder?: string;
 };
 
 const PaddedMenuItem = styled(MenuItem2)`
@@ -38,6 +39,7 @@ const MultiAutoComplete: FC<Props> = ({
     popoverProps,
     disabled,
     onChange,
+    placeholder = 'Select...',
 }) => {
     const { projectUuid, getAutocompleteFilterGroup } = useFiltersContext();
     if (!projectUuid) {
@@ -107,6 +109,7 @@ const MultiAutoComplete: FC<Props> = ({
             query={search}
             items={results || []}
             selectedItems={values}
+            placeholder={placeholder}
             tagInputProps={{
                 placeholder: undefined,
                 addOnBlur: false,
