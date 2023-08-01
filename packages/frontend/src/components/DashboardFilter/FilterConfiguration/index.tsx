@@ -133,6 +133,7 @@ const FilterConfiguration: FC<Props> = ({
         [field, availableTileFilters],
     );
 
+    const isRuleEnabled = !internalFilterRule.disabled;
     const noValueRequiredOperators = [
         FilterOperator.NULL,
         FilterOperator.NOT_NULL,
@@ -145,9 +146,7 @@ const FilterConfiguration: FC<Props> = ({
         !internalFilterRule.values || internalFilterRule.values.length <= 0;
 
     const isApplyButtonDisabled =
-        !internalFilterRule.disabled &&
-        isOperatorRequiringValues &&
-        isValuesEmpty;
+        isOperatorRequiringValues && isValuesEmpty && isRuleEnabled;
 
     return (
         <ConfigureFilterWrapper>
