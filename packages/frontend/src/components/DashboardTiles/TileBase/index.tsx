@@ -51,7 +51,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     extraHeaderElement,
     titleHref,
 }: Props<T>) => {
-    const [isEditingChartTile, setIsEditingChartTile] = useState(false);
+    const [isEditingTileContent, setIsEditingTileContent] = useState(false);
     const [
         isDeletingChartThatBelongsToDashboard,
         setIsDeletingChartThatBelongsToDashboard,
@@ -132,35 +132,9 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                                 icon="edit"
                                                                 text="Edit tile content"
                                                                 onClick={() =>
-                                                                    setIsEditingChartTile(
+                                                                    setIsEditingTileContent(
                                                                         true,
                                                                     )
-                                                                }
-                                                            />
-                                                        )}
-                                                        {tile.type !==
-                                                            DashboardTileTypes.MARKDOWN && (
-                                                            <MenuItem2
-                                                                icon={
-                                                                    hideTitle
-                                                                        ? 'eye-open'
-                                                                        : 'eye-off'
-                                                                }
-                                                                text={`${
-                                                                    hideTitle
-                                                                        ? 'Show'
-                                                                        : 'Hide'
-                                                                } title`}
-                                                                onClick={() =>
-                                                                    onEdit({
-                                                                        ...tile,
-                                                                        properties:
-                                                                            {
-                                                                                ...tile.properties,
-                                                                                hideTitle:
-                                                                                    !hideTitle,
-                                                                            },
-                                                                    })
                                                                 }
                                                             />
                                                         )}
@@ -209,35 +183,42 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     <ChartContainer className="non-draggable sentry-block fs-block cohere-block">
                         {children}
                     </ChartContainer>
-                    {tile.type === DashboardTileTypes.SAVED_CHART ? (
-                        <ChartUpdateModal
-                            opened={isEditingChartTile}
-                            tile={tile}
-                            onClose={() => setIsEditingChartTile(false)}
-                            onConfirm={(newTitle, newUuid) => {
-                                onEdit({
-                                    ...tile,
-                                    properties: {
-                                        ...tile.properties,
-                                        title: newTitle,
-                                        savedChartUuid: newUuid,
-                                    },
-                                });
-                                setIsEditingChartTile(false);
-                            }}
-                        />
-                    ) : (
-                        <TileUpdateModal
-                            className="non-draggable"
-                            isOpen={isEditingChartTile}
-                            tile={tile}
-                            onClose={() => setIsEditingChartTile(false)}
-                            onConfirm={(newTile) => {
-                                onEdit(newTile);
-                                setIsEditingChartTile(false);
-                            }}
-                        />
-                    )}
+                    {isEditingTileContent &&
+                        (tile.type === DashboardTileTypes.SAVED_CHART ? (
+                            <ChartUpdateModal
+                                opened={isEditingTileContent}
+                                tile={tile}
+                                onClose={() => setIsEditingTileContent(false)}
+                                onConfirm={(
+                                    newTitle,
+                                    newUuid,
+                                    shouldHideTitle,
+                                ) => {
+                                    onEdit({
+                                        ...tile,
+                                        properties: {
+                                            ...tile.properties,
+                                            title: newTitle,
+                                            savedChartUuid: newUuid,
+                                            hideTitle: shouldHideTitle,
+                                        },
+                                    });
+                                    setIsEditingTileContent(false);
+                                }}
+                                hideTitle={!!hideTitle}
+                            />
+                        ) : (
+                            <TileUpdateModal
+                                className="non-draggable"
+                                isOpen={isEditingTileContent}
+                                tile={tile}
+                                onClose={() => setIsEditingTileContent(false)}
+                                onConfirm={(newTile) => {
+                                    onEdit(newTile);
+                                    setIsEditingTileContent(false);
+                                }}
+                            />
+                        ))}
                     <DeleteChartTileThatBelongsToDashboardModal
                         className={'non-draggable'}
                         name={chartName ?? ''}
