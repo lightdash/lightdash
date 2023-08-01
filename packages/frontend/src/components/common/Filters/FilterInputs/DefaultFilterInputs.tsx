@@ -23,6 +23,73 @@ export type FilterInputsProps<T extends ConditionalRule> = {
     disabled?: boolean;
 };
 
+const getPlaceholderByFilterTypeAndOperator = (
+    filterType: FilterType,
+    filterOperator: FilterOperator,
+) => {
+    switch (filterType) {
+        case FilterType.NUMBER:
+            switch (filterOperator) {
+                case FilterOperator.EQUALS:
+                case FilterOperator.NOT_EQUALS:
+                case FilterOperator.LESS_THAN:
+                case FilterOperator.GREATER_THAN:
+                    return 'Enter Value(s)';
+                case FilterOperator.NULL:
+                case FilterOperator.NOT_NULL:
+                default:
+                    return '';
+            }
+        case FilterType.STRING:
+            switch (filterOperator) {
+                case FilterOperator.EQUALS:
+                case FilterOperator.NOT_EQUALS:
+                    return 'Start typing to filter results';
+                case FilterOperator.STARTS_WITH:
+                case FilterOperator.ENDS_WITH:
+                case FilterOperator.INCLUDE:
+                case FilterOperator.NOT_INCLUDE:
+                    return 'Enter value';
+                case FilterOperator.NULL:
+                case FilterOperator.NOT_NULL:
+                default:
+                    return '';
+            }
+        case FilterType.DATE:
+            switch (filterOperator) {
+                case FilterOperator.EQUALS:
+                case FilterOperator.NOT_EQUALS:
+                case FilterOperator.LESS_THAN:
+                case FilterOperator.LESS_THAN_OR_EQUAL:
+                case FilterOperator.GREATER_THAN:
+                case FilterOperator.GREATER_THAN_OR_EQUAL:
+                    return 'Select a date';
+                case FilterOperator.IN_THE_PAST:
+                case FilterOperator.NOT_IN_THE_PAST:
+                case FilterOperator.IN_THE_NEXT:
+                case FilterOperator.IN_THE_CURRENT:
+                    return 'Select a time period';
+                case FilterOperator.IN_BETWEEN:
+                    return 'Start date End date';
+                case FilterOperator.NULL:
+                case FilterOperator.NOT_NULL:
+                default:
+                    return '';
+            }
+        case FilterType.BOOLEAN:
+            switch (filterOperator) {
+                case FilterOperator.EQUALS:
+                    return 'True or False';
+                case FilterOperator.NULL:
+                case FilterOperator.NOT_NULL:
+                default:
+                    return '';
+            }
+        default:
+            return '';
+    }
+};
+
 const DefaultFilterInputs = <T extends ConditionalRule>({
     field,
     filterType,
@@ -35,6 +102,11 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
     const suggestions = isFilterRule(rule)
         ? getField(rule)?.suggestions
         : undefined;
+
+    const placeholder = getPlaceholderByFilterTypeAndOperator(
+        filterType,
+        rule.operator,
+    );
 
     switch (rule.operator) {
         case FilterOperator.NULL:
@@ -52,6 +124,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                         filterId={rule.id}
                         disabled={disabled}
                         field={field}
+                        placeholder={placeholder}
                         values={(rule.values || []).filter(isString)}
                         suggestions={suggestions || []}
                         popoverProps={popoverProps}
@@ -76,6 +149,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                                 ? 'number'
                                 : 'text',
                     }}
+                    placeholder={placeholder}
                     tagProps={{ minimal: true }}
                     values={rule.values || []}
                     onChange={(values) =>
@@ -112,6 +186,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                     className={disabled ? 'disabled-filter' : ''}
                     disabled={disabled}
                     fill
+                    placeholder={placeholder}
                     type="number"
                     defaultValue={parsedValue}
                     onValueChange={(numericValue, stringValue) => {
