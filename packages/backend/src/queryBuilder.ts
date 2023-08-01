@@ -161,7 +161,7 @@ export const buildQuery = ({
 
     if (additionalMetrics)
         additionalMetrics.forEach((metric) => {
-            if (!metrics.includes(metric.name)) return;
+            if (!metrics.includes(`${metric.table}_${metric.name}`)) return;
 
             const dimensionId = getCustomMetricDimensionId(metric);
             const dimension = getDimensionFromId(dimensionId, explore);
