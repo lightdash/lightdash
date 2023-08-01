@@ -1,18 +1,27 @@
 import { HTMLSelect } from '@blueprintjs/core';
-import { ConditionalRule, FilterOperator } from '@lightdash/common';
+import {
+    ConditionalRule,
+    FilterOperator,
+    isFilterRule,
+} from '@lightdash/common';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
 
 const BooleanFilterInputs = <T extends ConditionalRule>(
     props: React.PropsWithChildren<FilterInputsProps<T>>,
 ) => {
     const { rule, onChange, disabled } = props;
+
+    const isDefaultDisabled = isFilterRule(rule)
+        ? rule.disabled || disabled
+        : disabled ?? false;
+
     switch (rule.operator) {
         case FilterOperator.EQUALS: {
             return (
                 <HTMLSelect
                     fill
-                    className={disabled ? 'disabled-filter' : ''}
-                    disabled={disabled}
+                    className={isDefaultDisabled ? 'disabled-filter' : ''}
+                    disabled={isDefaultDisabled}
                     onChange={(e) =>
                         onChange({
                             ...rule,

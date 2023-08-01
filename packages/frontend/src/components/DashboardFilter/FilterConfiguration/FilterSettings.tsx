@@ -1,4 +1,4 @@
-import { FormGroup, HTMLSelect, InputGroup } from '@blueprintjs/core';
+import { HTMLSelect } from '@blueprintjs/core';
 import { Popover2Props } from '@blueprintjs/popover2';
 import {
     DashboardFilterRule,
@@ -7,9 +7,9 @@ import {
     FilterType,
     getFilterTypeFromItem,
 } from '@lightdash/common';
+import { Stack, Switch, TextInput } from '@mantine/core';
 import { FC, useMemo } from 'react';
 import { FilterTypeConfig } from '../../common/Filters/configs';
-import { BolderLabel } from '../FilterSearch/FilterSearch.styles';
 
 interface FilterSettingsProps {
     isEditMode: boolean;
@@ -36,8 +36,20 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     );
 
     return (
-        <>
-            <FormGroup label={<BolderLabel>Value</BolderLabel>}>
+        <Stack>
+            <Stack spacing="xs">
+                <Switch
+                    label="Default value"
+                    labelPosition="left"
+                    checked={!filterRule.disabled}
+                    onChange={() => {
+                        onChangeFilterRule({
+                            ...filterRule,
+                            disabled: !filterRule.disabled,
+                        });
+                    }}
+                />
+
                 <HTMLSelect
                     fill
                     onChange={(e) =>
@@ -48,9 +60,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     options={filterConfig.operatorOptions}
                     value={filterRule.operator}
                 />
-            </FormGroup>
 
-            <FormGroup>
                 <filterConfig.inputs
                     popoverProps={popoverProps}
                     filterType={filterType}
@@ -60,24 +70,22 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         onChangeFilterRule(newFilterRule as DashboardFilterRule)
                     }
                 />
-            </FormGroup>
+            </Stack>
 
             {isEditMode && (
-                <FormGroup label={<BolderLabel>Label</BolderLabel>}>
-                    <InputGroup
-                        fill
-                        onChange={(e) =>
-                            onChangeFilterRule({
-                                ...filterRule,
-                                label: e.target.value || undefined,
-                            })
-                        }
-                        placeholder={`Defaults to "${field.label}"`}
-                        value={filterRule.label || ''}
-                    />
-                </FormGroup>
+                <TextInput
+                    label="Label"
+                    onChange={(e) =>
+                        onChangeFilterRule({
+                            ...filterRule,
+                            label: e.target.value || undefined,
+                        })
+                    }
+                    placeholder={`Defaults to "${field.label}"`}
+                    value={filterRule.label || ''}
+                />
             )}
-        </>
+        </Stack>
     );
 };
 

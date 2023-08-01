@@ -39,6 +39,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
         throw new Error('DateFilterInputs expects a FilterRule');
     }
 
+    const isDefaultDisabled = rule.disabled || disabled;
+
     switch (rule.operator) {
         case FilterOperator.EQUALS:
         case FilterOperator.NOT_EQUALS:
@@ -55,7 +57,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                     week commencing
                                 </span>
                                 <WeekPicker
-                                    disabled={disabled}
+                                    disabled={isDefaultDisabled}
                                     value={rule.values?.[0] || new Date()}
                                     popoverProps={popoverProps}
                                     startOfWeek={startOfWeek}
@@ -71,7 +73,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     case TimeFrames.MONTH:
                         return (
                             <MonthAndYearInput
-                                disabled={disabled}
+                                disabled={isDefaultDisabled}
                                 value={rule.values?.[0] || new Date()}
                                 onChange={(value: Date) => {
                                     onChange({
@@ -88,7 +90,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     case TimeFrames.YEAR:
                         return (
                             <YearInput
-                                disabled={disabled}
+                                disabled={isDefaultDisabled}
                                 value={rule.values?.[0] || new Date()}
                                 onChange={(value: Date) => {
                                     onChange({
@@ -110,8 +112,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
             if (isTimestamp) {
                 return (
                     <DateInput2
-                        className={disabled ? 'disabled-filter' : ''}
-                        disabled={disabled}
+                        className={isDefaultDisabled ? 'disabled-filter' : ''}
+                        disabled={isDefaultDisabled}
                         fill
                         defaultTimezone="UTC"
                         showTimezoneSelect={false}
@@ -151,8 +153,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
             }
             return (
                 <DateInput2
-                    className={disabled ? 'disabled-filter' : ''}
-                    disabled={disabled}
+                    className={isDefaultDisabled ? 'disabled-filter' : ''}
+                    disabled={isDefaultDisabled}
                     fill
                     value={
                         rule.values?.[0]
@@ -191,9 +193,9 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
             return (
                 <MultipleInputsWrapper>
                     <NumericInput
-                        className={disabled ? 'disabled-filter' : ''}
+                        className={isDefaultDisabled ? 'disabled-filter' : ''}
                         fill
-                        disabled={disabled}
+                        disabled={isDefaultDisabled}
                         value={isNaN(parsedValue) ? undefined : parsedValue}
                         min={0}
                         onValueChange={(value) =>
@@ -204,7 +206,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         }
                     />
                     <UnitOfTimeAutoComplete
-                        disabled={disabled}
+                        disabled={isDefaultDisabled}
                         isTimestamp={isTimestamp}
                         unitOfTime={
                             rule.settings?.unitOfTime || UnitOfTime.days
@@ -227,7 +229,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
             return (
                 <MultipleInputsWrapper>
                     <UnitOfTimeAutoComplete
-                        disabled={disabled}
+                        disabled={isDefaultDisabled}
                         isTimestamp={isTimestamp}
                         unitOfTime={
                             rule.settings?.unitOfTime || UnitOfTime.days
@@ -254,8 +256,10 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     <MultipleInputsWrapper>
                         <StyledDateRangeInput
                             allowSingleDayRange
-                            className={disabled ? 'disabled-filter' : ''}
-                            disabled={disabled}
+                            className={
+                                isDefaultDisabled ? 'disabled-filter' : ''
+                            }
+                            disabled={isDefaultDisabled}
                             formatDate={(value: Date) =>
                                 moment(value)
                                     .format(`YYYY-MM-DD, HH:mm:ss:SSS`)
@@ -312,8 +316,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
             return (
                 <MultipleInputsWrapper>
                     <StyledDateRangeInput
-                        className={disabled ? 'disabled-filter' : ''}
-                        disabled={disabled}
+                        className={isDefaultDisabled ? 'disabled-filter' : ''}
+                        disabled={isDefaultDisabled}
                         formatDate={(value: Date) =>
                             formatDate(value, undefined, false)
                         }

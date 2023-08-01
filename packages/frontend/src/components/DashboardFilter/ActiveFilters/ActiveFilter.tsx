@@ -74,8 +74,16 @@ const ActiveFilter: FC<Props> = ({
                 >
                     <>
                         {filterRule.label || filterRuleLabels.field}:{' '}
-                        {filterRuleLabels.operator}{' '}
-                        <FilterValues>{filterRuleLabels.value}</FilterValues>
+                        {filterRule.disabled ? (
+                            <>is any value</>
+                        ) : (
+                            <>
+                                {filterRuleLabels.operator}{' '}
+                                <FilterValues>
+                                    {filterRuleLabels.value}
+                                </FilterValues>
+                            </>
+                        )}
                     </>
                 </Tooltip2>
             </TagContainer>
