@@ -36,10 +36,6 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
         ? getField(rule)?.suggestions
         : undefined;
 
-    const isDefaultDisabled = isFilterRule(rule)
-        ? rule.disabled || disabled
-        : disabled ?? false;
-
     switch (rule.operator) {
         case FilterOperator.NULL:
         case FilterOperator.NOT_NULL:
@@ -54,7 +50,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                 return (
                     <MultiAutoComplete
                         filterId={rule.id}
-                        disabled={isDefaultDisabled}
+                        disabled={disabled}
                         field={field}
                         values={(rule.values || []).filter(isString)}
                         suggestions={suggestions || []}
@@ -70,9 +66,9 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
             }
             return (
                 <TagInput
-                    className={isDefaultDisabled ? 'disabled-filter' : ''}
+                    className={disabled ? 'disabled-filter' : ''}
                     fill
-                    disabled={isDefaultDisabled}
+                    disabled={disabled}
                     addOnBlur
                     inputProps={{
                         type:
@@ -113,8 +109,8 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
 
             return (
                 <StyledNumericInput
-                    className={isDefaultDisabled ? 'disabled-filter' : ''}
-                    disabled={isDefaultDisabled}
+                    className={disabled ? 'disabled-filter' : ''}
+                    disabled={disabled}
                     fill
                     type="number"
                     defaultValue={parsedValue}
