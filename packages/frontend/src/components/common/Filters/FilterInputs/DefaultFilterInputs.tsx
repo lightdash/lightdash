@@ -32,9 +32,10 @@ const getPlaceholderByFilterTypeAndOperator = (
             switch (filterOperator) {
                 case FilterOperator.EQUALS:
                 case FilterOperator.NOT_EQUALS:
+                    return 'Enter value(s)';
                 case FilterOperator.LESS_THAN:
                 case FilterOperator.GREATER_THAN:
-                    return 'Enter value(s)';
+                    return 'Enter value';
                 case FilterOperator.NULL:
                 case FilterOperator.NOT_NULL:
                 default:
