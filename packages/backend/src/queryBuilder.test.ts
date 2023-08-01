@@ -1,7 +1,12 @@
 import { ForbiddenError, UserAttribute } from '@lightdash/common';
-import { buildQuery, replaceUserAttributes } from './queryBuilder';
+import {
+    assertValidDimensionRequiredAttribute,
+    buildQuery,
+    replaceUserAttributes,
+} from './queryBuilder';
 import {
     bigqueryClientMock,
+    COMPILED_DIMENSION,
     EXPLORE,
     EXPLORE_BIGQUERY,
     EXPLORE_JOIN_CHAIN,
@@ -385,5 +390,88 @@ describe('replaceUserAttributes', () => {
         expect(replaceUserAttributes('${lightdash.foo.test} > 1', [])).toEqual(
             '${lightdash.foo.test} > 1',
         );
+    });
+});
+
+describe('assertValidDimensionRequiredAttribute', () => {
+    it('should not throw errors if no user attributes are required', async () => {
+        const result = assertValidDimensionRequiredAttribute(
+            COMPILED_DIMENSION,
+            [],
+            '',
+        );
+
+        expect(result).toBeUndefined();
+    });
+
+    it('should throw errors if required attributes are required and user attributes are missing', async () => {
+        expect(() =>
+            assertValidDimensionRequiredAttribute(
+                {
+                    ...COMPILED_DIMENSION,
+                    requiredAttributes: {
+                        is_admin: 'true',
+                    },
+                },
+                [],
+                '',
+            ),
+        ).toThrowError(ForbiddenError);
+
+        expect(() =>
+            assertValidDimensionRequiredAttribute(
+                {
+                    ...COMPILED_DIMENSION,
+                    requiredAttributes: {
+                        is_admin: 'true',
+                    },
+                },
+                [
+                    {
+                        uuid: '',
+                        name: 'is_admin',
+                        createdAt: new Date(),
+                        organizationUuid: '',
+                        users: [
+                            {
+                                userUuid: '',
+                                email: '',
+                                value: 'false',
+                            },
+                        ],
+                    },
+                ],
+                '',
+            ),
+        ).toThrowError(ForbiddenError);
+    });
+
+    it('should not throw errors if required attributes are required and user attributes exist', async () => {
+        const result = assertValidDimensionRequiredAttribute(
+            {
+                ...COMPILED_DIMENSION,
+                requiredAttributes: {
+                    is_admin: 'true',
+                },
+            },
+            [
+                {
+                    uuid: '',
+                    name: 'is_admin',
+                    createdAt: new Date(),
+                    organizationUuid: '',
+                    users: [
+                        {
+                            userUuid: '',
+                            email: '',
+                            value: 'true',
+                        },
+                    ],
+                },
+            ],
+            '',
+        );
+
+        expect(result).toBeUndefined();
     });
 });

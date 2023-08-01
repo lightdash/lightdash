@@ -30,6 +30,9 @@ export interface AdditionalMetric {
 export const isAdditionalMetric = (value: any): value is AdditionalMetric =>
     value?.table && value?.name && !value?.fieldType;
 
+export const getCustomMetricDimensionId = (metric: AdditionalMetric) =>
+    `${metric.table}_${metric.baseDimensionName}`;
+
 // Object used to query an explore. Queries only happen within a single explore
 export type MetricQuery = {
     dimensions: FieldId[]; // Dimensions to group by in the explore

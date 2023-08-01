@@ -196,6 +196,7 @@ export interface Dimension extends Field {
     type: DimensionType;
     group?: string;
     timeInterval?: TimeFrames;
+    requiredAttributes?: Record<string, string>;
 }
 
 export interface CompiledDimension extends Dimension {

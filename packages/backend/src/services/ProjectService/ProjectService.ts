@@ -91,6 +91,10 @@ import { compileMetricQuery } from '../../queryCompiler';
 import { ProjectAdapter } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
+import {
+    exploreHasFilteredAttribute,
+    filterDimensionsFromExplore,
+} from '../UserAttributesService/UserAttributeUtils';
 
 type RunQueryTags = {
     project_uuid?: string;
@@ -1423,6 +1427,21 @@ export class ProjectService {
                         },
                         0,
                     ),
+                    columnAccessFiltersCount: explores.reduce<number>(
+                        (acc, explore) => {
+                            if (!isExploreError(explore)) {
+                                return (
+                                    acc +
+                                    getDimensions(explore).filter(
+                                        ({ requiredAttributes }) =>
+                                            requiredAttributes !== undefined,
+                                    ).length
+                                );
+                            }
+                            return acc;
+                        },
+                        0,
+                    ),
                 },
             });
             return explores;
@@ -1677,12 +1696,22 @@ export class ProjectService {
                 projectUuid,
                 exploreName,
             );
+
             if (isExploreError(explore)) {
                 throw new NotExistsError(
                     `Explore "${exploreName}" does not exist.`,
                 );
             }
-            return explore;
+
+            if (!exploreHasFilteredAttribute(explore)) {
+                return explore;
+            }
+            const userAttributes = await this.userAttributesModel.find({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+            return filterDimensionsFromExplore(explore, userAttributes);
         } finally {
             span?.finish();
         }
