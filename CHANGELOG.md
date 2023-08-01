@@ -1,3 +1,10 @@
+# [0.715.0](https://github.com/lightdash/lightdash/compare/0.714.0...0.715.0) (2023-08-01)
+
+
+### Features
+
+* add event loop delay otel metric ([#6579](https://github.com/lightdash/lightdash/issues/6579)) ([3a1fc2b](https://github.com/lightdash/lightdash/commit/3a1fc2b67318a9db83209c228747801c9ea3cd29))
+
 # [0.714.0](https://github.com/lightdash/lightdash/compare/0.713.0...0.714.0) (2023-08-01)
 
 
