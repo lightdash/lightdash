@@ -1,3 +1,10 @@
+# [0.711.0](https://github.com/lightdash/lightdash/compare/0.710.0...0.711.0) (2023-08-01)
+
+
+### Features
+
+* migrate grouped series config to mantine ([#6565](https://github.com/lightdash/lightdash/issues/6565)) ([94612a1](https://github.com/lightdash/lightdash/commit/94612a19810bed6ffa16ba17e39681d40f15b2e1))
+
 # [0.710.0](https://github.com/lightdash/lightdash/compare/0.709.1...0.710.0) (2023-08-01)
 
 
