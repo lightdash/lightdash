@@ -92,13 +92,21 @@ export class SearchService {
             }),
         );
 
-        const userAttributes = await this.userAttributesModel.find({
-            organizationUuid,
-            userUuid: user.userUuid,
-        });
-        const filteredFields = results.fields.filter((field) =>
-            hasUserAttributes(field.requiredAttributes, userAttributes),
+        const dimensionsHaveUserAttributes = results.fields.some(
+            (field) => field.requiredAttributes !== undefined,
         );
+
+        let filteredFields = results.fields;
+        if (dimensionsHaveUserAttributes) {
+            // Do not make user attribute query if not needed
+            const userAttributes = await this.userAttributesModel.find({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+            filteredFields = results.fields.filter((field) =>
+                hasUserAttributes(field.requiredAttributes, userAttributes),
+            );
+        }
 
         const filteredResults = {
             ...results,
