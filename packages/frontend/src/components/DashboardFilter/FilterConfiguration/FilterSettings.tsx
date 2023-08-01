@@ -42,10 +42,10 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     label="Default value"
                     labelPosition="left"
                     checked={!filterRule.disabled}
-                    onChange={() => {
+                    onChange={(e) => {
                         onChangeFilterRule({
                             ...filterRule,
-                            disabled: !filterRule.disabled,
+                            disabled: !e.currentTarget.checked,
                         });
                     }}
                 />
