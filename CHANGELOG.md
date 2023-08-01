@@ -1,3 +1,24 @@
+# [0.715.0](https://github.com/lightdash/lightdash/compare/0.714.0...0.715.0) (2023-08-01)
+
+
+### Features
+
+* add event loop delay otel metric ([#6579](https://github.com/lightdash/lightdash/issues/6579)) ([3a1fc2b](https://github.com/lightdash/lightdash/commit/3a1fc2b67318a9db83209c228747801c9ea3cd29))
+
+# [0.714.0](https://github.com/lightdash/lightdash/compare/0.713.0...0.714.0) (2023-08-01)
+
+
+### Features
+
+* column level security ([#6516](https://github.com/lightdash/lightdash/issues/6516)) ([dfde810](https://github.com/lightdash/lightdash/commit/dfde810569cd0e46fa8864b783360d7dba3b6512)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
+# [0.713.0](https://github.com/lightdash/lightdash/compare/0.712.0...0.713.0) (2023-08-01)
+
+
+### Features
+
+* nested filters ([#6530](https://github.com/lightdash/lightdash/issues/6530)) ([6d2b43f](https://github.com/lightdash/lightdash/commit/6d2b43f29c943779b8a8d4cbd0e5d2da6c723de6))
+
 # [0.712.0](https://github.com/lightdash/lightdash/compare/0.711.0...0.712.0) (2023-08-01)
 
 

@@ -1,4 +1,4 @@
-import { Button, Colors, HTMLSelect } from '@blueprintjs/core';
+import { Colors, HTMLSelect } from '@blueprintjs/core';
 import {
     createFilterRuleFromField,
     fieldId as getFieldId,
@@ -9,7 +9,10 @@ import {
     getFilterTypeFromItem,
     isField,
 } from '@lightdash/common';
-import { FC, useCallback, useMemo } from 'react';
+import { ActionIcon, Box, Menu } from '@mantine/core';
+import { IconDots, IconX } from '@tabler/icons-react';
+import React, { FC, useCallback, useMemo } from 'react';
+import MantineIcon from '../MantineIcon';
 import { FilterTypeConfig } from './configs';
 import FieldAutoComplete from './FieldAutoComplete';
 
@@ -19,6 +22,7 @@ type Props = {
     isEditMode: boolean;
     onChange: (value: FilterRule) => void;
     onDelete: () => void;
+    onConvertToGroup?: () => void;
 };
 
 const FilterRuleForm: FC<Props> = ({
@@ -27,6 +31,7 @@ const FilterRuleForm: FC<Props> = ({
     isEditMode,
     onChange,
     onDelete,
+    onConvertToGroup,
 }) => {
     const activeField = fields.find(
         (field) => getFieldId(field) === filterRule.target.fieldId,
@@ -120,7 +125,37 @@ const FilterRuleForm: FC<Props> = ({
                     {filterRule.target.fieldId}
                 </span>
             )}
-            {isEditMode && <Button minimal icon="cross" onClick={onDelete} />}
+            {isEditMode &&
+                (!onConvertToGroup ? (
+                    <ActionIcon onClick={onDelete}>
+                        <MantineIcon icon={IconX} size="lg" />
+                    </ActionIcon>
+                ) : (
+                    <Menu
+                        position="bottom-end"
+                        shadow="md"
+                        closeOnItemClick
+                        withArrow
+                        arrowPosition="center"
+                    >
+                        <Menu.Target>
+                            <Box>
+                                <ActionIcon variant="subtle">
+                                    <IconDots size="20" />
+                                </ActionIcon>
+                            </Box>
+                        </Menu.Target>
+
+                        <Menu.Dropdown>
+                            <Menu.Item onClick={onConvertToGroup}>
+                                Convert to group
+                            </Menu.Item>
+                            <Menu.Item color="red" onClick={onDelete}>
+                                Remove
+                            </Menu.Item>
+                        </Menu.Dropdown>
+                    </Menu>
+                ))}
         </div>
     );
 };

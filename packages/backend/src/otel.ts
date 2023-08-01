@@ -3,7 +3,7 @@ import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentation
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { ExpressLayerType } from '@opentelemetry/instrumentation-express';
 import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
-import { Resource } from '@opentelemetry/resources';
+import { envDetector, Resource } from '@opentelemetry/resources';
 import {
     ConsoleMetricExporter,
     PeriodicExportingMetricReader,
@@ -114,7 +114,7 @@ const sdk = new NodeSDK({
         [SemanticResourceAttributes.SERVICE_NAME]:
             process.env.OTEL_SERVICE_NAME || 'lightdash',
     }),
-    resourceDetectors: [gcpDetector],
+    resourceDetectors: [gcpDetector, envDetector],
 });
 
 // Start the SDK and gracefully shutdown

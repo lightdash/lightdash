@@ -139,6 +139,7 @@ const convertDimension = (
         format: column.meta.dimension?.format,
         round: column.meta.dimension?.round,
         compact: column.meta.dimension?.compact,
+        requiredAttributes: column.meta.dimension?.required_attributes,
         groupLabel: column.meta.dimension?.group_label,
         ...(column.meta.dimension?.urls
             ? { urls: column.meta.dimension.urls }

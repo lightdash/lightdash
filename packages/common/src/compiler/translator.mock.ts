@@ -237,6 +237,7 @@ export const BASE_LIGHTDASH_TABLE: Omit<Table, 'lineageGraph'> = {
             compact: undefined,
             description: undefined,
             fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
             format: undefined,
             group: undefined,
             groupLabel: undefined,
@@ -301,6 +302,7 @@ export const LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS: Omit<Table, 'lineageGraph'> =
         dimensions: {
             user_id: {
                 fieldType: FieldType.DIMENSION,
+                requiredAttributes: undefined,
                 description: undefined,
                 type: DimensionType.STRING,
                 sql: '${TABLE}.user_id',
@@ -517,6 +519,7 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
     dimensions: {
         user_id: {
             fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
             description: undefined,
             type: DimensionType.STRING,
             sql: '${TABLE}.user_id',
@@ -536,6 +539,7 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
         },
         num_participating_athletes: {
             fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
             description: undefined,
             type: DimensionType.NUMBER,
             sql: 'num_participating_men + num_participating_women',
@@ -620,6 +624,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
     dimensions: {
         user_created: {
             fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
             description: undefined,
             type: DimensionType.TIMESTAMP,
             sql: '${TABLE}.user_created',
@@ -639,6 +644,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
         },
         user_created_RAW: {
             fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
             description: undefined,
             type: DimensionType.TIMESTAMP,
             sql: '${TABLE}.user_created',
@@ -658,6 +664,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
         },
         user_created_DAY: {
             fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
             description: undefined,
             type: DimensionType.DATE,
             sql: 'TIMESTAMP_TRUNC(${TABLE}.user_created, DAY)',
@@ -677,6 +684,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
         },
         user_created_WEEK: {
             fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
             description: undefined,
             type: DimensionType.DATE,
             sql: 'TIMESTAMP_TRUNC(${TABLE}.user_created, WEEK)',
@@ -697,6 +705,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
         },
         user_created_MONTH: {
             fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
             description: undefined,
             type: DimensionType.DATE,
             sql: 'TIMESTAMP_TRUNC(${TABLE}.user_created, MONTH)',
@@ -718,6 +727,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
         user_created_QUARTER: {
             description: undefined,
             fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
             format: undefined,
             group: 'user_created',
             groupLabel: undefined,
@@ -736,6 +746,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
         },
         user_created_YEAR: {
             fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
             description: undefined,
             type: DimensionType.DATE,
             sql: 'TIMESTAMP_TRUNC(${TABLE}.user_created, YEAR)',
@@ -765,6 +776,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
     dimensions: {
         user_created: {
             fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
             description: undefined,
             type: DimensionType.TIMESTAMP,
             sql: "TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created))",
@@ -784,6 +796,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
         },
         user_created_RAW: {
             fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
             description: undefined,
             type: DimensionType.TIMESTAMP,
             sql: "TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created))",
@@ -803,6 +816,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
         },
         user_created_DAY: {
             fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
             description: undefined,
             type: DimensionType.DATE,
             sql: "DATE_TRUNC('DAY', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
@@ -825,6 +839,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
         },
         user_created_WEEK: {
             fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
             description: undefined,
             type: DimensionType.DATE,
             sql: "DATE_TRUNC('WEEK', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
@@ -844,6 +859,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
         },
         user_created_MONTH: {
             fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
             description: undefined,
             type: DimensionType.DATE,
             sql: "DATE_TRUNC('MONTH', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
@@ -864,6 +880,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
         user_created_QUARTER: {
             description: undefined,
             fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
             format: undefined,
             group: 'user_created',
             groupLabel: undefined,
@@ -883,6 +900,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
         },
         user_created_YEAR: {
             fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
             description: undefined,
             type: DimensionType.DATE,
             sql: "DATE_TRUNC('YEAR', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
@@ -924,6 +942,7 @@ export const LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS: Omit<
     dimensions: {
         user_created: {
             fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
             description: undefined,
             type: DimensionType.TIMESTAMP,
             sql: '${TABLE}.user_created',
@@ -959,6 +978,7 @@ export const LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: Omit<
     dimensions: {
         user_created: {
             fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
             description: undefined,
             type: DimensionType.DATE,
             sql: '${TABLE}.user_created',
@@ -978,6 +998,7 @@ export const LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: Omit<
         },
         user_created_YEAR: {
             fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
             description: undefined,
             type: DimensionType.DATE,
             sql: 'DATE_TRUNC(${TABLE}.user_created, YEAR)',

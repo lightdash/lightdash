@@ -1,14 +1,16 @@
 import {
+    CompiledDimension,
     CompiledMetricQuery,
     Explore,
     fieldId,
     FieldId,
     FieldReferenceError,
+    FieldType,
     FilterGroup,
     FilterRule,
     ForbiddenError,
+    getCustomMetricDimensionId,
     getDimensions,
-    getFields,
     getFilterRulesFromGroup,
     getMetrics,
     isAndFilterGroup,
@@ -19,6 +21,7 @@ import {
     UserAttribute,
     WarehouseClient,
 } from '@lightdash/common';
+import { hasUserAttribute } from './services/UserAttributesService/UserAttributeUtils';
 
 const getDimensionFromId = (dimId: FieldId, explore: Explore) => {
     const dimensions = getDimensions(explore);
@@ -45,13 +48,6 @@ const getMetricFromId = (
             `Tried to reference metric with unknown field id: ${metricId}`,
         );
     return metric;
-};
-
-const getOperatorSql = (filterGroup: FilterGroup | undefined) => {
-    if (filterGroup) {
-        return isAndFilterGroup(filterGroup) ? ' AND ' : ' OR ';
-    }
-    return ' AND ';
 };
 
 export const replaceUserAttributes = (
@@ -91,6 +87,25 @@ export const replaceUserAttributes = (
 
     return sq;
 };
+
+export const assertValidDimensionRequiredAttribute = (
+    dimension: CompiledDimension,
+    userAttributes: UserAttribute[],
+    field: string,
+) => {
+    // Throw error if user does not have the right requiredAttribute for this dimension
+    if (dimension.requiredAttributes)
+        Object.entries(dimension.requiredAttributes).map((attribute) => {
+            const [attributeName, value] = attribute;
+            if (!hasUserAttribute(userAttributes, attributeName, value)) {
+                throw new ForbiddenError(
+                    `Invalid or missing user attribute "${attribute}" on ${field}`,
+                );
+            }
+            return undefined;
+        });
+};
+
 export type BuildQueryProps = {
     explore: Explore;
     compiledMetricQuery: CompiledMetricQuery;
@@ -107,7 +122,8 @@ export const buildQuery = ({
 }: BuildQueryProps): { query: string; hasExampleMetric: boolean } => {
     let hasExampleMetric: boolean = false;
     const adapterType: SupportedDbtAdapter = warehouseClient.getAdapterType();
-    const { dimensions, metrics, filters, sorts, limit } = compiledMetricQuery;
+    const { dimensions, metrics, filters, sorts, limit, additionalMetrics } =
+        compiledMetricQuery;
     const baseTable = explore.tables[explore.baseTable].sqlTable;
     const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
     const stringQuoteChar = warehouseClient.getStringQuoteChar();
@@ -118,6 +134,12 @@ export const buildQuery = ({
     const dimensionSelects = dimensions.map((field) => {
         const alias = field;
         const dimension = getDimensionFromId(field, explore);
+
+        assertValidDimensionRequiredAttribute(
+            dimension,
+            userAttributes,
+            `dimension: "${field}"`,
+        );
         return `  ${dimension.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
     });
 
@@ -130,6 +152,22 @@ export const buildQuery = ({
         return `  ${metric.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
     });
 
+    if (additionalMetrics)
+        additionalMetrics.forEach((metric) => {
+            if (
+                metric.baseDimensionName === undefined ||
+                !metrics.includes(`${metric.table}_${metric.name}`)
+            )
+                return;
+
+            const dimensionId = getCustomMetricDimensionId(metric);
+            const dimension = getDimensionFromId(dimensionId, explore);
+            assertValidDimensionRequiredAttribute(
+                dimension,
+                userAttributes,
+                `custom metric: "${metric.name}"`,
+            );
+        });
     const selectedTables = new Set<string>([
         ...metrics.reduce<string[]>((acc, field) => {
             const metric = getMetricFromId(field, explore, compiledMetricQuery);
@@ -246,13 +284,20 @@ export const buildQuery = ({
     const sqlOrderBy =
         fieldOrders.length > 0 ? `ORDER BY ${fieldOrders.join(', ')}` : '';
 
-    const sqlFilterRule = (filter: FilterRule) => {
-        const field = getFields(explore).find(
-            (d) => fieldId(d) === filter.target.fieldId,
-        );
+    const sqlFilterRule = (filter: FilterRule, fieldType: FieldType) => {
+        const field =
+            fieldType === FieldType.DIMENSION
+                ? getDimensions(explore).find(
+                      (d) => fieldId(d) === filter.target.fieldId,
+                  )
+                : getMetricFromId(
+                      filter.target.fieldId,
+                      explore,
+                      compiledMetricQuery,
+                  );
         if (!field) {
-            throw new Error(
-                `Filter has a reference to an unknown dimension: ${filter.target.fieldId}`,
+            throw new FieldReferenceError(
+                `Filter has a reference to an unknown ${fieldType}: ${filter.target.fieldId}`,
             );
         }
         return renderFilterRuleSql(
@@ -268,6 +313,7 @@ export const buildQuery = ({
 
     const getNestedFilterSQLFromGroup = (
         filterGroup: FilterGroup | undefined,
+        fieldType: FieldType,
     ): string | undefined => {
         if (filterGroup) {
             const operator = isAndFilterGroup(filterGroup) ? 'AND' : 'OR';
@@ -278,8 +324,8 @@ export const buildQuery = ({
             const filterRules: string[] = items.reduce<string[]>(
                 (sum, item) => {
                     const filterSql: string | undefined = isFilterGroup(item)
-                        ? getNestedFilterSQLFromGroup(item)
-                        : `(\n  ${sqlFilterRule(item)}\n)`;
+                        ? getNestedFilterSQLFromGroup(item, fieldType)
+                        : `(\n  ${sqlFilterRule(item, fieldType)}\n)`;
                     return filterSql ? [...sum, filterSql] : sum;
                 },
                 [],
@@ -303,40 +349,24 @@ export const buildQuery = ({
           ]
         : [];
 
-    const nestedFilterSql = getNestedFilterSQLFromGroup(filters.dimensions);
+    const nestedFilterSql = getNestedFilterSQLFromGroup(
+        filters.dimensions,
+        FieldType.DIMENSION,
+    );
     const nestedFilterWhere = nestedFilterSql ? [nestedFilterSql] : [];
     const allSqlFilters = [...tableSqlWhere, ...nestedFilterWhere];
     const sqlWhere =
         allSqlFilters.length > 0 ? `WHERE ${allSqlFilters.join(' AND ')}` : '';
 
-    const whereMetricFilters = getFilterRulesFromGroup(filters.metrics).map(
-        (filter) => {
-            const field = getMetricFromId(
-                filter.target.fieldId,
-                explore,
-                compiledMetricQuery,
-            );
-            if (!field) {
-                throw new Error(
-                    `Filter has a reference to an unknown metric: ${filter.target.fieldId}`,
-                );
-            }
-            return renderFilterRuleSql(
-                filter,
-                field,
-                fieldQuoteChar,
-                stringQuoteChar,
-                escapeStringQuoteChar,
-                startOfWeek,
-                adapterType,
-            );
-        },
+    const whereMetricFilters = getNestedFilterSQLFromGroup(
+        filters.metrics,
+        FieldType.METRIC,
     );
     const sqlLimit = `LIMIT ${limit}`;
 
     if (
         compiledMetricQuery.compiledTableCalculations.length > 0 ||
-        whereMetricFilters.length > 0
+        whereMetricFilters
     ) {
         const cteSql = [
             sqlSelect,
@@ -358,12 +388,9 @@ export const buildQuery = ({
             ',\n',
         )}`;
         const finalFrom = `FROM ${cteName}`;
-        const finalSqlWhere =
-            whereMetricFilters.length > 0
-                ? `WHERE ${whereMetricFilters
-                      .map((w) => `(\n  ${w}\n)`)
-                      .join(getOperatorSql(filters.metrics))}`
-                : '';
+        const finalSqlWhere = whereMetricFilters
+            ? `WHERE ${whereMetricFilters}`
+            : '';
         const secondQuery = [finalSelect, finalFrom, finalSqlWhere].join('\n');
 
         return {

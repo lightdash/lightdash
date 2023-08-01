@@ -1,7 +1,12 @@
 import { ForbiddenError, UserAttribute } from '@lightdash/common';
-import { buildQuery, replaceUserAttributes } from './queryBuilder';
+import {
+    assertValidDimensionRequiredAttribute,
+    buildQuery,
+    replaceUserAttributes,
+} from './queryBuilder';
 import {
     bigqueryClientMock,
+    COMPILED_DIMENSION,
     EXPLORE,
     EXPLORE_BIGQUERY,
     EXPLORE_JOIN_CHAIN,
@@ -34,6 +39,8 @@ import {
     METRIC_QUERY_WITH_METRIC_FILTER_SQL,
     METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS,
     METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL,
+    METRIC_QUERY_WITH_NESTED_METRIC_FILTERS,
+    METRIC_QUERY_WITH_NESTED_METRIC_FILTERS_SQL,
     METRIC_QUERY_WITH_SQL_FILTER,
     METRIC_QUERY_WITH_TABLE_REFERENCE,
     METRIC_QUERY_WITH_TABLE_REFERENCE_SQL,
@@ -173,6 +180,16 @@ describe('Query builder', () => {
         ).toStrictEqual(
             METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM_SQL,
         );
+    });
+
+    test('Should build second query with nested metric filters', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_NESTED_METRIC_FILTERS,
+                warehouseClient: warehouseClientMock,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_WITH_NESTED_METRIC_FILTERS_SQL);
     });
 
     test('Should build query with additional metric', () => {
@@ -373,5 +390,88 @@ describe('replaceUserAttributes', () => {
         expect(replaceUserAttributes('${lightdash.foo.test} > 1', [])).toEqual(
             '${lightdash.foo.test} > 1',
         );
+    });
+});
+
+describe('assertValidDimensionRequiredAttribute', () => {
+    it('should not throw errors if no user attributes are required', async () => {
+        const result = assertValidDimensionRequiredAttribute(
+            COMPILED_DIMENSION,
+            [],
+            '',
+        );
+
+        expect(result).toBeUndefined();
+    });
+
+    it('should throw errors if required attributes are required and user attributes are missing', async () => {
+        expect(() =>
+            assertValidDimensionRequiredAttribute(
+                {
+                    ...COMPILED_DIMENSION,
+                    requiredAttributes: {
+                        is_admin: 'true',
+                    },
+                },
+                [],
+                '',
+            ),
+        ).toThrowError(ForbiddenError);
+
+        expect(() =>
+            assertValidDimensionRequiredAttribute(
+                {
+                    ...COMPILED_DIMENSION,
+                    requiredAttributes: {
+                        is_admin: 'true',
+                    },
+                },
+                [
+                    {
+                        uuid: '',
+                        name: 'is_admin',
+                        createdAt: new Date(),
+                        organizationUuid: '',
+                        users: [
+                            {
+                                userUuid: '',
+                                email: '',
+                                value: 'false',
+                            },
+                        ],
+                    },
+                ],
+                '',
+            ),
+        ).toThrowError(ForbiddenError);
+    });
+
+    it('should not throw errors if required attributes are required and user attributes exist', async () => {
+        const result = assertValidDimensionRequiredAttribute(
+            {
+                ...COMPILED_DIMENSION,
+                requiredAttributes: {
+                    is_admin: 'true',
+                },
+            },
+            [
+                {
+                    uuid: '',
+                    name: 'is_admin',
+                    createdAt: new Date(),
+                    organizationUuid: '',
+                    users: [
+                        {
+                            userUuid: '',
+                            email: '',
+                            value: 'true',
+                        },
+                    ],
+                },
+            ],
+            '',
+        );
+
+        expect(result).toBeUndefined();
     });
 });
