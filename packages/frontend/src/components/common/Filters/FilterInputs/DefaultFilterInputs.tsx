@@ -37,10 +37,11 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
         ? getField(rule)?.suggestions
         : undefined;
 
-    const placeholder = getPlaceholderByFilterTypeAndOperator(
-        filterType,
-        rule.operator,
-    );
+    const placeholder = getPlaceholderByFilterTypeAndOperator({
+        type: filterType,
+        operator: rule.operator,
+        disabled,
+    });
 
     switch (rule.operator) {
         case FilterOperator.NULL:
