@@ -1,12 +1,18 @@
 import { FilterOperator, FilterType } from '@lightdash/common';
 
-export const getPlaceholderByFilterTypeAndOperator = (
-    filterType: FilterType,
-    filterOperator: FilterOperator,
-) => {
-    switch (filterType) {
+export const getPlaceholderByFilterTypeAndOperator = ({
+    type,
+    operator,
+    disabled,
+}: {
+    type: FilterType;
+    operator: FilterOperator;
+    disabled?: boolean;
+}) => {
+    if (disabled) return 'any value';
+    switch (type) {
         case FilterType.NUMBER:
-            switch (filterOperator) {
+            switch (operator) {
                 case FilterOperator.EQUALS:
                 case FilterOperator.NOT_EQUALS:
                     return 'Enter value(s)';
@@ -19,7 +25,7 @@ export const getPlaceholderByFilterTypeAndOperator = (
                     return '';
             }
         case FilterType.STRING:
-            switch (filterOperator) {
+            switch (operator) {
                 case FilterOperator.EQUALS:
                 case FilterOperator.NOT_EQUALS:
                     return 'Start typing to filter results';
@@ -34,7 +40,7 @@ export const getPlaceholderByFilterTypeAndOperator = (
                     return '';
             }
         case FilterType.DATE:
-            switch (filterOperator) {
+            switch (operator) {
                 case FilterOperator.EQUALS:
                 case FilterOperator.NOT_EQUALS:
                 case FilterOperator.LESS_THAN:
@@ -55,7 +61,7 @@ export const getPlaceholderByFilterTypeAndOperator = (
                     return '';
             }
         case FilterType.BOOLEAN:
-            switch (filterOperator) {
+            switch (operator) {
                 case FilterOperator.EQUALS:
                     return 'True or False';
                 case FilterOperator.NULL:

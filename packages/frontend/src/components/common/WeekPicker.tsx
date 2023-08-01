@@ -1,5 +1,5 @@
 import { Colors } from '@blueprintjs/core';
-import { DateInput2 } from '@blueprintjs/datetime2';
+import { DateInput2, DateInput2Props } from '@blueprintjs/datetime2';
 import { Popover2Props } from '@blueprintjs/popover2';
 import {
     formatDate,
@@ -109,9 +109,8 @@ type Props = {
     value: Date;
     onChange: (value: Date) => void;
     popoverProps?: Popover2Props;
-    disabled?: boolean;
     startOfWeek?: WeekDay | null;
-};
+} & Pick<DateInput2Props, 'disabled' | 'placeholder'>;
 
 const WeekPicker: FC<Props> = ({
     value: dateValue,
@@ -119,6 +118,7 @@ const WeekPicker: FC<Props> = ({
     popoverProps,
     disabled,
     startOfWeek,
+    placeholder,
 }) => {
     const value = moment(dateValue).toDate();
     //Filtering a dimension returns a date, but filtering on a table returns a string on UTC
@@ -149,6 +149,7 @@ const WeekPicker: FC<Props> = ({
             <SelectedWeekStyles />
             <DateInput2
                 fill
+                placeholder={placeholder}
                 className={disabled ? 'disabled-filter' : ''}
                 disabled={disabled}
                 defaultTimezone="UTC"

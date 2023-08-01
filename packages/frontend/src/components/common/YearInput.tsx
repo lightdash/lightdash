@@ -1,14 +1,13 @@
-import { NumericInput } from '@blueprintjs/core';
+import { NumericInput, NumericInputProps } from '@blueprintjs/core';
 import moment from 'moment';
 import React, { FC } from 'react';
 
 type Props = {
     value: Date;
     onChange: (value: Date) => void;
-    disabled?: boolean;
-};
+} & Pick<NumericInputProps, 'disabled' | 'placeholder'>;
 
-const YearInput: FC<Props> = ({ value, onChange, disabled }) => {
+const YearInput: FC<Props> = ({ value, onChange, disabled, placeholder }) => {
     const utcYearValue = moment(value).year();
 
     return (
@@ -16,6 +15,7 @@ const YearInput: FC<Props> = ({ value, onChange, disabled }) => {
             className={disabled ? 'disabled-filter' : ''}
             disabled={disabled}
             fill
+            placeholder={placeholder}
             max={9999}
             min={1000}
             minLength={4}
