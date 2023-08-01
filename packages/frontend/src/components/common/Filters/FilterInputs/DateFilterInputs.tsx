@@ -118,7 +118,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         value={
                             rule.values?.[0]
                                 ? new Date(rule.values?.[0]).toString()
-                                : new Date().toString()
+                                : null
                         }
                         timePrecision={'millisecond'}
                         formatDate={(value: Date) =>
@@ -127,7 +127,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         parseDate={(value) =>
                             moment(value, `YYYY-MM-DD, HH:mm:ss:SSS`).toDate()
                         }
-                        defaultValue={new Date().toString()}
+                        defaultValue={disabled ? '' : new Date().toString()}
                         onChange={(value: string | null) => {
                             if (value) {
                                 onChange({
@@ -156,14 +156,14 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     fill
                     value={
                         rule.values?.[0]
-                            ? formatDate(rule.values?.[0], undefined, false)
-                            : new Date().toString()
+                            ? formatDate(rule.values[0], undefined, false)
+                            : null
                     }
                     formatDate={(value: Date) =>
                         formatDate(value, undefined, false)
                     }
                     parseDate={parseDate}
-                    defaultValue={new Date().toString()}
+                    defaultValue={disabled ? '' : new Date().toString()}
                     onChange={(value: string | null) => {
                         if (value) {
                             onChange({
