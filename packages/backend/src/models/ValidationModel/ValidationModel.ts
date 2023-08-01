@@ -1,4 +1,5 @@
 import {
+    ChartKind,
     CreateValidation,
     isChartValidationError,
     isDashboardValidationError,
@@ -207,7 +208,9 @@ export class ValidationModel {
                 lastUpdatedAt: validationError.last_version_updated_at,
                 validationId: validationError.validation_id,
                 spaceUuid: validationError.space_uuid,
-                chartType: validationError.last_version_chart_kind,
+                chartType:
+                    validationError.last_version_chart_kind ||
+                    ChartKind.VERTICAL_BAR,
                 errorType: validationError.error_type,
                 fieldName: validationError.field_name ?? undefined,
                 source: ValidationSourceType.Chart,

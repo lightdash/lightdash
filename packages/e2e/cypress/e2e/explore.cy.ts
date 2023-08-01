@@ -131,8 +131,11 @@ describe('Explore', () => {
 
         cy.findByText('Configure').click();
         cy.findByText('Series').click();
-        cy.findByText('Value labels');
-        cy.get('option[value="top"]').parent().select('top');
+        cy.findByText('Value labels')
+            .parent()
+            .find('[role="combobox"]')
+            .click();
+        cy.get('.mantine-Select-item').contains('Top').click();
 
         cy.get('g').children('text').should('have.length.greaterThan', 30); // with labels
     });
