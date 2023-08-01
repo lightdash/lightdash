@@ -37,6 +37,7 @@ import { expressWinstonMiddleware } from './logging/winston';
 import { apiV1Router } from './routers/apiV1Router';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { VERSION } from './version';
+import { registerNodeMetrics } from './nodeMetrics';
 
 // @ts-ignore
 // eslint-disable-next-line no-extend-native, func-names
@@ -221,6 +222,11 @@ app.use((error: Error, req: Request, res: Response, _: NextFunction) => {
         },
     });
 });
+
+// Monitor Node.js process with opentelemetry
+if (process.env.NODE_ENV !== 'development') {
+    registerNodeMetrics();
+}
 
 // Run the server
 const port = process.env.PORT || 8080;
