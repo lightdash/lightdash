@@ -1,4 +1,9 @@
-import { CompiledTable, Explore, UserAttribute } from '@lightdash/common';
+import {
+    CompiledTable,
+    Dimension,
+    Explore,
+    UserAttribute,
+} from '@lightdash/common';
 
 export const hasUserAttribute = (
     userAttributes: UserAttribute[],
@@ -10,6 +15,22 @@ export const hasUserAttribute = (
             ua.name === attributeName &&
             ua.users.some((u) => u.value === value),
     );
+
+export const hasUserAttributes = (
+    requiredAttributes: Record<string, string> | undefined,
+    userAttributes: UserAttribute[],
+): boolean => {
+    if (requiredAttributes === undefined) return true; // No required attributes
+
+    // Check all required attributes conditions for dimension
+    const hasAttributes = Object.entries(requiredAttributes).map(
+        (attribute) => {
+            const [attributeName, value] = attribute;
+            return hasUserAttribute(userAttributes, attributeName, value);
+        },
+    );
+    return hasAttributes.every((attribute) => attribute === true);
+};
 
 export const exploreHasFilteredAttribute = (explore: Explore) =>
     Object.values(explore.tables).some((table) =>
@@ -31,27 +52,14 @@ export const filterDimensionsFromExplore = (
                 dimensions: Object.entries(table.dimensions).reduce(
                     (acc, tableDimension) => {
                         const [dimensionName, dimension] = tableDimension;
-                        if (dimension.requiredAttributes === undefined)
-                            return { ...acc, [dimensionName]: dimension };
 
-                        // Check all required attributes conditions for dimension
-                        const hasAttributes = Object.entries(
-                            dimension.requiredAttributes,
-                        ).map((attribute) => {
-                            const [attributeName, value] = attribute;
-                            return hasUserAttribute(
-                                userAttributes,
-                                attributeName,
-                                value,
-                            );
-                        });
                         if (
-                            hasAttributes.every(
-                                (attribute) => attribute === true,
+                            hasUserAttributes(
+                                dimension.requiredAttributes,
+                                userAttributes,
                             )
                         )
                             return { ...acc, [dimensionName]: dimension };
-
                         return acc;
                     },
                     [],

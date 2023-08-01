@@ -129,6 +129,7 @@ export const searchService = new SearchService({
     projectModel,
     searchModel,
     spaceModel,
+    userAttributesModel,
 });
 
 export const s3Service = new S3Service({

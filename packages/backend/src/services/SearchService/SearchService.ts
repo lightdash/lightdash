@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     DashboardSearchResult,
     ForbiddenError,
+    getDimensions,
     SavedChartSearchResult,
     SearchResults,
     SessionUser,
@@ -11,12 +12,15 @@ import { analytics } from '../../analytics/client';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
+import { hasUserAttributes } from '../UserAttributesService/UserAttributeUtils';
 
 type Dependencies = {
     searchModel: SearchModel;
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
+    userAttributesModel: UserAttributesModel;
 };
 
 export class SearchService {
@@ -26,10 +30,13 @@ export class SearchService {
 
     private readonly spaceModel: SpaceModel;
 
+    private readonly userAttributesModel: UserAttributesModel;
+
     constructor(dependencies: Dependencies) {
         this.searchModel = dependencies.searchModel;
         this.projectModel = dependencies.projectModel;
         this.spaceModel = dependencies.spaceModel;
+        this.userAttributesModel = dependencies.userAttributesModel;
     }
 
     async getSearchResults(
@@ -85,10 +92,18 @@ export class SearchService {
             }),
         );
 
+        const userAttributes = await this.userAttributesModel.find({
+            organizationUuid,
+            userUuid: user.userUuid,
+        });
+        const filteredFields = results.fields.filter((field) =>
+            hasUserAttributes(field.requiredAttributes, userAttributes),
+        );
+
         const filteredResults = {
             ...results,
             tables: hasExploreAccess ? results.tables : [],
-            fields: hasExploreAccess ? results.fields : [],
+            fields: hasExploreAccess ? filteredFields : [],
             dashboards: results.dashboards.filter(filterItem),
             savedCharts: results.savedCharts.filter(filterItem),
             spaces: results.spaces.filter(filterItem),
