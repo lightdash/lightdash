@@ -1,3 +1,10 @@
+# [0.714.0](https://github.com/lightdash/lightdash/compare/0.713.0...0.714.0) (2023-08-01)
+
+
+### Features
+
+* column level security ([#6516](https://github.com/lightdash/lightdash/issues/6516)) ([dfde810](https://github.com/lightdash/lightdash/commit/dfde810569cd0e46fa8864b783360d7dba3b6512)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
 # [0.713.0](https://github.com/lightdash/lightdash/compare/0.712.0...0.713.0) (2023-08-01)
 
 
