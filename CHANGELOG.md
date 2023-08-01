@@ -1,3 +1,146 @@
+# [0.712.0](https://github.com/lightdash/lightdash/compare/0.711.0...0.712.0) (2023-08-01)
+
+
+### Features
+
+* pie charts underlying data ([#6488](https://github.com/lightdash/lightdash/issues/6488)) ([3c18e1f](https://github.com/lightdash/lightdash/commit/3c18e1f3d7035b2e7206bc98065acf9c300d6dfb))
+
+# [0.711.0](https://github.com/lightdash/lightdash/compare/0.710.0...0.711.0) (2023-08-01)
+
+
+### Features
+
+* migrate grouped series config to mantine ([#6565](https://github.com/lightdash/lightdash/issues/6565)) ([94612a1](https://github.com/lightdash/lightdash/commit/94612a19810bed6ffa16ba17e39681d40f15b2e1))
+
+# [0.710.0](https://github.com/lightdash/lightdash/compare/0.709.1...0.710.0) (2023-08-01)
+
+
+### Features
+
+* migrate chart config series to mantine ([#6559](https://github.com/lightdash/lightdash/issues/6559)) ([5889b0c](https://github.com/lightdash/lightdash/commit/5889b0c770f462cdd0c261ba958882caf9d3cf22))
+
+## [0.709.1](https://github.com/lightdash/lightdash/compare/0.709.0...0.709.1) (2023-08-01)
+
+
+### Bug Fixes
+
+* keep unsaved filters when creating a chart in dash ([#6567](https://github.com/lightdash/lightdash/issues/6567)) ([4111597](https://github.com/lightdash/lightdash/commit/41115972f66cbc23814746caedb56ced73d0ff2d))
+
+# [0.709.0](https://github.com/lightdash/lightdash/compare/0.708.0...0.709.0) (2023-07-31)
+
+
+### Features
+
+* onboarding analytics update ([#6557](https://github.com/lightdash/lightdash/issues/6557)) ([fef9b61](https://github.com/lightdash/lightdash/commit/fef9b617cccf38d62fbcea5feae902340df20268))
+
+# [0.708.0](https://github.com/lightdash/lightdash/compare/0.707.2...0.708.0) (2023-07-31)
+
+
+### Bug Fixes
+
+* edit tile content fields are empty ([#6539](https://github.com/lightdash/lightdash/issues/6539)) ([34aae99](https://github.com/lightdash/lightdash/commit/34aae99d714186ddf206f523f1981085ac1b7222))
+
+
+### Features
+
+* allow filters to be disabled ([#6500](https://github.com/lightdash/lightdash/issues/6500)) ([1468b3f](https://github.com/lightdash/lightdash/commit/1468b3f1a871a78dffe1465c5a54e97ed755619c))
+
+## [0.707.2](https://github.com/lightdash/lightdash/compare/0.707.1...0.707.2) (2023-07-31)
+
+
+### Bug Fixes
+
+* error validation null chart ([#6562](https://github.com/lightdash/lightdash/issues/6562)) ([3db2ebb](https://github.com/lightdash/lightdash/commit/3db2ebb6821dac4a14f355dc067b5f0c4da328d3)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
+## [0.707.1](https://github.com/lightdash/lightdash/compare/0.707.0...0.707.1) (2023-07-31)
+
+
+### Bug Fixes
+
+* make sql lowercase ([#6558](https://github.com/lightdash/lightdash/issues/6558)) ([30f31bc](https://github.com/lightdash/lightdash/commit/30f31bc814af42b2a67cf4e28fef5c3aba9096b4))
+
+# [0.707.0](https://github.com/lightdash/lightdash/compare/0.706.0...0.707.0) (2023-07-31)
+
+
+### Features
+
+* onboarding in mantine ([#6540](https://github.com/lightdash/lightdash/issues/6540)) ([b4bce38](https://github.com/lightdash/lightdash/commit/b4bce38fb3d5cbc28fa4e01b832bddfa6316a84c))
+
+# [0.706.0](https://github.com/lightdash/lightdash/compare/0.705.1...0.706.0) (2023-07-31)
+
+
+### Bug Fixes
+
+* check if markdown tile title is empty and reduce height ([#6535](https://github.com/lightdash/lightdash/issues/6535)) ([7190112](https://github.com/lightdash/lightdash/commit/71901129a1d66c01601d431190e02e8d7f926f8b))
+
+
+### Features
+
+* conditional formatting percent values ([#6506](https://github.com/lightdash/lightdash/issues/6506)) ([ffd1bda](https://github.com/lightdash/lightdash/commit/ffd1bda19c31d74ca9b1abd33ca62b39a87360bc))
+
+## [0.705.1](https://github.com/lightdash/lightdash/compare/0.705.0...0.705.1) (2023-07-28)
+
+
+### Bug Fixes
+
+* no unnamed dashboards or spaces ([#6533](https://github.com/lightdash/lightdash/issues/6533)) ([5856913](https://github.com/lightdash/lightdash/commit/58569139344df05bfb3ee1fccd2b45422f019a3e))
+
+# [0.705.0](https://github.com/lightdash/lightdash/compare/0.704.0...0.705.0) (2023-07-28)
+
+
+### Features
+
+* add way to reset form state on appearance settings ([#6532](https://github.com/lightdash/lightdash/issues/6532)) ([68e3ee5](https://github.com/lightdash/lightdash/commit/68e3ee529c0b717048e399d8eca19b9d684068ee))
+
+# [0.704.0](https://github.com/lightdash/lightdash/compare/0.703.1...0.704.0) (2023-07-28)
+
+
+### Features
+
+* enable new columns chart_kind on saved_chart and remove joins ([#6486](https://github.com/lightdash/lightdash/issues/6486)) ([4315c9f](https://github.com/lightdash/lightdash/commit/4315c9fa527afa58ae028d452d85d3dcf04f893a)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
+## [0.703.1](https://github.com/lightdash/lightdash/compare/0.703.0...0.703.1) (2023-07-28)
+
+
+### Bug Fixes
+
+* add mantine tooltip and wrap button with box ([#6529](https://github.com/lightdash/lightdash/issues/6529)) ([5ef7246](https://github.com/lightdash/lightdash/commit/5ef7246d45f7ef5806a69c00fa6da568d4999423))
+
+# [0.703.0](https://github.com/lightdash/lightdash/compare/0.702.1...0.703.0) (2023-07-28)
+
+
+### Features
+
+* duplicate charts that belong to dashboard on dashboard duplication ([#6499](https://github.com/lightdash/lightdash/issues/6499)) ([6039d4a](https://github.com/lightdash/lightdash/commit/6039d4a1f1c582526f8ce340a59a5d331f8433dd))
+
+## [0.702.1](https://github.com/lightdash/lightdash/compare/0.702.0...0.702.1) (2023-07-28)
+
+
+### Bug Fixes
+
+* onboarding project switcher ([#6522](https://github.com/lightdash/lightdash/issues/6522)) ([f92f1b7](https://github.com/lightdash/lightdash/commit/f92f1b7164ab3771a05a2127064ac62e3402d20b))
+
+# [0.702.0](https://github.com/lightdash/lightdash/compare/0.701.0...0.702.0) (2023-07-27)
+
+
+### Features
+
+* migrate legend config to Mantine ([#6513](https://github.com/lightdash/lightdash/issues/6513)) ([5330af5](https://github.com/lightdash/lightdash/commit/5330af54c888c9354b2cde9787ebe25200a45adc))
+
+# [0.701.0](https://github.com/lightdash/lightdash/compare/0.700.1...0.701.0) (2023-07-27)
+
+
+### Features
+
+* show dashboard banner when editing chart that belongs to dashboard ([#6504](https://github.com/lightdash/lightdash/issues/6504)) ([6a18d68](https://github.com/lightdash/lightdash/commit/6a18d68ef658f88c800c54ab36e1bf1c915ea53f))
+
+## [0.700.1](https://github.com/lightdash/lightdash/compare/0.700.0...0.700.1) (2023-07-27)
+
+
+### Bug Fixes
+
+* do not add column to columns if not part of columnOrder ([#6507](https://github.com/lightdash/lightdash/issues/6507)) ([553a7a0](https://github.com/lightdash/lightdash/commit/553a7a04990d59825e31a42b923163ec0c2def95))
+
 # [0.700.0](https://github.com/lightdash/lightdash/compare/0.699.0...0.700.0) (2023-07-27)
 
 

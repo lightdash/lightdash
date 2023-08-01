@@ -58,7 +58,7 @@ describe('Dashboard', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
         cy.contains('Create dashboard').click();
-        cy.findByLabelText('Name your dashboard').type('Title');
+        cy.findByLabelText('Name your dashboard *').type('Title');
         cy.findByLabelText('Dashboard description').type('Description');
         cy.findByText('Create').click();
 

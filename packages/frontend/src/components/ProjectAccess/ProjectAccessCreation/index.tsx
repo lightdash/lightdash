@@ -8,6 +8,8 @@ import {
     ProjectMemberRole,
     validateEmail,
 } from '@lightdash/common';
+import { Button } from '@mantine/core';
+import { IconChevronLeft } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -16,9 +18,9 @@ import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useCreateProjectAccessMutation } from '../../../hooks/useProjectAccess';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
+import MantineIcon from '../../common/MantineIcon';
 import InviteSuccess from '../../UserSettings/UserManagementPanel/InviteSuccess';
 import {
-    BackButton,
     EmailForm,
     Panel,
     ProjectAccessForm,
@@ -134,11 +136,15 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
 
     return (
         <Panel>
-            <BackButton
-                icon="chevron-left"
-                text="Back to all users"
+            <Button
+                variant="subtle"
+                size="sm"
+                leftIcon={<MantineIcon icon={IconChevronLeft} />}
                 onClick={onBackClick}
-            />
+            >
+                Back
+            </Button>
+
             <Card>
                 <ProjectAccessForm
                     name="add_saved_charts_to_dashboard"

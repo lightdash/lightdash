@@ -182,8 +182,10 @@ const useTableConfig = (
             showTableNames,
             getFieldLabelOverride,
             isColumnFrozen,
+            columnOrder,
         });
     }, [
+        columnOrder,
         selectedItemIds,
         pivotDimensions,
         itemsMap,
@@ -293,7 +295,7 @@ const useTableConfig = (
         worker,
     ]);
 
-    // Remove columProperties from map if the column has been removed from results
+    // Remove columnProperties from map if the column has been removed from results
     useEffect(() => {
         if (Object.keys(columnProperties).length > 0 && selectedItemIds) {
             const columnsRemoved = Object.keys(columnProperties).filter(

@@ -6,6 +6,7 @@ import {
     Series,
     TableCalculation,
 } from '@lightdash/common';
+import { Divider } from '@mantine/core';
 import produce from 'immer';
 import React, { FC, useCallback, useMemo } from 'react';
 import {
@@ -22,7 +23,6 @@ import { useVisualizationContext } from '../../../LightdashVisualization/Visuali
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
 import GroupedSeriesConfiguration from './GroupedSeriesConfiguration';
 import InvalidSeriesConfiguration from './InvalidSeriesConfiguration';
-import { SeriesDivider } from './Series.styles';
 
 type DraggablePortalHandlerProps = {
     snapshot: DraggableStateSnapshot;
@@ -132,7 +132,9 @@ const SeriesTab: FC<Props> = ({ items }) => {
                                                 seriesEntry.encode.yRef.field
                                             }
                                         />
-                                        {hasDivider && <SeriesDivider />}
+                                        {hasDivider && (
+                                            <Divider mt="md" mb="lg" />
+                                        )}
                                     </>
                                 );
                             }
@@ -204,13 +206,7 @@ const SeriesTab: FC<Props> = ({ items }) => {
                                                     />
                                                 )}
                                                 {hasDivider && (
-                                                    <div
-                                                        style={{
-                                                            display: 'flex',
-                                                        }}
-                                                    >
-                                                        <SeriesDivider />
-                                                    </div>
+                                                    <Divider mt="md" mb="lg" />
                                                 )}
                                             </div>
                                         </DraggablePortalHandler>

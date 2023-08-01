@@ -52,14 +52,13 @@ export const getColorFromRange = (
     },
 ): string | undefined => {
     const colors = getColorRange(config.color);
+    if (!colors) return undefined;
 
-    if (!colors) {
-        return undefined;
-    }
+    const min = config.rule.min;
+    const inclusiveMax = config.rule.max + 1;
 
-    const step = (config.rule.max - config.rule.min) / config.color.steps;
-
-    const index = Math.floor((value - config.rule.min) / step);
+    const step = (inclusiveMax - min) / config.color.steps;
+    const index = Math.floor((value - min) / step);
 
     return colors[index];
 };

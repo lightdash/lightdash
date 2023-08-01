@@ -1,6 +1,7 @@
 import { Button, Classes, Divider, Intent, Menu } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { Dashboard, SpaceSummary, UpdatedByUser } from '@lightdash/common';
+import { Box, Tooltip } from '@mantine/core';
 import {
     IconCheck,
     IconCopy,
@@ -174,21 +175,21 @@ const DashboardHeader = ({
             {userCanManageDashboard && isEditMode ? (
                 <PageActionsContainer>
                     <AddTileButton onAddTiles={onAddTiles} />
-                    <Tooltip2
+                    <Tooltip
+                        withinPortal
                         position="bottom"
-                        content={
-                            !hasDashboardChanged
-                                ? 'No changes to save'
-                                : undefined
-                        }
+                        label="No changes to save"
+                        disabled={hasDashboardChanged}
                     >
-                        <Button
-                            text="Save"
-                            disabled={!hasDashboardChanged || isSaving}
-                            intent={Intent.PRIMARY}
-                            onClick={onSaveDashboard}
-                        />
-                    </Tooltip2>
+                        <Box>
+                            <Button
+                                text="Save"
+                                disabled={!hasDashboardChanged || isSaving}
+                                intent={Intent.PRIMARY}
+                                onClick={onSaveDashboard}
+                            />
+                        </Box>
+                    </Tooltip>
                     <Button
                         text="Cancel"
                         disabled={isSaving}

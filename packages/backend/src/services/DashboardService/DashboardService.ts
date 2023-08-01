@@ -6,6 +6,7 @@ import {
     DashboardBasicDetails,
     DashboardTileTypes,
     ForbiddenError,
+    hasChartsInDashboard,
     isChartScheduler,
     isChartTile,
     isDashboardUnversionedFields,
@@ -20,6 +21,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import cronstrue from 'cronstrue';
+import { v4 as uuidv4 } from 'uuid';
 import { analytics } from '../../analytics/client';
 import { CreateDashboardOrVersionEvent } from '../../analytics/LightdashAnalytics';
 import { schedulerClient, slackClient } from '../../clients/clients';
@@ -315,12 +317,74 @@ export class DashboardService {
             ...dashboard,
             name: `Copy of ${dashboard.name}`,
         };
+
         const newDashboard = await this.dashboardModel.create(
             dashboard.spaceUuid,
             duplicatedDashboard,
             user,
             projectUuid,
         );
+
+        if (hasChartsInDashboard(newDashboard)) {
+            const updatedTiles = await Promise.all(
+                newDashboard.tiles.map(async (tile) => {
+                    if (
+                        isChartTile(tile) &&
+                        tile.properties.belongsToDashboard &&
+                        tile.properties.savedChartUuid
+                    ) {
+                        const chartInDashboard = await this.savedChartModel.get(
+                            tile.properties.savedChartUuid,
+                        );
+                        const duplicatedChart =
+                            await this.savedChartModel.create(
+                                newDashboard.projectUuid,
+                                user.userUuid,
+                                newDashboard.uuid,
+                                {
+                                    ...chartInDashboard,
+                                    spaceUuid: undefined,
+                                    updatedByUser: {
+                                        userUuid: user.userUuid,
+                                        firstName: user.firstName,
+                                        lastName: user.lastName,
+                                    },
+                                },
+                            );
+                        analytics.track({
+                            event: 'saved_chart.created',
+                            userId: user.userUuid,
+                            properties: {
+                                ...SavedChartService.getCreateEventProperties(
+                                    duplicatedChart,
+                                ),
+                                dashboardId:
+                                    duplicatedChart.dashboardUuid ?? undefined,
+                                duplicated: true,
+                            },
+                        });
+                        return {
+                            ...tile,
+                            uuid: uuidv4(),
+                            properties: {
+                                ...tile.properties,
+                                savedChartUuid: duplicatedChart.uuid,
+                            },
+                        };
+                    }
+                    return tile;
+                }),
+            );
+
+            await this.dashboardModel.addVersion(
+                newDashboard.uuid,
+                {
+                    tiles: [...updatedTiles],
+                },
+                user,
+                projectUuid,
+            );
+        }
 
         const dashboardProperties =
             DashboardService.getCreateEventProperties(newDashboard);

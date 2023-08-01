@@ -1,5 +1,6 @@
 // organize-imports-ignore
-import './otel'; // must be imported first
+// eslint-disable-next-line import/order
+import otelSdk from './otel'; // must be imported first
 
 import { LightdashMode, SessionUser } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -274,9 +275,44 @@ export const slackService = new SlackService({
     lightdashConfig,
 });
 
+let worker: SchedulerWorker | undefined;
 if (lightdashConfig.scheduler?.enabled) {
-    const worker = new SchedulerWorker({ lightdashConfig });
+    worker = new SchedulerWorker({ lightdashConfig });
     worker.run().catch((e) => {
         Logger.error('Error starting scheduler worker', e);
     });
 }
+
+const onExit = () => {
+    const asyncExit = async () => {
+        if (worker && worker.runner) {
+            try {
+                await worker.runner.stop();
+                Logger.info('Stopped scheduler worker');
+            } catch (e) {
+                Logger.error('Error stopping scheduler worker', e);
+            }
+        }
+        if (otelSdk) {
+            try {
+                await otelSdk.shutdown();
+                Logger.info('Stopped OpenTelemetry SDK');
+            } catch (e) {
+                Logger.error('Error stopping OpenTelemetry SDK', e);
+            }
+        }
+    };
+    asyncExit()
+        .catch((e) => {
+            Logger.error('Error stopping server', e);
+        })
+        .finally(() => {
+            process.exit();
+        });
+};
+
+process.on('SIGUSR2', onExit);
+process.on('SIGINT', onExit);
+process.on('SIGTERM', onExit);
+process.on('SIGHUP', onExit);
+process.on('SIGABRT', onExit);

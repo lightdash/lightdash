@@ -116,9 +116,14 @@ export enum CartesianSeriesType {
     AREA = 'area',
 }
 
+export type PivotValue = {
+    field: string;
+    value: unknown;
+};
+
 export type PivotReference = {
     field: string;
-    pivotValues?: { field: string; value: unknown }[];
+    pivotValues?: PivotValue[];
 };
 
 export const isPivotReferenceWithValues = (
@@ -424,7 +429,20 @@ export const isSeriesWithMixedChartTypes = (
         ),
     ).size >= 2;
 
-export const getChartType = (
+export const getChartType = (chartKind: ChartKind | undefined): ChartType => {
+    if (chartKind === undefined) return ChartType.CARTESIAN;
+    switch (chartKind) {
+        case ChartKind.PIE:
+            return ChartType.PIE;
+        case ChartKind.BIG_NUMBER:
+            return ChartType.BIG_NUMBER;
+        case ChartKind.TABLE:
+            return ChartType.TABLE;
+        default:
+            return ChartType.CARTESIAN;
+    }
+};
+export const getChartKind = (
     chartType: ChartType,
     value: ChartConfig['config'],
 ): ChartKind | undefined => {
