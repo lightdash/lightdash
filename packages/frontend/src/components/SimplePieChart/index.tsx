@@ -1,5 +1,4 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
-import { ResultValue } from '@lightdash/common';
 import { useDisclosure } from '@mantine/hooks';
 import { ECElementEvent } from 'echarts';
 import EChartsReact from 'echarts-for-react';
@@ -12,6 +11,7 @@ import { useVisualizationContext } from '../LightdashVisualization/Visualization
 import PieChartContextMenu, {
     PieChartContextMenuProps,
 } from './PieChartContextMenu';
+import PieChartDashboardContextMenu from './PieChartDashboardContextMenu';
 
 const EmptyChart = () => (
     <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
@@ -32,6 +32,7 @@ const LoadingChart = () => (
 type SimplePieChartProps = Omit<EChartsReactProps, 'option'> & {
     $shouldExpand?: boolean;
     className?: string;
+    tileUuid?: string;
     'data-testid'?: string;
 };
 
@@ -43,7 +44,8 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
     const [isOpen, { open, close }] = useDisclosure();
     const [menuProps, setMenuProps] = useState<{
         position: PieChartContextMenuProps['menuPosition'];
-        value: ResultValue;
+        value: PieChartContextMenuProps['value'];
+        rows: PieChartContextMenuProps['rows'];
     }>();
 
     useEffect(() => {
@@ -63,6 +65,7 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
                     left: event.clientX,
                     top: event.clientY,
                 },
+                rows: data.meta.rows,
             });
 
             open();
@@ -107,12 +110,24 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
                 }}
             />
 
-            <PieChartContextMenu
-                value={menuProps?.value}
-                menuPosition={menuProps?.position}
-                opened={isOpen}
-                onClose={handleCloseContextMenu}
-            />
+            {props.tileUuid ? (
+                <PieChartDashboardContextMenu
+                    tileUuid={props.tileUuid}
+                    value={menuProps?.value}
+                    menuPosition={menuProps?.position}
+                    rows={menuProps?.rows}
+                    opened={isOpen}
+                    onClose={handleCloseContextMenu}
+                />
+            ) : (
+                <PieChartContextMenu
+                    value={menuProps?.value}
+                    menuPosition={menuProps?.position}
+                    rows={menuProps?.rows}
+                    opened={isOpen}
+                    onClose={handleCloseContextMenu}
+                />
+            )}
         </>
     );
 });
