@@ -39,6 +39,7 @@ const taskDurationHistogram = meter.createHistogram<{
     error: boolean;
 }>('worker.task.duration_ms', {
     description: 'Duration of worker tasks in milliseconds',
+    unit: 'milliseconds',
 });
 
 const traceTask = (taskName: string, task: Task): Task => {
