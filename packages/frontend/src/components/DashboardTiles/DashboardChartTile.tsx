@@ -410,10 +410,16 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     <div key={field.name}>
                         <Tag minimal style={{ color: 'white' }}>
                             {filterRuleLabels.field}:{' '}
-                            {filterRuleLabels.operator}{' '}
-                            <FilterValues>
-                                {filterRuleLabels.value}
-                            </FilterValues>
+                            {filterRule.disabled ? (
+                                <>is any value</>
+                            ) : (
+                                <>
+                                    {filterRuleLabels.operator}{' '}
+                                    <FilterValues>
+                                        {filterRuleLabels.value}
+                                    </FilterValues>
+                                </>
+                            )}
                         </Tag>
                     </div>
                 );
