@@ -285,17 +285,34 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                     `YYYY-MM-DD, HH:mm:ss:SSS`,
                                 ).toDate()
                             }
-                            value={[
-                                rule.values?.[0]
-                                    ? new Date(rule.values?.[0])
-                                    : new Date(),
-                                rule.values?.[1]
-                                    ? new Date(rule.values?.[1])
-                                    : moment(rule.values?.[0] || new Date())
-                                          .add(2, 'hours')
-                                          .milliseconds(0)
-                                          .toDate(),
-                            ]}
+                            startInputProps={{
+                                placeholder: rule.disabled
+                                    ? placeholder
+                                    : undefined,
+                            }}
+                            endInputProps={{
+                                placeholder: rule.disabled
+                                    ? placeholder
+                                    : undefined,
+                            }}
+                            value={
+                                rule.disabled
+                                    ? [null, null]
+                                    : [
+                                          rule.values?.[0]
+                                              ? new Date(rule.values?.[0])
+                                              : new Date(),
+                                          rule.values?.[1]
+                                              ? new Date(rule.values?.[1])
+                                              : moment(
+                                                    rule.values?.[0] ||
+                                                        new Date(),
+                                                )
+                                                    .add(2, 'hours')
+                                                    .milliseconds(0)
+                                                    .toDate(),
+                                      ]
+                            }
                             timePrecision="millisecond"
                             onChange={(
                                 range: [Date | null, Date | null] | null,
@@ -337,28 +354,42 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             formatDate(value, undefined, false)
                         }
                         parseDate={parseDate}
-                        value={[
-                            rule.values?.[0]
-                                ? parseDate(
-                                      formatDate(
-                                          rule.values?.[0],
-                                          undefined,
-                                          false,
-                                      ),
-                                      TimeFrames.DAY,
-                                  )
-                                : null,
-                            rule.values?.[1]
-                                ? parseDate(
-                                      formatDate(
-                                          rule.values?.[1],
-                                          undefined,
-                                          false,
-                                      ),
-                                      TimeFrames.DAY,
-                                  )
-                                : null,
-                        ]}
+                        startInputProps={{
+                            placeholder: rule.disabled
+                                ? placeholder
+                                : undefined,
+                        }}
+                        endInputProps={{
+                            placeholder: rule.disabled
+                                ? placeholder
+                                : undefined,
+                        }}
+                        value={
+                            rule.disabled
+                                ? [null, null]
+                                : [
+                                      rule.values?.[0]
+                                          ? parseDate(
+                                                formatDate(
+                                                    rule.values?.[0],
+                                                    undefined,
+                                                    false,
+                                                ),
+                                                TimeFrames.DAY,
+                                            )
+                                          : null,
+                                      rule.values?.[1]
+                                          ? parseDate(
+                                                formatDate(
+                                                    rule.values?.[1],
+                                                    undefined,
+                                                    false,
+                                                ),
+                                                TimeFrames.DAY,
+                                            )
+                                          : null,
+                                  ]
+                        }
                         onChange={(
                             range: [Date | null, Date | null] | null,
                         ) => {
