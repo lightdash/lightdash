@@ -27,7 +27,7 @@ export const getPlaceholderByFilterTypeAndOperator = (
                 case FilterOperator.ENDS_WITH:
                 case FilterOperator.INCLUDE:
                 case FilterOperator.NOT_INCLUDE:
-                    return 'Enter value';
+                    return 'Enter value(s)';
                 case FilterOperator.NULL:
                 case FilterOperator.NOT_NULL:
                 default:
