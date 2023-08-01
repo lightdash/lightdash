@@ -75,7 +75,16 @@ You'll need to set the following environment variables in your Lightdash deploym
 
 ## Google
 
-These variables enable you to control Single Sign On (SSO) functionality for Google
+To enable Google Single Sign On (SSO) you'll need to follow these instructions to 
+[Create the OAuth web client ID](https://support.google.com/workspacemigrate/answer/9222992?hl=en).
+Once you reach **Step 13** to configure the client you'll need to enter the following details:
+
+- Authorized JavaScript Origins: `https://{{ lightdash_domain }}`
+- Authorized redirect URIs: `https://{{ lightdash_domain }}/api/v1/oauth/redirect/google`
+
+Where `{{ lightdash_domain }}` is the domain you use to sign in to Lightdash such as `mycompany.lightdash.com`
+
+These environment variables must be provided to Lightdash to enable you to control Single Sign On (SSO) functionality for Google
 
 | Variable                               | Description                                          | Required? | Default |
 |----------------------------------------|------------------------------------------------------|-----------|---------|
