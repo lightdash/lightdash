@@ -1,3 +1,10 @@
+## [0.709.1](https://github.com/lightdash/lightdash/compare/0.709.0...0.709.1) (2023-08-01)
+
+
+### Bug Fixes
+
+* keep unsaved filters when creating a chart in dash ([#6567](https://github.com/lightdash/lightdash/issues/6567)) ([4111597](https://github.com/lightdash/lightdash/commit/41115972f66cbc23814746caedb56ced73d0ff2d))
+
 # [0.709.0](https://github.com/lightdash/lightdash/compare/0.708.0...0.709.0) (2023-07-31)
 
 
