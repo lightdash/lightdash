@@ -39,7 +39,7 @@ const MultiAutoComplete: FC<Props> = ({
     popoverProps,
     disabled,
     onChange,
-    placeholder = 'Select...',
+    placeholder,
 }) => {
     const { projectUuid, getAutocompleteFilterGroup } = useFiltersContext();
     if (!projectUuid) {
@@ -109,7 +109,6 @@ const MultiAutoComplete: FC<Props> = ({
             query={search}
             items={results || []}
             selectedItems={values}
-            placeholder={placeholder}
             tagInputProps={{
                 placeholder: undefined,
                 addOnBlur: false,
@@ -117,10 +116,11 @@ const MultiAutoComplete: FC<Props> = ({
                     minimal: true,
                 },
                 inputProps: {
-                    placeholder:
-                        values.length > 0 || disabled
-                            ? undefined
-                            : 'Start typing to filter results',
+                    placeholder: placeholder
+                        ? placeholder
+                        : values.length > 0 || disabled
+                        ? undefined
+                        : 'Start typing to filter results',
                 },
                 onRemove: handleRemove,
                 rightElement: isLoading ? (
