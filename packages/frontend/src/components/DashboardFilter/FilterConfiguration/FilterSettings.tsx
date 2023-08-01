@@ -46,6 +46,9 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         onChangeFilterRule({
                             ...filterRule,
                             disabled: !e.currentTarget.checked,
+                            values: e.currentTarget.checked
+                                ? filterRule.values
+                                : [],
                         });
                     }}
                 />
