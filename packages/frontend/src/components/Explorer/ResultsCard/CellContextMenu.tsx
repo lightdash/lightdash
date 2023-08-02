@@ -27,8 +27,9 @@ import UrlMenuItems from './UrlMenuItems';
 const CellContextMenu: FC<
     Pick<CellContextMenuProps, 'cell' | 'isEditMode'> & {
         itemsMap: Record<string, Field | TableCalculation>;
+        onExpand: (name: string, data: object) => void;
     }
-> = ({ cell, isEditMode, itemsMap }) => {
+> = ({ cell, isEditMode, itemsMap, onExpand }) => {
     const { addFilter } = useFilters();
     const { openUnderlyingDataModal } = useMetricQueryDataContext();
     const { track } = useTracking();
@@ -40,6 +41,17 @@ const CellContextMenu: FC<
 
     const value: ResultValue = cell.getValue()?.value || {};
     const fieldValues = mapValues(cell.row.original, (v) => v?.value) || {};
+
+    console.log(item);
+
+    let isComplex = false;
+    let parseResult = {};
+    try {
+        parseResult = JSON.parse(String(value.raw));
+        isComplex = typeof parseResult !== 'number';
+    } catch {
+        isComplex = false;
+    }
 
     return (
         <Menu style={{ maxWidth: 500 }}>
@@ -61,6 +73,21 @@ const CellContextMenu: FC<
             >
                 <MenuItem2 text="Copy value" icon="duplicate" />
             </CopyToClipboard>
+
+            {isComplex && (
+                <MenuItem2
+                    text="Expand"
+                    icon="eye-open"
+                    onClick={() =>
+                        onExpand(
+                            item && 'displayName' in item
+                                ? item.displayName
+                                : item?.name || '',
+                            parseResult,
+                        )
+                    }
+                />
+            )}
 
             {item && !isDimension(item) && (
                 <Can

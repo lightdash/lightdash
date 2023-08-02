@@ -1,7 +1,8 @@
 import { Field, getItemMap, TableCalculation } from '@lightdash/common';
-import { Box, Text } from '@mantine/core';
-import { FC, memo, useCallback, useMemo } from 'react';
+import { Box, Modal, Text } from '@mantine/core';
+import { FC, memo, useCallback, useMemo, useState } from 'react';
 
+import ReactJson from 'react-json-view';
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
@@ -52,6 +53,14 @@ export const ExplorerResults = memo(() => {
         (context) =>
             context.state.unsavedChartVersion.metricQuery.additionalMetrics,
     );
+    const [isExpandModalOpened, setIsExpandModalOpened] = useState(false);
+    const [expandData, setExpandData] = useState<{
+        name: string;
+        data: object;
+    }>({
+        name: 'unknown',
+        data: {},
+    });
 
     const itemsMap: Record<string, Field | TableCalculation> | undefined =
         useMemo(() => {
@@ -71,6 +80,13 @@ export const ExplorerResults = memo(() => {
                 isEditMode={isEditMode}
                 {...props}
                 itemsMap={itemsMap}
+                onExpand={(name, data) => {
+                    setExpandData({
+                        name: name,
+                        data: data,
+                    });
+                    setIsExpandModalOpened(true);
+                }}
             />
         ),
         [isEditMode, itemsMap],
@@ -140,6 +156,13 @@ export const ExplorerResults = memo(() => {
                     pagination={pagination}
                     footer={footer}
                 />
+                <Modal
+                    opened={isExpandModalOpened}
+                    onClose={() => setIsExpandModalOpened(false)}
+                    title={expandData.name}
+                >
+                    <ReactJson src={expandData.data} />
+                </Modal>
             </Box>
         </TrackSection>
     );
