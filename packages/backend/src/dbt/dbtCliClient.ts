@@ -127,7 +127,7 @@ export class DbtCliClient implements DbtClient {
         }, []);
     }
 
-    private static getDbtExec(dbtVersion: SupportedDbtVersions): string {
+    static getDbtExec(dbtVersion: SupportedDbtVersions): string {
         switch (dbtVersion) {
             case SupportedDbtVersions.V1_4:
                 return DbtCommands.DBT_1_4;
