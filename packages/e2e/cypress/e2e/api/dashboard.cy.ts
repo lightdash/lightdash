@@ -1,5 +1,6 @@
 import {
     ApiChartSummaryListResponse,
+    CreateChartInDashboard,
     CreateDashboard,
     CreateSavedChart,
     Dashboard,
@@ -9,6 +10,7 @@ import {
     SEED_PROJECT,
     UpdateDashboard,
 } from '@lightdash/common';
+import { isDashboardVersionedFields } from '@lightdash/common/src/types/dashboard';
 import { ChartType } from '@lightdash/common/src/types/savedCharts';
 
 const apiUrl = '/api/v1';
@@ -34,20 +36,81 @@ const chartMock: CreateSavedChart = {
 
 const dashboardMock: CreateDashboard = {
     name: 'Create dashboard via API',
-    tiles: [
-        {
-            type: DashboardTileTypes.SAVED_CHART,
-            x: 0,
-            y: 0,
-            h: 5,
-            w: 5,
-            properties: {
-                savedChartUuid: null,
-                newChartData: chartMock,
-            },
-        },
-    ],
+    tiles: [],
 };
+
+const createDashboard = (
+    projectUuid: string,
+    body: CreateDashboard,
+): Cypress.Chainable<Dashboard> =>
+    cy
+        .request<{
+            results: Dashboard;
+        }>({
+            method: 'POST',
+            url: `${apiUrl}/projects/${projectUuid}/dashboards`,
+            body,
+        })
+        .then((response) => {
+            expect(response.status).to.eq(201);
+            return response.body.results;
+        });
+
+const updateDashboard = (
+    dashboardUuid: string,
+    body: UpdateDashboard,
+): Cypress.Chainable<Dashboard> =>
+    cy
+        .request<{ results: Dashboard }>({
+            method: 'PATCH',
+            url: `${apiUrl}/dashboards/${dashboardUuid}`,
+            body,
+        })
+        .then((response) => {
+            expect(response.status).to.eq(200);
+            return response.body.results;
+        });
+
+const createChartAndUpdateDashboard = (
+    projectUuid: string,
+    body: CreateChartInDashboard,
+    dashboard?: UpdateDashboard,
+): Cypress.Chainable<{ chart: SavedChart; dashboard: Dashboard }> =>
+    cy
+        .request<{
+            results: SavedChart;
+        }>({
+            method: 'POST',
+            url: `${apiUrl}/projects/${projectUuid}/saved`,
+            body,
+        })
+        .then((response) => {
+            expect(response.status).to.eq(200);
+            const newChart = response.body.results;
+            expect(newChart.name).to.eq(chartMock.name);
+            expect(newChart.dashboardUuid).to.eq(body.dashboardUuid);
+            return updateDashboard(body.dashboardUuid, {
+                ...dashboard,
+                tiles: [
+                    ...(dashboard && isDashboardVersionedFields(dashboard)
+                        ? dashboard.tiles
+                        : []),
+                    {
+                        type: DashboardTileTypes.SAVED_CHART,
+                        x: 0,
+                        y: 0,
+                        h: 5,
+                        w: 5,
+                        properties: {
+                            savedChartUuid: newChart.uuid,
+                        },
+                    },
+                ],
+            }).then((updatedDashboard) => ({
+                chart: newChart,
+                dashboard: updatedDashboard,
+            }));
+        });
 
 describe('Lightdash dashboard', () => {
     before(() => {
@@ -61,96 +124,54 @@ describe('Lightdash dashboard', () => {
     });
     let dashboardUuid: string;
     let chartUuid: string;
-    it('Should create dashboard and chart at the same time', () => {
+    it('Should create charts that belong to dashboard', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
-        // create dashboard and chart
-        cy.request<{ results: Dashboard }>({
-            method: 'POST',
-            url: `${apiUrl}/projects/${projectUuid}/dashboards`,
-            body: dashboardMock,
-        }).then((createDashboardResponse) => {
-            const tile = createDashboardResponse.body.results.tiles[0];
+        // create dashboard
+        createDashboard(projectUuid, dashboardMock).then((newDashboard) => {
+            dashboardUuid = newDashboard.uuid;
 
-            expect(tile.properties).to.have.property('savedChartUuid');
-            expect(
-                (tile as DashboardChartTile).properties.belongsToDashboard,
-            ).to.eq(true);
-            // confirm chart was created
-            cy.request<{ results: SavedChart }>(
-                `${apiUrl}/saved/${
-                    (tile as DashboardChartTile).properties.savedChartUuid
-                }`,
-            ).then((chartResponse) => {
-                expect(chartResponse.status).to.eq(200);
-                expect(chartResponse.body.results.name).to.eq(chartMock.name);
-                expect(chartResponse.body.results.dashboardUuid).to.eq(
-                    createDashboardResponse.body.results.uuid,
-                );
-                expect(chartResponse.body.results.spaceUuid).to.eq(
-                    createDashboardResponse.body.results.spaceUuid,
-                );
-                chartUuid = chartResponse.body.results.uuid;
-                dashboardUuid = createDashboardResponse.body.results.uuid;
-            });
+            // update dashboard with chart
+            createChartAndUpdateDashboard(projectUuid, {
+                ...chartMock,
+                dashboardUuid: newDashboard.uuid,
+                spaceUuid: null,
+            }).then(({ chart: newChart, dashboard: updatedDashboard }) => {
+                chartUuid = newChart.uuid;
+                expect(updatedDashboard.tiles.length).to.eq(1);
+                const tile = updatedDashboard.tiles[0] as DashboardChartTile;
+                // assert tile is correct
+                expect(tile.properties.savedChartUuid).to.eq(newChart.uuid);
+                expect(tile.properties.belongsToDashboard).to.eq(true);
 
-            const updateDashboardMock: UpdateDashboard = {
-                tiles: [
-                    ...createDashboardResponse.body.results.tiles,
+                // update dashboard with second chart
+                createChartAndUpdateDashboard(
+                    projectUuid,
                     {
-                        type: DashboardTileTypes.SAVED_CHART,
-                        x: 5,
-                        y: 0,
-                        h: 5,
-                        w: 5,
-                        properties: {
-                            savedChartUuid: null,
-                            newChartData: chartMock,
-                        },
+                        ...chartMock,
+                        dashboardUuid: newDashboard.uuid,
+                        spaceUuid: null,
                     },
-                ],
-            };
-            // update dashboard and create new chart
-            cy.request<{ results: Dashboard }>({
-                method: 'PATCH',
-                url: `${apiUrl}/dashboards/${createDashboardResponse.body.results.uuid}`,
-                body: updateDashboardMock,
-            }).then((updateDashboardResponse) => {
-                const firstTile = updateDashboardResponse.body.results.tiles[0];
-                const secondTile =
-                    updateDashboardResponse.body.results.tiles[1];
+                    {
+                        tiles: updatedDashboard.tiles,
+                    },
+                ).then(({ chart: newChart2, dashboard: updatedDashboard2 }) => {
+                    expect(updatedDashboard2.tiles.length).to.eq(2);
+                    const firstTile = updatedDashboard2
+                        .tiles[0] as DashboardChartTile;
+                    const secondTile = updatedDashboard2
+                        .tiles[1] as DashboardChartTile;
 
-                expect(secondTile.properties).to.have.property(
-                    'savedChartUuid',
-                );
-                // confirm first chart didn't change
-                expect(
-                    (firstTile as DashboardChartTile).properties.savedChartUuid,
-                ).to.eq((tile as DashboardChartTile).properties.savedChartUuid);
-                // confirm second chart is different from first chart
-                expect(
-                    (secondTile as DashboardChartTile).properties
-                        .savedChartUuid,
-                ).to.not.eq(
-                    (tile as DashboardChartTile).properties.savedChartUuid,
-                );
-
-                // confirm chart was created during dashboard update
-                cy.request<{ results: SavedChart }>(
-                    `${apiUrl}/saved/${
-                        (secondTile as DashboardChartTile).properties
-                            .savedChartUuid
-                    }`,
-                ).then((chartResponse) => {
-                    expect(chartResponse.status).to.eq(200);
-                    expect(chartResponse.body.results.name).to.eq(
-                        chartMock.name,
+                    // assert first chart didn't change
+                    expect(firstTile.properties.savedChartUuid).to.eq(
+                        chartUuid,
                     );
-                    expect(chartResponse.body.results.dashboardUuid).to.eq(
-                        createDashboardResponse.body.results.uuid,
+                    // assert second tile is correct
+                    expect(secondTile.properties.savedChartUuid).to.eq(
+                        newChart2.uuid,
                     );
-                    expect(chartResponse.body.results.spaceUuid).to.eq(
-                        createDashboardResponse.body.results.spaceUuid,
+                    expect(secondTile.properties.belongsToDashboard).to.eq(
+                        true,
                     );
                 });
             });
