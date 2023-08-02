@@ -7,6 +7,12 @@ const BooleanFilterInputs = <T extends ConditionalRule>(
 ) => {
     const { rule, onChange, disabled } = props;
 
+    let selectValue = 'any';
+
+    if (rule.values !== undefined) {
+        selectValue = rule.values[0] ? 'true' : 'false';
+    }
+
     switch (rule.operator) {
         case FilterOperator.EQUALS: {
             return (
@@ -21,10 +27,15 @@ const BooleanFilterInputs = <T extends ConditionalRule>(
                         })
                     }
                     options={[
+                        {
+                            value: 'any',
+                            label: 'Any',
+                            disabled: !!selectValue && selectValue !== 'any',
+                        },
                         { value: 'true', label: 'True' },
                         { value: 'false', label: 'False' },
                     ]}
-                    value={rule.values?.[0] ? 'true' : 'false'}
+                    value={selectValue}
                 />
             );
         }
