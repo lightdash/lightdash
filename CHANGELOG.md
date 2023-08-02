@@ -1,3 +1,17 @@
+# [0.716.0](https://github.com/lightdash/lightdash/compare/0.715.0...0.716.0) (2023-08-01)
+
+
+### Features
+
+* You should be able to hide/show tile titles from the edit modals (not the 3-dot action menu)  ([#6519](https://github.com/lightdash/lightdash/issues/6519)) ([9ab380f](https://github.com/lightdash/lightdash/commit/9ab380fc26ea5b86a6ae13d275396395b4ea6fc8))
+
+# [0.715.0](https://github.com/lightdash/lightdash/compare/0.714.0...0.715.0) (2023-08-01)
+
+
+### Features
+
+* add event loop delay otel metric ([#6579](https://github.com/lightdash/lightdash/issues/6579)) ([3a1fc2b](https://github.com/lightdash/lightdash/commit/3a1fc2b67318a9db83209c228747801c9ea3cd29))
+
 # [0.714.0](https://github.com/lightdash/lightdash/compare/0.713.0...0.714.0) (2023-08-01)
 
 
