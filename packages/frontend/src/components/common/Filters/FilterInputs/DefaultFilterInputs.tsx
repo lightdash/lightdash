@@ -123,7 +123,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                     fill
                     placeholder={placeholder}
                     type="number"
-                    value={disabled ? '' : parsedValue}
+                    defaultValue={parsedValue}
                     onValueChange={(numericValue, stringValue) => {
                         onChange({
                             ...rule,

@@ -303,8 +303,8 @@ export const createDashboardFilterRuleFromField = (
             tableName: field.table,
         },
         tileTargets: getDefaultTileTargets(field, availableTileFilters),
-        label: undefined,
         disabled: true,
+        label: undefined,
     });
 
 type AddFilterRuleArgs = {
