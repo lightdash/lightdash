@@ -21,7 +21,7 @@ export type DbProject = {
     table_selection_type: TableSelectionType;
     table_selection_value: string[] | null;
     copied_from_project_uuid: string | null;
-    dbt_version: string | null;
+    dbt_version: string;
 };
 
 type CreateDbProject = Pick<

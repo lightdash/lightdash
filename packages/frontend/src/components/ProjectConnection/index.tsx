@@ -190,9 +190,7 @@ export const UpdateProjectConnection: FC<{
             warehouse: {
                 ...data?.warehouseConnection,
             },
-            dbtVersion: data?.dbtVersion
-                ? (data?.dbtVersion as SupportedDbtVersions)
-                : undefined,
+            dbtVersion: data?.dbtVersion,
         },
     });
     const { reset } = methods;
@@ -202,9 +200,7 @@ export const UpdateProjectConnection: FC<{
                 name: data.name,
                 dbt: data.dbtConnection,
                 warehouse: data.warehouseConnection,
-                dbtVersion: data?.dbtVersion
-                    ? (data?.dbtVersion as SupportedDbtVersions)
-                    : undefined,
+                dbtVersion: data.dbtVersion,
             });
         }
     }, [reset, data]);

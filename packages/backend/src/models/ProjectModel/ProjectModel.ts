@@ -232,7 +232,7 @@ export class ProjectModel {
                         copiedProjects.length === 1
                             ? copiedProjects[0].project_uuid
                             : null,
-                    dbt_version: data.dbtVersion ? data.dbtVersion : null,
+                    dbt_version: data.dbtVersion,
                 })
                 .returning('*');
 
@@ -268,7 +268,7 @@ export class ProjectModel {
                     name: data.name,
                     dbt_connection_type: data.dbtConnection.type,
                     dbt_connection: encryptedCredentials,
-                    dbt_version: data.dbtVersion ? data.dbtVersion : null,
+                    dbt_version: data.dbtVersion,
                 })
                 .where('project_uuid', projectUuid)
                 .returning('*');
