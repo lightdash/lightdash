@@ -5,7 +5,6 @@ import {
     FilterableField,
     FilterRule,
     FilterType,
-    getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
 } from '@lightdash/common';
 import { Stack, Switch, TextInput } from '@mantine/core';
@@ -37,40 +36,6 @@ const FilterSettings: FC<FilterSettingsProps> = ({
         [filterType],
     );
 
-    const handleOnSwitchChange:
-        | React.ChangeEventHandler<HTMLInputElement>
-        | undefined = (e) => {
-        const isToggled = e.currentTarget.checked;
-
-        let filterValues: FilterRule['values'] = [];
-        if (isToggled) {
-            filterValues = filterRule.values?.length
-                ? filterRule.values
-                : getFilterRuleWithDefaultValue(field, filterRule).values;
-        }
-
-        onChangeFilterRule({
-            ...filterRule,
-            disabled: !isToggled,
-            values: filterValues,
-        });
-    };
-
-    // questions for Priyanka
-
-    // CHanging of filters
-
-    // toggle
-    // untoggle
-    // change operator
-    // toggle
-    // what value should be there
-    // do we preserve values across multiple operators or do we reset them
-
-    // Boolean
-    // disabled state UI
-    // TODO: replace all any value stuff with one centralised disabled input with "any value" placeholder
-
     return (
         <Stack>
             <Stack spacing="xs">
@@ -78,7 +43,15 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     label="Default value"
                     labelPosition="left"
                     checked={!filterRule.disabled}
-                    onChange={handleOnSwitchChange}
+                    onChange={(e) => {
+                        onChangeFilterRule({
+                            ...filterRule,
+                            disabled: !e.currentTarget.checked,
+                            values: e.currentTarget.checked
+                                ? filterRule.values
+                                : [],
+                        });
+                    }}
                 />
 
                 <HTMLSelect
@@ -106,8 +79,6 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         popoverProps={popoverProps}
                         filterType={filterType}
                         field={field}
-                        // TODO: check here, don't think we should do this now?
-                        disabled={filterRule.disabled}
                         rule={filterRule}
                         onChange={(newFilterRule) =>
                             onChangeFilterRule(
