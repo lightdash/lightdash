@@ -81,7 +81,8 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.NOT_IN_THE_PAST:
                 case FilterOperator.IN_THE_NEXT:
                 case FilterOperator.IN_THE_CURRENT:
-                    return 'Select a time period';
+                    // The cases above do not require a placeholder since they always display a value in the input
+                    return '';
                 case FilterOperator.IN_BETWEEN:
                     // in between is a special case since it displays two separate date pickers
                     // by default it shows a correct placeholder which is "Start date" and "End date"
