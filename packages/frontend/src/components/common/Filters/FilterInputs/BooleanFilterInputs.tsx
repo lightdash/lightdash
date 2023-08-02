@@ -1,17 +1,25 @@
 import { HTMLSelect } from '@blueprintjs/core';
-import { ConditionalRule, FilterOperator } from '@lightdash/common';
+import {
+    ConditionalRule,
+    FilterOperator,
+    isFilterRule,
+} from '@lightdash/common';
+import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
 
 const BooleanFilterInputs = <T extends ConditionalRule>(
     props: React.PropsWithChildren<FilterInputsProps<T>>,
 ) => {
-    const { rule, onChange, disabled } = props;
+    const { rule, onChange, disabled, filterType } = props;
 
-    let selectValue = 'any';
+    const placeholder = getPlaceholderByFilterTypeAndOperator({
+        type: filterType,
+        operator: rule.operator,
+        disabled: isFilterRule(rule) ? rule.disabled : false,
+    });
 
-    if (rule.values !== undefined) {
-        selectValue = rule.values[0] ? 'true' : 'false';
-    }
+    const selectValue =
+        rule.values === undefined ? 'any' : rule.values[0] ? 'true' : 'false';
 
     switch (rule.operator) {
         case FilterOperator.EQUALS: {
@@ -26,12 +34,9 @@ const BooleanFilterInputs = <T extends ConditionalRule>(
                             values: [e.currentTarget.value === 'true'],
                         })
                     }
+                    placeholder={placeholder}
                     options={[
-                        {
-                            value: 'any',
-                            label: 'Any',
-                            disabled: !!selectValue && selectValue !== 'any',
-                        },
+                        { value: 'any', label: placeholder, disabled: true },
                         { value: 'true', label: 'True' },
                         { value: 'false', label: 'False' },
                     ]}
