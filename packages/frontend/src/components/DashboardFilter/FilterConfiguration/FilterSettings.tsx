@@ -5,6 +5,7 @@ import {
     FilterableField,
     FilterRule,
     FilterType,
+    getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
 } from '@lightdash/common';
 import { Stack, Switch, TextInput } from '@mantine/core';
@@ -35,6 +36,25 @@ const FilterSettings: FC<FilterSettingsProps> = ({
         [filterType],
     );
 
+    const handleOnSwitchChange:
+        | React.ChangeEventHandler<HTMLInputElement>
+        | undefined = (e) => {
+        const isToggled = e.currentTarget.checked;
+
+        let filterValues: FilterRule['values'] = [];
+        if (isToggled) {
+            filterValues = filterRule.values?.length
+                ? filterRule.values
+                : getFilterRuleWithDefaultValue(field, filterRule).values;
+        }
+
+        onChangeFilterRule({
+            ...filterRule,
+            disabled: !isToggled,
+            values: filterValues,
+        });
+    };
+
     return (
         <Stack>
             <Stack spacing="xs">
@@ -42,15 +62,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     label="Default value"
                     labelPosition="left"
                     checked={!filterRule.disabled}
-                    onChange={(e) => {
-                        onChangeFilterRule({
-                            ...filterRule,
-                            disabled: !e.currentTarget.checked,
-                            values: e.currentTarget.checked
-                                ? filterRule.values
-                                : [],
-                        });
-                    }}
+                    onChange={handleOnSwitchChange}
                 />
 
                 <HTMLSelect
