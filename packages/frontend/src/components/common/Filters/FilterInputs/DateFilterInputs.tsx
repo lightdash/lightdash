@@ -64,7 +64,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 <WeekPicker
                                     placeholder={placeholder}
                                     disabled={disabled}
-                                    value={rule.values?.[0] || new Date()}
+                                    value={rule.values ? rule.values[0] : null}
                                     popoverProps={popoverProps}
                                     startOfWeek={startOfWeek}
                                     onChange={(value: Date) => {

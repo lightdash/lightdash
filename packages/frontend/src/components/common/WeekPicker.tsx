@@ -106,7 +106,7 @@ function getWeekRange(date: Date, startOfWeek?: WeekDay | null): WeekRange {
 }
 
 type Props = {
-    value: Date;
+    value: Date | null;
     onChange: (value: Date) => void;
     popoverProps?: Popover2Props;
     startOfWeek?: WeekDay | null;
@@ -120,11 +120,13 @@ const WeekPicker: FC<Props> = ({
     placeholder,
     startOfWeek,
 }) => {
-    const value = moment(dateValue).toDate();
+    const value = dateValue ? moment(dateValue).toDate() : null;
     //Filtering a dimension returns a date, but filtering on a table returns a string on UTC
-    const formattedDate = formatDate(value);
+    const formattedDate = value ? formatDate(value) : null;
     const [hoverRange, setHoverRange] = useState<WeekRange>();
-    const selectedDays = getWeekDays(getWeekRange(value, startOfWeek).from);
+    const selectedDays = value
+        ? getWeekDays(getWeekRange(value, startOfWeek).from)
+        : [];
 
     const daysAreSelected = selectedDays.length > 0;
     const modifiers = {
@@ -157,14 +159,11 @@ const WeekPicker: FC<Props> = ({
                 value={formattedDate}
                 formatDate={formatDate}
                 parseDate={parseDate}
-                defaultValue={getWeekRange(
-                    new Date(),
-                    startOfWeek,
-                ).from.toString()}
-                onChange={(pickedDate: string | null) => {
+                onChange={(pickedDate) => {
+                    if (!pickedDate) return;
+
                     onChange(
-                        getWeekRange(new Date(pickedDate || value), startOfWeek)
-                            .from,
+                        getWeekRange(new Date(pickedDate), startOfWeek).from,
                     );
                 }}
                 dayPickerProps={{
