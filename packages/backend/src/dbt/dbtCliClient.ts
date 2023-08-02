@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     DbtError,
     DbtLog,
     DbtManifestVersion,
@@ -203,8 +204,11 @@ export class DbtCliClient implements DbtClient {
                 return DbtCommands.DBT_1_4;
             case SupportedDbtVersions.V1_5:
                 return DbtCommands.DBT_1_5;
-            default: // undefined
-                return DefaultSupportedDbtVersion;
+            default:
+                return assertUnreachable(
+                    dbtVersion,
+                    'Missing dbt version command mapping',
+                );
         }
     }
 
@@ -212,6 +216,7 @@ export class DbtCliClient implements DbtClient {
         dbtVersion: SupportedDbtVersions,
         ...command: string[]
     ): Promise<DbtLog[]> {
+        Logger.debug(`Running dbt command with dbt version: ${dbtVersion}`);
         const dbtExec = DbtCliClient.getDbtExec(dbtVersion);
         const dbtArgs = [
             '--no-use-colors',
@@ -240,7 +245,7 @@ export class DbtCliClient implements DbtClient {
             });
             return DbtCliClient.parseDbtJsonLogs(dbtProcess.all);
         } catch (e) {
-            Logger.error(`Error running dbt command  ${e}`);
+            Logger.error(`Error running dbt command ${e}`);
 
             throw new DbtError(
                 `Failed to run "dbt ${command.join(
