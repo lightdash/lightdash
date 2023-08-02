@@ -11,6 +11,7 @@ import {
     FilterableField,
     FilterOperator,
     FilterRule,
+    getFilterRuleWithDefaultValue,
     matchFieldByType,
     matchFieldByTypeAndName,
     matchFieldExact,
@@ -89,12 +90,14 @@ const FilterConfiguration: FC<Props> = ({
 
     const handleChangeFilterOperator = useCallback(
         (operator: FilterRule['operator']) => {
-            setInternalFilterRule((prevState) => ({
-                ...prevState,
-                operator,
-            }));
+            setInternalFilterRule((prevState) =>
+                getFilterRuleWithDefaultValue(field, {
+                    ...prevState,
+                    operator,
+                }),
+            );
         },
-        [],
+        [field],
     );
 
     const handleChangeTileConfiguration = useCallback(
