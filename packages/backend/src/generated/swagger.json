@@ -1772,14 +1772,14 @@
                     }
                 ]
             },
-            "SupportedDbtVersion": {
+            "SupportedDbtVersions": {
                 "enum": ["v1.4", "v1.5"],
                 "type": "string"
             },
             "Project": {
                 "properties": {
                     "dbtVersion": {
-                        "$ref": "#/components/schemas/SupportedDbtVersion"
+                        "$ref": "#/components/schemas/SupportedDbtVersions"
                     },
                     "copiedFromProjectUuid": {
                         "type": "string"
@@ -1807,6 +1807,7 @@
                     }
                 },
                 "required": [
+                    "dbtVersion",
                     "dbtConnection",
                     "type",
                     "name",
