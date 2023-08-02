@@ -126,77 +126,6 @@ export class DbtCliClient implements DbtClient {
             return acc;
         }, []);
     }
-    /*
-    private async _runDbtVersionCommand(
-        ...command: string[]
-    ): Promise<{ version: DbtManifestVersion; logs: DbtLog[] }> {
-        const dbtExecs = Object.values(DbtCommands);
-        const errorLogs: Partial<Record<DbtCommands, DbtLog[]>> = {};
-
-        // eslint-disable-next-line no-restricted-syntax
-        for await (const dbtExec of dbtExecs) {
-            Logger.info(
-                `Running dbt exec "${dbtExec}" with command "${command.join(
-                    ' ',
-                )}"`,
-            );
-
-            try {
-                return {
-                    version:
-                        dbtExec === 'dbt1.5'
-                            ? DbtManifestVersion.V9
-                            : DbtManifestVersion.V8,
-                    logs: await this._runDbtCommand(dbtExec, ...command),
-                };
-            } catch (e: unknown) {
-                Sentry.captureException(e, { extra: { dbtExec } });
-                Logger.warn(
-                    `Error running ${dbtExec} command "${command.join(
-                        ' ',
-                    )}": ${e}`,
-                );
-
-                if (!(e instanceof DbtError)) throw e;
-                errorLogs[dbtExec] = e.logs || [];
-                if (dbtExecs[dbtExecs.length - 1] === dbtExec) {
-                    throw new DbtError(
-                        `We failed to run "dbt ${command.join(
-                            ' ',
-                        )}" successfully across all versions of dbt that Lightdash currently supports. You can see specific errors below for each dbt version we tried to use.`,
-                        Object.entries(errorLogs).reduce<DbtLog[]>(
-                            (acc, [key, logs]) => {
-                                const versionLog: DbtLog = {
-                                    code: '',
-                                    info: {
-                                        category: '',
-                                        code: '',
-                                        extra: {},
-                                        invocation_id: '',
-                                        level: 'error',
-                                        log_version: 2,
-                                        msg: `[dbt ${
-                                            DbtCommandVersion[
-                                                key as DbtCommands
-                                            ]
-                                        }]`,
-                                        name: '',
-                                        pid: 0,
-                                        thread_name: '',
-                                        ts: '',
-                                        type: 'log_line',
-                                    },
-                                };
-                                return [...acc, versionLog, ...logs];
-                            },
-                            [],
-                        ),
-                    );
-                }
-            }
-        }
-        return { version: DbtManifestVersion.V8, logs: [] };
-    } */
 
     private static getDbtExec(dbtVersion: SupportedDbtVersions): string {
         switch (dbtVersion) {
@@ -235,7 +164,9 @@ export class DbtCliClient implements DbtClient {
             dbtArgs.push('--profile', this.profileName);
         }
         try {
-            Logger.debug(`Running dbt command: dbt ${dbtArgs.join(' ')}`);
+            Logger.debug(
+                `Running dbt command: ${dbtExec} ${dbtArgs.join(' ')}`,
+            );
             const dbtProcess = await execa(dbtExec, dbtArgs, {
                 all: true,
                 stdio: ['pipe', 'pipe', process.stderr],
