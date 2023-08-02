@@ -145,7 +145,6 @@ export class DbtCliClient implements DbtClient {
         dbtVersion: SupportedDbtVersions,
         ...command: string[]
     ): Promise<DbtLog[]> {
-        Logger.debug(`Running dbt command with dbt version: ${dbtVersion}`);
         const dbtExec = DbtCliClient.getDbtExec(dbtVersion);
         const dbtArgs = [
             '--no-use-colors',
@@ -165,7 +164,9 @@ export class DbtCliClient implements DbtClient {
         }
         try {
             Logger.debug(
-                `Running dbt command: ${dbtExec} ${dbtArgs.join(' ')}`,
+                `Running dbt command with version "${dbtVersion}": ${dbtExec} ${dbtArgs.join(
+                    ' ',
+                )}`,
             );
             const dbtProcess = await execa(dbtExec, dbtArgs, {
                 all: true,
@@ -176,10 +177,12 @@ export class DbtCliClient implements DbtClient {
             });
             return DbtCliClient.parseDbtJsonLogs(dbtProcess.all);
         } catch (e) {
-            Logger.error(`Error running dbt command ${e}`);
+            Logger.error(
+                `Error running dbt command with version ${dbtVersion}: ${e}`,
+            );
 
             throw new DbtError(
-                `Failed to run "dbt ${command.join(
+                `Failed to run "${dbtExec} ${command.join(
                     ' ',
                 )}" with dbt version "${dbtVersion}}"`,
                 DbtCliClient.parseDbtJsonLogs(e.all),
