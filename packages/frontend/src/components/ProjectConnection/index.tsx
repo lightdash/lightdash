@@ -6,6 +6,7 @@ import {
     DbtProjectType,
     friendlyName,
     ProjectType,
+    SupportedDbtVersions,
     WarehouseTypes,
 } from '@lightdash/common';
 import { Anchor, Avatar, Card, Flex, Stack } from '@mantine/core';
@@ -46,6 +47,7 @@ type ProjectConnectionForm = {
     dbt: DbtProjectConfig;
 
     warehouse?: CreateWarehouseCredentials;
+    dbtVersion?: SupportedDbtVersions;
 };
 
 interface Props {
@@ -199,6 +201,9 @@ export const UpdateProjectConnection: FC<{
             warehouse: {
                 ...data?.warehouseConnection,
             },
+            dbtVersion: data?.dbtVersion
+                ? (data?.dbtVersion as SupportedDbtVersions)
+                : undefined,
         },
     });
     const { reset } = methods;
@@ -208,6 +213,9 @@ export const UpdateProjectConnection: FC<{
                 name: data.name,
                 dbt: data.dbtConnection,
                 warehouse: data.warehouseConnection,
+                dbtVersion: data?.dbtVersion
+                    ? (data?.dbtVersion as SupportedDbtVersions)
+                    : undefined,
             });
         }
     }, [reset, data]);
@@ -217,6 +225,7 @@ export const UpdateProjectConnection: FC<{
         name,
         dbt: dbtConnection,
         warehouse: warehouseConnection,
+        dbtVersion,
     }: Required<ProjectConnectionForm>) => {
         if (user.data) {
             track({
@@ -226,6 +235,7 @@ export const UpdateProjectConnection: FC<{
                 name,
                 dbtConnection,
                 warehouseConnection,
+                dbtVersion: dbtVersion ? dbtVersion : undefined,
             });
         }
     };

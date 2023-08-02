@@ -114,6 +114,7 @@ export async function seed(knex: Knex): Promise<void> {
             ...SEED_PROJECT,
             organization_id: organizationId,
             dbt_connection: encryptedProjectSettings,
+            dbt_version: undefined,
         })
         .returning('project_id');
 

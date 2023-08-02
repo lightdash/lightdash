@@ -176,6 +176,11 @@ export type DbtProjectEnvironmentVariable = {
     value: string;
 };
 
+export enum SupportedDbtVersions {
+    V1_4 = 'v1.4',
+    V1_5 = 'v1.5',
+}
+
 export interface DbtProjectCompilerBase extends DbtProjectConfigBase {
     target?: string;
     environment?: DbtProjectEnvironmentVariable[];
@@ -256,6 +261,7 @@ export type Project = {
     warehouseConnection?: WarehouseCredentials;
     pinnedListUuid?: string;
     copiedFromProjectUuid?: string;
+    dbtVersion?: SupportedDbtVersions;
 };
 
 export type ApiProjectResponse = {

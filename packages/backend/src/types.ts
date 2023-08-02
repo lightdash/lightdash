@@ -6,6 +6,7 @@ import {
     DimensionType,
     Explore,
     ExploreError,
+    SupportedDbtVersions,
 } from '@lightdash/common';
 import { WarehouseCatalog } from '@lightdash/warehouses';
 
@@ -21,14 +22,17 @@ export interface ProjectAdapter {
 }
 
 export interface DbtClient {
-    installDeps(): Promise<void>;
-    getDbtManifest(): Promise<{
-        version: DbtManifestVersion;
-        results: DbtRpcGetManifestResults;
-    }>;
-    getDbtCatalog(): Promise<DbtRpcDocsGenerateResults>;
-    getDbtPackages?(): Promise<DbtPackages | undefined>;
-    test(): Promise<void>;
+    installDeps(dbtVersion: SupportedDbtVersions): Promise<void>;
+    getDbtManifest(
+        dbtVersion: SupportedDbtVersions,
+    ): Promise<DbtRpcGetManifestResults>;
+    getDbtCatalog(
+        dbtVersion: SupportedDbtVersions,
+    ): Promise<DbtRpcDocsGenerateResults>;
+    getDbtPackages?(
+        dbtVersion: SupportedDbtVersions,
+    ): Promise<DbtPackages | undefined>;
+    test(dbtVersion: SupportedDbtVersions): Promise<void>;
 }
 
 export type CachedWarehouse = {
