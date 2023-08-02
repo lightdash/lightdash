@@ -94,12 +94,13 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                 {filterRule.disabled ? (
                     <TextInput
                         disabled
+                        size="xs"
                         placeholder={getPlaceholderByFilterTypeAndOperator({
                             type: filterType,
                             operator: filterRule.operator,
                             disabled: true,
                         })}
-                    ></TextInput>
+                    />
                 ) : (
                     <filterConfig.inputs
                         popoverProps={popoverProps}
