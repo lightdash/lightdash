@@ -303,7 +303,7 @@ export class ProjectModel {
                   warehouse_type: null;
                   organization_uuid: string;
                   pinned_list_uuid?: string;
-                  dbt_version: string;
+                  dbt_version: SupportedDbtVersions;
               }
             | {
                   name: string;
@@ -313,7 +313,7 @@ export class ProjectModel {
                   warehouse_type: string;
                   organization_uuid: string;
                   pinned_list_uuid?: string;
-                  dbt_version: string | null;
+                  dbt_version: SupportedDbtVersions;
               }
         )[];
         const projects = await this.database('projects')
@@ -378,9 +378,7 @@ export class ProjectModel {
             type: project.project_type,
             dbtConnection: dbtSensitiveCredentials,
             pinnedListUuid: project.pinned_list_uuid,
-            dbtVersion: project.dbt_version
-                ? (project.dbt_version as SupportedDbtVersions)
-                : undefined,
+            dbtVersion: project.dbt_version,
         };
         if (!project.warehouse_type) {
             return result;

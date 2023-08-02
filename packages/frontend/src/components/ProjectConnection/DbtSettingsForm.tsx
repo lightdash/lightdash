@@ -2,7 +2,6 @@ import {
     assertUnreachable,
     DbtProjectType,
     DbtProjectTypeLabels,
-    DefaultSupportedDbtVersion,
     SupportedDbtVersions,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -168,16 +167,10 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
             <SelectField
                 name="dbtVersion"
                 label="dbt version"
-                options={[
-                    {
-                        label: `default (${DefaultSupportedDbtVersion})`,
-                        value: '',
-                    },
-                    ...Object.values(SupportedDbtVersions).map((version) => ({
-                        value: version,
-                        label: version,
-                    })),
-                ]}
+                options={Object.values(SupportedDbtVersions).map((version) => ({
+                    value: version,
+                    label: version,
+                }))}
                 disabled={disabled}
                 defaultValue={''}
             />

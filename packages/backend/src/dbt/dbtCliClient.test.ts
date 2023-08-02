@@ -4,7 +4,7 @@ import * as fs from 'fs/promises';
 import { DbtCliClient } from './dbtCliClient';
 import {
     catalogMock,
-    cliArgs,
+    cliArgs as cliArgsWithoutVersion,
     cliMockImplementation,
     dbtProjectYml,
     expectedCommandOptions,
@@ -23,8 +23,10 @@ jest.mock('fs/promises', () => ({
 jest.mock('execa');
 
 Object.values(SupportedDbtVersions).map((dbtVersion) => {
-    const dbtExec = DbtCliClient.getDbtExec(dbtVersion);
-
+    const cliArgs = {
+        ...cliArgsWithoutVersion,
+        dbtVersion,
+    };
     return describe(`DbtCliClient ${dbtVersion}`, () => {
         beforeEach(() => {
             jest.resetAllMocks();
@@ -33,10 +35,9 @@ Object.values(SupportedDbtVersions).map((dbtVersion) => {
             execaMock.mockImplementationOnce(cliMockImplementation.success);
 
             const client = new DbtCliClient(cliArgs);
+            const dbtExec = client.getDbtExec();
 
-            await expect(client.installDeps(dbtVersion)).resolves.toEqual(
-                undefined,
-            );
+            await expect(client.installDeps()).resolves.toEqual(undefined);
             await expect(execaMock).toHaveBeenCalledTimes(1);
             await expect(execaMock).toHaveBeenCalledWith(
                 dbtExec,
@@ -49,9 +50,7 @@ Object.values(SupportedDbtVersions).map((dbtVersion) => {
 
             const client = new DbtCliClient(cliArgs);
 
-            await expect(client.installDeps(dbtVersion)).rejects.toThrowError(
-                DbtError,
-            );
+            await expect(client.installDeps()).rejects.toThrowError(DbtError);
         });
         it('should get manifest with success', async () => {
             execaMock.mockImplementationOnce(cliMockImplementation.success);
@@ -63,8 +62,9 @@ Object.values(SupportedDbtVersions).map((dbtVersion) => {
             );
 
             const client = new DbtCliClient(cliArgs);
+            const dbtExec = client.getDbtExec();
 
-            await expect(client.getDbtManifest(dbtVersion)).resolves.toEqual({
+            await expect(client.getDbtManifest()).resolves.toEqual({
                 manifest: manifestMock,
             });
             await expect(execaMock).toHaveBeenCalledTimes(1);
@@ -84,10 +84,9 @@ Object.values(SupportedDbtVersions).map((dbtVersion) => {
             );
 
             const client = new DbtCliClient(cliArgs);
+            const dbtExec = client.getDbtExec();
 
-            await expect(client.getDbtCatalog(dbtVersion)).resolves.toEqual(
-                catalogMock,
-            );
+            await expect(client.getDbtCatalog()).resolves.toEqual(catalogMock);
             await expect(execaMock).toHaveBeenCalledTimes(1);
             await expect(execaMock).toHaveBeenCalledWith(
                 dbtExec,

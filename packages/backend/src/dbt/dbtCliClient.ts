@@ -68,6 +68,7 @@ type DbtCliArgs = {
     environment: Record<string, string>;
     profileName?: string;
     target?: string;
+    dbtVersion: SupportedDbtVersions;
 };
 
 enum DbtCommands {
@@ -88,12 +89,15 @@ export class DbtCliClient implements DbtClient {
 
     targetDirectory: string | undefined;
 
+    dbtVersion: SupportedDbtVersions;
+
     constructor({
         dbtProjectDirectory,
         dbtProfilesDirectory,
         environment,
         profileName,
         target,
+        dbtVersion,
     }: DbtCliArgs) {
         this.dbtProjectDirectory = dbtProjectDirectory;
         this.dbtProfilesDirectory = dbtProfilesDirectory;
@@ -101,6 +105,7 @@ export class DbtCliClient implements DbtClient {
         this.profileName = profileName;
         this.target = target;
         this.targetDirectory = undefined;
+        this.dbtVersion = dbtVersion;
     }
 
     private async _getTargetDirectory(): Promise<string> {
@@ -127,25 +132,22 @@ export class DbtCliClient implements DbtClient {
         }, []);
     }
 
-    static getDbtExec(dbtVersion: SupportedDbtVersions): string {
-        switch (dbtVersion) {
+    getDbtExec(): string {
+        switch (this.dbtVersion) {
             case SupportedDbtVersions.V1_4:
                 return DbtCommands.DBT_1_4;
             case SupportedDbtVersions.V1_5:
                 return DbtCommands.DBT_1_5;
             default:
                 return assertUnreachable(
-                    dbtVersion,
+                    this.dbtVersion,
                     'Missing dbt version command mapping',
                 );
         }
     }
 
-    private async _runDbtCommand(
-        dbtVersion: SupportedDbtVersions,
-        ...command: string[]
-    ): Promise<DbtLog[]> {
-        const dbtExec = DbtCliClient.getDbtExec(dbtVersion);
+    private async _runDbtCommand(...command: string[]): Promise<DbtLog[]> {
+        const dbtExec = this.getDbtExec();
         const dbtArgs = [
             '--no-use-colors',
             '--log-format',
@@ -164,9 +166,9 @@ export class DbtCliClient implements DbtClient {
         }
         try {
             Logger.debug(
-                `Running dbt command with version "${dbtVersion}": ${dbtExec} ${dbtArgs.join(
-                    ' ',
-                )}`,
+                `Running dbt command with version "${
+                    this.dbtVersion
+                }": ${dbtExec} ${dbtArgs.join(' ')}`,
             );
             const dbtProcess = await execa(dbtExec, dbtArgs, {
                 all: true,
@@ -178,19 +180,19 @@ export class DbtCliClient implements DbtClient {
             return DbtCliClient.parseDbtJsonLogs(dbtProcess.all);
         } catch (e) {
             Logger.error(
-                `Error running dbt command with version ${dbtVersion}: ${e}`,
+                `Error running dbt command with version ${this.dbtVersion}: ${e}`,
             );
 
             throw new DbtError(
                 `Failed to run "${dbtExec} ${command.join(
                     ' ',
-                )}" with dbt version "${dbtVersion}}"`,
+                )}" with dbt version "${this.dbtVersion}}"`,
                 DbtCliClient.parseDbtJsonLogs(e.all),
             );
         }
     }
 
-    async installDeps(dbtVersion: SupportedDbtVersions): Promise<void> {
+    async installDeps(): Promise<void> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
             ?.getTransaction();
@@ -198,13 +200,11 @@ export class DbtCliClient implements DbtClient {
             op: 'dbt',
             description: 'installDeps',
         });
-        await this._runDbtCommand(dbtVersion, 'deps');
+        await this._runDbtCommand('deps');
         span?.finish();
     }
 
-    async getDbtManifest(
-        dbtVersion: SupportedDbtVersions,
-    ): Promise<DbtRpcGetManifestResults> {
+    async getDbtManifest(): Promise<DbtRpcGetManifestResults> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
             ?.getTransaction();
@@ -212,7 +212,7 @@ export class DbtCliClient implements DbtClient {
             op: 'dbt',
             description: 'getDbtManifest',
         });
-        const logs = await this._runDbtCommand(dbtVersion, 'compile');
+        const logs = await this._runDbtCommand('compile');
         const rawManifest = {
             manifest: await this.loadDbtTargetArtifact('manifest.json'),
         };
@@ -273,9 +273,7 @@ export class DbtCliClient implements DbtClient {
         }
     }
 
-    async getDbtCatalog(
-        dbtVersion: SupportedDbtVersions,
-    ): Promise<DbtRpcDocsGenerateResults> {
+    async getDbtCatalog(): Promise<DbtRpcDocsGenerateResults> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
             ?.getTransaction();
@@ -283,7 +281,7 @@ export class DbtCliClient implements DbtClient {
             op: 'dbt',
             description: 'getDbtbCatalog',
         });
-        const logs = await this._runDbtCommand(dbtVersion, 'docs', 'generate');
+        const logs = await this._runDbtCommand('docs', 'generate');
         const rawCatalog = await this.loadDbtTargetArtifact('catalog.json');
         span?.finish();
         if (isDbtRpcDocsGenerateResults(rawCatalog)) {
@@ -295,7 +293,7 @@ export class DbtCliClient implements DbtClient {
         );
     }
 
-    async test(dbtVersion: SupportedDbtVersions): Promise<void> {
+    async test(): Promise<void> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
             ?.getTransaction();
@@ -303,8 +301,8 @@ export class DbtCliClient implements DbtClient {
             op: 'dbt',
             description: 'test',
         });
-        await this.installDeps(dbtVersion);
-        await this._runDbtCommand(dbtVersion, 'parse');
+        await this.installDeps();
+        await this._runDbtCommand('parse');
         span?.finish();
     }
 }

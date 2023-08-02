@@ -282,7 +282,7 @@ export type Project = {
     warehouseConnection?: WarehouseCredentials;
     pinnedListUuid?: string;
     copiedFromProjectUuid?: string;
-    dbtVersion?: SupportedDbtVersions;
+    dbtVersion: SupportedDbtVersions;
 };
 
 export type ApiProjectResponse = {

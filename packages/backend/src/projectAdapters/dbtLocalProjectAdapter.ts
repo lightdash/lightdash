@@ -32,6 +32,7 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
             environment: environment || {},
             profileName,
             target,
+            dbtVersion,
         });
         super(dbtClient, warehouseClient, cachedWarehouse, dbtVersion);
     }

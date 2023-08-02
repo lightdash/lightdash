@@ -47,7 +47,7 @@ type ProjectConnectionForm = {
     dbt: DbtProjectConfig;
 
     warehouse?: CreateWarehouseCredentials;
-    dbtVersion?: SupportedDbtVersions;
+    dbtVersion: SupportedDbtVersions;
 };
 
 interface Props {
@@ -224,7 +224,7 @@ export const UpdateProjectConnection: FC<{
                 name,
                 dbtConnection,
                 warehouseConnection,
-                dbtVersion: dbtVersion ? dbtVersion : undefined,
+                dbtVersion: dbtVersion,
             });
         }
     };
