@@ -100,6 +100,7 @@ export const getPlaceholderByFilterTypeAndOperator = ({
         case FilterType.BOOLEAN:
             switch (operator) {
                 case FilterOperator.EQUALS:
+                    return 'True / False';
                 case FilterOperator.NULL:
                 case FilterOperator.NOT_NULL:
                     return '';
