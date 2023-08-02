@@ -1,12 +1,11 @@
-import { NumericInputProps } from '@blueprintjs/core';
-import { YearPickerInput } from '@mantine/dates';
+import { YearPickerInput, YearPickerInputProps } from '@mantine/dates';
 import moment from 'moment';
 import { FC } from 'react';
 
 type Props = {
     value: Date | null;
     onChange: (value: Date) => void;
-} & Pick<NumericInputProps, 'disabled' | 'placeholder'>;
+} & Pick<YearPickerInputProps, 'disabled' | 'placeholder'>;
 
 const YearInput: FC<Props> = ({ value, onChange, disabled, placeholder }) => {
     return (
