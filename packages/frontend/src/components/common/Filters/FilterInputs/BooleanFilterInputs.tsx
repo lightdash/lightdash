@@ -1,4 +1,4 @@
-import { HTMLSelect } from '@blueprintjs/core';
+import { HTMLSelect, OptionProps } from '@blueprintjs/core';
 import {
     ConditionalRule,
     FilterOperator,
@@ -35,11 +35,19 @@ const BooleanFilterInputs = <T extends ConditionalRule>(
                         })
                     }
                     placeholder={placeholder}
-                    options={[
-                        { value: 'any', label: placeholder, disabled: true },
-                        { value: 'true', label: 'True' },
-                        { value: 'false', label: 'False' },
-                    ]}
+                    options={
+                        [
+                            {
+                                value: 'any',
+                                label: placeholder,
+                                disabled: true,
+                                hidden: true,
+                            },
+                            { value: 'true', label: 'True' },
+                            { value: 'false', label: 'False' },
+                            // adding explicit type conversion because `hidden` is not in the typings but it actually works
+                        ] as OptionProps[]
+                    }
                     value={selectValue}
                 />
             );
