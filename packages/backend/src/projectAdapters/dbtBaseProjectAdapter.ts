@@ -9,6 +9,7 @@ import {
     Explore,
     ExploreError,
     friendlyName,
+    GetDbtManifestVersion,
     getSchemaStructureFromDbtModels,
     InlineError,
     InlineErrorType,
@@ -18,6 +19,7 @@ import {
     normaliseModelDatabase,
     ParseError,
     SupportedDbtAdapter,
+    SupportedDbtVersions,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import Logger from '../logging/logger';
@@ -30,14 +32,18 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     cachedWarehouse: CachedWarehouse;
 
+    dbtVersion: SupportedDbtVersions;
+
     constructor(
         dbtClient: DbtClient,
         warehouseClient: WarehouseClient,
         cachedWarehouse: CachedWarehouse,
+        dbtVersion: SupportedDbtVersions,
     ) {
         this.dbtClient = dbtClient;
         this.warehouseClient = warehouseClient;
         this.cachedWarehouse = cachedWarehouse;
+        this.dbtVersion = dbtVersion;
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -47,7 +53,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     public async test(): Promise<void> {
         Logger.debug('Test dbt client');
-        await this.dbtClient.test();
+        await this.dbtClient.test(this.dbtVersion);
         Logger.debug('Test warehouse client');
         await this.warehouseClient.test();
     }
@@ -55,7 +61,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     public async getDbtPackages(): Promise<DbtPackages | undefined> {
         Logger.debug(`Get dbt packages`);
         if (this.dbtClient.getDbtPackages) {
-            return this.dbtClient.getDbtPackages();
+            return this.dbtClient.getDbtPackages(this.dbtVersion);
         }
         return undefined;
     }
@@ -65,12 +71,11 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     ): Promise<(Explore | ExploreError)[]> {
         Logger.debug('Install dependencies');
         // Install dependencies for dbt and fetch the manifest - may raise error meaning no explores compile
-        await this.dbtClient.installDeps();
+        await this.dbtClient.installDeps(this.dbtVersion);
         Logger.debug('Get dbt manifest');
-        const {
-            version,
-            results: { manifest },
-        } = await this.dbtClient.getDbtManifest();
+        const { manifest } = await this.dbtClient.getDbtManifest(
+            this.dbtVersion,
+        );
 
         // Type of the target warehouse
         if (!isSupportedDbtAdapter(manifest.metadata)) {
@@ -86,16 +91,17 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             (node: any) => node.resource_type === 'model',
         ) as DbtRawModelNode[];
         Logger.debug(`Validate ${models.length} models in manifest`);
+        const manifestVersion = GetDbtManifestVersion(this.dbtVersion);
         const [validModels, failedExplores] =
             DbtBaseProjectAdapter._validateDbtModel(
                 adapterType,
                 models,
-                version,
+                manifestVersion,
             );
 
         // Validate metrics in the manifest - compile fails if any invalid
         const metrics = DbtBaseProjectAdapter._validateDbtMetrics(
-            version,
+            manifestVersion,
             Object.values(manifest.metrics),
         );
 

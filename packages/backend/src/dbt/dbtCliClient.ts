@@ -5,6 +5,7 @@ import {
     DbtPackages,
     DbtRpcDocsGenerateResults,
     DbtRpcGetManifestResults,
+    DefaultSupportedDbtVersion,
     isDbtLog,
     isDbtPackages,
     isDbtRpcDocsGenerateResults,
@@ -203,7 +204,7 @@ export class DbtCliClient implements DbtClient {
             case SupportedDbtVersions.V1_5:
                 return DbtCommands.DBT_1_5;
             default: // undefined
-                return DbtCommands.DBT_1_4; // Default dbt version
+                return DefaultSupportedDbtVersion;
         }
     }
 
