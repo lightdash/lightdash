@@ -22,9 +22,8 @@ const MonthAndYearInput: FC<Props> = ({
             <HTMLSelect
                 className={disabled ? 'disabled-filter' : ''}
                 disabled={disabled}
+                fill
                 placeholder={placeholder}
-                fill={false}
-                style={{ width: 150 }}
                 onChange={(e) =>
                     onChange(
                         moment(value).month(e.currentTarget.value).toDate(),
@@ -36,6 +35,7 @@ const MonthAndYearInput: FC<Props> = ({
                 }))}
                 value={utcMonthValue}
             />
+
             <YearInput
                 disabled={disabled}
                 placeholder={placeholder}
