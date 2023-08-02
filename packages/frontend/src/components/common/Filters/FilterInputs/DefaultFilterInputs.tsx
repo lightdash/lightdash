@@ -11,6 +11,7 @@ import {
 import isString from 'lodash-es/isString';
 import React from 'react';
 import { useFiltersContext } from '../FiltersProvider';
+import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import MultiAutoComplete from './AutoComplete/MultiAutoComplete';
 import { StyledNumericInput } from './NumericInput.styles';
 
@@ -36,6 +37,12 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
         ? getField(rule)?.suggestions
         : undefined;
 
+    const placeholder = getPlaceholderByFilterTypeAndOperator({
+        type: filterType,
+        operator: rule.operator,
+        disabled: isFilterRule(rule) ? rule.disabled : undefined,
+    });
+
     switch (rule.operator) {
         case FilterOperator.NULL:
         case FilterOperator.NOT_NULL:
@@ -52,6 +59,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                         filterId={rule.id}
                         disabled={disabled}
                         field={field}
+                        placeholder={placeholder}
                         values={(rule.values || []).filter(isString)}
                         suggestions={suggestions || []}
                         popoverProps={popoverProps}
@@ -76,6 +84,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                                 ? 'number'
                                 : 'text',
                     }}
+                    placeholder={placeholder}
                     tagProps={{ minimal: true }}
                     values={rule.values || []}
                     onChange={(values) =>
@@ -112,6 +121,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                     className={disabled ? 'disabled-filter' : ''}
                     disabled={disabled}
                     fill
+                    placeholder={placeholder}
                     type="number"
                     defaultValue={parsedValue}
                     onValueChange={(numericValue, stringValue) => {

@@ -93,7 +93,7 @@ const FilterConfiguration: FC<Props> = ({
             setInternalFilterRule((prevState) =>
                 getFilterRuleWithDefaultValue(field, {
                     ...prevState,
-                    operator: operator,
+                    operator,
                 }),
             );
         },
@@ -135,6 +135,21 @@ const FilterConfiguration: FC<Props> = ({
         },
         [field, availableTileFilters],
     );
+
+    const isRuleEnabled = !internalFilterRule.disabled;
+    const noValueRequiredOperators = [
+        FilterOperator.NULL,
+        FilterOperator.NOT_NULL,
+        FilterOperator.IN_THE_CURRENT,
+    ];
+    const isOperatorRequiringValues = !noValueRequiredOperators.includes(
+        internalFilterRule.operator,
+    );
+    const isValuesEmpty =
+        !internalFilterRule.values || internalFilterRule.values.length <= 0;
+
+    const isApplyButtonDisabled =
+        isOperatorRequiringValues && isValuesEmpty && isRuleEnabled;
 
     return (
         <ConfigureFilterWrapper>
@@ -205,15 +220,7 @@ const FilterConfiguration: FC<Props> = ({
                     className={Classes.POPOVER2_DISMISS}
                     intent={Intent.PRIMARY}
                     text="Apply"
-                    disabled={
-                        !internalFilterRule.disabled &&
-                        ![
-                            FilterOperator.NULL,
-                            FilterOperator.NOT_NULL,
-                        ].includes(internalFilterRule.operator) &&
-                        (!internalFilterRule.values ||
-                            internalFilterRule.values.length <= 0)
-                    }
+                    disabled={isApplyButtonDisabled}
                     onClick={() => onSave(internalFilterRule)}
                 />
             </ActionsWrapper>

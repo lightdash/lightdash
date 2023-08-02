@@ -1,4 +1,4 @@
-import { HTMLSelect } from '@blueprintjs/core';
+import { HTMLSelect, HTMLSelectProps } from '@blueprintjs/core';
 import moment from 'moment';
 import { FC } from 'react';
 import YearInput from './YearInput';
@@ -6,20 +6,24 @@ import YearInput from './YearInput';
 type Props = {
     value: Date;
     onChange: (value: Date) => void;
-    disabled?: boolean;
-};
+} & Pick<HTMLSelectProps, 'disabled' | 'placeholder'>;
 
 const months = moment.months();
 
-const MonthAndYearInput: FC<Props> = ({ value, onChange, disabled }) => {
+const MonthAndYearInput: FC<Props> = ({
+    value,
+    onChange,
+    disabled,
+    placeholder,
+}) => {
     const utcMonthValue = moment(value).month();
     return (
         <>
             <HTMLSelect
                 className={disabled ? 'disabled-filter' : ''}
                 disabled={disabled}
-                fill={false}
-                style={{ width: 150 }}
+                fill
+                placeholder={placeholder}
                 onChange={(e) =>
                     onChange(
                         moment(value).month(e.currentTarget.value).toDate(),
@@ -31,7 +35,13 @@ const MonthAndYearInput: FC<Props> = ({ value, onChange, disabled }) => {
                 }))}
                 value={utcMonthValue}
             />
-            <YearInput disabled={disabled} value={value} onChange={onChange} />
+
+            <YearInput
+                disabled={disabled}
+                placeholder={placeholder}
+                value={value}
+                onChange={onChange}
+            />
         </>
     );
 };

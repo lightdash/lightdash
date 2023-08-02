@@ -8,8 +8,9 @@ import {
     getFilterTypeFromItem,
 } from '@lightdash/common';
 import { Stack, Switch, TextInput } from '@mantine/core';
-import { FC, useMemo } from 'react';
+import { FC, useEffect, useMemo } from 'react';
 import { FilterTypeConfig } from '../../common/Filters/configs';
+import { getPlaceholderByFilterTypeAndOperator } from '../../common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 
 interface FilterSettingsProps {
     isEditMode: boolean;
@@ -35,23 +36,35 @@ const FilterSettings: FC<FilterSettingsProps> = ({
         [filterType],
     );
 
+    useEffect(() => {
+        if (!isEditMode && filterRule.disabled) {
+            onChangeFilterRule({
+                ...filterRule,
+                disabled: false,
+                values: undefined,
+            });
+        }
+    }, [isEditMode, onChangeFilterRule, filterRule]);
+
     return (
         <Stack>
             <Stack spacing="xs">
-                <Switch
-                    label="Default value"
-                    labelPosition="left"
-                    checked={!filterRule.disabled}
-                    onChange={(e) => {
-                        onChangeFilterRule({
-                            ...filterRule,
-                            disabled: !e.currentTarget.checked,
-                            values: e.currentTarget.checked
-                                ? filterRule.values
-                                : [],
-                        });
-                    }}
-                />
+                {isEditMode && (
+                    <Switch
+                        label="Default value"
+                        labelPosition="left"
+                        checked={!filterRule.disabled}
+                        onChange={(e) => {
+                            onChangeFilterRule({
+                                ...filterRule,
+                                disabled: !e.currentTarget.checked,
+                                values: e.currentTarget.checked
+                                    ? filterRule.values
+                                    : undefined,
+                            });
+                        }}
+                    />
+                )}
 
                 <HTMLSelect
                     fill
@@ -63,17 +76,29 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     options={filterConfig.operatorOptions}
                     value={filterRule.operator}
                 />
-
-                <filterConfig.inputs
-                    popoverProps={popoverProps}
-                    filterType={filterType}
-                    field={field}
-                    disabled={filterRule.disabled}
-                    rule={filterRule}
-                    onChange={(newFilterRule) =>
-                        onChangeFilterRule(newFilterRule as DashboardFilterRule)
-                    }
-                />
+                {filterRule.disabled ? (
+                    <TextInput
+                        disabled
+                        size="xs"
+                        placeholder={getPlaceholderByFilterTypeAndOperator({
+                            type: filterType,
+                            operator: filterRule.operator,
+                            disabled: true,
+                        })}
+                    />
+                ) : (
+                    <filterConfig.inputs
+                        popoverProps={popoverProps}
+                        filterType={filterType}
+                        field={field}
+                        rule={filterRule}
+                        onChange={(newFilterRule) =>
+                            onChangeFilterRule(
+                                newFilterRule as DashboardFilterRule,
+                            )
+                        }
+                    />
+                )}
             </Stack>
 
             {isEditMode && (

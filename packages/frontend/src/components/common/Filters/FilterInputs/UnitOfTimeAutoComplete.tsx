@@ -117,76 +117,70 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
     onClosed,
     popoverProps,
     disabled,
-}) => {
-    return (
-        <>
-            <AutocompleteMaxHeight />
-            <FieldSuggest
+}) => (
+    <>
+        <AutocompleteMaxHeight />
+        <FieldSuggest
+            className={disabled ? 'disabled-filter' : ''}
+            disabled={disabled}
+            items={UnitOfTimeOptions({
+                isTimestamp,
+                showCompletedOptions,
+                showOptionsInPlural,
+            })}
+            itemsEqual={(value, other) =>
+                value.unitOfTime === other.unitOfTime &&
+                value.completed === other.completed
+            }
+            popoverProps={{
+                fill: true,
+                minimal: true,
+                onClosed,
+                popoverClassName: 'autocomplete-max-height',
+                ...popoverProps,
+            }}
+            itemRenderer={renderItem}
+            activeItem={{
+                label: getUnitOfTimeLabel(
+                    unitOfTime,
+                    showOptionsInPlural,
+                    completed,
+                ),
+                unitOfTime,
+                completed,
+            }}
+            noResults={<MenuItem2 disabled text="No results." />}
+            onItemSelect={onChange}
+            itemPredicate={(
+                query: string,
+                field: UnitOfTimeOption,
+                index?: undefined | number,
+                exactMatch?: undefined | false | true,
+            ) => {
+                if (exactMatch) {
+                    return query.toLowerCase() === field.label.toLowerCase();
+                }
+                return field.label.toLowerCase().includes(query.toLowerCase());
+            }}
+        >
+            <Button
                 className={disabled ? 'disabled-filter' : ''}
                 disabled={disabled}
-                items={UnitOfTimeOptions({
-                    isTimestamp,
-                    showCompletedOptions,
-                    showOptionsInPlural,
-                })}
-                itemsEqual={(value, other) =>
-                    value.unitOfTime === other.unitOfTime &&
-                    value.completed === other.completed
-                }
-                popoverProps={{
-                    fill: true,
-                    minimal: true,
-                    onClosed,
-                    popoverClassName: 'autocomplete-max-height',
-                    ...popoverProps,
-                }}
-                itemRenderer={renderItem}
-                activeItem={{
-                    label: getUnitOfTimeLabel(
-                        unitOfTime,
-                        showOptionsInPlural,
-                        completed,
-                    ),
+                rightIcon="caret-down"
+                text={getUnitOfTimeLabel(
                     unitOfTime,
+                    showOptionsInPlural,
                     completed,
+                )}
+                fill
+                style={{
+                    display: 'inline-flex',
+                    justifyContent: 'space-between',
+                    whiteSpace: 'nowrap',
                 }}
-                noResults={<MenuItem2 disabled text="No results." />}
-                onItemSelect={onChange}
-                itemPredicate={(
-                    query: string,
-                    field: UnitOfTimeOption,
-                    index?: undefined | number,
-                    exactMatch?: undefined | false | true,
-                ) => {
-                    if (exactMatch) {
-                        return (
-                            query.toLowerCase() === field.label.toLowerCase()
-                        );
-                    }
-                    return field.label
-                        .toLowerCase()
-                        .includes(query.toLowerCase());
-                }}
-            >
-                <Button
-                    className={disabled ? 'disabled-filter' : ''}
-                    disabled={disabled}
-                    rightIcon="caret-down"
-                    text={getUnitOfTimeLabel(
-                        unitOfTime,
-                        showOptionsInPlural,
-                        completed,
-                    )}
-                    fill
-                    style={{
-                        display: 'inline-flex',
-                        justifyContent: 'space-between',
-                        whiteSpace: 'nowrap',
-                    }}
-                />
-            </FieldSuggest>
-        </>
-    );
-};
+            />
+        </FieldSuggest>
+    </>
+);
 
 export default UnitOfTimeAutoComplete;
