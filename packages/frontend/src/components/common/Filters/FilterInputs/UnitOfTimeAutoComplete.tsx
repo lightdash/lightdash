@@ -119,90 +119,82 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
     popoverProps,
     placeholder,
     disabled,
-}) => {
-    console.log({ disabled });
+}) => (
+    <>
+        <AutocompleteMaxHeight />
+        <FieldSuggest
+            className={disabled ? 'disabled-filter' : ''}
+            disabled={disabled}
+            items={UnitOfTimeOptions({
+                isTimestamp,
+                showCompletedOptions,
+                showOptionsInPlural,
+            })}
+            itemsEqual={(value, other) =>
+                value.unitOfTime === other.unitOfTime &&
+                value.completed === other.completed
+            }
+            popoverProps={{
+                fill: true,
+                minimal: true,
+                onClosed,
+                popoverClassName: 'autocomplete-max-height',
+                ...popoverProps,
+            }}
+            itemRenderer={renderItem}
+            activeItem={
+                unitOfTime
+                    ? {
+                          label: getUnitOfTimeLabel(
+                              unitOfTime,
+                              showOptionsInPlural,
+                              completed,
+                          ),
+                          unitOfTime,
+                          completed,
+                      }
+                    : null
+            }
+            noResults={<MenuItem2 disabled text="No results." />}
+            onItemSelect={(item) => {
+                console.log({ item });
 
-    return (
-        <>
-            <AutocompleteMaxHeight />
-            <FieldSuggest
+                onChange(item);
+            }}
+            itemPredicate={(
+                query: string,
+                field: UnitOfTimeOption,
+                index?: undefined | number,
+                exactMatch?: undefined | false | true,
+            ) => {
+                if (exactMatch) {
+                    return query.toLowerCase() === field.label.toLowerCase();
+                }
+                return field.label.toLowerCase().includes(query.toLowerCase());
+            }}
+        >
+            <Button
                 className={disabled ? 'disabled-filter' : ''}
                 disabled={disabled}
-                items={UnitOfTimeOptions({
-                    isTimestamp,
-                    showCompletedOptions,
-                    showOptionsInPlural,
-                })}
-                itemsEqual={(value, other) =>
-                    value.unitOfTime === other.unitOfTime &&
-                    value.completed === other.completed
-                }
-                popoverProps={{
-                    fill: true,
-                    minimal: true,
-                    onClosed,
-                    popoverClassName: 'autocomplete-max-height',
-                    ...popoverProps,
-                }}
-                itemRenderer={renderItem}
-                activeItem={
+                rightIcon="caret-down"
+                text={
                     unitOfTime
-                        ? {
-                              label: getUnitOfTimeLabel(
-                                  unitOfTime,
-                                  showOptionsInPlural,
-                                  completed,
-                              ),
+                        ? getUnitOfTimeLabel(
                               unitOfTime,
+                              showOptionsInPlural,
                               completed,
-                          }
-                        : null
+                          )
+                        : placeholder
                 }
-                noResults={<MenuItem2 disabled text="No results." />}
-                onItemSelect={(item) => {
-                    console.log({ item });
-
-                    onChange(item);
+                fill
+                style={{
+                    display: 'inline-flex',
+                    justifyContent: 'space-between',
+                    whiteSpace: 'nowrap',
                 }}
-                itemPredicate={(
-                    query: string,
-                    field: UnitOfTimeOption,
-                    index?: undefined | number,
-                    exactMatch?: undefined | false | true,
-                ) => {
-                    if (exactMatch) {
-                        return (
-                            query.toLowerCase() === field.label.toLowerCase()
-                        );
-                    }
-                    return field.label
-                        .toLowerCase()
-                        .includes(query.toLowerCase());
-                }}
-            >
-                <Button
-                    className={disabled ? 'disabled-filter' : ''}
-                    disabled={disabled}
-                    rightIcon="caret-down"
-                    text={
-                        unitOfTime
-                            ? getUnitOfTimeLabel(
-                                  unitOfTime,
-                                  showOptionsInPlural,
-                                  completed,
-                              )
-                            : placeholder
-                    }
-                    fill
-                    style={{
-                        display: 'inline-flex',
-                        justifyContent: 'space-between',
-                        whiteSpace: 'nowrap',
-                    }}
-                />
-            </FieldSuggest>
-        </>
-    );
-};
+            />
+        </FieldSuggest>
+    </>
+);
 
 export default UnitOfTimeAutoComplete;
