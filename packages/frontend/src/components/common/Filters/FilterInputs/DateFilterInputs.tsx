@@ -268,7 +268,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         <StyledDateRangeInput
                             allowSingleDayRange
                             className={disabled ? 'disabled-filter' : ''}
-                            placeholder={placeholder}
                             disabled={disabled}
                             formatDate={(value: Date) =>
                                 moment(value)
