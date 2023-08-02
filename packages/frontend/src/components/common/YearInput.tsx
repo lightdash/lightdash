@@ -1,39 +1,25 @@
-import { NumericInput, NumericInputProps } from '@blueprintjs/core';
+import { NumericInputProps } from '@blueprintjs/core';
+import { YearPickerInput } from '@mantine/dates';
 import moment from 'moment';
-import React, { FC } from 'react';
+import { FC } from 'react';
 
 type Props = {
-    value: Date;
+    value: Date | null;
     onChange: (value: Date) => void;
 } & Pick<NumericInputProps, 'disabled' | 'placeholder'>;
 
 const YearInput: FC<Props> = ({ value, onChange, disabled, placeholder }) => {
-    const utcYearValue = moment(value).year();
-
     return (
-        <NumericInput
+        <YearPickerInput
             className={disabled ? 'disabled-filter' : ''}
             disabled={disabled}
-            fill
             placeholder={placeholder}
-            max={9999}
-            min={1000}
-            minLength={4}
-            maxLength={4}
-            defaultValue={utcYearValue}
-            onValueChange={(year) => {
-                if (year > 1000 && year < 9999) {
-                    onChange(moment(value).year(year).toDate());
-                }
-            }}
-            onBlur={(e) => {
-                let year = parseInt(e.currentTarget.value, 10);
-                if (year < 1000) {
-                    year = 1000;
-                } else if (year > 9999) {
-                    year = 9999;
-                }
-                onChange(moment(value).year(year).toDate());
+            maxDate={moment().year(9999).toDate()}
+            minDate={moment().year(1000).toDate()}
+            value={value === null ? undefined : new Date(value)}
+            onChange={(year) => {
+                if (year === null) return;
+                onChange(year);
             }}
         />
     );
