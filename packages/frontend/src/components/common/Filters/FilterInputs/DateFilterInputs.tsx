@@ -64,7 +64,11 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 <WeekPicker
                                     disabled={disabled}
                                     placeholder={placeholder}
-                                    value={rule.values?.[0] || new Date()}
+                                    value={
+                                        rule.disabled
+                                            ? null
+                                            : rule.values?.[0] || new Date()
+                                    }
                                     popoverProps={popoverProps}
                                     startOfWeek={startOfWeek}
                                     onChange={(value: Date) => {
@@ -80,8 +84,13 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         return (
                             <MonthAndYearInput
                                 disabled={disabled}
+                                isRuleDisabled={rule.disabled}
                                 placeholder={placeholder}
-                                value={rule.values?.[0] || new Date()}
+                                value={
+                                    rule.disabled
+                                        ? null
+                                        : rule.values?.[0] || new Date()
+                                }
                                 onChange={(value: Date) => {
                                     onChange({
                                         ...rule,
@@ -99,7 +108,11 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             <YearInput
                                 disabled={disabled}
                                 placeholder={placeholder}
-                                value={rule.values?.[0] || new Date()}
+                                value={
+                                    rule.disabled
+                                        ? null
+                                        : rule.values?.[0] || new Date()
+                                }
                                 onChange={(value: Date) => {
                                     onChange({
                                         ...rule,
