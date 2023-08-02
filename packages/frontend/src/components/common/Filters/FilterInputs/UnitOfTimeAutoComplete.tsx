@@ -97,7 +97,7 @@ const renderItem: ItemRenderer<UnitOfTimeOption> = (
 
 type Props = {
     isTimestamp: boolean;
-    unitOfTime: UnitOfTime;
+    unitOfTime: UnitOfTime | null;
     showOptionsInPlural?: boolean;
     showCompletedOptions?: boolean;
     completed: boolean;
@@ -105,6 +105,7 @@ type Props = {
     onClosed?: () => void;
     popoverProps?: Popover2Props;
     disabled?: boolean;
+    placeholder?: string;
 };
 
 const UnitOfTimeAutoComplete: FC<Props> = ({
@@ -117,6 +118,7 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
     onClosed,
     popoverProps,
     disabled,
+    placeholder,
 }) => (
     <>
         <AutocompleteMaxHeight />
@@ -140,15 +142,19 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
                 ...popoverProps,
             }}
             itemRenderer={renderItem}
-            activeItem={{
-                label: getUnitOfTimeLabel(
-                    unitOfTime,
-                    showOptionsInPlural,
-                    completed,
-                ),
-                unitOfTime,
-                completed,
-            }}
+            activeItem={
+                unitOfTime
+                    ? {
+                          label: getUnitOfTimeLabel(
+                              unitOfTime,
+                              showOptionsInPlural,
+                              completed,
+                          ),
+                          unitOfTime,
+                          completed,
+                      }
+                    : null
+            }
             noResults={<MenuItem2 disabled text="No results." />}
             onItemSelect={onChange}
             itemPredicate={(
@@ -167,11 +173,15 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
                 className={disabled ? 'disabled-filter' : ''}
                 disabled={disabled}
                 rightIcon="caret-down"
-                text={getUnitOfTimeLabel(
-                    unitOfTime,
-                    showOptionsInPlural,
-                    completed,
-                )}
+                text={
+                    unitOfTime
+                        ? getUnitOfTimeLabel(
+                              unitOfTime,
+                              showOptionsInPlural,
+                              completed,
+                          )
+                        : placeholder
+                }
                 fill
                 style={{
                     display: 'inline-flex',

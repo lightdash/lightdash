@@ -12,7 +12,6 @@ import {
     isWeekDay,
     parseDate,
     TimeFrames,
-    UnitOfTime,
 } from '@lightdash/common';
 import moment from 'moment';
 import React from 'react';
@@ -55,6 +54,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
         case FilterOperator.LESS_THAN_OR_EQUAL:
             if (isDimension(field) && field.timeInterval) {
                 switch (field.timeInterval.toUpperCase()) {
+                    // FIXME: done
                     case TimeFrames.WEEK:
                         return (
                             <>
@@ -76,12 +76,13 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 />
                             </>
                         );
+                    // FIXME: done
                     case TimeFrames.MONTH:
                         return (
                             <MonthAndYearInput
                                 disabled={disabled}
                                 placeholder={placeholder}
-                                value={rule.values?.[0] || new Date()}
+                                value={rule.values ? rule.values[0] : null}
                                 onChange={(value: Date) => {
                                     onChange({
                                         ...rule,
@@ -94,6 +95,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 }}
                             />
                         );
+                    // FIXME: done
                     case TimeFrames.YEAR:
                         return (
                             <YearInput
@@ -117,6 +119,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                 }
             }
 
+            // FIXME: done
             if (isTimestamp) {
                 return (
                     <DateInput2
@@ -127,9 +130,9 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         defaultTimezone="UTC"
                         showTimezoneSelect={false}
                         value={
-                            rule.values?.[0]
-                                ? new Date(rule.values?.[0]).toString()
-                                : new Date().toString()
+                            rule.values
+                                ? new Date(rule.values[0]).toString()
+                                : null
                         }
                         timePrecision={'millisecond'}
                         formatDate={(value: Date) =>
@@ -138,14 +141,9 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         parseDate={(value) =>
                             moment(value, `YYYY-MM-DD, HH:mm:ss:SSS`).toDate()
                         }
-                        defaultValue={new Date().toString()}
                         onChange={(value: string | null) => {
-                            if (value) {
-                                onChange({
-                                    ...rule,
-                                    values: [value],
-                                });
-                            }
+                            if (!value) return;
+                            onChange({ ...rule, values: [value] });
                         }}
                         popoverProps={{
                             placement: 'bottom',
@@ -160,6 +158,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     />
                 );
             }
+
+            // FIXME: done
             return (
                 <DateInput2
                     className={disabled ? 'disabled-filter' : ''}
@@ -167,15 +167,14 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     disabled={disabled}
                     fill
                     value={
-                        rule.values?.[0]
+                        rule.values
                             ? formatDate(rule.values?.[0], undefined, false)
-                            : new Date().toString()
+                            : null
                     }
                     formatDate={(value: Date) =>
                         formatDate(value, undefined, false)
                     }
                     parseDate={parseDate}
-                    defaultValue={new Date().toString()}
                     onChange={(value: string | null) => {
                         if (value) {
                             onChange({
@@ -196,6 +195,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     maxDate={moment(new Date()).add(7, 'years').toDate()}
                 />
             );
+        // FIXME: done
         case FilterOperator.IN_THE_PAST:
         case FilterOperator.NOT_IN_THE_PAST:
         case FilterOperator.IN_THE_NEXT:
@@ -210,20 +210,17 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         value={isNaN(parsedValue) ? undefined : parsedValue}
                         min={0}
                         onValueChange={(value) =>
-                            onChange({
-                                ...rule,
-                                values: [value],
-                            })
+                            onChange({ ...rule, values: [value] })
                         }
                     />
                     <UnitOfTimeAutoComplete
                         disabled={disabled}
                         isTimestamp={isTimestamp}
-                        unitOfTime={
-                            rule.settings?.unitOfTime || UnitOfTime.days
-                        }
+                        unitOfTime={rule.settings?.unitOfTime}
                         completed={rule.settings?.completed || false}
                         popoverProps={popoverProps}
+                        // FIXME: placeholder from here...
+                        placeholder="select unit of time"
                         onChange={(value) =>
                             onChange({
                                 ...rule,
@@ -236,19 +233,19 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     />
                 </MultipleInputsWrapper>
             );
+        // FIXME: done
         case FilterOperator.IN_THE_CURRENT:
             return (
                 <MultipleInputsWrapper>
                     <UnitOfTimeAutoComplete
                         disabled={disabled}
                         isTimestamp={isTimestamp}
-                        unitOfTime={
-                            rule.settings?.unitOfTime || UnitOfTime.days
-                        }
+                        unitOfTime={rule.settings?.unitOfTime}
                         showOptionsInPlural={false}
                         showCompletedOptions={false}
                         completed={false}
                         popoverProps={popoverProps}
+                        placeholder={placeholder}
                         onChange={(value) =>
                             onChange({
                                 ...rule,
@@ -262,6 +259,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                 </MultipleInputsWrapper>
             );
         case FilterOperator.IN_BETWEEN:
+            // FIXME: done
             if (isTimestamp) {
                 return (
                     <MultipleInputsWrapper>
@@ -283,13 +281,10 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             value={[
                                 rule.values?.[0]
                                     ? new Date(rule.values?.[0])
-                                    : new Date(),
+                                    : null,
                                 rule.values?.[1]
                                     ? new Date(rule.values?.[1])
-                                    : moment(rule.values?.[0] || new Date())
-                                          .add(2, 'hours')
-                                          .milliseconds(0)
-                                          .toDate(),
+                                    : null,
                             ]}
                             timePrecision="millisecond"
                             onChange={(
@@ -322,6 +317,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     </MultipleInputsWrapper>
                 );
             }
+
+            // FIXME: done
             return (
                 <MultipleInputsWrapper>
                     <StyledDateRangeInput
