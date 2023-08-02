@@ -110,23 +110,21 @@ type Props = {
     onChange: (value: Date) => void;
     popoverProps?: Popover2Props;
     startOfWeek?: WeekDay | null;
-} & Pick<DateInput2Props, 'disabled' | 'placeholder'>;
+} & Pick<DateInput2Props, 'placeholder' | 'disabled'>;
 
 const WeekPicker: FC<Props> = ({
     value: dateValue,
     onChange,
     popoverProps,
     disabled,
-    startOfWeek,
     placeholder,
+    startOfWeek,
 }) => {
-    const value = dateValue === null ? null : moment(dateValue).toDate();
+    const value = moment(dateValue).toDate();
     //Filtering a dimension returns a date, but filtering on a table returns a string on UTC
     const formattedDate = formatDate(value);
     const [hoverRange, setHoverRange] = useState<WeekRange>();
-    const selectedDays = value
-        ? getWeekDays(getWeekRange(value, startOfWeek).from)
-        : [];
+    const selectedDays = getWeekDays(getWeekRange(value, startOfWeek).from);
 
     const daysAreSelected = selectedDays.length > 0;
     const modifiers = {
@@ -151,20 +149,22 @@ const WeekPicker: FC<Props> = ({
             <SelectedWeekStyles />
             <DateInput2
                 fill
-                placeholder={placeholder}
                 className={disabled ? 'disabled-filter' : ''}
+                placeholder={placeholder}
                 disabled={disabled}
                 defaultTimezone="UTC"
                 showTimezoneSelect={false}
-                value={dateValue === null ? null : formattedDate}
+                value={formattedDate}
                 formatDate={formatDate}
                 parseDate={parseDate}
+                defaultValue={getWeekRange(
+                    new Date(),
+                    startOfWeek,
+                ).from.toString()}
                 onChange={(pickedDate: string | null) => {
                     onChange(
-                        getWeekRange(
-                            new Date(pickedDate ?? moment(dateValue).toDate()),
-                            startOfWeek,
-                        ).from,
+                        getWeekRange(new Date(pickedDate || value), startOfWeek)
+                            .from,
                     );
                 }}
                 dayPickerProps={{

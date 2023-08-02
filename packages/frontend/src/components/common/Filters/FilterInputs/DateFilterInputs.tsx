@@ -62,13 +62,9 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                     week commencing
                                 </span>
                                 <WeekPicker
-                                    disabled={disabled}
                                     placeholder={placeholder}
-                                    value={
-                                        rule.disabled
-                                            ? null
-                                            : rule.values?.[0] || new Date()
-                                    }
+                                    disabled={disabled}
+                                    value={rule.values?.[0] || new Date()}
                                     popoverProps={popoverProps}
                                     startOfWeek={startOfWeek}
                                     onChange={(value: Date) => {
@@ -84,13 +80,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         return (
                             <MonthAndYearInput
                                 disabled={disabled}
-                                isRuleDisabled={rule.disabled}
                                 placeholder={placeholder}
-                                value={
-                                    rule.disabled
-                                        ? null
-                                        : rule.values?.[0] || new Date()
-                                }
+                                value={rule.values?.[0] || new Date()}
                                 onChange={(value: Date) => {
                                     onChange({
                                         ...rule,
@@ -108,11 +99,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             <YearInput
                                 disabled={disabled}
                                 placeholder={placeholder}
-                                value={
-                                    rule.disabled
-                                        ? null
-                                        : rule.values?.[0] || new Date()
-                                }
+                                value={rule.values?.[0] || new Date()}
                                 onChange={(value: Date) => {
                                     onChange({
                                         ...rule,
@@ -134,15 +121,15 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                 return (
                     <DateInput2
                         className={disabled ? 'disabled-filter' : ''}
-                        disabled={disabled}
                         placeholder={placeholder}
+                        disabled={disabled}
                         fill
                         defaultTimezone="UTC"
                         showTimezoneSelect={false}
                         value={
                             rule.values?.[0]
                                 ? new Date(rule.values?.[0]).toString()
-                                : null
+                                : new Date().toString()
                         }
                         timePrecision={'millisecond'}
                         formatDate={(value: Date) =>
@@ -151,7 +138,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         parseDate={(value) =>
                             moment(value, `YYYY-MM-DD, HH:mm:ss:SSS`).toDate()
                         }
-                        defaultValue={disabled ? '' : new Date().toString()}
+                        defaultValue={new Date().toString()}
                         onChange={(value: string | null) => {
                             if (value) {
                                 onChange({
@@ -176,19 +163,19 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
             return (
                 <DateInput2
                     className={disabled ? 'disabled-filter' : ''}
-                    disabled={disabled}
                     placeholder={placeholder}
+                    disabled={disabled}
                     fill
                     value={
                         rule.values?.[0]
-                            ? formatDate(rule.values[0], undefined, false)
-                            : null
+                            ? formatDate(rule.values?.[0], undefined, false)
+                            : new Date().toString()
                     }
                     formatDate={(value: Date) =>
                         formatDate(value, undefined, false)
                     }
                     parseDate={parseDate}
-                    defaultValue={disabled ? '' : new Date().toString()}
+                    defaultValue={new Date().toString()}
                     onChange={(value: string | null) => {
                         if (value) {
                             onChange({
@@ -218,8 +205,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     <NumericInput
                         className={disabled ? 'disabled-filter' : ''}
                         fill
-                        disabled={disabled}
                         placeholder={placeholder}
+                        disabled={disabled}
                         value={isNaN(parsedValue) ? undefined : parsedValue}
                         min={0}
                         onValueChange={(value) =>
@@ -229,26 +216,24 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             })
                         }
                     />
-                    {rule.disabled ? null : (
-                        <UnitOfTimeAutoComplete
-                            disabled={disabled}
-                            isTimestamp={isTimestamp}
-                            unitOfTime={
-                                rule.settings?.unitOfTime || UnitOfTime.days
-                            }
-                            completed={rule.settings?.completed || false}
-                            popoverProps={popoverProps}
-                            onChange={(value) =>
-                                onChange({
-                                    ...rule,
-                                    settings: {
-                                        unitOfTime: value.unitOfTime,
-                                        completed: value.completed,
-                                    },
-                                })
-                            }
-                        />
-                    )}
+                    <UnitOfTimeAutoComplete
+                        disabled={disabled}
+                        isTimestamp={isTimestamp}
+                        unitOfTime={
+                            rule.settings?.unitOfTime || UnitOfTime.days
+                        }
+                        completed={rule.settings?.completed || false}
+                        popoverProps={popoverProps}
+                        onChange={(value) =>
+                            onChange({
+                                ...rule,
+                                settings: {
+                                    unitOfTime: value.unitOfTime,
+                                    completed: value.completed,
+                                },
+                            })
+                        }
+                    />
                 </MultipleInputsWrapper>
             );
         case FilterOperator.IN_THE_CURRENT:
@@ -256,11 +241,9 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                 <MultipleInputsWrapper>
                     <UnitOfTimeAutoComplete
                         disabled={disabled}
-                        placeholder={placeholder}
                         isTimestamp={isTimestamp}
                         unitOfTime={
-                            rule.settings?.unitOfTime ||
-                            (!rule.disabled && UnitOfTime.days)
+                            rule.settings?.unitOfTime || UnitOfTime.days
                         }
                         showOptionsInPlural={false}
                         showCompletedOptions={false}
@@ -285,8 +268,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         <StyledDateRangeInput
                             allowSingleDayRange
                             className={disabled ? 'disabled-filter' : ''}
-                            disabled={disabled}
                             placeholder={placeholder}
+                            disabled={disabled}
                             formatDate={(value: Date) =>
                                 moment(value)
                                     .format(`YYYY-MM-DD, HH:mm:ss:SSS`)
@@ -298,34 +281,17 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                     `YYYY-MM-DD, HH:mm:ss:SSS`,
                                 ).toDate()
                             }
-                            startInputProps={{
-                                placeholder: rule.disabled
-                                    ? placeholder
-                                    : undefined,
-                            }}
-                            endInputProps={{
-                                placeholder: rule.disabled
-                                    ? placeholder
-                                    : undefined,
-                            }}
-                            value={
-                                rule.disabled
-                                    ? [null, null]
-                                    : [
-                                          rule.values?.[0]
-                                              ? new Date(rule.values?.[0])
-                                              : new Date(),
-                                          rule.values?.[1]
-                                              ? new Date(rule.values?.[1])
-                                              : moment(
-                                                    rule.values?.[0] ||
-                                                        new Date(),
-                                                )
-                                                    .add(2, 'hours')
-                                                    .milliseconds(0)
-                                                    .toDate(),
-                                      ]
-                            }
+                            value={[
+                                rule.values?.[0]
+                                    ? new Date(rule.values?.[0])
+                                    : new Date(),
+                                rule.values?.[1]
+                                    ? new Date(rule.values?.[1])
+                                    : moment(rule.values?.[0] || new Date())
+                                          .add(2, 'hours')
+                                          .milliseconds(0)
+                                          .toDate(),
+                            ]}
                             timePrecision="millisecond"
                             onChange={(
                                 range: [Date | null, Date | null] | null,
@@ -361,48 +327,34 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                 <MultipleInputsWrapper>
                     <StyledDateRangeInput
                         className={disabled ? 'disabled-filter' : ''}
-                        disabled={disabled}
                         placeholder={placeholder}
+                        disabled={disabled}
                         formatDate={(value: Date) =>
                             formatDate(value, undefined, false)
                         }
                         parseDate={parseDate}
-                        startInputProps={{
-                            placeholder: rule.disabled
-                                ? placeholder
-                                : undefined,
-                        }}
-                        endInputProps={{
-                            placeholder: rule.disabled
-                                ? placeholder
-                                : undefined,
-                        }}
-                        value={
-                            rule.disabled
-                                ? [null, null]
-                                : [
-                                      rule.values?.[0]
-                                          ? parseDate(
-                                                formatDate(
-                                                    rule.values?.[0],
-                                                    undefined,
-                                                    false,
-                                                ),
-                                                TimeFrames.DAY,
-                                            )
-                                          : null,
-                                      rule.values?.[1]
-                                          ? parseDate(
-                                                formatDate(
-                                                    rule.values?.[1],
-                                                    undefined,
-                                                    false,
-                                                ),
-                                                TimeFrames.DAY,
-                                            )
-                                          : null,
-                                  ]
-                        }
+                        value={[
+                            rule.values?.[0]
+                                ? parseDate(
+                                      formatDate(
+                                          rule.values?.[0],
+                                          undefined,
+                                          false,
+                                      ),
+                                      TimeFrames.DAY,
+                                  )
+                                : null,
+                            rule.values?.[1]
+                                ? parseDate(
+                                      formatDate(
+                                          rule.values?.[1],
+                                          undefined,
+                                          false,
+                                      ),
+                                      TimeFrames.DAY,
+                                  )
+                                : null,
+                        ]}
                         onChange={(
                             range: [Date | null, Date | null] | null,
                         ) => {

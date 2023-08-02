@@ -1,6 +1,6 @@
 import { Menu, Spinner } from '@blueprintjs/core';
-import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
-import { MultiSelect2 } from '@blueprintjs/select';
+import { MenuItem2 } from '@blueprintjs/popover2';
+import { MultiSelect2, MultiSelect2Props } from '@blueprintjs/select';
 import { FilterableItem } from '@lightdash/common';
 import { Highlight } from '@mantine/core';
 import Fuse from 'fuse.js';
@@ -19,11 +19,11 @@ type Props = {
     field: FilterableItem;
     values: string[];
     suggestions: string[];
-    popoverProps?: Popover2Props;
-    disabled?: boolean;
     onChange: (values: string[]) => void;
-    placeholder?: string;
-};
+} & Pick<
+    MultiSelect2Props<unknown>,
+    'disabled' | 'placeholder' | 'popoverProps'
+>;
 
 const PaddedMenuItem = styled(MenuItem2)`
     .bp4-text-overflow-ellipsis {

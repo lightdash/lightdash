@@ -97,7 +97,7 @@ const renderItem: ItemRenderer<UnitOfTimeOption> = (
 
 type Props = {
     isTimestamp: boolean;
-    unitOfTime: UnitOfTime | undefined;
+    unitOfTime: UnitOfTime;
     showOptionsInPlural?: boolean;
     showCompletedOptions?: boolean;
     completed: boolean;
@@ -105,7 +105,6 @@ type Props = {
     onClosed?: () => void;
     popoverProps?: Popover2Props;
     disabled?: boolean;
-    placeholder?: string;
 };
 
 const UnitOfTimeAutoComplete: FC<Props> = ({
@@ -117,7 +116,6 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
     onChange,
     onClosed,
     popoverProps,
-    placeholder,
     disabled,
 }) => (
     <>
@@ -142,25 +140,17 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
                 ...popoverProps,
             }}
             itemRenderer={renderItem}
-            activeItem={
-                unitOfTime
-                    ? {
-                          label: getUnitOfTimeLabel(
-                              unitOfTime,
-                              showOptionsInPlural,
-                              completed,
-                          ),
-                          unitOfTime,
-                          completed,
-                      }
-                    : null
-            }
-            noResults={<MenuItem2 disabled text="No results." />}
-            onItemSelect={(item) => {
-                console.log({ item });
-
-                onChange(item);
+            activeItem={{
+                label: getUnitOfTimeLabel(
+                    unitOfTime,
+                    showOptionsInPlural,
+                    completed,
+                ),
+                unitOfTime,
+                completed,
             }}
+            noResults={<MenuItem2 disabled text="No results." />}
+            onItemSelect={onChange}
             itemPredicate={(
                 query: string,
                 field: UnitOfTimeOption,
@@ -177,15 +167,11 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
                 className={disabled ? 'disabled-filter' : ''}
                 disabled={disabled}
                 rightIcon="caret-down"
-                text={
-                    unitOfTime
-                        ? getUnitOfTimeLabel(
-                              unitOfTime,
-                              showOptionsInPlural,
-                              completed,
-                          )
-                        : placeholder
-                }
+                text={getUnitOfTimeLabel(
+                    unitOfTime,
+                    showOptionsInPlural,
+                    completed,
+                )}
                 fill
                 style={{
                     display: 'inline-flex',

@@ -6,7 +6,6 @@ const BooleanFilterInputs = <T extends ConditionalRule>(
     props: React.PropsWithChildren<FilterInputsProps<T>>,
 ) => {
     const { rule, onChange, disabled } = props;
-
     switch (rule.operator) {
         case FilterOperator.EQUALS: {
             return (

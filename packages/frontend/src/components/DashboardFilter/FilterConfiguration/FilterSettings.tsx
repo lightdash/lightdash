@@ -11,6 +11,7 @@ import {
 import { Stack, Switch, TextInput } from '@mantine/core';
 import { FC, useMemo } from 'react';
 import { FilterTypeConfig } from '../../common/Filters/configs';
+import { getPlaceholderByFilterTypeAndOperator } from '../../common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 
 interface FilterSettingsProps {
     isEditMode: boolean;
@@ -55,6 +56,21 @@ const FilterSettings: FC<FilterSettingsProps> = ({
         });
     };
 
+    // questions for Priyanka
+
+    // CHanging of filters
+
+    // toggle
+    // untoggle
+    // change operator
+    // toggle
+    // what value should be there
+    // do we preserve values across multiple operators or do we reset them
+
+    // Boolean
+    // disabled state UI
+    // TODO: replace all any value stuff with one centralised disabled input with "any value" placeholder
+
     return (
         <Stack>
             <Stack spacing="xs">
@@ -75,17 +91,30 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     options={filterConfig.operatorOptions}
                     value={filterRule.operator}
                 />
-
-                <filterConfig.inputs
-                    popoverProps={popoverProps}
-                    filterType={filterType}
-                    field={field}
-                    disabled={filterRule.disabled}
-                    rule={filterRule}
-                    onChange={(newFilterRule) =>
-                        onChangeFilterRule(newFilterRule as DashboardFilterRule)
-                    }
-                />
+                {filterRule.disabled ? (
+                    <TextInput
+                        disabled
+                        placeholder={getPlaceholderByFilterTypeAndOperator({
+                            type: filterType,
+                            operator: filterRule.operator,
+                            disabled: true,
+                        })}
+                    ></TextInput>
+                ) : (
+                    <filterConfig.inputs
+                        popoverProps={popoverProps}
+                        filterType={filterType}
+                        field={field}
+                        // TODO: check here, don't think we should do this now?
+                        disabled={filterRule.disabled}
+                        rule={filterRule}
+                        onChange={(newFilterRule) =>
+                            onChangeFilterRule(
+                                newFilterRule as DashboardFilterRule,
+                            )
+                        }
+                    />
+                )}
             </Stack>
 
             {isEditMode && (
