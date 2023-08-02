@@ -8,7 +8,7 @@ import {
     getFilterTypeFromItem,
 } from '@lightdash/common';
 import { Stack, Switch, TextInput } from '@mantine/core';
-import { FC, useMemo } from 'react';
+import { FC, useEffect, useMemo } from 'react';
 import { FilterTypeConfig } from '../../common/Filters/configs';
 import { getPlaceholderByFilterTypeAndOperator } from '../../common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 
@@ -36,23 +36,35 @@ const FilterSettings: FC<FilterSettingsProps> = ({
         [filterType],
     );
 
+    useEffect(() => {
+        if (!isEditMode && filterRule.disabled) {
+            onChangeFilterRule({
+                ...filterRule,
+                disabled: false,
+                values: undefined,
+            });
+        }
+    }, [isEditMode, onChangeFilterRule, filterRule]);
+
     return (
         <Stack>
             <Stack spacing="xs">
-                <Switch
-                    label="Default value"
-                    labelPosition="left"
-                    checked={!filterRule.disabled}
-                    onChange={(e) => {
-                        onChangeFilterRule({
-                            ...filterRule,
-                            disabled: !e.currentTarget.checked,
-                            values: e.currentTarget.checked
-                                ? filterRule.values
-                                : [],
-                        });
-                    }}
-                />
+                {isEditMode && (
+                    <Switch
+                        label="Default value"
+                        labelPosition="left"
+                        checked={!filterRule.disabled}
+                        onChange={(e) => {
+                            onChangeFilterRule({
+                                ...filterRule,
+                                disabled: !e.currentTarget.checked,
+                                values: e.currentTarget.checked
+                                    ? filterRule.values
+                                    : undefined,
+                            });
+                        }}
+                    />
+                )}
 
                 <HTMLSelect
                     fill
