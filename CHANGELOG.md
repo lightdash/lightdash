@@ -1,3 +1,12 @@
+## [0.717.1](https://github.com/lightdash/lightdash/compare/0.717.0...0.717.1) (2023-08-03)
+
+
+### Bug Fixes
+
+* fix ssh tunnel on sqlrunner ([#6597](https://github.com/lightdash/lightdash/issues/6597)) ([2256011](https://github.com/lightdash/lightdash/commit/22560111186919fcc38ada6897e62a70b72e1f4d))
+* save in private spaces ([#6600](https://github.com/lightdash/lightdash/issues/6600)) ([55cb764](https://github.com/lightdash/lightdash/commit/55cb7644b71469dbda6a6333dcdb99baca16d050)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+* use raw emojis in github template ([#6593](https://github.com/lightdash/lightdash/issues/6593)) ([aa8bf24](https://github.com/lightdash/lightdash/commit/aa8bf24f39893eac677616fef358ae9cea262240))
+
 # [0.717.0](https://github.com/lightdash/lightdash/compare/0.716.1...0.717.0) (2023-08-03)
 
 
