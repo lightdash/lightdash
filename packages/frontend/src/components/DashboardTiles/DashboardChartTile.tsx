@@ -19,6 +19,7 @@ import {
     getFields,
     getItemMap,
     getVisibleFields,
+    isChartTile,
     isFilterableField,
     isTableChartConfig,
     PivotReference,
@@ -31,6 +32,7 @@ import CopyToClipboard from 'react-copy-to-clipboard';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 
+import { IconFolders } from '@tabler/icons-react';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import useSavedQueryWithDashboardFilters from '../../hooks/dashboard/useSavedQueryWithDashboardFilters';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
@@ -39,7 +41,7 @@ import { downloadCsv } from '../../hooks/useDownloadCsv';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useChartResults } from '../../hooks/useQueryResults';
-import { useSavedQuery } from '../../hooks/useSavedQuery';
+import { useMoveChartMutation, useSavedQuery } from '../../hooks/useSavedQuery';
 import { useApp } from '../../providers/AppProvider';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
@@ -48,6 +50,7 @@ import { Can } from '../common/Authorization';
 import ErrorState from '../common/ErrorState';
 import { getConditionalRuleLabel } from '../common/Filters/configs';
 import LinkMenuItem from '../common/LinkMenuItem';
+import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
 import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.styles';
 import ExportCSVModal from '../ExportCSV/ExportCSVModal';
 import LightdashVisualization from '../LightdashVisualization';
@@ -263,12 +266,31 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const { data: explore, isLoading: isLoadingExplore } = useExplore(
         savedQuery?.tableName,
     );
-    const { addDimensionDashboardFilter } = useDashboardContext();
+    const { addDimensionDashboardFilter, setDashboardTiles } =
+        useDashboardContext();
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
         top: number;
     }>();
+    const [isMovingChart, setIsMovingChart] = useState(false);
+    const { mutate: moveChartToSpace } = useMoveChartMutation({
+        onSuccess: async () => {
+            setDashboardTiles((currentDashboardTiles) =>
+                currentDashboardTiles.map((tile) =>
+                    tile.uuid === tileUuid && isChartTile(tile)
+                        ? {
+                              ...tile,
+                              properties: {
+                                  ...tile.properties,
+                                  belongsToDashboard: false,
+                              },
+                          }
+                        : tile,
+                ),
+            );
+        },
+    });
     const { user } = useApp();
 
     const { openUnderlyingDataModal } = useMetricQueryDataContext();
@@ -497,6 +519,13 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                         }
                                     />
                                 )}
+                            {savedQueryWithDashboardFilters?.dashboardUuid && (
+                                <MenuItem2
+                                    icon={<IconFolders />}
+                                    text="Move to space"
+                                    onClick={() => setIsMovingChart(true)}
+                                />
+                            )}
                         </>
                     )
                 }
@@ -676,7 +705,25 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     <InvalidDashboardChartTile tile={props.tile} />
                 )}
             </TileBase>
-
+            {savedQueryWithDashboardFilters && (
+                <MoveChartThatBelongsToDashboardModal
+                    className={'non-draggable'}
+                    name={savedQueryWithDashboardFilters.name}
+                    spaceUuid={savedQueryWithDashboardFilters?.spaceUuid}
+                    spaceName={savedQueryWithDashboardFilters?.spaceName}
+                    opened={isMovingChart}
+                    onClose={() => setIsMovingChart(false)}
+                    onConfirm={() => {
+                        moveChartToSpace({
+                            uuid: savedQueryWithDashboardFilters.uuid,
+                            name: savedQueryWithDashboardFilters.name,
+                            spaceUuid:
+                                savedQueryWithDashboardFilters?.spaceUuid,
+                        });
+                        setIsMovingChart(false);
+                    }}
+                />
+            )}
             {savedQueryWithDashboardFilters && isCSVExportModalOpen ? (
                 <ExportResultAsCSVModal
                     projectUuid={projectUuid}

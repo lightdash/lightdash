@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import {
     useMutation,
+    UseMutationOptions,
     useQuery,
     useQueryClient,
     UseQueryOptions,
@@ -225,7 +226,13 @@ export const useUpdateMutation = (
     );
 };
 
-export const useMoveChartMutation = () => {
+export const useMoveChartMutation = (
+    options?: UseMutationOptions<
+        SavedChart,
+        ApiError,
+        Pick<SavedChart, 'uuid' | 'name' | 'spaceUuid'>
+    >,
+) => {
     const history = useHistory();
     const queryClient = useQueryClient();
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -240,7 +247,8 @@ export const useMoveChartMutation = () => {
             updateSavedQuery(uuid, { name, spaceUuid }),
         {
             mutationKey: ['saved_query_move'],
-            onSuccess: async (data) => {
+            ...options,
+            onSuccess: async (data, _, __) => {
                 await queryClient.invalidateQueries('spaces');
                 await queryClient.invalidateQueries(['space', projectUuid]);
 
@@ -256,6 +264,7 @@ export const useMoveChartMutation = () => {
                             ),
                     },
                 });
+                options?.onSuccess?.(data, _, __);
             },
             onError: (error) => {
                 showToastError({
