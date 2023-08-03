@@ -35,6 +35,7 @@
         "cron-converter": "^2.0.0",
         "cronstrue": "^2.22.0",
         "dagre": "^0.8.5",
+        "dayjs": "^1.11.9",
         "echarts": "^5.4.3",
         "echarts-for-react": "^3.0.2",
         "fuse.js": "^6.5.3",
