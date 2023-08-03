@@ -95,7 +95,7 @@ const ProjectForm: FC<Props> = ({
                         <Title order={5} style={{ marginRight: '0px' }}>
                             Warehouse connection
                         </Title>
-                        <DocumentationHelpButton />
+                        <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
                     </Flex>
 
                     {health.data?.staticIp && (
@@ -124,7 +124,7 @@ const ProjectForm: FC<Props> = ({
                         <Title order={5} style={{ marginRight: '0px' }}>
                             dbt connection
                         </Title>
-                        <DocumentationHelpButton />
+                        <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
                     </Flex>
                 </div>
 
