@@ -142,7 +142,6 @@ const FilterConfiguration: FC<Props> = ({
     const noValueRequiredOperators = [
         FilterOperator.NULL,
         FilterOperator.NOT_NULL,
-        FilterOperator.IN_THE_CURRENT,
     ];
     const isOperatorRequiringValues = !noValueRequiredOperators.includes(
         internalFilterRule.operator,
