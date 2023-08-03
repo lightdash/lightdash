@@ -78,7 +78,9 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                             value={moment(value).toDate()}
                             popoverProps={{ usePortal: false }}
                             startOfWeek={startOfWeek}
-                            onChange={(dateValue: Date) => {
+                            onChange={(dateValue) => {
+                                if (!dateValue) return;
+
                                 onChange(
                                     formatDate(
                                         dateValue,
