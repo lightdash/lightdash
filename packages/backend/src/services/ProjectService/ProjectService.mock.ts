@@ -4,6 +4,7 @@ import {
     ChartKind,
     DbtCloudIDEProjectConfig,
     DbtProjectType,
+    DefaultSupportedDbtVersion,
     Explore,
     ExploreError,
     FieldType,
@@ -223,6 +224,7 @@ export const projectWithSensitiveFields: Project = {
     projectUuid: 'projectUuid',
     name: 'name',
     type: ProjectType.DEFAULT,
+    dbtVersion: DefaultSupportedDbtVersion,
     dbtConnection: {
         account_id: 'account_id',
         environment_id: 'environment_id',

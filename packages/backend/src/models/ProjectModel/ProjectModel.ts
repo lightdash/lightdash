@@ -16,6 +16,7 @@ import {
     ProjectType,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
+    SupportedDbtVersions,
     TablesConfiguration,
     UnexpectedServerError,
     UpdateProject,
@@ -231,6 +232,7 @@ export class ProjectModel {
                         copiedProjects.length === 1
                             ? copiedProjects[0].project_uuid
                             : null,
+                    dbt_version: data.dbtVersion,
                 })
                 .returning('*');
 
@@ -260,11 +262,13 @@ export class ProjectModel {
             } catch (e) {
                 throw new UnexpectedServerError('Could not save credentials.');
             }
+
             const projects = await trx('projects')
                 .update({
                     name: data.name,
                     dbt_connection_type: data.dbtConnection.type,
                     dbt_connection: encryptedCredentials,
+                    dbt_version: data.dbtVersion,
                 })
                 .where('project_uuid', projectUuid)
                 .returning('*');
@@ -299,6 +303,7 @@ export class ProjectModel {
                   warehouse_type: null;
                   organization_uuid: string;
                   pinned_list_uuid?: string;
+                  dbt_version: SupportedDbtVersions;
               }
             | {
                   name: string;
@@ -308,6 +313,7 @@ export class ProjectModel {
                   warehouse_type: string;
                   organization_uuid: string;
                   pinned_list_uuid?: string;
+                  dbt_version: SupportedDbtVersions;
               }
         )[];
         const projects = await this.database('projects')
@@ -344,6 +350,7 @@ export class ProjectModel {
                 this.database
                     .ref('pinned_list_uuid')
                     .withSchema(PinnedListTableName),
+                this.database.ref('dbt_version').withSchema(ProjectTableName),
             ])
             .select<QueryResult>()
             .where('projects.project_uuid', projectUuid);
@@ -371,6 +378,7 @@ export class ProjectModel {
             type: project.project_type,
             dbtConnection: dbtSensitiveCredentials,
             pinnedListUuid: project.pinned_list_uuid,
+            dbtVersion: project.dbt_version,
         };
         if (!project.warehouse_type) {
             return result;
@@ -417,6 +425,7 @@ export class ProjectModel {
             dbtConnection: nonSensitiveDbtCredentials,
             warehouseConnection: nonSensitiveCredentials,
             pinnedListUuid: project.pinnedListUuid,
+            dbtVersion: project.dbtVersion,
         };
     }
 

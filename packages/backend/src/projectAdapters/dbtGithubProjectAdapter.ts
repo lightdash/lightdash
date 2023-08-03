@@ -1,6 +1,7 @@
 import {
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
+    SupportedDbtVersions,
     validateGithubToken,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
@@ -20,6 +21,7 @@ type DbtGithubProjectAdapterArgs = {
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
     cachedWarehouse: CachedWarehouse;
+    dbtVersion: SupportedDbtVersions;
 };
 
 export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
@@ -34,6 +36,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         targetName,
         environment,
         cachedWarehouse,
+        dbtVersion,
     }: DbtGithubProjectAdapterArgs) {
         const [isValid, error] = validateGithubToken(githubPersonalAccessToken);
         if (!isValid) {
@@ -51,6 +54,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
             targetName,
             environment,
             cachedWarehouse,
+            dbtVersion,
         });
     }
 }

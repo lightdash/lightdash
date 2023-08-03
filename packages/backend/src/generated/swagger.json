@@ -1772,8 +1772,15 @@
                     }
                 ]
             },
+            "SupportedDbtVersions": {
+                "enum": ["v1.4", "v1.5"],
+                "type": "string"
+            },
             "Project": {
                 "properties": {
+                    "dbtVersion": {
+                        "$ref": "#/components/schemas/SupportedDbtVersions"
+                    },
                     "copiedFromProjectUuid": {
                         "type": "string"
                     },
@@ -1800,6 +1807,7 @@
                     }
                 },
                 "required": [
+                    "dbtVersion",
                     "dbtConnection",
                     "type",
                     "name",
@@ -2310,7 +2318,10 @@
                         "required": ["fieldRef"],
                         "type": "object"
                     },
-                    "settings": {}
+                    "settings": {},
+                    "disabled": {
+                        "type": "boolean"
+                    }
                 },
                 "required": ["operator", "id", "target"],
                 "type": "object",
@@ -3876,7 +3887,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.692.1",
+        "version": "0.714.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -5246,7 +5257,7 @@
                         }
                     }
                 },
-                "description": "Get a project member's access for a project.\n\nNOTE: \nWe don't use the API on the frontend. Instead, we can call the API\nso that we make sure of the user's access to the project.",
+                "description": "Get a project member's access for a project.\n\nNOTE:\nWe don't use the API on the frontend. Instead, we can call the API\nso that we make sure of the user's access to the project.",
                 "tags": ["Roles & Permissions", "Projects"],
                 "security": [],
                 "parameters": [

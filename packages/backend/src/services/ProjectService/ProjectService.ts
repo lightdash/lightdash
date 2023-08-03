@@ -15,6 +15,7 @@ import {
     DashboardAvailableFilters,
     DbtProjectType,
     deepEqual,
+    DefaultSupportedDbtVersion,
     Explore,
     ExploreError,
     fieldId as getFieldId,
@@ -624,6 +625,7 @@ export class ProjectService {
                 warehouseCatalog: undefined,
                 onWarehouseCatalogChange: () => {},
             },
+            data.dbtVersion || DefaultSupportedDbtVersion,
         );
         try {
             await adapter.test();
@@ -688,6 +690,7 @@ export class ProjectService {
                     );
                 },
             },
+            project.dbtVersion || DefaultSupportedDbtVersion,
         );
         return { adapter, sshTunnel };
     }
@@ -1189,7 +1192,7 @@ export class ProjectService {
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
         };
-        const results = warehouseClient.runQuery(sql, queryTags);
+        const results = await warehouseClient.runQuery(sql, queryTags);
         await sshTunnel.disconnect();
         return results;
     }
