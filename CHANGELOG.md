@@ -1,3 +1,10 @@
+## [0.716.1](https://github.com/lightdash/lightdash/compare/0.716.0...0.716.1) (2023-08-02)
+
+
+### Bug Fixes
+
+* fix lightdash variable prefix ([#6590](https://github.com/lightdash/lightdash/issues/6590)) ([d317de5](https://github.com/lightdash/lightdash/commit/d317de59055e617026bfdaa56c082b071f904c43))
+
 # [0.716.0](https://github.com/lightdash/lightdash/compare/0.715.0...0.716.0) (2023-08-01)
 
 
