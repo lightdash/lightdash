@@ -67,10 +67,13 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                     value={rule.values ? rule.values[0] : null}
                                     popoverProps={popoverProps}
                                     startOfWeek={startOfWeek}
-                                    onChange={(value: Date) => {
+                                    onChange={(value: Date | null) => {
                                         onChange({
                                             ...rule,
-                                            values: [moment(value).toDate()],
+                                            values:
+                                                value === null
+                                                    ? undefined
+                                                    : [moment(value).toDate()],
                                         });
                                     }}
                                 />
@@ -101,7 +104,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             <YearInput
                                 disabled={disabled}
                                 placeholder={placeholder}
-                                value={rule.values?.[0] || new Date()}
+                                value={rule.values ? rule.values[0] : null}
                                 onChange={(value: Date) => {
                                     onChange({
                                         ...rule,
