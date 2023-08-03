@@ -9,7 +9,6 @@ import {
     DashboardTile,
     fieldId,
     FilterableField,
-    FilterOperator,
     FilterRule,
     getFilterRuleWithDefaultValue,
     matchFieldByType,
@@ -29,6 +28,7 @@ import {
 } from './FilterConfiguration.styled';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
+import { isFilterConfigurationApplyButtonEnabled } from './utils';
 
 export enum FilterTabs {
     SETTINGS = 'settings',
@@ -136,45 +136,6 @@ const FilterConfiguration: FC<Props> = ({
         [field, availableTileFilters],
     );
 
-    // TODO: refactor to a switch case(?) or util
-
-    const isRuleEnabled = !internalFilterRule.disabled;
-    const noValueRequiredOperators = [
-        FilterOperator.NULL,
-        FilterOperator.NOT_NULL,
-    ];
-    const isOperatorRequiringValues = !noValueRequiredOperators.includes(
-        internalFilterRule.operator,
-    );
-
-    const isOperatorInBetween =
-        internalFilterRule.operator === FilterOperator.IN_BETWEEN;
-
-    const unitOfTimeRequiredOperators = [
-        FilterOperator.IN_THE_PAST,
-        FilterOperator.NOT_IN_THE_PAST,
-        FilterOperator.IN_THE_NEXT,
-        FilterOperator.IN_THE_CURRENT,
-    ];
-
-    let isValuesEmpty =
-        !internalFilterRule.values || internalFilterRule.values.length <= 0;
-
-    if (isOperatorInBetween && internalFilterRule.values) {
-        isValuesEmpty =
-            internalFilterRule.values.length === 1 ||
-            (internalFilterRule.values.length === 2 &&
-                !internalFilterRule.values[0]) ||
-            !internalFilterRule.values[1];
-    } else if (
-        unitOfTimeRequiredOperators.includes(internalFilterRule.operator)
-    ) {
-        isValuesEmpty = !internalFilterRule.settings;
-    }
-
-    const isApplyButtonDisabled =
-        isOperatorRequiringValues && isValuesEmpty && isRuleEnabled;
-
     return (
         <ConfigureFilterWrapper>
             <FieldLabelAndIconWrapper>
@@ -244,7 +205,11 @@ const FilterConfiguration: FC<Props> = ({
                     className={Classes.POPOVER2_DISMISS}
                     intent={Intent.PRIMARY}
                     text="Apply"
-                    disabled={isApplyButtonDisabled}
+                    disabled={
+                        !isFilterConfigurationApplyButtonEnabled(
+                            internalFilterRule,
+                        )
+                    }
                     onClick={() => onSave(internalFilterRule)}
                 />
             </ActionsWrapper>
