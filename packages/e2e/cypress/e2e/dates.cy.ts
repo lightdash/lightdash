@@ -90,9 +90,9 @@ describe('Date tests', () => {
         cy.findByPlaceholderText('Search field...').type(
             'order date month{enter}',
         );
-        cy.contains('button', now.format('MMMM YYYY')).click();
+        cy.contains('button', 'Select a date').click();
         cy.findByRole('dialog').within(() => {
-            cy.contains('button', now.format('YYYY')).click();
+            cy.contains('button', new Date().getFullYear()).click();
             cy.get('button').find('[data-previous="true"]').click();
             cy.contains('button', 2018).click();
             cy.contains('button', 'Feb').click();
