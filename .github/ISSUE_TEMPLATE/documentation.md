@@ -2,7 +2,7 @@
 name: Documentation
 about: See some docs that need updating? Add an issue here.
 title: ''
-labels: "\U0001F4D6 documentation"
+labels: "📖 documentation"
 assignees: ''
 
 ---
