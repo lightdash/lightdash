@@ -88,6 +88,10 @@
                 },
                 "urls": {
                     "$ref": "#/definitions/Urls"
+                },
+                "required_attributes": {
+                    "type": "object",
+                    "properties": {}
                 }
             }
         },

@@ -21,7 +21,7 @@ import { renderFilterRuleSql } from './filtersCompiler';
 
 // exclude lightdash prefix from variable pattern
 export const lightdashVariablePattern =
-    /\$\{((?!lightdash|ld\b)[a-zA-Z0-9_.]+)\}/g;
+    /\$\{((?!(lightdash|ld)\.)[a-zA-Z0-9_.]+)\}/g;
 
 type Reference = {
     refTable: string;

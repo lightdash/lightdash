@@ -86,6 +86,7 @@ type DbtColumnLightdashDimension = {
     format?: Format;
     group_label?: string;
     urls?: FieldUrl[];
+    required_attributes?: Record<string, string>;
 };
 
 export type DbtColumnLightdashMetric = {

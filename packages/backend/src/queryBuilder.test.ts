@@ -1,7 +1,12 @@
 import { ForbiddenError, UserAttribute } from '@lightdash/common';
-import { buildQuery, replaceUserAttributes } from './queryBuilder';
+import {
+    assertValidDimensionRequiredAttribute,
+    buildQuery,
+    replaceUserAttributes,
+} from './queryBuilder';
 import {
     bigqueryClientMock,
+    COMPILED_DIMENSION,
     EXPLORE,
     EXPLORE_BIGQUERY,
     EXPLORE_JOIN_CHAIN,
@@ -11,24 +16,31 @@ import {
     METRIC_QUERY_JOIN_CHAIN_SQL,
     METRIC_QUERY_SQL,
     METRIC_QUERY_SQL_BIGQUERY,
-    METRIC_QUERY_SQL_WITH_NO_LIMIT,
     METRIC_QUERY_TWO_TABLES,
     METRIC_QUERY_TWO_TABLES_SQL,
     METRIC_QUERY_WITH_ADDITIONAL_METRIC,
     METRIC_QUERY_WITH_ADDITIONAL_METRIC_SQL,
+    METRIC_QUERY_WITH_DISABLED_FILTER,
+    METRIC_QUERY_WITH_DISABLED_FILTER_SQL,
     METRIC_QUERY_WITH_EMPTY_FILTER,
     METRIC_QUERY_WITH_EMPTY_FILTER_GROUPS,
     METRIC_QUERY_WITH_EMPTY_FILTER_SQL,
     METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
     METRIC_QUERY_WITH_EMPTY_METRIC_FILTER_SQL,
     METRIC_QUERY_WITH_FILTER,
+    METRIC_QUERY_WITH_FILTER_AND_DISABLED_FILTER,
     METRIC_QUERY_WITH_FILTER_OR_OPERATOR,
     METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL,
     METRIC_QUERY_WITH_FILTER_SQL,
+    METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM,
+    METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM_SQL,
     METRIC_QUERY_WITH_METRIC_FILTER,
+    METRIC_QUERY_WITH_METRIC_FILTER_AND_ONE_DISABLED_SQL,
     METRIC_QUERY_WITH_METRIC_FILTER_SQL,
     METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS,
     METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL,
+    METRIC_QUERY_WITH_NESTED_METRIC_FILTERS,
+    METRIC_QUERY_WITH_NESTED_METRIC_FILTERS_SQL,
     METRIC_QUERY_WITH_SQL_FILTER,
     METRIC_QUERY_WITH_TABLE_REFERENCE,
     METRIC_QUERY_WITH_TABLE_REFERENCE_SQL,
@@ -105,6 +117,28 @@ describe('Query builder', () => {
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL);
     });
+
+    test('Should build query with disabled filter', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_DISABLED_FILTER,
+                warehouseClient: warehouseClientMock,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_WITH_DISABLED_FILTER_SQL);
+    });
+
+    test('Should build query with a filter and one disabled filter', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery:
+                    METRIC_QUERY_WITH_FILTER_AND_DISABLED_FILTER,
+                warehouseClient: warehouseClientMock,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_WITH_METRIC_FILTER_AND_ONE_DISABLED_SQL);
+    });
+
     test('Should build query with nested filter operators', () => {
         expect(
             buildQuery({
@@ -114,6 +148,7 @@ describe('Query builder', () => {
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL);
     });
+
     test('Should build query with no filter when there are only empty filter groups ', () => {
         expect(
             buildQuery({
@@ -123,6 +158,7 @@ describe('Query builder', () => {
             }).query,
         ).toStrictEqual(METRIC_QUERY_SQL);
     });
+
     test('Should build second query with metric filter', () => {
         expect(
             buildQuery({
@@ -131,6 +167,29 @@ describe('Query builder', () => {
                 warehouseClient: warehouseClientMock,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_METRIC_FILTER_SQL);
+    });
+
+    test('Should build query with metric filter (where filter is disabled) and metric references a dimension from a joined table', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery:
+                    METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM,
+                warehouseClient: warehouseClientMock,
+            }).query,
+        ).toStrictEqual(
+            METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM_SQL,
+        );
+    });
+
+    test('Should build second query with nested metric filters', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_NESTED_METRIC_FILTERS,
+                warehouseClient: warehouseClientMock,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_WITH_NESTED_METRIC_FILTERS_SQL);
     });
 
     test('Should build query with additional metric', () => {
@@ -328,10 +387,91 @@ describe('replaceUserAttributes', () => {
     });
 
     it('method should not replace any invalid attribute', async () => {
-        const expected = "'1' > 1";
-
         expect(replaceUserAttributes('${lightdash.foo.test} > 1', [])).toEqual(
             '${lightdash.foo.test} > 1',
         );
+    });
+});
+
+describe('assertValidDimensionRequiredAttribute', () => {
+    it('should not throw errors if no user attributes are required', async () => {
+        const result = assertValidDimensionRequiredAttribute(
+            COMPILED_DIMENSION,
+            [],
+            '',
+        );
+
+        expect(result).toBeUndefined();
+    });
+
+    it('should throw errors if required attributes are required and user attributes are missing', async () => {
+        expect(() =>
+            assertValidDimensionRequiredAttribute(
+                {
+                    ...COMPILED_DIMENSION,
+                    requiredAttributes: {
+                        is_admin: 'true',
+                    },
+                },
+                [],
+                '',
+            ),
+        ).toThrowError(ForbiddenError);
+
+        expect(() =>
+            assertValidDimensionRequiredAttribute(
+                {
+                    ...COMPILED_DIMENSION,
+                    requiredAttributes: {
+                        is_admin: 'true',
+                    },
+                },
+                [
+                    {
+                        uuid: '',
+                        name: 'is_admin',
+                        createdAt: new Date(),
+                        organizationUuid: '',
+                        users: [
+                            {
+                                userUuid: '',
+                                email: '',
+                                value: 'false',
+                            },
+                        ],
+                    },
+                ],
+                '',
+            ),
+        ).toThrowError(ForbiddenError);
+    });
+
+    it('should not throw errors if required attributes are required and user attributes exist', async () => {
+        const result = assertValidDimensionRequiredAttribute(
+            {
+                ...COMPILED_DIMENSION,
+                requiredAttributes: {
+                    is_admin: 'true',
+                },
+            },
+            [
+                {
+                    uuid: '',
+                    name: 'is_admin',
+                    createdAt: new Date(),
+                    organizationUuid: '',
+                    users: [
+                        {
+                            userUuid: '',
+                            email: '',
+                            value: 'true',
+                        },
+                    ],
+                },
+            ],
+            '',
+        );
+
+        expect(result).toBeUndefined();
     });
 });

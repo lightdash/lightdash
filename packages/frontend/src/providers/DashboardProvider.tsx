@@ -246,6 +246,16 @@ export const DashboardProvider: React.FC = ({ children }) => {
         const searchParams = new URLSearchParams(search);
         const tempFilterSearchParam = searchParams.get('tempFilters');
         const filtersSearchParam = searchParams.get('filters');
+        const unsavedDashboardFiltersRaw = sessionStorage.getItem(
+            'unsavedDashboardFilters',
+        );
+        sessionStorage.removeItem('unsavedDashboardFilters');
+        if (unsavedDashboardFiltersRaw) {
+            const unsavedDashboardFilters = JSON.parse(
+                unsavedDashboardFiltersRaw,
+            );
+            setDashboardFilters(unsavedDashboardFilters);
+        }
         if (tempFilterSearchParam) {
             setDashboardTemporaryFilters(
                 convertDashboardFiltersParamToDashboardFilters(

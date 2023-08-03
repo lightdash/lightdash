@@ -1,4 +1,6 @@
+import assertUnreachable from '../utils/assertUnreachable';
 import { WeekDay } from '../utils/timeFrames';
+import { DbtManifestVersion } from './dbt';
 
 export enum ProjectType {
     DEFAULT = 'DEFAULT',
@@ -176,6 +178,30 @@ export type DbtProjectEnvironmentVariable = {
     value: string;
 };
 
+export enum SupportedDbtVersions {
+    V1_4 = 'v1.4',
+    V1_5 = 'v1.5',
+}
+
+export const GetDbtManifestVersion = (
+    dbtVersion: SupportedDbtVersions,
+): DbtManifestVersion => {
+    switch (dbtVersion) {
+        case SupportedDbtVersions.V1_4:
+            return DbtManifestVersion.V8;
+        case SupportedDbtVersions.V1_5:
+            return DbtManifestVersion.V9;
+        default:
+            assertUnreachable(
+                dbtVersion,
+                'Missing dbt version manifest mapping',
+            );
+    }
+    return DbtManifestVersion.V8;
+};
+
+export const DefaultSupportedDbtVersion = SupportedDbtVersions.V1_4;
+
 export interface DbtProjectCompilerBase extends DbtProjectConfigBase {
     target?: string;
     environment?: DbtProjectEnvironmentVariable[];
@@ -256,6 +282,7 @@ export type Project = {
     warehouseConnection?: WarehouseCredentials;
     pinnedListUuid?: string;
     copiedFromProjectUuid?: string;
+    dbtVersion: SupportedDbtVersions;
 };
 
 export type ApiProjectResponse = {

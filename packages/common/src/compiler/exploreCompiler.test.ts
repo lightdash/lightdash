@@ -233,4 +233,39 @@ describe('Parse dimension reference', () => {
             [],
         );
     });
+
+    test('should parse references with lightdash prefix', () => {
+        expect(
+            parseAllReferences('${lightdash_dimension} == 1', 'table'),
+        ).toStrictEqual([
+            { refName: 'lightdash_dimension}', refTable: 'table' },
+        ]);
+        expect(
+            parseAllReferences('${dimension_lightdash} == 1', 'table'),
+        ).toStrictEqual([
+            { refName: 'dimension_lightdash}', refTable: 'table' },
+        ]);
+        expect(
+            parseAllReferences(
+                '${lightdash_table.dimension}',
+                'lightdash_table',
+            ),
+        ).toStrictEqual([
+            { refName: 'dimension}', refTable: 'lightdash_table' },
+        ]);
+        expect(
+            parseAllReferences(
+                '${table_lightdash.dimension}',
+                'table_lightdash',
+            ),
+        ).toStrictEqual([
+            { refName: 'dimension}', refTable: 'table_lightdash' },
+        ]);
+        expect(
+            parseAllReferences('${ld_dimension} == 1', 'table'),
+        ).toStrictEqual([{ refName: 'ld_dimension}', refTable: 'table' }]);
+        expect(
+            parseAllReferences('${ld_table.ld_dimension} == 1', 'ld_table'),
+        ).toStrictEqual([{ refName: 'ld_dimension}', refTable: 'ld_table' }]);
+    });
 });

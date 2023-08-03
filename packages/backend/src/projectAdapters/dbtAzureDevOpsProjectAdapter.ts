@@ -1,6 +1,7 @@
 import {
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
+    SupportedDbtVersions,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import { CachedWarehouse } from '../types';
@@ -18,6 +19,7 @@ type Args = {
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
     cachedWarehouse: CachedWarehouse;
+    dbtVersion: SupportedDbtVersions;
 };
 
 export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
@@ -33,6 +35,7 @@ export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
         targetName,
         environment,
         cachedWarehouse,
+        dbtVersion,
     }: Args) {
         const remoteRepositoryUrl = `https://${personalAccessToken}@dev.azure.com/${organization}/${project}/_git/${repository}`;
         super({
@@ -44,6 +47,7 @@ export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
             targetName,
             environment,
             cachedWarehouse,
+            dbtVersion,
         });
     }
 }

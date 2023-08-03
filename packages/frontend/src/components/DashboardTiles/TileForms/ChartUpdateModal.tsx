@@ -1,4 +1,6 @@
+import { DashboardChartTile } from '@lightdash/common';
 import {
+    ActionIcon,
     Button,
     Flex,
     Group,
@@ -10,47 +12,55 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconChartAreaLine } from '@tabler/icons-react';
+import { IconChartAreaLine, IconEye, IconEyeOff } from '@tabler/icons-react';
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import MantineIcon from '../../common/MantineIcon';
 
 interface ChartUpdateModalProps extends ModalProps {
-    chartTitle: string;
     onClose: () => void;
-    onConfirm?: (newTitle: string, newChartUuid: string) => void;
+    hideTitle: boolean;
+    onConfirm?: (
+        newTitle: string | undefined,
+        newChartUuid: string,
+        shouldHideTitle: boolean,
+    ) => void;
+    tile: DashboardChartTile;
 }
 
 const ChartUpdateModal = ({
-    chartTitle,
     onClose,
     onConfirm,
+    hideTitle,
+    tile,
     ...modalProps
 }: ChartUpdateModalProps) => {
     const form = useForm({
         initialValues: {
-            uuid: '',
-            title: '',
+            uuid: tile.properties.savedChartUuid,
+            title: tile.properties.title,
+            hideTitle,
         },
     });
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: savedCharts, isLoading } = useChartSummaries(projectUuid);
 
     const handleConfirm = form.onSubmit(
-        ({ title: newTitle, uuid: newChartUuid }) => {
-            onConfirm?.(newTitle, newChartUuid);
+        ({
+            title: newTitle,
+            uuid: newChartUuid,
+            hideTitle: shouldHideTitle,
+        }) => {
+            if (newChartUuid) {
+                onConfirm?.(newTitle, newChartUuid, shouldHideTitle);
+            }
         },
     );
 
-    const handleClose = () => {
-        form.reset();
-        onClose?.();
-    };
-
     return (
         <Modal
-            onClose={handleClose}
+            onClose={() => onClose?.()}
             title={
                 <Flex align="center" gap="xs">
                     <MantineIcon
@@ -67,15 +77,39 @@ const ChartUpdateModal = ({
         >
             <form onSubmit={handleConfirm} name="Edit tile content">
                 <Stack spacing="md">
-                    <TextInput
-                        label="Title"
-                        placeholder={
-                            form.getInputProps('title').value.length > 0
-                                ? form.getInputProps('title').value
-                                : chartTitle
-                        }
-                        {...form.getInputProps('title')}
-                    />
+                    <Flex align="flex-end" gap="xs">
+                        <TextInput
+                            label="Title"
+                            placeholder={
+                                form.values.uuid
+                                    ? savedCharts?.find(
+                                          (chart) =>
+                                              chart.uuid === form.values.uuid,
+                                      )?.name
+                                    : undefined
+                            }
+                            {...form.getInputProps('title')}
+                            style={{ flex: 1 }}
+                            disabled={form.values.hideTitle}
+                        />
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            size="lg"
+                            onClick={() =>
+                                form.setFieldValue(
+                                    'hideTitle',
+                                    !form.values.hideTitle,
+                                )
+                            }
+                        >
+                            <MantineIcon
+                                icon={
+                                    form.values.hideTitle ? IconEyeOff : IconEye
+                                }
+                            />
+                        </ActionIcon>
+                    </Flex>
                     <Select
                         styles={(theme) => ({
                             separator: {
@@ -107,12 +141,7 @@ const ChartUpdateModal = ({
                         placeholder="Search..."
                     />
                     <Group spacing="xs" position="right" mt="md">
-                        <Button
-                            onClick={() => {
-                                if (onClose) onClose();
-                            }}
-                            variant="outline"
-                        >
+                        <Button onClick={() => onClose?.()} variant="outline">
                             Cancel
                         </Button>
                         <Button type="submit">Update</Button>

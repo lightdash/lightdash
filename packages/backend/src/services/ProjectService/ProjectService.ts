@@ -15,6 +15,7 @@ import {
     DashboardAvailableFilters,
     DbtProjectType,
     deepEqual,
+    DefaultSupportedDbtVersion,
     Explore,
     ExploreError,
     fieldId as getFieldId,
@@ -91,6 +92,10 @@ import { compileMetricQuery } from '../../queryCompiler';
 import { ProjectAdapter } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
+import {
+    exploreHasFilteredAttribute,
+    filterDimensionsFromExplore,
+} from '../UserAttributesService/UserAttributeUtils';
 
 type RunQueryTags = {
     project_uuid?: string;
@@ -620,6 +625,7 @@ export class ProjectService {
                 warehouseCatalog: undefined,
                 onWarehouseCatalogChange: () => {},
             },
+            data.dbtVersion || DefaultSupportedDbtVersion,
         );
         try {
             await adapter.test();
@@ -684,6 +690,7 @@ export class ProjectService {
                     );
                 },
             },
+            project.dbtVersion || DefaultSupportedDbtVersion,
         );
         return { adapter, sshTunnel };
     }
@@ -1185,7 +1192,7 @@ export class ProjectService {
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
         };
-        const results = warehouseClient.runQuery(sql, queryTags);
+        const results = await warehouseClient.runQuery(sql, queryTags);
         await sshTunnel.disconnect();
         return results;
     }
@@ -1419,6 +1426,21 @@ export class ProjectService {
                                     undefined
                             )
                                 return acc + 1;
+                            return acc;
+                        },
+                        0,
+                    ),
+                    columnAccessFiltersCount: explores.reduce<number>(
+                        (acc, explore) => {
+                            if (!isExploreError(explore)) {
+                                return (
+                                    acc +
+                                    getDimensions(explore).filter(
+                                        ({ requiredAttributes }) =>
+                                            requiredAttributes !== undefined,
+                                    ).length
+                                );
+                            }
                             return acc;
                         },
                         0,
@@ -1677,12 +1699,22 @@ export class ProjectService {
                 projectUuid,
                 exploreName,
             );
+
             if (isExploreError(explore)) {
                 throw new NotExistsError(
                     `Explore "${exploreName}" does not exist.`,
                 );
             }
-            return explore;
+
+            if (!exploreHasFilteredAttribute(explore)) {
+                return explore;
+            }
+            const userAttributes = await this.userAttributesModel.find({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+            return filterDimensionsFromExplore(explore, userAttributes);
         } finally {
             span?.finish();
         }

@@ -1,3 +1,115 @@
+## [0.717.1](https://github.com/lightdash/lightdash/compare/0.717.0...0.717.1) (2023-08-03)
+
+
+### Bug Fixes
+
+* fix ssh tunnel on sqlrunner ([#6597](https://github.com/lightdash/lightdash/issues/6597)) ([2256011](https://github.com/lightdash/lightdash/commit/22560111186919fcc38ada6897e62a70b72e1f4d))
+* save in private spaces ([#6600](https://github.com/lightdash/lightdash/issues/6600)) ([55cb764](https://github.com/lightdash/lightdash/commit/55cb7644b71469dbda6a6333dcdb99baca16d050)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+* use raw emojis in github template ([#6593](https://github.com/lightdash/lightdash/issues/6593)) ([aa8bf24](https://github.com/lightdash/lightdash/commit/aa8bf24f39893eac677616fef358ae9cea262240))
+
+# [0.717.0](https://github.com/lightdash/lightdash/compare/0.716.1...0.717.0) (2023-08-03)
+
+
+### Features
+
+* support multiple dbt ([#6584](https://github.com/lightdash/lightdash/issues/6584)) ([2320910](https://github.com/lightdash/lightdash/commit/23209107f71607f704f2750f9ef2e973bc1365ac)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
+## [0.716.1](https://github.com/lightdash/lightdash/compare/0.716.0...0.716.1) (2023-08-02)
+
+
+### Bug Fixes
+
+* fix lightdash variable prefix ([#6590](https://github.com/lightdash/lightdash/issues/6590)) ([d317de5](https://github.com/lightdash/lightdash/commit/d317de59055e617026bfdaa56c082b071f904c43))
+
+# [0.716.0](https://github.com/lightdash/lightdash/compare/0.715.0...0.716.0) (2023-08-01)
+
+
+### Features
+
+* You should be able to hide/show tile titles from the edit modals (not the 3-dot action menu)  ([#6519](https://github.com/lightdash/lightdash/issues/6519)) ([9ab380f](https://github.com/lightdash/lightdash/commit/9ab380fc26ea5b86a6ae13d275396395b4ea6fc8))
+
+# [0.715.0](https://github.com/lightdash/lightdash/compare/0.714.0...0.715.0) (2023-08-01)
+
+
+### Features
+
+* add event loop delay otel metric ([#6579](https://github.com/lightdash/lightdash/issues/6579)) ([3a1fc2b](https://github.com/lightdash/lightdash/commit/3a1fc2b67318a9db83209c228747801c9ea3cd29))
+
+# [0.714.0](https://github.com/lightdash/lightdash/compare/0.713.0...0.714.0) (2023-08-01)
+
+
+### Features
+
+* column level security ([#6516](https://github.com/lightdash/lightdash/issues/6516)) ([dfde810](https://github.com/lightdash/lightdash/commit/dfde810569cd0e46fa8864b783360d7dba3b6512)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
+# [0.713.0](https://github.com/lightdash/lightdash/compare/0.712.0...0.713.0) (2023-08-01)
+
+
+### Features
+
+* nested filters ([#6530](https://github.com/lightdash/lightdash/issues/6530)) ([6d2b43f](https://github.com/lightdash/lightdash/commit/6d2b43f29c943779b8a8d4cbd0e5d2da6c723de6))
+
+# [0.712.0](https://github.com/lightdash/lightdash/compare/0.711.0...0.712.0) (2023-08-01)
+
+
+### Features
+
+* pie charts underlying data ([#6488](https://github.com/lightdash/lightdash/issues/6488)) ([3c18e1f](https://github.com/lightdash/lightdash/commit/3c18e1f3d7035b2e7206bc98065acf9c300d6dfb))
+
+# [0.711.0](https://github.com/lightdash/lightdash/compare/0.710.0...0.711.0) (2023-08-01)
+
+
+### Features
+
+* migrate grouped series config to mantine ([#6565](https://github.com/lightdash/lightdash/issues/6565)) ([94612a1](https://github.com/lightdash/lightdash/commit/94612a19810bed6ffa16ba17e39681d40f15b2e1))
+
+# [0.710.0](https://github.com/lightdash/lightdash/compare/0.709.1...0.710.0) (2023-08-01)
+
+
+### Features
+
+* migrate chart config series to mantine ([#6559](https://github.com/lightdash/lightdash/issues/6559)) ([5889b0c](https://github.com/lightdash/lightdash/commit/5889b0c770f462cdd0c261ba958882caf9d3cf22))
+
+## [0.709.1](https://github.com/lightdash/lightdash/compare/0.709.0...0.709.1) (2023-08-01)
+
+
+### Bug Fixes
+
+* keep unsaved filters when creating a chart in dash ([#6567](https://github.com/lightdash/lightdash/issues/6567)) ([4111597](https://github.com/lightdash/lightdash/commit/41115972f66cbc23814746caedb56ced73d0ff2d))
+
+# [0.709.0](https://github.com/lightdash/lightdash/compare/0.708.0...0.709.0) (2023-07-31)
+
+
+### Features
+
+* onboarding analytics update ([#6557](https://github.com/lightdash/lightdash/issues/6557)) ([fef9b61](https://github.com/lightdash/lightdash/commit/fef9b617cccf38d62fbcea5feae902340df20268))
+
+# [0.708.0](https://github.com/lightdash/lightdash/compare/0.707.2...0.708.0) (2023-07-31)
+
+
+### Bug Fixes
+
+* edit tile content fields are empty ([#6539](https://github.com/lightdash/lightdash/issues/6539)) ([34aae99](https://github.com/lightdash/lightdash/commit/34aae99d714186ddf206f523f1981085ac1b7222))
+
+
+### Features
+
+* allow filters to be disabled ([#6500](https://github.com/lightdash/lightdash/issues/6500)) ([1468b3f](https://github.com/lightdash/lightdash/commit/1468b3f1a871a78dffe1465c5a54e97ed755619c))
+
+## [0.707.2](https://github.com/lightdash/lightdash/compare/0.707.1...0.707.2) (2023-07-31)
+
+
+### Bug Fixes
+
+* error validation null chart ([#6562](https://github.com/lightdash/lightdash/issues/6562)) ([3db2ebb](https://github.com/lightdash/lightdash/commit/3db2ebb6821dac4a14f355dc067b5f0c4da328d3)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
+## [0.707.1](https://github.com/lightdash/lightdash/compare/0.707.0...0.707.1) (2023-07-31)
+
+
+### Bug Fixes
+
+* make sql lowercase ([#6558](https://github.com/lightdash/lightdash/issues/6558)) ([30f31bc](https://github.com/lightdash/lightdash/commit/30f31bc814af42b2a67cf4e28fef5c3aba9096b4))
+
 # [0.707.0](https://github.com/lightdash/lightdash/compare/0.706.0...0.707.0) (2023-07-31)
 
 
