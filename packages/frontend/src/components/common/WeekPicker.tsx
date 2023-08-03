@@ -107,7 +107,7 @@ function getWeekRange(date: Date, startOfWeek?: WeekDay | null): WeekRange {
 
 type Props = {
     value: Date | null;
-    onChange: (value: Date) => void;
+    onChange: (value: Date | null) => void;
     popoverProps?: Popover2Props;
     startOfWeek?: WeekDay | null;
 } & Pick<DateInput2Props, 'placeholder' | 'disabled'>;
@@ -160,10 +160,11 @@ const WeekPicker: FC<Props> = ({
                 formatDate={formatDate}
                 parseDate={parseDate}
                 onChange={(pickedDate) => {
-                    if (!pickedDate) return;
-
                     onChange(
-                        getWeekRange(new Date(pickedDate), startOfWeek).from,
+                        pickedDate === null
+                            ? null
+                            : getWeekRange(new Date(pickedDate), startOfWeek)
+                                  .from,
                     );
                 }}
                 dayPickerProps={{
