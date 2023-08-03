@@ -1,3 +1,10 @@
+# [0.719.0](https://github.com/lightdash/lightdash/compare/0.718.0...0.719.0) (2023-08-03)
+
+
+### Features
+
+* filters year and monthyear pickers in mantine ([#6609](https://github.com/lightdash/lightdash/issues/6609)) ([90086a5](https://github.com/lightdash/lightdash/commit/90086a5a0dba13508500811cb94d9cb19698916d))
+
 # [0.718.0](https://github.com/lightdash/lightdash/compare/0.717.1...0.718.0) (2023-08-03)
 
 
