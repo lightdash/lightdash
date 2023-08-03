@@ -35,7 +35,6 @@ import {
     CompileProjectButton,
     FormContainer,
     LeftPanelMessage,
-    LeftPanelTitle,
 } from './ProjectConnection.styles';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
@@ -92,14 +91,12 @@ const ProjectForm: FC<Props> = ({
             <SettingsGridCard>
                 <div>
                     {warehouse && getWarehouseIcon(warehouse)}
-                    <LeftPanelTitle
-                        style={{ display: 'flex', alignItems: 'center' }}
-                    >
+                    <Flex align="center">
                         <Title order={5} style={{ marginRight: '0px' }}>
                             Warehouse connection
                         </Title>
                         <DocumentationHelpButton />
-                    </LeftPanelTitle>
+                    </Flex>
 
                     {health.data?.staticIp && (
                         <LeftPanelMessage>
@@ -123,14 +120,12 @@ const ProjectForm: FC<Props> = ({
                 <div>
                     <Avatar size="md" src={DbtLogo} alt="dbt icon" />
 
-                    <LeftPanelTitle
-                        style={{ display: 'flex', alignItems: 'center' }}
-                    >
+                    <Flex align="center">
                         <Title order={5} style={{ marginRight: '0px' }}>
                             dbt connection
                         </Title>
                         <DocumentationHelpButton />
-                    </LeftPanelTitle>
+                    </Flex>
                 </div>
 
                 <div>
