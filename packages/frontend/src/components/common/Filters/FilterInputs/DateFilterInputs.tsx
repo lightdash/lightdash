@@ -226,8 +226,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         unitOfTime={rule.settings?.unitOfTime}
                         completed={rule.settings?.completed || false}
                         popoverProps={popoverProps}
-                        // FIXME: placeholder from here...
-                        placeholder="select unit of time"
                         onChange={(value) =>
                             onChange({
                                 ...rule,
@@ -252,7 +250,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         showCompletedOptions={false}
                         completed={false}
                         popoverProps={popoverProps}
-                        placeholder={placeholder}
                         onChange={(value) =>
                             onChange({
                                 ...rule,

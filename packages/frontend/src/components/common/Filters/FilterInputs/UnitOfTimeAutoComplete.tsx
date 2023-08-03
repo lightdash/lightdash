@@ -105,7 +105,6 @@ type Props = {
     onClosed?: () => void;
     popoverProps?: Popover2Props;
     disabled?: boolean;
-    placeholder?: string;
 };
 
 const UnitOfTimeAutoComplete: FC<Props> = ({
@@ -118,7 +117,6 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
     onClosed,
     popoverProps,
     disabled,
-    placeholder,
 }) => (
     <>
         <AutocompleteMaxHeight />
@@ -180,7 +178,7 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
                               showOptionsInPlural,
                               completed,
                           )
-                        : placeholder
+                        : 'Select value'
                 }
                 fill
                 style={{
