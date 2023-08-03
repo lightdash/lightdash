@@ -12,12 +12,13 @@ const YearInput: FC<Props> = ({ value, onChange, disabled, placeholder }) => {
 
     return (
         <YearPickerInput
+            sx={{ width: '100%' }}
+            size="xs"
             popoverProps={{
                 withinPortal: false,
                 withArrow: true,
                 shadow: 'md',
             }}
-            size="xs"
             disabled={disabled}
             placeholder={placeholder}
             minDate={moment().year(1000).toDate()}

@@ -17,6 +17,7 @@ const MonthAndYearInput: FC<Props> = ({
 
     return (
         <MonthPickerInput
+            sx={{ width: '100%' }}
             size="xs"
             popoverProps={{
                 withArrow: true,
