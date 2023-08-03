@@ -1,3 +1,10 @@
+# [0.720.0](https://github.com/lightdash/lightdash/compare/0.719.0...0.720.0) (2023-08-03)
+
+
+### Features
+
+* allow disabled/is-any dashboard filters and update placeholders ([#6581](https://github.com/lightdash/lightdash/issues/6581)) ([e59f161](https://github.com/lightdash/lightdash/commit/e59f161cc4fe435cc07155499cf4f44e3c7de3d7))
+
 # [0.719.0](https://github.com/lightdash/lightdash/compare/0.718.0...0.719.0) (2023-08-03)
 
 
