@@ -1,3 +1,10 @@
+# [0.717.0](https://github.com/lightdash/lightdash/compare/0.716.1...0.717.0) (2023-08-03)
+
+
+### Features
+
+* support multiple dbt ([#6584](https://github.com/lightdash/lightdash/issues/6584)) ([2320910](https://github.com/lightdash/lightdash/commit/23209107f71607f704f2750f9ef2e973bc1365ac)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
 ## [0.716.1](https://github.com/lightdash/lightdash/compare/0.716.0...0.716.1) (2023-08-02)
 
 
