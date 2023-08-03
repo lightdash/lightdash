@@ -1,3 +1,10 @@
+# [0.718.0](https://github.com/lightdash/lightdash/compare/0.717.1...0.718.0) (2023-08-03)
+
+
+### Features
+
+* multiple UX improvements for charts in dashboard ([#6603](https://github.com/lightdash/lightdash/issues/6603)) ([605e74f](https://github.com/lightdash/lightdash/commit/605e74f2f64472568933622161f214f350419dcd))
+
 ## [0.717.1](https://github.com/lightdash/lightdash/compare/0.717.0...0.717.1) (2023-08-03)
 
 
