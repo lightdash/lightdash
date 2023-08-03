@@ -136,6 +136,8 @@ const FilterConfiguration: FC<Props> = ({
         [field, availableTileFilters],
     );
 
+    // TODO: refactor to a switch case(?) or util
+
     const isRuleEnabled = !internalFilterRule.disabled;
     const noValueRequiredOperators = [
         FilterOperator.NULL,
@@ -145,8 +147,31 @@ const FilterConfiguration: FC<Props> = ({
     const isOperatorRequiringValues = !noValueRequiredOperators.includes(
         internalFilterRule.operator,
     );
-    const isValuesEmpty =
+
+    const isOperatorInBetween =
+        internalFilterRule.operator === FilterOperator.IN_BETWEEN;
+
+    const unitOfTimeRequiredOperators = [
+        FilterOperator.IN_THE_PAST,
+        FilterOperator.NOT_IN_THE_PAST,
+        FilterOperator.IN_THE_NEXT,
+        FilterOperator.IN_THE_CURRENT,
+    ];
+
+    let isValuesEmpty =
         !internalFilterRule.values || internalFilterRule.values.length <= 0;
+
+    if (isOperatorInBetween && internalFilterRule.values) {
+        isValuesEmpty =
+            internalFilterRule.values.length === 1 ||
+            (internalFilterRule.values.length === 2 &&
+                !internalFilterRule.values[0]) ||
+            !internalFilterRule.values[1];
+    } else if (
+        unitOfTimeRequiredOperators.includes(internalFilterRule.operator)
+    ) {
+        isValuesEmpty = !internalFilterRule.settings;
+    }
 
     const isApplyButtonDisabled =
         isOperatorRequiringValues && isValuesEmpty && isRuleEnabled;
