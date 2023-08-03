@@ -1,38 +1,36 @@
-import { HTMLSelect } from '@blueprintjs/core';
+import { MonthPickerInput, MonthPickerInputProps } from '@mantine/dates';
 import moment from 'moment';
 import { FC } from 'react';
-import YearInput from './YearInput';
 
 type Props = {
-    value: Date;
+    value: Date | null;
     onChange: (value: Date) => void;
-    disabled?: boolean;
-};
+} & Pick<MonthPickerInputProps, 'disabled' | 'placeholder'>;
 
-const months = moment.months();
+const MonthAndYearInput: FC<Props> = ({
+    value,
+    onChange,
+    disabled,
+    placeholder,
+}) => {
+    const yearValue = value ? moment(value).toDate() : null;
 
-const MonthAndYearInput: FC<Props> = ({ value, onChange, disabled }) => {
-    const utcMonthValue = moment(value).month();
     return (
-        <>
-            <HTMLSelect
-                className={disabled ? 'disabled-filter' : ''}
-                disabled={disabled}
-                fill={false}
-                style={{ width: 150 }}
-                onChange={(e) =>
-                    onChange(
-                        moment(value).month(e.currentTarget.value).toDate(),
-                    )
-                }
-                options={months.map((label, index) => ({
-                    value: index,
-                    label,
-                }))}
-                value={utcMonthValue}
-            />
-            <YearInput disabled={disabled} value={value} onChange={onChange} />
-        </>
+        <MonthPickerInput
+            size="xs"
+            popoverProps={{
+                withArrow: true,
+                withinPortal: false,
+                shadow: 'md',
+            }}
+            disabled={disabled}
+            placeholder={placeholder}
+            value={yearValue}
+            onChange={(date) => {
+                if (!date) return;
+                onChange(date);
+            }}
+        />
     );
 };
 
