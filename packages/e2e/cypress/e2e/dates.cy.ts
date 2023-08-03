@@ -65,6 +65,8 @@ describe('Date tests', () => {
     });
 
     it('Should use dashboard month filter', () => {
+        const now = moment();
+
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
         // wiat for the dashboard to load
@@ -88,8 +90,13 @@ describe('Date tests', () => {
         cy.findByPlaceholderText('Search field...').type(
             'order date month{enter}',
         );
-        cy.get('select option[label="January"]').parent('select').select('1'); // February
-        cy.get('.bp4-numeric-input input').clear().type('2018');
+        cy.contains('button', now.format('MMMM YYYY')).click();
+        cy.findByRole('dialog').within(() => {
+            cy.contains('button', now.format('YYYY')).click();
+            cy.get('button').find('[data-previous="true"]').click();
+            cy.contains('button', 2018).click();
+            cy.contains('button', 'Feb').click();
+        });
 
         cy.contains('Apply').click();
 
@@ -255,13 +262,19 @@ describe('Date tests', () => {
         cy.contains('Add filter').click();
         cy.contains('Created year').click();
 
-        cy.get('.bp4-numeric-input input').clear().type('2017');
-        cy.get('.bp4-numeric-input input').should('have.value', '2017');
+        cy.contains('button', new Date().getFullYear()).click();
+        cy.findByRole('dialog').within(() => {
+            cy.get('button').find('[data-previous="true"]').click();
+            cy.contains('button', 2017).click();
+        });
         cy.get('.bp4-code').contains(
             `(DATE_TRUNC('YEAR', "customers".created)) = ('2017-01-01')`,
         );
-        cy.get('button[aria-label="increment"]').click({ multiple: true });
-        cy.get('.bp4-numeric-input input').should('have.value', '2018');
+
+        cy.contains('button', 2017).click();
+        cy.findByRole('dialog').within(() => {
+            cy.contains('button', 2018).click();
+        });
         cy.get('.bp4-code').contains(
             `(DATE_TRUNC('YEAR', "customers".created)) = ('2018-01-01')`,
         );
@@ -272,15 +285,25 @@ describe('Date tests', () => {
         cy.contains('Add filter').click();
         cy.contains('Created month').click();
 
-        cy.get('.bp4-numeric-input input').clear().type('2017');
-        cy.get('.bp4-numeric-input input').should('have.value', '2017');
+        cy.contains('button', moment().format('MMMM YYYY')).click();
+        cy.findByRole('dialog').within(() => {
+            cy.contains('button', moment().format('YYYY')).click();
+            cy.get('button').find('[data-previous="true"]').click();
+            cy.contains('button', 2017).click();
+            cy.contains('button', 'Aug').click();
+        });
         cy.get('.bp4-code').contains(
-            `(DATE_TRUNC('MONTH', "customers".created)) = ('2017`,
+            `(DATE_TRUNC('MONTH', "customers".created)) = ('2017-08-01')`,
         );
-        cy.get('button[aria-label="increment"]').click({ multiple: true });
-        cy.get('.bp4-numeric-input input').should('have.value', '2018');
+
+        cy.contains('button', 'August 2017').click();
+        cy.findByRole('dialog').within(() => {
+            cy.contains('button', '2017').click();
+            cy.contains('button', '2018').click();
+            cy.contains('button', 'Sep').click();
+        });
         cy.get('.bp4-code').contains(
-            `(DATE_TRUNC('MONTH', "customers".created)) = ('2018`,
+            `(DATE_TRUNC('MONTH', "customers".created)) = ('2018-09-01')`,
         );
 
         cy.get('.tabler-icon-x').click({ multiple: true });
@@ -325,7 +348,7 @@ describe('Date tests', () => {
     });
 
     it('Should filter by date on dimension', () => {
-        const now = new Date();
+        const now = moment();
         const exploreStateUrlParams = `?create_saved_chart_version=%7B%22tableName%22%3A%22orders%22%2C%22metricQuery%22%3A%7B%22dimensions%22%3A%5B%22orders_order_date_day%22%2C%22orders_order_date_week%22%2C%22orders_order_date_month%22%2C%22orders_order_date_year%22%5D%2C%22metrics%22%3A%5B%5D%2C%22filters%22%3A%7B%7D%2C%22sorts%22%3A%5B%7B%22fieldId%22%3A%22orders_order_date_day%22%2C%22descending%22%3Atrue%7D%5D%2C%22limit%22%3A1%2C%22tableCalculations%22%3A%5B%5D%2C%22additionalMetrics%22%3A%5B%5D%7D%2C%22tableConfig%22%3A%7B%22columnOrder%22%3A%5B%22orders_order_date_day%22%2C%22orders_order_date_week%22%2C%22orders_order_date_month%22%2C%22orders_order_date_year%22%5D%7D%2C%22chartConfig%22%3A%7B%22type%22%3A%22cartesian%22%2C%22config%22%3A%7B%22layout%22%3A%7B%22xField%22%3A%22orders_order_date_day%22%2C%22yField%22%3A%5B%22orders_order_date_week%22%5D%7D%2C%22eChartsConfig%22%3A%7B%22series%22%3A%5B%7B%22encode%22%3A%7B%22xRef%22%3A%7B%22field%22%3A%22orders_order_date_day%22%7D%2C%22yRef%22%3A%7B%22field%22%3A%22orders_order_date_week%22%7D%7D%2C%22type%22%3A%22bar%22%7D%5D%7D%7D%7D%7D`;
         cy.visit(
             `/projects/${SEED_PROJECT.project_uuid}/tables/orders${exploreStateUrlParams}`,
@@ -343,12 +366,11 @@ describe('Date tests', () => {
         cy.findByRole('button', { name: 'Year' }).findByRole('button').click();
         cy.findByRole('menuitem', { name: 'Add filter' }).click();
 
-        cy.get('.bp4-numeric-input input').should(
-            'have.value',
-            now.getFullYear(),
-        );
+        cy.contains('button', now.format('YYYY'));
         cy.get('.bp4-code').contains(
-            `(DATE_TRUNC('YEAR', "orders".order_date)) = ('${now.getFullYear()}-01-01')`,
+            `(DATE_TRUNC('YEAR', "orders".order_date)) = ('${now.format(
+                'YYYY',
+            )}-01-01')`,
         );
         cy.get('.tabler-icon-x').click({ multiple: true });
 
@@ -356,17 +378,11 @@ describe('Date tests', () => {
         cy.findByRole('button', { name: 'Month' }).findByRole('button').click();
         cy.findByRole('menuitem', { name: 'Add filter' }).click();
 
-        cy.get('select option[label="January"]')
-            .parent('select')
-            .should('have.value', now.getMonth());
-        cy.get('.bp4-numeric-input input').should(
-            'have.value',
-            now.getFullYear(),
-        );
+        cy.contains('button', now.format('MMMM YYYY'));
         cy.get('.bp4-code').contains(
-            `(DATE_TRUNC('MONTH', "orders".order_date)) = ('${now.getFullYear()}-${getFullMonth(
-                now,
-            )}-01')`,
+            `(DATE_TRUNC('MONTH', "orders".order_date)) = ('${now.format(
+                'YYYY',
+            )}-${now.format('MM')}-01')`,
         );
         cy.get('.tabler-icon-x').click({ multiple: true });
 
@@ -392,7 +408,7 @@ describe('Date tests', () => {
         cy.findByRole('button', { name: 'Day' }).findByRole('button').click();
         cy.findByRole('menuitem', { name: 'Add filter' }).click();
 
-        const todayDate = getLocalISOString(now);
+        const todayDate = getLocalISOString(now.toDate());
 
         cy.get('.bp4-date-input input').should('have.value', todayDate);
         cy.get('.bp4-code').contains(
