@@ -65,8 +65,6 @@ describe('Date tests', () => {
     });
 
     it('Should use dashboard month filter', () => {
-        const now = moment();
-
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
         // wiat for the dashboard to load
