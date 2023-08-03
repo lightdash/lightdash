@@ -60,7 +60,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
 
     const { data: spaces, isLoading: isLoadingSpaces } = useSpaceSummaries(
         projectUuid,
-        false,
+        true,
         {
             onSuccess: (data) => {
                 if (data.length > 0) {

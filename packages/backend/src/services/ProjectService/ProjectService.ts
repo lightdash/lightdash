@@ -1192,7 +1192,7 @@ export class ProjectService {
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
         };
-        const results = warehouseClient.runQuery(sql, queryTags);
+        const results = await warehouseClient.runQuery(sql, queryTags);
         await sshTunnel.disconnect();
         return results;
     }
