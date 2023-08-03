@@ -332,10 +332,10 @@ export const useDashboardDeleteMutation = () => {
     });
 };
 
-export const appendNewTilesToBottom = (
-    existingTiles: DashboardTile[] | [],
-    newTiles: DashboardTile[],
-): DashboardTile[] => {
+export const appendNewTilesToBottom = <T extends Pick<DashboardTile, 'y'>>(
+    existingTiles: T[] | [],
+    newTiles: T[],
+): T[] => {
     const tilesY =
         existingTiles &&
         existingTiles.map(function (tile) {
