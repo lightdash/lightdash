@@ -121,6 +121,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
 
             // FIXME: done
             if (isTimestamp) {
+                console.log({ rule });
+
                 return (
                     <DateInput2
                         className={disabled ? 'disabled-filter' : ''}
@@ -142,8 +144,10 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             moment(value, `YYYY-MM-DD, HH:mm:ss:SSS`).toDate()
                         }
                         onChange={(value: string | null) => {
-                            if (!value) return;
-                            onChange({ ...rule, values: [value] });
+                            onChange({
+                                ...rule,
+                                values: value === null ? undefined : [value],
+                            });
                         }}
                         popoverProps={{
                             placement: 'bottom',
