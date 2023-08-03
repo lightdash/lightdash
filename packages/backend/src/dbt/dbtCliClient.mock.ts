@@ -2,6 +2,7 @@ import {
     DbtManifest,
     DbtPackages,
     DbtRpcDocsGenerateResults,
+    SupportedDbtVersions,
 } from '@lightdash/common';
 import { ExecaError, ExecaReturnValue } from 'execa';
 

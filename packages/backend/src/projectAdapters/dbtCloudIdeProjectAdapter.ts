@@ -1,4 +1,4 @@
-import { Explore, ExploreError } from '@lightdash/common';
+import { Explore, ExploreError, SupportedDbtVersions } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import { DbtCloudV2RpcClient } from '../dbt/dbtCloudV2RpcClient';
 import { CachedWarehouse } from '../types';
@@ -11,6 +11,7 @@ type DbtCloudideProjectAdapterArgs = {
     projectId: string | number;
     apiKey: string;
     cachedWarehouse: CachedWarehouse;
+    dbtVersion: SupportedDbtVersions;
 };
 
 export class DbtCloudIdeProjectAdapter extends DbtBaseProjectAdapter {
@@ -21,6 +22,7 @@ export class DbtCloudIdeProjectAdapter extends DbtBaseProjectAdapter {
         projectId,
         apiKey,
         cachedWarehouse,
+        dbtVersion,
     }: DbtCloudideProjectAdapterArgs) {
         const rpcClient = new DbtCloudV2RpcClient(
             accountId,
@@ -28,7 +30,7 @@ export class DbtCloudIdeProjectAdapter extends DbtBaseProjectAdapter {
             projectId,
             apiKey,
         );
-        super(rpcClient, warehouseClient, cachedWarehouse);
+        super(rpcClient, warehouseClient, cachedWarehouse, dbtVersion);
     }
 
     public async compileAllExplores(): Promise<(Explore | ExploreError)[]> {

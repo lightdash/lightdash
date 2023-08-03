@@ -1553,11 +1553,17 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SupportedDbtVersions: {
+        dataType: 'refEnum',
+        enums: ['v1.4', 'v1.5'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Project: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                dbtVersion: { ref: 'SupportedDbtVersions', required: true },
                 copiedFromProjectUuid: { dataType: 'string' },
                 pinnedListUuid: { dataType: 'string' },
                 warehouseConnection: { ref: 'WarehouseCredentials' },
@@ -2042,6 +2048,7 @@ const models: TsoaRoute.Models = {
                 required: true,
             },
             settings: { dataType: 'any' },
+            disabled: { dataType: 'boolean' },
         },
         additionalProperties: false,
     },
