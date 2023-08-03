@@ -54,7 +54,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
         case FilterOperator.LESS_THAN_OR_EQUAL:
             if (isDimension(field) && field.timeInterval) {
                 switch (field.timeInterval.toUpperCase()) {
-                    // FIXME: done
                     case TimeFrames.WEEK:
                         return (
                             <>
@@ -79,7 +78,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 />
                             </>
                         );
-                    // FIXME: done
                     case TimeFrames.MONTH:
                         return (
                             <MonthAndYearInput
@@ -98,7 +96,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 }}
                             />
                         );
-                    // FIXME: done
                     case TimeFrames.YEAR:
                         return (
                             <YearInput
@@ -122,7 +119,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                 }
             }
 
-            // FIXME: done
             if (isTimestamp) {
                 console.log({ rule });
 
@@ -166,7 +162,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                 );
             }
 
-            // FIXME: done
             return (
                 <DateInput2
                     className={disabled ? 'disabled-filter' : ''}
@@ -202,7 +197,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     maxDate={moment(new Date()).add(7, 'years').toDate()}
                 />
             );
-        // FIXME: done
         case FilterOperator.IN_THE_PAST:
         case FilterOperator.NOT_IN_THE_PAST:
         case FilterOperator.IN_THE_NEXT:
@@ -238,7 +232,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     />
                 </MultipleInputsWrapper>
             );
-        // FIXME: done
         case FilterOperator.IN_THE_CURRENT:
             return (
                 <MultipleInputsWrapper>
@@ -263,7 +256,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                 </MultipleInputsWrapper>
             );
         case FilterOperator.IN_BETWEEN:
-            // FIXME: done
             if (isTimestamp) {
                 return (
                     <MultipleInputsWrapper>
@@ -322,7 +314,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                 );
             }
 
-            // FIXME: done
             return (
                 <MultipleInputsWrapper>
                     <StyledDateRangeInput
