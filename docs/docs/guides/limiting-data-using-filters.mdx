@@ -4,7 +4,7 @@ import MultipleValuesFilter from './assets/screenshot-multiple-values-filter.jpg
 import AddingFiltersFromToggle from './assets/adding-filters-from-toggle-1.jpg';
 import AddingFiltersFromSidebar from './assets/add-filter-sidebar.jpg';
 import AddingFiltersResultsTable from './assets/add-filter-results-table.jpg';
-import AddFilterDashboard from './assets/add-filter-dashboard.jpg';
+import AddFilterDashboard from './assets/add-filter-dashboard.png';
 import NewFiltersDashboard from './assets/new-filters-dashboard.jpg';
 import CrossFilteringDashboard from './assets/cross-filtering-dashboard.jpg';
 import EditDashboard from './assets/edit-dashboard.jpg';
@@ -16,6 +16,10 @@ import FilterTilesTab from './assets/filter-tiles-tab.jpg';
 import FilterTileAdjust from './assets/filter-tile-adjust.jpg';
 import ConvertToFilterGroup from './assets/convert-to-filter-group.png';
 import NestedFilters from './assets/nested-filters.png';
+import AddFilterDashboardDefaultValue from './assets/add-filter-dashboard-default-value.png';
+import AddFilterDashboardEmptyValue from './assets/add-filter-dashboard-empty-value.png';
+import DashboardFiltersSaved from './assets/dashboard-filters-saved.png';
+import DashboardFiltersViewMode from './assets/dashboard-filters-view-mode.png';
 
 # Using Filters
 
@@ -166,16 +170,26 @@ If you add a saved filter to your dashboard, then anyone that opens the dashboar
 
 To add saved filters, you just:
 
-1. Open up your dashboard.
-2. Make sure you're in `edit` mode (if you're not, you should see the option to click `edit` on your dashboard)
 
-<img src={EditDashboard} width="435" height="180" style={{display: "block", margin: "0 auto 20px auto"}}/>
+1. Open up your dashboard.
+2. Make sure you're in `edit` mode (if you're not, you should see the option to click `Edit Dashboard`)
+
+<img src={EditDashboard} width="435" height="180" style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 3. Click `add filter`, then specify the dimension or metric that you want to filter on.
 
-<img src={AddFilterDashboard} width="449" height="257" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={AddFilterDashboard} width="449" height="257" style={{ display: 'block', margin: '0 auto 20px auto' }} />
 
-4. If you want, you can adjust which tiles the filter is applied to by clicking on the `Tiles` tab.
+4. You can leave the value blank, or you can specify a value that you want to filter by:
+    
+  4.1. If you leave the value blank, then no filter will be applied to the tiles in your dashboard. Importantly, this provides dashboard viewers the option to define a value in the filter, enabling them to tailor the results to their needs.
+    <img src={AddFilterDashboardEmptyValue} width="449" height="257" style={{ display: 'block', margin: '0 auto 20px auto' }} />
+  4.2. If you want to specify a value, ensure you toggle 'Default value' so that you can apply a filter to the tiles in your dashboard.
+    <img src={AddFilterDashboardDefaultValue} width="449" height="257" style={{ display: 'block', margin: '0 auto 20px auto' }} />
+
+5. If you want, you can adjust which tiles the filter is applied to by clicking on
+the `Tiles` tab.
 
 <img src={FilterTilesTab} width="502" height="624" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
@@ -183,17 +197,22 @@ You can remove the filter from a certain tile, or you can change which field the
 
 <img src={FilterTileAdjust} width="741" height="518" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-5. Click `apply`, and your filters will pop up on the top of your dashboard.
+6. Click `apply`, and your filters will pop up on the top of your dashboard.
 
-<img src={NewFiltersDashboard} width="543" height="188" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={DashboardFiltersSaved} width="543" height="188" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-6. Once you have all of the filters you want, just hit `save` to save your filter settings.
+7. Once you have all of the filters you want, just hit `save` to save your filter settings.
 
 <img src={SaveDashboard} width="459" height="171" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-7. Now, whenever someone opens the dashboard, they'll see your saved filters applied!
+8. Now, whenever someone opens the dashboard, they'll see your saved filters applied! 
 
-<img src={NewFiltersDashboard} width="543" height="188" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={DashboardFiltersSaved} width="543" height="188" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+9. And if they want to drill-down into the data, they can always change the filters by clicking on the filter and adjusting the values.
+
+<img src={DashboardFiltersViewMode} width="543" height="188" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
 
 :::info
 
