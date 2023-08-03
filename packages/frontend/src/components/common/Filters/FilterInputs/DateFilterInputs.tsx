@@ -120,8 +120,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
             }
 
             if (isTimestamp) {
-                console.log({ rule });
-
                 return (
                     <DateInput2
                         className={disabled ? 'disabled-filter' : ''}
