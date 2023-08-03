@@ -8,6 +8,7 @@ import {
     InputGroup,
 } from '@blueprintjs/core';
 import {
+    CreateDashboardChartTile,
     CreateSavedChartVersion,
     DashboardTileTypes,
     getDefaultChartTileSize,
@@ -16,6 +17,8 @@ import { Text } from '@mantine/core';
 import { uuid4 } from '@sentry/utils';
 import { FC, useCallback, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
+import { appendNewTilesToBottom } from '../../../hooks/dashboard/useDashboard';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateMutation } from '../../../hooks/useSavedQuery';
 import {
     useCreateMutation as useSpaceCreateMutation,
@@ -44,7 +47,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     const unsavedDashboardTiles = JSON.parse(
         sessionStorage.getItem('unsavedDashboardTiles') ?? '[]',
     );
-
+    const { showToastSuccess } = useToaster();
     const history = useHistory();
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -120,7 +123,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
 
     const handleSaveChartInDashboard = useCallback(() => {
         if (!fromDashboard || !unsavedDashboardTiles || !dashboardUuid) return;
-        const newTile = {
+        const newTile: CreateDashboardChartTile = {
             uuid: uuid4(),
             type: DashboardTileTypes.SAVED_CHART,
             properties: {
@@ -136,7 +139,9 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         };
         sessionStorage.setItem(
             'unsavedDashboardTiles',
-            JSON.stringify([...(unsavedDashboardTiles ?? []), newTile]),
+            JSON.stringify(
+                appendNewTilesToBottom(unsavedDashboardTiles ?? [], [newTile]),
+            ),
         );
         sessionStorage.removeItem('fromDashboard');
         sessionStorage.removeItem('dashboardUuid');
@@ -144,16 +149,20 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         history.push(
             `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
         );
+        showToastSuccess({
+            title: `'Success! ${name} was added to ${fromDashboard}`,
+        });
     }, [
-        description,
-        name,
-        dashboardUuid,
         fromDashboard,
-        history,
-        handleClose,
-        savedData,
-        projectUuid,
         unsavedDashboardTiles,
+        dashboardUuid,
+        savedData,
+        name,
+        description,
+        handleClose,
+        history,
+        projectUuid,
+        showToastSuccess,
     ]);
 
     if (isLoadingSpaces || !spaces) return null;
@@ -161,7 +170,9 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     return (
         <Dialog
             lazy
-            title="Save chart"
+            title={
+                fromDashboard ? `Save chart to ${fromDashboard}` : 'Save chart'
+            }
             icon="chart"
             {...modalProps}
             onClose={handleClose}

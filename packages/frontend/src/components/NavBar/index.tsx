@@ -10,8 +10,9 @@ import {
     Header,
     MantineProvider,
     Text,
+    Tooltip,
 } from '@mantine/core';
-import { IconInfoCircle, IconTool, IconX } from '@tabler/icons-react';
+import { IconInfoCircle, IconTool } from '@tabler/icons-react';
 import { FC, memo, useEffect, useMemo } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
@@ -72,23 +73,30 @@ const DashboardExplorerBanner: FC<{
             <Text color="white" fw={500} fz="xs" mx="xxs">
                 You are {action} this chart from within "{dashboardName}"
             </Text>
-            <ActionIcon
-                onClick={() => {
-                    history.push(
-                        `/projects/${projectUuid}/dashboards/${dashboardUuid}/${
-                            savedQueryUuid ? 'view' : 'edit'
-                        }`,
-                    );
-                    sessionStorage.removeItem('fromDashboard');
-                    sessionStorage.removeItem('dashboardUuid');
-                }}
-                size="sm"
-                mx="xxs"
-                variant="outline"
-                color="white"
+            <Tooltip
+                withinPortal
+                label="Cancel chart creation and return to dashboard"
+                position="bottom"
+                maw={350}
             >
-                <MantineIcon icon={IconX} color="white" size="sm" />
-            </ActionIcon>
+                <Button
+                    onClick={() => {
+                        history.push(
+                            `/projects/${projectUuid}/dashboards/${dashboardUuid}/${
+                                savedQueryUuid ? 'view' : 'edit'
+                            }`,
+                        );
+                        sessionStorage.removeItem('fromDashboard');
+                        sessionStorage.removeItem('dashboardUuid');
+                    }}
+                    size="xs"
+                    ml="md"
+                    variant="white"
+                    compact
+                >
+                    Cancel
+                </Button>
+            </Tooltip>
         </Center>
     );
 };
