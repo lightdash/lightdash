@@ -5,6 +5,7 @@ import {
     FilterableField,
     FilterRule,
     FilterType,
+    getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
 } from '@lightdash/common';
 import { Stack, Switch, TextInput } from '@mantine/core';
@@ -56,13 +57,19 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         labelPosition="left"
                         checked={!filterRule.disabled}
                         onChange={(e) => {
-                            onChangeFilterRule({
+                            const newFilter: DashboardFilterRule = {
                                 ...filterRule,
                                 disabled: !e.currentTarget.checked,
-                                values: e.currentTarget.checked
-                                    ? filterRule.values
-                                    : undefined,
-                            });
+                            };
+
+                            onChangeFilterRule(
+                                e.currentTarget.checked
+                                    ? newFilter
+                                    : getFilterRuleWithDefaultValue(
+                                          field,
+                                          newFilter,
+                                      ),
+                            );
                         }}
                     />
                 )}
