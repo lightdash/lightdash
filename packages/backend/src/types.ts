@@ -1,5 +1,4 @@
 import {
-    DbtManifestVersion,
     DbtPackages,
     DbtRpcDocsGenerateResults,
     DbtRpcGetManifestResults,
@@ -22,10 +21,7 @@ export interface ProjectAdapter {
 
 export interface DbtClient {
     installDeps(): Promise<void>;
-    getDbtManifest(): Promise<{
-        version: DbtManifestVersion;
-        results: DbtRpcGetManifestResults;
-    }>;
+    getDbtManifest(): Promise<DbtRpcGetManifestResults>;
     getDbtCatalog(): Promise<DbtRpcDocsGenerateResults>;
     getDbtPackages?(): Promise<DbtPackages | undefined>;
     test(): Promise<void>;

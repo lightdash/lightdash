@@ -6,6 +6,7 @@ import {
     DbtProjectType,
     friendlyName,
     ProjectType,
+    SupportedDbtVersions,
     WarehouseTypes,
 } from '@lightdash/common';
 import { Anchor, Avatar, Card, Flex, Stack } from '@mantine/core';
@@ -46,6 +47,7 @@ type ProjectConnectionForm = {
     dbt: DbtProjectConfig;
 
     warehouse?: CreateWarehouseCredentials;
+    dbtVersion: SupportedDbtVersions;
 };
 
 interface Props {
@@ -121,17 +123,6 @@ const ProjectForm: FC<Props> = ({
                         <H5>dbt connection</H5>
                         <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
                     </LeftPanelTitle>
-
-                    <LeftPanelMessage>
-                        Your dbt project must be compatible with{' '}
-                        <Anchor
-                            href="https://docs.getdbt.com/docs/guides/migration-guide/upgrading-to-1-0-0"
-                            target="_blank"
-                            rel="noreferrer"
-                        >
-                            dbt version <b>1.4.* to 1.5.*</b>
-                        </Anchor>
-                    </LeftPanelMessage>
                 </div>
 
                 <div>
@@ -199,6 +190,7 @@ export const UpdateProjectConnection: FC<{
             warehouse: {
                 ...data?.warehouseConnection,
             },
+            dbtVersion: data?.dbtVersion,
         },
     });
     const { reset } = methods;
@@ -208,6 +200,7 @@ export const UpdateProjectConnection: FC<{
                 name: data.name,
                 dbt: data.dbtConnection,
                 warehouse: data.warehouseConnection,
+                dbtVersion: data.dbtVersion,
             });
         }
     }, [reset, data]);
@@ -217,6 +210,7 @@ export const UpdateProjectConnection: FC<{
         name,
         dbt: dbtConnection,
         warehouse: warehouseConnection,
+        dbtVersion,
     }: Required<ProjectConnectionForm>) => {
         if (user.data) {
             track({
@@ -226,6 +220,7 @@ export const UpdateProjectConnection: FC<{
                 name,
                 dbtConnection,
                 warehouseConnection,
+                dbtVersion: dbtVersion,
             });
         }
     };
