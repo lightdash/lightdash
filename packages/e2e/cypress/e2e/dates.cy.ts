@@ -260,13 +260,19 @@ describe('Date tests', () => {
         cy.contains('Add filter').click();
         cy.contains('Created year').click();
 
-        cy.get('.bp4-numeric-input input').clear().type('2017');
-        cy.get('.bp4-numeric-input input').should('have.value', '2017');
+        cy.contains('button', new Date().getFullYear()).click();
+        cy.findByRole('dialog').within(() => {
+            cy.get('button').find('[data-previous="true"]').click();
+            cy.contains('button', 2017).click();
+        });
         cy.get('.bp4-code').contains(
             `(DATE_TRUNC('YEAR', "customers".created)) = ('2017-01-01')`,
         );
-        cy.get('button[aria-label="increment"]').click({ multiple: true });
-        cy.get('.bp4-numeric-input input').should('have.value', '2018');
+
+        cy.contains('button', 2017).click();
+        cy.findByRole('dialog').within(() => {
+            cy.contains('button', 2018).click();
+        });
         cy.get('.bp4-code').contains(
             `(DATE_TRUNC('YEAR', "customers".created)) = ('2018-01-01')`,
         );
@@ -277,15 +283,25 @@ describe('Date tests', () => {
         cy.contains('Add filter').click();
         cy.contains('Created month').click();
 
-        cy.get('.bp4-numeric-input input').clear().type('2017');
-        cy.get('.bp4-numeric-input input').should('have.value', '2017');
+        cy.contains('button', moment().format('MMMM YYYY')).click();
+        cy.findByRole('dialog').within(() => {
+            cy.contains('button', moment().format('YYYY')).click();
+            cy.get('button').find('[data-previous="true"]').click();
+            cy.contains('button', 2017).click();
+            cy.contains('button', 'Aug').click();
+        });
         cy.get('.bp4-code').contains(
-            `(DATE_TRUNC('MONTH', "customers".created)) = ('2017`,
+            `(DATE_TRUNC('MONTH', "customers".created)) = ('2017-08-01')`,
         );
-        cy.get('button[aria-label="increment"]').click({ multiple: true });
-        cy.get('.bp4-numeric-input input').should('have.value', '2018');
+
+        cy.contains('button', 'August 2017').click();
+        cy.findByRole('dialog').within(() => {
+            cy.contains('button', '2017').click();
+            cy.contains('button', '2018').click();
+            cy.contains('button', 'Sep').click();
+        });
         cy.get('.bp4-code').contains(
-            `(DATE_TRUNC('MONTH', "customers".created)) = ('2018`,
+            `(DATE_TRUNC('MONTH', "customers".created)) = ('2018-09-01')`,
         );
 
         cy.get('.tabler-icon-x').click({ multiple: true });
