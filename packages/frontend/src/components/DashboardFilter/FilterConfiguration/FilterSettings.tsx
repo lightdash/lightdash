@@ -42,6 +42,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                 ...filterRule,
                 disabled: false,
                 values: undefined,
+                settings: undefined,
             });
         }
     }, [isEditMode, onChangeFilterRule, filterRule]);
