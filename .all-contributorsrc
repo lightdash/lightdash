@@ -1119,6 +1119,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "AChelikani",
+      "name": "Advith Chelikani",
+      "avatar_url": "https://avatars.githubusercontent.com/u/4915950?v=4",
+      "profile": "http://advith.me",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,

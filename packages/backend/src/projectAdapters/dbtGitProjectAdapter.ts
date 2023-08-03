@@ -2,6 +2,7 @@ import {
     AuthorizationError,
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
+    SupportedDbtVersions,
     UnexpectedGitError,
     UnexpectedServerError,
 } from '@lightdash/common';
@@ -27,6 +28,7 @@ export type DbtGitProjectAdapterArgs = {
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
     cachedWarehouse: CachedWarehouse;
+    dbtVersion: SupportedDbtVersions;
 };
 
 const stripTokensFromUrls = (raw: string) => {
@@ -69,6 +71,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         targetName,
         environment,
         cachedWarehouse,
+        dbtVersion,
     }: DbtGitProjectAdapterArgs) {
         const localRepositoryDir = tempy.directory({
             prefix: 'git_',
@@ -84,6 +87,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
             targetName,
             environment,
             cachedWarehouse,
+            dbtVersion,
         });
         this.projectDirectorySubPath = projectDirectorySubPath;
         this.localRepositoryDir = localRepositoryDir;

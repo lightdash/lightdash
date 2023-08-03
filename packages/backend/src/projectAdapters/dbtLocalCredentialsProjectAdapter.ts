@@ -1,6 +1,7 @@
 import {
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
+    SupportedDbtVersions,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import { writeFileSync } from 'fs';
@@ -23,6 +24,7 @@ type DbtLocalCredentialsProjectAdapterArgs = {
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
     cachedWarehouse: CachedWarehouse;
+    dbtVersion: SupportedDbtVersions;
 };
 
 export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
@@ -35,6 +37,7 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
         targetName,
         environment,
         cachedWarehouse,
+        dbtVersion,
     }: DbtLocalCredentialsProjectAdapterArgs) {
         const profilesDir = tempy.directory();
         const profilesFilename = path.join(profilesDir, 'profiles.yml');
@@ -72,6 +75,7 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
             projectDir,
             environment: updatedEnvironment,
             cachedWarehouse,
+            dbtVersion,
         });
         this.profilesDir = profilesDir;
     }

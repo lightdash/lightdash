@@ -1,5 +1,10 @@
-import { ParseError } from '@lightdash/common';
+import {
+    DefaultSupportedDbtVersion,
+    ParseError,
+    SupportedDbtVersions,
+} from '@lightdash/common';
 import execa from 'execa';
+import * as styles from '../../styles';
 
 export const getDbtVersion = async () => {
     try {
@@ -16,6 +21,19 @@ export const getDbtVersion = async () => {
     } catch (e: any) {
         throw new ParseError(`Failed to get dbt --version:\n  ${e.message}`);
     }
+};
+
+export const getSupportedDbtVersion = async () => {
+    const version = await getDbtVersion();
+    if (version.startsWith('1.4.')) return SupportedDbtVersions.V1_4;
+    if (version.startsWith('1.5.')) return SupportedDbtVersions.V1_5;
+
+    console.error(
+        styles.warning(
+            `We don't currently support version ${version} on Lightdash, we'll be using ${DefaultSupportedDbtVersion} instead when dbt is refresh from the UI.`,
+        ),
+    );
+    return DefaultSupportedDbtVersion;
 };
 
 export const isSupportedDbtVersion = (version: string) => {

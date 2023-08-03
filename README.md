@@ -328,6 +328,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/jayanand05"><img src="https://avatars.githubusercontent.com/u/113882904?v=4?s=100" width="100px;" alt="JAY ANAND"/><br /><sub><b>JAY ANAND</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=jayanand05" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://www.linkedin.com/in/yuishikawa0301/"><img src="https://avatars.githubusercontent.com/u/1523515?v=4?s=100" width="100px;" alt="Yu Ishikawa"/><br /><sub><b>Yu Ishikawa</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=yu-iskw" title="Code">💻</a> <a href="#ideas-yu-iskw" title="Ideas, Planning, & Feedback">🤔</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/magnew"><img src="https://avatars.githubusercontent.com/u/1864179?v=4?s=100" width="100px;" alt="magnew"/><br /><sub><b>magnew</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=magnew" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://advith.me"><img src="https://avatars.githubusercontent.com/u/4915950?v=4?s=100" width="100px;" alt="Advith Chelikani"/><br /><sub><b>Advith Chelikani</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3AAChelikani" title="Bug reports">🐛</a></td>
     </tr>
   </tbody>
 </table>

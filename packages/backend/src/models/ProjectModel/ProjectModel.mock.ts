@@ -3,6 +3,7 @@ import {
     CreateBigqueryCredentials,
     DbtCloudIDEProjectConfig,
     DbtProjectType,
+    DefaultSupportedDbtVersion,
     DimensionType,
     Explore,
     FieldType,
@@ -145,6 +146,7 @@ export const projectMock = {
     encrypted_credentials: Buffer.from(JSON.stringify(bigqueryCredentials)),
     warehouse_type: WarehouseTypes.BIGQUERY,
     organization_uuid: 'organizationUuid',
+    dbt_version: DefaultSupportedDbtVersion,
 };
 
 export const tableSelectionMock: Pick<
@@ -190,6 +192,7 @@ export const expectedProject: Project = {
         timeoutSeconds: 1,
         type: WarehouseTypes.BIGQUERY,
     },
+    dbtVersion: DefaultSupportedDbtVersion,
 };
 
 const metricFilter: MetricFilterRule = {

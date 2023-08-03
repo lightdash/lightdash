@@ -17,6 +17,7 @@ import {
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { lightdashApi } from './dbt/apiClient';
+import { getSupportedDbtVersion } from './dbt/getDbtVersion';
 
 const askToRememberAnswer = async (): Promise<void> => {
     const answers = await inquirer.prompt([
@@ -77,6 +78,8 @@ type CreateProjectOptions = {
 export const createProject = async (
     options: CreateProjectOptions,
 ): Promise<Project | undefined> => {
+    const dbtVersion = await getSupportedDbtVersion();
+
     const absoluteProjectPath = path.resolve(options.projectDir);
     const absoluteProfilesPath = path.resolve(options.profilesDir);
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
@@ -133,6 +136,7 @@ export const createProject = async (
             target: targetName,
         },
         copiedFromProjectUuid: options.copiedFromProjectUuid,
+        dbtVersion,
     };
     const createdProject = await lightdashApi<Project>({
         method: 'POST',
