@@ -1,3 +1,10 @@
+# [0.722.0](https://github.com/lightdash/lightdash/compare/0.721.1...0.722.0) (2023-08-04)
+
+
+### Features
+
+* chart config tabs in mantine ([#6607](https://github.com/lightdash/lightdash/issues/6607)) ([8bf595e](https://github.com/lightdash/lightdash/commit/8bf595e994b4de10d4d5a2b9f798abb955c4aae5))
+
 ## [0.721.1](https://github.com/lightdash/lightdash/compare/0.721.0...0.721.1) (2023-08-04)
 
 
