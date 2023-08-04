@@ -187,6 +187,7 @@ module.exports = {
                 ,
                 'references/roles',
                 'references/user-attributes',
+                'references/sql-variables',
             ],
         },
 
