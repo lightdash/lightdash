@@ -1,6 +1,6 @@
 import { FilterableField } from './field';
 import { DashboardFilters } from './filter';
-import { CreateSavedChart, SavedChartType } from './savedCharts';
+import { SavedChartType } from './savedCharts';
 import { UpdatedByUser } from './user';
 import { ValidationSummary } from './validation';
 
@@ -49,27 +49,6 @@ export type DashboardChartTileProperties = {
     };
 };
 
-type CreateChartTileWithSavedChartUuid =
-    DashboardChartTileProperties['properties'] & {
-        savedChartUuid: string | null;
-        newChartData?: null;
-    };
-
-type CreateChartTileWithNewChartData =
-    DashboardChartTileProperties['properties'] & {
-        savedChartUuid: null;
-        newChartData: CreateSavedChart;
-    };
-
-export type CreateDashboardChartTileProperties = Omit<
-    DashboardChartTileProperties,
-    'properties'
-> & {
-    properties:
-        | CreateChartTileWithSavedChartUuid
-        | CreateChartTileWithNewChartData;
-};
-
 export type CreateDashboardMarkdownTile = CreateDashboardTileBase &
     DashboardMarkdownTileProperties;
 export type DashboardMarkdownTile = DashboardTileBase &
@@ -80,7 +59,7 @@ export type CreateDashboardLoomTile = CreateDashboardTileBase &
 export type DashboardLoomTile = DashboardTileBase & DashboardLoomTileProperties;
 
 export type CreateDashboardChartTile = CreateDashboardTileBase &
-    CreateDashboardChartTileProperties;
+    DashboardChartTileProperties;
 export type DashboardChartTile = DashboardTileBase &
     DashboardChartTileProperties;
 

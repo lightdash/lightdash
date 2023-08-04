@@ -16,6 +16,7 @@ import {
     SavedChart,
     SchedulerAndTargets,
     SessionUser,
+    UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
     ViewStatistics,
@@ -502,7 +503,6 @@ export class SavedChartService {
         const newSavedChart = await this.savedChartModel.create(
             projectUuid,
             user.userUuid,
-            undefined,
             {
                 ...savedChart,
                 updatedByUser: user,
@@ -544,15 +544,30 @@ export class SavedChartService {
                 "You don't have access to the space this chart belongs to",
             );
         }
-        const duplicatedChart = {
+        let duplicatedChart: CreateSavedChart & {
+            updatedByUser: UpdatedByUser;
+        };
+        const base = {
             ...chart,
             name: `Copy of ${chart.name}`,
             updatedByUser: user,
         };
+        if (chart.dashboardUuid) {
+            duplicatedChart = {
+                ...base,
+                dashboardUuid: chart.dashboardUuid,
+                spaceUuid: null,
+            };
+        } else {
+            duplicatedChart = {
+                ...base,
+                dashboardUuid: null,
+            };
+        }
+
         const newSavedChart = await this.savedChartModel.create(
             projectUuid,
             user.userUuid,
-            undefined,
             duplicatedChart,
         );
         const newSavedChartProperties =

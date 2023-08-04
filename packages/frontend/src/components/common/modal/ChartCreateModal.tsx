@@ -8,6 +8,7 @@ import {
     InputGroup,
 } from '@blueprintjs/core';
 import {
+    CreateChartInDashboard,
     CreateDashboardChartTile,
     CreateSavedChartVersion,
     DashboardTileTypes,
@@ -121,19 +122,20 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         showSpaceInput,
     ]);
 
-    const handleSaveChartInDashboard = useCallback(() => {
+    const handleSaveChartInDashboard = useCallback(async () => {
         if (!fromDashboard || !unsavedDashboardTiles || !dashboardUuid) return;
+        const newChartInDashboard: CreateChartInDashboard = {
+            ...savedData,
+            name,
+            description,
+            dashboardUuid,
+        };
         const newTile: CreateDashboardChartTile = {
             uuid: uuid4(),
             type: DashboardTileTypes.SAVED_CHART,
             properties: {
                 belongsToDashboard: true,
-                savedChartUuid: null,
-                newChartData: {
-                    ...savedData,
-                    name,
-                    description,
-                },
+                savedChartUuid: (await mutateAsync(newChartInDashboard)).uuid,
             },
             ...getDefaultChartTileSize(savedData.chartConfig?.type),
         };
@@ -156,6 +158,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         fromDashboard,
         unsavedDashboardTiles,
         dashboardUuid,
+        mutateAsync,
         savedData,
         name,
         description,

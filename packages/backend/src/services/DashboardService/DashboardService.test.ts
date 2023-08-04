@@ -23,7 +23,6 @@ import {
     createDashboardWithTileIds,
     dashboard,
     dashboardsDetails,
-    dashboardWithChartThatBelongsToDashboard,
     privateSpace,
     publicSpace,
     space,
@@ -252,21 +251,6 @@ describe('DashboardService', () => {
             2,
             expect.objectContaining({
                 event: 'dashboard_version.created',
-            }),
-        );
-    });
-    test('should track creation of chart in dashboard when updating dashboard version', async () => {
-        (dashboardModel.addVersion as jest.Mock).mockImplementationOnce(
-            async () => dashboardWithChartThatBelongsToDashboard,
-        );
-
-        await service.update(user, dashboardUuid, updateDashboardTiles);
-
-        expect(dashboardModel.addVersion).toHaveBeenCalledTimes(1);
-        expect(analytics.track).toHaveBeenCalledTimes(2);
-        expect(analytics.track).toHaveBeenCalledWith(
-            expect.objectContaining({
-                event: 'saved_chart.created',
             }),
         );
     });

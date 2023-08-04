@@ -219,7 +219,6 @@ export const createSavedChart = async (
     db: Knex,
     projectUuid: string,
     userUuid: string,
-    dashboardUuid: string | undefined,
     {
         name,
         description,
@@ -230,7 +229,8 @@ export const createSavedChart = async (
         pivotConfig,
         updatedByUser,
         spaceUuid,
-    }: CreateSavedChart,
+        dashboardUuid,
+    }: CreateSavedChart & { updatedByUser: UpdatedByUser },
 ): Promise<string> =>
     db.transaction(async (trx) => {
         let chart: InsertChart;
@@ -288,35 +288,13 @@ export class SavedChartModel {
     async create(
         projectUuid: string,
         userUuid: string,
-        dashboardUuid: string | undefined,
-        {
-            name,
-            description,
-            tableName,
-            metricQuery,
-            chartConfig,
-            tableConfig,
-            pivotConfig,
-            updatedByUser,
-            spaceUuid,
-        }: CreateSavedChart & { updatedByUser: UpdatedByUser },
+        data: CreateSavedChart & { updatedByUser: UpdatedByUser },
     ): Promise<SavedChart> {
         const newSavedChartUuid = await createSavedChart(
             this.database,
             projectUuid,
             userUuid,
-            dashboardUuid,
-            {
-                name,
-                description,
-                tableName,
-                metricQuery,
-                chartConfig,
-                tableConfig,
-                pivotConfig,
-                updatedByUser,
-                spaceUuid,
-            },
+            data,
         );
         return this.get(newSavedChartUuid);
     }
