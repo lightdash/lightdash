@@ -142,6 +142,7 @@ export class DashboardService {
         user: SessionUser,
         projectUuid: string,
         chartUuid?: string,
+        includePrivate?: boolean,
     ): Promise<DashboardBasicDetails[]> {
         const dashboards = await this.dashboardModel.getAllByProject(
             projectUuid,
@@ -167,7 +168,7 @@ export class DashboardService {
             return (
                 hasAbility &&
                 dashboardSpace &&
-                hasSpaceAccess(user, dashboardSpace, false)
+                hasSpaceAccess(user, dashboardSpace, includePrivate)
             );
         });
     }

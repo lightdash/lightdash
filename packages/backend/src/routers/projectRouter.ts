@@ -389,8 +389,16 @@ projectRouter.get(
             typeof req.query.chartUuid === 'string'
                 ? req.query.chartUuid.toString()
                 : undefined;
+
+        const includePrivate = req.query.includePrivate === 'true';
+
         dashboardService
-            .getAllByProject(req.user!, req.params.projectUuid, chartUuid)
+            .getAllByProject(
+                req.user!,
+                req.params.projectUuid,
+                chartUuid,
+                includePrivate,
+            )
             .then((results) => {
                 res.json({
                     status: 'ok',
