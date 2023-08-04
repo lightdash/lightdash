@@ -46,14 +46,15 @@ models:
 
 Here are all of the properties you can customize:
 
-| Property                                          | Value              | Note                                                                                                                                                                     |
-|---------------------------------------------------|--------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| label                                             | string             | Custom label. This is what you'll see in Lightdash instead of the Table name.                                                                                            |
-| [order_fields_by](#order-fields-by)               | 'index' or 'label' | How the fields will be sorted in the sidebar. [Read more about the order rules in here](#order-fields-by)                                                                |
-| [joins](joins.md)                                 | array              | Join logic to join other data models to the Table. [Read more about joins in here.](joins.md)                                                                            |
-| [metrics](metrics.mdx#2-using-the-model-meta-tag) | object             | Model metrics. [Read more about model metrics in here](metrics.mdx#2-using-the-model-meta-tag)                                                                           |
-| [group_label](#group-label)                       | string             | Group tables in the sidebar.  [Read more about the group label in here](#group-label) |
-| [sql_filter](#sql-filter) | string | A permanent filter that will always be applied when querying this table directly. Read more about `sql_filter` [below](#sql-filter) |
+| Property                                          | Value              | Note                                                                                                                                |
+|---------------------------------------------------|--------------------|-------------------------------------------------------------------------------------------------------------------------------------|
+| label                                             | string             | Custom label. This is what you'll see in Lightdash instead of the Table name.                                                       |
+| [order_fields_by](#order-fields-by)               | 'index' or 'label' | How the fields will be sorted in the sidebar. [Read more about the order rules in here](#order-fields-by)                           |
+| [joins](joins.md)                                 | array              | Join logic to join other data models to the Table. [Read more about joins in here.](joins.md)                                       |
+| [metrics](metrics.mdx#2-using-the-model-meta-tag) | object             | Model metrics. [Read more about model metrics in here](metrics.mdx#2-using-the-model-meta-tag)                                      |
+| [group_label](#group-label)                       | string             | Group tables in the sidebar.  [Read more about the group label in here](#group-label)                                               |
+| [sql_filter](#sql-filter)                         | string | A permanent filter that will always be applied when querying this table directly. Read more about `sql_filter` [below](#sql-filter) |
+| [sql_where](#sql-filter)                          | string | Alias for `sql_filter` |                                                                                                             |
 
 ### If you've added a new dbt model to your project, you need to do `dbt run` + `dbt refresh` before it before it will appear in Lightdash
 
