@@ -1,3 +1,10 @@
+# [0.721.0](https://github.com/lightdash/lightdash/compare/0.720.0...0.721.0) (2023-08-04)
+
+
+### Features
+
+* create chart before updating dashboard ([#6592](https://github.com/lightdash/lightdash/issues/6592)) ([04dfe7d](https://github.com/lightdash/lightdash/commit/04dfe7dee2481271451b6aca745b2a36eff2eda1))
+
 # [0.720.0](https://github.com/lightdash/lightdash/compare/0.719.0...0.720.0) (2023-08-03)
 
 
