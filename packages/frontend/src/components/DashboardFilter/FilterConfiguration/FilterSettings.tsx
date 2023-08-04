@@ -8,7 +8,7 @@ import {
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
 } from '@lightdash/common';
-import { Stack, Switch, TextInput } from '@mantine/core';
+import { Stack, Switch, TextInput, Tooltip } from '@mantine/core';
 import { FC, useEffect, useMemo, useState } from 'react';
 import { FilterTypeConfig } from '../../common/Filters/configs';
 import { getPlaceholderByFilterTypeAndOperator } from '../../common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
@@ -55,26 +55,38 @@ const FilterSettings: FC<FilterSettingsProps> = ({
         <Stack>
             <Stack spacing="xs">
                 {isEditMode && (
-                    <Switch
-                        label="Default value"
-                        labelPosition="left"
-                        checked={!filterRule.disabled}
-                        onChange={(e) => {
-                            const newFilter: DashboardFilterRule = {
-                                ...filterRule,
-                                disabled: !e.currentTarget.checked,
-                            };
+                    <Tooltip
+                        withinPortal
+                        label={
+                            filterRule.disabled
+                                ? 'Toggle on to set a default filter value'
+                                : 'Toggle off to leave the filter value empty, allowing users to populate it in view mode'
+                        }
+                        openDelay={500}
+                    >
+                        <div style={{ width: 'max-content' }}>
+                            <Switch
+                                label="Default value"
+                                labelPosition="left"
+                                checked={!filterRule.disabled}
+                                onChange={(e) => {
+                                    const newFilter: DashboardFilterRule = {
+                                        ...filterRule,
+                                        disabled: !e.currentTarget.checked,
+                                    };
 
-                            onChangeFilterRule(
-                                e.currentTarget.checked
-                                    ? newFilter
-                                    : getFilterRuleWithDefaultValue(
-                                          field,
-                                          newFilter,
-                                      ),
-                            );
-                        }}
-                    />
+                                    onChangeFilterRule(
+                                        e.currentTarget.checked
+                                            ? newFilter
+                                            : getFilterRuleWithDefaultValue(
+                                                  field,
+                                                  newFilter,
+                                              ),
+                                    );
+                                }}
+                            />
+                        </div>
+                    </Tooltip>
                 )}
 
                 <HTMLSelect
