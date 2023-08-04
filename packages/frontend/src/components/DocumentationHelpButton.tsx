@@ -9,7 +9,11 @@ type Props = React.AnchorHTMLAttributes<HTMLAnchorElement> &
         tooltipProps?: Partial<TooltipProps>;
     };
 
-const DocumentationHelpButton: FC<Props> = ({ iconProps, tooltipProps }) => (
+const DocumentationHelpButton: FC<Props> = ({
+    iconProps,
+    tooltipProps,
+    ...anchorProps
+}) => (
     <Tooltip
         withinPortal
         label="Open documentation"
@@ -21,7 +25,7 @@ const DocumentationHelpButton: FC<Props> = ({ iconProps, tooltipProps }) => (
             component="a"
             target="_blank"
             rel="noreferrer"
-            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project"
+            {...anchorProps}
         >
             <MantineIcon
                 icon={IconHelp}
