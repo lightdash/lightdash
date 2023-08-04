@@ -9,7 +9,7 @@ import {
     getFilterTypeFromItem,
 } from '@lightdash/common';
 import { Stack, Switch, TextInput } from '@mantine/core';
-import { FC, useEffect, useMemo } from 'react';
+import { FC, useEffect, useMemo, useState } from 'react';
 import { FilterTypeConfig } from '../../common/Filters/configs';
 import { getPlaceholderByFilterTypeAndOperator } from '../../common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 
@@ -30,6 +30,9 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     onChangeFilterOperator,
     onChangeFilterRule,
 }) => {
+    const [filterLabel, setFilterLabel] = useState<string>(
+        filterRule.label ?? field.label,
+    );
     const filterType = field ? getFilterTypeFromItem(field) : FilterType.STRING;
 
     const filterConfig = useMemo(
@@ -111,15 +114,16 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 
             {isEditMode && (
                 <TextInput
-                    label="Label"
-                    onChange={(e) =>
+                    label="Filter label"
+                    onChange={(e) => {
+                        setFilterLabel(e.target.value);
                         onChangeFilterRule({
                             ...filterRule,
                             label: e.target.value || undefined,
-                        })
-                    }
-                    placeholder={`Defaults to "${field.label}"`}
-                    value={filterRule.label || ''}
+                        });
+                    }}
+                    placeholder={`Label for ${field.label}`}
+                    value={filterLabel}
                 />
             )}
         </Stack>
