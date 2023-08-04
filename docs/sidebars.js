@@ -184,7 +184,6 @@ module.exports = {
                     id: 'references/filters',
                     label: 'Filters',
                 },
-                ,
                 'references/roles',
                 'references/user-attributes',
                 'references/sql-variables',
