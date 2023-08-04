@@ -1,3 +1,10 @@
+## [0.721.1](https://github.com/lightdash/lightdash/compare/0.721.0...0.721.1) (2023-08-04)
+
+
+### Bug Fixes
+
+* The help icons are not aligned with the text in the 'Create Project' flows  ([#6583](https://github.com/lightdash/lightdash/issues/6583)) ([80684d5](https://github.com/lightdash/lightdash/commit/80684d5fff7792e53d9ebb6aa9c18e8eb88e9c37))
+
 # [0.721.0](https://github.com/lightdash/lightdash/compare/0.720.0...0.721.0) (2023-08-04)
 
 
