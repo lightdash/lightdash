@@ -7,7 +7,7 @@ import {
     Radio,
     RadioGroup,
 } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
+import { MenuItem2, Tooltip2 } from '@blueprintjs/popover2';
 import {
     CreateSchedulerAndTargetsWithoutIds,
     SchedulerFormat,
@@ -339,6 +339,22 @@ const SchedulerForm: FC<{
                                     methods.getValues()?.targets?.[index];
 
                                 if (isSlack(target)) {
+                                    const isPrivateChannel = slackChannels.some(
+                                        (channel) =>
+                                            channel.label !== target.channel,
+                                    );
+                                    const allChannels =
+                                        isPrivateChannel &&
+                                        target.channel !== ''
+                                            ? [
+                                                  {
+                                                      value: target.channel,
+                                                      label: target.channel,
+                                                  },
+                                                  ...slackChannels,
+                                              ]
+                                            : slackChannels;
+
                                     return (
                                         <TargetRow key={key}>
                                             <SlackIcon />
@@ -346,12 +362,17 @@ const SchedulerForm: FC<{
                                                 groupBy={(item) => {
                                                     const channelPrefix =
                                                         item.label.charAt(0);
-                                                    return channelPrefix === '#'
-                                                        ? 'Channels'
-                                                        : 'Users';
+                                                    switch (channelPrefix) {
+                                                        case '#':
+                                                            return 'Channels';
+                                                        case '@':
+                                                            return 'Users';
+                                                        default:
+                                                            return 'Private Channels';
+                                                    }
                                                 }}
                                                 name={`targets.${index}.channel`}
-                                                items={slackChannels}
+                                                items={allChannels}
                                                 disabled={disabled}
                                                 isLoading={
                                                     slackChannelsQuery.isLoading
@@ -363,6 +384,34 @@ const SchedulerForm: FC<{
                                                     inputProps: {
                                                         placeholder:
                                                             'Search slack channel...',
+                                                    },
+
+                                                    createNewItemFromQuery: (
+                                                        newItem: string,
+                                                    ) => ({
+                                                        label: newItem,
+                                                        value: newItem,
+                                                    }),
+                                                    createNewItemRenderer: (
+                                                        newItem: string,
+                                                    ) => {
+                                                        return (
+                                                            <MenuItem2
+                                                                icon="lock"
+                                                                key={newItem}
+                                                                text={newItem}
+                                                                title={`Send to private channel #${newItem}`}
+                                                                onClick={() => {
+                                                                    methods.setValue(
+                                                                        `targets.${index}.channel`,
+                                                                        newItem,
+                                                                    );
+                                                                }}
+                                                                shouldDismissPopover={
+                                                                    true
+                                                                }
+                                                            />
+                                                        );
                                                     },
                                                 }}
                                             />
