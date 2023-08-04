@@ -9,7 +9,7 @@ import {
     SupportedDbtVersions,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Anchor, Avatar, Card, Flex, Stack } from '@mantine/core';
+import { Anchor, Avatar, Card, Flex, Stack, Title } from '@mantine/core';
 import { FC, useEffect, useMemo, useState } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
@@ -35,7 +35,6 @@ import {
     CompileProjectButton,
     FormContainer,
     LeftPanelMessage,
-    LeftPanelTitle,
 } from './ProjectConnection.styles';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
@@ -92,10 +91,14 @@ const ProjectForm: FC<Props> = ({
             <SettingsGridCard>
                 <div>
                     {warehouse && getWarehouseIcon(warehouse)}
-                    <LeftPanelTitle>
-                        <H5>Warehouse connection</H5>
-                        <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
-                    </LeftPanelTitle>
+                    <Flex align="center" gap={2}>
+                        <Title order={5}>Warehouse connection</Title>
+                        <DocumentationHelpButton
+                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection"
+                            pos="relative"
+                            top="2px"
+                        />
+                    </Flex>
 
                     {health.data?.staticIp && (
                         <LeftPanelMessage>
@@ -119,10 +122,14 @@ const ProjectForm: FC<Props> = ({
                 <div>
                     <Avatar size="md" src={DbtLogo} alt="dbt icon" />
 
-                    <LeftPanelTitle>
-                        <H5>dbt connection</H5>
-                        <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
-                    </LeftPanelTitle>
+                    <Flex align="center" gap={2}>
+                        <Title order={5}>dbt connection</Title>
+                        <DocumentationHelpButton
+                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project"
+                            pos="relative"
+                            top="2px"
+                        />
+                    </Flex>
                 </div>
 
                 <div>
