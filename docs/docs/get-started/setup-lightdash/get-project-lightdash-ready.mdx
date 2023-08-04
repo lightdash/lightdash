@@ -64,10 +64,10 @@ We've automatically generated a personal access token that you can use to login 
 It's Step 2. and should look something like this:
 
 ```shell
-lightdash login https://app.lightdash.cloud --token my-super-secret-token
+lightdash login https://{{ lightdash_domain }} --token my-super-secret-token
 ```
 
-If you want to login using another method, then you [can check out our authentication methods here](/guides/cli/cli-authentication.mdx).
+Where `{{ lightdash_domain }}` is `app.lightdash.cloud` for Lightdash Cloud users. Or your own domain if self-hosting. If you want to login using another method, then you [can check out our authentication methods here](/guides/cli/cli-authentication.mdx).
 
 ---
 
