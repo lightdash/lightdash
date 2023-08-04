@@ -1,15 +1,13 @@
-import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { DashboardTileTypes } from '@lightdash/common';
+import { Button, Flex, Popover, Text, Tooltip } from '@mantine/core';
+import { IconFilter } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProject } from '../../hooks/useProject';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { FiltersProvider } from '../common/Filters/FiltersProvider';
+import MantineIcon from '../common/MantineIcon';
 import ActiveFilters from './ActiveFilters';
-import {
-    DashboardFilterWrapper,
-    FilterTrigger,
-} from './DashboardFilter.styles';
 import FilterSearch from './FilterSearch';
 
 interface Props {
@@ -46,16 +44,45 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
             startOfWeek={project.data?.warehouseConnection?.startOfWeek}
             dashboardFilters={allFilters}
         >
-            <DashboardFilterWrapper>
-                <Popover2
-                    lazy
+            <Flex gap={3} mb={2}>
+                <Popover
                     disabled={!hasChartTiles}
-                    canEscapeKeyClose={isSubmenuOpen ? false : true}
-                    interactionKind={isSubmenuOpen ? 'click-target' : 'click'}
-                    placement="bottom-start"
-                    onOpened={() => setIsOpen(true)}
+                    onOpen={() => setIsOpen(true)}
                     onClose={handleClose}
-                    content={
+                    closeOnEscape={!isSubmenuOpen}
+                    transitionProps={{
+                        transition: 'pop',
+                    }}
+                >
+                    <Popover.Target>
+                        <Tooltip
+                            disabled={isOpen || isEditMode}
+                            position="bottom"
+                            openDelay={500}
+                            label={
+                                <Text fz="xs">
+                                    Only filters added in <b>'edit'</b> mode
+                                    will be saved
+                                </Text>
+                            }
+                        >
+                            <Button
+                                size="xs"
+                                variant="default"
+                                leftIcon={
+                                    <MantineIcon
+                                        color="blue"
+                                        icon={IconFilter}
+                                    />
+                                }
+                                disabled={!hasChartTiles}
+                            >
+                                Add filter
+                            </Button>
+                        </Tooltip>
+                    </Popover.Target>
+
+                    <Popover.Dropdown ml={5} p={0}>
                         <FilterSearch
                             isEditMode={isEditMode}
                             fields={allFilterableFields || []}
@@ -64,35 +91,16 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                                 onOpening: () => setIsSubmenuOpen(true),
                                 onClose: () => setIsSubmenuOpen(false),
                                 onClosing: () => setIsSubmenuOpen(false),
+                                usePortal: false,
                             }}
                             onClose={handleClose}
                             onSelectField={handleClose}
                         />
-                    }
-                >
-                    <Tooltip2
-                        disabled={isOpen || isEditMode}
-                        placement="bottom-start"
-                        interactionKind="hover"
-                        content={
-                            <>
-                                Only filters added in <b>'edit'</b> mode will be
-                                saved
-                            </>
-                        }
-                    >
-                        <FilterTrigger
-                            minimal
-                            icon="filter-list"
-                            disabled={!hasChartTiles}
-                        >
-                            Add filter
-                        </FilterTrigger>
-                    </Tooltip2>
-                </Popover2>
+                    </Popover.Dropdown>
+                </Popover>
 
                 <ActiveFilters isEditMode={isEditMode} />
-            </DashboardFilterWrapper>
+            </Flex>
         </FiltersProvider>
     );
 };

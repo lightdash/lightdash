@@ -1,15 +1,16 @@
 import { DashboardFilterRule, FilterableField } from '@lightdash/common';
-import { Popover, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Popover, Text, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
+import { IconX } from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import {
     getConditionalRuleLabel,
     getFilterRuleTables,
 } from '../../common/Filters/configs';
+import MantineIcon from '../../common/MantineIcon';
 import FilterConfiguration, { FilterTabs } from '../FilterConfiguration';
 import { FilterModalContainer } from '../FilterSearch/FilterSearch.styles';
-import { FilterValues, TagContainer } from './ActiveFilters.styles';
 
 type Props = {
     isEditMode: boolean;
@@ -18,6 +19,7 @@ type Props = {
     filterRule: DashboardFilterRule;
     onRemove: () => void;
     onUpdate: (value: DashboardFilterRule) => void;
+    isTemporary?: boolean;
 };
 
 const ActiveFilter: FC<Props> = ({
@@ -27,6 +29,7 @@ const ActiveFilter: FC<Props> = ({
     filterRule,
     onRemove,
     onUpdate,
+    isTemporary = false,
 }) => {
     const {
         dashboard,
@@ -77,30 +80,49 @@ const ActiveFilter: FC<Props> = ({
                     withinPortal
                     position="top-start"
                     label={
-                        filterRuleTables.length === 0
-                            ? `Table: ${filterRuleTables[0]}`
-                            : `Tables: ${filterRuleTables.join(', ')}`
+                        <Text fs="xs">
+                            {filterRuleTables.length === 0
+                                ? `Table: ${filterRuleTables[0]}`
+                                : `Tables: ${filterRuleTables.join(', ')}`}
+                        </Text>
                     }
                 >
-                    <div>
-                        <TagContainer
-                            interactive
-                            onRemove={onRemove}
-                            onClick={togglePopover}
-                        >
-                            {filterRule.label || filterRuleLabels.field}:{' '}
-                            {filterRule.disabled ? (
-                                <>is any value</>
-                            ) : (
-                                <>
-                                    {filterRuleLabels.operator}{' '}
-                                    <FilterValues>
-                                        {filterRuleLabels.value}
-                                    </FilterValues>
-                                </>
-                            )}
-                        </TagContainer>
-                    </div>
+                    <Button
+                        size="xs"
+                        variant={isTemporary ? 'outline' : 'default'}
+                        bg="white"
+                        rightIcon={
+                            isEditMode && (
+                                <ActionIcon onClick={onRemove}>
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            )
+                        }
+                        styles={{
+                            inner: {
+                                color: 'black',
+                            },
+                        }}
+                        onClick={togglePopover}
+                    >
+                        <Text fz="xs">
+                            <Text fw={600} span>
+                                {filterRule.label || filterRuleLabels.field}{' '}
+                            </Text>
+                            <Text fw={400} span>
+                                {filterRule.disabled ? (
+                                    <>is any value</>
+                                ) : (
+                                    <>
+                                        {filterRuleLabels.operator}{' '}
+                                        <Text fw={700} span>
+                                            {filterRuleLabels.value}
+                                        </Text>
+                                    </>
+                                )}
+                            </Text>
+                        </Text>
+                    </Button>
                 </Tooltip>
             </Popover.Target>
 

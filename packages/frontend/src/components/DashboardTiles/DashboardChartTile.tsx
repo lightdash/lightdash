@@ -32,6 +32,7 @@ import CopyToClipboard from 'react-copy-to-clipboard';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 
+import { Text } from '@mantine/core';
 import { IconFolders } from '@tabler/icons-react';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import useSavedQueryWithDashboardFilters from '../../hooks/dashboard/useSavedQueryWithDashboardFilters';
@@ -411,9 +412,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             ) : (
                                 <>
                                     {filterRuleLabels.operator}{' '}
-                                    <FilterValues>
+                                    <Text fw={700} span>
                                         {filterRuleLabels.value}
-                                    </FilterValues>
+                                    </Text>
                                 </>
                             )}
                         </Tag>
