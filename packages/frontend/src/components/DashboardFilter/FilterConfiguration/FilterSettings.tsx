@@ -111,7 +111,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 
             {isEditMode && (
                 <TextInput
-                    label="Label"
+                    label="Filter label"
                     onChange={(e) =>
                         onChangeFilterRule({
                             ...filterRule,
