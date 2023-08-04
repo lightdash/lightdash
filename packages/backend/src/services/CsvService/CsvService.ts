@@ -161,6 +161,10 @@ export class CsvService {
             const data = row[id];
             const item = itemMap[id];
 
+            if (data === null || data === undefined) {
+                return data;
+            }
+
             const itemIsField = isField(item);
             if (itemIsField && item.type === DimensionType.TIMESTAMP) {
                 return moment(data).format('YYYY-MM-DD HH:mm:ss');
@@ -168,7 +172,11 @@ export class CsvService {
             if (itemIsField && item.type === DimensionType.DATE) {
                 return moment(data).format('YYYY-MM-DD');
             }
+
+            // Return raw value and let csv-stringify handle the rest
             if (onlyRaw) return data;
+
+            // Use standard Lightdash formatting based on the item formatting configuration
             return formatItemValue(item, data);
         });
     }
