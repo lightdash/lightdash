@@ -1,3 +1,10 @@
+# [0.725.0](https://github.com/lightdash/lightdash/compare/0.724.0...0.725.0) (2023-08-04)
+
+
+### Features
+
+* add tooltip to switch on dashboard filter ([#6624](https://github.com/lightdash/lightdash/issues/6624)) ([9995d25](https://github.com/lightdash/lightdash/commit/9995d25622e499d4f24550f3d50bf6d84114e819))
+
 # [0.724.0](https://github.com/lightdash/lightdash/compare/0.723.0...0.724.0) (2023-08-04)
 
 
