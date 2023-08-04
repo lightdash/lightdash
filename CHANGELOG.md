@@ -1,3 +1,10 @@
+# [0.723.0](https://github.com/lightdash/lightdash/compare/0.722.0...0.723.0) (2023-08-04)
+
+
+### Features
+
+* update label behaviour on dashboard filters ([#6618](https://github.com/lightdash/lightdash/issues/6618)) ([6937278](https://github.com/lightdash/lightdash/commit/69372785375fd96aa62c7b9f46c0253777529be8))
+
 # [0.722.0](https://github.com/lightdash/lightdash/compare/0.721.1...0.722.0) (2023-08-04)
 
 
