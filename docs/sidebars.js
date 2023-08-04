@@ -157,8 +157,8 @@ module.exports = {
             items: [
                 {
                     type: 'doc',
-                    id: 'references/dimensions', 
-                    label: 'Dimensions', 
+                    id: 'references/dimensions',
+                    label: 'Dimensions',
                 },
                 {
                     type: 'doc',
@@ -183,11 +183,13 @@ module.exports = {
                     type: 'doc',
                     id: 'references/filters',
                     label: 'Filters',
-                },,
+                },
+                ,
                 'references/roles',
-            ]
+                'references/user-attributes',
+            ],
         },
-                        
+
         {
             type: 'category',
             label: 'Lightdash University: Best Practice',

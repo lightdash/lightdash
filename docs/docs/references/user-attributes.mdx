@@ -26,23 +26,25 @@ User attributes can only be managed by admins.
 <iframe width="100%" height="315" src="https://www.youtube.com/embed/eSUULAeBZU8" title="YouTube video player" 
 frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
+## Managing user attributes
 
-## 1. Creating user attributes
+
+### 1. Creating user attributes
 
 
 User attributes can be created by navigating to **Organization Settings** > **User Attributes** and clicking on the 
 **Add attribute** button. This will create a new user attribute but it will not be assigned to any user.
 
-## 2. Assigning user attributes to users
+### 2. Assigning user attributes to users
 
 User attributes can be assigned to users by navigating to **Organization Settings** > **User Attributes** and 
 clicking on the user attribute you'd like to assign. Select a user by email address and set their value.
 
-# Using user attributes in Lightdash
+## Using user attributes in Lightdash
 
 There are several places in Lightdash where you can customise behaviour based on user attributes.
 
-## 1. Row filtering with `sql_filter`
+### 1. Row filtering with `sql_filter`
 
 You can use user attributes to filter the rows returned by a query. This is useful if you want to restrict the data 
 based on the user's attributes. To reference a user attribute in your sql, use the special lightdash reference 
@@ -56,7 +58,7 @@ models:
       sql_filter: ${TABLE}.sales_region = {{ lightdash.attributes.sales_region }}
 ```
 
-## 2. Filtering joins with `sql_on`
+### 2. Filtering joins with `sql_on`
 
 If you're joining a table, you can also customise the rows that are returned 
 
