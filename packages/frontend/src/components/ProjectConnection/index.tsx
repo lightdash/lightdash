@@ -91,11 +91,13 @@ const ProjectForm: FC<Props> = ({
             <SettingsGridCard>
                 <div>
                     {warehouse && getWarehouseIcon(warehouse)}
-                    <Flex align="center">
-                        <Title order={5} style={{ marginRight: '0px' }}>
-                            Warehouse connection
-                        </Title>
-                        <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
+                    <Flex align="center" gap={2}>
+                        <Title order={5}>Warehouse connection</Title>
+                        <DocumentationHelpButton
+                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection"
+                            pos="relative"
+                            top="2px"
+                        />
                     </Flex>
 
                     {health.data?.staticIp && (
@@ -120,11 +122,13 @@ const ProjectForm: FC<Props> = ({
                 <div>
                     <Avatar size="md" src={DbtLogo} alt="dbt icon" />
 
-                    <Flex align="center">
-                        <Title order={5} style={{ marginRight: '0px' }}>
-                            dbt connection
-                        </Title>
-                        <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
+                    <Flex align="center" gap={2}>
+                        <Title order={5}>dbt connection</Title>
+                        <DocumentationHelpButton
+                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project"
+                            pos="relative"
+                            top="2px"
+                        />
                     </Flex>
                 </div>
 

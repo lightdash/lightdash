@@ -1,5 +1,5 @@
-import { ActionIcon, AnchorProps, Tooltip, TooltipProps } from '@mantine/core';
-import { IconHelp } from '@tabler/icons-react';
+import { Anchor, AnchorProps, Tooltip, TooltipProps } from '@mantine/core';
+import { IconHelpCircle } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon, { MantineIconProps } from './common/MantineIcon';
 
@@ -21,19 +21,20 @@ const DocumentationHelpButton: FC<Props> = ({
         maw={350}
         {...tooltipProps}
     >
-        <ActionIcon
-            component="a"
+        <Anchor
+            role="button"
             target="_blank"
             rel="noreferrer"
+            color="dimmed"
             {...anchorProps}
         >
             <MantineIcon
-                icon={IconHelp}
+                icon={IconHelpCircle}
                 size="md"
                 display="inline"
                 {...iconProps}
             />
-        </ActionIcon>
+        </Anchor>
     </Tooltip>
 );
 
