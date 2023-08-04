@@ -9,7 +9,6 @@ import {
     DashboardTile,
     fieldId,
     FilterableField,
-    FilterOperator,
     FilterRule,
     getFilterRuleWithDefaultValue,
     matchFieldByType,
@@ -29,6 +28,7 @@ import {
 } from './FilterConfiguration.styled';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
+import { isFilterConfigurationApplyButtonEnabled } from './utils';
 
 export enum FilterTabs {
     SETTINGS = 'settings',
@@ -93,7 +93,7 @@ const FilterConfiguration: FC<Props> = ({
             setInternalFilterRule((prevState) =>
                 getFilterRuleWithDefaultValue(field, {
                     ...prevState,
-                    operator: operator,
+                    operator,
                 }),
             );
         },
@@ -206,12 +206,9 @@ const FilterConfiguration: FC<Props> = ({
                     intent={Intent.PRIMARY}
                     text="Apply"
                     disabled={
-                        ![
-                            FilterOperator.NULL,
-                            FilterOperator.NOT_NULL,
-                        ].includes(internalFilterRule.operator) &&
-                        (!internalFilterRule.values ||
-                            internalFilterRule.values.length <= 0)
+                        !isFilterConfigurationApplyButtonEnabled(
+                            internalFilterRule,
+                        )
                     }
                     onClick={() => onSave(internalFilterRule)}
                 />

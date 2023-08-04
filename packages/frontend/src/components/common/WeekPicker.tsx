@@ -1,5 +1,5 @@
 import { Colors } from '@blueprintjs/core';
-import { DateInput2 } from '@blueprintjs/datetime2';
+import { DateInput2, DateInput2Props } from '@blueprintjs/datetime2';
 import { Popover2Props } from '@blueprintjs/popover2';
 import {
     formatDate,
@@ -106,25 +106,27 @@ function getWeekRange(date: Date, startOfWeek?: WeekDay | null): WeekRange {
 }
 
 type Props = {
-    value: Date;
-    onChange: (value: Date) => void;
+    value: Date | null;
+    onChange: (value: Date | null) => void;
     popoverProps?: Popover2Props;
-    disabled?: boolean;
     startOfWeek?: WeekDay | null;
-};
+} & Pick<DateInput2Props, 'placeholder' | 'disabled'>;
 
 const WeekPicker: FC<Props> = ({
     value: dateValue,
     onChange,
     popoverProps,
     disabled,
+    placeholder,
     startOfWeek,
 }) => {
-    const value = moment(dateValue).toDate();
+    const value = dateValue ? moment(dateValue).toDate() : null;
     //Filtering a dimension returns a date, but filtering on a table returns a string on UTC
-    const formattedDate = formatDate(value);
+    const formattedDate = value ? formatDate(value) : null;
     const [hoverRange, setHoverRange] = useState<WeekRange>();
-    const selectedDays = getWeekDays(getWeekRange(value, startOfWeek).from);
+    const selectedDays = value
+        ? getWeekDays(getWeekRange(value, startOfWeek).from)
+        : [];
 
     const daysAreSelected = selectedDays.length > 0;
     const modifiers = {
@@ -150,20 +152,19 @@ const WeekPicker: FC<Props> = ({
             <DateInput2
                 fill
                 className={disabled ? 'disabled-filter' : ''}
+                placeholder={placeholder}
                 disabled={disabled}
                 defaultTimezone="UTC"
                 showTimezoneSelect={false}
                 value={formattedDate}
                 formatDate={formatDate}
                 parseDate={parseDate}
-                defaultValue={getWeekRange(
-                    new Date(),
-                    startOfWeek,
-                ).from.toString()}
-                onChange={(pickedDate: string | null) => {
+                onChange={(pickedDate) => {
                     onChange(
-                        getWeekRange(new Date(pickedDate || value), startOfWeek)
-                            .from,
+                        pickedDate === null
+                            ? null
+                            : getWeekRange(new Date(pickedDate), startOfWeek)
+                                  .from,
                     );
                 }}
                 dayPickerProps={{

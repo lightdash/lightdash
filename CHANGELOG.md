@@ -1,3 +1,33 @@
+# [0.720.0](https://github.com/lightdash/lightdash/compare/0.719.0...0.720.0) (2023-08-03)
+
+
+### Features
+
+* allow disabled/is-any dashboard filters and update placeholders ([#6581](https://github.com/lightdash/lightdash/issues/6581)) ([e59f161](https://github.com/lightdash/lightdash/commit/e59f161cc4fe435cc07155499cf4f44e3c7de3d7))
+
+# [0.719.0](https://github.com/lightdash/lightdash/compare/0.718.0...0.719.0) (2023-08-03)
+
+
+### Features
+
+* filters year and monthyear pickers in mantine ([#6609](https://github.com/lightdash/lightdash/issues/6609)) ([90086a5](https://github.com/lightdash/lightdash/commit/90086a5a0dba13508500811cb94d9cb19698916d))
+
+# [0.718.0](https://github.com/lightdash/lightdash/compare/0.717.1...0.718.0) (2023-08-03)
+
+
+### Features
+
+* multiple UX improvements for charts in dashboard ([#6603](https://github.com/lightdash/lightdash/issues/6603)) ([605e74f](https://github.com/lightdash/lightdash/commit/605e74f2f64472568933622161f214f350419dcd))
+
+## [0.717.1](https://github.com/lightdash/lightdash/compare/0.717.0...0.717.1) (2023-08-03)
+
+
+### Bug Fixes
+
+* fix ssh tunnel on sqlrunner ([#6597](https://github.com/lightdash/lightdash/issues/6597)) ([2256011](https://github.com/lightdash/lightdash/commit/22560111186919fcc38ada6897e62a70b72e1f4d))
+* save in private spaces ([#6600](https://github.com/lightdash/lightdash/issues/6600)) ([55cb764](https://github.com/lightdash/lightdash/commit/55cb7644b71469dbda6a6333dcdb99baca16d050)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+* use raw emojis in github template ([#6593](https://github.com/lightdash/lightdash/issues/6593)) ([aa8bf24](https://github.com/lightdash/lightdash/commit/aa8bf24f39893eac677616fef358ae9cea262240))
+
 # [0.717.0](https://github.com/lightdash/lightdash/compare/0.716.1...0.717.0) (2023-08-03)
 
 

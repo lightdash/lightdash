@@ -138,7 +138,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                                 }
                                                             />
                                                         )}
-                                                        <MenuDivider />
                                                         {belongsToDashboard ? (
                                                             <MenuItem2
                                                                 icon="delete"
@@ -151,16 +150,19 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                                 }
                                                             />
                                                         ) : (
-                                                            <MenuItem2
-                                                                icon="delete"
-                                                                intent="danger"
-                                                                text="Remove tile"
-                                                                onClick={() =>
-                                                                    onDelete(
-                                                                        tile,
-                                                                    )
-                                                                }
-                                                            />
+                                                            <>
+                                                                <MenuDivider />
+                                                                <MenuItem2
+                                                                    icon="delete"
+                                                                    intent="danger"
+                                                                    text="Remove tile"
+                                                                    onClick={() =>
+                                                                        onDelete(
+                                                                            tile,
+                                                                        )
+                                                                    }
+                                                                />
+                                                            </>
                                                         )}
                                                     </>
                                                 )}
