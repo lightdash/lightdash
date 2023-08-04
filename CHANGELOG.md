@@ -1,3 +1,10 @@
+# [0.724.0](https://github.com/lightdash/lightdash/compare/0.723.0...0.724.0) (2023-08-04)
+
+
+### Features
+
+* add private chart dashboard select ([#6613](https://github.com/lightdash/lightdash/issues/6613)) ([dea6b8c](https://github.com/lightdash/lightdash/commit/dea6b8c75f298a180d2e4a67d8b6ec73024529b2)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
 # [0.723.0](https://github.com/lightdash/lightdash/compare/0.722.0...0.723.0) (2023-08-04)
 
 
