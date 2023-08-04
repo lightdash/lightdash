@@ -27,16 +27,6 @@ export const AdvancedButton = styled(SimpleButton)`
     padding-right: 2px;
 `;
 
-export const LeftPanelTitle = styled.div`
-    margin-bottom: 10px;
-    margin-top: 10px;
-
-    h5 {
-        display: inline;
-        margin-right: 5px;
-    }
-`;
-
 export const LeftPanelMessage = styled.p`
     color: ${Colors.GRAY1};
 `;

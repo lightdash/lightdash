@@ -1,3 +1,24 @@
+# [0.722.0](https://github.com/lightdash/lightdash/compare/0.721.1...0.722.0) (2023-08-04)
+
+
+### Features
+
+* chart config tabs in mantine ([#6607](https://github.com/lightdash/lightdash/issues/6607)) ([8bf595e](https://github.com/lightdash/lightdash/commit/8bf595e994b4de10d4d5a2b9f798abb955c4aae5))
+
+## [0.721.1](https://github.com/lightdash/lightdash/compare/0.721.0...0.721.1) (2023-08-04)
+
+
+### Bug Fixes
+
+* The help icons are not aligned with the text in the 'Create Project' flows  ([#6583](https://github.com/lightdash/lightdash/issues/6583)) ([80684d5](https://github.com/lightdash/lightdash/commit/80684d5fff7792e53d9ebb6aa9c18e8eb88e9c37))
+
+# [0.721.0](https://github.com/lightdash/lightdash/compare/0.720.0...0.721.0) (2023-08-04)
+
+
+### Features
+
+* create chart before updating dashboard ([#6592](https://github.com/lightdash/lightdash/issues/6592)) ([04dfe7d](https://github.com/lightdash/lightdash/commit/04dfe7dee2481271451b6aca745b2a36eff2eda1))
+
 # [0.720.0](https://github.com/lightdash/lightdash/compare/0.719.0...0.720.0) (2023-08-03)
 
 
