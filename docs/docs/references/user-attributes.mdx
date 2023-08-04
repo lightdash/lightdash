@@ -44,18 +44,24 @@ clicking on the user attribute you'd like to assign. Select a user by email addr
 
 There are several places in Lightdash where you can customise behaviour based on user attributes.
 
+When referencing user attributes in SQL you can use the following [SQL variables](./sql-variables.mdx):
+
+- `${ lightdash.attributes.my_attr_1 }` - a user attribute called `my_attr_1`
+  - (optional) `ld` as an alias for `lightdash`
+  - (optional) `attribute` or `attr` as an alias for `attributes`
+
 ### 1. Row filtering with `sql_filter`
 
 You can use user attributes to filter the rows returned by a query. This is useful if you want to restrict the data 
 based on the user's attributes. To reference a user attribute in your sql, use the special lightdash reference 
-`{{ lightdash.attributes.<attribute_name> }}`. For example, if you have a user attribute called `sales_region` you can
+`${ lightdash.attributes.<attribute_name> }`. For example, if you have a user attribute called `sales_region` you can
 use it in your sql like this:
 
 ```yaml
 models:
   - name: my_model
     meta:
-      sql_filter: ${TABLE}.sales_region = {{ lightdash.attributes.sales_region }}
+      sql_filter: ${TABLE}.sales_region = ${ lightdash.attributes.sales_region }
 ```
 
 ### 2. Filtering joins with `sql_on`
@@ -64,7 +70,7 @@ If you're joining a table, you can also customise the rows that are returned
 
 You can use user attributes to filter the rows returned by a join. This is useful if you want to restrict the data 
 returned from the joined table. To reference a user attribute in your sql, use the special lightdash reference 
-`{{ lightdash.attributes.<attribute_name> }}`. For example, if you have a user attribute called `sales_region` you can
+`${ lightdash.attributes.<attribute_name> }`. For example, if you have a user attribute called `sales_region` you can
 use it in your sql like this:
 
 ```yaml
@@ -75,7 +81,7 @@ models:
         - join: joined
           sql_on: >
             ${base}.id = ${joined}.id
-            AND ${joined}.sales_region = {{ lightdash.attributes.sales_region }}
+            AND ${joined}.sales_region = ${ lightdash.attributes.sales_region }
 ```
 
 # Demo: filtering a chart based on user attributes

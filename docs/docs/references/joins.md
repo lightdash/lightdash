@@ -33,6 +33,8 @@ When you open Lightdash, your joined models' dimensions and metrics will appear 
 
 ![screenshot-joined-table](assets/screenshot-joined-table.png)
 
+Note that `sql_on` can include references to [user attributes](./user-attributes.mdx)
+
 ## Rename a joined model
 
 When joining a model B onto a model A, you may want to rename the model for readability. This can be done with the 
