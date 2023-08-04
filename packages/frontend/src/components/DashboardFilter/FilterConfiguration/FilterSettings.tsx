@@ -57,6 +57,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                 {isEditMode && (
                     <Tooltip
                         withinPortal
+                        position="right"
                         label={
                             filterRule.disabled
                                 ? 'Toggle on to set a default filter value'
