@@ -1,3 +1,4 @@
+import { validatePassword } from '@lightdash/common';
 import express from 'express';
 import passport from 'passport';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -52,6 +53,10 @@ apiV1Router.get('/flash', (req, res) => {
 
 apiV1Router.post('/register', unauthorisedInDemo, async (req, res, next) => {
     try {
+        if (req.body.password && !validatePassword(req.body.password)) {
+            next(new Error('Password does not meet requirements'));
+            return;
+        }
         const lightdashUser = await userService.registerUser({
             firstName: sanitizeStringParam(req.body.firstName),
             lastName: sanitizeStringParam(req.body.lastName),

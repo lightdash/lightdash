@@ -57,6 +57,7 @@ import {
     OrganizationProject,
     UpdateAllowedEmailDomains,
 } from './types/organization';
+import { PasswordValidationResult } from './types/passwordValidationResult';
 import { PinnedItems } from './types/pinning';
 import {
     CreateWarehouseCredentials,
@@ -153,6 +154,21 @@ export const validateEmail = (email: string): boolean => {
         /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(String(email).toLowerCase());
 };
+
+export function validatePassword(password: string): PasswordValidationResult {
+    const minLength = 8;
+    const hasLetter = /[a-zA-Z]/.test(password);
+    const hasNumberOrSymbol = /[\d\W]/.test(password);
+    const isLengthValid = password.length >= minLength;
+    const isPasswordValid = isLengthValid && hasLetter && hasNumberOrSymbol;
+
+    return {
+        isLengthValid,
+        hasLetter,
+        hasNumberOrSymbol,
+        isPasswordValid,
+    };
+}
 
 export const hasIntersection = (tags: string[], tags2: string[]): boolean => {
     const intersection = tags.filter((value) => tags2.includes(value));

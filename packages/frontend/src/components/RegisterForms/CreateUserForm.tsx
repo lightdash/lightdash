@@ -1,7 +1,13 @@
-import { CreateUserArgs, validateEmail } from '@lightdash/common';
+import {
+    CreateUserArgs,
+    validateEmail,
+    validatePassword,
+} from '@lightdash/common';
+import { PasswordValidationResult } from '@lightdash/common/src/types/passwordValidationResult';
 import { Button, Flex, PasswordInput, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import React, { FC } from 'react';
+import React, { FC, useState } from 'react';
+import PasswordValidationMessages from '../common/PasswordValidationMessages';
 
 type Props = {
     isLoading: boolean;
@@ -10,6 +16,14 @@ type Props = {
 };
 
 const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
+    const [validationResult, setValidationResult] =
+        useState<PasswordValidationResult>({
+            isLengthValid: false,
+            hasLetter: false,
+            hasNumberOrSymbol: false,
+            isPasswordValid: false,
+        });
+
     const form = useForm<CreateUserArgs>({
         initialValues: {
             firstName: '',
@@ -24,6 +38,10 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                     : 'Your email address is not valid',
         },
     });
+
+    const handleChange = (password: string) => {
+        setValidationResult(validatePassword(password));
+    };
 
     return (
         <form name="register" onSubmit={form.onSubmit(onSubmit)}>
@@ -61,11 +79,18 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                     placeholder="Your password"
                     required
                     {...form.getInputProps('password')}
+                    onChange={(event) => {
+                        handleChange(event.currentTarget.value);
+                        form.getInputProps('password').onChange(event);
+                    }}
+                    data-cy="password-input"
                     disabled={isLoading}
                 />
+                <PasswordValidationMessages {...validationResult} />
                 <Button
                     type="submit"
                     loading={isLoading}
+                    disabled={isLoading || !validationResult.isPasswordValid}
                     data-cy="signup-button"
                 >
                     Sign up
