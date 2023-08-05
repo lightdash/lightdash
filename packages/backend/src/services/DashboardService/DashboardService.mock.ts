@@ -101,25 +101,6 @@ export const dashboard: Dashboard = {
     firstViewedAt: new Date(1),
 };
 
-export const dashboardWithChartThatBelongsToDashboard: Dashboard = {
-    ...dashboard,
-    tiles: [
-        ...dashboard.tiles,
-        {
-            uuid: 'my-tile',
-            type: DashboardTileTypes.SAVED_CHART,
-            x: 4,
-            y: 3,
-            h: 2,
-            w: 1,
-            properties: {
-                savedChartUuid: 'chart_in_dashboard',
-                belongsToDashboard: true,
-            },
-        },
-    ],
-};
-
 export const chart: SavedChart = {
     uuid: 'chart_uuid',
     projectUuid: dashboard.projectUuid,

@@ -2134,7 +2134,7 @@ export class ProjectService {
         const allowedSpaces = spaces.filter(
             (space) =>
                 space.projectUuid === projectUuid &&
-                (!space.isPrivate || space.access.includes(user.userUuid)),
+                hasSpaceAccess(user, space, true),
         );
 
         const charts = await this.savedChartModel.find({

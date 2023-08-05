@@ -1,15 +1,17 @@
-import { FormGroup, HTMLSelect, InputGroup } from '@blueprintjs/core';
+import { HTMLSelect } from '@blueprintjs/core';
 import { Popover2Props } from '@blueprintjs/popover2';
 import {
     DashboardFilterRule,
     FilterableField,
     FilterRule,
     FilterType,
+    getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
 } from '@lightdash/common';
-import { FC, useMemo } from 'react';
+import { Stack, Switch, TextInput, Tooltip } from '@mantine/core';
+import { FC, useEffect, useMemo, useState } from 'react';
 import { FilterTypeConfig } from '../../common/Filters/configs';
-import { BolderLabel } from '../FilterSearch/FilterSearch.styles';
+import { getPlaceholderByFilterTypeAndOperator } from '../../common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 
 interface FilterSettingsProps {
     isEditMode: boolean;
@@ -28,6 +30,9 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     onChangeFilterOperator,
     onChangeFilterRule,
 }) => {
+    const [filterLabel, setFilterLabel] = useState<string>(
+        filterRule.label ?? field.label,
+    );
     const filterType = field ? getFilterTypeFromItem(field) : FilterType.STRING;
 
     const filterConfig = useMemo(
@@ -35,9 +40,56 @@ const FilterSettings: FC<FilterSettingsProps> = ({
         [filterType],
     );
 
+    useEffect(() => {
+        if (!isEditMode && filterRule.disabled) {
+            onChangeFilterRule({
+                ...filterRule,
+                disabled: false,
+                values: undefined,
+                settings: undefined,
+            });
+        }
+    }, [isEditMode, onChangeFilterRule, filterRule]);
+
     return (
-        <>
-            <FormGroup label={<BolderLabel>Value</BolderLabel>}>
+        <Stack>
+            <Stack spacing="xs">
+                {isEditMode && (
+                    <Tooltip
+                        withinPortal
+                        position="right"
+                        label={
+                            filterRule.disabled
+                                ? 'Toggle on to set a default filter value'
+                                : 'Toggle off to leave the filter value empty, allowing users to populate it in view mode'
+                        }
+                        openDelay={500}
+                    >
+                        <div style={{ width: 'max-content' }}>
+                            <Switch
+                                label="Default value"
+                                labelPosition="left"
+                                checked={!filterRule.disabled}
+                                onChange={(e) => {
+                                    const newFilter: DashboardFilterRule = {
+                                        ...filterRule,
+                                        disabled: !e.currentTarget.checked,
+                                    };
+
+                                    onChangeFilterRule(
+                                        e.currentTarget.checked
+                                            ? newFilter
+                                            : getFilterRuleWithDefaultValue(
+                                                  field,
+                                                  newFilter,
+                                              ),
+                                    );
+                                }}
+                            />
+                        </div>
+                    </Tooltip>
+                )}
+
                 <HTMLSelect
                     fill
                     onChange={(e) =>
@@ -48,36 +100,46 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     options={filterConfig.operatorOptions}
                     value={filterRule.operator}
                 />
-            </FormGroup>
-
-            <FormGroup>
-                <filterConfig.inputs
-                    popoverProps={popoverProps}
-                    filterType={filterType}
-                    field={field}
-                    rule={filterRule}
-                    onChange={(newFilterRule) =>
-                        onChangeFilterRule(newFilterRule as DashboardFilterRule)
-                    }
-                />
-            </FormGroup>
+                {filterRule.disabled ? (
+                    <TextInput
+                        disabled
+                        size="xs"
+                        placeholder={getPlaceholderByFilterTypeAndOperator({
+                            type: filterType,
+                            operator: filterRule.operator,
+                            disabled: true,
+                        })}
+                    />
+                ) : (
+                    <filterConfig.inputs
+                        popoverProps={popoverProps}
+                        filterType={filterType}
+                        field={field}
+                        rule={filterRule}
+                        onChange={(newFilterRule) =>
+                            onChangeFilterRule(
+                                newFilterRule as DashboardFilterRule,
+                            )
+                        }
+                    />
+                )}
+            </Stack>
 
             {isEditMode && (
-                <FormGroup label={<BolderLabel>Label</BolderLabel>}>
-                    <InputGroup
-                        fill
-                        onChange={(e) =>
-                            onChangeFilterRule({
-                                ...filterRule,
-                                label: e.target.value || undefined,
-                            })
-                        }
-                        placeholder={`Defaults to "${field.label}"`}
-                        value={filterRule.label || ''}
-                    />
-                </FormGroup>
+                <TextInput
+                    label="Filter label"
+                    onChange={(e) => {
+                        setFilterLabel(e.target.value);
+                        onChangeFilterRule({
+                            ...filterRule,
+                            label: e.target.value || undefined,
+                        });
+                    }}
+                    placeholder={`Label for ${field.label}`}
+                    value={filterLabel}
+                />
             )}
-        </>
+        </Stack>
     );
 };
 

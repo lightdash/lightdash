@@ -142,6 +142,7 @@ export class DashboardService {
         user: SessionUser,
         projectUuid: string,
         chartUuid?: string,
+        includePrivate?: boolean,
     ): Promise<DashboardBasicDetails[]> {
         const dashboards = await this.dashboardModel.getAllByProject(
             projectUuid,
@@ -167,7 +168,7 @@ export class DashboardService {
             return (
                 hasAbility &&
                 dashboardSpace &&
-                hasSpaceAccess(user, dashboardSpace, false)
+                hasSpaceAccess(user, dashboardSpace, includePrivate)
             );
         });
     }
@@ -218,25 +219,6 @@ export class DashboardService {
         }, []);
     }
 
-    private async trackChartsCreatedInDashboard(
-        user: SessionUser,
-        chartUuids: string[],
-    ) {
-        await Promise.all(
-            chartUuids.map(async (chartUuid) => {
-                const chart = await this.savedChartModel.get(chartUuid);
-                analytics.track({
-                    event: 'saved_chart.created',
-                    userId: user.userUuid,
-                    properties: {
-                        ...SavedChartService.getCreateEventProperties(chart),
-                        dashboardId: chart.dashboardUuid ?? undefined,
-                    },
-                });
-            }),
-        );
-    }
-
     async create(
         user: SessionUser,
         projectUuid: string,
@@ -285,14 +267,6 @@ export class DashboardService {
             properties: DashboardService.getCreateEventProperties(newDashboard),
         });
 
-        // Track charts created in dashboard
-        const chartsCreatedInDashboard =
-            DashboardService.findChartsThatBelongToDashboard(newDashboard);
-        await this.trackChartsCreatedInDashboard(
-            user,
-            chartsCreatedInDashboard,
-        );
-
         return this.dashboardModel.getById(newDashboard.uuid);
     }
 
@@ -340,10 +314,10 @@ export class DashboardService {
                             await this.savedChartModel.create(
                                 newDashboard.projectUuid,
                                 user.userUuid,
-                                newDashboard.uuid,
                                 {
                                     ...chartInDashboard,
-                                    spaceUuid: undefined,
+                                    spaceUuid: null,
+                                    dashboardUuid: newDashboard.uuid,
                                     updatedByUser: {
                                         userUuid: user.userUuid,
                                         firstName: user.firstName,
@@ -484,24 +458,6 @@ export class DashboardService {
                     DashboardService.getCreateEventProperties(updatedDashboard),
             });
             await this.deleteOrphanedChartsInDashboards(user, dashboardUuid);
-
-            // Track charts created in dashboard
-            const chartsInExistingDashboard =
-                DashboardService.findChartsThatBelongToDashboard(
-                    existingDashboard,
-                );
-            const chartsInUpdatedDashboard =
-                DashboardService.findChartsThatBelongToDashboard(
-                    updatedDashboard,
-                );
-            const chartsCreatedInDashboard = chartsInUpdatedDashboard.filter(
-                (chart) => !chartsInExistingDashboard.includes(chart),
-            );
-
-            await this.trackChartsCreatedInDashboard(
-                user,
-                chartsCreatedInDashboard,
-            );
         }
         return this.dashboardModel.getById(dashboardUuid);
     }

@@ -8,6 +8,8 @@ import {
     InputGroup,
 } from '@blueprintjs/core';
 import {
+    CreateChartInDashboard,
+    CreateDashboardChartTile,
     CreateSavedChartVersion,
     DashboardTileTypes,
     getDefaultChartTileSize,
@@ -16,6 +18,8 @@ import { Text } from '@mantine/core';
 import { uuid4 } from '@sentry/utils';
 import { FC, useCallback, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
+import { appendNewTilesToBottom } from '../../../hooks/dashboard/useDashboard';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateMutation } from '../../../hooks/useSavedQuery';
 import {
     useCreateMutation as useSpaceCreateMutation,
@@ -44,7 +48,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     const unsavedDashboardTiles = JSON.parse(
         sessionStorage.getItem('unsavedDashboardTiles') ?? '[]',
     );
-
+    const { showToastSuccess } = useToaster();
     const history = useHistory();
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -118,25 +122,28 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         showSpaceInput,
     ]);
 
-    const handleSaveChartInDashboard = useCallback(() => {
+    const handleSaveChartInDashboard = useCallback(async () => {
         if (!fromDashboard || !unsavedDashboardTiles || !dashboardUuid) return;
-        const newTile = {
+        const newChartInDashboard: CreateChartInDashboard = {
+            ...savedData,
+            name,
+            description,
+            dashboardUuid,
+        };
+        const newTile: CreateDashboardChartTile = {
             uuid: uuid4(),
             type: DashboardTileTypes.SAVED_CHART,
             properties: {
                 belongsToDashboard: true,
-                savedChartUuid: null,
-                newChartData: {
-                    ...savedData,
-                    name,
-                    description,
-                },
+                savedChartUuid: (await mutateAsync(newChartInDashboard)).uuid,
             },
             ...getDefaultChartTileSize(savedData.chartConfig?.type),
         };
         sessionStorage.setItem(
             'unsavedDashboardTiles',
-            JSON.stringify([...(unsavedDashboardTiles ?? []), newTile]),
+            JSON.stringify(
+                appendNewTilesToBottom(unsavedDashboardTiles ?? [], [newTile]),
+            ),
         );
         sessionStorage.removeItem('fromDashboard');
         sessionStorage.removeItem('dashboardUuid');
@@ -144,16 +151,21 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         history.push(
             `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
         );
+        showToastSuccess({
+            title: `'Success! ${name} was added to ${fromDashboard}`,
+        });
     }, [
-        description,
-        name,
-        dashboardUuid,
         fromDashboard,
-        history,
-        handleClose,
-        savedData,
-        projectUuid,
         unsavedDashboardTiles,
+        dashboardUuid,
+        mutateAsync,
+        savedData,
+        name,
+        description,
+        handleClose,
+        history,
+        projectUuid,
+        showToastSuccess,
     ]);
 
     if (isLoadingSpaces || !spaces) return null;
@@ -161,7 +173,9 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     return (
         <Dialog
             lazy
-            title="Save chart"
+            title={
+                fromDashboard ? `Save chart to ${fromDashboard}` : 'Save chart'
+            }
             icon="chart"
             {...modalProps}
             onClose={handleClose}

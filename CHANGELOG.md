@@ -1,3 +1,66 @@
+# [0.725.0](https://github.com/lightdash/lightdash/compare/0.724.0...0.725.0) (2023-08-04)
+
+
+### Features
+
+* add tooltip to switch on dashboard filter ([#6624](https://github.com/lightdash/lightdash/issues/6624)) ([9995d25](https://github.com/lightdash/lightdash/commit/9995d25622e499d4f24550f3d50bf6d84114e819))
+
+# [0.724.0](https://github.com/lightdash/lightdash/compare/0.723.0...0.724.0) (2023-08-04)
+
+
+### Features
+
+* add private chart dashboard select ([#6613](https://github.com/lightdash/lightdash/issues/6613)) ([dea6b8c](https://github.com/lightdash/lightdash/commit/dea6b8c75f298a180d2e4a67d8b6ec73024529b2)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
+# [0.723.0](https://github.com/lightdash/lightdash/compare/0.722.0...0.723.0) (2023-08-04)
+
+
+### Features
+
+* update label behaviour on dashboard filters ([#6618](https://github.com/lightdash/lightdash/issues/6618)) ([6937278](https://github.com/lightdash/lightdash/commit/69372785375fd96aa62c7b9f46c0253777529be8))
+
+# [0.722.0](https://github.com/lightdash/lightdash/compare/0.721.1...0.722.0) (2023-08-04)
+
+
+### Features
+
+* chart config tabs in mantine ([#6607](https://github.com/lightdash/lightdash/issues/6607)) ([8bf595e](https://github.com/lightdash/lightdash/commit/8bf595e994b4de10d4d5a2b9f798abb955c4aae5))
+
+## [0.721.1](https://github.com/lightdash/lightdash/compare/0.721.0...0.721.1) (2023-08-04)
+
+
+### Bug Fixes
+
+* The help icons are not aligned with the text in the 'Create Project' flows  ([#6583](https://github.com/lightdash/lightdash/issues/6583)) ([80684d5](https://github.com/lightdash/lightdash/commit/80684d5fff7792e53d9ebb6aa9c18e8eb88e9c37))
+
+# [0.721.0](https://github.com/lightdash/lightdash/compare/0.720.0...0.721.0) (2023-08-04)
+
+
+### Features
+
+* create chart before updating dashboard ([#6592](https://github.com/lightdash/lightdash/issues/6592)) ([04dfe7d](https://github.com/lightdash/lightdash/commit/04dfe7dee2481271451b6aca745b2a36eff2eda1))
+
+# [0.720.0](https://github.com/lightdash/lightdash/compare/0.719.0...0.720.0) (2023-08-03)
+
+
+### Features
+
+* allow disabled/is-any dashboard filters and update placeholders ([#6581](https://github.com/lightdash/lightdash/issues/6581)) ([e59f161](https://github.com/lightdash/lightdash/commit/e59f161cc4fe435cc07155499cf4f44e3c7de3d7))
+
+# [0.719.0](https://github.com/lightdash/lightdash/compare/0.718.0...0.719.0) (2023-08-03)
+
+
+### Features
+
+* filters year and monthyear pickers in mantine ([#6609](https://github.com/lightdash/lightdash/issues/6609)) ([90086a5](https://github.com/lightdash/lightdash/commit/90086a5a0dba13508500811cb94d9cb19698916d))
+
+# [0.718.0](https://github.com/lightdash/lightdash/compare/0.717.1...0.718.0) (2023-08-03)
+
+
+### Features
+
+* multiple UX improvements for charts in dashboard ([#6603](https://github.com/lightdash/lightdash/issues/6603)) ([605e74f](https://github.com/lightdash/lightdash/commit/605e74f2f64472568933622161f214f350419dcd))
+
 ## [0.717.1](https://github.com/lightdash/lightdash/compare/0.717.0...0.717.1) (2023-08-03)
 
 

@@ -291,6 +291,12 @@ const SavedChartsHeader: FC = () => {
                                             history.push({
                                                 pathname: `/projects/${savedChart?.projectUuid}/dashboards/${dashboardUuid}`,
                                             });
+                                            sessionStorage.removeItem(
+                                                'fromDashboard',
+                                            );
+                                            sessionStorage.removeItem(
+                                                'dashboardUuid',
+                                            );
                                         } else
                                             history.push({
                                                 pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`,

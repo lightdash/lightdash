@@ -282,21 +282,28 @@ export type SavedChart = {
     dashboardName: string | null;
 };
 
-export type CreateSavedChart = Omit<
+type CreateChartBase = Pick<
     SavedChart,
-    | 'uuid'
-    | 'updatedAt'
-    | 'projectUuid'
-    | 'organizationUuid'
-    | 'spaceUuid'
-    | 'spaceName'
-    | 'pinnedListUuid'
-    | 'pinnedListOrder'
-    | 'views'
-    | 'firstViewedAt'
-    | 'dashboardUuid'
-    | 'dashboardName'
-> & { spaceUuid?: string };
+    | 'name'
+    | 'description'
+    | 'tableName'
+    | 'metricQuery'
+    | 'pivotConfig'
+    | 'chartConfig'
+    | 'tableConfig'
+>;
+
+export type CreateChartInSpace = CreateChartBase & {
+    spaceUuid?: string;
+    dashboardUuid?: null;
+};
+
+export type CreateChartInDashboard = CreateChartBase & {
+    dashboardUuid: string;
+    spaceUuid?: null;
+};
+
+export type CreateSavedChart = CreateChartInSpace | CreateChartInDashboard;
 
 export type CreateSavedChartVersion = Omit<
     SavedChart,
