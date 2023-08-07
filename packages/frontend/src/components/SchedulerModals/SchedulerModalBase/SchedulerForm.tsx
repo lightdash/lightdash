@@ -12,14 +12,16 @@ import {
     CreateSchedulerAndTargetsWithoutIds,
     SchedulerFormat,
 } from '@lightdash/common';
-import { Anchor } from '@mantine/core';
+import { Anchor, Box, Tooltip } from '@mantine/core';
 import React, { FC, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import useHealth from '../../../hooks/health/useHealth';
 
+import { IconInfoCircle } from '@tabler/icons-react';
 import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
 import { useGetSlack } from '../../../hooks/useSlack';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
+import MantineIcon from '../../common/MantineIcon';
 import { ArrayInput } from '../../ReactHookForm/ArrayInput';
 import AutoComplete from '../../ReactHookForm/AutoComplete';
 import CronInput from '../../ReactHookForm/CronInput';
@@ -415,7 +417,19 @@ const SchedulerForm: FC<{
                                                     },
                                                 }}
                                             />
-
+                                            <Tooltip
+                                                multiline
+                                                maw={300}
+                                                withArrow
+                                                label="If delivering to a private Slack channel, please type the name of the channel in the input box exactly as it appears in Slack. Also ensure you invite the Lightdash Slackbot into that channel."
+                                            >
+                                                <Box mt={7}>
+                                                    <MantineIcon
+                                                        icon={IconInfoCircle}
+                                                        color="gray.6"
+                                                    />
+                                                </Box>
+                                            </Tooltip>
                                             <Button
                                                 minimal={true}
                                                 icon={'cross'}
