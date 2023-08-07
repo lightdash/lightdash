@@ -1,3 +1,10 @@
+# [0.726.0](https://github.com/lightdash/lightdash/compare/0.725.0...0.726.0) (2023-08-07)
+
+
+### Features
+
+* add private channels input ([#6625](https://github.com/lightdash/lightdash/issues/6625)) ([b762c07](https://github.com/lightdash/lightdash/commit/b762c07f6956615492877ae97caccd8a340129bd)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
 # [0.725.0](https://github.com/lightdash/lightdash/compare/0.724.0...0.725.0) (2023-08-04)
 
 
