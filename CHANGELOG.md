@@ -1,3 +1,10 @@
+## [0.726.1](https://github.com/lightdash/lightdash/compare/0.726.0...0.726.1) (2023-08-07)
+
+
+### Bug Fixes
+
+* save chart as flow ([#6636](https://github.com/lightdash/lightdash/issues/6636)) ([b75ce16](https://github.com/lightdash/lightdash/commit/b75ce16a655a3d1eaf4ea660a6a8c13b2e228f6e)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
 # [0.726.0](https://github.com/lightdash/lightdash/compare/0.725.0...0.726.0) (2023-08-07)
 
 
