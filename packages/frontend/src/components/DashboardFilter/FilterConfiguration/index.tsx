@@ -85,6 +85,13 @@ const FilterConfiguration: FC<Props> = ({
     const isFilterModified = useMemo(() => {
         if (!originalFilterRule) return false;
 
+        if (
+            originalFilterRule.disabled &&
+            internalFilterRule.values === undefined
+        ) {
+            return false;
+        }
+
         // fixes serialization of date values
         const serializedInternalFilterRule = produce(
             internalFilterRule,
