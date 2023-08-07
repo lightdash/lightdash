@@ -41,7 +41,7 @@ import { downloadCsv } from '../../hooks/useDownloadCsv';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useChartResults } from '../../hooks/useQueryResults';
-import { useMoveChartMutation, useSavedQuery } from '../../hooks/useSavedQuery';
+import { useSavedQuery } from '../../hooks/useSavedQuery';
 import { useApp } from '../../providers/AppProvider';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
@@ -274,23 +274,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         top: number;
     }>();
     const [isMovingChart, setIsMovingChart] = useState(false);
-    const { mutate: moveChartToSpace } = useMoveChartMutation({
-        onSuccess: async () => {
-            setDashboardTiles((currentDashboardTiles) =>
-                currentDashboardTiles.map((tile) =>
-                    tile.uuid === tileUuid && isChartTile(tile)
-                        ? {
-                              ...tile,
-                              properties: {
-                                  ...tile.properties,
-                                  belongsToDashboard: false,
-                              },
-                          }
-                        : tile,
-                ),
-            );
-        },
-    });
     const { user } = useApp();
 
     const { openUnderlyingDataModal } = useMetricQueryDataContext();
@@ -521,7 +504,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                 )}
                             {savedQueryWithDashboardFilters?.dashboardUuid && (
                                 <MenuItem2
-                                    icon={<IconFolders />}
+                                    icon={<IconFolders size={16} />}
                                     text="Move to space"
                                     onClick={() => setIsMovingChart(true)}
                                 />
@@ -705,22 +688,29 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     <InvalidDashboardChartTile tile={props.tile} />
                 )}
             </TileBase>
-            {savedQueryWithDashboardFilters && (
+            {savedQueryWithDashboardFilters?.spaceUuid && (
                 <MoveChartThatBelongsToDashboardModal
                     className={'non-draggable'}
+                    uuid={savedQueryWithDashboardFilters.uuid}
                     name={savedQueryWithDashboardFilters.name}
-                    spaceUuid={savedQueryWithDashboardFilters?.spaceUuid}
-                    spaceName={savedQueryWithDashboardFilters?.spaceName}
+                    spaceUuid={savedQueryWithDashboardFilters.spaceUuid}
+                    spaceName={savedQueryWithDashboardFilters.spaceName}
                     opened={isMovingChart}
                     onClose={() => setIsMovingChart(false)}
                     onConfirm={() => {
-                        moveChartToSpace({
-                            uuid: savedQueryWithDashboardFilters.uuid,
-                            name: savedQueryWithDashboardFilters.name,
-                            spaceUuid:
-                                savedQueryWithDashboardFilters?.spaceUuid,
-                        });
-                        setIsMovingChart(false);
+                        setDashboardTiles((currentDashboardTiles) =>
+                            currentDashboardTiles.map((tile) =>
+                                tile.uuid === tileUuid && isChartTile(tile)
+                                    ? {
+                                          ...tile,
+                                          properties: {
+                                              ...tile.properties,
+                                              belongsToDashboard: false,
+                                          },
+                                      }
+                                    : tile,
+                            ),
+                        );
                     }}
                 />
             )}
