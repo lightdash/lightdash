@@ -54,7 +54,7 @@ describe('Dashboard', () => {
         cy.contains('bank_transfer').should('have.length', 0);
     });
 
-    it('Should create dashboard with tiles', () => {
+    it.only('Should create dashboard with tiles', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
         cy.contains('Create dashboard').click();
@@ -68,6 +68,21 @@ describe('Dashboard', () => {
         cy.contains('How much revenue').click();
         cy.findByRole('dialog').get('.mantine-MultiSelect-input').click(); // Close dropdown
         cy.findByText('Add').click();
+
+        cy.findAllByText('Add tile').click({ multiple: true });
+        cy.findByText('New chart').click();
+        cy.findByText('You are creating this chart from within "Title"').should(
+            'exist',
+        );
+        cy.findByText('Orders').click();
+        cy.findByText('Status').click();
+        cy.findByText('Average order size').click();
+        cy.findByText('Save chart').click();
+        cy.get('input#chart-name').type('Average order size per status');
+        cy.findByText('Save').click();
+        cy.findByText(
+            'Success! Average order size per status was added to Title',
+        ).should('exist');
 
         cy.findAllByText('Add tile').click({ multiple: true });
         cy.findByText('Markdown').click();
