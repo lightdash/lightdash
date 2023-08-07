@@ -57,7 +57,6 @@ import {
     OrganizationProject,
     UpdateAllowedEmailDomains,
 } from './types/organization';
-import { PasswordValidationResult } from './types/passwordValidationResult';
 import { PinnedItems } from './types/pinning';
 import {
     CreateWarehouseCredentials,
@@ -153,6 +152,13 @@ export const validateEmail = (email: string): boolean => {
     const re =
         /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(String(email).toLowerCase());
+};
+
+export type PasswordValidationResult = {
+    isLengthValid: boolean;
+    hasLetter: boolean;
+    hasNumberOrSymbol: boolean;
+    isPasswordValid: boolean;
 };
 
 export function validatePassword(password: string): PasswordValidationResult {
@@ -476,6 +482,7 @@ type ApiResults =
     | Project
     | WarehouseCredentials
     | OrganizationMemberProfile[]
+    | PasswordValidationResult
     | ProjectCatalog
     | TablesConfiguration
     | Dashboard

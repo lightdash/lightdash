@@ -1,4 +1,4 @@
-import { PasswordValidationResult } from '@lightdash/common/src/types/passwordValidationResult';
+import { PasswordValidationResult } from '@lightdash/common';
 import { Stack, Text } from '@mantine/core';
 import React from 'react';
 

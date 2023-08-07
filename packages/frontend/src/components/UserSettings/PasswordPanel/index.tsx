@@ -1,5 +1,4 @@
-import { validatePassword } from '@lightdash/common';
-import { PasswordValidationResult } from '@lightdash/common/src/types/passwordValidationResult';
+import { PasswordValidationResult, validatePassword } from '@lightdash/common';
 import { Button, PasswordInput, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { FC, useState } from 'react';
@@ -29,10 +28,6 @@ const PasswordPanel: FC = () => {
     const { isLoading, mutate: updateUserPassword } =
         useUserUpdatePasswordMutation();
 
-    const handleChange = (password: string) => {
-        setValidationResult(validatePassword(password));
-    };
-
     const handleOnSubmit = form.onSubmit(({ currentPassword, newPassword }) => {
         updateUserPassword({
             password: hasPassword ? currentPassword : '',
@@ -59,7 +54,9 @@ const PasswordPanel: FC = () => {
                     disabled={isLoading}
                     {...form.getInputProps('newPassword')}
                     onChange={(event) => {
-                        handleChange(event.currentTarget.value);
+                        setValidationResult(
+                            validatePassword(event.currentTarget.value),
+                        );
                         form.getInputProps('newPassword').onChange(event);
                     }}
                 />

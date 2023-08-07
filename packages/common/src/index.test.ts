@@ -1,5 +1,5 @@
 import moment from 'moment';
-import { getFilterRuleWithDefaultValue } from '.';
+import { getFilterRuleWithDefaultValue, validatePassword } from '.';
 import {
     dateDayDimension,
     dateMonthDimension,
@@ -84,6 +84,50 @@ describe('Common index', () => {
                     ['test1', 'test2'],
                 ).values,
             ).toEqual(['test1', 'test2']);
+        });
+    });
+});
+
+describe('validatePassword', () => {
+    it('should return true for valid password', () => {
+        const validPasswords = ['Lightdash1!', 'Light@123', '#@#@#dash123'];
+
+        validPasswords.forEach((password) => {
+            const result = validatePassword(password);
+            expect(result.isPasswordValid).toBe(true);
+        });
+    });
+
+    it('should return false for passwords with invalid length', () => {
+        const invalidPasswords = ['short', 'only', '1234'];
+
+        invalidPasswords.forEach((password) => {
+            const result = validatePassword(password);
+            expect(result.isPasswordValid).toBe(false);
+            expect(result.isLengthValid).toBe(false);
+        });
+    });
+
+    it('should return false for passwords without letters', () => {
+        const passwords = [
+            '12345678!', // Missing letter
+            '@$%^&*()123', // Missing letter
+        ];
+
+        passwords.forEach((password) => {
+            const result = validatePassword(password);
+            expect(result.isPasswordValid).toBe(false);
+            expect(result.hasLetter).toBe(false);
+        });
+    });
+
+    it('should return false for passwords without numbers or symbols', () => {
+        const passwords = ['PasswordOnlyLetters', 'AnotherPassword'];
+
+        passwords.forEach((password) => {
+            const result = validatePassword(password);
+            expect(result.isPasswordValid).toBe(false);
+            expect(result.hasNumberOrSymbol).toBe(false);
         });
     });
 });
