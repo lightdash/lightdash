@@ -234,21 +234,26 @@ const FilterConfiguration: FC<Props> = ({
 
                 <Box sx={{ flexGrow: 1 }} />
 
-                {isFilterModified && selectedTabId === FilterTabs.SETTINGS && (
-                    <Tooltip label="Reset to original value" position="left">
-                        <Button
-                            size="xs"
-                            variant="default"
-                            color="gray"
-                            onClick={() => {
-                                if (!originalFilterRule) return;
-                                handleChangeFilterRule(originalFilterRule);
-                            }}
+                {!isTemporary &&
+                    isFilterModified &&
+                    selectedTabId === FilterTabs.SETTINGS && (
+                        <Tooltip
+                            label="Reset to original value"
+                            position="left"
                         >
-                            <MantineIcon icon={IconRotate2} />
-                        </Button>
-                    </Tooltip>
-                )}
+                            <Button
+                                size="xs"
+                                variant="default"
+                                color="gray"
+                                onClick={() => {
+                                    if (!originalFilterRule) return;
+                                    handleChangeFilterRule(originalFilterRule);
+                                }}
+                            >
+                                <MantineIcon icon={IconRotate2} />
+                            </Button>
+                        </Tooltip>
+                    )}
 
                 <Button
                     size="xs"
