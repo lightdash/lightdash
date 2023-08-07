@@ -1,3 +1,10 @@
+# [0.727.0](https://github.com/lightdash/lightdash/compare/0.726.1...0.727.0) (2023-08-07)
+
+
+### Features
+
+* move chart from dashboard to space ([#6637](https://github.com/lightdash/lightdash/issues/6637)) ([30ebe2d](https://github.com/lightdash/lightdash/commit/30ebe2da36b28be371e3b0a88b86a7efc60bbffa))
+
 ## [0.726.1](https://github.com/lightdash/lightdash/compare/0.726.0...0.726.1) (2023-08-07)
 
 
