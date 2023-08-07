@@ -77,8 +77,8 @@ const ActiveFilter: FC<Props> = ({
         >
             <Popover.Target>
                 <Tooltip
-                    withinPortal
-                    position="top-start"
+                    position="bottom"
+                    disabled={isPopoverOpen}
                     label={
                         <Text fs="xs">
                             {filterRuleTables.length === 0
@@ -92,8 +92,12 @@ const ActiveFilter: FC<Props> = ({
                         variant={isTemporary ? 'outline' : 'default'}
                         bg="white"
                         rightIcon={
-                            isEditMode && (
-                                <ActionIcon onClick={onRemove}>
+                            (isEditMode || isTemporary) && (
+                                <ActionIcon
+                                    color="dark"
+                                    size="xs"
+                                    onClick={onRemove}
+                                >
                                     <MantineIcon icon={IconX} />
                                 </ActionIcon>
                             )
@@ -111,7 +115,9 @@ const ActiveFilter: FC<Props> = ({
                             </Text>
                             <Text fw={400} span>
                                 {filterRule.disabled ? (
-                                    <>is any value</>
+                                    <Text span color="gray.6">
+                                        is any value
+                                    </Text>
                                 ) : (
                                     <>
                                         {filterRuleLabels.operator}{' '}
