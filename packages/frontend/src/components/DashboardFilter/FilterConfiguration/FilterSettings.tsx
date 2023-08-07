@@ -30,9 +30,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     onChangeFilterOperator,
     onChangeFilterRule,
 }) => {
-    const [filterLabel, setFilterLabel] = useState<string>(
-        filterRule.label ?? field.label,
-    );
+    const [filterLabel, setFilterLabel] = useState<string>();
     const filterType = field ? getFilterTypeFromItem(field) : FilterType.STRING;
 
     const filterConfig = useMemo(
@@ -50,6 +48,13 @@ const FilterSettings: FC<FilterSettingsProps> = ({
             });
         }
     }, [isEditMode, onChangeFilterRule, filterRule]);
+
+    // Set default label when using revert (undo) button
+    useEffect(() => {
+        if (filterLabel !== '') {
+            setFilterLabel(filterRule.label ?? field.label);
+        }
+    }, [filterLabel, filterRule.label, field.label]);
 
     return (
         <Stack>

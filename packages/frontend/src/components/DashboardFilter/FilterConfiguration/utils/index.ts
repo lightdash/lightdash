@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import produce from 'immer';
 import isEqual from 'lodash-es/isEqual';
-import pick from 'lodash-es/pick';
 
 export const isFilterConfigurationApplyButtonEnabled = (
     filterRule: DashboardFilterRule,
@@ -46,14 +45,18 @@ export const isFilterConfigurationApplyButtonEnabled = (
     }
 };
 
-export const DASHBOARD_FILTER_REVERTABLE_FIELDS = [
-    'label',
-    'values',
-    'operator',
-    'settings',
-];
+export const getFilterRuleRevertableObject = (
+    filterRule: DashboardFilterRule,
+) => {
+    return {
+        values: filterRule.values,
+        operator: filterRule.operator,
+        settings: filterRule.settings,
+        label: filterRule.label,
+    };
+};
 
-export const isFilterConfigurationRevertButtonEnabled = (
+export const isFilterConfigRevertButtonEnabled = (
     originalFilterRule: DashboardFilterRule,
     filterRule: DashboardFilterRule,
 ) => {
@@ -72,7 +75,7 @@ export const isFilterConfigurationRevertButtonEnabled = (
     });
 
     return !isEqual(
-        pick(originalFilterRule, DASHBOARD_FILTER_REVERTABLE_FIELDS),
-        pick(serializedInternalFilterRule, DASHBOARD_FILTER_REVERTABLE_FIELDS),
+        getFilterRuleRevertableObject(originalFilterRule),
+        getFilterRuleRevertableObject(serializedInternalFilterRule),
     );
 };

@@ -17,7 +17,6 @@ import {
 import { Box, Button, Flex, Group, Tabs, Tooltip } from '@mantine/core';
 import { IconRotate2 } from '@tabler/icons-react';
 import produce from 'immer';
-import pick from 'lodash-es/pick';
 import { FC, useCallback, useMemo, useState } from 'react';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import FieldLabel from '../../common/Filters/FieldLabel';
@@ -26,9 +25,9 @@ import { ConfigureFilterWrapper } from './FilterConfiguration.styled';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
 import {
-    DASHBOARD_FILTER_REVERTABLE_FIELDS,
+    getFilterRuleRevertableObject,
+    isFilterConfigRevertButtonEnabled,
     isFilterConfigurationApplyButtonEnabled,
-    isFilterConfigurationRevertButtonEnabled,
 } from './utils';
 
 export enum FilterTabs {
@@ -91,7 +90,7 @@ const FilterConfiguration: FC<Props> = ({
     const isFilterModified = useMemo(() => {
         if (!originalFilterRule) return false;
 
-        return isFilterConfigurationRevertButtonEnabled(
+        return isFilterConfigRevertButtonEnabled(
             originalFilterRule,
             internalFilterRule,
         );
@@ -102,7 +101,7 @@ const FilterConfiguration: FC<Props> = ({
 
         setInternalFilterRule((rule) => ({
             ...rule,
-            ...pick(originalFilterRule, DASHBOARD_FILTER_REVERTABLE_FIELDS),
+            ...getFilterRuleRevertableObject(originalFilterRule),
         }));
     }, [originalFilterRule]);
 
