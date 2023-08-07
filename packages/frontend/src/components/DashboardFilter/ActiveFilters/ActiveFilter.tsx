@@ -29,7 +29,7 @@ const ActiveFilter: FC<Props> = ({
     const { dashboardTiles, allFilterableFields, filterableFieldsByTileUuid } =
         useDashboardContext();
 
-    const [isPopoverOpen, { close: closePopover, open: openPopover }] =
+    const [isPopoverOpen, { close: closePopover, toggle: togglePopover }] =
         useDisclosure();
     const [isSubPopoverOpen, { close: closeSubPopover, open: openSubPopover }] =
         useDisclosure();
@@ -76,7 +76,7 @@ const ActiveFilter: FC<Props> = ({
                         <TagContainer
                             interactive
                             onRemove={onRemove}
-                            onClick={openPopover}
+                            onClick={togglePopover}
                         >
                             {filterRule.label || filterRuleLabels.field}:{' '}
                             {filterRule.disabled ? (
