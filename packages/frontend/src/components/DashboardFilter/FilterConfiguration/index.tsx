@@ -47,7 +47,7 @@ interface Props {
     filterRule?: DashboardFilterRule;
     popoverProps?: Popover2Props;
     selectedTabId?: string;
-    isActiveFilter?: boolean;
+    isCreatingNewFilter?: boolean;
     isEditMode: boolean;
     onTabChange: (tabId: FilterTabs) => void;
     onSave: (value: DashboardFilterRule) => void;
@@ -55,7 +55,7 @@ interface Props {
 }
 
 const FilterConfiguration: FC<Props> = ({
-    isActiveFilter = false,
+    isCreatingNewFilter = false,
     isEditMode,
     selectedTabId = DEFAULT_TAB,
     tiles,
@@ -83,9 +83,9 @@ const FilterConfiguration: FC<Props> = ({
         );
 
     const isFilterModified = useMemo(() => {
-        if (!originalFilterRule || !originalFilterRule) return false;
+        if (!originalFilterRule) return false;
 
-        // fix serialization of date fields
+        // fixes serialization of date values
         const serializedInternalFilterRule = produce(
             internalFilterRule,
             (draft) => {
@@ -175,7 +175,7 @@ const FilterConfiguration: FC<Props> = ({
                 value={selectedTabId}
                 onTabChange={(tabId: FilterTabs) => onTabChange(tabId)}
             >
-                {isEditMode || !isActiveFilter ? (
+                {isCreatingNewFilter || isEditMode ? (
                     <Tabs.List mb="md">
                         <Tooltip
                             label="Select the value you want to filter your dimension by"
@@ -226,7 +226,7 @@ const FilterConfiguration: FC<Props> = ({
                 <Box sx={{ flexGrow: 1 }} />
 
                 {isFilterModified && (
-                    <Tooltip label="Reset to original value">
+                    <Tooltip label="Reset to original value" position="left">
                         <Button
                             size="xs"
                             variant="default"

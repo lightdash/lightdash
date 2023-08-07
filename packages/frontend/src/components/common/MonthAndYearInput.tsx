@@ -23,6 +23,7 @@ const MonthAndYearInput: FC<Props> = ({ value, onChange, ...props }) => {
                 withArrow: true,
                 withinPortal: false,
                 shadow: 'md',
+                // FIXME: remove this once we migrate off of Blueprint
                 ...props.popoverProps,
                 opened: isPopoverOpen,
                 onOpen: () => {

@@ -106,7 +106,6 @@ const ActiveFilter: FC<Props> = ({
             <Popover.Dropdown p={0}>
                 <FilterModalContainer $wide={selectedTabId === 'tiles'}>
                     <FilterConfiguration
-                        isActiveFilter
                         isEditMode={isEditMode}
                         tiles={dashboardTiles}
                         selectedTabId={selectedTabId}
@@ -119,7 +118,7 @@ const ActiveFilter: FC<Props> = ({
                             onUpdate(dashboardFilterRule);
                             handleClose();
                         }}
-                        // FIXME: get rid of this once we migrate off Blueprint
+                        // FIXME: remove this once we migrate off of Blueprint
                         popoverProps={{
                             onOpened: () => openSubPopover(),
                             onOpening: () => openSubPopover(),
