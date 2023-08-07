@@ -8,8 +8,8 @@ import {
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
 } from '@lightdash/common';
-import { Stack, Switch, TextInput } from '@mantine/core';
-import { FC, useEffect, useMemo } from 'react';
+import { Stack, Switch, TextInput, Tooltip } from '@mantine/core';
+import { FC, useEffect, useMemo, useState } from 'react';
 import { FilterTypeConfig } from '../../common/Filters/configs';
 import { getPlaceholderByFilterTypeAndOperator } from '../../common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 
@@ -30,6 +30,9 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     onChangeFilterOperator,
     onChangeFilterRule,
 }) => {
+    const [filterLabel, setFilterLabel] = useState<string>(
+        filterRule.label ?? field.label,
+    );
     const filterType = field ? getFilterTypeFromItem(field) : FilterType.STRING;
 
     const filterConfig = useMemo(
@@ -52,26 +55,39 @@ const FilterSettings: FC<FilterSettingsProps> = ({
         <Stack>
             <Stack spacing="xs">
                 {isEditMode && (
-                    <Switch
-                        label="Default value"
-                        labelPosition="left"
-                        checked={!filterRule.disabled}
-                        onChange={(e) => {
-                            const newFilter: DashboardFilterRule = {
-                                ...filterRule,
-                                disabled: !e.currentTarget.checked,
-                            };
+                    <Tooltip
+                        withinPortal
+                        position="right"
+                        label={
+                            filterRule.disabled
+                                ? 'Toggle on to set a default filter value'
+                                : 'Toggle off to leave the filter value empty, allowing users to populate it in view mode'
+                        }
+                        openDelay={500}
+                    >
+                        <div style={{ width: 'max-content' }}>
+                            <Switch
+                                label="Default value"
+                                labelPosition="left"
+                                checked={!filterRule.disabled}
+                                onChange={(e) => {
+                                    const newFilter: DashboardFilterRule = {
+                                        ...filterRule,
+                                        disabled: !e.currentTarget.checked,
+                                    };
 
-                            onChangeFilterRule(
-                                e.currentTarget.checked
-                                    ? newFilter
-                                    : getFilterRuleWithDefaultValue(
-                                          field,
-                                          newFilter,
-                                      ),
-                            );
-                        }}
-                    />
+                                    onChangeFilterRule(
+                                        e.currentTarget.checked
+                                            ? newFilter
+                                            : getFilterRuleWithDefaultValue(
+                                                  field,
+                                                  newFilter,
+                                              ),
+                                    );
+                                }}
+                            />
+                        </div>
+                    </Tooltip>
                 )}
 
                 <HTMLSelect
@@ -111,15 +127,16 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 
             {isEditMode && (
                 <TextInput
-                    label="Label"
-                    onChange={(e) =>
+                    label="Filter label"
+                    onChange={(e) => {
+                        setFilterLabel(e.target.value);
                         onChangeFilterRule({
                             ...filterRule,
                             label: e.target.value || undefined,
-                        })
-                    }
-                    placeholder={`Defaults to "${field.label}"`}
-                    value={filterRule.label || ''}
+                        });
+                    }}
+                    placeholder={`Label for ${field.label}`}
+                    value={filterLabel}
                 />
             )}
         </Stack>
