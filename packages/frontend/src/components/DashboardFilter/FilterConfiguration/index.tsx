@@ -225,7 +225,7 @@ const FilterConfiguration: FC<Props> = ({
 
                 <Box sx={{ flexGrow: 1 }} />
 
-                {isFilterModified && (
+                {isFilterModified && selectedTabId === FilterTabs.SETTINGS && (
                     <Tooltip label="Reset to original value" position="left">
                         <Button
                             size="xs"
