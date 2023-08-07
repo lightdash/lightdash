@@ -41,6 +41,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     savedData,
     onClose,
     defaultSpaceUuid,
+    onConfirm,
     ...modalProps
 }) => {
     const fromDashboard = sessionStorage.getItem('fromDashboard');
@@ -98,7 +99,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
               })
             : undefined;
 
-        const savedQuery = mutateAsync({
+        const savedQuery = await mutateAsync({
             ...savedData,
             name,
             description,
@@ -110,6 +111,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         setNewSpaceName('');
         setSpaceUuid(undefined);
         setShouldCreateNewSpace(false);
+        onConfirm(savedQuery);
         return savedQuery;
     }, [
         name,
@@ -120,6 +122,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         createSpaceAsync,
         mutateAsync,
         showSpaceInput,
+        onConfirm,
     ]);
 
     const handleSaveChartInDashboard = useCallback(async () => {
