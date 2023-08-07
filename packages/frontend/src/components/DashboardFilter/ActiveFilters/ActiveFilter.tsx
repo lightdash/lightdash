@@ -31,7 +31,7 @@ const ActiveFilter: FC<Props> = ({
 
     const [isPopoverOpen, { close: closePopover, open: openPopover }] =
         useDisclosure();
-    const [_, { close: closeSubPopover, open: openSubPopover }] =
+    const [isSubPopoverOpen, { close: closeSubPopover, open: openSubPopover }] =
         useDisclosure();
 
     const handleClose = useCallback(() => {
@@ -58,6 +58,8 @@ const ActiveFilter: FC<Props> = ({
             withArrow
             shadow="md"
             opened={isPopoverOpen}
+            closeOnEscape={!isSubPopoverOpen}
+            closeOnClickOutside={!isSubPopoverOpen}
             onClose={handleClose}
         >
             <Popover.Target>
