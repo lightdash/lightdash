@@ -16,8 +16,7 @@ interface Props {
 
 const DashboardFilter: FC<Props> = ({ isEditMode }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const [isOpen, setIsOpen] = useState(false);
-    const [isSubmenuOpen, setIsSubmenuOpen] = useState(false);
+    const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
 
     const project = useProject(projectUuid);
     const {
@@ -32,11 +31,6 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
             (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
         ).length >= 1;
 
-    const handleClose = () => {
-        setIsSubmenuOpen(false);
-        setIsOpen(false);
-    };
-
     return (
         <FiltersProvider
             projectUuid={projectUuid}
@@ -46,10 +40,10 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
         >
             <Flex gap={3} mb={2}>
                 <Popover
+                    trapFocus
+                    opened={isFilterPopoverOpen}
                     disabled={!hasChartTiles}
-                    onOpen={() => setIsOpen(true)}
-                    onClose={handleClose}
-                    closeOnEscape={!isSubmenuOpen}
+                    onClose={() => setIsFilterPopoverOpen(false)}
                     transitionProps={{
                         transition: 'pop',
                     }}
@@ -59,7 +53,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                 >
                     <Popover.Target>
                         <Tooltip
-                            disabled={isOpen || isEditMode}
+                            disabled={isFilterPopoverOpen || isEditMode}
                             position="bottom"
                             openDelay={500}
                             label={
@@ -79,6 +73,11 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                                     />
                                 }
                                 disabled={!hasChartTiles}
+                                onClick={() =>
+                                    setIsFilterPopoverOpen(
+                                        (prevIsOpen) => !prevIsOpen,
+                                    )
+                                }
                             >
                                 Add filter
                             </Button>
@@ -90,14 +89,10 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                             isEditMode={isEditMode}
                             fields={allFilterableFields || []}
                             popoverProps={{
-                                onOpened: () => setIsSubmenuOpen(true),
-                                onOpening: () => setIsSubmenuOpen(true),
-                                onClose: () => setIsSubmenuOpen(false),
-                                onClosing: () => setIsSubmenuOpen(false),
                                 usePortal: false,
                             }}
-                            onClose={handleClose}
-                            onSelectField={handleClose}
+                            onClose={() => setIsFilterPopoverOpen(false)}
+                            onSelectField={() => {}}
                         />
                     </Popover.Dropdown>
                 </Popover>
