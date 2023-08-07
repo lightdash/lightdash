@@ -39,6 +39,7 @@ const YearInput: FC<Props> = ({ value, onChange, ...props }) => {
             onChange={(date) => {
                 if (!date || Array.isArray(date)) return;
                 onChange(date);
+                close();
             }}
         />
     );

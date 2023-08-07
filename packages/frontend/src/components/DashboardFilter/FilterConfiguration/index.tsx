@@ -15,10 +15,13 @@ import {
     matchFieldExact,
 } from '@lightdash/common';
 import { Box, Button, Flex, Group, Tabs, Tooltip } from '@mantine/core';
+import { IconRotate2 } from '@tabler/icons-react';
 import produce from 'immer';
-import { FC, useCallback, useState } from 'react';
+import isEqual from 'lodash-es/isEqual';
+import { FC, useCallback, useMemo, useState } from 'react';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import FieldLabel from '../../common/Filters/FieldLabel';
+import MantineIcon from '../../common/MantineIcon';
 import { ConfigureFilterWrapper } from './FilterConfiguration.styled';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
@@ -40,6 +43,7 @@ interface Props {
     tiles: DashboardTile[];
     field: FilterableField;
     availableTileFilters: Record<string, FilterableField[] | undefined>;
+    originalFilterRule?: DashboardFilterRule;
     filterRule?: DashboardFilterRule;
     popoverProps?: Popover2Props;
     selectedTabId?: string;
@@ -57,6 +61,7 @@ const FilterConfiguration: FC<Props> = ({
     tiles,
     field,
     availableTileFilters,
+    originalFilterRule,
     filterRule,
     popoverProps,
     onSave,
@@ -76,6 +81,31 @@ const FilterConfiguration: FC<Props> = ({
                       availableTileFilters,
                   ),
         );
+
+    const isFilterModified = useMemo(() => {
+        if (!originalFilterRule || !originalFilterRule) return false;
+
+        // fix serialization of date fields
+        const serializedInternalFilterRule = produce(
+            internalFilterRule,
+            (draft) => {
+                if (draft.values && draft.values.length > 0) {
+                    draft.values = draft.values.map((v) => v.toString());
+                }
+            },
+        );
+
+        const originalFilterRuleWithTileTargets = applyDefaultTileTargets(
+            originalFilterRule,
+            field,
+            availableTileFilters,
+        );
+
+        return !isEqual(
+            originalFilterRuleWithTileTargets,
+            serializedInternalFilterRule,
+        );
+    }, [originalFilterRule, internalFilterRule, field, availableTileFilters]);
 
     const handleChangeFilterRule = useCallback(
         (newFilterRule: DashboardFilterRule) => {
@@ -184,7 +214,7 @@ const FilterConfiguration: FC<Props> = ({
                 </Tabs.Panel>
             </Tabs>
 
-            <Flex>
+            <Flex gap="sm">
                 {onBack && (
                     <Button size="xs" variant="subtle" onClick={onBack}>
                         Back
@@ -192,6 +222,22 @@ const FilterConfiguration: FC<Props> = ({
                 )}
 
                 <Box sx={{ flexGrow: 1 }} />
+
+                {isFilterModified && (
+                    <Tooltip label="Reset to original value">
+                        <Button
+                            size="xs"
+                            variant="default"
+                            color="gray"
+                            onClick={() => {
+                                if (!originalFilterRule) return;
+                                handleChangeFilterRule(originalFilterRule);
+                            }}
+                        >
+                            <MantineIcon icon={IconRotate2} />
+                        </Button>
+                    </Tooltip>
+                )}
 
                 <Button
                     size="xs"

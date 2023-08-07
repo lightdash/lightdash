@@ -26,8 +26,16 @@ const ActiveFilter: FC<Props> = ({
     onRemove,
     onUpdate,
 }) => {
-    const { dashboardTiles, allFilterableFields, filterableFieldsByTileUuid } =
-        useDashboardContext();
+    const {
+        dashboard,
+        dashboardTiles,
+        allFilterableFields,
+        filterableFieldsByTileUuid,
+    } = useDashboardContext();
+
+    const originalFilterRule = dashboard?.filters?.dimensions.find(
+        (item) => item.id === filterRule.id,
+    );
 
     const [isPopoverOpen, { close: closePopover, toggle: togglePopover }] =
         useDisclosure();
@@ -104,6 +112,7 @@ const ActiveFilter: FC<Props> = ({
                         selectedTabId={selectedTabId}
                         field={field}
                         availableTileFilters={filterableFieldsByTileUuid}
+                        originalFilterRule={originalFilterRule}
                         filterRule={filterRule}
                         onTabChange={setSelectedTabId}
                         onSave={(dashboardFilterRule) => {

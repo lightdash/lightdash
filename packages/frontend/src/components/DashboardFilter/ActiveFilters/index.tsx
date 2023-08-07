@@ -41,6 +41,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
                         }
                     />
                 ))}
+
             {dashboardTemporaryFilters.dimensions
                 .filter((item) => !!fieldMap[item.target.fieldId])
                 .map((item, index) => (
