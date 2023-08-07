@@ -1,3 +1,10 @@
+## [0.727.1](https://github.com/lightdash/lightdash/compare/0.727.0...0.727.1) (2023-08-07)
+
+
+### Bug Fixes
+
+* show dashboard unsaved changes alert in chartindash flow ([#6623](https://github.com/lightdash/lightdash/issues/6623)) ([8f685f8](https://github.com/lightdash/lightdash/commit/8f685f868b53421797836cc3bbdfc3e7159ca1d1))
+
 # [0.727.0](https://github.com/lightdash/lightdash/compare/0.726.1...0.727.0) (2023-08-07)
 
 
