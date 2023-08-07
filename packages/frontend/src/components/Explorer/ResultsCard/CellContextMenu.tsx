@@ -42,15 +42,17 @@ const CellContextMenu: FC<
     const value: ResultValue = cell.getValue()?.value || {};
     const fieldValues = mapValues(cell.row.original, (v) => v?.value) || {};
 
-    console.log(item);
-
-    let isComplex = false;
-    let parseResult = {};
-    try {
-        parseResult = JSON.parse(String(value.raw));
-        isComplex = typeof parseResult !== 'number';
-    } catch {
-        isComplex = false;
+    let parseResult: null | object = null;
+    if (
+        !!value.raw &&
+        typeof value.raw === 'string' &&
+        (value.raw.startsWith('{') || value.raw.startsWith('['))
+    ) {
+        try {
+            parseResult = JSON.parse(String(value.raw));
+        } catch {
+            // Do nothing
+        }
     }
 
     return (
@@ -74,7 +76,7 @@ const CellContextMenu: FC<
                 <MenuItem2 text="Copy value" icon="duplicate" />
             </CopyToClipboard>
 
-            {isComplex && (
+            {parseResult !== null && (
                 <MenuItem2
                     text="Expand"
                     icon="eye-open"
@@ -83,7 +85,7 @@ const CellContextMenu: FC<
                             item && 'displayName' in item
                                 ? item.displayName
                                 : item?.name || '',
-                            parseResult,
+                            parseResult || {},
                         )
                     }
                 />

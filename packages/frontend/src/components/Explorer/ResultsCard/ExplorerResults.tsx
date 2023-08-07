@@ -1,14 +1,14 @@
 import { Field, getItemMap, TableCalculation } from '@lightdash/common';
-import { Box, Modal, Text } from '@mantine/core';
+import { Box, Text } from '@mantine/core';
 import { FC, memo, useCallback, useMemo, useState } from 'react';
 
-import ReactJson from 'react-json-view';
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import Table from '../../common/Table';
+import { JsonViewerModal } from '../../JsonViewerModal';
 import CellContextMenu from './CellContextMenu';
 import ColumnHeaderContextMenu from './ColumnHeaderContextMenu';
 import {
@@ -56,11 +56,19 @@ export const ExplorerResults = memo(() => {
     const [isExpandModalOpened, setIsExpandModalOpened] = useState(false);
     const [expandData, setExpandData] = useState<{
         name: string;
-        data: object;
+        jsonObject: object;
     }>({
         name: 'unknown',
-        data: {},
+        jsonObject: {},
     });
+
+    const handleCellExpand = (name: string, data: object) => {
+        setExpandData({
+            name: name,
+            jsonObject: data,
+        });
+        setIsExpandModalOpened(true);
+    };
 
     const itemsMap: Record<string, Field | TableCalculation> | undefined =
         useMemo(() => {
@@ -80,13 +88,7 @@ export const ExplorerResults = memo(() => {
                 isEditMode={isEditMode}
                 {...props}
                 itemsMap={itemsMap}
-                onExpand={(name, data) => {
-                    setExpandData({
-                        name: name,
-                        data: data,
-                    });
-                    setIsExpandModalOpened(true);
-                }}
+                onExpand={handleCellExpand}
             />
         ),
         [isEditMode, itemsMap],
@@ -156,13 +158,12 @@ export const ExplorerResults = memo(() => {
                     pagination={pagination}
                     footer={footer}
                 />
-                <Modal
+                <JsonViewerModal
+                    heading={`Field: ${expandData.name}`}
+                    jsonObject={expandData.jsonObject}
                     opened={isExpandModalOpened}
                     onClose={() => setIsExpandModalOpened(false)}
-                    title={expandData.name}
-                >
-                    <ReactJson src={expandData.data} />
-                </Modal>
+                />
             </Box>
         </TrackSection>
     );
