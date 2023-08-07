@@ -74,6 +74,7 @@ const ActiveFilter: FC<Props> = ({
             closeOnEscape={!isSubPopoverOpen}
             closeOnClickOutside={!isSubPopoverOpen}
             onClose={handleClose}
+            offset={-1}
         >
             <Popover.Target>
                 <Tooltip

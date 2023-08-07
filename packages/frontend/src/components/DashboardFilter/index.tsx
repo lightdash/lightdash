@@ -40,6 +40,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
         >
             <Flex gap={3} mb={8} ml={8} wrap="wrap">
                 <Popover
+                    position="bottom-start"
                     trapFocus
                     opened={isFilterPopoverOpen}
                     disabled={!hasChartTiles}
