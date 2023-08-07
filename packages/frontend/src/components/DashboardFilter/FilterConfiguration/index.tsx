@@ -17,7 +17,7 @@ import {
 import { Box, Button, Flex, Group, Tabs, Tooltip } from '@mantine/core';
 import { IconRotate2 } from '@tabler/icons-react';
 import produce from 'immer';
-import isEqual from 'lodash-es/isEqual';
+import pick from 'lodash-es/pick';
 import { FC, useCallback, useMemo, useState } from 'react';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import FieldLabel from '../../common/Filters/FieldLabel';
@@ -25,7 +25,11 @@ import MantineIcon from '../../common/MantineIcon';
 import { ConfigureFilterWrapper } from './FilterConfiguration.styled';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
-import { isFilterConfigurationApplyButtonEnabled } from './utils';
+import {
+    DASHBOARD_FILTER_REVERTABLE_FIELDS,
+    isFilterConfigurationApplyButtonEnabled,
+    isFilterConfigurationRevertButtonEnabled,
+} from './utils';
 
 export enum FilterTabs {
     SETTINGS = 'settings',
@@ -87,36 +91,20 @@ const FilterConfiguration: FC<Props> = ({
     const isFilterModified = useMemo(() => {
         if (!originalFilterRule) return false;
 
-        if (
-            originalFilterRule.disabled &&
-            internalFilterRule.values === undefined
-        ) {
-            return false;
-        }
-
-        // fixes serialization of date values
-        const serializedInternalFilterRule = produce(
-            internalFilterRule,
-            (draft) => {
-                if (draft.values && draft.values.length > 0) {
-                    draft.values = draft.values.map((v) =>
-                        v instanceof Date ? v.toISOString() : v,
-                    );
-                }
-            },
-        );
-
-        const originalFilterRuleWithTileTargets = applyDefaultTileTargets(
+        return isFilterConfigurationRevertButtonEnabled(
             originalFilterRule,
-            field,
-            availableTileFilters,
+            internalFilterRule,
         );
+    }, [originalFilterRule, internalFilterRule]);
 
-        return !isEqual(
-            originalFilterRuleWithTileTargets,
-            serializedInternalFilterRule,
-        );
-    }, [originalFilterRule, internalFilterRule, field, availableTileFilters]);
+    const handleRevert = useCallback(() => {
+        if (!originalFilterRule) return;
+
+        setInternalFilterRule((rule) => ({
+            ...rule,
+            ...pick(originalFilterRule, DASHBOARD_FILTER_REVERTABLE_FIELDS),
+        }));
+    }, [originalFilterRule]);
 
     const handleChangeFilterRule = useCallback(
         (newFilterRule: DashboardFilterRule) => {
@@ -245,10 +233,7 @@ const FilterConfiguration: FC<Props> = ({
                                 size="xs"
                                 variant="default"
                                 color="gray"
-                                onClick={() => {
-                                    if (!originalFilterRule) return;
-                                    handleChangeFilterRule(originalFilterRule);
-                                }}
+                                onClick={handleRevert}
                             >
                                 <MantineIcon icon={IconRotate2} />
                             </Button>
