@@ -1,5 +1,4 @@
 import { FieldId, fieldId, FilterableField } from '@lightdash/common';
-import { Flex } from '@mantine/core';
 import { FC } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import ActiveFilter from './ActiveFilter';
@@ -24,7 +23,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
     >((acc, field) => ({ ...acc, [fieldId(field)]: field }), {});
 
     return (
-        <Flex gap={4} wrap="wrap" mb={8}>
+        <>
             {dashboardFilters.dimensions
                 .filter((item) => !!fieldMap[item.target.fieldId])
                 .map((item, index) => (
@@ -60,7 +59,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
                         isTemporary
                     />
                 ))}
-        </Flex>
+        </>
     );
 };
 

@@ -120,7 +120,9 @@ const ActiveFilter: FC<Props> = ({
                                     </Text>
                                 ) : (
                                     <>
-                                        {filterRuleLabels.operator}{' '}
+                                        <Text span color="gray.7">
+                                            {filterRuleLabels.operator}{' '}
+                                        </Text>
                                         <Text fw={700} span>
                                             {filterRuleLabels.value}
                                         </Text>
