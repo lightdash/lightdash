@@ -78,7 +78,7 @@ const ActiveFilter: FC<Props> = ({
         >
             <Popover.Target>
                 <Tooltip
-                    position="bottom"
+                    position="top-start"
                     disabled={isPopoverOpen}
                     label={
                         <Text fs="xs">
