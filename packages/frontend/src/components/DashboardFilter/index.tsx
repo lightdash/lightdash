@@ -38,7 +38,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
             startOfWeek={project.data?.warehouseConnection?.startOfWeek}
             dashboardFilters={allFilters}
         >
-            <Flex gap={3} mb={2}>
+            <Flex gap={3} mb={2} ml={8}>
                 <Popover
                     trapFocus
                     opened={isFilterPopoverOpen}
