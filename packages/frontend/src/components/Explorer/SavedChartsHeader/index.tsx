@@ -128,6 +128,7 @@ const SavedChartsHeader: FC = () => {
             if (
                 hasUnsavedChanges &&
                 isEditMode &&
+                !isQueryModalOpen &&
                 !prompt.pathname.includes(
                     `/projects/${projectUuid}/saved/${savedChart?.uuid}`,
                 ) &&
@@ -153,6 +154,7 @@ const SavedChartsHeader: FC = () => {
         hasUnsavedChanges,
         setIsSaveWarningModalOpen,
         isEditMode,
+        isQueryModalOpen,
     ]);
 
     const userCanManageCharts = user.data?.ability?.can(
