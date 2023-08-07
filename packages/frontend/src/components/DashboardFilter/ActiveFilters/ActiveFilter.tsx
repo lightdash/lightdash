@@ -13,6 +13,7 @@ import { FilterValues, TagContainer } from './ActiveFilters.styles';
 
 type Props = {
     isEditMode: boolean;
+    isTemporary?: boolean;
     field: FilterableField;
     filterRule: DashboardFilterRule;
     onRemove: () => void;
@@ -21,6 +22,7 @@ type Props = {
 
 const ActiveFilter: FC<Props> = ({
     isEditMode,
+    isTemporary,
     field,
     filterRule,
     onRemove,
@@ -107,6 +109,7 @@ const ActiveFilter: FC<Props> = ({
                 <FilterModalContainer $wide={selectedTabId === 'tiles'}>
                     <FilterConfiguration
                         isEditMode={isEditMode}
+                        isTemporary={isTemporary}
                         tiles={dashboardTiles}
                         selectedTabId={selectedTabId}
                         field={field}

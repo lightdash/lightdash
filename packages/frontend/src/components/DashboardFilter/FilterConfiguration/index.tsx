@@ -47,16 +47,18 @@ interface Props {
     filterRule?: DashboardFilterRule;
     popoverProps?: Popover2Props;
     selectedTabId?: string;
-    isCreatingNewFilter?: boolean;
     isEditMode: boolean;
+    isCreatingNew?: boolean;
+    isTemporary?: boolean;
     onTabChange: (tabId: FilterTabs) => void;
     onSave: (value: DashboardFilterRule) => void;
     onBack?: () => void;
 }
 
 const FilterConfiguration: FC<Props> = ({
-    isCreatingNewFilter = false,
     isEditMode,
+    isCreatingNew = false,
+    isTemporary = false,
     selectedTabId = DEFAULT_TAB,
     tiles,
     field,
@@ -182,7 +184,7 @@ const FilterConfiguration: FC<Props> = ({
                 value={selectedTabId}
                 onTabChange={(tabId: FilterTabs) => onTabChange(tabId)}
             >
-                {isCreatingNewFilter || isEditMode ? (
+                {isCreatingNew || isEditMode || isTemporary ? (
                     <Tabs.List mb="md">
                         <Tooltip
                             label="Select the value you want to filter your dimension by"

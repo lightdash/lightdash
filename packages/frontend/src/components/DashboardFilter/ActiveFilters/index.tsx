@@ -47,6 +47,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
                 .map((item, index) => (
                     <ActiveFilter
                         key={item.id}
+                        isTemporary
                         isEditMode={isEditMode}
                         field={fieldMap[item.target.fieldId]}
                         filterRule={item}
