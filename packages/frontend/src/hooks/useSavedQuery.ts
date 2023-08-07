@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import {
     useMutation,
+    UseMutationOptions,
     useQuery,
     useQueryClient,
     UseQueryOptions,
@@ -184,7 +185,11 @@ export const useUpdateMutation = (
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
 
-    return useMutation<SavedChart, ApiError, UpdateSavedChart>(
+    return useMutation<
+        SavedChart,
+        ApiError,
+        Pick<UpdateSavedChart, 'name' | 'description'>
+    >(
         (data) => {
             if (savedQueryUuid) {
                 return updateSavedQuery(savedQueryUuid, data);
@@ -225,7 +230,13 @@ export const useUpdateMutation = (
     );
 };
 
-export const useMoveChartMutation = () => {
+export const useMoveChartMutation = (
+    options?: UseMutationOptions<
+        SavedChart,
+        ApiError,
+        Pick<SavedChart, 'uuid' | 'spaceUuid'>
+    >,
+) => {
     const history = useHistory();
     const queryClient = useQueryClient();
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -234,37 +245,35 @@ export const useMoveChartMutation = () => {
     return useMutation<
         SavedChart,
         ApiError,
-        Pick<SavedChart, 'uuid' | 'name' | 'spaceUuid'>
-    >(
-        ({ uuid, name, spaceUuid }) =>
-            updateSavedQuery(uuid, { name, spaceUuid }),
-        {
-            mutationKey: ['saved_query_move'],
-            onSuccess: async (data) => {
-                await queryClient.invalidateQueries('spaces');
-                await queryClient.invalidateQueries(['space', projectUuid]);
+        Pick<SavedChart, 'uuid' | 'spaceUuid'>
+    >(({ uuid, spaceUuid }) => updateSavedQuery(uuid, { spaceUuid }), {
+        mutationKey: ['saved_query_move'],
+        ...options,
+        onSuccess: async (data, _, __) => {
+            await queryClient.invalidateQueries('spaces');
+            await queryClient.invalidateQueries(['space', projectUuid]);
 
-                queryClient.setQueryData(['saved_query', data.uuid], data);
-                showToastSuccess({
-                    title: `Chart has been moved to ${data.spaceName}`,
-                    action: {
-                        text: 'Go to space',
-                        icon: 'arrow-right',
-                        onClick: () =>
-                            history.push(
-                                `/projects/${projectUuid}/spaces/${data.spaceUuid}`,
-                            ),
-                    },
-                });
-            },
-            onError: (error) => {
-                showToastError({
-                    title: `Failed to move chart`,
-                    subtitle: error.error.message,
-                });
-            },
+            queryClient.setQueryData(['saved_query', data.uuid], data);
+            showToastSuccess({
+                title: `Chart has been moved to ${data.spaceName}`,
+                action: {
+                    text: 'Go to space',
+                    icon: 'arrow-right',
+                    onClick: () =>
+                        history.push(
+                            `/projects/${projectUuid}/spaces/${data.spaceUuid}`,
+                        ),
+                },
+            });
+            options?.onSuccess?.(data, _, __);
         },
-    );
+        onError: (error) => {
+            showToastError({
+                title: `Failed to move chart`,
+                subtitle: error.error.message,
+            });
+        },
+    });
 };
 
 export const useCreateMutation = () => {

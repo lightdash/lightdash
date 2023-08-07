@@ -127,7 +127,6 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
             case ResourceViewItemType.CHART:
                 return moveChart({
                     uuid: action.item.data.uuid,
-                    name: action.item.data.name,
                     ...action.data,
                 });
             case ResourceViewItemType.DASHBOARD:
