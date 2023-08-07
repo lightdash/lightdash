@@ -54,7 +54,7 @@ describe('Dashboard', () => {
         cy.contains('bank_transfer').should('have.length', 0);
     });
 
-    it.only('Should create dashboard with tiles', () => {
+    it('Should create dashboard with tiles', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
         cy.contains('Create dashboard').click();
