@@ -53,6 +53,9 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                     transitionProps={{
                         transition: 'pop',
                     }}
+                    withArrow
+                    shadow="md"
+                    offset={-1}
                 >
                     <Popover.Target>
                         <Tooltip
