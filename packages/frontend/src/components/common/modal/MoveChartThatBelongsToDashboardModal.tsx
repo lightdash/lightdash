@@ -55,7 +55,7 @@ const MoveChartThatBelongsToDashboardModal: FC<Props> = ({
                 <Text>
                     This chart was created from within the dashboard, moving the
                     chart to the space will make it available in chart lists
-                    across the app.
+                    across the app. This change can not be undone.
                 </Text>
 
                 <Group position="right" spacing="xs">
