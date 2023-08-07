@@ -90,7 +90,9 @@ const FilterConfiguration: FC<Props> = ({
             internalFilterRule,
             (draft) => {
                 if (draft.values && draft.values.length > 0) {
-                    draft.values = draft.values.map((v) => v.toString());
+                    draft.values = draft.values.map((v) =>
+                        v instanceof Date ? v.toISOString() : v,
+                    );
                 }
             },
         );

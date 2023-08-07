@@ -119,6 +119,7 @@ const ActiveFilter: FC<Props> = ({
                             onUpdate(dashboardFilterRule);
                             handleClose();
                         }}
+                        // FIXME: get rid of this once we migrate off Blueprint
                         popoverProps={{
                             onOpened: () => openSubPopover(),
                             onOpening: () => openSubPopover(),
