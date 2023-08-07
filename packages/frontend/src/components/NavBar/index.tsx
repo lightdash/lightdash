@@ -125,9 +125,9 @@ const NavBar = memo(() => {
                 sessionStorage.clear();
             }
         };
-        window.addEventListener('beforeunload', clearDashboardStorage);
+        window.addEventListener('unload', clearDashboardStorage);
         return () =>
-            window.removeEventListener('beforeunload', clearDashboardStorage);
+            window.removeEventListener('unload', clearDashboardStorage);
     }, [fromDashboard]);
 
     if (fromDashboard && dashboardUuid) {

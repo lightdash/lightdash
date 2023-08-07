@@ -35,8 +35,13 @@ const AddTileButton: FC<Props> = ({ onAddTiles, intent, popoverPosition }) => {
     const { projectUuid } = useParams<{
         projectUuid: string;
     }>();
-    const { dashboard, dashboardTiles, dashboardFilters } =
-        useDashboardContext();
+    const {
+        dashboard,
+        dashboardTiles,
+        dashboardFilters,
+        haveTilesChanged,
+        haveFiltersChanged,
+    } = useDashboardContext();
     const history = useHistory();
 
     return (
@@ -93,6 +98,13 @@ const AddTileButton: FC<Props> = ({ onAddTiles, intent, popoverPosition }) => {
                                                 ),
                                             );
                                         }
+                                        sessionStorage.setItem(
+                                            'hasDashboardChanges',
+                                            JSON.stringify(
+                                                haveTilesChanged ||
+                                                    haveFiltersChanged,
+                                            ),
+                                        );
                                         history.push(
                                             `/projects/${projectUuid}/tables`,
                                         );
