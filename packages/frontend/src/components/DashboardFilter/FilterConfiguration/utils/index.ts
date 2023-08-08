@@ -3,6 +3,8 @@ import {
     DashboardFilterRule,
     FilterOperator,
 } from '@lightdash/common';
+import produce from 'immer';
+import isEqual from 'lodash-es/isEqual';
 
 export const isFilterConfigurationApplyButtonEnabled = (
     filterRule: DashboardFilterRule,
@@ -41,4 +43,39 @@ export const isFilterConfigurationApplyButtonEnabled = (
         default:
             return assertUnreachable(filterRule.operator, 'unknown operator');
     }
+};
+
+export const getFilterRuleRevertableObject = (
+    filterRule: DashboardFilterRule,
+) => {
+    return {
+        values: filterRule.values,
+        operator: filterRule.operator,
+        settings: filterRule.settings,
+        label: filterRule.label,
+    };
+};
+
+export const isFilterConfigRevertButtonEnabled = (
+    originalFilterRule: DashboardFilterRule,
+    filterRule: DashboardFilterRule,
+) => {
+    if (originalFilterRule.disabled && filterRule.values === undefined) {
+        return false;
+    }
+
+    // FIXME: remove this once we fix Date value serialization.
+    // example: with date inputs we get a Date object originally but a string after we save the filter
+    const serializedInternalFilterRule = produce(filterRule, (draft) => {
+        if (draft.values && draft.values.length > 0) {
+            draft.values = draft.values.map((v) =>
+                v instanceof Date ? v.toISOString() : v,
+            );
+        }
+    });
+
+    return !isEqual(
+        getFilterRuleRevertableObject(originalFilterRule),
+        getFilterRuleRevertableObject(serializedInternalFilterRule),
+    );
 };

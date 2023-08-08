@@ -41,11 +41,13 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
                         }
                     />
                 ))}
+
             {dashboardTemporaryFilters.dimensions
                 .filter((item) => !!fieldMap[item.target.fieldId])
                 .map((item, index) => (
                     <ActiveFilter
                         key={item.id}
+                        isTemporary
                         isEditMode={isEditMode}
                         field={fieldMap[item.target.fieldId]}
                         filterRule={item}
