@@ -164,7 +164,7 @@ export type PasswordValidationResult = {
 export function validatePassword(password: string): PasswordValidationResult {
     const minLength = 8;
     const hasLetter = /[a-zA-Z]/.test(password);
-    const hasNumberOrSymbol = /[\d\W]/.test(password);
+    const hasNumberOrSymbol = /[\d\W_]/.test(password);
     const isLengthValid = password.length >= minLength;
     const isPasswordValid = isLengthValid && hasLetter && hasNumberOrSymbol;
 

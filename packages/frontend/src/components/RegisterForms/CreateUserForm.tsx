@@ -1,9 +1,9 @@
 import {
     CreateUserArgs,
+    PasswordValidationResult,
     validateEmail,
     validatePassword,
 } from '@lightdash/common';
-import { PasswordValidationResult } from '@lightdash/common/src/types/passwordValidationResult';
 import { Button, Flex, PasswordInput, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import React, { FC, useState } from 'react';
@@ -38,10 +38,6 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                     : 'Your email address is not valid',
         },
     });
-
-    const handleChange = (password: string) => {
-        setValidationResult(validatePassword(password));
-    };
 
     return (
         <form name="register" onSubmit={form.onSubmit(onSubmit)}>
@@ -80,7 +76,9 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                     required
                     {...form.getInputProps('password')}
                     onChange={(event) => {
-                        handleChange(event.currentTarget.value);
+                        setValidationResult(
+                            validatePassword(event.currentTarget.value),
+                        );
                         form.getInputProps('password').onChange(event);
                     }}
                     data-cy="password-input"

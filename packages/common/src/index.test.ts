@@ -90,7 +90,12 @@ describe('Common index', () => {
 
 describe('validatePassword', () => {
     it('should return true for valid password', () => {
-        const validPasswords = ['Lightdash1!', 'Light@123', '#@#@#dash123'];
+        const validPasswords = [
+            'Lightdash1!',
+            'Light@123',
+            '#@#@#dash123',
+            'light_dash',
+        ];
 
         validPasswords.forEach((password) => {
             const result = validatePassword(password);
