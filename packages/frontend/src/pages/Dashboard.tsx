@@ -4,6 +4,7 @@ import {
     Dashboard as IDashboard,
     DashboardTile,
     DashboardTileTypes,
+    isDashboardChartTileType,
 } from '@lightdash/common';
 import { useProfiler } from '@sentry/react';
 import React, {
@@ -37,7 +38,7 @@ import {
     useMoveDashboardMutation,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
-import { useSavedQuery } from '../hooks/useSavedQuery';
+import { deleteSavedQuery, useSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import {
     DashboardProvider,
@@ -294,6 +295,32 @@ const Dashboard: FC = () => {
 
     const handleCancel = useCallback(() => {
         sessionStorage.clear();
+
+        // Delete charts that were created in edit mode
+        dashboardTiles.forEach((tile) => {
+            if (
+                isDashboardChartTileType(tile) &&
+                tile.properties.belongsToDashboard &&
+                tile.properties.savedChartUuid
+            ) {
+                const isChartNew =
+                    (dashboard?.tiles || []).find(
+                        (t) =>
+                            isDashboardChartTileType(t) &&
+                            t.properties.savedChartUuid ===
+                                tile.properties.savedChartUuid,
+                    ) === undefined;
+
+                if (isChartNew) {
+                    deleteSavedQuery(tile.properties.savedChartUuid).catch(
+                        () => {
+                            //ignore error
+                        },
+                    );
+                }
+            }
+        });
+
         setDashboardTiles(dashboard?.tiles || []);
         setHaveTilesChanged(false);
         if (dashboard) setDashboardFilters(dashboard.filters);
@@ -306,6 +333,7 @@ const Dashboard: FC = () => {
         dashboardUuid,
         history,
         projectUuid,
+        dashboardTiles,
         setDashboardTiles,
         setHaveFiltersChanged,
         setDashboardFilters,
