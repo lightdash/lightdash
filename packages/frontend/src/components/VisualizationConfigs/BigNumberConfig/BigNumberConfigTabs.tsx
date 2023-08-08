@@ -15,11 +15,11 @@ import {
     TextInput,
 } from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
+import FieldSelectItem from '../../common/FieldSelect/FieldSelectItem';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import { fieldLabelText } from '../../common/Filters/FieldLabel';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import FieldSelectItem from '../FieldSelectItem';
 
 const StyleOptions = [
     { value: '', label: 'none' },

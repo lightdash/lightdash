@@ -19,10 +19,10 @@ import {
 import { IconPlus } from '@tabler/icons-react';
 import { FC, useCallback, useMemo } from 'react';
 import { EMPTY_X_AXIS } from '../../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import FieldSelect from '../../common/FieldSelect/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { MAX_PIVOTS } from '../TableConfigPanel/GeneralSettings';
-import FieldSelect from './FieldSelect';
 
 type Props = {
     items: (Field | TableCalculation)[];
