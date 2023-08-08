@@ -202,6 +202,16 @@ type TrackUserDeletedEvent = BaseTrack & {
     };
 };
 
+type ModeDashboardChartEvent = BaseTrack & {
+    event: 'dashboard_chart.moved';
+    properties: {
+        projectId: string;
+        savedQueryId: string;
+        dashboardId: string;
+        spaceId: string;
+    };
+};
+
 type UpdateSavedChartEvent = BaseTrack & {
     event: 'saved_chart.updated';
     properties: {
@@ -727,6 +737,7 @@ type Track =
     | VerifiedUserEvent
     | UserJoinOrganizationEvent
     | QueryExecutionEvent
+    | ModeDashboardChartEvent
     | UpdateSavedChartEvent
     | DeleteSavedChartEvent
     | CreateSavedChartEvent

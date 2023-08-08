@@ -277,7 +277,7 @@ export class SavedChartService {
         savedChartUuid: string,
         data: UpdateSavedChart,
     ): Promise<SavedChart> {
-        const { organizationUuid, projectUuid, spaceUuid } =
+        const { organizationUuid, projectUuid, spaceUuid, dashboardUuid } =
             await this.savedChartModel.getSummary(savedChartUuid);
 
         if (
@@ -307,6 +307,18 @@ export class SavedChartService {
                 dashboardId: savedChart.dashboardUuid ?? undefined,
             },
         });
+        if (dashboardUuid && !savedChart.dashboardUuid) {
+            analytics.track({
+                event: 'dashboard_chart.moved',
+                userId: user.userUuid,
+                properties: {
+                    projectId: savedChart.projectUuid,
+                    savedQueryId: savedChartUuid,
+                    dashboardId: dashboardUuid,
+                    spaceId: savedChart.spaceUuid,
+                },
+            });
+        }
         return savedChart;
     }
 

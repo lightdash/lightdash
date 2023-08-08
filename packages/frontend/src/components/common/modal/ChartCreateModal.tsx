@@ -155,7 +155,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
             `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
         );
         showToastSuccess({
-            title: `'Success! ${name} was added to ${fromDashboard}`,
+            title: `Success! ${name} was added to ${fromDashboard}`,
         });
     }, [
         fromDashboard,
