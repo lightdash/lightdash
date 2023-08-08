@@ -23,12 +23,22 @@ you can change this later.
 
 ![click new dashboard](./assets/click_new_dashboard.png)
 
-## 3. Choose a chart to add to your dashboard
+## 3. Add a chart to your dashboard
 
-Charts can only be added to a dashboard if they've been saved. See [instructions for saving charts](./using-explores.mdx) for more
-information.
+You can create new charts or add existing ones.
 
-Click "add chart" to see a list of charts that have been saved. Clicking any chart will add it at the top of your
+#### How to create a new chart
+
+Click "Add tile" and then "New chart" to create a new chart. You will be taken to the chart builder. Once you save the chart it will show at the bottom of your
+dashboard.
+
+Note: These charts can't be used in other dashboards and won't be shown in the global search or in the space.
+
+![create chart screenshot](./assets/create_chart_in_dashboard.png)
+
+#### How to add existing chart 
+
+Click "Add tile" and then "Saved chart" to see a list of charts that have been saved. Clicking any chart will add it at the bottom of your
 dashboard.
 
 ![add chart screenshot](./assets/add_chart_screenshot.png)

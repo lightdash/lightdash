@@ -70,6 +70,21 @@ describe('Dashboard', () => {
         cy.findByText('Add').click();
 
         cy.findAllByText('Add tile').click({ multiple: true });
+        cy.findByText('New chart').click();
+        cy.findByText('You are creating this chart from within "Title"').should(
+            'exist',
+        );
+        cy.findByText('Orders').click();
+        cy.findByText('Status').click();
+        cy.findByText('Average order size').click();
+        cy.findByText('Save chart').click();
+        cy.get('input#chart-name').type('Average order size per status');
+        cy.findByText('Save').click();
+        cy.findByText(
+            'Success! Average order size per status was added to Title',
+        ).should('exist');
+
+        cy.findAllByText('Add tile').click({ multiple: true });
         cy.findByText('Markdown').click();
         cy.findByLabelText('Title').type('Title');
         cy.get('textarea').type('Content');

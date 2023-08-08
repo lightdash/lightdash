@@ -1,3 +1,29 @@
+# [0.729.0](https://github.com/lightdash/lightdash/compare/0.728.0...0.729.0) (2023-08-08)
+
+
+### Features
+
+* dashboard filters simplified view mode ([#6631](https://github.com/lightdash/lightdash/issues/6631)) ([80aa530](https://github.com/lightdash/lightdash/commit/80aa53034db36f1fbc22b1c57f85d6b41f5db0b2))
+
+# [0.728.0](https://github.com/lightdash/lightdash/compare/0.727.2...0.728.0) (2023-08-08)
+
+
+### Bug Fixes
+
+* delete orphan charts on dashboard cancel ([#6642](https://github.com/lightdash/lightdash/issues/6642)) ([6145b44](https://github.com/lightdash/lightdash/commit/6145b449273477a1b63d8b59bd5c6bd610445f44))
+
+
+### Features
+
+* allow charts to be created in dashboards ([#6641](https://github.com/lightdash/lightdash/issues/6641)) ([6f7d1e2](https://github.com/lightdash/lightdash/commit/6f7d1e2e9da860542705cee35d390b849f5fbe04))
+
+## [0.727.2](https://github.com/lightdash/lightdash/compare/0.727.1...0.727.2) (2023-08-08)
+
+
+### Bug Fixes
+
+* write null dates to csvs ([#6627](https://github.com/lightdash/lightdash/issues/6627)) ([a919624](https://github.com/lightdash/lightdash/commit/a9196245a64e93873de65ee2ae4e62fe57f4dfc7))
+
 ## [0.727.1](https://github.com/lightdash/lightdash/compare/0.727.0...0.727.1) (2023-08-07)
 
 
