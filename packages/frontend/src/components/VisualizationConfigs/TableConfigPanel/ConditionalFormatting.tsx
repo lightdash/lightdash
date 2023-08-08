@@ -39,11 +39,11 @@ import {
 import produce from 'immer';
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
+import FieldSelectItem from '../../common/FieldSelect/FieldSelectItem';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import { fieldLabelText } from '../../common/Filters/FieldLabel';
 import { FiltersProvider } from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
-import FieldSelectItem from '../FieldSelectItem';
 import ConditionalFormattingRule from './ConditionalFormattingRule';
 
 interface ConditionalFormattingProps {

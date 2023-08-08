@@ -1,8 +1,8 @@
 import { Field, Metric, TableCalculation } from '@lightdash/common';
 import { Group, SelectItemProps, Text } from '@mantine/core';
 import React, { forwardRef } from 'react';
-import FieldIcon from '../common/Filters/FieldIcon';
-import FieldLabel from '../common/Filters/FieldLabel';
+import FieldIcon from '../Filters/FieldIcon';
+import FieldLabel from '../Filters/FieldLabel';
 
 interface ItemProps extends SelectItemProps {
     icon: React.ReactNode;
