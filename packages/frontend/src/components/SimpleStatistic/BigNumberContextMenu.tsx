@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { ResultValue } from '@lightdash/common';
+import { DashboardFilters, ResultValue } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
@@ -16,7 +16,14 @@ import MantineIcon from '../common/MantineIcon';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
-const BigNumberContextMenu: FC = ({ children }) => {
+export type BigNumberContextMenuProps = {
+    dashboardFilters?: DashboardFilters;
+};
+
+const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
+    children,
+    dashboardFilters,
+}) => {
     const clipboard = useClipboard({ timeout: 200 });
     const { showToastSuccess } = useToaster();
     const { resultsData, bigNumberConfig } = useVisualizationContext();
@@ -61,7 +68,7 @@ const BigNumberContextMenu: FC = ({ children }) => {
             return;
         }
 
-        openUnderlyingDataModal({ item, value, fieldValues });
+        openUnderlyingDataModal({ item, value, fieldValues, dashboardFilters });
         track({
             name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
             properties: {
@@ -74,11 +81,12 @@ const BigNumberContextMenu: FC = ({ children }) => {
         projectUuid,
         explore,
         value,
+        item,
         fieldValues,
+        dashboardFilters,
         bigNumberConfig,
         track,
         openUnderlyingDataModal,
-        item,
         user?.data?.organizationUuid,
         user?.data?.userUuid,
     ]);
@@ -86,7 +94,7 @@ const BigNumberContextMenu: FC = ({ children }) => {
     const handleOpenDrillIntoModal = useCallback(() => {
         if (!item) return;
 
-        openDrillDownModel({ item, fieldValues });
+        openDrillDownModel({ item, fieldValues, dashboardFilters });
         track({
             name: EventName.DRILL_BY_CLICKED,
             properties: {
@@ -96,8 +104,9 @@ const BigNumberContextMenu: FC = ({ children }) => {
             },
         });
     }, [
-        fieldValues,
         item,
+        fieldValues,
+        dashboardFilters,
         openDrillDownModel,
         projectUuid,
         track,
