@@ -1,3 +1,10 @@
+# [0.729.0](https://github.com/lightdash/lightdash/compare/0.728.0...0.729.0) (2023-08-08)
+
+
+### Features
+
+* dashboard filters simplified view mode ([#6631](https://github.com/lightdash/lightdash/issues/6631)) ([80aa530](https://github.com/lightdash/lightdash/commit/80aa53034db36f1fbc22b1c57f85d6b41f5db0b2))
+
 # [0.728.0](https://github.com/lightdash/lightdash/compare/0.727.2...0.728.0) (2023-08-08)
 
 
