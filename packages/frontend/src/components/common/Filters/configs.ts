@@ -32,8 +32,8 @@ import DefaultFilterInputs, {
 const filterOperatorLabel: Record<FilterOperator, string> = {
     [FilterOperator.NULL]: 'is null',
     [FilterOperator.NOT_NULL]: 'is not null',
-    [FilterOperator.EQUALS]: 'is equal to',
-    [FilterOperator.NOT_EQUALS]: 'is not equal to',
+    [FilterOperator.EQUALS]: 'is',
+    [FilterOperator.NOT_EQUALS]: 'is not',
     [FilterOperator.STARTS_WITH]: 'starts with',
     [FilterOperator.ENDS_WITH]: 'ends with',
     [FilterOperator.NOT_INCLUDE]: 'does not include',
