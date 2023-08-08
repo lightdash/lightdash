@@ -93,7 +93,6 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                                 usePortal: false,
                             }}
                             onClose={() => setIsFilterPopoverOpen(false)}
-                            onSelectField={() => {}}
                         />
                     </Popover.Dropdown>
                 </Popover>
