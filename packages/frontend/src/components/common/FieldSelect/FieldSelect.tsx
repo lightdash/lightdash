@@ -15,9 +15,6 @@ const FieldSelect: FC<Props> = ({
     label,
     selectedField,
     fieldOptions,
-    placeholder,
-    disabled,
-    onChange,
     ...rest
 }) => {
     return (
@@ -25,8 +22,6 @@ const FieldSelect: FC<Props> = ({
             label={label}
             sx={{ flexGrow: 1 }}
             searchable
-            disabled={disabled}
-            placeholder={placeholder}
             icon={selectedField && <FieldIcon item={selectedField} />}
             value={selectedField ? getItemId(selectedField) : null}
             data={fieldOptions.map((field) => {
@@ -40,7 +35,6 @@ const FieldSelect: FC<Props> = ({
                 };
             })}
             itemComponent={FieldSelectItem}
-            onChange={onChange}
             {...rest}
         />
     );
