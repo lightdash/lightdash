@@ -9,9 +9,6 @@ type Props = Omit<SelectProps, 'data'> & {
     label?: string;
     selectedField?: Field | TableCalculation;
     fieldOptions: (Field | TableCalculation)[];
-    placeholder?: string;
-    disabled?: boolean;
-    onChange: (newValue: string | null) => void;
 };
 
 const FieldSelect: FC<Props> = ({
