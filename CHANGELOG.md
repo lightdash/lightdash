@@ -1,3 +1,10 @@
+## [0.727.2](https://github.com/lightdash/lightdash/compare/0.727.1...0.727.2) (2023-08-08)
+
+
+### Bug Fixes
+
+* write null dates to csvs ([#6627](https://github.com/lightdash/lightdash/issues/6627)) ([a919624](https://github.com/lightdash/lightdash/commit/a9196245a64e93873de65ee2ae4e62fe57f4dfc7))
+
 ## [0.727.1](https://github.com/lightdash/lightdash/compare/0.727.0...0.727.1) (2023-08-07)
 
 
