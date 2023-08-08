@@ -247,7 +247,7 @@ The reviewers can still request adhoc changes for situations that haven't been e
 Packages overview:
 
   - [`frontend` - React frontend](../packages/frontend/README.md)
-  - `backend` - Node.js backend
+  - [`backend` - Node.js backend](../packages/backend/README.md)
   - `common` - Shared code between all the other packages
   - `cli` - Command line interface
   - `e2e` - End-to-end and integration tests
