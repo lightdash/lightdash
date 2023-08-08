@@ -29,9 +29,10 @@ You can create new charts or add existing ones.
 
 #### How to create a new chart
 
-Click "Add tile" and then "New chart" to create a new chart. You will be taken to the chart builder.
+Click "Add tile" and then "New chart" to create a new chart. You will be taken to the chart builder. Once you save the chart it will show at the bottom of your
+dashboard.
 
-These charts can't be used in other dashboards and won't be shown in the global search or in the space.
+Note: These charts can't be used in other dashboards and won't be shown in the global search or in the space.
 
 ![create chart screenshot](./assets/create_chart_in_dashboard.png)
 
