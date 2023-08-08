@@ -126,4 +126,36 @@ $4.00,value_4,2020-03-16
 
         expect(csv).toEqual([1, 'value_1', '2020-03-16']);
     });
+
+    it('Should convert with row with null date', async () => {
+        const row = {
+            column_number: 1,
+            column_string: `value_1`,
+            column_date: null,
+        };
+
+        const csv = CsvService.convertRowToCsv(row, itemMap, false, [
+            'column_number',
+            'column_string',
+            'column_date',
+        ]);
+
+        expect(csv).toEqual(['$1.00', 'value_1', null]);
+    });
+
+    it('Should convert with row with undefined value', async () => {
+        const row = {
+            column_number: undefined,
+            column_string: `value_1`,
+            column_date: '2020-03-16T11:32:55.000Z',
+        };
+
+        const csv = CsvService.convertRowToCsv(row, itemMap, false, [
+            'column_number',
+            'column_string',
+            'column_date',
+        ]);
+
+        expect(csv).toEqual([undefined, 'value_1', '2020-03-16']);
+    });
 });
