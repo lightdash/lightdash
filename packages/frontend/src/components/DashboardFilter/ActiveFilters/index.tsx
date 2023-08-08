@@ -56,7 +56,6 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
                         onUpdate={(value) =>
                             updateDimensionDashboardFilter(value, index, true)
                         }
-                        isTemporary
                     />
                 ))}
         </>

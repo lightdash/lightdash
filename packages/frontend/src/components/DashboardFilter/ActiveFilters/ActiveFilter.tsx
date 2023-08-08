@@ -19,7 +19,6 @@ type Props = {
     filterRule: DashboardFilterRule;
     onRemove: () => void;
     onUpdate: (value: DashboardFilterRule) => void;
-    isTemporary?: boolean;
 };
 
 const ActiveFilter: FC<Props> = ({
@@ -29,7 +28,6 @@ const ActiveFilter: FC<Props> = ({
     filterRule,
     onRemove,
     onUpdate,
-    isTemporary = false,
 }) => {
     const {
         dashboard,
