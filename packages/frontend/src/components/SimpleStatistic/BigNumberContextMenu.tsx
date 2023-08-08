@@ -1,48 +1,41 @@
-import { Menu, Position } from '@blueprintjs/core';
-import { MenuItem2, Popover2, Popover2Props } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
+import { ResultValue } from '@lightdash/common';
+import { Menu } from '@mantine/core';
+import { useClipboard } from '@mantine/hooks';
+import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash-es/mapValues';
 import { FC, useCallback, useMemo } from 'react';
-import CopyToClipboard from 'react-copy-to-clipboard';
 import { useParams } from 'react-router-dom';
-
-import { ResultValue } from '@lightdash/common';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useExplore } from '../../hooks/useExplore';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';
+import MantineIcon from '../common/MantineIcon';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
-interface BigNumberContextMenuProps {
-    renderTarget: Popover2Props['renderTarget'];
-}
-
-export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
-    renderTarget,
-}) => {
+const BigNumberContextMenu: FC = ({ children }) => {
+    const clipboard = useClipboard({ timeout: 200 });
     const { showToastSuccess } = useToaster();
     const { resultsData, bigNumberConfig } = useVisualizationContext();
-    const { openUnderlyingDataModal, tableName } = useMetricQueryDataContext();
+    const { openUnderlyingDataModal, openDrillDownModel, tableName } =
+        useMetricQueryDataContext();
     const { data: explore } = useExplore(tableName);
 
     const { track } = useTracking();
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const selectedItem = useMemo(
-        () =>
-            bigNumberConfig?.selectedField
-                ? bigNumberConfig.getField(bigNumberConfig.selectedField)
-                : undefined,
-        [bigNumberConfig],
-    );
 
     const fieldValues: Record<string, ResultValue> = useMemo(() => {
         return mapValues(resultsData?.rows?.[0], (col) => col.value) ?? {};
     }, [resultsData]);
+
+    const item = useMemo(
+        () => bigNumberConfig.getField(bigNumberConfig.selectedField),
+        [bigNumberConfig],
+    );
 
     const value = useMemo(() => {
         if (bigNumberConfig.selectedField) {
@@ -50,26 +43,33 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
         }
     }, [fieldValues, bigNumberConfig]);
 
-    const viewUnderlyingData = useCallback(() => {
-        if (
-            explore !== undefined &&
-            bigNumberConfig.selectedField !== undefined &&
-            value
-        ) {
-            const item = bigNumberConfig.getField(
-                bigNumberConfig.selectedField,
-            );
-
-            openUnderlyingDataModal({ item, value, fieldValues });
-            track({
-                name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-                properties: {
-                    organizationId: user?.data?.organizationUuid,
-                    userId: user?.data?.userUuid,
-                    projectId: projectUuid,
-                },
+    const handleCopy = () => {
+        if (value) {
+            clipboard.copy(value.formatted);
+            showToastSuccess({
+                title: 'Copied to clipboard!',
             });
         }
+    };
+
+    const handleViewUnderlyingData = useCallback(() => {
+        if (
+            explore === undefined ||
+            bigNumberConfig.selectedField === undefined ||
+            !value
+        ) {
+            return;
+        }
+
+        openUnderlyingDataModal({ item, value, fieldValues });
+        track({
+            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+            properties: {
+                organizationId: user?.data?.organizationUuid,
+                userId: user?.data?.userUuid,
+                projectId: projectUuid,
+            },
+        });
     }, [
         projectUuid,
         explore,
@@ -78,30 +78,57 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
         bigNumberConfig,
         track,
         openUnderlyingDataModal,
+        item,
         user?.data?.organizationUuid,
         user?.data?.userUuid,
     ]);
 
+    const handleOpenDrillIntoModal = useCallback(() => {
+        if (!item) return;
+
+        openDrillDownModel({ item, fieldValues });
+        track({
+            name: EventName.DRILL_BY_CLICKED,
+            properties: {
+                organizationId: user?.data?.organizationUuid,
+                userId: user?.data?.userUuid,
+                projectId: projectUuid,
+            },
+        });
+    }, [
+        fieldValues,
+        item,
+        openDrillDownModel,
+        projectUuid,
+        track,
+        user?.data?.organizationUuid,
+        user?.data?.userUuid,
+    ]);
+
+    if (!item && !value) return <>{children}</>;
+
     return (
-        <Popover2
-            lazy
-            minimal
-            position={Position.BOTTOM}
-            renderTarget={renderTarget}
-            content={
-                <Menu>
-                    {value && (
-                        <CopyToClipboard
-                            text={value.formatted}
-                            onCopy={() => {
-                                showToastSuccess({
-                                    title: 'Copied to clipboard!',
-                                });
-                            }}
-                        >
-                            <MenuItem2 text="Copy value" icon="duplicate" />
-                        </CopyToClipboard>
-                    )}
+        <Menu
+            withArrow
+            withinPortal
+            shadow="md"
+            position="bottom"
+            radius="xs"
+            offset={-5}
+        >
+            <Menu.Target>{children}</Menu.Target>
+
+            <Menu.Dropdown>
+                {value && (
+                    <Menu.Item
+                        icon={<MantineIcon icon={IconCopy} />}
+                        onClick={handleCopy}
+                    >
+                        Copy value
+                    </Menu.Item>
+                )}
+
+                {item && (
                     <Can
                         I="view"
                         this={subject('UnderlyingData', {
@@ -109,14 +136,16 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
                             projectUuid: projectUuid,
                         })}
                     >
-                        <MenuItem2
-                            text="View underlying data"
-                            icon="layers"
-                            onClick={() => {
-                                viewUnderlyingData();
-                            }}
-                        />
+                        <Menu.Item
+                            icon={<MantineIcon icon={IconStack} />}
+                            onClick={handleViewUnderlyingData}
+                        >
+                            View underlying data
+                        </Menu.Item>
                     </Can>
+                )}
+
+                {item && value && (
                     <Can
                         I="manage"
                         this={subject('Explore', {
@@ -124,18 +153,17 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
                             projectUuid: projectUuid,
                         })}
                     >
-                        <DrillDownMenuItem
-                            item={selectedItem}
-                            fieldValues={fieldValues}
-                            trackingData={{
-                                organizationId: user?.data?.organizationUuid,
-                                userId: user?.data?.userUuid,
-                                projectId: projectUuid,
-                            }}
-                        />
+                        <Menu.Item
+                            icon={<MantineIcon icon={IconArrowBarToDown} />}
+                            onClick={handleOpenDrillIntoModal}
+                        >
+                            Drill into "${value.formatted}"
+                        </Menu.Item>
                     </Can>
-                </Menu>
-            }
-        />
+                )}
+            </Menu.Dropdown>
+        </Menu>
     );
 };
+
+export default BigNumberContextMenu;

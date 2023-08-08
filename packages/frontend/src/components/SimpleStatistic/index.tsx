@@ -12,7 +12,7 @@ import {
 } from '../DashboardTiles/TileBase/TileBase.styles';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { EmptyChart, LoadingChart } from '../SimpleChart';
-import { BigNumberContextMenu } from './BigNumberContextMenu';
+import BigNumberContextMenu from './BigNumberContextMenu';
 import {
     BigNumber,
     BigNumberContainer,
@@ -139,18 +139,11 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                 {minimal || isSqlRunner ? (
                     <BigNumber $fontSize={valueFontSize}>{bigNumber}</BigNumber>
                 ) : (
-                    <BigNumberContextMenu
-                        renderTarget={({ ref, onClick }) => (
-                            <BigNumber
-                                $interactive
-                                ref={ref}
-                                onClick={onClick}
-                                $fontSize={valueFontSize}
-                            >
-                                {bigNumber}
-                            </BigNumber>
-                        )}
-                    />
+                    <BigNumberContextMenu>
+                        <BigNumber $interactive $fontSize={valueFontSize}>
+                            {bigNumber}
+                        </BigNumber>
+                    </BigNumberContextMenu>
                 )}
             </BigNumberHalf>
 

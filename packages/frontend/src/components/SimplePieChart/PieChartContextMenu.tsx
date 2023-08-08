@@ -15,7 +15,7 @@ import { useVisualizationContext } from '../LightdashVisualization/Visualization
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
 export type PieChartContextMenuProps = {
-    dashboardFilters?: DashboardFilters | undefined;
+    dashboardFilters?: DashboardFilters;
     menuPosition?: {
         left: number;
         top: number;
@@ -150,13 +150,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
 
             <Menu.Dropdown>
                 <Menu.Item
-                    icon={
-                        <MantineIcon
-                            icon={IconCopy}
-                            size="md"
-                            fillOpacity={0}
-                        />
-                    }
+                    icon={<MantineIcon icon={IconCopy} />}
                     onClick={handleCopy}
                 >
                     Copy
@@ -164,13 +158,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
 
                 {canViewUnderlyingData ? (
                     <Menu.Item
-                        icon={
-                            <MantineIcon
-                                icon={IconStack}
-                                size="md"
-                                fillOpacity={0}
-                            />
-                        }
+                        icon={<MantineIcon icon={IconStack} />}
                         onClick={handleOpenUnderlyingDataModal}
                     >
                         View underlying data
@@ -179,13 +167,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
 
                 {canViewDrillInto ? (
                     <Menu.Item
-                        icon={
-                            <MantineIcon
-                                icon={IconArrowBarToDown}
-                                size="md"
-                                fillOpacity={0}
-                            />
-                        }
+                        icon={<MantineIcon icon={IconArrowBarToDown} />}
                         onClick={handleOpenDrillIntoModal}
                     >
                         Drill into "{value.formatted}"
