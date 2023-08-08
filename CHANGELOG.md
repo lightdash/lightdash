@@ -1,3 +1,15 @@
+# [0.728.0](https://github.com/lightdash/lightdash/compare/0.727.2...0.728.0) (2023-08-08)
+
+
+### Bug Fixes
+
+* delete orphan charts on dashboard cancel ([#6642](https://github.com/lightdash/lightdash/issues/6642)) ([6145b44](https://github.com/lightdash/lightdash/commit/6145b449273477a1b63d8b59bd5c6bd610445f44))
+
+
+### Features
+
+* allow charts to be created in dashboards ([#6641](https://github.com/lightdash/lightdash/issues/6641)) ([6f7d1e2](https://github.com/lightdash/lightdash/commit/6f7d1e2e9da860542705cee35d390b849f5fbe04))
+
 ## [0.727.2](https://github.com/lightdash/lightdash/compare/0.727.1...0.727.2) (2023-08-08)
 
 
