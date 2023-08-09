@@ -13,8 +13,10 @@ describe('Dashboard', () => {
 
         cy.contains('a', 'Jaffle dashboard').click();
 
-        cy.findByText("What's our total revenue to date?");
-        cy.findByText("What's the average spend per customer?");
+        cy.get('.react-grid-layout').within(() => {
+            cy.findByText("What's our total revenue to date?");
+            cy.findByText("What's the average spend per customer?");
+        });
 
         cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading
 
@@ -22,8 +24,11 @@ describe('Dashboard', () => {
         cy.findAllByText('No data available').should('have.length', 0);
 
         cy.get('.echarts-for-react').should('have.length', 3); // Charts
-        cy.contains('Payments total revenue'); // BigNumber chart
-        cy.get('thead th').should('have.length', 6); // Table chart
+
+        cy.get('.react-grid-layout').within(() => {
+            cy.contains('Payments total revenue'); // BigNumber chart
+            cy.get('thead th').should('have.length', 6); // Table chart
+        });
     });
 
     it('Should use dashboard filters', () => {
