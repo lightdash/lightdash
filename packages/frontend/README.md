@@ -1,46 +1,117 @@
-# Getting Started with Create React App
+# Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Table of contents:
 
-## Available Scripts
+- [Getting started](#getting-started)
+- [Key technologies/libraries](#key-technologieslibraries)
+- [Architecture](#architecture)
+    - [UI](#ui)
+    - [Features](#features)
+    - [API](#api)
+    - [Pages](#pages)
 
-In the project directory, you can run:
+## Getting started
 
-### `yarn start`
+This package shouldn't be run in isolation. Instead, you should follow the instruction from
+the [Setup development environment](../../.github/CONTRIBUTING.md#setup-development-environment)
+section from the contribution file.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+## Key technologies/libraries
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+- [React](https://reactjs.org/)
+- [Vite](https://vitejs.dev/)
+- [Mantine](https://mantine.dev/)
+- [React Query](https://react-query.tanstack.com/)
+- [Echarts](https://echarts.apache.org/en/index.html)
 
-### `yarn test`
+## Architecture
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+> **Note:** Any folder that doesn't match this structure should be considered legacy and should be refactored.
 
-### `yarn build`
+**Example structure:**
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+- UI
+    - Molecules
+    - Organisms
+- Features
+    - User
+        - Hooks
+        - Components
+        - Modals
+        - Utils
+        - Providers
+    - Organization
+    - Project
+    - Chart
+    - Dashboard
+    - Space
+    - Visualization
+- API
+- Pages
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+This structure offers two entry points (through `features` or `pages`) which makes it easier for new developers to learn
+the codebase. Plus, it eliminates abstract global folders, reducing potential dumping grounds.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+> Inspiration: [Feature-driven folder structure](https://profy.dev/article/react-folder-structure)
 
-### `yarn eject`
+### UI
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+Inspired by
+the [Atomic Design Structure](https://bootcamp.uxdesign.cc/from-atoms-to-pages-implementing-atomic-design-in-react-2c91d1031e7c).
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+#### ~~Atoms~~
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+We shouldn’t need this folder as [Mantine](https://mantine.dev/) should provide all the components at this level.
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+#### Molecules
 
-## Learn More
+They are made up of one or more atomic components. They should only include the minimal amount of logic and state
+necessary to perform their intended function. Examples of molecular components include form fields, cards, and other
+similar UI elements that are composed of multiple atomic components.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+Guidelines:
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+- the component is going to be reused in multiple places
+- can not manage internal state
+
+Lint restrictions:
+
+- can’t import files from the rest of our codebase
+
+#### Organisms
+
+Organisms are made up of one or more molecular or atomic components. They tend to be larger in scope and provide a sense
+of structure to the UI. Examples include headers, footers, and sidebars.
+
+Guidelines:
+
+- can manage basic internal state. eg: `const isOpen = useState<boolean>()`
+
+Lint restrictions:
+
+- can only import files from Molecules
+
+### Features
+
+There should be a folder for each of the main features ( aka knowledge domains) of our application. A good indicator is
+how we structure our API routes. eg: org, user, project, chart, dashboard
+There are also big UI features that deserve their own folder. eg: visualizations
+Each of those features should have a subfolder for `hooks`, `components` , `modals` , `utils` , `provider`
+
+### API
+
+Should only have the endpoints and types necessary for interacting with our API.
+
+Guidelines:
+
+- files should be a 1 to 1 match to the backend router/controller files
+- pure functions
+- don’t have hooks, these should be defined inside the feature `hooks` folder
+
+Lint restrictions:
+
+- can’t import files from the rest of our FE codebase
+
+### Pages
+
+This should be a 1 to 1 match with our website routes.
