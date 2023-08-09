@@ -102,9 +102,11 @@ describe('Date tests', () => {
 
         cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading
 
-        cy.contains(`What's our total revenue to date?`)
-            .parents('.react-grid-item')
-            .contains('400');
+        cy.get('.react-grid-layout').within(() => {
+            cy.contains(`What's our total revenue to date?`)
+                .parents('.react-grid-item')
+                .contains('400');
+        });
     });
 
     it.skip('Should use UTC dates', () => {
