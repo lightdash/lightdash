@@ -1,4 +1,3 @@
-/// <reference path="../@types/passport-google-oidc.d.ts" />
 /// <reference path="../@types/passport-openidconnect.d.ts" />
 /// <reference path="../@types/express-session.d.ts" />
 import {
@@ -13,7 +12,12 @@ import {
 } from '@lightdash/common';
 import { Request, RequestHandler } from 'express';
 import passport from 'passport';
-import { Strategy as GoogleStrategy } from 'passport-google-oidc';
+import {
+    GoogleCallbackParameters,
+    Profile,
+    Strategy as GoogleStrategy,
+    VerifyCallback,
+} from 'passport-google-oauth20';
 import { HeaderAPIKeyStrategy } from 'passport-headerapikey';
 import { Strategy as LocalStrategy } from 'passport-local';
 import {
@@ -164,18 +168,27 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
               ).href,
               passReqToCallback: true,
           },
-          async (req, issuer, profile, done) => {
+          async (
+              req: Express.Request,
+              accessToken: string,
+              refreshToken: string,
+              params: GoogleCallbackParameters,
+              profile: Profile,
+              done: VerifyCallback,
+          ) => {
               try {
+                  const issuer = 'https://accounts.google.com';
                   const { inviteCode } = req.session.oauth || {};
                   req.session.oauth = {};
-                  const [{ value: email }] = profile.emails;
+                  const [{ value: email }] = profile.emails || [];
                   const { id: subject } = profile;
                   if (!(email && subject)) {
-                      return done(null, false, {
+                      return done(null, undefined, {
                           message: 'Could not parse authentication token',
                       });
                   }
-                  // TODO why we ned this
+
+                  const { scope } = params;
                   const normalisedIssuer = new URL('/', issuer).origin; // normalise issuer
                   const openIdUser: OpenIdUser = {
                       openId: {
@@ -187,18 +200,22 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                           issuerType: OpenIdIdentityIssuerType.GOOGLE,
                       },
                   };
+
                   const user = await userService.loginWithOpenId(
                       openIdUser,
                       req.user,
                       inviteCode,
+                      refreshToken,
+                      refreshToken ? scope : undefined, // Only send scope if we have a refresh token from gdrive
                   );
+
                   return done(null, user);
               } catch (e) {
                   if (e instanceof LightdashError) {
-                      return done(null, false, { message: e.message });
+                      return done(null, undefined, { message: e.message });
                   }
                   Logger.warn(`Unexpected error while authorizing user: ${e}`);
-                  return done(null, false, {
+                  return done(null, undefined, {
                       message: 'Unexpected error authorizing user',
                   });
               }

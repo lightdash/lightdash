@@ -146,6 +146,21 @@ apiV1Router.get(
         scope: ['profile', 'email'],
     }),
 );
+apiV1Router.get(
+    '/login/gdrive',
+    storeOIDCRedirect,
+    passport.authenticate('google', {
+        scope: [
+            'profile',
+            'email',
+            'https://www.googleapis.com/auth/drive.metadata.readonly',
+        ],
+        accessType: 'offline',
+        prompt: 'consent',
+        session: false,
+        includeGrantedScopes: true,
+    }),
+);
 
 apiV1Router.get(
     lightdashConfig.auth.google.callbackPath,

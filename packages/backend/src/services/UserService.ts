@@ -310,6 +310,8 @@ export class UserService {
         openIdUser: OpenIdUser,
         sessionUser: SessionUser | undefined,
         inviteCode: string | undefined,
+        refreshToken?: string,
+        scope?: string,
     ): Promise<SessionUser> {
         const loginUser = await this.userModel.findSessionUserByOpenId(
             openIdUser.openId.issuer,
@@ -318,9 +320,11 @@ export class UserService {
 
         // Identity already exists. Update the identity attributes and login the user
         if (loginUser) {
-            await this.openIdIdentityModel.updateIdentityByOpenId(
-                openIdUser.openId,
-            );
+            await this.openIdIdentityModel.updateIdentityByOpenId({
+                ...openIdUser.openId,
+                refreshToken,
+                scope,
+            });
             await this.tryVerifyUserEmail(loginUser, openIdUser.openId.email);
             identifyUser(loginUser);
             analytics.track({
@@ -341,6 +345,8 @@ export class UserService {
                 subject: openIdUser.openId.subject,
                 email: openIdUser.openId.email,
                 issuerType: openIdUser.openId.issuerType,
+                refreshToken,
+                scope,
             });
             await this.tryVerifyUserEmail(sessionUser, openIdUser.openId.email);
             analytics.track({
