@@ -35,8 +35,13 @@ const AddTileButton: FC<Props> = ({ onAddTiles, intent, popoverPosition }) => {
     const { projectUuid } = useParams<{
         projectUuid: string;
     }>();
-    const { dashboard, dashboardTiles, dashboardFilters } =
-        useDashboardContext();
+    const {
+        dashboard,
+        dashboardTiles,
+        dashboardFilters,
+        haveTilesChanged,
+        haveFiltersChanged,
+    } = useDashboardContext();
     const history = useHistory();
 
     return (
@@ -53,54 +58,51 @@ const AddTileButton: FC<Props> = ({ onAddTiles, intent, popoverPosition }) => {
 
                         <MenuDivider />
 
-                        {localStorage.getItem('CHARTS_IN_DASHBOARDS') && (
-                            <>
-                                <MenuItem2
-                                    icon="series-add"
-                                    text={
-                                        <Group spacing="xxs">
-                                            <Text>New chart</Text>
-                                            <Tooltip label="Charts generated from here are exclusive to this dashboard">
-                                                <MantineIcon
-                                                    icon={IconInfoCircle}
-                                                    color="gray.6"
-                                                />
-                                            </Tooltip>
-                                        </Group>
-                                    }
-                                    onClick={() => {
-                                        sessionStorage.setItem(
-                                            'fromDashboard',
-                                            dashboard?.name ?? '',
-                                        );
-                                        sessionStorage.setItem(
-                                            'dashboardUuid',
-                                            dashboard?.uuid ?? '',
-                                        );
-                                        sessionStorage.setItem(
-                                            'unsavedDashboardTiles',
-                                            JSON.stringify(dashboardTiles),
-                                        );
-                                        if (
-                                            dashboardFilters.dimensions.length >
-                                                0 ||
-                                            dashboardFilters.metrics.length > 0
-                                        ) {
-                                            sessionStorage.setItem(
-                                                'unsavedDashboardFilters',
-                                                JSON.stringify(
-                                                    dashboardFilters,
-                                                ),
-                                            );
-                                        }
-                                        history.push(
-                                            `/projects/${projectUuid}/tables`,
-                                        );
-                                    }}
-                                />
-                                <MenuDivider />
-                            </>
-                        )}
+                        <MenuItem2
+                            icon="series-add"
+                            text={
+                                <Group spacing="xxs">
+                                    <Text>New chart</Text>
+                                    <Tooltip label="Charts generated from here are exclusive to this dashboard">
+                                        <MantineIcon
+                                            icon={IconInfoCircle}
+                                            color="gray.6"
+                                        />
+                                    </Tooltip>
+                                </Group>
+                            }
+                            onClick={() => {
+                                sessionStorage.setItem(
+                                    'fromDashboard',
+                                    dashboard?.name ?? '',
+                                );
+                                sessionStorage.setItem(
+                                    'dashboardUuid',
+                                    dashboard?.uuid ?? '',
+                                );
+                                sessionStorage.setItem(
+                                    'unsavedDashboardTiles',
+                                    JSON.stringify(dashboardTiles),
+                                );
+                                if (
+                                    dashboardFilters.dimensions.length > 0 ||
+                                    dashboardFilters.metrics.length > 0
+                                ) {
+                                    sessionStorage.setItem(
+                                        'unsavedDashboardFilters',
+                                        JSON.stringify(dashboardFilters),
+                                    );
+                                }
+                                sessionStorage.setItem(
+                                    'hasDashboardChanges',
+                                    JSON.stringify(
+                                        haveTilesChanged || haveFiltersChanged,
+                                    ),
+                                );
+                                history.push(`/projects/${projectUuid}/tables`);
+                            }}
+                        />
+                        <MenuDivider />
 
                         <MenuItem2
                             icon="new-text-box"

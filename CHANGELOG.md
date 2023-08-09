@@ -1,3 +1,85 @@
+## [0.732.1](https://github.com/lightdash/lightdash/compare/0.732.0...0.732.1) (2023-08-09)
+
+
+### Bug Fixes
+
+* keep filter-related popovers mounted ([#6672](https://github.com/lightdash/lightdash/issues/6672)) ([e3ab05e](https://github.com/lightdash/lightdash/commit/e3ab05efb734d992513db7fc4853ab44a0284f5c))
+
+# [0.732.0](https://github.com/lightdash/lightdash/compare/0.731.0...0.732.0) (2023-08-09)
+
+
+### Features
+
+* update filter operator dropdown ([#6660](https://github.com/lightdash/lightdash/issues/6660)) ([822df50](https://github.com/lightdash/lightdash/commit/822df50b4d150bcd648f1ee16777c979d21fce52))
+
+# [0.731.0](https://github.com/lightdash/lightdash/compare/0.730.0...0.731.0) (2023-08-08)
+
+
+### Features
+
+* improve UI on dashboard filters ([#6628](https://github.com/lightdash/lightdash/issues/6628)) ([877485c](https://github.com/lightdash/lightdash/commit/877485c087e408995a53592b085a5c2dba0df62e))
+
+# [0.730.0](https://github.com/lightdash/lightdash/compare/0.729.0...0.730.0) (2023-08-08)
+
+
+### Features
+
+* json viewer for complex types ([#6640](https://github.com/lightdash/lightdash/issues/6640)) ([e7fab19](https://github.com/lightdash/lightdash/commit/e7fab191bff8a5952333776c8646b350a47b4142))
+
+# [0.729.0](https://github.com/lightdash/lightdash/compare/0.728.0...0.729.0) (2023-08-08)
+
+
+### Features
+
+* dashboard filters simplified view mode ([#6631](https://github.com/lightdash/lightdash/issues/6631)) ([80aa530](https://github.com/lightdash/lightdash/commit/80aa53034db36f1fbc22b1c57f85d6b41f5db0b2))
+
+# [0.728.0](https://github.com/lightdash/lightdash/compare/0.727.2...0.728.0) (2023-08-08)
+
+
+### Bug Fixes
+
+* delete orphan charts on dashboard cancel ([#6642](https://github.com/lightdash/lightdash/issues/6642)) ([6145b44](https://github.com/lightdash/lightdash/commit/6145b449273477a1b63d8b59bd5c6bd610445f44))
+
+
+### Features
+
+* allow charts to be created in dashboards ([#6641](https://github.com/lightdash/lightdash/issues/6641)) ([6f7d1e2](https://github.com/lightdash/lightdash/commit/6f7d1e2e9da860542705cee35d390b849f5fbe04))
+
+## [0.727.2](https://github.com/lightdash/lightdash/compare/0.727.1...0.727.2) (2023-08-08)
+
+
+### Bug Fixes
+
+* write null dates to csvs ([#6627](https://github.com/lightdash/lightdash/issues/6627)) ([a919624](https://github.com/lightdash/lightdash/commit/a9196245a64e93873de65ee2ae4e62fe57f4dfc7))
+
+## [0.727.1](https://github.com/lightdash/lightdash/compare/0.727.0...0.727.1) (2023-08-07)
+
+
+### Bug Fixes
+
+* show dashboard unsaved changes alert in chartindash flow ([#6623](https://github.com/lightdash/lightdash/issues/6623)) ([8f685f8](https://github.com/lightdash/lightdash/commit/8f685f868b53421797836cc3bbdfc3e7159ca1d1))
+
+# [0.727.0](https://github.com/lightdash/lightdash/compare/0.726.1...0.727.0) (2023-08-07)
+
+
+### Features
+
+* move chart from dashboard to space ([#6637](https://github.com/lightdash/lightdash/issues/6637)) ([30ebe2d](https://github.com/lightdash/lightdash/commit/30ebe2da36b28be371e3b0a88b86a7efc60bbffa))
+
+## [0.726.1](https://github.com/lightdash/lightdash/compare/0.726.0...0.726.1) (2023-08-07)
+
+
+### Bug Fixes
+
+* save chart as flow ([#6636](https://github.com/lightdash/lightdash/issues/6636)) ([b75ce16](https://github.com/lightdash/lightdash/commit/b75ce16a655a3d1eaf4ea660a6a8c13b2e228f6e)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
+# [0.726.0](https://github.com/lightdash/lightdash/compare/0.725.0...0.726.0) (2023-08-07)
+
+
+### Features
+
+* add private channels input ([#6625](https://github.com/lightdash/lightdash/issues/6625)) ([b762c07](https://github.com/lightdash/lightdash/commit/b762c07f6956615492877ae97caccd8a340129bd)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
 # [0.725.0](https://github.com/lightdash/lightdash/compare/0.724.0...0.725.0) (2023-08-04)
 
 

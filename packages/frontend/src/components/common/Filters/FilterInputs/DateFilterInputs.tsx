@@ -83,6 +83,15 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             <MonthAndYearInput
                                 disabled={disabled}
                                 placeholder={placeholder}
+                                // FIXME: remove this once we migrate off of Blueprint
+                                // we are doing type conversion here because Blueprint expects DOM element
+                                // Mantine does not provide a DOM element on onOpen/onClose
+                                popoverProps={{
+                                    onOpen: () =>
+                                        popoverProps?.onOpened?.(null as any),
+                                    onClose: () =>
+                                        popoverProps?.onClose?.(null as any),
+                                }}
                                 value={rule.values ? rule.values[0] : null}
                                 onChange={(value: Date) => {
                                     onChange({
@@ -101,6 +110,15 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             <YearInput
                                 disabled={disabled}
                                 placeholder={placeholder}
+                                // FIXME: remove this once we migrate off of Blueprint
+                                // we are doing type conversion here because Blueprint expects DOM element
+                                // Mantine does not provide a DOM element on onOpen/onClose
+                                popoverProps={{
+                                    onOpen: () =>
+                                        popoverProps?.onOpened?.(null as any),
+                                    onClose: () =>
+                                        popoverProps?.onClose?.(null as any),
+                                }}
                                 value={rule.values ? rule.values[0] : null}
                                 onChange={(value: Date) => {
                                     onChange({

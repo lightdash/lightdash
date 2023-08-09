@@ -21,14 +21,12 @@ type Props = {
     isEditMode: boolean;
     popoverProps?: Popover2Props;
     onClose: () => void;
-    onSelectField: (field: FilterableField) => void;
 };
 
 const FilterSearch: FC<Props> = ({
     fields,
     isEditMode,
     onClose,
-    onSelectField,
     popoverProps,
 }) => {
     const { track } = useTracking();
@@ -46,7 +44,6 @@ const FilterSearch: FC<Props> = ({
     const handleChangeField = (field: FilterableField) => {
         if (isField(field) && isFilterableField(field)) {
             setSelectedField(field);
-            onSelectField(field);
         }
     };
 
@@ -103,6 +100,7 @@ const FilterSearch: FC<Props> = ({
                 </FormGroup>
             ) : (
                 <FilterConfiguration
+                    isCreatingNew
                     isEditMode={isEditMode}
                     selectedTabId={selectedTabId}
                     onTabChange={setSelectedTabId}

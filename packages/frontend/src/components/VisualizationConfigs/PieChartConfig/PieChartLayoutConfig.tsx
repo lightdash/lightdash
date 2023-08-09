@@ -1,11 +1,11 @@
 import { fieldId, isField } from '@lightdash/common';
 import { Box, Button, Select, Stack, Switch, Tooltip } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
+import FieldSelectItem from '../../common/FieldSelect/FieldSelectItem';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import { fieldLabelText } from '../../common/Filters/FieldLabel';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import FieldSelectItem from '../FieldSelectItem';
 
 const PieChartLayoutConfig: React.FC = () => {
     const {

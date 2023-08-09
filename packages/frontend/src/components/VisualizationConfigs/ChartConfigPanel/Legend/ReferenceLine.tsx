@@ -32,13 +32,13 @@ import {
 } from '@mantine/core';
 import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
+import FieldSelect from '../../../common/FieldSelect/FieldSelect';
 import MantineIcon from '../../../common/MantineIcon';
 import MonthAndYearInput from '../../../common/MonthAndYearInput';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
 import WeekPicker from '../../../common/WeekPicker';
 import YearInput from '../../../common/YearInput';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
-import FieldSelect from '../FieldSelect';
 
 type Props = {
     index: number;

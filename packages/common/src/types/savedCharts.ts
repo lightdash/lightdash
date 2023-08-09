@@ -513,6 +513,8 @@ export type ChartSummary = Pick<
     | 'projectUuid'
     | 'organizationUuid'
     | 'pinnedListUuid'
+    | 'dashboardUuid'
+    | 'dashboardName'
 > & { chartType?: ChartType | undefined };
 
 export type ApiChartSummaryListResponse = {

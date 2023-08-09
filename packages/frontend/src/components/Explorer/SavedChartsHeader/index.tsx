@@ -19,7 +19,7 @@ import {
     IconSquarePlus,
     IconTrash,
 } from '@tabler/icons-react';
-import { FC, useEffect, useState } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
@@ -37,6 +37,7 @@ import { SectionName } from '../../../types/Events';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
+import MoveChartThatBelongsToDashboardModal from '../../common/modal/MoveChartThatBelongsToDashboardModal';
 import PageHeader from '../../common/Page/PageHeader';
 import {
     PageActionsContainer,
@@ -83,6 +84,7 @@ const SavedChartsHeader: FC = () => {
         useState<boolean>(false);
     const [isRenamingChart, setIsRenamingChart] = useState(false);
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
+    const [isMovingChart, setIsMovingChart] = useState(false);
     const [isScheduledDeliveriesModalOpen, toggleSchedulerDeliveriesModel] =
         useToggle(false);
     const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
@@ -128,6 +130,7 @@ const SavedChartsHeader: FC = () => {
             if (
                 hasUnsavedChanges &&
                 isEditMode &&
+                !isQueryModalOpen &&
                 !prompt.pathname.includes(
                     `/projects/${projectUuid}/saved/${savedChart?.uuid}`,
                 ) &&
@@ -153,6 +156,7 @@ const SavedChartsHeader: FC = () => {
         hasUnsavedChanges,
         setIsSaveWarningModalOpen,
         isEditMode,
+        isQueryModalOpen,
     ]);
 
     const userCanManageCharts = user.data?.ability?.can(
@@ -345,6 +349,15 @@ const SavedChartsHeader: FC = () => {
                                             }
                                         />
                                     )}
+                                    {savedChart?.dashboardUuid && (
+                                        <MenuItem2
+                                            icon={<IconFolders />}
+                                            text="Move to space"
+                                            onClick={() =>
+                                                setIsMovingChart(true)
+                                            }
+                                        />
+                                    )}
                                     {!chartBelongsToDashboard && (
                                         <MenuItem2
                                             icon={<IconFolders />}
@@ -383,7 +396,6 @@ const SavedChartsHeader: FC = () => {
                                                                 moveChartToSpace(
                                                                     {
                                                                         uuid: savedChart.uuid,
-                                                                        name: savedChart.name,
                                                                         spaceUuid:
                                                                             spaceToMove.uuid,
                                                                     },
@@ -473,6 +485,24 @@ const SavedChartsHeader: FC = () => {
                     name={savedChart.name}
                     isOpen={isScheduledDeliveriesModalOpen}
                     onClose={() => toggleSchedulerDeliveriesModel(false)}
+                />
+            )}
+            {savedChart && (
+                <MoveChartThatBelongsToDashboardModal
+                    className={'non-draggable'}
+                    uuid={savedChart.uuid}
+                    name={savedChart.name}
+                    spaceUuid={savedChart.spaceUuid}
+                    spaceName={savedChart.spaceName}
+                    opened={isMovingChart}
+                    onClose={() => setIsMovingChart(false)}
+                    onConfirm={() => {
+                        sessionStorage.removeItem('fromDashboard');
+                        sessionStorage.removeItem('dashboardUuid');
+                        history.push(
+                            `/projects/${projectUuid}/saved/${savedChart.uuid}/edit`,
+                        );
+                    }}
                 />
             )}
         </TrackSection>

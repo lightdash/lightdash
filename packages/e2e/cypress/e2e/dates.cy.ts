@@ -72,37 +72,43 @@ describe('Date tests', () => {
 
         cy.contains('a', 'Jaffle dashboard').click();
 
-        cy.contains('How much revenue');
+        cy.get('.react-grid-layout').within(() => {
+            cy.contains('How much revenue');
+        });
 
         cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading
 
         cy.contains('bank_transfer').should('have.length', 1);
 
-        cy.contains(`What's our total revenue to date?`)
-            .parents('.react-grid-item')
-            .contains('1,103');
+        cy.get('.react-grid-layout').within(() => {
+            cy.contains(`What's our total revenue to date?`)
+                .parents('.react-grid-item')
+                .contains('1,103');
+        });
 
         // Add filter
         cy.contains('Add filter').click();
+        cy.get('#field-autocomplete').click().type('order date month{enter}');
 
-        cy.findByPlaceholderText('Search field...').type(
-            'order date month{enter}',
-        );
         cy.contains('button', 'Select a date').click();
-        cy.findByRole('dialog').within(() => {
-            cy.contains('button', new Date().getFullYear()).click();
-            cy.get('button').find('[data-previous="true"]').click();
-            cy.contains('button', 2018).click();
-            cy.contains('button', 'Feb').click();
-        });
+        cy.findAllByRole('dialog')
+            .eq(1)
+            .within(() => {
+                cy.contains('button', new Date().getFullYear()).click();
+                cy.get('button').find('[data-previous="true"]').click();
+                cy.contains('button', 2018).click();
+                cy.contains('button', 'Feb').click();
+            });
 
         cy.contains('Apply').click();
 
         cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading
 
-        cy.contains(`What's our total revenue to date?`)
-            .parents('.react-grid-item')
-            .contains('400');
+        cy.get('.react-grid-layout').within(() => {
+            cy.contains(`What's our total revenue to date?`)
+                .parents('.react-grid-item')
+                .contains('400');
+        });
     });
 
     it.skip('Should use UTC dates', () => {
