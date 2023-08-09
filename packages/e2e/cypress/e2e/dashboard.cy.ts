@@ -39,7 +39,9 @@ describe('Dashboard', () => {
 
         cy.contains('a', 'Jaffle dashboard').click();
 
-        cy.contains('How much revenue');
+        cy.get('.react-grid-layout').within(() => {
+            cy.contains('How much revenue');
+        });
 
         cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading
 

@@ -72,22 +72,24 @@ describe('Date tests', () => {
 
         cy.contains('a', 'Jaffle dashboard').click();
 
-        cy.contains('How much revenue');
+        cy.get('.react-grid-layout').within(() => {
+            cy.contains('How much revenue');
+        });
 
         cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading
 
         cy.contains('bank_transfer').should('have.length', 1);
 
-        cy.contains(`What's our total revenue to date?`)
-            .parents('.react-grid-item')
-            .contains('1,103');
+        cy.get('.react-grid-layout').within(() => {
+            cy.contains(`What's our total revenue to date?`)
+                .parents('.react-grid-item')
+                .contains('1,103');
+        });
 
         // Add filter
         cy.contains('Add filter').click();
+        cy.get('#field-autocomplete').click().type('order date month{enter}');
 
-        cy.findByPlaceholderText('Search field...').type(
-            'order date month{enter}',
-        );
         cy.contains('button', 'Select a date').click();
         cy.findAllByRole('dialog')
             .eq(1)
