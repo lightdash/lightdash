@@ -1,34 +1,27 @@
 import { Field, getItemId, TableCalculation } from '@lightdash/common';
-import { Select } from '@mantine/core';
+import { Select, SelectProps } from '@mantine/core';
 import { FC } from 'react';
-import FieldIcon from '../../common/Filters/FieldIcon';
-import { fieldLabelText } from '../../common/Filters/FieldLabel';
-import FieldSelectItem from '../FieldSelectItem';
+import FieldIcon from '../Filters/FieldIcon';
+import { fieldLabelText } from '../Filters/FieldLabel';
+import FieldSelectItem from './FieldSelectItem';
 
-interface Props {
+type Props = Omit<SelectProps, 'data'> & {
     label?: string;
     selectedField?: Field | TableCalculation;
     fieldOptions: (Field | TableCalculation)[];
-    placeholder?: string;
-    disabled?: boolean;
-    onChange: (newValue: string | null) => void;
-}
+};
 
 const FieldSelect: FC<Props> = ({
     label,
     selectedField,
     fieldOptions,
-    placeholder,
-    disabled,
-    onChange,
+    ...rest
 }) => {
     return (
         <Select
             label={label}
             sx={{ flexGrow: 1 }}
             searchable
-            disabled={disabled}
-            placeholder={placeholder}
             icon={selectedField && <FieldIcon item={selectedField} />}
             value={selectedField ? getItemId(selectedField) : null}
             data={fieldOptions.map((field) => {
@@ -42,7 +35,7 @@ const FieldSelect: FC<Props> = ({
                 };
             })}
             itemComponent={FieldSelectItem}
-            onChange={onChange}
+            {...rest}
         />
     );
 };

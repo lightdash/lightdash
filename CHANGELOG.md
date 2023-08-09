@@ -1,3 +1,17 @@
+# [0.731.0](https://github.com/lightdash/lightdash/compare/0.730.0...0.731.0) (2023-08-08)
+
+
+### Features
+
+* improve UI on dashboard filters ([#6628](https://github.com/lightdash/lightdash/issues/6628)) ([877485c](https://github.com/lightdash/lightdash/commit/877485c087e408995a53592b085a5c2dba0df62e))
+
+# [0.730.0](https://github.com/lightdash/lightdash/compare/0.729.0...0.730.0) (2023-08-08)
+
+
+### Features
+
+* json viewer for complex types ([#6640](https://github.com/lightdash/lightdash/issues/6640)) ([e7fab19](https://github.com/lightdash/lightdash/commit/e7fab191bff8a5952333776c8646b350a47b4142))
+
 # [0.729.0](https://github.com/lightdash/lightdash/compare/0.728.0...0.729.0) (2023-08-08)
 
 
