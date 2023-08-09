@@ -64,7 +64,7 @@ Guidelines:
 
 Restrictions:
 
-- Cannot import controllers, models and other services
+- Cannot import controllers, and other services
 - Can import models, clients and projectAdapters
 
 ### Models
