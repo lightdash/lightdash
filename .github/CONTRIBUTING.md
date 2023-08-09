@@ -244,7 +244,14 @@ The reviewers can still request adhoc changes for situations that haven't been e
 
 ## Setup Development Environment
 
+Packages overview:
 
+  - [`frontend` - React frontend](../packages/frontend/README.md)
+  - [`backend` - Node.js backend](../packages/backend/README.md)
+  - `common` - Shared code between all the other packages
+  - `cli` - Command line interface
+  - `e2e` - End-to-end and integration tests
+  - `warehouses` - Classes for connecting to different databases
 
 #### using Github Codespaces / VS Code Remote Containers
 
