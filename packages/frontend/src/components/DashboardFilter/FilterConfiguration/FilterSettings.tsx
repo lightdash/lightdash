@@ -1,4 +1,3 @@
-import { HTMLSelect } from '@blueprintjs/core';
 import { Popover2Props } from '@blueprintjs/popover2';
 import {
     DashboardFilterRule,
@@ -8,7 +7,7 @@ import {
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
 } from '@lightdash/common';
-import { Stack, Switch, TextInput, Tooltip } from '@mantine/core';
+import { Select, Stack, Switch, TextInput, Tooltip } from '@mantine/core';
 import { FC, useEffect, useMemo, useState } from 'react';
 import { FilterTypeConfig } from '../../common/Filters/configs';
 import { getPlaceholderByFilterTypeAndOperator } from '../../common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
@@ -95,14 +94,12 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     </Tooltip>
                 )}
 
-                <HTMLSelect
-                    fill
-                    onChange={(e) =>
-                        onChangeFilterOperator(
-                            e.target.value as FilterRule['operator'],
-                        )
+                <Select
+                    size="xs"
+                    data={filterConfig.operatorOptions}
+                    onChange={(operator: FilterRule['operator']) =>
+                        onChangeFilterOperator(operator)
                     }
-                    options={filterConfig.operatorOptions}
                     value={filterRule.operator}
                 />
                 {filterRule.disabled ? (
