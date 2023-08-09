@@ -43,13 +43,12 @@ describe('Dashboard', () => {
         // Add filter
         cy.contains('Add filter').click();
 
-        cy.findByPlaceholderText('Search field...')
-            .click()
-            .type('payment method{enter}');
+        cy.get('#field-autocomplete').click().type('payment method{enter}');
         cy.findByPlaceholderText('Start typing to filter results').type(
-            'credit_card{enter}{esc}',
+            'credit_card{enter}',
         );
-        cy.contains('Apply').click();
+        cy.findAllByRole('tab').eq(0).click();
+        cy.contains('button', 'Apply').click();
 
         cy.contains('bank_transfer').should('have.length', 0);
     });
