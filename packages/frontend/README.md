@@ -12,7 +12,7 @@ Table of contents:
 
 ## Getting started
 
-This package shouldn't be run directly. Instead, you should follow the instruction from
+This package shouldn't be run in isolation. Instead, you should follow the instruction from
 the [Setup development environment](../../.github/CONTRIBUTING.md#setup-development-environment)
 section from the contribution file.
 
