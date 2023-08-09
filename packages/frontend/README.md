@@ -19,6 +19,7 @@ section from the contribution file.
 ## Key technologies/libraries
 
 - [React](https://reactjs.org/)
+- [Vite](https://vitejs.dev/)
 - [Mantine](https://mantine.dev/)
 - [React Query](https://react-query.tanstack.com/)
 - [Echarts](https://echarts.apache.org/en/index.html)
