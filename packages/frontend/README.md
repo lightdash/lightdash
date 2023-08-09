@@ -56,8 +56,8 @@ the codebase. Plus, it eliminates abstract global folders, reducing potential du
 
 ### UI
 
-Inspired in
-the [atomic design structure](https://bootcamp.uxdesign.cc/from-atoms-to-pages-implementing-atomic-design-in-react-2c91d1031e7c).
+Inspired by
+the [Atomic Design Structure](https://bootcamp.uxdesign.cc/from-atoms-to-pages-implementing-atomic-design-in-react-2c91d1031e7c).
 
 #### ~~Atoms~~
 
