@@ -51,6 +51,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                     withArrow
                     shadow="md"
                     offset={-1}
+                    keepMounted
                 >
                     <Popover.Target>
                         <Tooltip
