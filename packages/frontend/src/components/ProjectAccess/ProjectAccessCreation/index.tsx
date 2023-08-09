@@ -1,6 +1,3 @@
-import { Card, Intent } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
-import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
 import {
     CreateProjectMember,
     InviteLink,
@@ -8,53 +5,44 @@ import {
     ProjectMemberRole,
     validateEmail,
 } from '@lightdash/common';
-import { Button } from '@mantine/core';
-import { IconChevronLeft } from '@tabler/icons-react';
+import { Button, Group, Modal, Select, Title } from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { IconUser } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useCreateProjectAccessMutation } from '../../../hooks/useProjectAccess';
-import { useTracking } from '../../../providers/TrackingProvider';
-import { EventName } from '../../../types/Events';
+import { useApp } from '../../../providers/AppProvider';
+import { TrackPage, useTracking } from '../../../providers/TrackingProvider';
+import {
+    CategoryName,
+    EventName,
+    PageName,
+    PageType,
+} from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import InviteSuccess from '../../UserSettings/UserManagementPanel/InviteSuccess';
-import {
-    EmailForm,
-    Panel,
-    ProjectAccessForm,
-    RoleSelectButton,
-    SubmitButton,
-} from './ProjectAccessCreation';
-
-const renderItem: ItemRenderer<string> = (item, { modifiers, handleClick }) => {
-    if (!modifiers.matchesPredicate) {
-        return null;
-    }
-    return (
-        <MenuItem2
-            active={modifiers.active}
-            key={item}
-            text={item}
-            onClick={handleClick}
-            shouldDismissPopover={false}
-        />
-    );
-};
 
 interface ProjectAccessCreationProps {
     projectUuid: string;
-    onBackClick: () => void;
+    onClose: () => void;
+    opened: boolean;
 }
 
 const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
-    onBackClick,
+    onClose,
     projectUuid,
+    opened,
 }) => {
+    const form = useForm<CreateProjectMember>({
+        initialValues: {
+            email: '',
+            role: ProjectMemberRole.VIEWER,
+            sendEmail: false,
+        },
+    });
     const { track } = useTracking();
-
-    const { showToastSuccess } = useToaster();
+    const { user } = useApp();
     const {
         mutate: createMutation,
         isError,
@@ -70,13 +58,6 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
         reset,
     } = useCreateInviteLinkMutation();
 
-    const methods = useForm<CreateProjectMember>({
-        mode: 'onSubmit',
-        defaultValues: {
-            role: ProjectMemberRole.VIEWER,
-        },
-    });
-    const [emailSelected, setEmailSelected] = useState<string>('');
     const [addNewMember, setAddNewMember] = useState<boolean>(false);
     const [inviteLink, setInviteLink] = useState<InviteLink | undefined>();
 
@@ -86,32 +67,30 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
 
     useEffect(() => {
         if (isError) {
-            methods.reset({ ...methods.getValues() }, { keepValues: true });
+            return;
         }
         if (isSuccess) {
-            setEmailSelected('');
-            methods.setValue('role', ProjectMemberRole.VIEWER);
+            form.reset();
         }
-    }, [isError, methods, isSuccess, showToastSuccess, setEmailSelected]);
+    }, [isError, isSuccess, form]);
 
     useEffect(() => {
         if (isInvitationSuccess) {
             setInviteLink(inviteData);
             reset();
             createMutation({
-                role: methods.getValues('role'),
-                email: emailSelected,
+                role: form.values.role,
+                email: form.values.email,
                 sendEmail: false,
             });
             setAddNewMember(false);
         }
     }, [
         isInvitationSuccess,
-        inviteData,
-        emailSelected,
-        addNewMember,
-        methods,
+        form.values.role,
+        form.values.email,
         createMutation,
+        inviteData,
         reset,
     ]);
 
@@ -122,122 +101,98 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
 
         if (addNewMember) {
             inviteMutation({
-                email: emailSelected,
+                email: form.values.email,
                 role: OrganizationMemberRole.MEMBER,
             });
         } else {
             createMutation({
                 ...formData,
-                email: emailSelected,
+                email: form.values.email,
                 sendEmail: true,
             });
         }
+        onClose();
     };
 
     return (
-        <Panel>
-            <Button
-                variant="subtle"
-                size="sm"
-                leftIcon={<MantineIcon icon={IconChevronLeft} />}
-                onClick={onBackClick}
+        <Modal
+            opened={opened}
+            onClose={onClose}
+            title={
+                <Group spacing="xs">
+                    <MantineIcon size="lg" icon={IconUser} />
+                    <Title order={4}>
+                        Provide access to your project to a new user
+                    </Title>
+                </Group>
+            }
+            size="lg"
+        >
+            <TrackPage
+                name={PageName.INVITE_MANAGEMENT_SETTINGS}
+                type={PageType.MODAL}
+                category={CategoryName.SETTINGS}
             >
-                Back
-            </Button>
-
-            <Card>
-                <ProjectAccessForm
-                    name="add_saved_charts_to_dashboard"
-                    methods={methods}
-                    onSubmit={handleSubmit}
+                <form
+                    name="create_project_member"
+                    onSubmit={form.onSubmit((values: CreateProjectMember) =>
+                        handleSubmit(values),
+                    )}
                 >
-                    <EmailForm
-                        className={`input-wrapper`}
-                        label="Enter user email address *"
-                    >
-                        <Suggest2
-                            inputValueRenderer={(item: string) => {
-                                return item;
-                            }}
-                            itemRenderer={renderItem}
-                            items={orgUserEmails}
-                            onItemSelect={(select: string) => {
-                                setEmailSelected(select);
-                                setAddNewMember(false);
-                            }}
-                            popoverProps={{
-                                minimal: true,
-                                popoverClassName: 'autocomplete-max-height',
-                            }}
-                            query={emailSelected}
-                            onQueryChange={(query: string) => {
-                                setEmailSelected(query);
-                                setAddNewMember(false);
-                            }}
-                            inputProps={{
-                                placeholder: 'example@gmail.com',
-                            }}
-                            selectedItem={emailSelected}
-                            itemPredicate={(
-                                query: string,
-                                item: string,
-                                index?: undefined | number,
-                                exactMatch?: undefined | false | true,
-                            ) => {
-                                if (exactMatch) {
-                                    return (
-                                        query.toLowerCase() ===
-                                        item.toLowerCase()
-                                    );
+                    <Group align="flex-end" spacing="xs">
+                        <Select
+                            name="email"
+                            label="Select user email address"
+                            placeholder="example@gmail.com"
+                            required
+                            creatable
+                            searchable
+                            getCreateLabel={(value) =>
+                                `Invite ${value} as new member of this organization`
+                            }
+                            onCreate={(value) => {
+                                if (validateEmail(value)) {
+                                    setAddNewMember(true);
+                                    return value;
                                 }
-                                return item
-                                    .toLowerCase()
-                                    .includes(query.toLowerCase());
+                                return null;
                             }}
-                            createNewItemFromQuery={(email: string) => email}
-                            createNewItemRenderer={(email: string) => {
-                                if (validateEmail(email)) {
-                                    return (
-                                        <MenuItem2
-                                            icon="add"
-                                            key={email}
-                                            text={`Invite ${email} as new member of this organization`}
-                                            onClick={() => {
-                                                setAddNewMember(true);
-                                            }}
-                                            shouldDismissPopover={true}
-                                        />
-                                    );
-                                }
-                            }}
+                            disabled={isLoading}
+                            data={orgUserEmails as string[]}
+                            dropdownPosition="bottom"
+                            withinPortal
+                            w="43%"
+                            {...form.getInputProps('email')}
                         />
-                    </EmailForm>
-
-                    <RoleSelectButton
-                        name="role"
-                        disabled={isLoading}
-                        options={Object.values(ProjectMemberRole).map(
-                            (orgMemberRole) => ({
-                                value: orgMemberRole,
-                                label: orgMemberRole.replace('_', ' '),
-                            }),
+                        {user.data?.ability?.can('manage', 'Organization') && (
+                            <Select
+                                data={Object.values(OrganizationMemberRole).map(
+                                    (orgMemberRole) => ({
+                                        value: orgMemberRole,
+                                        label: orgMemberRole.replace('_', ' '),
+                                    }),
+                                )}
+                                disabled={isLoading}
+                                required
+                                placeholder="Select role"
+                                dropdownPosition="bottom"
+                                withinPortal
+                                {...form.getInputProps('role')}
+                            />
                         )}
-                        rules={{
-                            required: 'Required field',
-                        }}
-                    />
-
-                    <SubmitButton
-                        intent={Intent.PRIMARY}
-                        text="Give access"
-                        type="submit"
-                        disabled={isLoading || isInvitationLoading}
-                    />
-                </ProjectAccessForm>
-            </Card>
-
-            {inviteLink && <InviteSuccess invite={inviteLink} hasMarginTop />}
-        </Panel>
+                        <Button
+                            disabled={isLoading || isInvitationLoading}
+                            type="submit"
+                        >
+                            Give Access
+                        </Button>
+                    </Group>
+                </form>
+                {inviteLink && (
+                    <InviteSuccess invite={inviteLink} hasMarginTop />
+                )}
+            </TrackPage>
+        </Modal>
     );
 };
 
