@@ -24,6 +24,7 @@ import { checkLightdashVersion } from './dbt/apiClient';
 
 type GenerateHandlerOptions = CompileHandlerOptions & {
     select: string[] | undefined;
+    exclude: string[] | undefined;
     models: string[] | undefined;
     assumeYes: boolean;
     excludeMeta: boolean;
@@ -34,6 +35,8 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
     await checkLightdashVersion();
 
     const select = options.select || options.models;
+    const exclude = options.exclude || [];
+
     if (select === undefined && !options.assumeYes) {
         const answers = await inquirer.prompt([
             {
@@ -80,10 +83,10 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
     const credentials = await warehouseCredentialsFromDbtTarget(target);
     const warehouseClient = warehouseClientFromCredentials(credentials);
     const manifest = await loadManifest({ targetDir: context.targetDir });
-    const compiledModels = getCompiledModelsFromManifest({
-        projectName: context.projectName,
-        selectors: select,
+    const compiledModels = await getCompiledModelsFromManifest({
         manifest,
+        select,
+        exclude,
     });
 
     GlobalState.debug(`> Compiled models: ${compiledModels.length}`);
