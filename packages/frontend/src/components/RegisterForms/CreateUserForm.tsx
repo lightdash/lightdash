@@ -1,13 +1,12 @@
 import {
     CreateUserArgs,
-    PasswordValidationResult,
+    passwordSchema,
     validateEmail,
-    validatePassword,
 } from '@lightdash/common';
 import { Button, Flex, PasswordInput, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import React, { FC, useState } from 'react';
-import PasswordValidationMessages from '../common/PasswordValidationMessages';
+import React, { FC } from 'react';
+import PasswordTextInput from '../PasswordTextInput';
 
 type Props = {
     isLoading: boolean;
@@ -16,14 +15,6 @@ type Props = {
 };
 
 const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
-    const [validationResult, setValidationResult] =
-        useState<PasswordValidationResult>({
-            isLengthValid: false,
-            hasLetter: false,
-            hasNumberOrSymbol: false,
-            isPasswordValid: false,
-        });
-
     const form = useForm<CreateUserArgs>({
         initialValues: {
             firstName: '',
@@ -36,6 +27,13 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                 readOnlyEmail || validateEmail(value)
                     ? null
                     : 'Your email address is not valid',
+            password: (value) => {
+                const result = passwordSchema.safeParse(value);
+                if (result.success) {
+                    return null;
+                }
+                return result.error.issues.map((issue) => issue.message);
+            },
         },
     });
 
@@ -69,26 +67,26 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                     disabled={isLoading || !!readOnlyEmail}
                     data-cy="email-address-input"
                 />
-                <PasswordInput
-                    label="Password"
-                    name="password"
-                    placeholder="Your password"
-                    required
-                    {...form.getInputProps('password')}
-                    onChange={(event) => {
-                        setValidationResult(
-                            validatePassword(event.currentTarget.value),
-                        );
-                        form.getInputProps('password').onChange(event);
-                    }}
-                    data-cy="password-input"
-                    disabled={isLoading}
-                />
-                <PasswordValidationMessages {...validationResult} />
+                <PasswordTextInput
+                    passwordValue={form.values.password as string}
+                >
+                    <PasswordInput
+                        label="Password"
+                        name="password"
+                        placeholder="Your password"
+                        required
+                        {...form.getInputProps('password')}
+                        onChange={(event) => {
+                            form.getInputProps('password').onChange(event);
+                        }}
+                        data-cy="password-input"
+                        disabled={isLoading}
+                    />
+                </PasswordTextInput>
                 <Button
                     type="submit"
                     loading={isLoading}
-                    disabled={isLoading || !validationResult.isPasswordValid}
+                    disabled={isLoading}
                     data-cy="signup-button"
                 >
                     Sign up

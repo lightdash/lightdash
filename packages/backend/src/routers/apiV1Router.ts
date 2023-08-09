@@ -1,4 +1,4 @@
-import { ParameterError, validatePassword } from '@lightdash/common';
+import { ParameterError, passwordSchema } from '@lightdash/common';
 import express from 'express';
 import passport from 'passport';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -55,7 +55,7 @@ apiV1Router.post('/register', unauthorisedInDemo, async (req, res, next) => {
     try {
         if (
             req.body.password &&
-            !validatePassword(req.body.password).isPasswordValid
+            !passwordSchema.safeParse(req.body.password).success
         ) {
             next(new ParameterError('Password does not meet requirements'));
             return;

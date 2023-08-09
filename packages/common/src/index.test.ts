@@ -1,5 +1,5 @@
 import moment from 'moment';
-import { getFilterRuleWithDefaultValue, validatePassword } from '.';
+import { getFilterRuleWithDefaultValue, passwordSchema } from '.';
 import {
     dateDayDimension,
     dateMonthDimension,
@@ -88,51 +88,56 @@ describe('Common index', () => {
     });
 });
 
-describe('validatePassword', () => {
-    it('should return true for valid password', () => {
+describe('Password Validation', () => {
+    test('valid password', () => {
         const validPasswords = [
             'Lightdash1!',
             'Light@123',
             '#@#@#dash123',
             'light_dash',
         ];
-
         validPasswords.forEach((password) => {
-            const result = validatePassword(password);
-            expect(result.isPasswordValid).toBe(true);
+            const result = passwordSchema.safeParse(password);
+            expect(result.success).toBe(true);
         });
     });
 
-    it('should return false for passwords with invalid length', () => {
-        const invalidPasswords = ['short', 'only', '1234'];
-
-        invalidPasswords.forEach((password) => {
-            const result = validatePassword(password);
-            expect(result.isPasswordValid).toBe(false);
-            expect(result.isLengthValid).toBe(false);
-        });
-    });
-
-    it('should return false for passwords without letters', () => {
-        const passwords = [
-            '12345678!', // Missing letter
-            '@$%^&*()123', // Missing letter
-        ];
-
+    test('password missing letter', () => {
+        const passwords = ['12345678!', '@$%^&*()123'];
         passwords.forEach((password) => {
-            const result = validatePassword(password);
-            expect(result.isPasswordValid).toBe(false);
-            expect(result.hasLetter).toBe(false);
+            const result = passwordSchema.safeParse(password);
+            expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(result.error.errors[0].message).toBe(
+                    'must contain a letter',
+                );
+            }
         });
     });
 
-    it('should return false for passwords without numbers or symbols', () => {
+    test('password missing number or symbol', () => {
         const passwords = ['PasswordOnlyLetters', 'AnotherPassword'];
-
         passwords.forEach((password) => {
-            const result = validatePassword(password);
-            expect(result.isPasswordValid).toBe(false);
-            expect(result.hasNumberOrSymbol).toBe(false);
+            const result = passwordSchema.safeParse(password);
+            expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(result.error.errors[0].message).toBe(
+                    'must contain a number or symbol',
+                );
+            }
+        });
+    });
+
+    test('password too short', () => {
+        const invalidPasswords = ['short', 'only', '1234'];
+        invalidPasswords.forEach((password) => {
+            const result = passwordSchema.safeParse(password);
+            expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(result.error.errors[0].message).toBe(
+                    'must be at least 8 characters long',
+                );
+            }
         });
     });
 });

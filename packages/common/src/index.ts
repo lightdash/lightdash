@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { UserActivity, ViewStatistics } from './types/analytics';
 import {
     Dashboard,
@@ -154,27 +155,11 @@ export const validateEmail = (email: string): boolean => {
     return re.test(String(email).toLowerCase());
 };
 
-export type PasswordValidationResult = {
-    isLengthValid: boolean;
-    hasLetter: boolean;
-    hasNumberOrSymbol: boolean;
-    isPasswordValid: boolean;
-};
-
-export function validatePassword(password: string): PasswordValidationResult {
-    const minLength = 8;
-    const hasLetter = /[a-zA-Z]/.test(password);
-    const hasNumberOrSymbol = /[\d\W_]/.test(password);
-    const isLengthValid = password.length >= minLength;
-    const isPasswordValid = isLengthValid && hasLetter && hasNumberOrSymbol;
-
-    return {
-        isLengthValid,
-        hasLetter,
-        hasNumberOrSymbol,
-        isPasswordValid,
-    };
-}
+export const passwordSchema = z
+    .string()
+    .min(8, { message: 'must be at least 8 characters long' })
+    .regex(/[a-zA-Z]/, { message: 'must contain a letter' })
+    .regex(/[\d\W_]/, { message: 'must contain a number or symbol' });
 
 export const hasIntersection = (tags: string[], tags2: string[]): boolean => {
     const intersection = tags.filter((value) => tags2.includes(value));
@@ -482,7 +467,6 @@ type ApiResults =
     | Project
     | WarehouseCredentials
     | OrganizationMemberProfile[]
-    | PasswordValidationResult
     | ProjectCatalog
     | TablesConfiguration
     | Dashboard

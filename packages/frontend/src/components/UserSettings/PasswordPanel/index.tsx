@@ -1,27 +1,29 @@
-import { PasswordValidationResult, validatePassword } from '@lightdash/common';
+import { passwordSchema } from '@lightdash/common';
 import { Button, PasswordInput, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { FC, useState } from 'react';
+import { FC } from 'react';
 import {
     useUserHasPassword,
     useUserUpdatePasswordMutation,
 } from '../../../hooks/user/usePassword';
-import PasswordValidationMessages from '../../common/PasswordValidationMessages';
+import PasswordTextInput from '../../PasswordTextInput';
 
 const PasswordPanel: FC = () => {
-    const [validationResult, setValidationResult] =
-        useState<PasswordValidationResult>({
-            isLengthValid: false,
-            hasLetter: false,
-            hasNumberOrSymbol: false,
-            isPasswordValid: false,
-        });
     const { data: hasPassword } = useUserHasPassword();
 
     const form = useForm({
         initialValues: {
             currentPassword: '',
             newPassword: '',
+        },
+        validate: {
+            newPassword: (value) => {
+                const result = passwordSchema.safeParse(value);
+                if (result.success) {
+                    return null;
+                }
+                return result.error.issues.map((issue) => issue.message);
+            },
         },
     });
 
@@ -47,26 +49,24 @@ const PasswordPanel: FC = () => {
                         {...form.getInputProps('currentPassword')}
                     />
                 )}
-                <PasswordInput
-                    label="New password"
-                    placeholder="Enter your new password..."
-                    required
-                    disabled={isLoading}
-                    {...form.getInputProps('newPassword')}
-                    onChange={(event) => {
-                        setValidationResult(
-                            validatePassword(event.currentTarget.value),
-                        );
-                        form.getInputProps('newPassword').onChange(event);
-                    }}
-                />
-                <PasswordValidationMessages {...validationResult} />
+                <PasswordTextInput passwordValue={form.values.newPassword}>
+                    <PasswordInput
+                        label="New password"
+                        placeholder="Enter your new password..."
+                        required
+                        disabled={isLoading}
+                        {...form.getInputProps('newPassword')}
+                        onChange={(event) => {
+                            form.getInputProps('newPassword').onChange(event);
+                        }}
+                    />
+                </PasswordTextInput>
                 <Button
                     type="submit"
                     ml="auto"
                     display="block"
                     loading={isLoading}
-                    disabled={!validationResult.isPasswordValid || isLoading}
+                    disabled={isLoading}
                 >
                     Update
                 </Button>
