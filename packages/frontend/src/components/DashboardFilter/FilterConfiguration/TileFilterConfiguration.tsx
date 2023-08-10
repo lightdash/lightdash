@@ -43,76 +43,89 @@ const TileFilterConfiguration: FC<Props> = ({
 
     const { data: savedCharts } = useChartSummaries(projectUuid);
 
-    const tilesSortBy = useCallback(
+    const sortTilesByFieldMatch = useCallback(
         (
-            matcher: (a: FilterableField) => (b: FilterableField) => boolean,
+            fieldMatcher: (
+                a: FilterableField,
+            ) => (b: FilterableField) => boolean,
             a: FilterableField[] | undefined,
             b: FilterableField[] | undefined,
         ) => {
             if (!a || !b) return 0;
 
-            const matchA = a.some(matcher(field));
-            const matchB = b.some(matcher(field));
+            const matchA = a.some(fieldMatcher(field));
+            const matchB = b.some(fieldMatcher(field));
             return matchA === matchB ? 0 : matchA ? -1 : 1;
         },
         [field],
     );
 
-    const itemsSortBy = useCallback(
+    const sortFieldsByMatch = useCallback(
         (
-            matcher: (a: FilterableField) => (b: FilterableField) => boolean,
+            fieldMatcher: (
+                a: FilterableField,
+            ) => (b: FilterableField) => boolean,
             a: FilterableField,
             b: FilterableField,
         ) => {
-            const matchA = matcher(field)(a);
-            const matchB = matcher(field)(b);
+            const matchA = fieldMatcher(field)(a);
+            const matchB = fieldMatcher(field)(b);
             return matchA === matchB ? 0 : matchA ? -1 : 1;
         },
         [field],
     );
+    const sortedTileWithFilters = useMemo(
+        () =>
+            Object.entries(availableTileFilters)
+                .sort(([, a], [, b]) =>
+                    sortTilesByFieldMatch(matchFieldByTypeAndName, a, b),
+                )
+                .sort(([, a], [, b]) =>
+                    sortTilesByFieldMatch(matchFieldExact, a, b),
+                ),
+        [sortTilesByFieldMatch, availableTileFilters],
+    );
 
-    const sortedTileEntries = useMemo(() => {
-        return Object.entries(availableTileFilters)
-            .sort(([, a], [, b]) => tilesSortBy(matchFieldByTypeAndName, a, b))
-            .sort(([, a], [, b]) => tilesSortBy(matchFieldExact, a, b));
-    }, [tilesSortBy, availableTileFilters]);
-
-    const initialFilterTileTargets = sortedTileEntries.map(
+    const initialFilterTileTargets = sortedTileWithFilters.map(
         ([tileUuid, filters], index) => {
             const tile = tiles.find((t) => t.uuid === tileUuid);
             const tileConfig = filterRule.tileTargets?.[tileUuid];
 
-            const isAvailable = filters?.some(matchFieldByType(field));
+            const isFilterAvailable = filters?.some(matchFieldByType(field));
             const sortedFilters = filters
                 ?.filter(matchFieldByType(field))
-                .sort((a, b) => itemsSortBy(matchFieldByTypeAndName, a, b))
-                .sort((a, b) => itemsSortBy(matchFieldExact, a, b));
+                .sort((a, b) =>
+                    sortFieldsByMatch(matchFieldByTypeAndName, a, b),
+                )
+                .sort((a, b) => sortFieldsByMatch(matchFieldExact, a, b));
 
             const fieldId = tileConfig?.fieldId;
-            const filter = filters?.find((f) => getFieldId(f) === fieldId);
-            const hasNoTitle =
+            const selectedFilter = filters?.find(
+                (f) => getFieldId(f) === fieldId,
+            );
+            const tileWithoutTitle =
                 !tile?.properties.title || tile.properties.title.length === 0;
-            const isChartTile = tile && isDashboardChartTileType(tile);
+            const isChartTileType = tile && isDashboardChartTileType(tile);
 
-            let label = '';
+            let tileLabel = '';
             if (tile) {
-                if (hasNoTitle && isChartTile) {
-                    const matchingChart = savedCharts?.find(
+                if (tileWithoutTitle && isChartTileType) {
+                    const relatedChart = savedCharts?.find(
                         (chart) =>
                             chart.uuid === tile.properties.savedChartUuid,
                     );
-                    label = matchingChart?.name || '';
+                    tileLabel = relatedChart?.name || '';
                 } else if (tile.properties.title) {
-                    label = tile.properties.title;
+                    tileLabel = tile.properties.title;
                 }
             }
             return {
                 key: tileUuid + index,
-                label,
-                checked: Boolean(isAvailable && tileConfig),
+                label: tileLabel,
+                checked: Boolean(isFilterAvailable && tileConfig),
                 tileUuid,
                 sortedFilters,
-                filter,
+                selectedFilter,
             };
         },
     );
@@ -138,11 +151,11 @@ const TileFilterConfiguration: FC<Props> = ({
                 }}
                 checked={value.checked}
                 onChange={(event) => {
-                    handlers.setItemProp(
-                        index,
-                        'checked',
-                        event.currentTarget.checked,
-                    );
+                    handlers.setItem(index, {
+                        ...value,
+                        checked: event.currentTarget.checked,
+                        selectedFilter: field,
+                    });
 
                     onChange(
                         event.currentTarget.checked
@@ -172,9 +185,13 @@ const TileFilterConfiguration: FC<Props> = ({
                             },
                         }}
                         fields={value.sortedFilters}
-                        activeField={value.filter}
+                        activeField={value.selectedFilter}
                         onChange={(newFilter) => {
-                            handlers.setItemProp(index, 'filter', newFilter);
+                            handlers.setItemProp(
+                                index,
+                                'selectedFilter',
+                                newFilter,
+                            );
 
                             onChange(
                                 FilterActions.ADD,
