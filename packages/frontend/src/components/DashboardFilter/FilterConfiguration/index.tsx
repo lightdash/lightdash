@@ -209,7 +209,12 @@ const FilterConfiguration: FC<Props> = ({
                             <FormGroup
                                 style={{ marginBottom: '5px' }}
                                 label={
-                                    <Text>Select a dimension to filter</Text>
+                                    <Text fw={500}>
+                                        Select a dimension to filter{' '}
+                                        <Text color="red" span>
+                                            *
+                                        </Text>{' '}
+                                    </Text>
                                 }
                                 labelFor="field-autocomplete"
                             >
