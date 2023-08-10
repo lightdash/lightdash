@@ -167,7 +167,7 @@ const TileFilterConfiguration: FC<Props> = ({
             />
 
             {value.sortedFilters && (
-                <Box ml={24} mt={6} display={!value.checked ? 'none' : 'auto'}>
+                <Box ml="xl" mt="sm" display={!value.checked ? 'none' : 'auto'}>
                     <FieldAutoComplete
                         disabled={!value.checked}
                         popoverProps={{
