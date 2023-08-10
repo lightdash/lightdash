@@ -154,7 +154,7 @@ const TileFilterConfiguration: FC<Props> = ({
                     handlers.setItem(index, {
                         ...value,
                         checked: event.currentTarget.checked,
-                        selectedFilter: field,
+                        selectedFilter: value.selectedFilter ?? field,
                     });
 
                     onChange(
@@ -233,6 +233,9 @@ const TileFilterConfiguration: FC<Props> = ({
                         current.map((value) => ({
                             ...value,
                             checked: !allChecked,
+                            ...(!value.checked && {
+                                selectedFilter: value.selectedFilter || field,
+                            }),
                         })),
                     )
                 }
