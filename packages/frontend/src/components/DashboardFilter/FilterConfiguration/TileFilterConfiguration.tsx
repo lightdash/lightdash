@@ -77,7 +77,7 @@ const TileFilterConfiguration: FC<Props> = ({
             .sort(([, a], [, b]) => tilesSortBy(matchFieldExact, a, b));
     }, [tilesSortBy, availableTileFilters]);
 
-    const initialFilterTilesValues = sortedTileEntries.map(
+    const initialFilterTileTargets = sortedTileEntries.map(
         ([tileUuid, filters], index) => {
             const tile = tiles.find((t) => t.uuid === tileUuid);
             const tileConfig = filterRule.tileTargets?.[tileUuid];
@@ -117,12 +117,15 @@ const TileFilterConfiguration: FC<Props> = ({
         },
     );
 
-    const [values, handlers] = useListState(initialFilterTilesValues);
+    const [tileTargetCheckboxes, handlers] = useListState(
+        initialFilterTileTargets,
+    );
 
-    const allChecked = values.every(({ checked }) => checked);
-    const indeterminate = values.some(({ checked }) => checked) && !allChecked;
+    const allChecked = tileTargetCheckboxes.every(({ checked }) => checked);
+    const indeterminate =
+        tileTargetCheckboxes.some(({ checked }) => checked) && !allChecked;
 
-    const items = values.map((value, index) => (
+    const tileTargets = tileTargetCheckboxes.map((value, index) => (
         <Box key={value.key}>
             <Checkbox
                 size="xs"
@@ -196,7 +199,8 @@ const TileFilterConfiguration: FC<Props> = ({
                         Select all{' '}
                         {indeterminate
                             ? ` (${
-                                  values.filter((v) => v.checked).length
+                                  tileTargetCheckboxes.filter((v) => v.checked)
+                                      .length
                               } charts selected)`
                             : ''}
                     </Text>
@@ -216,7 +220,7 @@ const TileFilterConfiguration: FC<Props> = ({
                     )
                 }
             />
-            <Stack spacing="md">{items}</Stack>
+            <Stack spacing="md">{tileTargets}</Stack>
         </Stack>
     );
 };
