@@ -1,5 +1,6 @@
 import { Classes, Popover2Props } from '@blueprintjs/popover2';
 
+import { FormGroup } from '@blueprintjs/core';
 import {
     applyDefaultTileTargets,
     assertUnreachable,
@@ -8,20 +9,29 @@ import {
     DashboardTile,
     fieldId,
     FilterableField,
-    FilterRule,
-    getFilterRuleWithDefaultValue,
+    isField,
+    isFilterableField,
     matchFieldByType,
     matchFieldByTypeAndName,
     matchFieldExact,
 } from '@lightdash/common';
-import { Box, Button, Flex, Group, Tabs, Tooltip } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Flex,
+    Group,
+    Stack,
+    Tabs,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import { IconRotate2 } from '@tabler/icons-react';
 import produce from 'immer';
 import { FC, useCallback, useMemo, useState } from 'react';
+import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import FieldLabel from '../../common/Filters/FieldLabel';
 import MantineIcon from '../../common/MantineIcon';
-import { ConfigureFilterWrapper } from './FilterConfiguration.styled';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
 import {
@@ -44,51 +54,45 @@ export enum FilterActions {
 
 interface Props {
     tiles: DashboardTile[];
-    field: FilterableField;
+    field?: FilterableField;
+    fields?: FilterableField[];
+    onFieldChange?: (newField: FilterableField) => void;
     availableTileFilters: Record<string, FilterableField[] | undefined>;
     originalFilterRule?: DashboardFilterRule;
     filterRule?: DashboardFilterRule;
     popoverProps?: Popover2Props;
-    selectedTabId?: string;
     isEditMode: boolean;
     isCreatingNew?: boolean;
     isTemporary?: boolean;
-    onTabChange: (tabId: FilterTabs) => void;
     onSave: (value: DashboardFilterRule) => void;
-    onBack?: () => void;
 }
 
 const FilterConfiguration: FC<Props> = ({
     isEditMode,
     isCreatingNew = false,
     isTemporary = false,
-    selectedTabId = DEFAULT_TAB,
     tiles,
     field,
+    fields,
+    onFieldChange,
     availableTileFilters,
     originalFilterRule,
     filterRule,
     popoverProps,
     onSave,
-    onBack,
-    onTabChange,
 }) => {
-    const [internalFilterRule, setInternalFilterRule] =
-        useState<DashboardFilterRule>(
-            filterRule
-                ? applyDefaultTileTargets(
-                      filterRule,
-                      field,
-                      availableTileFilters,
-                  )
-                : createDashboardFilterRuleFromField(
-                      field,
-                      availableTileFilters,
-                  ),
-        );
+    const [selectedTabId, setSelectedTabId] = useState<FilterTabs>(DEFAULT_TAB);
+
+    const [internalFilterRule, setInternalFilterRule] = useState<
+        DashboardFilterRule | undefined
+    >(
+        filterRule && field
+            ? applyDefaultTileTargets(filterRule, field, availableTileFilters)
+            : undefined,
+    );
 
     const isFilterModified = useMemo(() => {
-        if (!originalFilterRule) return false;
+        if (!originalFilterRule || !internalFilterRule) return false;
 
         return isFilterConfigRevertButtonEnabled(
             originalFilterRule,
@@ -96,13 +100,31 @@ const FilterConfiguration: FC<Props> = ({
         );
     }, [originalFilterRule, internalFilterRule]);
 
+    const handleChangeField = (newField: FilterableField) => {
+        if (!fields || !onFieldChange) return;
+
+        if (newField && isField(newField) && isFilterableField(newField)) {
+            setInternalFilterRule(
+                createDashboardFilterRuleFromField(
+                    newField,
+                    availableTileFilters,
+                ),
+            );
+            onFieldChange(newField);
+        }
+    };
+
     const handleRevert = useCallback(() => {
         if (!originalFilterRule) return;
 
-        setInternalFilterRule((rule) => ({
-            ...rule,
-            ...getFilterRuleRevertableObject(originalFilterRule),
-        }));
+        setInternalFilterRule((rule) =>
+            rule
+                ? {
+                      ...rule,
+                      ...getFilterRuleRevertableObject(originalFilterRule),
+                  }
+                : undefined,
+        );
     }, [originalFilterRule]);
 
     const handleChangeFilterRule = useCallback(
@@ -112,18 +134,6 @@ const FilterConfiguration: FC<Props> = ({
         [],
     );
 
-    const handleChangeFilterOperator = useCallback(
-        (operator: FilterRule['operator']) => {
-            setInternalFilterRule((prevState) =>
-                getFilterRuleWithDefaultValue(field, {
-                    ...prevState,
-                    operator,
-                }),
-            );
-        },
-        [field],
-    );
-
     const handleChangeTileConfiguration = useCallback(
         (action: FilterActions, tileUuid: string, filter?: FilterableField) => {
             const filters = availableTileFilters[tileUuid];
@@ -131,6 +141,8 @@ const FilterConfiguration: FC<Props> = ({
 
             setInternalFilterRule((prevState) =>
                 produce(prevState, (draftState) => {
+                    if (!draftState || !field) return;
+
                     draftState.tileTargets = draftState.tileTargets ?? {};
 
                     if (action === FilterActions.ADD) {
@@ -161,15 +173,10 @@ const FilterConfiguration: FC<Props> = ({
     );
 
     return (
-        <ConfigureFilterWrapper>
-            <Group spacing="xs">
-                <FieldIcon item={field} />
-                <FieldLabel item={field} />
-            </Group>
-
+        <Stack>
             <Tabs
                 value={selectedTabId}
-                onTabChange={(tabId: FilterTabs) => onTabChange(tabId)}
+                onTabChange={(tabId: FilterTabs) => setSelectedTabId(tabId)}
             >
                 {isCreatingNew || isEditMode || isTemporary ? (
                     <Tabs.List mb="md">
@@ -177,48 +184,87 @@ const FilterConfiguration: FC<Props> = ({
                             label="Select the value you want to filter your dimension by"
                             position="top-start"
                         >
-                            <Tabs.Tab value="settings">Settings</Tabs.Tab>
+                            <Tabs.Tab value={FilterTabs.SETTINGS}>
+                                Settings
+                            </Tabs.Tab>
                         </Tooltip>
 
                         <Tooltip
                             label="Select tiles to apply filter to and which field to filter by"
                             position="top-start"
                         >
-                            <Tabs.Tab value="tiles">Tiles</Tabs.Tab>
+                            <Tabs.Tab
+                                value={FilterTabs.TILES}
+                                disabled={!field}
+                            >
+                                Tiles
+                            </Tabs.Tab>
                         </Tooltip>
                     </Tabs.List>
                 ) : null}
 
-                <Tabs.Panel value={FilterTabs.SETTINGS}>
-                    <FilterSettings
-                        isEditMode={isEditMode}
-                        field={field}
-                        filterRule={internalFilterRule}
-                        onChangeFilterOperator={handleChangeFilterOperator}
-                        onChangeFilterRule={handleChangeFilterRule}
-                        popoverProps={popoverProps}
-                    />
+                <Tabs.Panel value={FilterTabs.SETTINGS} w={350}>
+                    <Stack>
+                        {!!fields && isCreatingNew ? (
+                            <FormGroup
+                                style={{ marginBottom: '5px' }}
+                                label={
+                                    <Text>Select a dimension to filter</Text>
+                                }
+                                labelFor="field-autocomplete"
+                            >
+                                <FieldAutoComplete
+                                    hasGrouping
+                                    id="field-autocomplete"
+                                    fields={fields}
+                                    activeField={field}
+                                    onChange={handleChangeField}
+                                    popoverProps={{
+                                        lazy: true,
+                                        matchTargetWidth: true,
+                                        captureDismiss: !popoverProps?.isOpen,
+                                        canEscapeKeyClose:
+                                            !popoverProps?.isOpen,
+                                        ...popoverProps,
+                                    }}
+                                />
+                            </FormGroup>
+                        ) : (
+                            field && (
+                                <Group spacing="xs">
+                                    <FieldIcon item={field} />
+                                    <FieldLabel item={field} />
+                                </Group>
+                            )
+                        )}
+
+                        {!!field && internalFilterRule && (
+                            <FilterSettings
+                                isEditMode={isEditMode}
+                                field={field}
+                                filterRule={internalFilterRule}
+                                onChangeFilterRule={handleChangeFilterRule}
+                                popoverProps={popoverProps}
+                            />
+                        )}
+                    </Stack>
                 </Tabs.Panel>
 
-                <Tabs.Panel value={FilterTabs.TILES}>
-                    <TileFilterConfiguration
-                        field={field}
-                        filterRule={internalFilterRule}
-                        popoverProps={popoverProps}
-                        tiles={tiles}
-                        availableTileFilters={availableTileFilters}
-                        onChange={handleChangeTileConfiguration}
-                    />
-                </Tabs.Panel>
+                {!!field && internalFilterRule && (
+                    <Tabs.Panel value={FilterTabs.TILES} w={500}>
+                        <TileFilterConfiguration
+                            field={field}
+                            filterRule={internalFilterRule}
+                            popoverProps={popoverProps}
+                            tiles={tiles}
+                            availableTileFilters={availableTileFilters}
+                            onChange={handleChangeTileConfiguration}
+                        />
+                    </Tabs.Panel>
+                )}
             </Tabs>
 
             <Flex gap="sm">
-                {onBack && (
-                    <Button size="xs" variant="subtle" onClick={onBack}>
-                        Back
-                    </Button>
-                )}
-
                 <Box sx={{ flexGrow: 1 }} />
 
                 {!isTemporary &&
@@ -249,14 +295,14 @@ const FilterConfiguration: FC<Props> = ({
                         )
                     }
                     onClick={() => {
-                        onSave(internalFilterRule);
-                        onTabChange(FilterTabs.SETTINGS);
+                        setSelectedTabId(FilterTabs.SETTINGS);
+                        if (!!internalFilterRule) onSave(internalFilterRule);
                     }}
                 >
                     Apply
                 </Button>
             </Flex>
-        </ConfigureFilterWrapper>
+        </Stack>
     );
 };
 
