@@ -1,3 +1,17 @@
+## [0.732.1](https://github.com/lightdash/lightdash/compare/0.732.0...0.732.1) (2023-08-09)
+
+
+### Bug Fixes
+
+* keep filter-related popovers mounted ([#6672](https://github.com/lightdash/lightdash/issues/6672)) ([e3ab05e](https://github.com/lightdash/lightdash/commit/e3ab05efb734d992513db7fc4853ab44a0284f5c))
+
+# [0.732.0](https://github.com/lightdash/lightdash/compare/0.731.0...0.732.0) (2023-08-09)
+
+
+### Features
+
+* update filter operator dropdown ([#6660](https://github.com/lightdash/lightdash/issues/6660)) ([822df50](https://github.com/lightdash/lightdash/commit/822df50b4d150bcd648f1ee16777c979d21fce52))
+
 # [0.731.0](https://github.com/lightdash/lightdash/compare/0.730.0...0.731.0) (2023-08-08)
 
 
