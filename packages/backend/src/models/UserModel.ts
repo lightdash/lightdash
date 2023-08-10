@@ -3,6 +3,7 @@ import {
     CreateUserArgs,
     CreateUserWithRole,
     ForbiddenError,
+    getPasswordSchema,
     getUserAbilityBuilder,
     isOpenIdUser,
     LightdashMode,
@@ -13,12 +14,12 @@ import {
     OpenIdUser,
     OrganizationMemberRole,
     ParameterError,
-    passwordSchema,
     PersonalAccessToken,
     ProjectMemberProfile,
     ProjectMemberRole,
     SessionUser,
     UpdateUserArgs,
+    validatePassword,
 } from '@lightdash/common';
 import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
@@ -165,7 +166,7 @@ export class UserModel {
                 is_primary: true,
             });
             if (createUser.password) {
-                if (!passwordSchema.safeParse(createUser.password).success) {
+                if (!validatePassword(createUser.password)) {
                     throw new ParameterError(
                         "Password doesn't meet requirements",
                     );
@@ -390,10 +391,7 @@ export class UserModel {
             throw new ParameterError('Email already in use');
         }
 
-        if (
-            createUser.password &&
-            !passwordSchema.safeParse(createUser.password).success
-        ) {
+        if (createUser.password && !validatePassword(createUser.password)) {
             throw new ParameterError("Password doesn't meet requirements");
         }
 
@@ -418,7 +416,7 @@ export class UserModel {
     ): Promise<LightdashUser> {
         if (
             !isOpenIdUser(activateUser) &&
-            !passwordSchema.safeParse(activateUser.password).success
+            !validatePassword(activateUser.password)
         ) {
             throw new ParameterError("Password doesn't meet requirements");
         }
@@ -466,7 +464,7 @@ export class UserModel {
             if (
                 !isOpenIdUser(createUser) &&
                 createUser.password &&
-                !passwordSchema.safeParse(createUser.password).success
+                !validatePassword(createUser.password)
             ) {
                 throw new ParameterError("Password doesn't meet requirements");
             }
@@ -547,7 +545,7 @@ export class UserModel {
     }
 
     async upsertPassword(userUuid: string, password: string): Promise<void> {
-        if (!passwordSchema.safeParse(password).success) {
+        if (!validatePassword(password)) {
             throw new ParameterError("Password doesn't meet requirements");
         }
         const user = await this.findSessionUserByUUID(userUuid);
@@ -603,7 +601,7 @@ export class UserModel {
     }
 
     async createPassword(userId: number, newPassword: string): Promise<void> {
-        if (!passwordSchema.safeParse(newPassword).success) {
+        if (!validatePassword(newPassword)) {
             throw new ParameterError("Password doesn't meet requirements");
         }
         return UserModel.createPasswordLogin(this.database, {
@@ -616,7 +614,7 @@ export class UserModel {
     }
 
     async updatePassword(userId: number, newPassword: string): Promise<void> {
-        if (!passwordSchema.safeParse(newPassword).success) {
+        if (!validatePassword(newPassword)) {
             throw new ParameterError("Password doesn't meet requirements");
         }
         return this.database(PasswordLoginTableName)

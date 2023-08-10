@@ -1,5 +1,5 @@
 import moment from 'moment';
-import { getFilterRuleWithDefaultValue, passwordSchema } from '.';
+import { getFilterRuleWithDefaultValue, getPasswordSchema } from '.';
 import {
     dateDayDimension,
     dateMonthDimension,
@@ -97,7 +97,7 @@ describe('Password Validation', () => {
             'light_dash',
         ];
         validPasswords.forEach((password) => {
-            const result = passwordSchema.safeParse(password);
+            const result = getPasswordSchema().safeParse(password);
             expect(result.success).toBe(true);
         });
     });
@@ -105,7 +105,7 @@ describe('Password Validation', () => {
     test('password missing letter', () => {
         const passwords = ['12345678!', '@$%^&*()123'];
         passwords.forEach((password) => {
-            const result = passwordSchema.safeParse(password);
+            const result = getPasswordSchema().safeParse(password);
             expect(result.success).toBe(false);
             if (!result.success) {
                 expect(result.error.errors[0].message).toBe(
@@ -118,7 +118,7 @@ describe('Password Validation', () => {
     test('password missing number or symbol', () => {
         const passwords = ['PasswordOnlyLetters', 'AnotherPassword'];
         passwords.forEach((password) => {
-            const result = passwordSchema.safeParse(password);
+            const result = getPasswordSchema().safeParse(password);
             expect(result.success).toBe(false);
             if (!result.success) {
                 expect(result.error.errors[0].message).toBe(
@@ -131,7 +131,7 @@ describe('Password Validation', () => {
     test('password too short', () => {
         const invalidPasswords = ['short', 'only', '1234'];
         invalidPasswords.forEach((password) => {
-            const result = passwordSchema.safeParse(password);
+            const result = getPasswordSchema().safeParse(password);
             expect(result.success).toBe(false);
             if (!result.success) {
                 expect(result.error.errors[0].message).toBe(

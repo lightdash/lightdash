@@ -1,11 +1,12 @@
 import {
     CreateUserArgs,
-    passwordSchema,
-    validateEmail,
+    getEmailSchema,
+    getPasswordSchema,
 } from '@lightdash/common';
 import { Button, Flex, PasswordInput, Stack, TextInput } from '@mantine/core';
-import { useForm } from '@mantine/form';
-import React, { FC } from 'react';
+import { useForm, zodResolver } from '@mantine/form';
+import { FC } from 'react';
+import { z } from 'zod';
 import PasswordTextInput from '../PasswordTextInput';
 
 type Props = {
@@ -13,6 +14,11 @@ type Props = {
     readOnlyEmail?: string;
     onSubmit: (data: CreateUserArgs) => void;
 };
+
+const validationSchema = z.object({
+    email: getEmailSchema(),
+    password: getPasswordSchema(),
+});
 
 const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
     const form = useForm<CreateUserArgs>({
@@ -22,19 +28,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
             email: readOnlyEmail || '',
             password: '',
         },
-        validate: {
-            email: (value) =>
-                readOnlyEmail || validateEmail(value)
-                    ? null
-                    : 'Your email address is not valid',
-            password: (value) => {
-                const result = passwordSchema.safeParse(value);
-                if (result.success) {
-                    return null;
-                }
-                return result.error.issues.map((issue) => issue.message);
-            },
-        },
+        validate: zodResolver(validationSchema),
     });
 
     return (
@@ -76,9 +70,6 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                         placeholder="Your password"
                         required
                         {...form.getInputProps('password')}
-                        onChange={(event) => {
-                            form.getInputProps('password').onChange(event);
-                        }}
                         data-cy="password-input"
                         disabled={isLoading}
                     />

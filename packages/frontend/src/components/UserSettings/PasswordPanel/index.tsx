@@ -1,12 +1,20 @@
-import { passwordSchema } from '@lightdash/common';
+import { getPasswordSchema } from '@lightdash/common';
 import { Button, PasswordInput, Stack } from '@mantine/core';
-import { useForm } from '@mantine/form';
+import { useForm, zodResolver } from '@mantine/form';
 import { FC } from 'react';
+import { z } from 'zod';
 import {
     useUserHasPassword,
     useUserUpdatePasswordMutation,
 } from '../../../hooks/user/usePassword';
 import PasswordTextInput from '../../PasswordTextInput';
+
+const passwordSchema = getPasswordSchema();
+
+const validationSchema = z.object({
+    currentPassword: passwordSchema,
+    newPassword: passwordSchema,
+});
 
 const PasswordPanel: FC = () => {
     const { data: hasPassword } = useUserHasPassword();
@@ -16,15 +24,7 @@ const PasswordPanel: FC = () => {
             currentPassword: '',
             newPassword: '',
         },
-        validate: {
-            newPassword: (value) => {
-                const result = passwordSchema.safeParse(value);
-                if (result.success) {
-                    return null;
-                }
-                return result.error.issues.map((issue) => issue.message);
-            },
-        },
+        validate: zodResolver(validationSchema),
     });
 
     const { isLoading, mutate: updateUserPassword } =
@@ -44,7 +44,6 @@ const PasswordPanel: FC = () => {
                     <PasswordInput
                         label="Current password"
                         placeholder="Enter your password..."
-                        required
                         disabled={isLoading}
                         {...form.getInputProps('currentPassword')}
                     />
@@ -53,12 +52,8 @@ const PasswordPanel: FC = () => {
                     <PasswordInput
                         label="New password"
                         placeholder="Enter your new password..."
-                        required
                         disabled={isLoading}
                         {...form.getInputProps('newPassword')}
-                        onChange={(event) => {
-                            form.getInputProps('newPassword').onChange(event);
-                        }}
                     />
                 </PasswordTextInput>
                 <Button
