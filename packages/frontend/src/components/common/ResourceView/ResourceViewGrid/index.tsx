@@ -3,7 +3,9 @@ import {
     ResourceViewItem,
     ResourceViewItemType,
 } from '@lightdash/common';
-import { Anchor, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Anchor, Box, SimpleGrid, Stack, Text } from '@mantine/core';
+import { mergeRefs, useHover } from '@mantine/hooks';
+import { IconGripVertical } from '@tabler/icons-react';
 import produce from 'immer';
 import orderBy from 'lodash/orderBy';
 import { FC, useMemo } from 'react';
@@ -13,9 +15,10 @@ import {
     Droppable,
     DropResult,
 } from 'react-beautiful-dnd';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
-import { useReorder } from '../../../../hooks/pinning/usePinnedItems';
+import { usePinnedItemsContext } from '../../../../providers/PinnedItemsProvider';
+import MantineIcon from '../../MantineIcon';
 import { ResourceViewItemActionState } from '../ResourceActionHandlers';
 import { getResourceName, getResourceUrl } from '../resourceUtils';
 import ResourceViewGridChartItem from './ResourceViewGridChartItem';
@@ -25,16 +28,99 @@ import ResourceViewGridSpaceItem from './ResourceViewGridSpaceItem';
 export interface ResourceViewGridCommonProps {
     groups?: ResourceViewItemType[][];
     hasReorder?: boolean;
-    pinnedItemsProps?: {
-        projectUuid: string;
-        pinnedListUuid: string;
-    };
 }
 
 type ResourceViewGridProps = ResourceViewGridCommonProps &
     Pick<ResourceViewCommonProps, 'items'> & {
         onAction: (newAction: ResourceViewItemActionState) => void;
     };
+
+type DraggableItemProps = Pick<ResourceViewGridProps, 'onAction'> & {
+    item: ResourceViewItem;
+    index: number;
+    onAction: (newAction: ResourceViewItemActionState) => void;
+    projectUuid: string;
+    hasReorder: boolean;
+};
+
+const DraggableItem: FC<DraggableItemProps> = ({
+    item,
+    index,
+    onAction,
+    projectUuid,
+    hasReorder,
+}) => {
+    const { hovered: isHovered, ref: hoverRef } = useHover<HTMLAnchorElement>();
+
+    return (
+        <Draggable
+            draggableId={item.data.name}
+            index={index}
+            key={item.type + '-' + item.data.uuid}
+            isDragDisabled={!hasReorder}
+        >
+            {(dragProvided) => {
+                const DragIcon = (
+                    <Box
+                        pos="absolute"
+                        left={0}
+                        p={4}
+                        {...dragProvided.dragHandleProps}
+                    >
+                        <MantineIcon
+                            display={isHovered && hasReorder ? 'block' : 'none'}
+                            size="sm"
+                            color="gray.6"
+                            icon={IconGripVertical}
+                        />
+                    </Box>
+                );
+
+                return (
+                    <Anchor
+                        component={Link}
+                        to={getResourceUrl(projectUuid, item)}
+                        sx={{
+                            display: 'block',
+                            color: 'unset',
+                            ':hover': {
+                                color: 'unset',
+                                textDecoration: 'unset',
+                            },
+                        }}
+                        ref={mergeRefs(dragProvided.innerRef, hoverRef)}
+                        {...dragProvided.draggableProps}
+                    >
+                        {item.type === ResourceViewItemType.SPACE ? (
+                            <ResourceViewGridSpaceItem
+                                item={item}
+                                onAction={onAction}
+                                dragIcon={DragIcon}
+                            />
+                        ) : item.type === ResourceViewItemType.DASHBOARD ? (
+                            <ResourceViewGridDashboardItem
+                                item={item}
+                                onAction={onAction}
+                                dragIcon={DragIcon}
+                            />
+                        ) : item.type === ResourceViewItemType.CHART ? (
+                            <ResourceViewGridChartItem
+                                item={item}
+                                onAction={onAction}
+                                dragIcon={DragIcon}
+                            />
+                        ) : (
+                            assertUnreachable(
+                                item,
+                                `Resource type not supported`,
+                            )
+                        )}
+                    </Anchor>
+                );
+            }}
+        </Draggable>
+    );
+};
 
 const ResourceViewGrid: FC<ResourceViewGridProps> = ({
     items,
@@ -47,8 +133,10 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
     ],
     onAction,
     hasReorder = false,
-    pinnedItemsProps = { projectUuid: '', pinnedListUuid: '' },
 }) => {
+    const { reorderItems } = usePinnedItemsContext();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
     const groupedItems = useMemo(() => {
         return groups
             .map((group) => {
@@ -72,9 +160,6 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
             .filter((group) => group.items.length > 0);
     }, [hasReorder, groups, items]);
 
-    // this part is strictly for Pinned Items Panel
-    const { projectUuid, pinnedListUuid } = pinnedItemsProps;
-
     // this method converts groupedItems to the format required by the API
     const pinnedItemsOrder = (data: typeof groupedItems) =>
         data.flatMap((group) =>
@@ -85,8 +170,6 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
                 } as ResourceViewItem;
             }),
         );
-
-    const { mutate: reorderItems } = useReorder(projectUuid, pinnedListUuid);
 
     const handleOnDragEnd = (result: DropResult) => {
         const { source: drag, destination: drop } = result;
@@ -138,61 +221,16 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
                                     {...dropProvided.droppableProps}
                                 >
                                     {group.items.map((item, index) => (
-                                        <Draggable
-                                            draggableId={item.data.name}
-                                            index={index}
+                                        <DraggableItem
                                             key={
                                                 item.type + '-' + item.data.uuid
                                             }
-                                            isDragDisabled={!hasReorder}
-                                        >
-                                            {(dragProvided) => (
-                                                <Anchor
-                                                    component={Link}
-                                                    to={getResourceUrl(
-                                                        projectUuid,
-                                                        item,
-                                                    )}
-                                                    sx={{
-                                                        display: 'block',
-                                                        color: 'unset',
-                                                        ':hover': {
-                                                            color: 'unset',
-                                                            textDecoration:
-                                                                'unset',
-                                                        },
-                                                    }}
-                                                    ref={dragProvided.innerRef}
-                                                    {...dragProvided.dragHandleProps}
-                                                    {...dragProvided.draggableProps}
-                                                >
-                                                    {item.type ===
-                                                    ResourceViewItemType.SPACE ? (
-                                                        <ResourceViewGridSpaceItem
-                                                            item={item}
-                                                            onAction={onAction}
-                                                        />
-                                                    ) : item.type ===
-                                                      ResourceViewItemType.DASHBOARD ? (
-                                                        <ResourceViewGridDashboardItem
-                                                            item={item}
-                                                            onAction={onAction}
-                                                        />
-                                                    ) : item.type ===
-                                                      ResourceViewItemType.CHART ? (
-                                                        <ResourceViewGridChartItem
-                                                            item={item}
-                                                            onAction={onAction}
-                                                        />
-                                                    ) : (
-                                                        assertUnreachable(
-                                                            item,
-                                                            `Resource type not supported`,
-                                                        )
-                                                    )}
-                                                </Anchor>
-                                            )}
-                                        </Draggable>
+                                            item={item}
+                                            index={index}
+                                            onAction={onAction}
+                                            projectUuid={projectUuid}
+                                            hasReorder={hasReorder}
+                                        />
                                     ))}
                                     {dropProvided.placeholder}
                                 </SimpleGrid>

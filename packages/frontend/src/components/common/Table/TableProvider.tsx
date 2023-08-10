@@ -1,5 +1,5 @@
-import { HotkeyConfig, useHotkeys } from '@blueprintjs/core';
 import { ConditionalFormattingConfig, ResultRow } from '@lightdash/common';
+import { getHotkeyHandler } from '@mantine/hooks';
 import {
     Cell,
     ColumnOrderState,
@@ -16,7 +16,6 @@ import React, {
     useCallback,
     useContext,
     useEffect,
-    useMemo,
     useState,
 } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -182,35 +181,32 @@ export const TableProvider: FC<Props> = ({
 
     const [copyingCellId, setCopyingCellId] = useState<string>();
 
-    const hotkeys = useMemo<HotkeyConfig[]>(
-        () => [
-            {
-                label: 'Copy value from the select cell',
-                combo: 'mod+c',
-                global: true,
-                disabled: !selectedCell,
-                onKeyDown: () => {
-                    if (!selectedCell) return;
+    const onCopyCell = useCallback(() => {
+        if (!selectedCell) return;
 
-                    const value = (selectedCell.getValue() as ResultRow[0])
-                        .value;
+        const value = (selectedCell.getValue() as ResultRow[0]).value;
 
-                    copy(value.formatted);
+        copy(value.formatted);
 
-                    showToastSuccess({ title: 'Copied to clipboard!' });
+        showToastSuccess({ title: 'Copied to clipboard!' });
 
-                    setCopyingCellId((cellId) => {
-                        if (cellId) return;
-                        setTimeout(() => setCopyingCellId(undefined), 300);
-                        return selectedCell.id;
-                    });
-                },
-            },
-        ],
-        [selectedCell, showToastSuccess],
-    );
+        setCopyingCellId((cellId) => {
+            if (cellId) return;
+            setTimeout(() => setCopyingCellId(undefined), 300);
+            return selectedCell.id;
+        });
+    }, [selectedCell, showToastSuccess]);
 
-    const { handleKeyDown } = useHotkeys(hotkeys);
+    useEffect(() => {
+        const handleKeyDown = getHotkeyHandler([['mod+C', onCopyCell]]);
+        if (selectedCell) {
+            document.body.addEventListener('keydown', handleKeyDown);
+        }
+
+        return () => {
+            document.body.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [onCopyCell, selectedCell]);
 
     return (
         <Context.Provider
@@ -219,7 +215,7 @@ export const TableProvider: FC<Props> = ({
                 selectedCell,
                 onSelectCell: handleDebouncedCellSelect,
                 copyingCellId: copyingCellId,
-                onCopyCell: handleKeyDown,
+                onCopyCell,
                 ...rest,
             }}
         >

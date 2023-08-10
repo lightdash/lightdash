@@ -3,6 +3,7 @@ import { ColorScheme, MantineThemeOverride, rem } from '@mantine/core';
 
 export const getMantineThemeOverride = (overrides?: {
     colorScheme?: ColorScheme;
+    components?: Partial<MantineThemeOverride['components']>;
 }): MantineThemeOverride => ({
     ...overrides,
 
@@ -48,8 +49,19 @@ export const getMantineThemeOverride = (overrides?: {
 
     lineHeight: 1.2858142857,
 
+    cursorType: 'pointer',
+
     components: {
         TextInput: {
+            styles: (theme, _params) => ({
+                label: {
+                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
+                    marginBottom: theme.spacing.xxs,
+                },
+            }),
+        },
+
+        NumberInput: {
             styles: (theme, _params) => ({
                 label: {
                     // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
@@ -106,13 +118,17 @@ export const getMantineThemeOverride = (overrides?: {
             defaultProps: {
                 withArrow: true,
             },
-            styles: () => ({
-                // FIXME: this is a hack to fix tooltip position. remove after Blueprint migration is complete
-                root: {
-                    zIndex: 20,
-                },
-            }),
         },
+
+        Modal: {
+            defaultProps: {
+                // FIXME: This makes the mantine modals line up exactly with the Blueprint ones.
+                // It could be made a less-magic number once we migrate
+                yOffset: 140,
+            },
+        },
+
+        ...overrides?.components,
     },
 
     globalStyles: (theme) => ({

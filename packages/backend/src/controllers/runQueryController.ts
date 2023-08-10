@@ -123,8 +123,8 @@ export class RunViewChartQueryController extends Controller {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/explores/{exploreId}/runQuery')
-    @OperationId('postRunQuery')
-    async postRunQuery(
+    @OperationId('RunMetricQuery')
+    async runMetricQuery(
         @Body() body: RunQueryRequest,
         @Path() projectUuid: string,
         @Path() exploreId: string,

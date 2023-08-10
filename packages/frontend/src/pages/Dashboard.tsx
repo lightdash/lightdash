@@ -4,7 +4,9 @@ import {
     Dashboard as IDashboard,
     DashboardTile,
     DashboardTileTypes,
+    isDashboardChartTileType,
 } from '@lightdash/common';
+import { useProfiler } from '@sentry/react';
 import React, {
     FC,
     memo,
@@ -18,6 +20,7 @@ import { useHistory, useParams } from 'react-router-dom';
 
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
+import DashboardDeleteModal from '../components/common/modal/DashboardDeleteModal';
 import Page from '../components/common/Page/Page';
 import DashboardFilter from '../components/DashboardFilter';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
@@ -30,13 +33,12 @@ import MetricQueryDataProvider from '../components/MetricQueryData/MetricQueryDa
 import UnderlyingDataModal from '../components/MetricQueryData/UnderlyingDataModal';
 import {
     appendNewTilesToBottom,
-    useDashboardDeleteMutation,
     useDuplicateDashboardMutation,
     useExportDashboard,
     useMoveDashboardMutation,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
-import { useSavedQuery } from '../hooks/useSavedQuery';
+import { deleteSavedQuery, useSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import {
     DashboardProvider,
@@ -50,7 +52,7 @@ export const getReactGridLayoutConfig = (
     tile: DashboardTile,
     isEditMode = false,
 ): Layout => ({
-    minH: 3,
+    minH: 1,
     minW: 6,
     x: tile.x,
     y: tile.y,
@@ -78,6 +80,8 @@ const GridTile: FC<
     >
 > = memo((props) => {
     const { tile } = props;
+
+    useProfiler(`Dashboard-${tile.type}`);
 
     const savedChartUuid: string | undefined =
         tile.type === DashboardTileTypes.SAVED_CHART
@@ -167,8 +171,9 @@ const Dashboard: FC = () => {
     const { mutate: duplicateDashboard } = useDuplicateDashboardMutation({
         showRedirectButton: true,
     });
-    const { mutateAsync: deleteDashboard } = useDashboardDeleteMutation();
     const { mutate: exportDashboard } = useExportDashboard();
+
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
     const layouts = useMemo(
         () => ({
@@ -179,11 +184,28 @@ const Dashboard: FC = () => {
         [dashboardTiles, isEditMode],
     );
 
+    const { tiles: savedTiles } = dashboard || {};
     useEffect(() => {
-        if (dashboard?.tiles) {
-            setDashboardTiles(dashboard.tiles);
+        if (savedTiles) {
+            const unsavedDashboardTilesRaw = sessionStorage.getItem(
+                'unsavedDashboardTiles',
+            );
+            sessionStorage.removeItem('unsavedDashboardTiles');
+            let unsavedDashboardTiles = undefined;
+            if (unsavedDashboardTilesRaw) {
+                try {
+                    unsavedDashboardTiles = JSON.parse(
+                        unsavedDashboardTilesRaw,
+                    );
+                } catch {
+                    // do nothing
+                }
+            }
+
+            setDashboardTiles(unsavedDashboardTiles || savedTiles);
+            setHaveTilesChanged(!!unsavedDashboardTiles);
         }
-    }, [dashboard, setDashboardTiles]);
+    }, [setHaveTilesChanged, setDashboardTiles, savedTiles]);
 
     useEffect(() => {
         if (isSuccess) {
@@ -272,6 +294,33 @@ const Dashboard: FC = () => {
     );
 
     const handleCancel = useCallback(() => {
+        sessionStorage.clear();
+
+        // Delete charts that were created in edit mode
+        dashboardTiles.forEach((tile) => {
+            if (
+                isDashboardChartTileType(tile) &&
+                tile.properties.belongsToDashboard &&
+                tile.properties.savedChartUuid
+            ) {
+                const isChartNew =
+                    (dashboard?.tiles || []).find(
+                        (t) =>
+                            isDashboardChartTileType(t) &&
+                            t.properties.savedChartUuid ===
+                                tile.properties.savedChartUuid,
+                    ) === undefined;
+
+                if (isChartNew) {
+                    deleteSavedQuery(tile.properties.savedChartUuid).catch(
+                        () => {
+                            //ignore error
+                        },
+                    );
+                }
+            }
+        });
+
         setDashboardTiles(dashboard?.tiles || []);
         setHaveTilesChanged(false);
         if (dashboard) setDashboardFilters(dashboard.filters);
@@ -284,6 +333,7 @@ const Dashboard: FC = () => {
         dashboardUuid,
         history,
         projectUuid,
+        dashboardTiles,
         setDashboardTiles,
         setHaveFiltersChanged,
         setDashboardFilters,
@@ -307,9 +357,7 @@ const Dashboard: FC = () => {
 
     const handleDeleteDashboard = () => {
         if (!dashboard) return;
-        deleteDashboard(dashboard.uuid).then(() => {
-            history.replace(`/projects/${projectUuid}/dashboards`);
-        });
+        setIsDeleteModalOpen(true);
     };
 
     const handleExportDashboard = () => {
@@ -336,17 +384,21 @@ const Dashboard: FC = () => {
     }, [haveTilesChanged, haveFiltersChanged, isEditMode]);
 
     useEffect(() => {
+        const createChartInDashboardFlow = sessionStorage.getItem(
+            'unsavedDashboardTiles',
+        );
         history.block((prompt) => {
             if (
                 isEditMode &&
                 (haveTilesChanged || haveFiltersChanged) &&
                 !prompt.pathname.includes(
                     `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
-                )
+                ) &&
+                createChartInDashboardFlow
             ) {
                 setBlockedNavigationLocation(prompt.pathname);
                 setIsSaveWarningModalOpen(true);
-                return false; //blocks history
+                return false; // blocks history
             }
             return undefined; // allow history
         });
@@ -477,12 +529,25 @@ const Dashboard: FC = () => {
                         isEditMode={isEditMode}
                     />
                 )}
+
+                {isDeleteModalOpen && (
+                    <DashboardDeleteModal
+                        opened
+                        uuid={dashboard.uuid}
+                        onClose={() => setIsDeleteModalOpen(false)}
+                        onConfirm={() => {
+                            history.replace(
+                                `/projects/${projectUuid}/dashboards`,
+                            );
+                        }}
+                    />
+                )}
             </Page>
         </>
     );
 };
-
 const DashboardPage: FC = () => {
+    useProfiler('Dashboard');
     return (
         <DashboardProvider>
             <Dashboard />

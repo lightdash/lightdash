@@ -1,14 +1,21 @@
 import { SavedChartSearchResult } from '@lightdash/common';
+import { Anchor } from '@mantine/core';
 import {
     Icon123,
     IconAbc,
+    IconAlertTriangle,
     IconAppWindow,
     IconFolder,
     IconLayoutDashboard,
     IconTable,
 } from '@tabler/icons-react';
 import { FC } from 'react';
-import { getChartIcon, IconBox } from '../../common/ResourceIcon';
+import { Link } from 'react-router-dom';
+import {
+    getChartIcon,
+    IconBox,
+    ResourceIndicator,
+} from '../../common/ResourceIcon';
 import { SearchItem } from './hooks';
 
 type SearchIconProps = {
@@ -42,3 +49,54 @@ export const SearchIcon: FC<SearchIconProps> = ({ searchItem }) => {
             return <IconBox icon={IconAppWindow} color="gray.7" />;
     }
 };
+
+export const SearchIconWithIndicator: FC<{
+    searchResult: SearchItem;
+    projectUuid: string;
+    canUserManageValidation: boolean;
+}> = ({ searchResult, projectUuid, canUserManageValidation }) =>
+    searchResult.item && 'validationErrors' in searchResult.item ? (
+        <ResourceIndicator
+            iconProps={{
+                fill: 'red',
+                icon: IconAlertTriangle,
+            }}
+            tooltipProps={{
+                maw: 300,
+                withinPortal: true,
+                multiline: true,
+                offset: -2,
+                position: 'bottom',
+            }}
+            tooltipLabel={
+                canUserManageValidation ? (
+                    <>
+                        This content is broken. Learn more about the validation
+                        error(s){' '}
+                        <Anchor
+                            component={Link}
+                            fw={600}
+                            onClick={(e) => e.stopPropagation()}
+                            to={{
+                                pathname: `/generalSettings/projectManagement/${projectUuid}/validator`,
+                                search: `?validationId=${searchResult.item.validationErrors[0].validationId}`,
+                            }}
+                            color="blue.4"
+                        >
+                            here
+                        </Anchor>
+                        .
+                    </>
+                ) : (
+                    <>
+                        There's an error with this{' '}
+                        {searchResult.type === 'saved_chart' ? 'chart' : null}
+                        {searchResult.type === 'dashboard' ? 'dashboard' : null}
+                        {searchResult.type === 'table' ? 'table' : null}.
+                    </>
+                )
+            }
+        >
+            <SearchIcon searchItem={searchResult} />
+        </ResourceIndicator>
+    ) : null;

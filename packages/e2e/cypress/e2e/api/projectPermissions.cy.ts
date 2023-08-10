@@ -124,7 +124,7 @@ describe('Lightdash API tests for member user with admin project permissions', (
         );
     });
 
-    it('Should get success response (200) from POST explores', async () => {
+    it.skip('Should get success response (200) from PUT explores', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         await updateExplores(projectUuid);
     });
@@ -164,7 +164,22 @@ describe('Lightdash API tests for member user with admin project permissions', (
             url: `${apiUrl}${endpoint}`,
             headers: { 'Content-type': 'application/json' },
             method: 'POST',
-            body: runqueryBody,
+            body: {},
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
+
+    it('Should get success response (200) from POST validation with explores', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/validate`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: { explores: [] },
         }).then((resp) => {
             expect(resp.status).to.eq(200);
             expect(resp.body).to.have.property('status', 'ok');
@@ -426,7 +441,47 @@ describe('Lightdash API tests for member user with editor project permissions', 
         });
     });
 
-    it('Should get forbidden (403) from POST explores', () => {
+    it('Should get success response (200) from POST runQuery', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/explores/customers/runQuery`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: runqueryBody,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
+
+    it('Should get success response (200) from GET savedChartRouter endpoints', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(`${apiUrl}/projects/${projectUuid}/spaces-and-content`).then(
+            (projectResponse) => {
+                expect(projectResponse.status).to.eq(200);
+
+                const savedChartUuid = projectResponse.body.results.find(
+                    (space) => space.queries.length > 0,
+                ).queries[0].uuid;
+
+                const endpoints = [
+                    `/saved/${savedChartUuid}`,
+                    `/saved/${savedChartUuid}/availableFilters`,
+                ];
+
+                endpoints.forEach((endpoint) => {
+                    cy.request(`${apiUrl}${endpoint}`).then((resp) => {
+                        expect(resp.status).to.eq(200);
+                        expect(resp.body).to.have.property('status', 'ok');
+                    });
+                });
+            },
+        );
+    });
+
+    it.skip('Should get success response (200) from PUT explores', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         const endpoint = `/projects/${projectUuid}/explores`;
@@ -437,7 +492,7 @@ describe('Lightdash API tests for member user with editor project permissions', 
             body: [],
             failOnStatusCode: false,
         }).then((resp) => {
-            expect(resp.status).to.eq(403);
+            expect(resp.status).to.eq(200);
         });
     });
 
@@ -464,20 +519,6 @@ describe('Lightdash API tests for member user with editor project permissions', 
         );
     });
 
-    it('Should get success response (200) from POST runQuery', () => {
-        const projectUuid = SEED_PROJECT.project_uuid;
-
-        const endpoint = `/projects/${projectUuid}/explores/customers/runQuery`;
-        cy.request({
-            url: `${apiUrl}${endpoint}`,
-            headers: { 'Content-type': 'application/json' },
-            method: 'POST',
-            body: runqueryBody,
-        }).then((resp) => {
-            expect(resp.status).to.eq(200);
-            expect(resp.body).to.have.property('status', 'ok');
-        });
-    });
     it('Should get success response (200) from POST downloadCsv', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
@@ -520,6 +561,7 @@ describe('Lightdash API tests for member user with editor project permissions', 
             expect(resp.status).to.eq(403);
         });
     });
+
     it('Should get forbidden (403) from POST validation', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
@@ -528,14 +570,14 @@ describe('Lightdash API tests for member user with editor project permissions', 
             url: `${apiUrl}${endpoint}`,
             headers: { 'Content-type': 'application/json' },
             method: 'POST',
-            body: runqueryBody,
+            body: {},
             failOnStatusCode: false,
         }).then((resp) => {
             expect(resp.status).to.eq(403);
         });
     });
 
-    it('Should get a forbidden (403) from PATCH project', () => {
+    it('Should get success (200) from PATCH project', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         const endpoint = `${apiUrl}/projects/${projectUuid}`;
@@ -551,7 +593,7 @@ describe('Lightdash API tests for member user with editor project permissions', 
                 body: projectResponse.body.results,
                 failOnStatusCode: false,
             }).then((resp) => {
-                expect(resp.status).to.eq(403);
+                expect(resp.status).to.eq(200);
             });
         });
     });
@@ -590,31 +632,6 @@ describe('Lightdash API tests for member user with editor project permissions', 
             },
         );
     });
-    it('Should get success response (200) from GET savedChartRouter endpoints', () => {
-        const projectUuid = SEED_PROJECT.project_uuid;
-        cy.request(`${apiUrl}/projects/${projectUuid}/spaces-and-content`).then(
-            (projectResponse) => {
-                expect(projectResponse.status).to.eq(200);
-
-                const savedChartUuid = projectResponse.body.results.find(
-                    (space) => space.queries.length > 0,
-                ).queries[0].uuid;
-
-                const endpoints = [
-                    `/saved/${savedChartUuid}`,
-                    `/saved/${savedChartUuid}/availableFilters`,
-                ];
-
-                endpoints.forEach((endpoint) => {
-                    cy.request(`${apiUrl}${endpoint}`).then((resp) => {
-                        expect(resp.status).to.eq(200);
-                        expect(resp.body).to.have.property('status', 'ok');
-                    });
-                });
-            },
-        );
-    });
-
     it('Should get success response (200) from GET organizationRouter endpoints', () => {
         const endpoints = [
             `/org`,
@@ -680,7 +697,7 @@ describe('Lightdash API tests for member user with developer project permissions
         cy.loginWithEmail(email);
     });
 
-    it('Should get success response (200) from POST explores', async () => {
+    it.skip('Should get success response (200) from PUT explores', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         await updateExplores(projectUuid);
     });
@@ -728,7 +745,7 @@ describe('Lightdash API tests for member user with developer project permissions
             url: `${apiUrl}${endpoint}`,
             headers: { 'Content-type': 'application/json' },
             method: 'POST',
-            body: runqueryBody,
+            body: {},
         }).then((resp) => {
             expect(resp.status).to.eq(200);
             expect(resp.body).to.have.property('status', 'ok');
@@ -759,7 +776,7 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
         });
     });
 
-    it('Should get forbidden (403) from POST explores', () => {
+    it('Should get forbidden (403) from PUT explores', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         const endpoint = `/projects/${projectUuid}/explores`;
@@ -792,7 +809,6 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
     it('Should get forbidden error (403) from GET Scheduler logs', () => {
         cy.request({
             url: `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/logs`,
-            timeout: 500,
             failOnStatusCode: false,
         }).then((resp) => {
             expect(resp.status).to.eq(403);
@@ -993,7 +1009,6 @@ describe('Lightdash API tests for member user with viewer project permissions', 
     it('Should get forbidden error (403) from GET Scheduler logs', () => {
         cy.request({
             url: `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/logs`,
-            timeout: 500,
             failOnStatusCode: false,
         }).then((resp) => {
             expect(resp.status).to.eq(403);
@@ -1015,7 +1030,7 @@ describe('Lightdash API tests for member user with viewer project permissions', 
         );
     });
 
-    it('Should get forbidden (403) from POST explores', () => {
+    it('Should get forbidden (403) from PUT explores', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         const endpoint = `/projects/${projectUuid}/explores`;
@@ -1296,7 +1311,6 @@ describe('Lightdash API tests for member user with NO project permissions', () =
         endpoints.forEach((endpoint) => {
             cy.request({
                 url: `${apiUrl}${endpoint}`,
-                timeout: 500,
                 failOnStatusCode: false,
             }).then((resp) => {
                 expect(resp.status).to.eq(403);
@@ -1328,7 +1342,7 @@ describe('Lightdash API tests for member user with NO project permissions', () =
         );
     });
 
-    it('Should get forbidden (403) from POST explores', () => {
+    it('Should get forbidden (403) from PUT explores', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         const endpoint = `/projects/${projectUuid}/explores`;

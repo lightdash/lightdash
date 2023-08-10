@@ -19,19 +19,16 @@ import {
 import { getFileHeadComments } from '../dbt/schema';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
+import { CompileHandlerOptions } from './compile';
 import { checkLightdashVersion } from './dbt/apiClient';
 
-type GenerateHandlerOptions = {
+type GenerateHandlerOptions = CompileHandlerOptions & {
     select: string[] | undefined;
     models: string[] | undefined;
-    projectDir: string;
-    profilesDir: string;
-    target: string | undefined;
-    profile: string | undefined;
     assumeYes: boolean;
     excludeMeta: boolean;
-    verbose: boolean;
 };
+
 export const generateHandler = async (options: GenerateHandlerOptions) => {
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();

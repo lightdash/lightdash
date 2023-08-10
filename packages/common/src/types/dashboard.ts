@@ -41,9 +41,11 @@ export type DashboardLoomTileProperties = {
 export type DashboardChartTileProperties = {
     type: DashboardTileTypes.SAVED_CHART;
     properties: {
-        title: string | null;
+        title?: string;
         hideTitle?: boolean;
         savedChartUuid: string | null;
+        belongsToDashboard?: boolean; // this should be required and not part of the "create" types, but we need to fix tech debt first. Open ticket https://github.com/lightdash/lightdash/issues/6450
+        chartName?: string | null;
     };
 };
 
@@ -60,6 +62,10 @@ export type CreateDashboardChartTile = CreateDashboardTileBase &
     DashboardChartTileProperties;
 export type DashboardChartTile = DashboardTileBase &
     DashboardChartTileProperties;
+
+export const isChartTile = (
+    tile: DashboardTileBase,
+): tile is DashboardChartTile => tile.type === DashboardTileTypes.SAVED_CHART;
 
 export type CreateDashboard = {
     name: string;
@@ -175,3 +181,8 @@ export const getDefaultChartTileSize = (
             return defaultTileSize;
     }
 };
+
+export const hasChartsInDashboard = (dashboard: Dashboard) =>
+    dashboard.tiles.some(
+        (tile) => isChartTile(tile) && tile.properties.belongsToDashboard,
+    );

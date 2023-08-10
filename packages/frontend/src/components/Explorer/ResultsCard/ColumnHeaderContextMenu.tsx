@@ -2,12 +2,13 @@ import { Divider, Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import {
     fieldId,
+    getItemId,
     isField,
     isFilterableField,
     TableCalculation,
 } from '@lightdash/common';
 import { IconChevronDown } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { FC, useMemo, useState } from 'react';
 import { useFilters } from '../../../hooks/useFilters';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
@@ -16,7 +17,7 @@ import { HeaderProps, TableColumn } from '../../common/Table/types';
 import {
     DeleteTableCalculationModal,
     UpdateTableCalculationModal,
-} from '../../TableCalculationModels';
+} from '../../TableCalculationModals';
 import { BolderLabel, FlatButton } from './ColumnHeaderContextMenu.styles';
 import ColumnHeaderSortMenuOptions from './ColumnHeaderSortMenuOptions';
 
@@ -41,6 +42,25 @@ const ContextMenu: FC<ContextMenuProps> = ({
         (context) => context.actions.removeActiveField,
     );
 
+    const additionalMetrics = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
+    );
+
+    const additionalMetric = useMemo(
+        () =>
+            !!additionalMetrics &&
+            !!item &&
+            additionalMetrics.find((am) => getItemId(am) === getItemId(item)),
+        [additionalMetrics, item],
+    );
+
+    const isItemAdditionalMetric = !!additionalMetric;
+
+    const toggleAdditionalMetricModal = useExplorerContext(
+        (context) => context.actions.toggleAdditionalMetricModal,
+    );
+
     if (item && isField(item) && isFilterableField(item)) {
         const itemFieldId = fieldId(item);
         return (
@@ -63,6 +83,20 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 <ColumnHeaderSortMenuOptions item={item} sort={sort} />
 
                 <Divider />
+
+                {isItemAdditionalMetric ? (
+                    <MenuItem2
+                        text={<>Edit custom metric</>}
+                        icon="edit"
+                        onClick={() => {
+                            toggleAdditionalMetricModal({
+                                item: additionalMetric,
+                                type: additionalMetric.type,
+                                isEditing: true,
+                            });
+                        }}
+                    />
+                ) : null}
 
                 <MenuItem2
                     text="Remove"

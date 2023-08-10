@@ -10,6 +10,7 @@ import {
     DashboardUnversionedFields,
     DashboardVersionedFields,
     NotFoundError,
+    SavedChart,
     SessionUser,
     UnexpectedServerError,
     UpdateMultipleDashboards,
@@ -133,14 +134,12 @@ export class DashboardModel {
                 .returning('*');
 
             switch (tile.type) {
-                case DashboardTileTypes.SAVED_CHART:
-                    if (tile.properties.savedChartUuid) {
+                case DashboardTileTypes.SAVED_CHART: {
+                    const chartUuid = tile.properties.savedChartUuid;
+                    if (chartUuid) {
                         const [savedChart] = await trx(SavedChartsTableName)
                             .select(['saved_query_id'])
-                            .where(
-                                'saved_query_uuid',
-                                tile.properties.savedChartUuid,
-                            )
+                            .where('saved_query_uuid', chartUuid)
                             .limit(1);
                         if (!savedChart) {
                             throw new NotFoundError('Saved chart not found');
@@ -152,9 +151,11 @@ export class DashboardModel {
                                 insertedTile.dashboard_tile_uuid,
                             saved_chart_id: savedChart.saved_query_id,
                             hide_title: tile.properties.hideTitle,
+                            title: tile.properties.title,
                         });
                     }
                     break;
+                }
                 case DashboardTileTypes.MARKDOWN:
                     await trx(DashboardTileMarkdownsTableName).insert({
                         dashboard_version_id: versionId.dashboard_version_id,
@@ -471,6 +472,8 @@ export class DashboardModel {
                     title: string | null;
                     views: string;
                     first_viewed_at: Date | null;
+                    belongs_to_dashboard: boolean;
+                    name: string | null;
                 }[]
             >(
                 `${DashboardTilesTableName}.x_offset`,
@@ -480,9 +483,13 @@ export class DashboardModel {
                 `${DashboardTilesTableName}.height`,
                 `${DashboardTilesTableName}.dashboard_tile_uuid`,
                 `${SavedChartsTableName}.saved_query_uuid`,
+                `${SavedChartsTableName}.name`,
+                this.database.raw(
+                    `${SavedChartsTableName}.dashboard_uuid IS NOT NULL AS belongs_to_dashboard`,
+                ),
                 this.database.raw(
                     `COALESCE(
-                        ${SavedChartsTableName}.name,
+                        ${DashboardTileChartTableName}.title,
                         ${DashboardTileLoomsTableName}.title,
                         ${DashboardTileMarkdownsTableName}.title
                     ) AS title`,
@@ -564,6 +571,8 @@ export class DashboardModel {
                     hide_title,
                     url,
                     content,
+                    belongs_to_dashboard,
+                    name,
                 }) => {
                     const base: Omit<
                         Dashboard['tiles'][number],
@@ -589,6 +598,8 @@ export class DashboardModel {
                                 properties: {
                                     ...commonProperties,
                                     savedChartUuid: saved_query_uuid,
+                                    belongsToDashboard: belongs_to_dashboard,
+                                    chartName: name,
                                 },
                             };
                         case DashboardTileTypes.MARKDOWN:
@@ -640,6 +651,7 @@ export class DashboardModel {
         spaceUuid: string,
         dashboard: CreateDashboard,
         user: Pick<SessionUser, 'userUuid'>,
+        projectUuid: string,
     ): Promise<Dashboard> {
         const dashboardId = await this.database.transaction(async (trx) => {
             const [space] = await trx(SpaceTableName)
@@ -727,6 +739,7 @@ export class DashboardModel {
         dashboardUuid: string,
         version: DashboardVersionedFields,
         user: Pick<SessionUser, 'userUuid'>,
+        projectUuid: string,
     ): Promise<Dashboard> {
         const [dashboard] = await this.database(DashboardsTableName)
             .select(['dashboard_id'])
@@ -742,5 +755,35 @@ export class DashboardModel {
             });
         });
         return this.getById(dashboardUuid);
+    }
+
+    async getOrphanedCharts(
+        dashboardUuid: string,
+    ): Promise<Pick<SavedChart, 'uuid'>[]> {
+        const getLastVersionIdQuery = this.database(DashboardsTableName)
+            .leftJoin(
+                DashboardVersionsTableName,
+                `${DashboardsTableName}.dashboard_id`,
+                `${DashboardVersionsTableName}.dashboard_id`,
+            )
+            .select([`${DashboardVersionsTableName}.dashboard_version_id`])
+            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+            .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
+            .limit(1);
+
+        const getChartsInTilesQuery = this.database(DashboardTileChartTableName)
+            .select(`saved_chart_id`)
+            .where(
+                `${DashboardTileChartTableName}.dashboard_version_id`,
+                getLastVersionIdQuery,
+            );
+        const orphanedCharts = await this.database(SavedChartsTableName)
+            .select(`saved_query_uuid`)
+            .where(`${SavedChartsTableName}.dashboard_uuid`, dashboardUuid)
+            .whereNotIn(`saved_query_id`, getChartsInTilesQuery);
+
+        return orphanedCharts.map((chart) => ({
+            uuid: chart.saved_query_uuid,
+        }));
     }
 }

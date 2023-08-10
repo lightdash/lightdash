@@ -12,6 +12,8 @@ import {
 } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import React, { useCallback, useMemo, useState } from 'react';
+import { useTableTabStyles } from '../../../hooks/styles/useTableTabStyles';
+import MantineIcon from '../MantineIcon';
 import ResourceActionHandlers, {
     ResourceViewItemAction,
     ResourceViewItemActionState,
@@ -30,6 +32,7 @@ type TabType = {
     id: string;
     name?: string;
     icon?: JSX.Element;
+    infoTooltipText?: string;
     sort?: (a: ResourceViewItem, b: ResourceViewItem) => number;
     filter?: (item: ResourceViewItem) => boolean;
 };
@@ -48,10 +51,6 @@ export interface ResourceViewCommonProps {
     emptyStateProps?: ResourceEmptyStateProps;
     view?: ResourceViewType;
     hasReorder?: boolean;
-    pinnedItemsProps?: {
-        projectUuid: string;
-        pinnedListUuid: string;
-    };
 }
 
 export enum ResourceViewType {
@@ -62,11 +61,12 @@ export enum ResourceViewType {
 interface ResourceViewProps extends ResourceViewCommonProps {
     listProps?: ResourceViewListCommonProps;
     gridProps?: ResourceViewGridCommonProps;
+    defaultActiveTab?: string;
 }
 
 const ResourceView: React.FC<ResourceViewProps> = ({
     view = ResourceViewType.LIST,
-    items,
+    items: allItems,
     maxItems,
     tabs,
     gridProps = {},
@@ -74,40 +74,49 @@ const ResourceView: React.FC<ResourceViewProps> = ({
     headerProps = {},
     emptyStateProps = {},
     hasReorder = false,
-    pinnedItemsProps = { projectUuid: '', pinnedListUuid: '' },
+    defaultActiveTab,
 }) => {
     const theme = useMantineTheme();
+    const tableTabStyles = useTableTabStyles();
 
     const [action, setAction] = useState<ResourceViewItemActionState>({
         type: ResourceViewItemAction.CLOSE,
     });
 
-    const [activeTabId, setActiveTabId] = useState(tabs?.[0]?.id);
-
     const handleAction = useCallback(
         (newAction: ResourceViewItemActionState) => {
+            // TODO: remove when #6626 is closed
+            console.log('--------------------');
+            console.log('handleAction in ResourceView');
+            console.log('newAction', newAction);
+            console.log('====================');
             setAction(newAction);
         },
         [],
     );
 
-    const slicedSortedItems = useMemo(() => {
-        let sortedItems = items;
+    const itemsByTabs = useMemo(() => {
+        return new Map(
+            tabs?.map((tab) => [
+                tab.id,
+                allItems
+                    .filter(tab.filter ?? (() => true))
+                    .sort(tab.sort ?? (() => 0))
+                    .slice(0, maxItems),
+            ]),
+        );
+    }, [tabs, allItems, maxItems]);
 
-        const activeTab = tabs?.find((tab) => tab.id === activeTabId);
-        if (activeTab && activeTab.sort) {
-            sortedItems = items.sort(activeTab.sort);
-        }
-
-        if (activeTab && activeTab.filter) {
-            sortedItems = sortedItems.filter(activeTab.filter);
-        }
-
-        return maxItems ? sortedItems.slice(0, maxItems) : sortedItems;
-    }, [items, activeTabId, maxItems, tabs]);
+    const [activeTabId, setActiveTabId] = useState(
+        defaultActiveTab ??
+            [...itemsByTabs.entries()].find(
+                ([_tabId, items]) => items.length > 0,
+            )?.[0] ??
+            tabs?.[0]?.id,
+    );
 
     const sortProps =
-        tabs && tabs?.length > 0 && items.length > 1
+        tabs && tabs?.length > 0 && allItems.length > 1
             ? {
                   enableSorting: false,
                   enableMultiSort: false,
@@ -119,7 +128,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                   defaultSort: listProps.defaultSort,
               };
 
-    const hasTabs = tabs && tabs.length > 0 && items.length > 1;
+    const hasTabs = tabs && tabs.length > 0 && allItems.length > 0;
     const hasHeader = headerProps && (headerProps.title || headerProps.action);
 
     if (hasTabs && headerProps.title) {
@@ -127,6 +136,9 @@ const ResourceView: React.FC<ResourceViewProps> = ({
             'Cannot have both tabs and a header title. Please use one or the other.',
         );
     }
+
+    const items =
+        hasTabs && activeTabId ? itemsByTabs.get(activeTabId) ?? [] : allItems;
 
     return (
         <>
@@ -136,17 +148,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                         <Group>
                             {hasTabs ? (
                                 <Tabs
-                                    styles={{
-                                        tab: {
-                                            borderRadius: 0,
-                                            height: 50,
-                                            padding: '0 20px',
-                                        },
-                                        tabsList: {
-                                            borderBottom: 'none',
-                                        },
-                                    }}
-                                    sx={{ flexGrow: 1 }}
+                                    classNames={tableTabStyles.classes}
                                     value={activeTabId}
                                     onTabChange={(t: string) =>
                                         setActiveTabId(t)
@@ -158,6 +160,25 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                                                 key={tab.id}
                                                 icon={tab.icon}
                                                 value={tab.id}
+                                                rightSection={
+                                                    !!tab.infoTooltipText ? (
+                                                        <Tooltip
+                                                            label={
+                                                                tab.infoTooltipText
+                                                            }
+                                                            disabled={
+                                                                !tab.infoTooltipText
+                                                            }
+                                                        >
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconInfoCircle
+                                                                }
+                                                                color="gray.6"
+                                                            />
+                                                        </Tooltip>
+                                                    ) : null
+                                                }
                                             >
                                                 {tab.name ? (
                                                     <Text
@@ -214,11 +235,11 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                     </>
                 ) : null}
 
-                {slicedSortedItems.length === 0 ? (
+                {items.length === 0 ? (
                     <ResourceEmptyState {...emptyStateProps} />
                 ) : view === ResourceViewType.LIST ? (
                     <ResourceViewList
-                        items={slicedSortedItems}
+                        items={items}
                         {...sortProps}
                         defaultColumnVisibility={
                             listProps.defaultColumnVisibility
@@ -227,11 +248,10 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                     />
                 ) : view === ResourceViewType.GRID ? (
                     <ResourceViewGrid
-                        items={slicedSortedItems}
+                        items={items}
                         groups={gridProps.groups}
                         onAction={handleAction}
                         hasReorder={hasReorder}
-                        pinnedItemsProps={pinnedItemsProps}
                     />
                 ) : (
                     assertUnreachable(view, 'Unknown resource view type')

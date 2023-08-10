@@ -1,8 +1,11 @@
 import {
     ApiChartSummaryListResponse,
     ApiErrorPayload,
+    ApiGetProjectMemberResponse,
     ApiProjectAccessListResponse,
+    ApiProjectResponse,
     ApiSpaceSummaryListResponse,
+    ApiSqlQueryResults,
     ApiSuccessEmpty,
     CreateProjectMember,
     UpdateProjectMember,
@@ -35,6 +38,24 @@ import {
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Projects')
 export class ProjectController extends Controller {
+    /**
+     * Get a project of an organiztion
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}')
+    @OperationId('GetProject')
+    async getProject(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiProjectResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await projectService.getProject(projectUuid, req.user!),
+        };
+    }
+
     /**
      * List all charts in a project
      * @param projectUuid The uuid of the project to get charts for
@@ -93,6 +114,35 @@ export class ProjectController extends Controller {
             req.user!,
             projectUuid,
         );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get a project member's access for a project.
+     *
+     * NOTE:
+     * We don't use the API on the frontend. Instead, we can call the API
+     * so that we make sure of the user's access to the project.
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/user/${userUuid}')
+    @OperationId('GetProjectMemberAccess')
+    @Tags('Roles & Permissions')
+    async getProjectMember(
+        @Path() projectUuid: string,
+        @Path() userUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiGetProjectMemberResponse> {
+        const results = await projectService.getProjectMemberAccess(
+            req.user!,
+            projectUuid,
+            userUuid,
+        );
+        this.setStatus(200);
         return {
             status: 'ok',
             results,
@@ -181,6 +231,37 @@ export class ProjectController extends Controller {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Run a raw sql query against the project's warehouse connection
+     * @param projectUuid The uuid of the project to run the query against
+     * @param body The query to run
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/sqlQuery')
+    @OperationId('RunSqlQuery')
+    @Tags('Exploring')
+    async runSqlQuery(
+        @Path() projectUuid: string,
+        @Body() body: { sql: string },
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: ApiSqlQueryResults }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await projectService.runSqlQuery(
+                req.user!,
+                projectUuid,
+                body.sql,
+            ),
         };
     }
 }

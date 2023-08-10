@@ -402,7 +402,11 @@ program
     .option('--full-refresh')
     .option('--verbose', undefined, false)
 
-    .option('--create', 'Create a new project on your organization', false)
+    .option(
+        '--create [project_name]',
+        "Create a new project. If a project name is not provided, you'll be prompted for one on creation.",
+        undefined,
+    )
     .option('--ignore-errors', 'Allows deploy with errors on compile', false)
     .option(
         '--start-of-week <number>',
@@ -431,6 +435,38 @@ program
         '--project <project uuid>',
         'Project UUID to validate, if not provided, the last preview will be used',
     )
+    .option('--verbose', undefined, false)
+    .option(
+        '--project-dir <path>',
+        'The directory of the dbt project',
+        defaultProjectDir,
+    )
+    .option(
+        '--profiles-dir <path>',
+        'The directory of the dbt profiles',
+        defaultProfilesDir,
+    )
+    .option(
+        '--profile <name>',
+        'The name of the profile to use (defaults to profile name in dbt_project.yml)',
+        undefined,
+    )
+    .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .option('--vars <vars>')
+    .option('--threads <number>')
+    .option('--no-version-check')
+    .option(
+        '-s, --select <models...>',
+        'specify models (accepts dbt selection syntax)',
+    )
+    .option(
+        '-m, --models <models...>',
+        'specify models (accepts dbt selection syntax)',
+    )
+    .option('--exclude <models...>')
+    .option('--selector <selector_name>')
+    .option('--state <state>')
+    .option('--full-refresh')
     .option('--verbose', undefined, false)
     .action(validateHandler);
 
@@ -491,6 +527,7 @@ ${styles.bold('Examples:')}
         undefined,
     )
     .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .option('--vars <vars>')
     .option('-y, --assume-yes', 'assume yes to prompts', false)
     .option(
         '--exclude-meta',

@@ -8,6 +8,7 @@ import {
     isDimension,
     isField,
     isMetric,
+    isTableCalculation,
     itemsInMetricQuery,
     PivotData,
     ResultRow,
@@ -181,8 +182,10 @@ const useTableConfig = (
             showTableNames,
             getFieldLabelOverride,
             isColumnFrozen,
+            columnOrder,
         });
     }, [
+        columnOrder,
         selectedItemIds,
         pivotDimensions,
         itemsMap,
@@ -228,17 +231,27 @@ const useTableConfig = (
             const field = getField(fieldId);
 
             return (
-                !isColumnVisible(fieldId) && isField(field) && isMetric(field)
+                !isColumnVisible(fieldId) &&
+                ((isField(field) && isMetric(field)) ||
+                    isTableCalculation(field))
             );
         });
 
         const summableMetricFieldIds = selectedItemIds?.filter((fieldId) => {
             const field = getField(fieldId);
 
-            return (
-                isSummable(field) &&
-                !(hiddenMetricFieldIds || []).includes(fieldId)
-            );
+            if (isDimension(field)) {
+                return false;
+            }
+
+            if (
+                hiddenMetricFieldIds &&
+                hiddenMetricFieldIds.includes(fieldId)
+            ) {
+                return false;
+            }
+
+            return isSummable(field);
         });
 
         worker
@@ -282,7 +295,7 @@ const useTableConfig = (
         worker,
     ]);
 
-    // Remove columProperties from map if the column has been removed from results
+    // Remove columnProperties from map if the column has been removed from results
     useEffect(() => {
         if (Object.keys(columnProperties).length > 0 && selectedItemIds) {
             const columnsRemoved = Object.keys(columnProperties).filter(

@@ -2,7 +2,7 @@
 sidebar_position: 3
 ---
 
-# Joins reference sheet
+# Joins reference doc
 
 Joins let you connect different models to each other so that you can explore more than one model at the same time in Lightdash and see how different parts of your data relate to each other.
 
@@ -32,6 +32,8 @@ models:
 When you open Lightdash, your joined models' dimensions and metrics will appear below the ones in your selected model.
 
 ![screenshot-joined-table](assets/screenshot-joined-table.png)
+
+Note that `sql_on` can include references to [user attributes](./user-attributes.mdx)
 
 ## Rename a joined model
 

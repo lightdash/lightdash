@@ -10,39 +10,59 @@ Dashboards allow you to arrange multiple charts that are related to each other i
 Checkout this tutorial on how to create your first dashboard:
 [![tutorial building first dashboard](./assets/tutorial_building_first_dashboard.png)](https://youtu.be/olFcN8Pui08)
 
-## 1. Open the dashboard page
+## 1. Create a new empty dashboard
 
-Navigate to the top bar and choose Browse > Dashboards
+On the nav bar, click "New" to create a new dashboard.
 
-![click dashboard](./assets/click_dashboards.png)
+![New Dashboard create](dashboard-add-new-navbar.png)
 
-## 2. Create a new empty dashboard
+Fill out the details of your new dashboard and hit 'Create'.
 
-Click to create a new dashboard. By default, dashboards are empty and have a name "Untitled dashboard",
-you can change this later.
+![Alt text](dashboard-create-new-modal.png)
 
-![click new dashboard](./assets/click_new_dashboard.png)
+Once done, you will be redirected to your new Dashboard page:
 
-## 3. Choose a chart to add to your dashboard
+![Alt text](dashboard-add-tile-center.png)
 
-Charts can only be added to a dashboard if they've been saved. See [instructions for saving charts](./using-explores.mdx) for more
-information.
+Here, you can add the following types of tiles:
 
-Click "add chart" to see a list of charts that have been saved. Clicking any chart will add it at the top of your
-dashboard.
+-   Saved Chart
+-   New Chart
+-   Markdown
+-   Loom video
 
-![add chart screenshot](./assets/add_chart_screenshot.png)
+## 2. Choose a chart to add to your dashboard
+
+You can create new charts or add existing ones.
+
+### How to create a new chart
+
+Click "Add tile" and then "New chart" to create a new chart. You will be taken to the chart builder. Once you save the chart it will appear at the bottom of your dashboard.
+
+Note: These charts can't be used in other dashboards and won't be shown in the global search or in the space.
+
+![create chart screenshot](./assets/create_chart_in_dashboard.png)
+
+### How to add an existing chart
+
+Click "Add tile" and then "Saved chart" to see a list of charts that have been saved and are ready to be added to your dashboard. Clicking any chart will add it at the bottom of your dashboard.
+
+![Alt text](dashboard-add-saved-chart.png)
 
 You can resize charts by dragging the lower-right corner.
 
 You can position your chart by dragging the center of the chart.
 
-## 4. Save and share your dashboard
+## 3. Save and share your dashboard
 
-When you're happy with the layout, hit save.
+When you're happy with the layout, hit "Save".
 
-![click save chart](./assets/click_save_chart.png)
+![Alt text](dashboard-save-button.png)
 
-You can share your dashboard with anybody in your Lightdash organisation by copying the URL. You can also see all of the saved dashboards in your project by clicking on `Browse` --> `Dashboards`.
+You can share your dashboard with anybody in your Lightdash organisation by copying the URL (or by pressing on the 🔗 button). You can also see all of the saved dashboards in your project by clicking on `Browse` --> `All Dashboards`.
 
-![browse dashboards](./assets/browse-dashboards.png)
+![Alt text](all-dashboard-nav.png)
+
+## 4. Add filters to your dashboards
+
+Learn about adding filters to your dashboards [here](/guides/limiting-data-using-filters#adding-filters-to-your-dashboard)

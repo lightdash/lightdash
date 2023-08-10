@@ -12,6 +12,7 @@ import {
     DimensionType,
     Metric,
     MetricType,
+    SupportedDbtAdapter,
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
@@ -124,7 +125,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         }
     }
 
-    async runQuery(query: string) {
+    async runQuery(query: string, tags?: Record<string, string>) {
         try {
             const rows: Record<string, any>[] = [];
 
@@ -139,6 +140,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 jobTimeoutMs:
                     this.credentials.timeoutSeconds &&
                     this.credentials.timeoutSeconds * 1000,
+                labels: tags,
             });
 
             // Get the full api response but we can request zero rows
@@ -270,6 +272,10 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
     getEscapeStringQuoteChar() {
         return '\\';
+    }
+
+    getAdapterType(): SupportedDbtAdapter {
+        return SupportedDbtAdapter.BIGQUERY;
     }
 
     getMetricSql(sql: string, metric: Metric) {

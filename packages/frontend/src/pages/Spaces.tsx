@@ -19,15 +19,30 @@ import SpaceActionModal, {
     ActionType,
 } from '../components/common/SpaceActionModal';
 import ForbiddenPanel from '../components/ForbiddenPanel';
-import { useSpaces } from '../hooks/useSpaces';
+import { useProject } from '../hooks/useProject';
+import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
+import { PinnedItemsProvider } from '../providers/PinnedItemsProvider';
 
 const Spaces: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
-    const { data: spaces = [], isLoading } = useSpaces(projectUuid);
+    const { data: spaces = [], isLoading: spaceIsLoading } = useSpaceSummaries(
+        projectUuid,
+        true,
+    );
+    const project = useProject(projectUuid);
+    const isLoading = spaceIsLoading || project.isLoading;
 
     const { user, health } = useApp();
+
+    const userCanManageProject = user.data?.ability?.can(
+        'manage',
+        subject('Project', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid: projectUuid,
+        }),
+    );
 
     const hasSpaces = spaces.length > 0;
     const isDemo = health.data?.mode === LightdashMode.DEMO;
@@ -79,27 +94,60 @@ const Spaces: FC = () => {
                     )}
                 </Group>
 
-                <ResourceView
-                    view={ResourceViewType.GRID}
-                    items={wrapResourceView(
-                        spaces.map(spaceToResourceViewItem),
-                        ResourceViewItemType.SPACE,
-                    )}
-                    headerProps={{
-                        title: 'Spaces',
-                    }}
-                    emptyStateProps={{
-                        icon: <IconFolders size={30} />,
-                        title: 'No spaces added yet',
-                        action:
-                            !isDemo && userCanManageSpace ? (
-                                <Button onClick={handleCreateSpace}>
-                                    Create space
-                                </Button>
-                            ) : undefined,
-                    }}
-                    pinnedItemsProps={{ projectUuid, pinnedListUuid: '' }}
-                />
+                <PinnedItemsProvider
+                    projectUuid={projectUuid}
+                    organizationUuid={user.data?.organizationUuid ?? ''}
+                    pinnedListUuid={project.data?.pinnedListUuid ?? ''}
+                >
+                    <ResourceView
+                        view={ResourceViewType.GRID}
+                        items={wrapResourceView(
+                            spaces.map(spaceToResourceViewItem),
+                            ResourceViewItemType.SPACE,
+                        )}
+                        tabs={
+                            userCanManageProject
+                                ? [
+                                      {
+                                          id: 'shared',
+                                          name: 'Shared with me',
+                                          filter: (item) =>
+                                              item.type ===
+                                                  ResourceViewItemType.SPACE &&
+                                              (!item.data.isPrivate ||
+                                                  (!!user.data &&
+                                                      item.data.access.includes(
+                                                          user.data.userUuid,
+                                                      ))),
+                                      },
+                                      {
+                                          id: 'all',
+                                          name: 'Admin Content View',
+                                          infoTooltipText:
+                                              'View all public and private spaces in your organization',
+                                      },
+                                  ]
+                                : []
+                        }
+                        headerProps={
+                            !userCanManageProject
+                                ? {
+                                      title: 'Spaces',
+                                  }
+                                : undefined
+                        }
+                        emptyStateProps={{
+                            icon: <IconFolders size={30} />,
+                            title: 'No spaces added yet',
+                            action:
+                                !isDemo && userCanManageSpace ? (
+                                    <Button onClick={handleCreateSpace}>
+                                        Create space
+                                    </Button>
+                                ) : undefined,
+                        }}
+                    />
+                </PinnedItemsProvider>
             </Stack>
 
             {isCreateModalOpen && (

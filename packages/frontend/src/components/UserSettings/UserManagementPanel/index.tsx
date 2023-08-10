@@ -1,20 +1,32 @@
 import {
-    Button,
-    ButtonGroup,
-    Classes,
-    Colors,
-    Dialog,
-    Icon,
-    NonIdealState,
-    Spinner,
-} from '@blueprintjs/core';
-import {
+    getRoleDescription,
     OrganizationMemberProfile,
     OrganizationMemberRole,
 } from '@lightdash/common';
-import { Anchor, Stack } from '@mantine/core';
-import { FC, useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import {
+    ActionIcon,
+    Anchor,
+    Badge,
+    Button,
+    Flex,
+    Group,
+    Modal,
+    Select,
+    Stack,
+    Table,
+    Text,
+    Title,
+    Tooltip,
+} from '@mantine/core';
+import {
+    IconAlertCircle,
+    IconCircleX,
+    IconHelp,
+    IconInfoCircle,
+} from '@tabler/icons-react';
+import { capitalize } from 'lodash-es';
+import { FC, useState } from 'react';
+import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import {
     useDeleteOrganizationUserMutation,
@@ -22,32 +34,14 @@ import {
     useUpdateUserMutation,
 } from '../../../hooks/useOrganizationUsers';
 import { useApp } from '../../../providers/AppProvider';
-import { TrackPage, useTracking } from '../../../providers/TrackingProvider';
-import {
-    CategoryName,
-    EventName,
-    PageName,
-    PageType,
-} from '../../../types/Events';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
+import LoadingState from '../../common/LoadingState';
+import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
-import InvitesPanel from '../InvitesPanel';
+import ForbiddenPanel from '../../ForbiddenPanel';
+import InvitesModal from '../InvitesModal';
 import InviteSuccess from './InviteSuccess';
-import {
-    AddUserButton,
-    HeaderWrapper,
-    ItemContent,
-    NewLinkButton,
-    PanelTitle,
-    PendingEmail,
-    PendingTag,
-    RoleSelectButton,
-    SectionWrapper,
-    TitleWrapper,
-    UserEmail,
-    UserInfo,
-    UserManagementPanelWrapper,
-    UserName,
-} from './UserManagementPanel.styles';
 
 const UserListItem: FC<{
     disabled: boolean;
@@ -65,6 +59,7 @@ const UserListItem: FC<{
     },
 }) => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [showInviteSuccess, setShowInviteSuccess] = useState(true);
     const { mutate, isLoading: isDeleting } =
         useDeleteOrganizationUserMutation();
     const inviteLink = useCreateInviteLinkMutation();
@@ -78,180 +73,269 @@ const UserListItem: FC<{
             name: EventName.INVITE_BUTTON_CLICKED,
         });
         inviteLink.mutate({ email, role });
+        setShowInviteSuccess(true);
     };
 
     return (
-        <SettingsCard shadow="sm">
-            <ItemContent>
-                <SectionWrapper>
-                    {isActive ? (
-                        <UserInfo>
-                            <UserName
-                                className={Classes.TEXT_OVERFLOW_ELLIPSIS}
-                            >
-                                {firstName} {lastName}
-                            </UserName>
-                            {email && <UserEmail minimal>{email}</UserEmail>}
-                        </UserInfo>
-                    ) : (
-                        <UserInfo>
-                            {email && <PendingEmail>{email}</PendingEmail>}
-                            <div>
-                                <PendingTag intent="warning">
-                                    {!isInviteExpired
-                                        ? 'Pending'
-                                        : 'Link expired'}
-                                </PendingTag>
-                                {user.data?.ability?.can(
-                                    'create',
-                                    'InviteLink',
-                                ) && (
-                                    <NewLinkButton onClick={getNewLink}>
-                                        {health.data?.hasEmailClient
-                                            ? 'Send new invite'
-                                            : 'Get new link'}
-                                    </NewLinkButton>
+        <>
+            <tr>
+                <td width={500}>
+                    <Flex justify="space-between" align="center">
+                        {isActive ? (
+                            <Stack spacing="xxs">
+                                <Title order={6}>
+                                    {firstName} {lastName}
+                                </Title>
+
+                                {email && (
+                                    <Badge
+                                        variant="filled"
+                                        color="gray.2"
+                                        radius="xs"
+                                        sx={{ textTransform: 'none' }}
+                                        px="xxs"
+                                    >
+                                        <Text fz="xs" fw={400} color="gray.8">
+                                            {email}
+                                        </Text>
+                                    </Badge>
                                 )}
-                            </div>
-                        </UserInfo>
-                    )}
-                    {user.data?.ability?.can(
-                        'manage',
-                        'OrganizationMemberProfile',
-                    ) && (
-                        <ButtonGroup>
-                            <RoleSelectButton
-                                fill
-                                id="user-role"
-                                options={Object.values(
-                                    OrganizationMemberRole,
-                                ).map((orgMemberRole) => ({
-                                    value: orgMemberRole,
-                                    label: orgMemberRole.replace('_', ' '),
-                                }))}
-                                required
-                                onChange={(e) => {
+                            </Stack>
+                        ) : (
+                            <Stack spacing="xxs">
+                                {email && <Title order={6}>{email}</Title>}
+                                <Group spacing="xs">
+                                    <Badge
+                                        variant="filled"
+                                        color="orange.3"
+                                        radius="xs"
+                                        sx={{ textTransform: 'none' }}
+                                        px="xxs"
+                                    >
+                                        <Text fz="xs" fw={400} color="gray.8">
+                                            {!isInviteExpired
+                                                ? 'Pending'
+                                                : 'Link expired'}
+                                        </Text>
+                                    </Badge>
+                                    {user.data?.ability?.can(
+                                        'create',
+                                        'InviteLink',
+                                    ) && (
+                                        <Anchor
+                                            component="button"
+                                            onClick={getNewLink}
+                                            size="xs"
+                                            fw={500}
+                                        >
+                                            {health.data?.hasEmailClient
+                                                ? 'Send new invite'
+                                                : 'Get new link'}
+                                        </Anchor>
+                                    )}
+                                </Group>
+                            </Stack>
+                        )}
+                    </Flex>
+                </td>
+                {user.data?.ability?.can(
+                    'manage',
+                    'OrganizationMemberProfile',
+                ) && (
+                    <>
+                        <td>
+                            <Select
+                                data={Object.values(OrganizationMemberRole).map(
+                                    (orgMemberRole) => ({
+                                        value: orgMemberRole,
+                                        label: capitalize(
+                                            orgMemberRole.replace('_', ' '),
+                                        ),
+                                        description:
+                                            getRoleDescription(orgMemberRole),
+                                    }),
+                                )}
+                                onChange={(newRole: string) => {
                                     updateUser.mutate({
-                                        role: e.currentTarget
-                                            .value as OrganizationMemberRole,
+                                        role: newRole as OrganizationMemberRole,
                                     });
                                 }}
                                 value={role}
+                                w={200}
+                                itemComponent={({
+                                    label,
+                                    description,
+                                    ...props
+                                }) => (
+                                    <Group {...props} spacing="two">
+                                        <Text>{label}</Text>
+                                        <Tooltip
+                                            multiline
+                                            label={description}
+                                            sx={{
+                                                wordBreak: 'break-word',
+                                            }}
+                                        >
+                                            <MantineIcon
+                                                icon={IconHelp}
+                                                color="gray.6"
+                                            />
+                                        </Tooltip>
+                                    </Group>
+                                )}
                             />
+                        </td>
+                        <td>
+                            <Group position="right">
+                                <Button
+                                    leftIcon={
+                                        <MantineIcon icon={IconCircleX} />
+                                    }
+                                    variant="outline"
+                                    onClick={() => setIsDeleteDialogOpen(true)}
+                                    disabled={disabled}
+                                    color="red"
+                                >
+                                    Delete
+                                </Button>
+                            </Group>
+                            <Modal
+                                opened={isDeleteDialogOpen}
+                                onClose={() =>
+                                    !isDeleting
+                                        ? setIsDeleteDialogOpen(false)
+                                        : undefined
+                                }
+                                title={
+                                    <Group spacing="xs">
+                                        <MantineIcon
+                                            size="lg"
+                                            icon={IconAlertCircle}
+                                            color="red"
+                                        />
+                                        <Title order={4}>Delete user</Title>
+                                    </Group>
+                                }
+                            >
+                                <Text pb="md">
+                                    Are you sure you want to delete this user ?
+                                </Text>
+                                <Group spacing="xs" position="right">
+                                    <Button
+                                        disabled={isDeleting}
+                                        onClick={() =>
+                                            setIsDeleteDialogOpen(false)
+                                        }
+                                        variant="outline"
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        onClick={handleDelete}
+                                        disabled={isDeleting}
+                                        color="red"
+                                    >
+                                        Delete
+                                    </Button>
+                                </Group>
+                            </Modal>
+                        </td>
+                    </>
+                )}
+            </tr>
 
-                            <Button
-                                icon="delete"
-                                intent="danger"
-                                outlined
-                                onClick={() => setIsDeleteDialogOpen(true)}
-                                text="Delete"
-                                disabled={disabled}
-                            />
-                        </ButtonGroup>
-                    )}
-                </SectionWrapper>
-                {inviteLink.data && <InviteSuccess invite={inviteLink.data} />}
-            </ItemContent>
-            <Dialog
-                isOpen={isDeleteDialogOpen}
-                icon="person"
-                onClose={() =>
-                    !isDeleting ? setIsDeleteDialogOpen(false) : undefined
-                }
-                title="Delete user"
-                lazy
-            >
-                <div className={Classes.DIALOG_BODY}>
-                    <p>Are you sure you want to delete this user ?</p>
-                </div>
-                <div className={Classes.DIALOG_FOOTER}>
-                    <div className={Classes.DIALOG_FOOTER_ACTIONS}>
-                        <Button
-                            disabled={isDeleting}
-                            onClick={() => setIsDeleteDialogOpen(false)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            disabled={isDeleting}
-                            intent="danger"
-                            onClick={handleDelete}
-                        >
-                            Delete
-                        </Button>
-                    </div>
-                </div>
-            </Dialog>
-        </SettingsCard>
+            {inviteLink.data && showInviteSuccess && (
+                <tr>
+                    <td
+                        colSpan={3}
+                        style={{ borderTop: 0, padding: '0px 12px 12px' }}
+                    >
+                        <InviteSuccess
+                            invite={inviteLink.data}
+                            onClose={() => setShowInviteSuccess(false)}
+                        />
+                    </td>
+                </tr>
+            )}
+        </>
     );
 };
 
 const UserManagementPanel: FC = () => {
+    const { classes } = useTableStyles();
     const { user } = useApp();
-    const [showInvitePage, setShowInvitePage] = useState(false);
+    const [showInviteModal, setShowInviteModal] = useState(false);
     const { data: organizationUsers, isLoading } = useOrganizationUsers();
-    const { search } = useLocation();
 
-    useEffect(() => {
-        const searchParams = new URLSearchParams(search);
-        const toParam = searchParams.get('to');
-        if (toParam === 'invite') {
-            setShowInvitePage(true);
-        }
-    }, [search]);
-
-    if (showInvitePage) {
-        return (
-            <TrackPage
-                name={PageName.INVITE_MANAGEMENT_SETTINGS}
-                type={PageType.MODAL}
-                category={CategoryName.SETTINGS}
-            >
-                <InvitesPanel onBackClick={() => setShowInvitePage(false)} />
-            </TrackPage>
-        );
+    if (user.data?.ability.cannot('view', 'OrganizationMemberProfile')) {
+        return <ForbiddenPanel />;
     }
 
     return (
-        <UserManagementPanelWrapper>
-            {user.data?.ability?.can('create', 'InviteLink') && (
-                <HeaderWrapper>
-                    <TitleWrapper>
-                        <PanelTitle>User management settings</PanelTitle>
-                        <Anchor
-                            role="button"
+        <Stack>
+            <Group position="apart">
+                <Group spacing="two">
+                    <Title order={5}>User management settings</Title>
+                    <Tooltip label="Click here to learn more about user roles">
+                        <ActionIcon
+                            component="a"
                             href="https://docs.lightdash.com/references/roles"
                             target="_blank"
                             rel="noreferrer"
-                            style={{ color: Colors.GRAY5 }}
                         >
-                            <Icon icon="info-sign" />
-                        </Anchor>
-                    </TitleWrapper>
-                    <AddUserButton
-                        intent="primary"
-                        onClick={() => setShowInvitePage(true)}
-                        text="Add user"
-                    />
-                </HeaderWrapper>
-            )}
-            {isLoading ? (
-                <NonIdealState title="Loading users" icon={<Spinner />} />
-            ) : (
-                <Stack>
-                    {organizationUsers?.map((orgUser) => (
-                        <UserListItem
-                            key={orgUser.email}
-                            user={orgUser}
-                            disabled={
-                                user.data?.userUuid === orgUser.userUuid ||
-                                organizationUsers.length <= 1
-                            }
+                            <MantineIcon icon={IconInfoCircle} />
+                        </ActionIcon>
+                    </Tooltip>
+                </Group>
+                {user.data?.ability?.can('create', 'InviteLink') && (
+                    <>
+                        <Button onClick={() => setShowInviteModal(true)}>
+                            Add user
+                        </Button>
+                        <InvitesModal
+                            opened={showInviteModal}
+                            onClose={() => setShowInviteModal(false)}
                         />
-                    ))}
-                </Stack>
+                    </>
+                )}
+            </Group>
+
+            {isLoading ? (
+                <LoadingState title="Loading users" />
+            ) : (
+                <SettingsCard shadow="none" p={0}>
+                    <Table className={classes.root}>
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                {user.data?.ability?.can(
+                                    'manage',
+                                    'OrganizationMemberProfile',
+                                ) && (
+                                    <>
+                                        <th>Role</th>
+                                        <th></th>
+                                    </>
+                                )}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {organizationUsers?.map((orgUser) => (
+                                <UserListItem
+                                    key={orgUser.email}
+                                    user={orgUser}
+                                    disabled={
+                                        user.data?.userUuid ===
+                                            orgUser.userUuid ||
+                                        organizationUsers.length <= 1
+                                    }
+                                />
+                            ))}
+                        </tbody>
+                    </Table>
+                </SettingsCard>
             )}
-        </UserManagementPanelWrapper>
+        </Stack>
     );
 };
 

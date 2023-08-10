@@ -275,6 +275,10 @@
             },
             "Organization": {
                 "properties": {
+                    "defaultProjectUuid": {
+                        "type": "string",
+                        "description": "The project a user sees when they first log in to the organization"
+                    },
                     "needsProject": {
                         "type": "boolean",
                         "description": "The organization needs a project if it doesn't have at least one project."
@@ -340,6 +344,10 @@
                         },
                         "type": "array",
                         "description": "The default color palette for all projects in the organization"
+                    },
+                    "defaultProjectUuid": {
+                        "type": "string",
+                        "description": "The project a user sees when they first log in to the organization"
                     }
                 },
                 "type": "object",
@@ -347,6 +355,46 @@
             },
             "UpdateOrganization": {
                 "$ref": "#/components/schemas/Partial_Omit_Organization.organizationUuid-or-needsProject__"
+            },
+            "ProjectType": {
+                "enum": ["DEFAULT", "PREVIEW"],
+                "type": "string"
+            },
+            "OrganizationProject": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/ProjectType"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string",
+                        "description": "The unique identifier of the project",
+                        "format": "uuid"
+                    }
+                },
+                "required": ["type", "name", "projectUuid"],
+                "type": "object",
+                "description": "Summary of a project under an organization"
+            },
+            "ApiOrganizationProjects": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationProject"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object",
+                "description": "List of projects in the current organization"
             },
             "OrganizationMemberRole": {
                 "enum": [
@@ -435,29 +483,97 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Partial_Pick_OrganizationMemberProfile.role__": {
-                "properties": {
-                    "role": {
-                        "$ref": "#/components/schemas/OrganizationMemberRole",
-                        "description": "The role of the user in the organization"
-                    }
-                },
-                "type": "object",
-                "description": "Make all properties in T optional"
+            "UUID": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Stringified UUIDv4.\nSee [RFC 4112](https://tools.ietf.org/html/rfc4122)",
+                "pattern": "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}"
             },
             "OrganizationMemberProfileUpdate": {
-                "$ref": "#/components/schemas/Partial_Pick_OrganizationMemberProfile.role__"
+                "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/OrganizationMemberRole"
+                    }
+                },
+                "required": ["role"],
+                "type": "object"
+            },
+            "OrganizationMemberRole.EDITOR": {
+                "enum": ["editor"],
+                "type": "string"
+            },
+            "OrganizationMemberRole.INTERACTIVE_VIEWER": {
+                "enum": ["interactive_viewer"],
+                "type": "string"
+            },
+            "OrganizationMemberRole.VIEWER": {
+                "enum": ["viewer"],
+                "type": "string"
+            },
+            "OrganizationMemberRole.MEMBER": {
+                "enum": ["member"],
+                "type": "string"
+            },
+            "AllowedEmailDomainsRole": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/OrganizationMemberRole.EDITOR"
+                    },
+                    {
+                        "$ref": "#/components/schemas/OrganizationMemberRole.INTERACTIVE_VIEWER"
+                    },
+                    {
+                        "$ref": "#/components/schemas/OrganizationMemberRole.VIEWER"
+                    },
+                    {
+                        "$ref": "#/components/schemas/OrganizationMemberRole.MEMBER"
+                    }
+                ]
+            },
+            "ProjectMemberRole.EDITOR": {
+                "enum": ["editor"],
+                "type": "string"
+            },
+            "ProjectMemberRole.INTERACTIVE_VIEWER": {
+                "enum": ["interactive_viewer"],
+                "type": "string"
+            },
+            "ProjectMemberRole.VIEWER": {
+                "enum": ["viewer"],
+                "type": "string"
+            },
+            "AllowedEmailDomainProjectsRole": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ProjectMemberRole.EDITOR"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ProjectMemberRole.INTERACTIVE_VIEWER"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ProjectMemberRole.VIEWER"
+                    }
+                ]
             },
             "AllowedEmailDomains": {
                 "properties": {
-                    "projectUuids": {
+                    "projects": {
                         "items": {
-                            "type": "string"
+                            "properties": {
+                                "role": {
+                                    "$ref": "#/components/schemas/AllowedEmailDomainProjectsRole"
+                                },
+                                "projectUuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["role", "projectUuid"],
+                            "type": "object"
                         },
                         "type": "array"
                     },
                     "role": {
-                        "$ref": "#/components/schemas/OrganizationMemberRole"
+                        "$ref": "#/components/schemas/AllowedEmailDomainsRole"
                     },
                     "emailDomains": {
                         "items": {
@@ -470,7 +586,7 @@
                     }
                 },
                 "required": [
-                    "projectUuids",
+                    "projects",
                     "role",
                     "emailDomains",
                     "organizationUuid"
@@ -493,23 +609,32 @@
             },
             "Pick_AllowedEmailDomains.Exclude_keyofAllowedEmailDomains.organizationUuid__": {
                 "properties": {
-                    "role": {
-                        "$ref": "#/components/schemas/OrganizationMemberRole"
-                    },
                     "emailDomains": {
                         "items": {
                             "type": "string"
                         },
                         "type": "array"
                     },
-                    "projectUuids": {
+                    "role": {
+                        "$ref": "#/components/schemas/AllowedEmailDomainsRole"
+                    },
+                    "projects": {
                         "items": {
-                            "type": "string"
+                            "properties": {
+                                "role": {
+                                    "$ref": "#/components/schemas/AllowedEmailDomainProjectsRole"
+                                },
+                                "projectUuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["role", "projectUuid"],
+                            "type": "object"
                         },
                         "type": "array"
                     }
                 },
-                "required": ["role", "emailDomains", "projectUuids"],
+                "required": ["emailDomains", "role", "projects"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -679,6 +804,7 @@
                     "scatter",
                     "area",
                     "mixed",
+                    "pie",
                     "table",
                     "big_number"
                 ],
@@ -914,6 +1040,796 @@
                 "required": ["data", "type"],
                 "type": "object"
             },
+            "DbtProjectType.DBT": {
+                "enum": ["dbt"],
+                "type": "string"
+            },
+            "DbtProjectEnvironmentVariable": {
+                "properties": {
+                    "value": {
+                        "type": "string"
+                    },
+                    "key": {
+                        "type": "string"
+                    }
+                },
+                "required": ["value", "key"],
+                "type": "object"
+            },
+            "DbtProjectType": {
+                "enum": [
+                    "dbt",
+                    "dbt_cloud_ide",
+                    "github",
+                    "gitlab",
+                    "bitbucket",
+                    "azure_devops",
+                    "none"
+                ],
+                "type": "string"
+            },
+            "DbtLocalProjectConfig": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DbtProjectType.DBT"
+                    },
+                    "target": {
+                        "type": "string"
+                    },
+                    "environment": {
+                        "items": {
+                            "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
+                        },
+                        "type": "array"
+                    },
+                    "profiles_dir": {
+                        "type": "string"
+                    },
+                    "project_dir": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type"],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "DbtProjectType.DBT_CLOUD_IDE": {
+                "enum": ["dbt_cloud_ide"],
+                "type": "string"
+            },
+            "DbtCloudIDEProjectConfig": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DbtProjectType.DBT_CLOUD_IDE"
+                    },
+                    "api_key": {
+                        "type": "string"
+                    },
+                    "account_id": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        ]
+                    },
+                    "environment_id": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        ]
+                    },
+                    "project_id": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        ]
+                    }
+                },
+                "required": [
+                    "type",
+                    "api_key",
+                    "account_id",
+                    "environment_id",
+                    "project_id"
+                ],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "DbtProjectType.GITHUB": {
+                "enum": ["github"],
+                "type": "string"
+            },
+            "DbtGithubProjectConfig": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DbtProjectType.GITHUB"
+                    },
+                    "target": {
+                        "type": "string"
+                    },
+                    "environment": {
+                        "items": {
+                            "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
+                        },
+                        "type": "array"
+                    },
+                    "personal_access_token": {
+                        "type": "string"
+                    },
+                    "repository": {
+                        "type": "string"
+                    },
+                    "branch": {
+                        "type": "string"
+                    },
+                    "project_sub_path": {
+                        "type": "string"
+                    },
+                    "host_domain": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type",
+                    "personal_access_token",
+                    "repository",
+                    "branch",
+                    "project_sub_path"
+                ],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "DbtProjectType.BITBUCKET": {
+                "enum": ["bitbucket"],
+                "type": "string"
+            },
+            "DbtBitBucketProjectConfig": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DbtProjectType.BITBUCKET"
+                    },
+                    "target": {
+                        "type": "string"
+                    },
+                    "environment": {
+                        "items": {
+                            "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
+                        },
+                        "type": "array"
+                    },
+                    "username": {
+                        "type": "string"
+                    },
+                    "personal_access_token": {
+                        "type": "string"
+                    },
+                    "repository": {
+                        "type": "string"
+                    },
+                    "branch": {
+                        "type": "string"
+                    },
+                    "project_sub_path": {
+                        "type": "string"
+                    },
+                    "host_domain": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type",
+                    "username",
+                    "personal_access_token",
+                    "repository",
+                    "branch",
+                    "project_sub_path"
+                ],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "DbtProjectType.GITLAB": {
+                "enum": ["gitlab"],
+                "type": "string"
+            },
+            "DbtGitlabProjectConfig": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DbtProjectType.GITLAB"
+                    },
+                    "target": {
+                        "type": "string"
+                    },
+                    "environment": {
+                        "items": {
+                            "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
+                        },
+                        "type": "array"
+                    },
+                    "personal_access_token": {
+                        "type": "string"
+                    },
+                    "repository": {
+                        "type": "string"
+                    },
+                    "branch": {
+                        "type": "string"
+                    },
+                    "project_sub_path": {
+                        "type": "string"
+                    },
+                    "host_domain": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type",
+                    "personal_access_token",
+                    "repository",
+                    "branch",
+                    "project_sub_path"
+                ],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "DbtProjectType.AZURE_DEVOPS": {
+                "enum": ["azure_devops"],
+                "type": "string"
+            },
+            "DbtAzureDevOpsProjectConfig": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DbtProjectType.AZURE_DEVOPS"
+                    },
+                    "target": {
+                        "type": "string"
+                    },
+                    "environment": {
+                        "items": {
+                            "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
+                        },
+                        "type": "array"
+                    },
+                    "personal_access_token": {
+                        "type": "string"
+                    },
+                    "organization": {
+                        "type": "string"
+                    },
+                    "project": {
+                        "type": "string"
+                    },
+                    "repository": {
+                        "type": "string"
+                    },
+                    "branch": {
+                        "type": "string"
+                    },
+                    "project_sub_path": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type",
+                    "personal_access_token",
+                    "organization",
+                    "project",
+                    "repository",
+                    "branch",
+                    "project_sub_path"
+                ],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "DbtProjectType.NONE": {
+                "enum": ["none"],
+                "type": "string"
+            },
+            "DbtNoneProjectConfig": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DbtProjectType.NONE"
+                    },
+                    "target": {
+                        "type": "string"
+                    },
+                    "environment": {
+                        "items": {
+                            "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
+                        },
+                        "type": "array"
+                    },
+                    "hideRefreshButton": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["type"],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "DbtProjectConfig": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/DbtLocalProjectConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DbtCloudIDEProjectConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DbtGithubProjectConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DbtBitBucketProjectConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DbtGitlabProjectConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DbtAzureDevOpsProjectConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DbtNoneProjectConfig"
+                    }
+                ]
+            },
+            "WarehouseTypes.SNOWFLAKE": {
+                "enum": ["snowflake"],
+                "type": "string"
+            },
+            "WeekDay": {
+                "enum": [0, 1, 2, 3, 4, 5, 6],
+                "type": "number"
+            },
+            "Pick_CreateSnowflakeCredentials.Exclude_keyofCreateSnowflakeCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {
+                    "role": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
+                    },
+                    "account": {
+                        "type": "string"
+                    },
+                    "database": {
+                        "type": "string"
+                    },
+                    "warehouse": {
+                        "type": "string"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "threads": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "clientSessionKeepAlive": {
+                        "type": "boolean"
+                    },
+                    "queryTag": {
+                        "type": "string"
+                    },
+                    "accessUrl": {
+                        "type": "string"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "type",
+                    "account",
+                    "database",
+                    "warehouse",
+                    "schema"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateSnowflakeCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_CreateSnowflakeCredentials.Exclude_keyofCreateSnowflakeCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "SnowflakeCredentials": {
+                "$ref": "#/components/schemas/Omit_CreateSnowflakeCredentials.SensitiveCredentialsFieldNames_"
+            },
+            "WarehouseTypes.REDSHIFT": {
+                "enum": ["redshift"],
+                "type": "string"
+            },
+            "Pick_CreateRedshiftCredentials.Exclude_keyofCreateRedshiftCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.REDSHIFT"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "threads": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "useSshTunnel": {
+                        "type": "boolean"
+                    },
+                    "sshTunnelHost": {
+                        "type": "string"
+                    },
+                    "sshTunnelPort": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sshTunnelUser": {
+                        "type": "string"
+                    },
+                    "sshTunnelPublicKey": {
+                        "type": "string"
+                    },
+                    "host": {
+                        "type": "string"
+                    },
+                    "port": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dbname": {
+                        "type": "string"
+                    },
+                    "keepalivesIdle": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sslmode": {
+                        "type": "string"
+                    },
+                    "ra3Node": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["type", "schema", "host", "port", "dbname"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateRedshiftCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_CreateRedshiftCredentials.Exclude_keyofCreateRedshiftCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "RedshiftCredentials": {
+                "$ref": "#/components/schemas/Omit_CreateRedshiftCredentials.SensitiveCredentialsFieldNames_"
+            },
+            "WarehouseTypes.POSTGRES": {
+                "enum": ["postgres"],
+                "type": "string"
+            },
+            "Pick_CreatePostgresCredentials.Exclude_keyofCreatePostgresCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {
+                    "role": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.POSTGRES"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "threads": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "useSshTunnel": {
+                        "type": "boolean"
+                    },
+                    "sshTunnelHost": {
+                        "type": "string"
+                    },
+                    "sshTunnelPort": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sshTunnelUser": {
+                        "type": "string"
+                    },
+                    "sshTunnelPublicKey": {
+                        "type": "string"
+                    },
+                    "host": {
+                        "type": "string"
+                    },
+                    "port": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dbname": {
+                        "type": "string"
+                    },
+                    "keepalivesIdle": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sslmode": {
+                        "type": "string"
+                    },
+                    "searchPath": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "schema", "host", "port", "dbname"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreatePostgresCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_CreatePostgresCredentials.Exclude_keyofCreatePostgresCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "PostgresCredentials": {
+                "$ref": "#/components/schemas/Omit_CreatePostgresCredentials.SensitiveCredentialsFieldNames_"
+            },
+            "WarehouseTypes.BIGQUERY": {
+                "enum": ["bigquery"],
+                "type": "string"
+            },
+            "Pick_CreateBigqueryCredentials.Exclude_keyofCreateBigqueryCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.BIGQUERY"
+                    },
+                    "threads": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "project": {
+                        "type": "string"
+                    },
+                    "dataset": {
+                        "type": "string"
+                    },
+                    "timeoutSeconds": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "priority": {
+                        "type": "string",
+                        "enum": ["interactive", "batch"]
+                    },
+                    "retries": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "location": {
+                        "type": "string"
+                    },
+                    "maximumBytesBilled": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["type", "project", "dataset"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateBigqueryCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_CreateBigqueryCredentials.Exclude_keyofCreateBigqueryCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "BigqueryCredentials": {
+                "$ref": "#/components/schemas/Omit_CreateBigqueryCredentials.SensitiveCredentialsFieldNames_"
+            },
+            "WarehouseTypes.DATABRICKS": {
+                "enum": ["databricks"],
+                "type": "string"
+            },
+            "Pick_CreateDatabricksCredentials.Exclude_keyofCreateDatabricksCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DATABRICKS"
+                    },
+                    "database": {
+                        "type": "string"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "catalog": {
+                        "type": "string"
+                    },
+                    "serverHostName": {
+                        "type": "string"
+                    },
+                    "httpPath": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "database", "serverHostName", "httpPath"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateDatabricksCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_CreateDatabricksCredentials.Exclude_keyofCreateDatabricksCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "DatabricksCredentials": {
+                "$ref": "#/components/schemas/Omit_CreateDatabricksCredentials.SensitiveCredentialsFieldNames_"
+            },
+            "WarehouseTypes.TRINO": {
+                "enum": ["trino"],
+                "type": "string"
+            },
+            "Pick_CreateTrinoCredentials.Exclude_keyofCreateTrinoCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.TRINO"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "host": {
+                        "type": "string"
+                    },
+                    "port": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dbname": {
+                        "type": "string"
+                    },
+                    "http_scheme": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type",
+                    "schema",
+                    "host",
+                    "port",
+                    "dbname",
+                    "http_scheme"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateTrinoCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_CreateTrinoCredentials.Exclude_keyofCreateTrinoCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "TrinoCredentials": {
+                "$ref": "#/components/schemas/Omit_CreateTrinoCredentials.SensitiveCredentialsFieldNames_"
+            },
+            "WarehouseCredentials": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/SnowflakeCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/RedshiftCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PostgresCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/BigqueryCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DatabricksCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/TrinoCredentials"
+                    }
+                ]
+            },
+            "SupportedDbtVersions": {
+                "enum": ["v1.4", "v1.5"],
+                "type": "string"
+            },
+            "Project": {
+                "properties": {
+                    "dbtVersion": {
+                        "$ref": "#/components/schemas/SupportedDbtVersions"
+                    },
+                    "copiedFromProjectUuid": {
+                        "type": "string"
+                    },
+                    "pinnedListUuid": {
+                        "type": "string"
+                    },
+                    "warehouseConnection": {
+                        "$ref": "#/components/schemas/WarehouseCredentials"
+                    },
+                    "dbtConnection": {
+                        "$ref": "#/components/schemas/DbtProjectConfig"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ProjectType"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "dbtVersion",
+                    "dbtConnection",
+                    "type",
+                    "name",
+                    "projectUuid",
+                    "organizationUuid"
+                ],
+                "type": "object"
+            },
+            "ApiProjectResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/Project"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid_": {
                 "properties": {
                     "name": {
@@ -954,8 +1870,24 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "ChartType": {
+                "enum": ["cartesian", "table", "big_number", "pie"],
+                "type": "string"
+            },
             "ChartSummary": {
-                "$ref": "#/components/schemas/Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid_"
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid_"
+                    },
+                    {
+                        "properties": {
+                            "chartType": {
+                                "$ref": "#/components/schemas/ChartType"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
             },
             "ApiChartSummaryListResponse": {
                 "properties": {
@@ -974,7 +1906,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate_": {
+            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -988,6 +1920,15 @@
                     "projectUuid": {
                         "type": "string"
                     },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
                     "isPrivate": {
                         "type": "boolean"
                     }
@@ -997,6 +1938,8 @@
                     "organizationUuid",
                     "uuid",
                     "projectUuid",
+                    "pinnedListUuid",
+                    "pinnedListOrder",
                     "isPrivate"
                 ],
                 "type": "object",
@@ -1005,10 +1948,18 @@
             "SpaceSummary": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate_"
+                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder_"
                     },
                     {
                         "properties": {
+                            "dashboardCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "chartCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
                             "access": {
                                 "items": {
                                     "type": "string"
@@ -1016,7 +1967,7 @@
                                 "type": "array"
                             }
                         },
-                        "required": ["access"],
+                        "required": ["dashboardCount", "chartCount", "access"],
                         "type": "object"
                     }
                 ]
@@ -1096,6 +2047,20 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiGetProjectMemberResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ProjectMemberProfile"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "CreateProjectMember": {
                 "properties": {
                     "sendEmail": {
@@ -1118,6 +2083,31 @@
                     }
                 },
                 "required": ["role"],
+                "type": "object"
+            },
+            "Record_string._type-DimensionType--__": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "Record_string.unknown_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ApiSqlQueryResults": {
+                "properties": {
+                    "rows": {
+                        "items": {
+                            "$ref": "#/components/schemas/Record_string.unknown_"
+                        },
+                        "type": "array"
+                    },
+                    "fields": {
+                        "$ref": "#/components/schemas/Record_string._type-DimensionType--__"
+                    }
+                },
+                "required": ["rows", "fields"],
                 "type": "object"
             },
             "FieldId": {
@@ -1176,8 +2166,57 @@
                 "required": ["descending", "fieldId"],
                 "type": "object"
             },
+            "TableCalculationFormatType": {
+                "enum": ["default", "percent", "currency", "number"],
+                "type": "string"
+            },
+            "NumberSeparator": {
+                "enum": [
+                    "default",
+                    "commaPeriod",
+                    "spacePeriod",
+                    "periodComma",
+                    "noSeparatorPeriod"
+                ],
+                "type": "string"
+            },
+            "Compact": {
+                "enum": ["thousands", "millions", "billions", "trillions"],
+                "type": "string"
+            },
+            "TableCalculationFormat": {
+                "properties": {
+                    "suffix": {
+                        "type": "string"
+                    },
+                    "prefix": {
+                        "type": "string"
+                    },
+                    "compact": {
+                        "$ref": "#/components/schemas/Compact"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator"
+                    },
+                    "round": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/TableCalculationFormatType"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
             "TableCalculation": {
                 "properties": {
+                    "format": {
+                        "$ref": "#/components/schemas/TableCalculationFormat"
+                    },
                     "sql": {
                         "type": "string"
                     },
@@ -1212,10 +2251,6 @@
                 ],
                 "type": "string"
             },
-            "Compact": {
-                "enum": ["thousands", "millions", "billions", "trillions"],
-                "type": "string"
-            },
             "CompactOrAlias": {
                 "anyOf": [
                     {
@@ -1235,6 +2270,62 @@
                         ]
                     }
                 ]
+            },
+            "Format": {
+                "enum": ["km", "mi", "usd", "gbp", "eur", "id", "percent"],
+                "type": "string"
+            },
+            "ConditionalOperator": {
+                "enum": [
+                    "isNull",
+                    "notNull",
+                    "equals",
+                    "notEquals",
+                    "startsWith",
+                    "endsWith",
+                    "include",
+                    "doesNotInclude",
+                    "lessThan",
+                    "lessThanOrEqual",
+                    "greaterThan",
+                    "greaterThanOrEqual",
+                    "inThePast",
+                    "notInThePast",
+                    "inTheNext",
+                    "inTheCurrent",
+                    "inBetween"
+                ],
+                "type": "string"
+            },
+            "MetricFilterRule": {
+                "properties": {
+                    "values": {
+                        "items": {},
+                        "type": "array"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/ConditionalOperator"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "target": {
+                        "properties": {
+                            "fieldRef": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["fieldRef"],
+                        "type": "object"
+                    },
+                    "settings": {},
+                    "disabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["operator", "id", "target"],
+                "type": "object",
+                "additionalProperties": false
             },
             "AdditionalMetric": {
                 "properties": {
@@ -1261,7 +2352,7 @@
                         "$ref": "#/components/schemas/CompactOrAlias"
                     },
                     "format": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/Format"
                     },
                     "table": {
                         "type": "string"
@@ -1272,6 +2363,19 @@
                     "index": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/MetricFilterRule"
+                        },
+                        "type": "array"
+                    },
+                    "baseDimensionName": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "required": ["type", "sql", "table", "name"],
@@ -2213,56 +3317,44 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Space.name_": {
+            "CreateSpace": {
                 "properties": {
-                    "name": {
-                        "type": "string"
-                    }
-                },
-                "required": ["name"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Partial_Pick_Space.isPrivate-or-access__": {
-                "properties": {
-                    "isPrivate": {
-                        "type": "boolean"
-                    },
                     "access": {
                         "items": {
                             "$ref": "#/components/schemas/SpaceShare"
                         },
                         "type": "array"
-                    }
-                },
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "CreateSpace": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Pick_Space.name_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/Partial_Pick_Space.isPrivate-or-access__"
-                    }
-                ]
-            },
-            "Pick_Space.name-or-isPrivate_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
                     },
                     "isPrivate": {
                         "type": "boolean"
+                    },
+                    "name": {
+                        "type": "string"
                     }
                 },
-                "required": ["name", "isPrivate"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
+                "required": ["name"],
+                "type": "object"
             },
             "UpdateSpace": {
-                "$ref": "#/components/schemas/Pick_Space.name-or-isPrivate_"
+                "properties": {
+                    "isPrivate": {
+                        "type": "boolean"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["isPrivate", "name"],
+                "type": "object"
+            },
+            "AddSpaceShare": {
+                "properties": {
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["userUuid"],
+                "type": "object"
             },
             "Pick_SshKeyPair.publicKey_": {
                 "properties": {
@@ -2287,6 +3379,138 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "UserAttributeValue": {
+                "properties": {
+                    "value": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["value", "email", "userUuid"],
+                "type": "object"
+            },
+            "UserAttribute": {
+                "properties": {
+                    "users": {
+                        "items": {
+                            "$ref": "#/components/schemas/UserAttributeValue"
+                        },
+                        "type": "array"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "users",
+                    "organizationUuid",
+                    "name",
+                    "createdAt",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "ApiUserAttributesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/UserAttribute"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiCreateUserAttributeResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/UserAttribute"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_UserAttribute.name-or-description_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_UserAttributeValue.Exclude_keyofUserAttributeValue.email__": {
+                "properties": {
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "string"
+                    }
+                },
+                "required": ["userUuid", "value"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_UserAttributeValue.email_": {
+                "$ref": "#/components/schemas/Pick_UserAttributeValue.Exclude_keyofUserAttributeValue.email__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "CreateUserAttributeValue": {
+                "$ref": "#/components/schemas/Omit_UserAttributeValue.email_"
+            },
+            "CreateUserAttribute": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_UserAttribute.name-or-description_"
+                    },
+                    {
+                        "properties": {
+                            "users": {
+                                "items": {
+                                    "$ref": "#/components/schemas/CreateUserAttributeValue"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["users"],
+                        "type": "object"
+                    }
+                ]
             },
             "EmailOneTimePassword": {
                 "properties": {
@@ -2438,8 +3662,15 @@
                 ],
                 "type": "string"
             },
+            "ValidationSourceType": {
+                "enum": ["chart", "dashboard", "table"],
+                "type": "string"
+            },
             "ValidationResponseBase": {
                 "properties": {
+                    "source": {
+                        "$ref": "#/components/schemas/ValidationSourceType"
+                    },
                     "spaceUuid": {
                         "type": "string"
                     },
@@ -2466,6 +3697,7 @@
                 },
                 "required": [
                     "projectUuid",
+                    "errorType",
                     "error",
                     "name",
                     "createdAt",
@@ -2480,6 +3712,9 @@
                     },
                     {
                         "properties": {
+                            "chartName": {
+                                "type": "string"
+                            },
                             "chartViews": {
                                 "type": "number",
                                 "format": "double"
@@ -2560,13 +3795,17 @@
                     },
                     "errorType": {
                         "$ref": "#/components/schemas/ValidationErrorType"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/ValidationSourceType"
                     }
                 },
                 "required": [
                     "projectUuid",
                     "validationId",
                     "createdAt",
-                    "error"
+                    "error",
+                    "errorType"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -2619,6 +3858,17 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "ApiValidationDismissResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
             }
         },
         "securitySchemes": {
@@ -2637,7 +3887,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.590.2",
+        "version": "0.714.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -3269,6 +4519,37 @@
                 ]
             }
         },
+        "/api/v1/org/projects": {
+            "get": {
+                "operationId": "ListOrganizationProjects",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationProjects"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Gets all projects of the current user's organization",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            }
+        },
         "/api/v1/org/users": {
             "get": {
                 "operationId": "ListOrganizationMembers",
@@ -3301,6 +4582,45 @@
             }
         },
         "/api/v1/org/users/{userUuid}": {
+            "get": {
+                "operationId": "GetOrganizationMemberByUuid",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationMemberProfile"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the member profile for a user in the current user's organization by uuid",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid of the user",
+                        "in": "path",
+                        "name": "userUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
             "patch": {
                 "operationId": "UpdateOrganizationMember",
                 "responses": {
@@ -3448,16 +4768,18 @@
                         }
                     }
                 },
-                "description": "Gets the allowed email domains for the current user's organization",
+                "description": "Updates the allowed email domains for the current user's organization",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": [],
                 "requestBody": {
+                    "description": "the new allowed email domains",
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/UpdateAllowedEmailDomains"
+                                "$ref": "#/components/schemas/UpdateAllowedEmailDomains",
+                                "description": "the new allowed email domains"
                             }
                         }
                     }
@@ -3494,11 +4816,13 @@
                 "security": [],
                 "parameters": [],
                 "requestBody": {
+                    "description": "the new group details",
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Pick_CreateGroup.name_"
+                                "$ref": "#/components/schemas/Pick_CreateGroup.name_",
+                                "description": "the new group details"
                             }
                         }
                     }
@@ -3647,6 +4971,46 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}": {
+            "get": {
+                "operationId": "GetProject",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiProjectResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get a project of an organiztion",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/charts": {
@@ -3868,6 +5232,54 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/user/${userUuid}": {
+            "get": {
+                "operationId": "GetProjectMemberAccess",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetProjectMemberResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get a project member's access for a project.\n\nNOTE:\nWe don't use the API on the frontend. Instead, we can call the API\nso that we make sure of the user's access to the project.",
+                "tags": ["Roles & Permissions", "Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "userUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/access/{userUuid}": {
             "patch": {
                 "operationId": "UpdateProjectAccessForUser",
@@ -3972,6 +5384,76 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/sqlQuery": {
+            "post": {
+                "operationId": "RunSqlQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/ApiSqlQueryResults"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Run a raw sql query against the project's warehouse connection",
+                "tags": ["Exploring", "Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the project to run the query against",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "The query to run",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "sql": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["sql"],
+                                "type": "object",
+                                "description": "The query to run"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/explores/{exploreId}/runUnderlyingDataQuery": {
             "post": {
                 "operationId": "postRunUnderlyingDataQuery",
@@ -4036,7 +5518,7 @@
         },
         "/api/v1/projects/{projectUuid}/explores/{exploreId}/runQuery": {
             "post": {
-                "operationId": "postRunQuery",
+                "operationId": "RunMetricQuery",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -4684,6 +6166,124 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}/share": {
+            "post": {
+                "operationId": "AddSpaceShareToUser",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Grant a user access to a space",
+                "tags": ["Roles & Permissions", "Spaces"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the space's parent project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "spaceUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AddSpaceShare"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}/share/{userUuid}": {
+            "delete": {
+                "operationId": "RevokeSpaceAccessForUser",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Remove a user's access to a space",
+                "tags": ["Roles & Permissions", "Spaces"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the space's parent project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The uuid of the space to update",
+                        "in": "path",
+                        "name": "spaceUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The uuid of the user to revoke access from",
+                        "in": "path",
+                        "name": "userUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/ssh/key-pairs": {
             "post": {
                 "operationId": "createSshKeyPair",
@@ -4712,6 +6312,170 @@
                 "tags": ["SSH Keypairs"],
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v1/org/attributes": {
+            "get": {
+                "operationId": "getUserAttributes",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUserAttributesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get all user attributes",
+                "tags": ["User attributes"],
+                "security": [],
+                "parameters": []
+            },
+            "post": {
+                "operationId": "createUserAttribute",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCreateUserAttributeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Creates new user attribute",
+                "tags": ["User attributes"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "the user attribute to create",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateUserAttribute",
+                                "description": "the user attribute to create"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/org/attributes/{userAttributeUuid}": {
+            "put": {
+                "operationId": "updateUserAttribute",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCreateUserAttributeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Updates a user attribute",
+                "tags": ["User attributes"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the UUID for the group to add the user to",
+                        "in": "path",
+                        "name": "userAttributeUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "the user attribute to update",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateUserAttribute",
+                                "description": "the user attribute to update"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "removeUserAttribute",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Remove a user attribute",
+                "tags": ["User attributes"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the user attribute UUID to remove",
+                        "in": "path",
+                        "name": "userAttributeUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/user/me/email/otp": {
@@ -4927,7 +6691,25 @@
                             "type": "string"
                         }
                     }
-                ]
+                ],
+                "requestBody": {
+                    "description": "the compiled explores to validate against an existing project, this is used in the CLI to validate a project without creating a preview",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "explores": {
+                                        "items": {},
+                                        "type": "array"
+                                    }
+                                },
+                                "type": "object",
+                                "description": "the compiled explores to validate against an existing project, this is used in the CLI to validate a project without creating a preview"
+                            }
+                        }
+                    }
+                }
             },
             "get": {
                 "operationId": "GetLatestValidationResults",
@@ -4973,6 +6755,65 @@
                         "required": false,
                         "schema": {
                             "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "optional jobId to get results for a specific job, used on CLI",
+                        "in": "query",
+                        "name": "jobId",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/validate/{validationId}": {
+            "delete": {
+                "operationId": "DeleteValidationDismiss",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiValidationDismissResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Deletes a single validation error.",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "the projectId for the validation",
+                        "in": "path",
+                        "name": "validationId",
+                        "required": true,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
                         }
                     }
                 ]

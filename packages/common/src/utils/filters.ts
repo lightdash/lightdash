@@ -57,6 +57,19 @@ export const getTotalFilterRules = (filters: Filters): FilterRule[] => [
 export const countTotalFilterRules = (filters: Filters): number =>
     getTotalFilterRules(filters).length;
 
+export const hasNestedGroups = (filters: Filters): boolean => {
+    const hasGroups = (filterGroup: FilterGroup): boolean => {
+        const items = isAndFilterGroup(filterGroup)
+            ? filterGroup.and
+            : filterGroup.or;
+        return items.some(isFilterGroup);
+    };
+    return (
+        (!!filters.dimensions && hasGroups(filters.dimensions)) ||
+        (!!filters.metrics && hasGroups(filters.metrics))
+    );
+};
+
 export const getItemsFromFilterGroup = (
     filterGroup: FilterGroup | undefined,
 ): FilterGroupItem[] => {
@@ -137,6 +150,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                 const isTimestamp = field.type === DimensionType.TIMESTAMP;
                 if (
                     filterRule.operator === FilterOperator.IN_THE_PAST ||
+                    filterRule.operator === FilterOperator.NOT_IN_THE_PAST ||
                     filterRule.operator === FilterOperator.IN_THE_NEXT ||
                     filterRule.operator === FilterOperator.IN_THE_CURRENT
                 ) {
@@ -289,6 +303,7 @@ export const createDashboardFilterRuleFromField = (
             tableName: field.table,
         },
         tileTargets: getDefaultTileTargets(field, availableTileFilters),
+        disabled: true,
         label: undefined,
     });
 

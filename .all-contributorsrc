@@ -838,7 +838,10 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/67699259?v=4",
       "profile": "https://github.com/yasmin-e",
       "contributions": [
-        "code"
+        "code",
+        "bug",
+        "ideas",
+        "design"
       ]
     },
     {
@@ -1069,6 +1072,61 @@
       "profile": "https://pullstack.ninja/",
       "contributions": [
         "code"
+      ]
+    },
+    {
+      "login": "CVamsi27",
+      "name": "Chandaluri Vamsi Krishna",
+      "avatar_url": "https://avatars.githubusercontent.com/u/55316723?v=4",
+      "profile": "https://github.com/CVamsi27",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "elton-okawa",
+      "name": "Elton Okawa",
+      "avatar_url": "https://avatars.githubusercontent.com/u/24387035?v=4",
+      "profile": "https://github.com/elton-okawa",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "jayanand05",
+      "name": "JAY ANAND",
+      "avatar_url": "https://avatars.githubusercontent.com/u/113882904?v=4",
+      "profile": "https://github.com/jayanand05",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "yu-iskw",
+      "name": "Yu Ishikawa",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1523515?v=4",
+      "profile": "https://www.linkedin.com/in/yuishikawa0301/",
+      "contributions": [
+        "code",
+        "ideas"
+      ]
+    },
+    {
+      "login": "magnew",
+      "name": "magnew",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1864179?v=4",
+      "profile": "https://github.com/magnew",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "AChelikani",
+      "name": "Advith Chelikani",
+      "avatar_url": "https://avatars.githubusercontent.com/u/4915950?v=4",
+      "profile": "http://advith.me",
+      "contributions": [
+        "bug"
       ]
     }
   ],

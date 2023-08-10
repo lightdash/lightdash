@@ -16,9 +16,12 @@ import {
     Metric,
 } from '../types/field';
 import { WarehouseClient } from '../types/warehouse';
+
 import { renderFilterRuleSql } from './filtersCompiler';
 
-export const lightdashVariablePattern = /\$\{([a-zA-Z0-9_.]+)\}/g;
+// exclude lightdash prefix from variable pattern
+export const lightdashVariablePattern =
+    /\$\{((?!(lightdash|ld)\.)[a-zA-Z0-9_.]+)\}/g;
 
 type Reference = {
     refTable: string;
@@ -52,9 +55,11 @@ export type UncompiledExplore = {
     label: string;
     tags: string[];
     baseTable: string;
+    groupLabel?: string;
     joinedTables: ExploreJoin[];
     tables: Record<string, Table>;
     targetDatabase: SupportedDbtAdapter;
+    sqlWhere?: string;
 };
 
 export class ExploreCompiler {
@@ -72,6 +77,7 @@ export class ExploreCompiler {
         joinedTables,
         tables,
         targetDatabase,
+        groupLabel,
     }: UncompiledExplore): Explore {
         // Check that base table and joined tables exist
         if (!tables[baseTable]) {
@@ -174,6 +180,7 @@ export class ExploreCompiler {
         const compiledJoins: CompiledExploreJoin[] = joinedTables.map((j) =>
             this.compileJoin(j, includedTables),
         );
+
         return {
             name,
             label,
@@ -182,6 +189,7 @@ export class ExploreCompiler {
             joinedTables: compiledJoins,
             tables: compiledTables,
             targetDatabase,
+            groupLabel,
         };
     }
 
@@ -210,8 +218,18 @@ export class ExploreCompiler {
             }),
             {},
         );
+        const compiledSqlWhere = table.sqlWhere
+            ? table.sqlWhere.replace(
+                  lightdashVariablePattern,
+                  (_, p1) =>
+                      this.compileDimensionReference(p1, tables, table.name)
+                          .sql,
+              )
+            : undefined;
+
         return {
             ...table,
+            sqlWhere: compiledSqlWhere,
             dimensions,
             metrics,
         };
@@ -277,14 +295,34 @@ export class ExploreCompiler {
         );
         if (metric.filters !== undefined && metric.filters.length > 0) {
             const conditions = metric.filters.map((filter) => {
+                const fieldRef =
+                    // @ts-expect-error This fallback is to support old metric filters in yml. We can delete this after a few months since we can assume all projects have been redeployed
+                    filter.target.fieldRef || filter.target.fieldId;
                 const { refTable, refName } = getParsedReference(
-                    filter.target.fieldId,
+                    fieldRef,
                     metric.table,
                 );
-                const dimensionField = tables[refTable]?.dimensions[refName];
+
+                const table = tables[refTable];
+
+                if (!table) {
+                    throw new CompileError(
+                        `Filter for metric "${metric.name}" has a reference to an unknown table`,
+                    );
+                }
+
+                // NOTE: date dimensions from explores have their time format uppercased (e.g. order_date_DAY) - see ticket: https://github.com/lightdash/lightdash/issues/5998
+                const dimensionRefName = Object.keys(table.dimensions).find(
+                    (key) => key.toLowerCase() === refName.toLowerCase(),
+                );
+
+                const dimensionField = dimensionRefName
+                    ? table.dimensions[dimensionRefName]
+                    : undefined;
+
                 if (!dimensionField) {
                     throw new CompileError(
-                        `Filter for metric "${metric.name}" has a reference to an unknown dimension: ${filter.target.fieldId}`,
+                        `Filter for metric "${metric.name}" has a reference to an unknown dimension: ${fieldRef}`,
                     );
                 }
                 const compiledDimension = this.compileDimension(
@@ -304,6 +342,7 @@ export class ExploreCompiler {
                     this.warehouseClient.getStringQuoteChar(),
                     this.warehouseClient.getEscapeStringQuoteChar(),
                     this.warehouseClient.getStartOfWeek(),
+                    this.warehouseClient.getAdapterType(),
                 );
             });
             renderedSql = `CASE WHEN (${conditions.join(

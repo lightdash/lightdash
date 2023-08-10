@@ -62,6 +62,7 @@ export async function seed(knex: Knex): Promise<void> {
                                     yRef: { field: 'payments_total_revenue' },
                                 },
                                 type: CartesianSeriesType.BAR,
+                                yAxisIndex: 0,
                             },
                             {
                                 encode: {
@@ -71,6 +72,7 @@ export async function seed(knex: Knex): Promise<void> {
                                     },
                                 },
                                 type: CartesianSeriesType.BAR,
+                                yAxisIndex: 0,
                             },
                         ],
                     },
@@ -177,6 +179,7 @@ export async function seed(knex: Knex): Promise<void> {
                                     },
                                 },
                                 type: CartesianSeriesType.LINE,
+                                yAxisIndex: 0,
                             },
                             {
                                 encode: {
@@ -184,6 +187,7 @@ export async function seed(knex: Knex): Promise<void> {
                                     yRef: { field: 'cumulative_order_count' },
                                 },
                                 type: CartesianSeriesType.LINE,
+                                yAxisIndex: 0,
                             },
                         ],
                     },
@@ -235,6 +239,7 @@ export async function seed(knex: Knex): Promise<void> {
                                     },
                                 },
                                 type: CartesianSeriesType.BAR,
+                                yAxisIndex: 0,
                             },
                         ],
                     },

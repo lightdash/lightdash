@@ -6,13 +6,22 @@ import {
     Intent,
     Menu,
 } from '@blueprintjs/core';
-import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
-import { IconDots, IconPencil } from '@tabler/icons-react';
-import { FC, useEffect, useState } from 'react';
+import {
+    IconCheck,
+    IconCirclePlus,
+    IconCopy,
+    IconDots,
+    IconFolders,
+    IconPencil,
+    IconSend,
+    IconSquarePlus,
+    IconTrash,
+} from '@tabler/icons-react';
+import React, { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
-
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import {
     useDuplicateChartMutation,
@@ -28,6 +37,7 @@ import { SectionName } from '../../../types/Events';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
+import MoveChartThatBelongsToDashboardModal from '../../common/modal/MoveChartThatBelongsToDashboardModal';
 import PageHeader from '../../common/Page/PageHeader';
 import {
     PageActionsContainer,
@@ -37,9 +47,10 @@ import {
     PageTitleContainer,
     SeparatorDot,
 } from '../../common/PageHeader';
-import SpaceInfo from '../../common/PageHeader/SpaceInfo';
+import SpaceAndDashboardInfo from '../../common/PageHeader/SpaceAndDashboardInfo';
 import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
 import ViewInfo from '../../common/PageHeader/ViewInfo';
+import { ResourceInfoPopup } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import ChartSchedulersModal from '../../SchedulerModals/ChartSchedulersModal';
 import { getSchedulerUuidFromUrlParams } from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
@@ -73,6 +84,7 @@ const SavedChartsHeader: FC = () => {
         useState<boolean>(false);
     const [isRenamingChart, setIsRenamingChart] = useState(false);
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
+    const [isMovingChart, setIsMovingChart] = useState(false);
     const [isScheduledDeliveriesModalOpen, toggleSchedulerDeliveriesModel] =
         useToggle(false);
     const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
@@ -90,6 +102,7 @@ const SavedChartsHeader: FC = () => {
 
     const { mutate: duplicateChart } = useDuplicateChartMutation();
     const chartId = savedChart?.uuid || '';
+    const chartBelongsToDashboard: boolean = !!savedChart?.dashboardUuid;
 
     useEffect(() => {
         const schedulerUuidFromUrlParams =
@@ -117,6 +130,7 @@ const SavedChartsHeader: FC = () => {
             if (
                 hasUnsavedChanges &&
                 isEditMode &&
+                !isQueryModalOpen &&
                 !prompt.pathname.includes(
                     `/projects/${projectUuid}/saved/${savedChart?.uuid}`,
                 ) &&
@@ -142,6 +156,7 @@ const SavedChartsHeader: FC = () => {
         hasUnsavedChanges,
         setIsSaveWarningModalOpen,
         isEditMode,
+        isQueryModalOpen,
     ]);
 
     const userCanManageCharts = user.data?.ability?.can(
@@ -181,14 +196,14 @@ const SavedChartsHeader: FC = () => {
                                 className={Classes.TEXT_OVERFLOW_ELLIPSIS}
                             >
                                 <PageTitle>{savedChart.name}</PageTitle>
-                                {savedChart.description && (
-                                    <Tooltip2
-                                        content={savedChart.description}
-                                        position="bottom"
-                                    >
-                                        <Button icon="info-sign" minimal />
-                                    </Tooltip2>
-                                )}
+
+                                <ResourceInfoPopup
+                                    resourceUuid={savedChart.uuid}
+                                    projectUuid={projectUuid}
+                                    description={savedChart.description}
+                                    withChartData={true}
+                                />
+
                                 {isEditMode &&
                                     user.data?.ability?.can(
                                         'manage',
@@ -230,15 +245,32 @@ const SavedChartsHeader: FC = () => {
 
                                 <SeparatorDot icon="dot" size={6} />
 
-                                <SpaceInfo
-                                    link={`/projects/${projectUuid}/spaces/${savedChart.spaceUuid}`}
-                                    name={savedChart.spaceName}
+                                <SpaceAndDashboardInfo
+                                    space={{
+                                        link: `/projects/${projectUuid}/spaces/${savedChart.spaceUuid}`,
+                                        name: savedChart.spaceName,
+                                    }}
+                                    dashboard={
+                                        savedChart.dashboardUuid &&
+                                        savedChart.dashboardName
+                                            ? {
+                                                  link: `/projects/${projectUuid}/dashboards/${savedChart.dashboardUuid}`,
+                                                  name: savedChart.dashboardName,
+                                              }
+                                            : undefined
+                                    }
                                 />
                             </PageDetailsContainer>
                         </>
                     )}
                 </PageTitleAndDetailsContainer>
-                {user.data?.ability?.can('manage', 'SavedChart') && (
+                {user.data?.ability?.can(
+                    'manage',
+                    subject('SavedChart', {
+                        organizationUuid: savedChart?.organizationUuid,
+                        projectUuid,
+                    }),
+                ) && (
                     <PageActionsContainer>
                         {!isEditMode ? (
                             <>
@@ -263,6 +295,12 @@ const SavedChartsHeader: FC = () => {
                                             history.push({
                                                 pathname: `/projects/${savedChart?.projectUuid}/dashboards/${dashboardUuid}`,
                                             });
+                                            sessionStorage.removeItem(
+                                                'fromDashboard',
+                                            );
+                                            sessionStorage.removeItem(
+                                                'dashboardUuid',
+                                            );
                                         } else
                                             history.push({
                                                 pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`,
@@ -275,100 +313,114 @@ const SavedChartsHeader: FC = () => {
                         )}
 
                         <Popover2
-                            placement="bottom"
+                            placement="bottom-end"
                             disabled={!unsavedChartVersion.tableName}
                             content={
                                 <Menu>
-                                    <MenuItem2
-                                        icon={
-                                            hasUnsavedChanges
-                                                ? 'add'
-                                                : 'duplicate'
-                                        }
-                                        text={
-                                            hasUnsavedChanges
-                                                ? 'Save chart as'
-                                                : 'Duplicate'
-                                        }
-                                        onClick={() => {
-                                            if (
-                                                savedChart?.uuid &&
-                                                hasUnsavedChanges
-                                            ) {
-                                                setIsQueryModalOpen(true);
-                                            } else {
-                                                duplicateChart(chartId);
-                                            }
-                                        }}
-                                    />
-                                    <MenuItem2
-                                        icon="control"
-                                        text="Add to dashboard"
-                                        onClick={() =>
-                                            setIsAddToDashboardModalOpen(true)
-                                        }
-                                    />
-                                    <MenuItem2
-                                        icon="folder-close"
-                                        text="Move to space"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                        }}
-                                    >
-                                        {spaces?.map((spaceToMove) => {
-                                            const isDisabled =
-                                                savedChart?.spaceUuid ===
-                                                spaceToMove.uuid;
-                                            return (
-                                                <MenuItem2
-                                                    key={spaceToMove.uuid}
-                                                    text={spaceToMove.name}
-                                                    icon={
-                                                        isDisabled
-                                                            ? 'small-tick'
-                                                            : undefined
-                                                    }
-                                                    className={
-                                                        isDisabled
-                                                            ? 'bp4-disabled'
-                                                            : ''
-                                                    }
-                                                    onClick={(e) => {
-                                                        // Use className disabled instead of disabled property to capture and preventdefault its clicks
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        if (
-                                                            savedChart &&
-                                                            savedChart.spaceUuid !==
-                                                                spaceToMove.uuid
-                                                        )
-                                                            moveChartToSpace({
-                                                                uuid: savedChart.uuid,
-                                                                name: savedChart.name,
-                                                                spaceUuid:
-                                                                    spaceToMove.uuid,
-                                                            });
-                                                    }}
-                                                />
-                                            );
-                                        })}
-                                    </MenuItem2>
-                                    {userCanManageCharts && (
+                                    {hasUnsavedChanges && (
                                         <MenuItem2
-                                            icon={'send-message'}
-                                            text={'Scheduled deliveries'}
+                                            icon={<IconCirclePlus />}
+                                            text={'Save chart as'}
                                             onClick={() => {
-                                                toggleSchedulerDeliveriesModel(
-                                                    true,
-                                                );
+                                                setIsQueryModalOpen(true);
                                             }}
                                         />
                                     )}
-                                    <Divider />
 
+                                    {!hasUnsavedChanges &&
+                                        !chartBelongsToDashboard && (
+                                            <MenuItem2
+                                                icon={<IconCopy />}
+                                                text={'Duplicate'}
+                                                onClick={() => {
+                                                    duplicateChart(chartId);
+                                                }}
+                                            />
+                                        )}
+
+                                    {!chartBelongsToDashboard && (
+                                        <MenuItem2
+                                            icon={<IconSquarePlus />}
+                                            text="Add to dashboard"
+                                            onClick={() =>
+                                                setIsAddToDashboardModalOpen(
+                                                    true,
+                                                )
+                                            }
+                                        />
+                                    )}
+                                    {savedChart?.dashboardUuid && (
+                                        <MenuItem2
+                                            icon={<IconFolders />}
+                                            text="Move to space"
+                                            onClick={() =>
+                                                setIsMovingChart(true)
+                                            }
+                                        />
+                                    )}
+                                    {!chartBelongsToDashboard && (
+                                        <MenuItem2
+                                            icon={<IconFolders />}
+                                            text="Move to space"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                            }}
+                                        >
+                                            {spaces?.map((spaceToMove) => {
+                                                const isDisabled =
+                                                    savedChart?.spaceUuid ===
+                                                    spaceToMove.uuid;
+                                                return (
+                                                    <MenuItem2
+                                                        key={spaceToMove.uuid}
+                                                        text={spaceToMove.name}
+                                                        icon={
+                                                            isDisabled ? (
+                                                                <IconCheck />
+                                                            ) : undefined
+                                                        }
+                                                        className={
+                                                            isDisabled
+                                                                ? 'bp4-disabled'
+                                                                : ''
+                                                        }
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            if (
+                                                                savedChart &&
+                                                                savedChart.spaceUuid !==
+                                                                    spaceToMove.uuid
+                                                            ) {
+                                                                moveChartToSpace(
+                                                                    {
+                                                                        uuid: savedChart.uuid,
+                                                                        spaceUuid:
+                                                                            spaceToMove.uuid,
+                                                                    },
+                                                                );
+                                                            }
+                                                        }}
+                                                    />
+                                                );
+                                            })}
+                                        </MenuItem2>
+                                    )}
+                                    {userCanManageCharts && (
+                                        <MenuItem2
+                                            icon={<IconSend />}
+                                            text="Scheduled deliveries"
+                                            onClick={() =>
+                                                toggleSchedulerDeliveriesModel(
+                                                    true,
+                                                )
+                                            }
+                                        />
+                                    )}
+                                    <Divider />
                                     <MenuItem2
-                                        icon="cross"
+                                        icon={<IconTrash />}
                                         text="Delete"
                                         intent="danger"
                                         onClick={() =>
@@ -433,6 +485,24 @@ const SavedChartsHeader: FC = () => {
                     name={savedChart.name}
                     isOpen={isScheduledDeliveriesModalOpen}
                     onClose={() => toggleSchedulerDeliveriesModel(false)}
+                />
+            )}
+            {savedChart && (
+                <MoveChartThatBelongsToDashboardModal
+                    className={'non-draggable'}
+                    uuid={savedChart.uuid}
+                    name={savedChart.name}
+                    spaceUuid={savedChart.spaceUuid}
+                    spaceName={savedChart.spaceName}
+                    opened={isMovingChart}
+                    onClose={() => setIsMovingChart(false)}
+                    onConfirm={() => {
+                        sessionStorage.removeItem('fromDashboard');
+                        sessionStorage.removeItem('dashboardUuid');
+                        history.push(
+                            `/projects/${projectUuid}/saved/${savedChart.uuid}/edit`,
+                        );
+                    }}
                 />
             )}
         </TrackSection>

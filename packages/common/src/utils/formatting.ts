@@ -1,16 +1,61 @@
 import moment, { MomentInput } from 'moment';
 import {
+    CompactConfigMap,
     CompactOrAlias,
     DimensionType,
     Field,
     findCompactConfig,
+    Format,
     isDimension,
     isField,
+    isTableCalculation,
     MetricType,
+    NumberSeparator,
     TableCalculation,
+    TableCalculationFormat,
+    TableCalculationFormatType,
 } from '../types/field';
 import { AdditionalMetric, isAdditionalMetric } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
+import assertUnreachable from './assertUnreachable';
+
+export const currencies = [
+    'USD',
+    'EUR',
+    'GBP',
+    'JPY',
+    'CHF',
+    'CAD',
+    'AUD',
+    'CNY',
+    'ARS',
+    'BRL',
+    'CLP',
+    'COP',
+    'CZK',
+    'DKK',
+    'HKD',
+    'HUF',
+    'INR',
+    'ILS',
+    'KRW',
+    'MYR',
+    'MXN',
+    'MAD',
+    'NZD',
+    'NOK',
+    'PHP',
+    'PLN',
+    'RUB',
+    'SAR',
+    'SGD',
+    'ZAR',
+    'SEK',
+    'TWD',
+    'THB',
+    'TRY',
+    'VND',
+];
 
 export const formatBoolean = <T>(v: T) =>
     ['True', 'true', 'yes', 'Yes', '1', 'T'].includes(`${v}`) ? 'Yes' : 'No';
@@ -93,6 +138,7 @@ export const parseTimestamp = (
 
 export function valueIsNaN(value: unknown) {
     if (typeof value === 'boolean') return true;
+
     return Number.isNaN(Number(value));
 }
 
@@ -103,7 +149,7 @@ export function isNumber(value: unknown): value is number {
 function roundNumber(
     value: number,
     options?: {
-        format?: string;
+        format?: Format;
         round?: number;
         compact?: CompactOrAlias;
     },
@@ -116,18 +162,15 @@ function roundNumber(
             ? `${value}`
             : new Intl.NumberFormat('en-US').format(Number(value));
     }
-    const isValidFormat =
-        !!format &&
-        format !== 'km' &&
-        format !== 'mi' &&
-        format !== 'percent' &&
-        format !== 'id';
+
+    const isValidCurrencyFormat =
+        !!format && currencies.includes(format.toUpperCase());
 
     const validFractionDigits = invalidRound
         ? {}
         : { maximumFractionDigits: round, minimumFractionDigits: round };
 
-    if (isValidFormat) {
+    if (isValidCurrencyFormat) {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: format?.toUpperCase(),
@@ -143,7 +186,7 @@ function roundNumber(
 function styleNumber(
     value: number,
     options?: {
-        format?: string;
+        format?: Format;
         round?: number;
         compact?: CompactOrAlias;
     },
@@ -167,7 +210,7 @@ function styleNumber(
 export function formatValue(
     value: unknown,
     options?: {
-        format?: string;
+        format?: Format;
         round?: number;
         compact?: CompactOrAlias;
     },
@@ -183,16 +226,16 @@ export function formatValue(
         ? styleNumber(value, options)
         : roundNumber(value, { round, format });
     switch (format) {
-        case 'km':
-        case 'mi':
+        case Format.KM:
+        case Format.MI:
             return `${styledValue} ${format}`;
-        case 'usd':
-        case 'gbp':
-        case 'eur':
+        case Format.USD:
+        case Format.GBP:
+        case Format.EUR:
             return `${styledValue}`;
-        case 'id':
+        case Format.ID:
             return `${value}`;
-        case 'percent':
+        case Format.PERCENT:
             if (valueIsNaN(value)) {
                 return `${value}`;
             }
@@ -201,9 +244,6 @@ export function formatValue(
             const roundBy = invalidRound ? 0 : round;
             // Fix rounding issue
             return `${(Number(value) * 100).toFixed(roundBy)}%`;
-
-        case '': // no format
-            return styledValue;
         default:
             // unrecognized format
             return styledValue;
@@ -271,6 +311,131 @@ export function formatFieldValue(
     }
 }
 
+export function formatTableCalculationNumber(
+    value: number,
+    format: TableCalculationFormat,
+): string {
+    const getFormatOptions = () => {
+        const currencyOptions =
+            format.type === TableCalculationFormatType.CURRENCY &&
+            format.currency !== undefined
+                ? { style: 'currency', currency: format.currency }
+                : {};
+
+        if (
+            format.round === undefined &&
+            format.type === TableCalculationFormatType.CURRENCY &&
+            format.currency !== undefined
+        ) {
+            // We apply the default round and separator from the currency
+            return currencyOptions;
+        }
+        const round = format.round || 0;
+        return round <= 0
+            ? {
+                  maximumSignificantDigits: Math.max(
+                      Math.floor(value).toString().length + round,
+                      1,
+                  ),
+                  maximumFractionDigits: 0,
+                  ...currencyOptions,
+              }
+            : {
+                  maximumFractionDigits: Math.min(round, 20),
+                  minimumFractionDigits: Math.min(round, 20),
+                  ...currencyOptions,
+              };
+    };
+
+    const options = getFormatOptions();
+    const separator = format.separator || NumberSeparator.DEFAULT;
+    switch (separator) {
+        case NumberSeparator.COMMA_PERIOD:
+            return value.toLocaleString('en-US', options);
+        case NumberSeparator.SPACE_PERIOD:
+            return value.toLocaleString('en-US', options).replace(/,/g, ' ');
+        case NumberSeparator.PERIOD_COMMA:
+            // If currency is provided, having a PERIOD_COMMA separator will also change the position of the currency symbol
+            return value.toLocaleString('de-DE', options);
+        case NumberSeparator.NO_SEPARATOR_PERIOD:
+            return value.toLocaleString('en-US', {
+                ...options,
+                useGrouping: false,
+            });
+        case NumberSeparator.DEFAULT:
+            // This will apply the default style for each currency
+            return value.toLocaleString(undefined, options);
+        default:
+            return assertUnreachable(separator, 'Unknown separator');
+    }
+}
+
+export function formatTableCalculationValue(
+    field: TableCalculation,
+    value: unknown,
+): string {
+    if (field.format?.type === undefined) return formatValue(value);
+
+    const applyCompact = (): {
+        compactValue: number;
+        compactSuffix: string;
+    } => {
+        if (field.format?.compact === undefined)
+            return { compactValue: Number(value), compactSuffix: '' };
+        const compactValue = CompactConfigMap[field.format.compact].convertFn(
+            Number(value),
+        );
+        const compactSuffix = field.format.compact
+            ? CompactConfigMap[field.format.compact].suffix
+            : '';
+
+        return { compactValue, compactSuffix };
+    };
+    if (value === '') return '';
+    if (valueIsNaN(value) || value === null) {
+        return formatValue(value);
+    }
+    switch (field.format.type) {
+        case TableCalculationFormatType.DEFAULT:
+            return formatValue(value);
+
+        case TableCalculationFormatType.PERCENT:
+            const formatted = formatTableCalculationNumber(
+                Number(value) * 100,
+                field.format,
+            );
+            return `${formatted}%`;
+        case TableCalculationFormatType.CURRENCY:
+            const { compactValue, compactSuffix } = applyCompact();
+
+            const currencyFormatted = formatTableCalculationNumber(
+                compactValue,
+                field.format,
+            ).replace(/\u00A0/, ' ');
+
+            return `${currencyFormatted}${compactSuffix}`;
+        case TableCalculationFormatType.NUMBER:
+            const prefix = field.format.prefix || '';
+            const suffix = field.format.suffix || '';
+            const {
+                compactValue: compactNumber,
+                compactSuffix: compactNumberSuffix,
+            } = applyCompact();
+
+            const numberFormatted = formatTableCalculationNumber(
+                compactNumber,
+                field.format,
+            );
+
+            return `${prefix}${numberFormatted}${compactNumberSuffix}${suffix}`;
+        default:
+            return assertUnreachable(
+                field.format.type,
+                `Table calculation format type ${field.format.type} is not valid`,
+            );
+    }
+}
+
 export function formatItemValue(
     item: Field | AdditionalMetric | TableCalculation | undefined,
     value: unknown,
@@ -278,7 +443,12 @@ export function formatItemValue(
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
-    return isField(item) || isAdditionalMetric(item)
-        ? formatFieldValue(item, value, convertToUTC)
-        : formatValue(value);
+
+    if (isField(item) || isAdditionalMetric(item)) {
+        return formatFieldValue(item, value, convertToUTC);
+    }
+    if (item !== undefined && isTableCalculation(item)) {
+        return formatTableCalculationValue(item, value);
+    }
+    return formatValue(value);
 }

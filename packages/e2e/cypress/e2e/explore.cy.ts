@@ -46,7 +46,7 @@ describe('Explore', () => {
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
 
-        cy.findByText('Charts').parent().findByRole('button').click();
+        cy.findByTestId('Charts-card-expand').click();
 
         cy.findByText('Save chart').click();
         cy.get('input#chart-name').type('My chart');
@@ -85,7 +85,7 @@ describe('Explore', () => {
         cy.get('button').contains('Run query').click();
 
         // open chart
-        cy.findByText('Charts').parent().findByRole('button').click();
+        cy.findByTestId('Charts-card-expand').click();
 
         // wait for the chart to finish loading
         cy.findByText('Loading chart').should('not.exist');
@@ -125,14 +125,17 @@ describe('Explore', () => {
         // run query
         cy.get('button').contains('Run query').click();
 
-        cy.findByText('Charts').parent().findByRole('button').click();
+        cy.findByTestId('Charts-card-expand').click();
 
         cy.get('g').children('text').should('have.length.lessThan', 30); // without labels
 
         cy.findByText('Configure').click();
         cy.findByText('Series').click();
-        cy.findByText('Value labels');
-        cy.get('option[value="top"]').parent().select('top');
+        cy.findByText('Value labels')
+            .parent()
+            .find('[role="combobox"]')
+            .click();
+        cy.get('.mantine-Select-item').contains('Top').click();
 
         cy.get('g').children('text').should('have.length.greaterThan', 30); // with labels
     });
@@ -192,10 +195,7 @@ describe('Explore', () => {
                     cy.get('button').contains('Run query').click();
 
                     // open chart
-                    cy.findByText('Charts')
-                        .parent()
-                        .findByRole('button')
-                        .click();
+                    cy.findByTestId('Charts-card-expand').click();
 
                     // wait for the chart to finish loading
                     cy.findByText('Loading chart').should('not.exist');
@@ -239,10 +239,7 @@ describe('Explore', () => {
                     cy.get('button').contains('Run query').click();
 
                     // open chart
-                    cy.findByText('Charts')
-                        .parent()
-                        .findByRole('button')
-                        .click();
+                    cy.findByTestId('Charts-card-expand').click();
 
                     // wait for the chart to finish loading
                     cy.findByText('Loading chart').should('not.exist');
@@ -274,5 +271,56 @@ describe('Explore', () => {
                 });
             });
         });
+    });
+
+    it('Should open SQL Runner with current query', () => {
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+
+        cy.findByText('Orders').click();
+        cy.findByText('Is completed').click();
+
+        // open SQL
+        cy.findByTestId('SQL-card-expand').click();
+
+        // wait to compile query
+        cy.findByText('Open in SQL Runner').parent().should('not.be.disabled');
+
+        cy.get('pre > code').then(($code) => {
+            const queryLines = $code.text().split('\n');
+
+            // follow link
+            cy.findByText('Open in SQL Runner').parent().click();
+
+            // wait page loading
+            cy.get('.ace_content').should('exist');
+
+            // compare SQL query
+            cy.get('.ace_line').should('have.length', queryLines.length);
+            cy.get('.ace_line').each(($line, index) => {
+                cy.wrap($line).should('have.text', queryLines[index]);
+            });
+        });
+    });
+
+    it('Should clear query using hotkeys', () => {
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+
+        cy.findByText('Orders').click();
+        cy.findByText('Is completed').click();
+
+        // run query
+        cy.get('button').contains('Run query').click();
+
+        // wait for query to finish
+        cy.findByText('Loading results').should('not.exist');
+
+        // clear query hotkeys
+        cy.get('body').type('{ctrl}{alt}{k}');
+
+        // verify empty query keeping selected table
+        cy.findByText('Tables', { selector: 'a' })
+            .parent()
+            .should('have.text', 'Tables/Orders');
+        cy.findByText('Pick a metric & select its dimensions').should('exist');
     });
 });

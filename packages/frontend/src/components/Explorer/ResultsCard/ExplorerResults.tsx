@@ -1,6 +1,6 @@
 import { Field, getItemMap, TableCalculation } from '@lightdash/common';
-import { Text } from '@mantine/core';
-import { FC, memo, useCallback, useMemo } from 'react';
+import { Box, Text } from '@mantine/core';
+import { FC, memo, useCallback, useMemo, useState } from 'react';
 
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
@@ -8,6 +8,7 @@ import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import Table from '../../common/Table';
+import { JsonViewerModal } from '../../JsonViewerModal';
 import CellContextMenu from './CellContextMenu';
 import ColumnHeaderContextMenu from './ColumnHeaderContextMenu';
 import {
@@ -52,6 +53,22 @@ export const ExplorerResults = memo(() => {
         (context) =>
             context.state.unsavedChartVersion.metricQuery.additionalMetrics,
     );
+    const [isExpandModalOpened, setIsExpandModalOpened] = useState(false);
+    const [expandData, setExpandData] = useState<{
+        name: string;
+        jsonObject: object;
+    }>({
+        name: 'unknown',
+        jsonObject: {},
+    });
+
+    const handleCellExpand = (name: string, data: object) => {
+        setExpandData({
+            name: name,
+            jsonObject: data,
+        });
+        setIsExpandModalOpened(true);
+    };
 
     const itemsMap: Record<string, Field | TableCalculation> | undefined =
         useMemo(() => {
@@ -71,6 +88,7 @@ export const ExplorerResults = memo(() => {
                 isEditMode={isEditMode}
                 {...props}
                 itemsMap={itemsMap}
+                onExpand={handleCellExpand}
             />
         ),
         [isEditMode, itemsMap],
@@ -125,20 +143,28 @@ export const ExplorerResults = memo(() => {
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
-            <Table
-                status={status}
-                data={resultsData?.rows || []}
-                columns={columns}
-                columnOrder={explorerColumnOrder}
-                onColumnOrderChange={setColumnOrder}
-                cellContextMenu={cellContextMenu}
-                headerContextMenu={
-                    isEditMode ? ColumnHeaderContextMenu : undefined
-                }
-                idleState={IdleState}
-                pagination={pagination}
-                footer={footer}
-            />
+            <Box px="xs" py="lg">
+                <Table
+                    status={status}
+                    data={resultsData?.rows || []}
+                    columns={columns}
+                    columnOrder={explorerColumnOrder}
+                    onColumnOrderChange={setColumnOrder}
+                    cellContextMenu={cellContextMenu}
+                    headerContextMenu={
+                        isEditMode ? ColumnHeaderContextMenu : undefined
+                    }
+                    idleState={IdleState}
+                    pagination={pagination}
+                    footer={footer}
+                />
+                <JsonViewerModal
+                    heading={`Field: ${expandData.name}`}
+                    jsonObject={expandData.jsonObject}
+                    opened={isExpandModalOpened}
+                    onClose={() => setIsExpandModalOpened(false)}
+                />
+            </Box>
         </TrackSection>
     );
 });

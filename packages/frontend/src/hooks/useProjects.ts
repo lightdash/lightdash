@@ -6,6 +6,7 @@ import {
     UseQueryOptions,
 } from 'react-query';
 import { lightdashApi } from '../api';
+import { useOrganization } from './organization/useOrganization';
 import useToaster from './toaster/useToaster';
 
 const getProjectsQuery = async () =>
@@ -25,16 +26,24 @@ export const useProjects = (
     });
 };
 
-export const useDefaultProject = () => {
-    const query = useProjects();
+export const useDefaultProject = (): {
+    isLoading: boolean;
+    data: OrganizationProject | undefined;
+} => {
+    const { isLoading: isOrganizationLoading, data: org } = useOrganization();
+    const { isLoading: isLoadingProjects, data: projects = [] } = useProjects();
 
-    const defaultProject = query.data?.find(
+    const defaultProject = projects?.find(
+        (project) => project.projectUuid === org?.defaultProjectUuid,
+    );
+
+    const fallbackProject = projects?.find(
         ({ type }) => type === ProjectType.DEFAULT,
     );
 
     return {
-        ...query,
-        data: defaultProject || query.data?.[0],
+        isLoading: isOrganizationLoading || isLoadingProjects,
+        data: defaultProject || fallbackProject || projects?.[0],
     };
 };
 

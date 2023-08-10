@@ -2,28 +2,29 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
-    CompiledField,
     convertAdditionalMetric,
     DimensionType,
     ECHARTS_DEFAULT_COLORS,
     Field,
     findItem,
     formatItemValue,
+    formatTableCalculationValue,
     formatValue,
     friendlyName,
     getAxisName,
     getDefaultSeriesColor,
     getDimensions,
-    getFieldMap,
     getFields,
     getItemId,
     getItemLabelWithoutTableName,
+    getItemMap,
     getResultValueArray,
     hashFieldReference,
     isCompleteLayout,
     isDimension,
     isField,
     isPivotReferenceWithValues,
+    isTableCalculation,
     isTimeInterval,
     Metric,
     MetricType,
@@ -37,8 +38,8 @@ import groupBy from 'lodash-es/groupBy';
 import toNumber from 'lodash-es/toNumber';
 import moment from 'moment';
 import { useMemo } from 'react';
-import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
+import { defaultGrid } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import { useOrganization } from '../organization/useOrganization';
 import usePlottedData from '../plottedData/usePlottedData';
@@ -262,6 +263,25 @@ const removeEmptyProperties = <T = Record<any, any>>(obj: T | undefined) => {
                 : sum,
         {},
     );
+};
+
+const mergeLegendSettings = <T = Record<any, any>>(
+    legendConfig: T | undefined,
+    legendsSelected: LegendValues,
+    series: EChartSeries[],
+) => {
+    const normalizedConfig = removeEmptyProperties(legendConfig);
+    if (!normalizedConfig) {
+        return {
+            show: series.length > 1,
+            type: 'scroll',
+            selected: legendsSelected,
+        };
+    }
+    return {
+        ...normalizedConfig,
+        selected: legendsSelected,
+    };
 };
 
 const minDate = (a: number | string, b: string) => {
@@ -495,9 +515,8 @@ const getMinAndMaxReferenceLines = (
 type GetPivotSeriesArg = {
     series: Series;
     items: Array<Field | TableCalculation>;
-    formats:
-        | Record<string, Pick<CompiledField, 'format' | 'round' | 'compact'>>
-        | undefined;
+    formats: Record<string, TableCalculation | Field> | undefined;
+
     cartesianChart: CartesianChart;
     flipAxes: boolean | undefined;
     yFieldHash: string;
@@ -564,14 +583,21 @@ const getPivotSeries = ({
                 ...series.label,
                 ...(formats &&
                     formats[series.encode.yRef.field] && {
-                        formatter: (val: any) =>
-                            formatValue(val?.value?.[yFieldHash], {
-                                format: formats[series.encode.yRef.field]
-                                    .format,
-                                round: formats[series.encode.yRef.field].round,
-                                compact:
-                                    formats[series.encode.yRef.field].compact,
-                            }),
+                        formatter: (value: any) => {
+                            const field = formats[series.encode.yRef.field];
+                            if (isTableCalculation(field)) {
+                                return formatTableCalculationValue(
+                                    field as TableCalculation,
+                                    value?.value?.[yFieldHash],
+                                );
+                            } else {
+                                return formatValue(value?.value?.[yFieldHash], {
+                                    format: field.format,
+                                    round: field.round,
+                                    compact: field.compact,
+                                });
+                            }
+                        },
                     }),
             },
             labelLayout: {
@@ -584,9 +610,7 @@ const getPivotSeries = ({
 type GetSimpleSeriesArg = {
     series: Series;
     items: Array<Field | TableCalculation>;
-    formats:
-        | Record<string, Pick<CompiledField, 'format' | 'round' | 'compact'>>
-        | undefined;
+    formats: Record<string, TableCalculation | Field> | undefined;
     flipAxes: boolean | undefined;
     yFieldHash: string;
     xFieldHash: string;
@@ -633,12 +657,21 @@ const getSimpleSeries = ({
             ...series.label,
             ...(formats &&
                 formats[yFieldHash] && {
-                    formatter: (value: any) =>
-                        formatValue(value?.value?.[yFieldHash], {
-                            format: formats[yFieldHash].format,
-                            round: formats[yFieldHash].round,
-                            compact: formats[yFieldHash].compact,
-                        }),
+                    formatter: (value: any) => {
+                        const field = formats[yFieldHash];
+                        if (isTableCalculation(field)) {
+                            return formatTableCalculationValue(
+                                field as TableCalculation,
+                                value?.value?.[yFieldHash],
+                            );
+                        } else {
+                            return formatValue(value?.value?.[yFieldHash], {
+                                format: field.format,
+                                round: field.round,
+                                compact: field.compact,
+                            });
+                        }
+                    },
                 }),
         },
         labelLayout: {
@@ -652,9 +685,7 @@ const getEchartsSeries = (
     originalData: ApiQueryResults['rows'],
     cartesianChart: CartesianChart,
     pivotKeys: string[] | undefined,
-    formats:
-        | Record<string, Pick<CompiledField, 'format' | 'round'>>
-        | undefined,
+    formats: Record<string, TableCalculation | Field> | undefined,
 ): EChartSeries[] => {
     return (cartesianChart.eChartsConfig.series || [])
         .filter((s) => !s.hidden)
@@ -794,6 +825,16 @@ const getEchartAxis = ({
         } else if (axisLabelFormatter) {
             axisConfig.axisLabel = {
                 formatter: axisLabelFormatter,
+            };
+        } else if (
+            field !== '' &&
+            field !== undefined &&
+            isTableCalculation(field)
+        ) {
+            axisConfig.axisLabel = {
+                formatter: (value: any) => {
+                    return formatTableCalculationValue(field, value);
+                },
             };
         }
         if (axisMinInterval) {
@@ -1041,14 +1082,25 @@ const getValidStack = (series: EChartSeries | undefined) => {
         : undefined;
 };
 
+type LegendValues = { [name: string]: boolean } | undefined;
+
 const calculateStackTotal = (
     row: ResultRow,
     series: EChartSeries[],
     flipAxis: boolean | undefined,
+    selectedLegendNames: LegendValues,
 ) => {
     return series.reduce<number>((acc, s) => {
         const hash = flipAxis ? s.encode?.x : s.encode?.y;
-        const numberValue = hash ? toNumber(row[hash]?.value.raw) : 0;
+        const legendName = s.encode?.seriesName.split('.')[2];
+        let selected = true;
+        for (const key in selectedLegendNames) {
+            if (legendName === key) {
+                selected = selectedLegendNames[key];
+            }
+        }
+        const numberValue =
+            hash && selected ? toNumber(row[hash]?.value.raw) : 0;
         if (!Number.isNaN(numberValue)) {
             acc += numberValue;
         }
@@ -1065,9 +1117,15 @@ const getStackTotalRows = (
     rows: ResultRow[],
     series: EChartSeries[],
     flipAxis: boolean | undefined,
+    selectedLegendNames: LegendValues,
 ): [unknown, unknown, number][] => {
     return rows.map((row) => {
-        const total = calculateStackTotal(row, series, flipAxis);
+        const total = calculateStackTotal(
+            row,
+            series,
+            flipAxis,
+            selectedLegendNames,
+        );
         const hash = flipAxis ? series[0].encode?.y : series[0].encode?.x;
         if (!hash) {
             return [null, null, 0];
@@ -1084,6 +1142,7 @@ const getStackTotalSeries = (
     seriesWithStack: EChartSeries[],
     items: Array<Field | TableCalculation>,
     flipAxis: boolean | undefined,
+    selectedLegendNames: LegendValues,
 ) => {
     const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
     return Object.entries(seriesGroupedByStack).reduce<EChartSeries[]>(
@@ -1118,7 +1177,12 @@ const getStackTotalSeries = (
                 tooltip: {
                     show: false,
                 },
-                data: getStackTotalRows(rows, series, flipAxis),
+                data: getStackTotalRows(
+                    rows,
+                    series,
+                    flipAxis,
+                    selectedLegendNames,
+                ),
             };
             return [...acc, stackSeries];
         },
@@ -1126,8 +1190,9 @@ const getStackTotalSeries = (
     );
 };
 
-const useEcharts = () => {
+const useEcharts = (validCartesianConfigLegend?: LegendValues) => {
     const context = useVisualizationContext();
+
     const {
         cartesianConfig: { validCartesianConfig },
         explore,
@@ -1135,6 +1200,7 @@ const useEcharts = () => {
         pivotDimensions,
         resultsData,
     } = context;
+
     const { data: organizationData } = useOrganization();
 
     const [pivotedKeys, nonPivotedKeys] = useMemo(() => {
@@ -1170,9 +1236,10 @@ const useEcharts = () => {
     const formats = useMemo(
         () =>
             explore
-                ? getFieldMap(
+                ? getItemMap(
                       explore,
                       resultsData?.metricQuery.additionalMetrics,
+                      resultsData?.metricQuery.tableCalculations,
                   )
                 : undefined,
         [explore, resultsData],
@@ -1248,9 +1315,16 @@ const useEcharts = () => {
                 seriesWithValidStack,
                 items,
                 validCartesianConfig?.layout.flipAxes,
+                validCartesianConfigLegend,
             ),
         ];
-    }, [series, rows, items, validCartesianConfig?.layout.flipAxes]);
+    }, [
+        series,
+        rows,
+        items,
+        validCartesianConfig?.layout.flipAxes,
+        validCartesianConfigLegend,
+    ]);
 
     const colors = useMemo<string[]>(() => {
         const allColors =
@@ -1331,12 +1405,11 @@ const useEcharts = () => {
             yAxis: axis.yAxis,
             useUTC: true,
             series: stackedSeries,
-            legend: removeEmptyProperties(
+            legend: mergeLegendSettings(
                 validCartesianConfig?.eChartsConfig.legend,
-            ) || {
-                show: series.length > 1,
-                type: 'scroll',
-            },
+                validCartesianConfigLegend,
+                series,
+            ),
             dataset: {
                 id: 'lightdashResults',
                 source: sortedResults,
@@ -1365,6 +1438,7 @@ const useEcharts = () => {
             stackedSeries,
             validCartesianConfig,
             sortedResults,
+            validCartesianConfigLegend,
         ],
     );
     if (

@@ -9,7 +9,7 @@ import DbtCloudSettings from '../components/DbtCloudSettings';
 import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
-import SettingsScheduledDeliveries from '../components/SettingsScheduledDeliveries';
+import SchedulersView from '../components/SchedulersView';
 import SettingsUsageAnalytics from '../components/SettingsUsageAnalytics';
 import { SettingsValidator } from '../components/SettingsValidator';
 import { useProject } from '../hooks/useProject';
@@ -93,9 +93,7 @@ const ProjectSettings: FC = () => {
                         exact
                         path={`/generalSettings/projectManagement/${projectUuid}/scheduledDeliveries`}
                     >
-                        <SettingsScheduledDeliveries
-                            projectUuid={projectUuid}
-                        />
+                        <SchedulersView projectUuid={projectUuid} />
                     </Route>
 
                     <Route

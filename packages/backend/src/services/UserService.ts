@@ -33,7 +33,7 @@ import { nanoid } from 'nanoid';
 import { analytics, identifyUser } from '../analytics/client';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../config/lightdashConfig';
-import Logger from '../logger';
+import Logger from '../logging/logger';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
@@ -414,6 +414,9 @@ export class UserService {
                             : 'self-hosted',
                     organizationId: user.organizationUuid,
                     organizationName,
+                    defaultProjectUuid: undefined,
+                    defaultColourPaletteUpdated: false,
+                    defaultProjectUuidUpdated: false,
                 },
             });
             if (enableEmailDomainAccess && user.email) {
@@ -428,7 +431,7 @@ export class UserService {
                         organizationUuid: user.organizationUuid,
                         emailDomains: [emailDomain],
                         role: OrganizationMemberRole.VIEWER,
-                        projectUuids: [],
+                        projects: [],
                     },
                 );
             }
@@ -819,7 +822,15 @@ export class UserService {
             user.userUuid,
             orgUuid,
             allowedEmailDomains.role,
-            allowedEmailDomains.projectUuids,
+            allowedEmailDomains.role === OrganizationMemberRole.MEMBER
+                ? allowedEmailDomains.projects.reduce(
+                      (acc, project) => ({
+                          ...acc,
+                          [project.projectUuid]: project.role,
+                      }),
+                      {},
+                  )
+                : undefined,
         );
 
         await analytics.track({
@@ -828,7 +839,9 @@ export class UserService {
             properties: {
                 organizationId: orgUuid,
                 role: allowedEmailDomains.role,
-                projectIds: allowedEmailDomains.projectUuids,
+                projectIds: allowedEmailDomains.projects.map(
+                    (project) => project.projectUuid,
+                ),
             },
         });
     }

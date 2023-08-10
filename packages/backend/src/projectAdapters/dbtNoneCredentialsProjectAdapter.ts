@@ -1,6 +1,6 @@
 import { DbtPackages, Explore, ExploreError } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
-import Logger from '../logger';
+import Logger from '../logging/logger';
 import { ProjectAdapter } from '../types';
 
 type DbtNoneCredentialsProjectAdapterArgs = {

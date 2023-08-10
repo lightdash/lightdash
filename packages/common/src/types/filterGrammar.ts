@@ -1,7 +1,7 @@
 import * as peg from 'pegjs';
 import { v4 as uuidv4 } from 'uuid';
 import { UnexpectedServerError } from './errors';
-import { FilterOperator, FilterRule } from './filter';
+import { FilterOperator, MetricFilterRule } from './filter';
 
 export type ParsedFilter = {
     type: string;
@@ -101,7 +101,7 @@ STARTS_WITH
 ENDS_WITH
 =  PCT_SYMBOL value:string !(PCT_SYMBOL / UNDERSCORE) {
 return {
-     type: 'endsWith',
+     type: '${FilterOperator.ENDS_WITH}',
      values: [value]
  }
 }
@@ -185,6 +185,8 @@ export const parseOperator = (
             return isTrue ? FilterOperator.INCLUDE : FilterOperator.NOT_INCLUDE;
         case FilterOperator.STARTS_WITH:
             return FilterOperator.STARTS_WITH;
+        case FilterOperator.ENDS_WITH:
+            return FilterOperator.ENDS_WITH;
         case '>':
             return FilterOperator.GREATER_THAN;
         case '>=':
@@ -193,7 +195,9 @@ export const parseOperator = (
             return FilterOperator.LESS_THAN;
         case '<=':
             return FilterOperator.LESS_THAN_OR_EQUAL;
-
+        case 'null':
+        case 'NULL':
+            return isTrue ? FilterOperator.NULL : FilterOperator.NOT_NULL;
         default:
             throw new UnexpectedServerError(
                 `Invalid filter operator type ${operator}`,
@@ -203,17 +207,28 @@ export const parseOperator = (
 
 export const parseFilters = (
     rawFilters: Record<string, any>[] | undefined,
-): FilterRule[] => {
+): MetricFilterRule[] => {
     if (!rawFilters || rawFilters.length === 0) {
         return [];
     }
     const parser = peg.generate(filterGrammar);
 
-    return rawFilters.reduce<FilterRule[]>((acc, filter) => {
+    return rawFilters.reduce<MetricFilterRule[]>((acc, filter) => {
         if (Object.entries(filter).length !== 1) return acc;
 
         const [key, value] = Object.entries(filter)[0];
 
+        if (value === null) {
+            return [
+                ...acc,
+                {
+                    id: uuidv4(),
+                    target: { fieldRef: key },
+                    operator: FilterOperator.NULL,
+                    values: [1],
+                },
+            ];
+        }
         if (typeof value === 'string') {
             const parsedFilter: ParsedFilter = parser.parse(value);
 
@@ -221,12 +236,12 @@ export const parseFilters = (
                 ...acc,
                 {
                     id: uuidv4(),
-                    target: { fieldId: key },
+                    target: { fieldRef: key },
                     operator: parseOperator(
                         parsedFilter.type,
                         !!parsedFilter.is,
                     ),
-                    values: parsedFilter.values,
+                    values: parsedFilter.values || [1],
                 },
             ];
         }
@@ -234,7 +249,7 @@ export const parseFilters = (
             ...acc,
             {
                 id: uuidv4(),
-                target: { fieldId: key },
+                target: { fieldRef: key },
                 operator: FilterOperator.EQUALS,
                 values: [value],
             },

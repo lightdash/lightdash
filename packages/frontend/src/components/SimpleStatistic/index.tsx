@@ -184,7 +184,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                                     size={18}
                                     style={{
                                         display: 'inline',
-                                        margin: '0 7px 0 0px',
+                                        margin: '0 7px 0 0',
                                     }}
                                 />
                             ) : comparisonDiff ===
@@ -194,10 +194,12 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                                     size={18}
                                     style={{
                                         display: 'inline',
-                                        margin: '0 7px 0 3px',
+                                        margin: '0 7px 0 0',
                                     }}
                                 />
-                            ) : null}
+                            ) : (
+                                <span style={{ margin: '0 7px 0 0' }} />
+                            )}
                         </BigNumber>
                     </Tooltip>
                     <BigNumberLabel $fontSize={comparisonFontSize}>

@@ -1,14 +1,18 @@
 import { diag, DiagConsoleLogger } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
+import { ExpressLayerType } from '@opentelemetry/instrumentation-express';
 import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
-import { Resource } from '@opentelemetry/resources';
+import { envDetector, Resource } from '@opentelemetry/resources';
 import {
     ConsoleMetricExporter,
     PeriodicExportingMetricReader,
 } from '@opentelemetry/sdk-metrics';
 import { core, NodeSDK } from '@opentelemetry/sdk-node';
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
+import {
+    SemanticAttributes,
+    SemanticResourceAttributes,
+} from '@opentelemetry/semantic-conventions';
 
 // Default to no telemetry
 process.env.OTEL_SDK_DISABLED = process.env.OTEL_SDK_DISABLED || 'true';
@@ -50,7 +54,22 @@ const sdk = new NodeSDK({
     // Auto instrumentation includes http,express,knex,pg,winston
     instrumentations: [
         getNodeAutoInstrumentations({
+            '@opentelemetry/instrumentation-dns': {
+                enabled: false,
+            },
+            '@opentelemetry/instrumentation-net': {
+                enabled: false,
+            },
             '@opentelemetry/instrumentation-http': {
+                requireParentforOutgoingSpans: true,
+                ignoreOutgoingRequestHook(req) {
+                    const isAnalytics = !!req?.hostname?.endsWith(
+                        'analytics.lightdash.com',
+                    );
+                    const isSentry =
+                        !!req?.hostname?.endsWith('ingest.sentry.io');
+                    return isAnalytics || isSentry;
+                },
                 ignoreIncomingRequestHook(req) {
                     // Ignore liveness checks
                     const isLivenessProbe =
@@ -58,11 +77,33 @@ const sdk = new NodeSDK({
                     return isLivenessProbe;
                 },
             },
+            '@opentelemetry/instrumentation-express': {
+                requestHook(span, info) {
+                    if (
+                        info.layerType === ExpressLayerType.MIDDLEWARE &&
+                        !!info.request.user
+                    ) {
+                        span.setAttribute(
+                            SemanticAttributes.ENDUSER_ID,
+                            info.request.user.userUuid,
+                        );
+                        if (info.request.user.organizationUuid) {
+                            span.setAttribute(
+                                'enduser.org_id',
+                                info.request.user.organizationUuid,
+                            );
+                        }
+                    }
+                },
+            },
+            '@opentelemetry/instrumentation-knex': {
+                enabled: false,
+            },
             '@opentelemetry/instrumentation-pg': {
                 requireParentSpan: true,
             },
             '@opentelemetry/instrumentation-fs': {
-                requireParentSpan: true,
+                enabled: false,
             },
         }),
     ],
@@ -70,9 +111,10 @@ const sdk = new NodeSDK({
     // Resource detection automatically sets resource attributes.
     autoDetectResources: true,
     resource: new Resource({
-        [SemanticResourceAttributes.SERVICE_NAME]: 'lightdash',
+        [SemanticResourceAttributes.SERVICE_NAME]:
+            process.env.OTEL_SERVICE_NAME || 'lightdash',
     }),
-    resourceDetectors: [gcpDetector],
+    resourceDetectors: [gcpDetector, envDetector],
 });
 
 // Start the SDK and gracefully shutdown
@@ -82,11 +124,5 @@ try {
 } catch (e) {
     diag.error('Error starting OpenTelemetry SDK. No telemetry exporting', e);
 }
-process.on('SIGTERM', () => {
-    sdk.shutdown()
-        .then(() => console.log('OpenTelemetry SDK has been shutdown'))
-        .catch((error) =>
-            console.log('Error shutting down OpenTelemetry SDK', error),
-        )
-        .finally(() => process.exit(0));
-});
+
+export default sdk;

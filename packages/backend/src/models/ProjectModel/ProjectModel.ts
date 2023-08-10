@@ -16,6 +16,7 @@ import {
     ProjectType,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
+    SupportedDbtVersions,
     TablesConfiguration,
     UnexpectedServerError,
     UpdateProject,
@@ -40,11 +41,10 @@ import {
     DbProject,
     ProjectTableName,
 } from '../../database/entities/projects';
-import { DbSavedChart } from '../../database/entities/savedCharts';
-import { CreateDbSpace, DbSpace } from '../../database/entities/spaces';
+import { DbSavedChart, InsertChart } from '../../database/entities/savedCharts';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
-import Logger from '../../logger';
+import Logger from '../../logging/logger';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
 import Transaction = Knex.Transaction;
 
@@ -232,6 +232,7 @@ export class ProjectModel {
                         copiedProjects.length === 1
                             ? copiedProjects[0].project_uuid
                             : null,
+                    dbt_version: data.dbtVersion,
                 })
                 .returning('*');
 
@@ -261,11 +262,13 @@ export class ProjectModel {
             } catch (e) {
                 throw new UnexpectedServerError('Could not save credentials.');
             }
+
             const projects = await trx('projects')
                 .update({
                     name: data.name,
                     dbt_connection_type: data.dbtConnection.type,
                     dbt_connection: encryptedCredentials,
+                    dbt_version: data.dbtVersion,
                 })
                 .where('project_uuid', projectUuid)
                 .returning('*');
@@ -300,6 +303,7 @@ export class ProjectModel {
                   warehouse_type: null;
                   organization_uuid: string;
                   pinned_list_uuid?: string;
+                  dbt_version: SupportedDbtVersions;
               }
             | {
                   name: string;
@@ -309,6 +313,7 @@ export class ProjectModel {
                   warehouse_type: string;
                   organization_uuid: string;
                   pinned_list_uuid?: string;
+                  dbt_version: SupportedDbtVersions;
               }
         )[];
         const projects = await this.database('projects')
@@ -345,6 +350,7 @@ export class ProjectModel {
                 this.database
                     .ref('pinned_list_uuid')
                     .withSchema(PinnedListTableName),
+                this.database.ref('dbt_version').withSchema(ProjectTableName),
             ])
             .select<QueryResult>()
             .where('projects.project_uuid', projectUuid);
@@ -372,6 +378,7 @@ export class ProjectModel {
             type: project.project_type,
             dbtConnection: dbtSensitiveCredentials,
             pinnedListUuid: project.pinned_list_uuid,
+            dbtVersion: project.dbt_version,
         };
         if (!project.warehouse_type) {
             return result;
@@ -418,6 +425,7 @@ export class ProjectModel {
             dbtConnection: nonSensitiveDbtCredentials,
             warehouseConnection: nonSensitiveCredentials,
             pinnedListUuid: project.pinnedListUuid,
+            dbtVersion: project.dbtVersion,
         };
     }
 
@@ -463,6 +471,32 @@ export class ProjectModel {
         return undefined;
     }
 
+    static convertMetricFiltersFieldIdsToFieldRef = (explore: Explore) => {
+        const convertedExplore = { ...explore };
+        if (convertedExplore.tables) {
+            Object.values(convertedExplore.tables).forEach((table) => {
+                if (table.metrics) {
+                    Object.values(table.metrics).forEach((metric) => {
+                        if (metric.filters) {
+                            metric.filters.forEach((filter) => {
+                                // @ts-expect-error cached explore types might not be up to date
+                                const { fieldId, fieldRef, ...rest } =
+                                    filter.target;
+                                // eslint-disable-next-line no-param-reassign
+                                filter.target = {
+                                    ...rest,
+                                    fieldRef: fieldRef ?? fieldId,
+                                };
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        return convertedExplore;
+    };
+
     async getExploreFromCache(
         projectUuid: string,
         exploreName: string,
@@ -481,7 +515,11 @@ export class ProjectModel {
                 `Explore "${exploreName}" does not exist.`,
             );
         }
-        return row.explore;
+
+        const exploreFromCache: Explore =
+            ProjectModel.convertMetricFiltersFieldIdsToFieldRef(row.explore);
+
+        return exploreFromCache;
     }
 
     async saveExploresToCache(
@@ -552,6 +590,45 @@ export class ProjectModel {
             .returning('*');
 
         return cachedWarehouse;
+    }
+
+    async getProjectMemberAccess(
+        projectUuid: string,
+        userUuid: string,
+    ): Promise<ProjectMemberProfile | undefined> {
+        type QueryResult = {
+            user_uuid: string;
+            email: string;
+            role: ProjectMemberRole;
+            first_name: string;
+            last_name: string;
+        };
+        const [projectMemberProfile] = await this.database(
+            'project_memberships',
+        )
+            .leftJoin('users', 'project_memberships.user_id', 'users.user_id')
+            .leftJoin('emails', 'emails.user_id', 'users.user_id')
+            .leftJoin(
+                'projects',
+                'project_memberships.project_id',
+                'projects.project_id',
+            )
+            .select<QueryResult[]>()
+            .where('project_uuid', projectUuid)
+            .where('users.user_id', userUuid)
+            .andWhere('is_primary', true);
+
+        if (projectMemberProfile === undefined) {
+            return undefined;
+        }
+        return {
+            userUuid: projectMemberProfile.user_uuid,
+            projectUuid,
+            role: projectMemberProfile.role,
+            email: projectMemberProfile.email,
+            firstName: projectMemberProfile.first_name,
+            lastName: projectMemberProfile.last_name,
+        };
     }
 
     async getProjectAccess(
@@ -836,7 +913,6 @@ export class ProjectModel {
                 .where('spaces.project_id', projectId)
                 .select<DbSavedChart[]>('saved_queries.*');
 
-            const chartIds = charts.map((d) => d.saved_query_id);
             Logger.debug(
                 `Duplicating ${charts.length} charts on ${previewProjectUuid}`,
             );
@@ -846,11 +922,17 @@ export class ProjectModel {
                     ? await trx('saved_queries')
                           .insert(
                               charts.map((d) => {
+                                  if (!d.space_id) {
+                                      throw new Error(
+                                          `Chart ${d.saved_query_id} has no space_id`,
+                                      );
+                                  }
                                   const createChart = {
                                       ...d,
                                       saved_query_id: undefined,
                                       saved_query_uuid: undefined,
                                       space_id: getNewSpace(d.space_id),
+                                      dashboard_uuid: null,
                                   };
                                   delete createChart.saved_query_id;
                                   delete createChart.saved_query_uuid;
@@ -860,10 +942,61 @@ export class ProjectModel {
                           .returning('*')
                     : [];
 
-            const chartMapping = charts.map((c, i) => ({
+            const chartsInDashboards = await trx('saved_queries')
+                .leftJoin(
+                    'dashboards',
+                    'saved_queries.dashboard_uuid',
+                    'dashboards.dashboard_uuid',
+                )
+                .leftJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
+                .where('spaces.project_id', projectId)
+                .select<DbSavedChart[]>('saved_queries.*');
+
+            Logger.debug(
+                `Duplicating ${chartsInDashboards.length} charts in dashboards on ${previewProjectUuid}`,
+            );
+
+            // We also copy charts in dashboards, we will replace the dashboard_uuid later
+            const newChartsInDashboards =
+                chartsInDashboards.length > 0
+                    ? await trx('saved_queries')
+                          .insert(
+                              chartsInDashboards.map((d) => {
+                                  if (!d.dashboard_uuid) {
+                                      throw new Error(
+                                          `Chart in dashboard ${d.saved_query_id} has no dashboard_uuid`,
+                                      );
+                                  }
+                                  const createChart = {
+                                      ...d,
+                                      saved_query_id: undefined,
+                                      saved_query_uuid: undefined,
+                                      space_id: null,
+                                      dashboard_uuid: d.dashboard_uuid,
+                                  };
+                                  delete createChart.saved_query_id;
+                                  delete createChart.saved_query_uuid;
+
+                                  return createChart;
+                              }),
+                          )
+                          .returning('*')
+                    : [];
+            const chartInSpacesMapping = charts.map((c, i) => ({
                 id: c.saved_query_id,
                 newId: newCharts[i].saved_query_id,
             }));
+            const chartInDashboardsMapping = chartsInDashboards.map((c, i) => ({
+                id: c.saved_query_id,
+                newId: newChartsInDashboards[i].saved_query_id,
+            }));
+
+            const chartMapping = [
+                ...chartInSpacesMapping,
+                ...chartInDashboardsMapping,
+            ];
+
+            const chartIds = chartMapping.map((c) => c.id);
 
             // only get last chart version
             const lastVersionIds = await trx('saved_queries_versions')
@@ -887,13 +1020,19 @@ export class ProjectModel {
                     ? await trx('saved_queries_versions')
                           .insert(
                               chartVersions.map((d) => {
+                                  const newSavedQueryId = chartMapping.find(
+                                      (m) => m.id === d.saved_query_id,
+                                  )?.newId;
+                                  if (!newSavedQueryId) {
+                                      throw new Error(
+                                          `Cannot find new chart id for ${d.saved_query_id}`,
+                                      );
+                                  }
                                   const createChartVersion = {
                                       ...d,
                                       saved_queries_version_id: undefined,
                                       saved_queries_version_uuid: undefined,
-                                      saved_query_id: chartMapping.find(
-                                          (m) => m.id === d.saved_query_id,
-                                      )?.newId,
+                                      saved_query_id: newSavedQueryId,
                                   };
                                   delete createChartVersion.saved_queries_version_id;
                                   delete createChartVersion.saved_queries_version_uuid;
@@ -911,7 +1050,7 @@ export class ProjectModel {
 
             const copyChartVersionContent = async (
                 table: string,
-                fieldId: string,
+                excludedFields: string[],
             ) => {
                 const content = await trx(table)
                     .whereIn('saved_queries_version_id', chartVersionIds)
@@ -930,7 +1069,9 @@ export class ProjectModel {
                                             m.id === d.saved_queries_version_id,
                                     )?.newId,
                             };
-                            delete createContent[fieldId];
+                            excludedFields.forEach((fieldId) => {
+                                delete createContent[fieldId];
+                            });
                             return createContent;
                         }),
                     )
@@ -941,19 +1082,17 @@ export class ProjectModel {
 
             await copyChartVersionContent(
                 'saved_queries_version_table_calculations',
-                'saved_queries_version_table_calculation_id',
+                ['saved_queries_version_table_calculation_id'],
             );
-            await copyChartVersionContent(
-                'saved_queries_version_sorts',
+            await copyChartVersionContent('saved_queries_version_sorts', [
                 'saved_queries_version_sort_id',
-            );
-            await copyChartVersionContent(
-                'saved_queries_version_fields',
+            ]);
+            await copyChartVersionContent('saved_queries_version_fields', [
                 'saved_queries_version_field_id',
-            );
+            ]);
             await copyChartVersionContent(
                 'saved_queries_version_additional_metrics',
-                'saved_queries_version_additional_metric_id',
+                ['saved_queries_version_additional_metric_id', 'uuid'],
             );
 
             const dashboards = await trx('dashboards')
@@ -989,6 +1128,8 @@ export class ProjectModel {
             const dashboardMapping = dashboards.map((c, i) => ({
                 id: c.dashboard_id,
                 newId: newDashboards[i].dashboard_id,
+                uuid: c.dashboard_uuid,
+                newUuid: newDashboards[i].dashboard_uuid,
             }));
 
             // Get last version of a dashboard
@@ -1041,6 +1182,22 @@ export class ProjectModel {
             const dashboardTileUuids = dashboardTiles.map(
                 (dv) => dv.dashboard_tile_uuid,
             );
+
+            Logger.debug(
+                `Updating ${chartsInDashboards.length} charts in dashboards`,
+            );
+            // Update chart in dashboards with new dashboardUuids
+            await newChartsInDashboards.map(async (chart) => {
+                const newDashboardUuid = dashboardMapping.find(
+                    (m) => m.uuid === chart.dashboard_uuid,
+                )?.newUuid;
+
+                return trx('saved_queries')
+                    .update({
+                        dashboard_uuid: newDashboardUuid,
+                    })
+                    .where('saved_query_id', chart.saved_query_id);
+            });
 
             const newDashboardTiles =
                 dashboardTiles.length > 0

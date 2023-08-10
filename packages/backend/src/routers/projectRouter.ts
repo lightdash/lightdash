@@ -33,25 +33,6 @@ const { Readable } = require('stream');
 
 export const projectRouter = express.Router({ mergeParams: true });
 
-projectRouter.get(
-    '/',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    async (req, res, next) => {
-        try {
-            res.json({
-                status: 'ok',
-                results: await projectService.getProject(
-                    req.params.projectUuid,
-                    req.user!,
-                ),
-            });
-        } catch (e) {
-            next(e);
-        }
-    },
-);
-
 projectRouter.patch(
     '/',
     allowApiKeyAuthentication,
@@ -399,44 +380,6 @@ projectRouter.patch(
     },
 );
 
-projectRouter.post(
-    '/spaces/:spaceUUid/share',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) => {
-        spaceService
-            .addSpaceShare(req.user!, req.params.spaceUUid, req.body.userUuid)
-            .then(() => {
-                res.json({
-                    status: 'ok',
-                });
-            })
-            .catch(next);
-    },
-);
-
-projectRouter.delete(
-    '/spaces/:spaceUUid/share/:userUuid',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) => {
-        spaceService
-            .removeSpaceShare(
-                req.user!,
-                req.params.spaceUUid,
-                req.params.userUuid,
-            )
-            .then(() => {
-                res.json({
-                    status: 'ok',
-                });
-            })
-            .catch(next);
-    },
-);
-
 projectRouter.get(
     '/dashboards',
     allowApiKeyAuthentication,
@@ -446,8 +389,16 @@ projectRouter.get(
             typeof req.query.chartUuid === 'string'
                 ? req.query.chartUuid.toString()
                 : undefined;
+
+        const includePrivate = req.query.includePrivate === 'true';
+
         dashboardService
-            .getAllByProject(req.user!, req.params.projectUuid, chartUuid)
+            .getAllByProject(
+                req.user!,
+                req.params.projectUuid,
+                chartUuid,
+                includePrivate,
+            )
             .then((results) => {
                 res.json({
                     status: 'ok',
@@ -507,29 +458,6 @@ projectRouter.patch(
                 });
             })
             .catch(next);
-    },
-);
-
-projectRouter.post(
-    '/sqlQuery',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) => {
-        try {
-            const results: ApiSqlQueryResults =
-                await projectService.runSqlQuery(
-                    req.user!,
-                    req.params.projectUuid,
-                    req.body.sql,
-                );
-            res.json({
-                status: 'ok',
-                results,
-            });
-        } catch (e) {
-            next(e);
-        }
     },
 );
 

@@ -1,13 +1,16 @@
 import { Colors, Divider, Menu } from '@blueprintjs/core';
 import { ItemListRendererProps } from '@blueprintjs/select';
-import { Field, getItemTableName, TableCalculation } from '@lightdash/common';
-import React, { FC } from 'react';
+import {
+    Field,
+    isField,
+    SummaryExplore,
+    TableCalculation,
+} from '@lightdash/common';
+import { Group, Text, Tooltip } from '@mantine/core';
+import { IconTable } from '@tabler/icons-react';
+import React, { forwardRef } from 'react';
 import styled from 'styled-components';
-
-const TableName = styled.span`
-    font-weight: 600;
-    color: ${Colors.GRAY2};
-`;
+import MantineIcon from '../MantineIcon';
 
 type MenuDividerProps = {
     $isFirst: boolean;
@@ -41,46 +44,73 @@ type StickyMenuDividerProps = {
     title: string;
 };
 
-const StickyMenuDivider: FC<StickyMenuDividerProps> = ({ index, title }) => {
-    return (
-        <MenuDivider $isFirst={index === 0}>
+const StickyMenuDivider = forwardRef<HTMLLIElement, StickyMenuDividerProps>(
+    ({ index, title }, ref) => (
+        <MenuDivider $isFirst={index === 0} ref={ref}>
             {index !== 0 && <StyledDivider />}
-
-            <TableName>{title}</TableName>
+            <Group spacing="xs">
+                <MantineIcon icon={IconTable} color="gray.6" size="lg" />
+                <Text color="gray.6" fw={600}>
+                    {title}
+                </Text>
+            </Group>
         </MenuDivider>
-    );
-};
+    ),
+);
 
-const renderFilterList = <T extends Field | TableCalculation>({
-    items,
-    itemsParentRef,
-    renderItem,
-}: ItemListRendererProps<T>) => {
+const getItemGroupLabel = (item: Field | TableCalculation) =>
+    isField(item) ? item.tableLabel : 'Table Calculations';
+
+const renderFilterList = <T extends Field | TableCalculation>(
+    itemListRendererProps: ItemListRendererProps<T>,
+    tables: Pick<SummaryExplore, 'name' | 'description'>[],
+) => {
+    const { items, itemsParentRef, renderItem } = itemListRendererProps;
     const getGroupedItems = (filteredItems: typeof items) => {
-        return filteredItems.reduce<{ group: string; items: typeof items }[]>(
-            (acc, item) => {
-                const group = getItemTableName(item);
+        return filteredItems.reduce<
+            {
+                group: typeof tables[0];
+                items: typeof items;
+            }[]
+        >((acc, item) => {
+            const table = isField(item)
+                ? tables.find((t) => t.name === item.table)
+                : undefined;
 
-                const lastGroup = acc.at(-1);
-                if (lastGroup && lastGroup.group === group) {
-                    lastGroup.items.push(item);
-                } else {
-                    acc.push({ group, items: [item] });
-                }
-                return acc;
-            },
-            [],
-        );
+            const group = {
+                name: getItemGroupLabel(item),
+                description: table?.description,
+            };
+
+            const lastGroup = acc[acc.length - 1];
+            if (lastGroup && lastGroup.group.name === group.name) {
+                lastGroup.items.push(item);
+            } else {
+                acc.push({ group, items: [item] });
+            }
+            return acc;
+        }, []);
     };
 
     return (
         <Menu role="listbox" ulRef={itemsParentRef}>
             {getGroupedItems(items).map((groupedItem, index) => (
                 <React.Fragment key={index}>
-                    <StickyMenuDivider
-                        index={index}
-                        title={groupedItem.group}
-                    />
+                    <Tooltip
+                        offset={-2}
+                        maw={300}
+                        multiline
+                        openDelay={500}
+                        position="bottom"
+                        withinPortal
+                        label={groupedItem.group.description}
+                        disabled={!groupedItem.group.description}
+                    >
+                        <StickyMenuDivider
+                            index={index}
+                            title={groupedItem.group.name}
+                        />
+                    </Tooltip>
 
                     {groupedItem.items.map((item, itemIndex) =>
                         renderItem(item, index + itemIndex),

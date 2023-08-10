@@ -11,7 +11,8 @@ import {
 import { Table, TableProps } from '@mantine/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import last from 'lodash-es/last';
-import React, { FC, useCallback } from 'react';
+import React, { FC, useCallback, useMemo } from 'react';
+import { useScroll } from 'react-use';
 import { isSummable } from '../../../hooks/useColumnTotals';
 import Cell from './Cell';
 import { usePivotTableStyles } from './tableStyles';
@@ -52,7 +53,30 @@ const PivotTable: FC<PivotTableProps> = ({
     className,
     ...tableProps
 }) => {
-    const { cx: tableCx, classes: tableStyles } = usePivotTableStyles();
+    const { cx, classes } = usePivotTableStyles();
+
+    const containerScroll = useScroll(containerRef);
+
+    const isAtTop = useMemo(() => {
+        if (!containerRef.current) return false;
+
+        const containerScrollPosY = containerScroll.y;
+
+        return containerScrollPosY === 0;
+    }, [containerScroll, containerRef]);
+
+    const isAtBottom = useMemo(() => {
+        if (!containerRef.current) return false;
+
+        const scrollHeight = containerRef.current.scrollHeight;
+        const containerHeight = containerRef.current.clientHeight;
+        const containerScrollPosY = containerScroll.y;
+
+        return (
+            Math.ceil(containerScrollPosY) + containerHeight === scrollHeight ||
+            Math.floor(containerScrollPosY) + containerHeight === scrollHeight
+        );
+    }, [containerScroll, containerRef]);
 
     const getItemFromAxis = useCallback(
         (rowIndex: number, colIndex: number) => {
@@ -194,7 +218,12 @@ const PivotTable: FC<PivotTableProps> = ({
             unstyled
             withBorder
             withColumnBorders
-            className={tableCx(tableStyles.root, className)}
+            className={cx(
+                classes.root,
+                classes.withStickyHeader,
+                classes.withStickyFooter,
+                className,
+            )}
             {...tableProps}
         >
             <thead>
@@ -295,6 +324,13 @@ const PivotTable: FC<PivotTableProps> = ({
                             : null}
                     </tr>
                 ))}
+
+                <div className={classes.floatingHeader}>
+                    <div
+                        className={classes.floatingHeaderShadow}
+                        data-floating-header-shadow={!isAtTop}
+                    />
+                </div>
             </thead>
 
             <tbody>
@@ -399,6 +435,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                   key={`index-total-${rowIndex}-${colIndex}`}
                                                   value={value}
                                                   withValue={!!value.formatted}
+                                                  withAlignRight
                                                   withBolderFont
                                                   withGrayBackground
                                               >
@@ -423,6 +460,13 @@ const PivotTable: FC<PivotTableProps> = ({
 
             {hasColumnTotals ? (
                 <tfoot>
+                    <div className={classes.floatingFooter}>
+                        <div
+                            className={classes.floatingFooterShadow}
+                            data-floating-footer-shadow={!isAtBottom}
+                        />
+                    </div>
+
                     {data.columnTotals?.map((row, totalRowIndex) => (
                         <tr key={`column-total-${totalRowIndex}`}>
                             {/* shows empty cell if row numbers are visible */}
@@ -470,6 +514,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                         value={value}
                                         component="th"
                                         withValue={!!value.formatted}
+                                        withAlignRight
                                         withBolderFont
                                         withGrayBackground
                                     >

@@ -7,6 +7,7 @@ import {
     DimensionType,
     FieldType,
     FieldUrl,
+    Format,
     friendlyName,
     Metric,
     MetricType,
@@ -54,6 +55,9 @@ type DbtModelLightdashConfig = {
     joins?: DbtModelJoin[];
     metrics?: Record<string, DbtModelLightdashMetric>;
     order_fields_by?: OrderFieldsByStrategy;
+    group_label?: string;
+    sql_filter?: string;
+    sql_where?: string; // alias for sql_filter
 };
 type DbtModelJoin = {
     join: string;
@@ -75,13 +79,14 @@ type DbtColumnLightdashDimension = {
     type?: DimensionType;
     description?: string;
     sql?: string;
-    time_intervals?: 'default' | 'OFF' | TimeFrames[];
+    time_intervals?: boolean | 'default' | 'OFF' | TimeFrames[];
     hidden?: boolean;
     round?: number;
     compact?: CompactOrAlias;
-    format?: string;
+    format?: Format;
     group_label?: string;
     urls?: FieldUrl[];
+    required_attributes?: Record<string, string>;
 };
 
 export type DbtColumnLightdashMetric = {
@@ -92,7 +97,7 @@ export type DbtColumnLightdashMetric = {
     hidden?: boolean;
     round?: number;
     compact?: CompactOrAlias;
-    format?: string;
+    format?: Format;
     group_label?: string;
     urls?: FieldUrl[];
     show_underlying_values?: string[];
@@ -227,8 +232,18 @@ export const isDbtPackages = (
     results: Record<string, any>,
 ): results is DbtPackages => 'packages' in results;
 
-export type DbtMetric = ParsedMetric & {
+export type V9MetricRef = {
+    name: string;
+    package?: string | null;
+    version?: string | number | null;
+};
+
+export const isV9MetricRef = (x: string[] | V9MetricRef): x is V9MetricRef =>
+    typeof x === 'object' && x !== null && 'name' in x;
+
+export type DbtMetric = Omit<ParsedMetric, 'refs'> & {
     meta?: Record<string, any> & DbtMetricLightdashMetadata;
+    refs?: string[][] | V9MetricRef[];
 };
 
 export type DbtMetricLightdashMetadata = {
@@ -403,11 +418,25 @@ type ConvertAdditionalMetricArgs = {
 export const convertAdditionalMetric = ({
     additionalMetric,
     table,
-}: ConvertAdditionalMetricArgs): Metric =>
-    convertColumnMetric({
+}: ConvertAdditionalMetricArgs): Metric => {
+    const metric = convertColumnMetric({
         modelName: table.name,
         dimensionSql: additionalMetric.sql,
         name: additionalMetric.name,
-        metric: additionalMetric,
+        metric: { ...additionalMetric, filters: undefined },
         tableLabel: table.label,
     });
+
+    return {
+        ...metric,
+        ...(additionalMetric.filters && {
+            filters: additionalMetric.filters,
+        }),
+    };
+};
+
+export enum DbtManifestVersion {
+    V7 = 'v7',
+    V8 = 'v8',
+    V9 = 'v9',
+}

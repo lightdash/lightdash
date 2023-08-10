@@ -31,7 +31,7 @@ const ProfilePanel: FC = () => {
     const queryClient = useQueryClient();
     const { user, health } = useApp();
     const { showToastSuccess, showToastError } = useToaster();
-    const { showError } = useErrorLogs();
+    const { appendError } = useErrorLogs();
 
     const isEmailServerConfigured = health.data?.hasEmailClient;
     const { data, isLoading: statusLoading } = useEmailStatus();
@@ -68,12 +68,12 @@ const ProfilePanel: FC = () => {
         onError: useCallback(
             (error: ApiError) => {
                 const [title, ...rest] = error.error.message.split('\n');
-                showError({
+                appendError({
                     title,
                     body: rest.join('\n'),
                 });
             },
-            [showError],
+            [appendError],
         ),
     });
 

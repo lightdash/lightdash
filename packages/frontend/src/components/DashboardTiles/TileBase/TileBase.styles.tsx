@@ -4,6 +4,7 @@ import styled, { createGlobalStyle, css } from 'styled-components';
 interface HeaderContainerProps {
     $isEditMode: boolean;
     $isHovering?: boolean;
+    $isEmpty?: boolean;
 }
 
 export const TileBaseWrapper = styled.div<HeaderContainerProps>`
@@ -45,6 +46,14 @@ export const HeaderContainer = styled.div<HeaderContainerProps>`
                 }
             `
             : ''}
+
+    ${({ $isEmpty }) =>
+        $isEmpty
+            ? css`
+                  position: absolute;
+                  right: 16px;
+              `
+            : ''}
 `;
 
 export const GlobalTileStyles = createGlobalStyle`
@@ -70,7 +79,7 @@ export const TitleWrapper = styled.div<TileTitleProps>`
                 ? css`
                       white-space: normal;
                       overflow: visible;
-                      z-index: 1;
+                      z-index: 10;
 
                       a {
                           outline: 8px solid ${Colors.WHITE};
@@ -127,11 +136,6 @@ export const ChartContainer = styled.div`
     flex: 1;
     overflow: hidden;
     display: flex;
-`;
-
-export const TooltipContent = styled.p`
-    max-width: 400px;
-    margin: 0;
 `;
 
 export const FilterWrapper = styled.div`

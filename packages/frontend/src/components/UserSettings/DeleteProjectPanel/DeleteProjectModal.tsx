@@ -46,7 +46,6 @@ export const ProjectDeleteModal: FC<
     return (
         <Modal
             size="md"
-            centered
             opened={opened}
             title={
                 <Group spacing="xs">

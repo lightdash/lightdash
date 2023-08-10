@@ -11,4 +11,6 @@ export type TableBase = {
     schema: string;
     sqlTable: string; // The sql identifier for the table
     orderFieldsBy?: OrderFieldsByStrategy;
+    groupLabel?: string;
+    sqlWhere?: string;
 };

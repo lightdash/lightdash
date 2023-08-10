@@ -11,6 +11,7 @@ import {
     Metric,
     MetricType,
     ParseError,
+    SupportedDbtAdapter,
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
@@ -204,12 +205,17 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         };
     }
 
-    async runQuery(sql: string) {
+    async runQuery(sql: string, tags?: Record<string, string>) {
         const { session, close } = await this.getSession();
         let query: IOperation | null = null;
 
+        let alteredQuery = sql;
+        if (tags) {
+            alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(tags)}`;
+        }
+
         try {
-            query = await session.executeStatement(sql, {
+            query = await session.executeStatement(alteredQuery, {
                 runAsync: true,
             });
 
@@ -300,6 +306,10 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
 
     getStringQuoteChar() {
         return "'";
+    }
+
+    getAdapterType(): SupportedDbtAdapter {
+        return SupportedDbtAdapter.DATABRICKS;
     }
 
     getEscapeStringQuoteChar() {

@@ -1,9 +1,14 @@
 import {
+    AdditionalMetric,
     ChartConfig,
+    ChartKind,
     ChartSummary,
     CreateSavedChart,
     CreateSavedChartVersion,
     DBFieldTypes,
+    getChartKind,
+    getChartType,
+    isFormat,
     NotFoundError,
     SavedChart,
     SessionUser,
@@ -14,6 +19,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
+import { DashboardsTableName } from '../database/entities/dashboards';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
     PinnedChartTableName,
@@ -23,8 +29,10 @@ import { ProjectTableName } from '../database/entities/projects';
 import {
     CreateDbSavedChartVersionField,
     CreateDbSavedChartVersionSort,
+    DBFilteredAdditionalMetrics,
     DbSavedChartAdditionalMetricInsert,
     DbSavedChartTableCalculationInsert,
+    InsertChart,
     SavedChartAdditionalMetricTableName,
     SavedChartsTableName,
 } from '../database/entities/savedCharts';
@@ -54,6 +62,7 @@ type DbSavedChartDetails = {
     first_name: string;
     last_name: string;
     pinned_list_uuid: string;
+    dashboard_uuid: string | null;
 };
 
 const createSavedChartVersionField = async (
@@ -171,6 +180,7 @@ const createSavedChartVersion = async (
                     display_name: tableCalculation.displayName,
                     calculation_raw_sql: tableCalculation.sql,
                     saved_queries_version_id: version.saved_queries_version_id,
+                    format: tableCalculation.format,
                     order: tableConfig.columnOrder.findIndex(
                         (column) => column === tableCalculation.name,
                     ),
@@ -191,12 +201,78 @@ const createSavedChartVersion = async (
                     round: additionalMetric.round,
                     format: additionalMetric.format,
                     saved_queries_version_id: version.saved_queries_version_id,
+                    filters:
+                        additionalMetric.filters &&
+                        additionalMetric.filters.length > 0
+                            ? JSON.stringify(additionalMetric.filters)
+                            : null,
+                    base_dimension_name:
+                        additionalMetric.baseDimensionName ?? null,
                 }),
             );
         });
         await Promise.all(promises);
     });
 };
+
+export const createSavedChart = async (
+    db: Knex,
+    projectUuid: string,
+    userUuid: string,
+    {
+        name,
+        description,
+        tableName,
+        metricQuery,
+        chartConfig,
+        tableConfig,
+        pivotConfig,
+        updatedByUser,
+        spaceUuid,
+        dashboardUuid,
+    }: CreateSavedChart & { updatedByUser: UpdatedByUser },
+): Promise<string> =>
+    db.transaction(async (trx) => {
+        let chart: InsertChart;
+        const baseChart = {
+            name,
+            description,
+            last_version_chart_kind:
+                getChartKind(chartConfig.type, chartConfig.config) ||
+                ChartKind.VERTICAL_BAR,
+            last_version_updated_by_user_uuid: userUuid,
+        };
+        if (dashboardUuid) {
+            chart = {
+                ...baseChart,
+                dashboard_uuid: dashboardUuid,
+                space_id: null,
+            };
+        } else {
+            const spaceId = spaceUuid
+                ? await getSpaceId(trx, spaceUuid)
+                : (await getFirstAccessibleSpace(trx, projectUuid, userUuid))
+                      .space_id;
+            if (!spaceId) throw new NotFoundError('No space found');
+            chart = {
+                ...baseChart,
+                dashboard_uuid: null,
+                space_id: spaceId,
+            };
+        }
+        const [newSavedChart] = await trx(SavedChartsTableName)
+            .insert(chart)
+            .returning('*');
+        await createSavedChartVersion(trx, newSavedChart.saved_query_id, {
+            tableName,
+            metricQuery,
+            chartConfig,
+            tableConfig,
+            pivotConfig,
+            updatedByUser,
+        });
+        return newSavedChart.saved_query_uuid;
+    });
 
 type Dependencies = {
     database: Knex;
@@ -212,46 +288,13 @@ export class SavedChartModel {
     async create(
         projectUuid: string,
         userUuid: string,
-        {
-            name,
-            description,
-            tableName,
-            metricQuery,
-            chartConfig,
-            tableConfig,
-            pivotConfig,
-            updatedByUser,
-            spaceUuid,
-        }: CreateSavedChart & { updatedByUser: UpdatedByUser },
+        data: CreateSavedChart & { updatedByUser: UpdatedByUser },
     ): Promise<SavedChart> {
-        const newSavedChartUuid = await this.database.transaction(
-            async (trx) => {
-                const spaceId = spaceUuid
-                    ? await getSpaceId(trx, spaceUuid)
-                    : (
-                          await getFirstAccessibleSpace(
-                              trx,
-                              projectUuid,
-                              userUuid,
-                          )
-                      ).space_id;
-                const [newSavedChart] = await trx('saved_queries')
-                    .insert({ name, space_id: spaceId, description })
-                    .returning('*');
-                await createSavedChartVersion(
-                    trx,
-                    newSavedChart.saved_query_id,
-                    {
-                        tableName,
-                        metricQuery,
-                        chartConfig,
-                        tableConfig,
-                        pivotConfig,
-                        updatedByUser,
-                    },
-                );
-                return newSavedChart.saved_query_uuid;
-            },
+        const newSavedChartUuid = await createSavedChart(
+            this.database,
+            projectUuid,
+            userUuid,
+            data,
         );
         return this.get(newSavedChartUuid);
     }
@@ -270,7 +313,19 @@ export class SavedChartModel {
                 ...data,
                 updatedByUser: user,
             });
+
+            await trx('saved_queries')
+                .update({
+                    last_version_chart_kind: getChartKind(
+                        data.chartConfig.type,
+                        data.chartConfig.config,
+                    ),
+                    last_version_updated_at: new Date(),
+                    last_version_updated_by_user_uuid: user.userUuid,
+                })
+                .where('saved_query_uuid', savedChartUuid);
         });
+
         return this.get(savedChartUuid);
     }
 
@@ -283,6 +338,7 @@ export class SavedChartModel {
                 name: data.name,
                 description: data.description,
                 space_id: await getSpaceId(this.database, data.spaceUuid),
+                dashboard_uuid: data.spaceUuid ? null : undefined, // remove dashboard_uuid when moving chart to space
             })
             .where('saved_query_uuid', savedChartUuid);
         return this.get(savedChartUuid);
@@ -327,11 +383,22 @@ export class SavedChartModel {
         try {
             const [savedQuery] = await this.database
                 .from<DbSavedChartDetails>(SavedChartsTableName)
-                .innerJoin(
-                    SpaceTableName,
-                    `${SavedChartsTableName}.space_id`,
-                    `${SpaceTableName}.space_id`,
+                .leftJoin(
+                    DashboardsTableName,
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    `${SavedChartsTableName}.dashboard_uuid`,
                 )
+                .innerJoin(SpaceTableName, function spaceJoin() {
+                    this.on(
+                        `${SpaceTableName}.space_id`,
+                        '=',
+                        `${DashboardsTableName}.space_id`,
+                    ).orOn(
+                        `${SpaceTableName}.space_id`,
+                        '=',
+                        `${SavedChartsTableName}.space_id`,
+                    );
+                })
                 .innerJoin(
                     ProjectTableName,
                     `${SpaceTableName}.project_id`,
@@ -366,6 +433,7 @@ export class SavedChartModel {
                     (DbSavedChartDetails & {
                         space_uuid: string;
                         spaceName: string;
+                        dashboardName: string | null;
                     })[]
                 >([
                     `${ProjectTableName}.project_uuid`,
@@ -373,6 +441,8 @@ export class SavedChartModel {
                     `${SavedChartsTableName}.saved_query_uuid`,
                     `${SavedChartsTableName}.name`,
                     `${SavedChartsTableName}.description`,
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                    `${DashboardsTableName}.name as dashboardName`,
                     'saved_queries_versions.saved_queries_version_id',
                     'saved_queries_versions.explore_name',
                     'saved_queries_versions.filters',
@@ -420,12 +490,14 @@ export class SavedChartModel {
                     'display_name',
                     'calculation_raw_sql',
                     'order',
+                    'format',
                 ])
                 .where(
                     'saved_queries_version_id',
                     savedQuery.saved_queries_version_id,
                 );
-            const additionalMetrics = await this.database(
+
+            const additionalMetricsRows = await this.database(
                 SavedChartAdditionalMetricTableName,
             )
                 .select([
@@ -438,6 +510,10 @@ export class SavedChartModel {
                     'hidden',
                     'round',
                     'format',
+                    'filters',
+                    'base_dimension_name',
+                    'uuid',
+                    'compact',
                 ])
                 .where(
                     'saved_queries_version_id',
@@ -445,19 +521,38 @@ export class SavedChartModel {
                 );
 
             // Filters out "null" fields
-            const additionalMetricsFiltered = additionalMetrics.map(
-                (addMetric) =>
-                    Object.keys(addMetric).reduce(
-                        (acc, key) => ({
-                            ...acc,
-                            [key]:
-                                addMetric[key] !== null
-                                    ? addMetric[key]
-                                    : undefined,
-                        }),
-                        { ...addMetric },
-                    ),
-            );
+            const additionalMetricsFiltered: DBFilteredAdditionalMetrics[] =
+                additionalMetricsRows.map(
+                    (addMetric) =>
+                        Object.fromEntries(
+                            Object.entries(addMetric).filter(
+                                ([_, value]) => value !== null,
+                            ),
+                        ) as DBFilteredAdditionalMetrics,
+                );
+
+            const additionalMetrics: AdditionalMetric[] =
+                additionalMetricsFiltered.map((additionalMetric) => ({
+                    name: additionalMetric.name,
+                    label: additionalMetric.label,
+                    description: additionalMetric.description,
+                    hidden: additionalMetric.hidden,
+                    round: additionalMetric.round,
+                    compact: additionalMetric.compact,
+                    format: isFormat(additionalMetric.format)
+                        ? additionalMetric.format
+                        : undefined,
+                    uuid: additionalMetric.uuid,
+                    sql: additionalMetric.sql,
+                    table: additionalMetric.table,
+                    type: additionalMetric.type,
+                    ...(additionalMetric.base_dimension_name && {
+                        baseDimensionName: additionalMetric.base_dimension_name,
+                    }),
+                    ...(additionalMetric.filters && {
+                        filters: additionalMetric.filters,
+                    }),
+                }));
 
             const [dimensions, metrics]: [string[], string[]] = fields.reduce<
                 [string[], string[]]
@@ -506,9 +601,10 @@ export class SavedChartModel {
                             name: tableCalculation.name,
                             displayName: tableCalculation.display_name,
                             sql: tableCalculation.calculation_raw_sql,
+                            format: tableCalculation.format || undefined,
                         }),
                     ),
-                    additionalMetrics: additionalMetricsFiltered,
+                    additionalMetrics,
                 },
                 chartConfig,
                 tableConfig: {
@@ -522,41 +618,12 @@ export class SavedChartModel {
                 spaceName: savedQuery.spaceName,
                 pinnedListUuid: savedQuery.pinned_list_uuid,
                 pinnedListOrder: null,
+                dashboardUuid: savedQuery.dashboard_uuid,
+                dashboardName: savedQuery.dashboardName,
             };
         } finally {
             span?.finish();
         }
-    }
-
-    private getChatSummaryQuery() {
-        return this.database('saved_queries')
-            .select({
-                uuid: 'saved_queries.saved_query_uuid',
-                name: 'saved_queries.name',
-                description: 'saved_queries.description',
-                spaceUuid: 'spaces.space_uuid',
-                spaceName: 'spaces.name',
-                projectUuid: 'projects.project_uuid',
-                organizationUuid: 'organizations.organization_uuid',
-                pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
-            })
-            .leftJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
-            .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
-            .leftJoin(
-                OrganizationTableName,
-                'organizations.organization_id',
-                'projects.organization_id',
-            )
-            .leftJoin(
-                PinnedChartTableName,
-                `${PinnedChartTableName}.saved_chart_uuid`,
-                `${SavedChartsTableName}.saved_query_uuid`,
-            )
-            .leftJoin(
-                PinnedListTableName,
-                `${PinnedListTableName}.pinned_list_uuid`,
-                `${PinnedChartTableName}.pinned_list_uuid`,
-            );
     }
 
     async getSummary(savedChartUuid: string): Promise<ChartSummary> {
@@ -568,7 +635,7 @@ export class SavedChartModel {
             description: 'Get chart summary',
         });
         try {
-            const [chart] = await this.getChatSummaryQuery()
+            const [chart] = await this.getChartSummaryQuery()
                 .where(
                     `${SavedChartsTableName}.saved_query_uuid`,
                     savedChartUuid,
@@ -595,16 +662,72 @@ export class SavedChartModel {
             description: 'Find charts',
         });
         try {
-            const query = this.getChatSummaryQuery();
+            const query = this.getChartSummaryQuery();
             if (filters.projectUuid) {
                 query.where('projects.project_uuid', filters.projectUuid);
             }
             if (filters.spaceUuids) {
-                query.whereIn('spaces.space_uuid', filters.spaceUuids);
+                query
+                    .whereNotNull(`${SavedChartsTableName}.space_id`)
+                    .whereIn('spaces.space_uuid', filters.spaceUuids);
             }
-            return await query;
+            const chartSummaries = await query;
+            return chartSummaries.map((chart) => ({
+                ...chart,
+                chartType: getChartType(chart.chartKind),
+            }));
         } finally {
             span?.finish();
         }
+    }
+
+    private getChartSummaryQuery() {
+        return this.database('saved_queries')
+            .select({
+                uuid: 'saved_queries.saved_query_uuid',
+                name: 'saved_queries.name',
+                description: 'saved_queries.description',
+                spaceUuid: 'spaces.space_uuid',
+                spaceName: 'spaces.name',
+                projectUuid: 'projects.project_uuid',
+                organizationUuid: 'organizations.organization_uuid',
+                pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
+                chartKind: 'saved_queries.last_version_chart_kind',
+                dashboardUuid: `${DashboardsTableName}.dashboard_uuid`,
+                dashboardName: `${DashboardsTableName}.name`,
+            })
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
+            .innerJoin(SpaceTableName, function spaceJoin() {
+                this.on(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${DashboardsTableName}.space_id`,
+                ).orOn(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SavedChartsTableName}.space_id`,
+                );
+            })
+            .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
+            .leftJoin(
+                OrganizationTableName,
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
+
+            .leftJoin(
+                PinnedChartTableName,
+                `${PinnedChartTableName}.saved_chart_uuid`,
+                `${SavedChartsTableName}.saved_query_uuid`,
+            )
+            .leftJoin(
+                PinnedListTableName,
+                `${PinnedListTableName}.pinned_list_uuid`,
+                `${PinnedChartTableName}.pinned_list_uuid`,
+            );
     }
 }

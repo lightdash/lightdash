@@ -57,6 +57,9 @@ export const projectMemberAbilities: Record<
         can('manage', 'PinnedItems', {
             projectUuid: member.projectUuid,
         });
+        can('update', 'Project', {
+            projectUuid: member.projectUuid,
+        });
     },
     developer(member, { can }) {
         projectMemberAbilities.editor(member, { can });

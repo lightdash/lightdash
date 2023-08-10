@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import { memo } from 'react';
 import { useParams } from 'react-router-dom';
 
+import { useHotkeys } from '@mantine/hooks';
 import Page from '../components/common/Page/Page';
 import Explorer from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
@@ -24,12 +25,19 @@ const ExplorerWithUrlParams = memo(() => {
         (context) => context.state.unsavedChartVersion.tableName,
     );
     const { data } = useExplore(tableId);
+
+    const clearQuery = useExplorerContext(
+        (context) => context.actions.clearQuery,
+    );
+    useHotkeys([['mod + alt + k', clearQuery]]);
+
     return (
         <Page
             title={data ? data?.label : 'Tables'}
             sidebar={<ExploreSideBar />}
             withFullHeight
             withPaddedContent
+            hasBanner={!!sessionStorage.getItem('fromDashboard')}
         >
             <Explorer />
         </Page>

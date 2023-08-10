@@ -21,12 +21,12 @@ import {
 } from '@mantine/core';
 import {
     IconDots,
+    IconEdit,
     IconFilter,
     IconSparkles,
     IconTrash,
 } from '@tabler/icons-react';
-import { FC, useCallback, useMemo } from 'react';
-
+import { FC, useMemo } from 'react';
 import { useFilters } from '../../../../../hooks/useFilters';
 import { useExplorerContext } from '../../../../../providers/ExplorerProvider';
 import { useTracking } from '../../../../../providers/TrackingProvider';
@@ -81,55 +81,12 @@ const TreeSingleNodeActions: FC<Props> = ({
     const { addFilter } = useFilters();
     const { track } = useTracking();
 
-    const addAdditionalMetric = useExplorerContext(
-        (context) => context.actions.addAdditionalMetric,
-    );
-
     const removeAdditionalMetric = useExplorerContext(
         (context) => context.actions.removeAdditionalMetric,
     );
 
-    const createCustomMetric = useCallback(
-        (dimension: Dimension, type: MetricType) => {
-            const shouldCopyFormatting = [
-                MetricType.PERCENTILE,
-                MetricType.MEDIAN,
-                MetricType.AVERAGE,
-                MetricType.SUM,
-                MetricType.MIN,
-                MetricType.MAX,
-            ].includes(type);
-            const compact =
-                shouldCopyFormatting && dimension.compact
-                    ? { compact: dimension.compact }
-                    : {};
-            const format =
-                shouldCopyFormatting && dimension.format
-                    ? { format: dimension.format }
-                    : {};
-
-            const defaultRound =
-                type === MetricType.AVERAGE ? { round: 2 } : {};
-            const round =
-                shouldCopyFormatting && dimension.round
-                    ? { round: dimension.round }
-                    : defaultRound;
-
-            addAdditionalMetric({
-                name: `${dimension.name}_${type}`,
-                label: `${friendlyName(type)} of ${dimension.label}`,
-                table: dimension.table,
-                sql: dimension.sql,
-                description: `${friendlyName(type)} of ${
-                    dimension.label
-                } on the table ${dimension.tableLabel}`,
-                type,
-                ...format,
-                ...round,
-                ...compact,
-            });
-        },
-        [addAdditionalMetric],
+    const toggleAdditionalMetricModal = useExplorerContext(
+        (context) => context.actions.toggleAdditionalMetricModal,
     );
 
     const customMetrics = useMemo(
@@ -167,22 +124,38 @@ const TreeSingleNodeActions: FC<Props> = ({
                 ) : null}
 
                 {isAdditionalMetric(item) ? (
-                    <Menu.Item
-                        color="red"
-                        key="custommetric"
-                        component="button"
-                        icon={<MantineIcon icon={IconTrash} />}
-                        onClick={(e) => {
-                            e.stopPropagation();
+                    <>
+                        <Menu.Item
+                            component="button"
+                            icon={<MantineIcon icon={IconEdit} />}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                toggleAdditionalMetricModal({
+                                    type: item.type,
+                                    item,
+                                    isEditing: true,
+                                });
+                            }}
+                        >
+                            Edit custom metric
+                        </Menu.Item>
+                        <Menu.Item
+                            color="red"
+                            key="custommetric"
+                            component="button"
+                            icon={<MantineIcon icon={IconTrash} />}
+                            onClick={(e) => {
+                                e.stopPropagation();
 
-                            track({
-                                name: EventName.REMOVE_CUSTOM_METRIC_CLICKED,
-                            });
-                            removeAdditionalMetric(fieldId(item));
-                        }}
-                    >
-                        Remove custom metric
-                    </Menu.Item>
+                                track({
+                                    name: EventName.REMOVE_CUSTOM_METRIC_CLICKED,
+                                });
+                                removeAdditionalMetric(fieldId(item));
+                            }}
+                        >
+                            Remove custom metric
+                        </Menu.Item>
+                    </>
                 ) : null}
 
                 {customMetrics.length > 0 && isDimension(item) ? (
@@ -205,7 +178,11 @@ const TreeSingleNodeActions: FC<Props> = ({
                                     track({
                                         name: EventName.ADD_CUSTOM_METRIC_CLICKED,
                                     });
-                                    createCustomMetric(item, metric);
+                                    toggleAdditionalMetricModal({
+                                        type: metric,
+                                        item,
+                                        isEditing: false,
+                                    });
                                 }}
                             >
                                 {friendlyName(metric)}

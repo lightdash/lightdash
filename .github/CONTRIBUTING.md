@@ -223,7 +223,12 @@ E.g:
 feat: add table calculations
 fix: remove infinite loop during login
 docs: add page about metrics
+style: add more space 
 ```
+
+Note that **feat** and **fix** are typically used for changes that will provide value to the end-user 
+so they trigger a release (version update). If you are making a change to docs, styles, or some 
+other part of the system, please use the appropriate tag to avoid the extra overhead.
 
 You can see all
 the [supported types here](https://github.com/commitizen/conventional-commit-types/blob/v3.0.0/index.json).
@@ -238,6 +243,15 @@ Our styleguides should be enforced via a pre-commit hook that runs prettier & es
 The reviewers can still request adhoc changes for situations that haven't been experienced before.
 
 ## Setup Development Environment
+
+Packages overview:
+
+  - [`frontend` - React frontend](../packages/frontend/README.md)
+  - [`backend` - Node.js backend](../packages/backend/README.md)
+  - `common` - Shared code between all the other packages
+  - `cli` - Command line interface
+  - `e2e` - End-to-end and integration tests
+  - `warehouses` - Classes for connecting to different databases
 
 #### using Github Codespaces / VS Code Remote Containers
 
@@ -266,6 +280,8 @@ yarn workspace backend seed
 yarn dev
 ```
 
+
+
 #### using Docker compose
 
 Alternatively you can create a developer environment using docker compose:
@@ -276,11 +292,28 @@ git clone https://github.com/lightdash/lightdash
 
 # Update submodules
 git submodule update --init --recursive
+```
 
+Copy `.env.development` into a new file called `.env.development.local` 
+
+Edit all the ENV variables in that file to match your setup, eg: 
+
+```shell
+PGHOST=localhost
+PGPORT=5432
+PGUSER=pg_user *OR* machine username if no prior postgres set up
+PGPASSWORD=pg_password *OR* blank if no prior postgres set up
+PGDATABASE=postgres
+DBT_DEMO_DIR=/*path*/*to*/lightdash/project/examples/full-jaffle-shop-demo
+LIGHTDASH_CONFIG_FILE=/*path*/*to*/lightdash/lightdash.yml
+```
+
+
+```shell
 # Create docker containers
 Note: before the next step make sure your docker has 4GB of memory ( Docker -> settings -> resources ) you should be able to manipulate the values here.
 
-docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env up --detach --remove-orphans
+docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env.development.local up --detach --remove-orphans
 ```
 
 When ready, access the development container and run these commands:
@@ -290,7 +323,7 @@ When ready, access the development container and run these commands:
 docker exec -it lightdash-app-lightdash-dev-1 bash
 
 # Skip puppeteer download
-PUPPETEER_SKIP_DOWNLOAD=true
+export PUPPETEER_SKIP_DOWNLOAD=true
 
 # Install dependencies & build common package
 ./scripts/build.sh
@@ -325,13 +358,13 @@ Notes:
 When you want to stop:
 
 ```shell
-docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env stop
+docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env.development.local stop
 ```
 
 When you want to start:
 
 ```shell
-docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env start
+docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env.development.local start
 ```
 
 #### Setup Development Environment without Docker
@@ -362,31 +395,35 @@ brew install postgresql@14
 brew services start postgresql@14
 
 #5 install dbt (https://docs.getdbt.com/dbt-cli/install/homebrew)
-brew install dbt-labs/dbt/dbt-postgres
+brew tap dbt-labs/dbt
+brew install dbt-postgres
 
 #6 clone the repo and open it in your IDE
 git clone https://github.com/lightdash/lightdash.git
+cd lightdash
 
 #7 Update submodules
 git submodule update --init --recursive
 
-#8 create `.env.local` and override any variables you need to change from `.env`
-touch .env.local
-open .env.local -t
+#8 Copy `.env.development` to `.env.development.local`
+cp .env.development .env.development.local
 
-# here is a sample content of the `.env.local` file
+#9 Edit some environment variables to match your setup
+open .env.development.local -t
+
+# here is some variables that you might need to edit:
 PGHOST=localhost
 PGPORT=5432
 PGUSER=pg_user *OR* machine username if no prior postgres set up
 PGPASSWORD=pg_password *OR* blank if no prior postgres set up
 PGDATABASE=postgres
-DBT_DEMO_DIR=/*path*/*to*/lightdash/project/examples/full-jaffle-shop-demo
-LIGHTDASH_CONFIG_FILE=/*path*/*to*/lightdash/lightdash.yml
+DBT_DEMO_DIR=$PWD/examples/full-jaffle-shop-demo
+LIGHTDASH_CONFIG_FILE=$PWD/lightdash.yml
 
-#9 install packages
+#10 install packages
 yarn
 
-#10 build / migrate / seed
+#11 build / migrate / seed
 yarn load:env ./scripts/build.sh
 yarn load:env ./scripts/seed-jaffle.sh
 yarn load:env ./scripts/migrate.sh

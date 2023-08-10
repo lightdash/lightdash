@@ -1,6 +1,5 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-yarn workspace backend generate-api
 npx lint-staged
 yarn workspace frontend unused-exports

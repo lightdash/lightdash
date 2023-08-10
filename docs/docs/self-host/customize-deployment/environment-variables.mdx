@@ -60,3 +60,20 @@ These variables enable you to control Single Sign On (SSO) functionality.
 | `AUTH_ONE_LOGIN_OAUTH_CLIENT_ID`       | Required for One Login SSO                               |           |         |
 | `AUTH_ONE_LOGIN_OAUTH_CLIENT_SECRET`   | Required for One Login SSO                               |           |         |
 | `AUTH_ONE_LOGIN_OAUTH_ISSUER`          | Required for One Login SSO                               |           |         |
+| `AUTH_AZURE_AD_OAUTH_CLIENT_ID`        | Required for Azure AD                                    |           |         |
+| `AUTH_AZURE_AD_OAUTH_CLIENT_SECRET`    | Required for Azure AD                                    |           |         |
+| `AUTH_AZURE_AD_OAUTH_TENANT_ID`        | Required for Azure AD                                    |           |         |
+
+# Logging environment variables
+
+| Variable                       | Description                                                 | Required? | Default                |
+|--------------------------------|-------------------------------------------------------------|-----------|------------------------|
+| `LIGHTDASH_LOG_LEVEL`          | The minimum level of log messages to display                |           | `INFO`                 |
+| `LIGHTDASH_LOG_FORMAT`         | The format of log messages                                  |           | `pretty`               |
+| `LIGHTDASH_LOG_OUTPUTS`        | The outputs to send log messages to                         |           | `console`              |
+| `LIGHTDASH_LOG_CONSOLE_LEVEL`  | The minimum level of log messages to display on the console |           | `LIGHTDAH_LOG_LEVEL`   |
+| `LIGHTDASH_LOG_CONSOLE_FORMAT` | The format of log messages on the console                   |           | `LIGHTDASH_LOG_FORMAT` |
+| `LIGHTDASH_LOG_FILE_LEVEL`     | The minimum level of log messages to write to the log file  |           | `LIGHTDASH_LOG_LEVEL`  |
+| `LIGHTDASH_LOG_FILE_FORMAT`    | The format of log messages in the log file                  |           | `LIGHTDASH_LOG_FORMAT` |
+| `LIGHTDASH_LOG_FILE_PATH`      | The path to the log file                                    |           | `./logs/all.log`       |
+

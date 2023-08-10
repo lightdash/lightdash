@@ -1,6 +1,6 @@
 import UnderlyingData from '../guides/assets/underlying-data.jpg';
 
-# Metrics reference sheet
+# Metrics reference doc
 
 A metric is a value that describes or summarizes features from a collection of data points.
 For example, `Num unique user ids` is a metric. It describes the unique number of `user_id`s in a collection of `user_id` data points.
@@ -220,7 +220,7 @@ Here are all of the properties you can customize:
 
 Takes the percentile of the values in the given field. Like SQL's `PERCENTILE_CONT` function.
 
-The `percentile` metric can be used on any numeric dimension or, [for custom SQL](#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a numeric table column.
+The `percentile` metric can be used on any numeric dimension or, [for custom SQL](#using-custom-sql-in-aggregate-metrics), any valid SQL expression that gives a numeric table column.
 
 For example, this creates a metric `median_price` by taking the 50% percentile of the `item_price` dimension:
 
@@ -578,16 +578,18 @@ These filters do not appear in the `Filters` tab in the Explore view, instead, t
 
 | Type                        | Example (in English)                           | Example (as code)     |
 |-----------------------------|------------------------------------------------|-----------------------|
-| is equal to                 | User name is equal to katie                    | `user_name: katie`    |
-| is not equal to             | User name is not equal to katie                | `user_name: !katie`   |
+| is                          | User name is equal to katie                    | `user_name: katie`    |
+| is not                      | User name is not equal to katie                | `user_name: "!katie"`   |
 | contains                    | User name contains katie                       | `user_name: %katie%`  |
-| does not contain            | User name does not contain katie               | `user_name: !%katie%` |
+| does not contain            | User name does not contain katie               | `user_name: "!%katie%"` |
 | starts with                 | User name starts with katie                    | `user_name: katie%`   |
+| ends with                   | User name ends with katie                      | `user_name: %katie`   |
 | is greater than             | Number of orders is greater than 4             | `num_orders: '> 4'`   |
 | is greater than or equal to | Number of orders is greater than or equal to 4 | `num_orders: '>= 4'`  |
 | is less than                | Number of orders is less than 4                | `num_orders: '< 4'`   |
 | is less than or equal to    | Number of orders is less than or equal to 4    | `num_orders: '<= 4'`  |
-
+| is null                     | Status is `NULL`                               | `status: null`         |
+| is not null                 | Status is not `NULL`                           | `status: '!null'`     |
 
 :::info
 

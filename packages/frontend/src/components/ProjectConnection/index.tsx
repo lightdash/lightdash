@@ -6,6 +6,7 @@ import {
     DbtProjectType,
     friendlyName,
     ProjectType,
+    SupportedDbtVersions,
     WarehouseTypes,
 } from '@lightdash/common';
 import {
@@ -37,13 +38,11 @@ import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import DbtSettingsForm from './DbtSettingsForm';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
-import { WarehouseIcon } from './ProjectConnectFlow/ProjectConnectFlow.styles';
-import { getWarehouseLabel } from './ProjectConnectFlow/SelectWarehouse';
+import { getWarehouseIcon } from './ProjectConnectFlow/SelectWarehouse';
 import {
     CompileProjectButton,
     FormContainer,
     LeftPanelMessage,
-    LeftPanelTitle,
 } from './ProjectConnection.styles';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
@@ -55,6 +54,7 @@ type ProjectConnectionForm = {
     dbt: DbtProjectConfig;
 
     warehouse?: CreateWarehouseCredentials;
+    dbtVersion: SupportedDbtVersions;
 };
 
 interface Props {
@@ -73,7 +73,7 @@ const ProjectForm: FC<Props> = ({
     isProjectUpdate,
 }) => {
     const { health } = useApp();
-    const [hasWarehouse, setHasWarehouse] = useState(selectedWarehouse);
+    const [warehouse, setWarehouse] = useState(selectedWarehouse);
 
     return (
         <Stack spacing="xl">
@@ -97,11 +97,15 @@ const ProjectForm: FC<Props> = ({
 
             <SettingsGridCard>
                 <div>
-                    {hasWarehouse && getWarehouseLabel(hasWarehouse).icon}
-                    <LeftPanelTitle>
-                        <H5>Warehouse connection</H5>
-                        <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
-                    </LeftPanelTitle>
+                    {warehouse && getWarehouseIcon(warehouse)}
+                    <Flex align="center" gap={2}>
+                        <Title order={5}>Warehouse connection</Title>
+                        <DocumentationHelpButton
+                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection"
+                            pos="relative"
+                            top="2px"
+                        />
+                    </Flex>
 
                     {health.data?.staticIp && (
                         <LeftPanelMessage>
@@ -114,8 +118,8 @@ const ProjectForm: FC<Props> = ({
                 <div>
                     <WarehouseSettingsForm
                         disabled={disabled}
-                        setSelectedWarehouse={setHasWarehouse}
-                        selectedWarehouse={hasWarehouse}
+                        setSelectedWarehouse={setWarehouse}
+                        selectedWarehouse={warehouse}
                         isProjectUpdate={isProjectUpdate}
                     />
                 </div>
@@ -123,29 +127,23 @@ const ProjectForm: FC<Props> = ({
 
             <SettingsGridCard>
                 <div>
-                    <WarehouseIcon src={DbtLogo} alt="dbt icon" />
-                    <LeftPanelTitle>
-                        <H5>dbt connection</H5>
-                        <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
-                    </LeftPanelTitle>
+                    <Avatar size="md" src={DbtLogo} alt="dbt icon" />
 
-                    <LeftPanelMessage>
-                        Your dbt project must be compatible with{' '}
-                        <Anchor
-                            href="https://docs.getdbt.com/docs/guides/migration-guide/upgrading-to-1-0-0"
-                            target="_blank"
-                            rel="noreferrer"
-                        >
-                            dbt version <b>1.4.1</b>
-                        </Anchor>
-                    </LeftPanelMessage>
+                    <Flex align="center" gap={2}>
+                        <Title order={5}>dbt connection</Title>
+                        <DocumentationHelpButton
+                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project"
+                            pos="relative"
+                            top="2px"
+                        />
+                    </Flex>
                 </div>
 
                 <div>
                     <DbtSettingsForm
                         disabled={disabled}
                         defaultType={defaultType}
-                        selectedWarehouse={hasWarehouse}
+                        selectedWarehouse={warehouse}
                     />
                 </div>
             </SettingsGridCard>
@@ -206,6 +204,7 @@ export const UpdateProjectConnection: FC<{
             warehouse: {
                 ...data?.warehouseConnection,
             },
+            dbtVersion: data?.dbtVersion,
         },
     });
     const { reset } = methods;
@@ -215,6 +214,7 @@ export const UpdateProjectConnection: FC<{
                 name: data.name,
                 dbt: data.dbtConnection,
                 warehouse: data.warehouseConnection,
+                dbtVersion: data.dbtVersion,
             });
         }
     }, [reset, data]);
@@ -224,6 +224,7 @@ export const UpdateProjectConnection: FC<{
         name,
         dbt: dbtConnection,
         warehouse: warehouseConnection,
+        dbtVersion,
     }: Required<ProjectConnectionForm>) => {
         if (user.data) {
             track({
@@ -233,6 +234,7 @@ export const UpdateProjectConnection: FC<{
                 name,
                 dbtConnection,
                 warehouseConnection,
+                dbtVersion: dbtVersion,
             });
         }
     };
@@ -395,3 +397,4 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         </FormContainer>
     );
 };
+

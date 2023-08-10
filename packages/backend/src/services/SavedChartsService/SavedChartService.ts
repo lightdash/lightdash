@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
     ChartSummary,
     ChartType,
     countTotalFilterRules,
@@ -8,18 +9,24 @@ import {
     CreateSchedulerAndTargetsWithoutIds,
     ForbiddenError,
     isChartScheduler,
+    isConditionalFormattingConfigWithColorRange,
+    isConditionalFormattingConfigWithSingleColor,
     isSlackTarget,
     isUserWithOrg,
     SavedChart,
     SchedulerAndTargets,
     SessionUser,
+    UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
     ViewStatistics,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import { analytics } from '../../analytics/client';
-import { CreateSavedChartOrVersionEvent } from '../../analytics/LightdashAnalytics';
+import {
+    ConditionalFormattingRuleSavedEvent,
+    CreateSavedChartVersionEvent,
+} from '../../analytics/LightdashAnalytics';
 import { schedulerClient, slackClient } from '../../clients/clients';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
@@ -96,7 +103,7 @@ export class SavedChartService {
 
     static getCreateEventProperties(
         savedChart: SavedChart,
-    ): CreateSavedChartOrVersionEvent['properties'] {
+    ): CreateSavedChartVersionEvent['properties'] {
         const echartsConfig =
             savedChart.chartConfig.type === ChartType.CARTESIAN
                 ? savedChart.chartConfig.config.eChartsConfig
@@ -117,6 +124,13 @@ export class SavedChartService {
                 savedChart.metricQuery.tableCalculations.length,
             pivotCount: (savedChart.pivotConfig?.columns || []).length,
             chartType: savedChart.chartConfig.type,
+            pie:
+                savedChart.chartConfig.type === ChartType.PIE
+                    ? {
+                          isDonut:
+                              savedChart.chartConfig?.config?.isDonut ?? false,
+                      }
+                    : undefined,
             table:
                 savedChart.chartConfig.type === ChartType.TABLE
                     ? {
@@ -126,6 +140,14 @@ export class SavedChartService {
                           hasRowCalculation: !!tableConfig?.showRowCalculation,
                           hasColumnCalculations:
                               !!tableConfig?.showColumnCalculation,
+                      }
+                    : undefined,
+
+            bigValue:
+                savedChart.chartConfig.type === ChartType.BIG_NUMBER
+                    ? {
+                          hasBigValueComparison:
+                              savedChart.chartConfig.config?.showComparison,
                       }
                     : undefined,
             cartesian:
@@ -161,6 +183,48 @@ export class SavedChartService {
         };
     }
 
+    static getConditionalFormattingEventProperties(
+        savedChart: SavedChart,
+    ): ConditionalFormattingRuleSavedEvent['properties'][] | undefined {
+        if (
+            savedChart.chartConfig.type !== ChartType.TABLE ||
+            !savedChart.chartConfig.config?.conditionalFormattings ||
+            savedChart.chartConfig.config.conditionalFormattings.length === 0
+        ) {
+            return undefined;
+        }
+
+        const eventProperties =
+            savedChart.chartConfig.config.conditionalFormattings.map((rule) => {
+                let type: 'color range' | 'single color';
+                let numConditions: number;
+
+                if (isConditionalFormattingConfigWithColorRange(rule)) {
+                    type = 'color range';
+                    numConditions = 1;
+                } else if (isConditionalFormattingConfigWithSingleColor(rule)) {
+                    type = 'single color';
+                    numConditions = rule.rules.length;
+                } else {
+                    type = assertUnreachable(
+                        rule,
+                        'Unknown conditional formatting',
+                    );
+                    numConditions = 0;
+                }
+
+                return {
+                    projectId: savedChart.projectUuid,
+                    organizationId: savedChart.organizationUuid,
+                    savedQueryId: savedChart.uuid,
+                    type,
+                    numConditions,
+                };
+            });
+
+        return eventProperties;
+    }
+
     async createVersion(
         user: SessionUser,
         savedChartUuid: string,
@@ -194,6 +258,17 @@ export class SavedChartService {
             userId: user.userUuid,
             properties: SavedChartService.getCreateEventProperties(savedChart),
         });
+
+        SavedChartService.getConditionalFormattingEventProperties(
+            savedChart,
+        )?.forEach((properties) => {
+            analytics.track({
+                event: 'conditional_formatting_rule.saved',
+                userId: user.userUuid,
+                properties,
+            });
+        });
+
         return savedChart;
     }
 
@@ -202,7 +277,7 @@ export class SavedChartService {
         savedChartUuid: string,
         data: UpdateSavedChart,
     ): Promise<SavedChart> {
-        const { organizationUuid, projectUuid, spaceUuid } =
+        const { organizationUuid, projectUuid, spaceUuid, dashboardUuid } =
             await this.savedChartModel.getSummary(savedChartUuid);
 
         if (
@@ -229,8 +304,21 @@ export class SavedChartService {
             properties: {
                 projectId: savedChart.projectUuid,
                 savedQueryId: savedChartUuid,
+                dashboardId: savedChart.dashboardUuid ?? undefined,
             },
         });
+        if (dashboardUuid && !savedChart.dashboardUuid) {
+            analytics.track({
+                event: 'dashboard_chart.moved',
+                userId: user.userUuid,
+                properties: {
+                    projectId: savedChart.projectUuid,
+                    savedQueryId: savedChartUuid,
+                    dashboardId: dashboardUuid,
+                    spaceId: savedChart.spaceUuid,
+                },
+            });
+        }
         return savedChart;
     }
 
@@ -435,9 +523,22 @@ export class SavedChartService {
         analytics.track({
             event: 'saved_chart.created',
             userId: user.userUuid,
-            properties:
-                SavedChartService.getCreateEventProperties(newSavedChart),
+            properties: {
+                ...SavedChartService.getCreateEventProperties(newSavedChart),
+                dashboardId: newSavedChart.dashboardUuid ?? undefined,
+            },
         });
+
+        SavedChartService.getConditionalFormattingEventProperties(
+            newSavedChart,
+        )?.forEach((properties) => {
+            analytics.track({
+                event: 'conditional_formatting_rule.saved',
+                userId: user.userUuid,
+                properties,
+            });
+        });
+
         return newSavedChart;
     }
 
@@ -455,11 +556,27 @@ export class SavedChartService {
                 "You don't have access to the space this chart belongs to",
             );
         }
-        const duplicatedChart = {
+        let duplicatedChart: CreateSavedChart & {
+            updatedByUser: UpdatedByUser;
+        };
+        const base = {
             ...chart,
             name: `Copy of ${chart.name}`,
             updatedByUser: user,
         };
+        if (chart.dashboardUuid) {
+            duplicatedChart = {
+                ...base,
+                dashboardUuid: chart.dashboardUuid,
+                spaceUuid: null,
+            };
+        } else {
+            duplicatedChart = {
+                ...base,
+                dashboardUuid: null,
+            };
+        }
+
         const newSavedChart = await this.savedChartModel.create(
             projectUuid,
             user.userUuid,
@@ -474,6 +591,7 @@ export class SavedChartService {
             properties: {
                 ...newSavedChartProperties,
                 duplicated: true,
+                dashboardId: newSavedChart.dashboardUuid ?? undefined,
             },
         });
 

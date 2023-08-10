@@ -13,6 +13,7 @@ export enum ChartKind {
     SCATTER = 'scatter',
     AREA = 'area',
     MIXED = 'mixed',
+    PIE = 'pie',
     TABLE = 'table',
     BIG_NUMBER = 'big_number',
 }
@@ -21,6 +22,7 @@ export enum ChartType {
     CARTESIAN = 'cartesian',
     TABLE = 'table',
     BIG_NUMBER = 'big_number',
+    PIE = 'pie',
 }
 
 export enum ComparisonFormatTypes {
@@ -52,6 +54,39 @@ export type BigNumberConfig = {
     config?: BigNumber;
 };
 
+export const PieChartValueLabels = {
+    hidden: 'Hidden',
+    inside: 'Inside',
+    outside: 'Outside',
+} as const;
+
+export type PieChartValueLabel = keyof typeof PieChartValueLabels;
+
+export type PieChartValueOptions = {
+    valueLabel: PieChartValueLabel;
+    showValue: boolean;
+    showPercentage: boolean;
+};
+
+export type PieChart = {
+    groupFieldIds?: string[];
+    metricId?: string;
+    isDonut?: boolean;
+    valueLabel?: PieChartValueOptions['valueLabel'];
+    showValue?: PieChartValueOptions['showValue'];
+    showPercentage?: PieChartValueOptions['showPercentage'];
+    groupLabelOverrides?: Record<string, string>;
+    groupColorOverrides?: Record<string, string>;
+    groupValueOptionOverrides?: Record<string, Partial<PieChartValueOptions>>;
+    groupSortOverrides?: string[];
+    showLegend?: boolean;
+};
+
+export type PieChartConfig = {
+    type: ChartType.PIE;
+    config?: PieChart;
+};
+
 export type ColumnProperties = {
     visible?: boolean;
     name?: string;
@@ -81,9 +116,14 @@ export enum CartesianSeriesType {
     AREA = 'area',
 }
 
+export type PivotValue = {
+    field: string;
+    value: unknown;
+};
+
 export type PivotReference = {
     field: string;
-    pivotValues?: { field: string; value: unknown }[];
+    pivotValues?: PivotValue[];
 };
 
 export const isPivotReferenceWithValues = (
@@ -210,6 +250,7 @@ export type CartesianChartConfig = {
 };
 
 export type ChartConfig =
+    | PieChartConfig
     | BigNumberConfig
     | TableChartConfig
     | CartesianChartConfig;
@@ -237,21 +278,32 @@ export type SavedChart = {
     spaceName: string;
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
+    dashboardUuid: string | null;
+    dashboardName: string | null;
 };
 
-export type CreateSavedChart = Omit<
+type CreateChartBase = Pick<
     SavedChart,
-    | 'uuid'
-    | 'updatedAt'
-    | 'projectUuid'
-    | 'organizationUuid'
-    | 'spaceUuid'
-    | 'spaceName'
-    | 'pinnedListUuid'
-    | 'pinnedListOrder'
-    | 'views'
-    | 'firstViewedAt'
-> & { spaceUuid?: string };
+    | 'name'
+    | 'description'
+    | 'tableName'
+    | 'metricQuery'
+    | 'pivotConfig'
+    | 'chartConfig'
+    | 'tableConfig'
+>;
+
+export type CreateChartInSpace = CreateChartBase & {
+    spaceUuid?: string;
+    dashboardUuid?: null;
+};
+
+export type CreateChartInDashboard = CreateChartBase & {
+    dashboardUuid: string;
+    spaceUuid?: null;
+};
+
+export type CreateSavedChart = CreateChartInSpace | CreateChartInDashboard;
 
 export type CreateSavedChartVersion = Omit<
     SavedChart,
@@ -266,6 +318,8 @@ export type CreateSavedChartVersion = Omit<
     | 'pinnedListOrder'
     | 'views'
     | 'firstViewedAt'
+    | 'dashboardUuid'
+    | 'dashboardName'
 >;
 
 export type UpdateSavedChart = Partial<
@@ -315,6 +369,10 @@ export const isBigNumberConfig = (
 export const isTableChartConfig = (
     value: ChartConfig['config'],
 ): value is TableChart => !!value && !isCartesianChartConfig(value);
+
+export const isPieChartConfig = (
+    value: ChartConfig['config'],
+): value is PieChart => !!value && 'isDonut' in value;
 
 export const getCustomLabelsFromColumnProperties = (
     columns: Record<string, ColumnProperties> | undefined,
@@ -378,13 +436,28 @@ export const isSeriesWithMixedChartTypes = (
         ),
     ).size >= 2;
 
-export const getChartType = (
+export const getChartType = (chartKind: ChartKind | undefined): ChartType => {
+    if (chartKind === undefined) return ChartType.CARTESIAN;
+    switch (chartKind) {
+        case ChartKind.PIE:
+            return ChartType.PIE;
+        case ChartKind.BIG_NUMBER:
+            return ChartType.BIG_NUMBER;
+        case ChartKind.TABLE:
+            return ChartType.TABLE;
+        default:
+            return ChartType.CARTESIAN;
+    }
+};
+export const getChartKind = (
     chartType: ChartType,
     value: ChartConfig['config'],
 ): ChartKind | undefined => {
     if (value === undefined) return undefined;
 
     switch (chartType) {
+        case ChartType.PIE:
+            return ChartKind.PIE;
         case ChartType.BIG_NUMBER:
             return ChartKind.BIG_NUMBER;
         case ChartType.TABLE:
@@ -423,7 +496,10 @@ export const getChartType = (
 
             return undefined;
         default:
-            return undefined;
+            return assertUnreachable(
+                chartType,
+                `Unknown chart type: ${chartType}`,
+            );
     }
 };
 
@@ -437,7 +513,10 @@ export type ChartSummary = Pick<
     | 'projectUuid'
     | 'organizationUuid'
     | 'pinnedListUuid'
->;
+    | 'dashboardUuid'
+    | 'dashboardName'
+> & { chartType?: ChartType | undefined };
+
 export type ApiChartSummaryListResponse = {
     status: 'ok';
     results: ChartSummary[];

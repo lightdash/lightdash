@@ -1,7 +1,5 @@
 import {
-    ChartConfig,
-    ChartType,
-    getChartType,
+    ChartKind,
     NotFoundError,
     OrganizationMemberRole,
     ProjectMemberRole,
@@ -83,6 +81,16 @@ export class SpaceModel {
                     'projects.organization_id',
                 )
                 .leftJoin(
+                    PinnedSpaceTableName,
+                    `${PinnedSpaceTableName}.space_uuid`,
+                    `${SpaceTableName}.space_uuid`,
+                )
+                .leftJoin(
+                    PinnedListTableName,
+                    `${PinnedListTableName}.pinned_list_uuid`,
+                    `${PinnedSpaceTableName}.pinned_list_uuid`,
+                )
+                .leftJoin(
                     'space_share',
                     'space_share.space_id',
                     'spaces.space_id',
@@ -93,9 +101,12 @@ export class SpaceModel {
                     'shared_with.user_id',
                 )
                 .groupBy(
+                    `${PinnedListTableName}.pinned_list_uuid`,
+                    `${PinnedSpaceTableName}.order`,
                     'organizations.organization_uuid',
                     'projects.project_uuid',
                     'spaces.space_uuid',
+                    'spaces.space_id',
                 )
                 .select({
                     organizationUuid: 'organizations.organization_uuid',
@@ -106,6 +117,20 @@ export class SpaceModel {
                     access: this.database.raw(
                         "COALESCE(json_agg(shared_with.user_uuid) FILTER (WHERE shared_with.user_uuid IS NOT NULL), '[]')",
                     ),
+                    pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
+                    pinnedListOrder: `${PinnedSpaceTableName}.order`,
+                    chartCount: this.database
+                        .countDistinct(`${SavedChartsTableName}.saved_query_id`)
+                        .from(SavedChartsTableName)
+                        .whereRaw(
+                            `${SavedChartsTableName}.space_id = ${SpaceTableName}.space_id`,
+                        ),
+                    dashboardCount: this.database
+                        .countDistinct(`${DashboardsTableName}.dashboard_id`)
+                        .from(DashboardsTableName)
+                        .whereRaw(
+                            `${DashboardsTableName}.space_id = ${SpaceTableName}.space_id`,
+                        ),
                 });
             if (filters.projectUuid) {
                 query.where('projects.project_uuid', filters.projectUuid);
@@ -389,13 +414,8 @@ export class SpaceModel {
                 `${SpaceTableName}.space_id`,
             )
             .leftJoin(
-                'saved_queries_versions',
-                `saved_queries.saved_query_id`,
-                `saved_queries_versions.saved_query_id`,
-            )
-            .leftJoin(
                 'users',
-                'saved_queries_versions.updated_by_user_uuid',
+                'saved_queries.last_version_updated_by_user_uuid',
                 'users.user_uuid',
             )
             .leftJoin(
@@ -419,8 +439,7 @@ export class SpaceModel {
                     last_name: string;
                     views: string;
                     first_viewed_at: Date | null;
-                    chart_config: ChartConfig['config'];
-                    chart_type: ChartType;
+                    chart_kind: ChartKind;
                     pinned_list_uuid: string;
                     order: number;
                     validation_errors: DbValidationTable[];
@@ -429,7 +448,7 @@ export class SpaceModel {
                 `saved_queries.saved_query_uuid`,
                 `saved_queries.name`,
                 `saved_queries.description`,
-                `saved_queries_versions.created_at`,
+                `saved_queries.last_version_updated_at as created_at`,
                 `users.user_uuid`,
                 `users.first_name`,
                 `users.last_name`,
@@ -439,8 +458,7 @@ export class SpaceModel {
                 this.database.raw(
                     `(SELECT ${AnalyticsChartViewsTableName}.timestamp FROM ${AnalyticsChartViewsTableName} WHERE ${AnalyticsChartViewsTableName}.chart_uuid = saved_queries.saved_query_uuid ORDER BY ${AnalyticsChartViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
                 ),
-                `saved_queries_versions.chart_config`,
-                `saved_queries_versions.chart_type`,
+                `saved_queries.last_version_chart_kind as chart_kind`,
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedChartTableName}.order`,
                 this.database.raw(`
@@ -453,16 +471,8 @@ export class SpaceModel {
                     ) as validation_errors
                 `),
             ])
-            .orderBy([
-                {
-                    column: `saved_queries_versions.saved_query_id`,
-                },
-                {
-                    column: `saved_queries_versions.created_at`,
-                    order: 'desc',
-                },
-            ])
-            .distinctOn(`saved_queries_versions.saved_query_id`)
+            .orderBy(`saved_queries.last_version_updated_at`, 'desc')
+
             .where(`${SpaceTableName}.space_uuid`, spaceUuid);
 
         return savedQueries.map((savedQuery) => ({
@@ -478,10 +488,7 @@ export class SpaceModel {
             spaceUuid,
             views: parseInt(savedQuery.views, 10),
             firstViewedAt: savedQuery.first_viewed_at,
-            chartType: getChartType(
-                savedQuery.chart_type,
-                savedQuery.chart_config,
-            ),
+            chartType: savedQuery.chart_kind,
             pinnedListUuid: savedQuery.pinned_list_uuid,
             pinnedListOrder: savedQuery.order,
             validationErrors: savedQuery.validation_errors.map(

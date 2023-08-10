@@ -25,11 +25,18 @@ import { useHistory, useLocation } from 'react-router-dom';
 
 import { GLOBAL_SEARCH_MIN_QUERY_LENGTH } from '../../../hooks/globalSearch/useGlobalSearch';
 import { useProject } from '../../../hooks/useProject';
+import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { SearchItem, useDebouncedSearch } from './hooks';
-import { SearchIcon } from './SearchIcon';
+import { SearchIcon, SearchIconWithIndicator } from './SearchIcon';
+
+const itemHasValidationError = (searchItem: SearchItem) =>
+    searchItem.item &&
+    ['dashboard', 'saved_chart', 'table'].includes(searchItem.type) &&
+    'validationErrors' in searchItem.item &&
+    searchItem.item.validationErrors?.length > 0;
 
 const useStyles = createStyles<string, null>((theme) => ({
     action: {
@@ -132,6 +139,8 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
     const { track } = useTracking();
     const project = useProject(projectUuid);
 
+    const canUserManageValidation = useValidationUserAbility(projectUuid);
+
     const [query, setQuery] = useState<string>();
 
     const handleSpotlightOpenInputClick: MouseEventHandler<HTMLInputElement> = (
@@ -167,7 +176,15 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
     const searchItems = useMemo(() => {
         return items.map<SpotlightAction>((item) => ({
             item,
-            icon: <SearchIcon searchItem={item} />,
+            icon: itemHasValidationError(item) ? (
+                <SearchIconWithIndicator
+                    searchResult={item}
+                    projectUuid={projectUuid}
+                    canUserManageValidation={canUserManageValidation}
+                />
+            ) : (
+                <SearchIcon searchItem={item} />
+            ),
             title: item.title,
             description: item.description,
             onTrigger: () => {
@@ -196,7 +213,14 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
                 }
             },
         }));
-    }, [items, history, location.pathname, track]);
+    }, [
+        items,
+        projectUuid,
+        canUserManageValidation,
+        track,
+        history,
+        location.pathname,
+    ]);
 
     const os = useOs();
 

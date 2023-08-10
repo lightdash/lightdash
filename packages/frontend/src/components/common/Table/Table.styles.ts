@@ -1,8 +1,13 @@
 import { Colors, HTMLTable } from '@blueprintjs/core';
+import { getDefaultZIndex } from '@mantine/core';
 import { transparentize } from 'polished';
 import styled, { css } from 'styled-components';
 
-export const TABLE_HEADER_BG = Colors.LIGHT_GRAY4;
+// This color is is the default Mantine gray[0]
+export const TABLE_HEADER_BG = '#f8f9fa';
+
+// Needed for virtualization. Matches value from Pivot table.
+export const ROW_HEIGHT_PX = 34;
 
 export const TableScrollableWrapper = styled.div`
     display: flex;
@@ -21,9 +26,9 @@ interface TableContainerProps {
 export const TableContainer = styled.div<TableContainerProps>`
     display: flex;
     flex-direction: column;
-    padding: ${({ $padding = 10 }) => `${$padding}px`};
     min-width: 100%;
     overflow: hidden;
+    padding: ${({ $padding = 0 }) => `${$padding}px`};
 
     ${({ $shouldExpand }) =>
         $shouldExpand
@@ -51,12 +56,12 @@ export const Table = styled(HTMLTable)<{ $showFooter: boolean }>`
         inset-block-start: 0; /* "top" */
 
         th:first-child {
-            border-top: none !important;
+            border-top: 1px solid #dcdcdd;
             border-bottom: none !important;
         }
 
         th {
-            border-top: none !important;
+            border-top: 1px solid #dcdcdd;
             border-bottom: none !important;
         }
     }
@@ -87,9 +92,6 @@ export const Table = styled(HTMLTable)<{ $showFooter: boolean }>`
         background-color: white;
         word-break: break-word;
     }
-    .first-sticky-column {
-        box-shadow: lightgray -1px 0px 0px 0px, lightgray 0px 1px 0px 0px inset !important;
-    }
     .last-sticky-column {
         border-right: 2px solid darkgray;
     }
@@ -109,8 +111,15 @@ export const TableFooter = styled.div`
     margin-top: 10px;
 `;
 
+const FontSyles = `
+    font-size: 13px;
+    font-family: Inter, sans-serif;
+`;
+
 const CellStyles = css<{ $isNaN: boolean }>`
     text-align: ${({ $isNaN }) => ($isNaN ? 'left' : 'right')} !important;
+    padding: 8.5px !important;
+    ${FontSyles}
 `;
 
 export const Tr = styled.tr<{
@@ -148,6 +157,7 @@ export const Td = styled.td<{
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    height: ${ROW_HEIGHT_PX}px;
 
     ${({ $isLargeText, $isSelected, $isMinimal }) =>
         $isLargeText
@@ -173,7 +183,7 @@ export const Td = styled.td<{
         $isSelected
             ? `
                 position: relative;
-                z-index: 21;
+                z-index: ${getDefaultZIndex('popover') + 1} !important;
             `
             : ''}
 
@@ -255,7 +265,9 @@ export const ThActionsContainer = styled.div`
     }
 `;
 
-export const TableHeaderLabelContainer = styled.div``;
+export const TableHeaderLabelContainer = styled.div`
+    ${FontSyles}
+`;
 
 export const TableHeaderRegularLabel = styled.span`
     font-weight: 400;

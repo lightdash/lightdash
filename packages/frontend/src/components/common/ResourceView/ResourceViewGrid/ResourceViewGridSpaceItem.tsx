@@ -4,9 +4,9 @@ import {
     Flex,
     Group,
     Paper,
-    Popover,
     Stack,
     Text,
+    Tooltip,
     useMantineTheme,
 } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
@@ -18,7 +18,7 @@ import {
     IconUser,
     IconUsers,
 } from '@tabler/icons-react';
-import { FC, useMemo } from 'react';
+import { FC, ReactNode, useMemo } from 'react';
 
 import { ResourceIcon } from '../../ResourceIcon';
 import ResourceViewActionMenu, {
@@ -28,6 +28,7 @@ import ResourceViewActionMenu, {
 interface ResourceViewGridSpaceItemProps
     extends Pick<ResourceViewActionMenuCommonProps, 'onAction'> {
     item: ResourceViewSpaceItem;
+    dragIcon: ReactNode;
 }
 
 enum ResourceAccess {
@@ -100,6 +101,7 @@ const AttributeCount: FC<{ Icon: IconType; count: number }> = ({
 const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
     item,
     onAction,
+    dragIcon,
 }) => {
     const { hovered, ref } = useHover();
     const [opened, handlers] = useDisclosure(false);
@@ -127,91 +129,81 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
     }, [item]);
 
     return (
-        <Popover
-            position="top"
-            opened={hovered || opened}
-            withArrow
-            styles={{
-                dropdown: { backgroundColor: theme.colors.dark[6] },
-                arrow: { backgroundColor: theme.colors.dark[6] },
-            }}
+        <Paper
+            ref={ref}
+            pos="relative"
+            p={0}
+            withBorder
+            bg={hovered ? theme.fn.rgba(theme.colors.gray[0], 0.5) : undefined}
+            h="100%"
         >
-            <Popover.Target>
-                <Paper
-                    ref={ref}
-                    p={0}
-                    withBorder
-                    bg={
-                        hovered
-                            ? theme.fn.rgba(theme.colors.gray[0], 0.5)
-                            : undefined
-                    }
-                    h="100%"
-                >
-                    <Group p="md" align="center" spacing="md" noWrap>
-                        <ResourceIcon item={item} />
+            <Group p="md" align="center" spacing="md" noWrap>
+                {dragIcon}
+                <ResourceIcon item={item} />
 
-                        <Stack spacing={4} sx={{ flexGrow: 1, flexShrink: 1 }}>
-                            <Text
-                                lineClamp={1}
-                                fz="sm"
-                                fw={600}
-                                sx={{ overflowWrap: 'anywhere' }}
-                            >
-                                {item.data.name}
+                <Tooltip
+                    position="top"
+                    withArrow
+                    label={
+                        <Stack spacing={4}>
+                            <Text lineClamp={1} fz="xs" fw={600} color="white">
+                                {tooltipText}
                             </Text>
-
-                            <Group spacing="sm">
-                                <Flex align="center" gap={4}>
-                                    <AccessInfo item={item} />
-                                </Flex>
+                            <Group>
+                                <AttributeCount
+                                    Icon={IconLayoutDashboard}
+                                    count={item.data.dashboardCount}
+                                />
+                                <AttributeCount
+                                    Icon={IconChartBar}
+                                    count={item.data.chartCount}
+                                />
                             </Group>
                         </Stack>
-                        <Box
-                            sx={{
-                                flexGrow: 0,
-                                flexShrink: 0,
-                                // FIXME: change logic to use position absolute
-                                // transition: 'opacity 0.2s',
-                                // opacity: hovered || opened ? 1 : 0,
-                                display: hovered || opened ? 'block' : 'none',
-                            }}
-                            component="div"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                            }}
+                    }
+                >
+                    <Stack spacing={4} sx={{ flexGrow: 1, flexShrink: 1 }}>
+                        <Text
+                            lineClamp={1}
+                            fz="sm"
+                            fw={600}
+                            sx={{ overflowWrap: 'anywhere' }}
                         >
-                            <ResourceViewActionMenu
-                                item={item}
-                                isOpen={opened}
-                                onOpen={handlers.open}
-                                onClose={handlers.close}
-                                onAction={onAction}
-                            />
-                        </Box>
-                    </Group>
-                </Paper>
-            </Popover.Target>
+                            {item.data.name}
+                        </Text>
 
-            <Popover.Dropdown>
-                <Stack spacing={4}>
-                    <Text lineClamp={1} fz="sm" fw={600} color="white">
-                        {tooltipText}
-                    </Text>
-                    <Group>
-                        <AttributeCount
-                            Icon={IconLayoutDashboard}
-                            count={item.data.dashboardCount}
-                        />
-                        <AttributeCount
-                            Icon={IconChartBar}
-                            count={item.data.chartCount}
-                        />
-                    </Group>
-                </Stack>
-            </Popover.Dropdown>
-        </Popover>
+                        <Group spacing="sm">
+                            <Flex align="center" gap={4}>
+                                <AccessInfo item={item} />
+                            </Flex>
+                        </Group>
+                    </Stack>
+                </Tooltip>
+                <Box
+                    sx={{
+                        flexGrow: 0,
+                        flexShrink: 0,
+                        // FIXME: change logic to use position absolute
+                        // transition: 'opacity 0.2s',
+                        // opacity: hovered || opened ? 1 : 0,
+                        display: hovered || opened ? 'block' : 'none',
+                    }}
+                    component="div"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }}
+                >
+                    <ResourceViewActionMenu
+                        item={item}
+                        isOpen={opened}
+                        onOpen={handlers.open}
+                        onClose={handlers.close}
+                        onAction={onAction}
+                    />
+                </Box>
+            </Group>
+        </Paper>
     );
 };
 

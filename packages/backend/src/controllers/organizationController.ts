@@ -6,12 +6,14 @@ import {
     ApiOrganizationAllowedEmailDomains,
     ApiOrganizationMemberProfile,
     ApiOrganizationMemberProfiles,
+    ApiOrganizationProjects,
     ApiSuccessEmpty,
     CreateGroup,
     CreateOrganization,
     OrganizationMemberProfileUpdate,
     UpdateAllowedEmailDomains,
     UpdateOrganization,
+    UUID,
 } from '@lightdash/common';
 import express from 'express';
 import {
@@ -140,6 +142,23 @@ export class OrganizationController extends Controller {
     }
 
     /**
+     * Gets all projects of the current user's organization
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/projects')
+    @OperationId('ListOrganizationProjects')
+    async getProjects(
+        @Request() req: express.Request,
+    ): Promise<ApiOrganizationProjects> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await organizationService.getProjects(req.user!),
+        };
+    }
+
+    /**
      * Gets all the members of the current user's organization
      * @param req express request
      */
@@ -157,12 +176,38 @@ export class OrganizationController extends Controller {
     }
 
     /**
+     * Get the member profile for a user in the current user's organization by uuid
+     * @param req express request
+     * @param userUuid the uuid of the user
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/users/{userUuid}')
+    @OperationId('GetOrganizationMemberByUuid')
+    async getOrganizationMemberByUuid(
+        @Request() req: express.Request,
+        @Path() userUuid: UUID,
+    ): Promise<ApiOrganizationMemberProfile> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await organizationService.getMemberByUuid(
+                req.user!,
+                userUuid,
+            ),
+        };
+    }
+
+    /**
      * Updates the membership profile for a user in the current user's organization
      * @param req express request
      * @param userUuid the uuid of the user to update
      * @param body the new membership profile
      */
-    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @Patch('/users/{userUuid}')
     @OperationId('UpdateOrganizationMember')
     @Tags('Roles & Permissions')
@@ -222,8 +267,9 @@ export class OrganizationController extends Controller {
     }
 
     /**
-     * Gets the allowed email domains for the current user's organization
+     * Updates the allowed email domains for the current user's organization
      * @param req express request
+     * @param body the new allowed email domains
      */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @Patch('/allowedEmailDomains')
@@ -245,6 +291,7 @@ export class OrganizationController extends Controller {
     /**
      * Creates a new group in the current user's organization
      * @param req express request
+     * @param body the new group details
      */
     @Middlewares([
         allowApiKeyAuthentication,

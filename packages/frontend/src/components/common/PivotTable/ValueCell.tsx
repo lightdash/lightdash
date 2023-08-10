@@ -1,15 +1,17 @@
 import {
     ConditionalFormattingConfig,
     Field,
+    getConditionalFormattingColor,
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
+    isNumericItem,
     ResultValue,
     TableCalculation,
 } from '@lightdash/common';
-import { useClipboard, useHotkeys } from '@mantine/hooks';
-import { FC, useCallback, useMemo, useState } from 'react';
+import { getHotkeyHandler, useClipboard } from '@mantine/hooks';
+import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 
-import { isHexCodeColor, readableColor } from '../../../utils/colorUtils';
+import { getColorFromRange, readableColor } from '../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../Filters/configs';
 import Cell, { CellProps } from './Cell';
 import { usePivotTableCellStyles } from './tableStyles';
@@ -26,6 +28,8 @@ interface ValueCellProps extends CellProps {
         rowIndex: number,
     ) => Record<string, ResultValue>;
 }
+
+const SMALL_TEXT_LENGTH = 30;
 
 const ValueCell: FC<ValueCellProps> = ({
     item,
@@ -50,16 +54,21 @@ const ValueCell: FC<ValueCellProps> = ({
             getConditionalRuleLabel,
         );
 
-        if (
-            !conditionalFormattingConfig ||
-            !isHexCodeColor(conditionalFormattingConfig.color)
-        )
+        const conditionalFormattingColor = getConditionalFormattingColor(
+            item,
+            value?.raw,
+            conditionalFormattingConfig,
+            getColorFromRange,
+        );
+
+        if (!conditionalFormattingColor) {
             return undefined;
+        }
 
         return {
             tooltipContent,
-            color: readableColor(conditionalFormattingConfig.color),
-            backgroundColor: conditionalFormattingConfig.color,
+            color: readableColor(conditionalFormattingColor),
+            backgroundColor: conditionalFormattingColor,
         };
     }, [conditionalFormattings, item, value]);
 
@@ -73,11 +82,22 @@ const ValueCell: FC<ValueCellProps> = ({
         }
     }, [clipboard, value, isMenuOpen]);
 
-    useHotkeys([['mod+c', handleCopy]]);
-
     const { cx, classes } = usePivotTableCellStyles({
         conditionalFormatting,
     });
+
+    const formattedValue = value?.formatted;
+
+    useEffect(() => {
+        const handleKeyDown = getHotkeyHandler([['mod+C', handleCopy]]);
+        if (isMenuOpen) {
+            document.body.addEventListener('keydown', handleKeyDown);
+        }
+
+        return () => {
+            document.body.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [handleCopy, isMenuOpen]);
 
     return (
         <ValueCellMenu
@@ -92,9 +112,15 @@ const ValueCell: FC<ValueCellProps> = ({
             onClose={() => setIsMenuOpen(false)}
         >
             <Cell
-                withValue={!!value?.formatted}
+                withValue={!!formattedValue}
+                withNumericValue={isNumericItem(item)}
                 className={cx(
-                    { [classes.conditionalFormatting]: conditionalFormatting },
+                    {
+                        [classes.conditionalFormatting]: conditionalFormatting,
+                        [classes.withLargeText]:
+                            formattedValue &&
+                            formattedValue?.length > SMALL_TEXT_LENGTH,
+                    },
                     rest.className,
                 )}
                 data-conditional-formatting={!!conditionalFormatting}
@@ -102,7 +128,7 @@ const ValueCell: FC<ValueCellProps> = ({
                 tooltipContent={conditionalFormatting?.tooltipContent}
                 {...rest}
             >
-                {value?.formatted}
+                {formattedValue}
             </Cell>
         </ValueCellMenu>
     );

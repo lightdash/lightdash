@@ -1,4 +1,5 @@
 import { WeekDay } from '../utils/timeFrames';
+import { SupportedDbtAdapter } from './dbt';
 import { DimensionType, Metric } from './field';
 import { CreateWarehouseCredentials } from './projects';
 
@@ -23,7 +24,10 @@ export interface WarehouseClient {
         }[],
     ) => Promise<WarehouseCatalog>;
 
-    runQuery(sql: string): Promise<{
+    runQuery(
+        sql: string,
+        tags?: Record<string, string>,
+    ): Promise<{
         fields: Record<string, { type: DimensionType }>;
         rows: Record<string, any>[];
     }>;
@@ -31,6 +35,8 @@ export interface WarehouseClient {
     test(): Promise<void>;
 
     getStartOfWeek(): WeekDay | null | undefined;
+
+    getAdapterType(): SupportedDbtAdapter;
 
     getFieldQuoteChar(): string;
 

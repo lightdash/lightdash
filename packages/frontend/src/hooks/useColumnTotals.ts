@@ -4,9 +4,9 @@ import {
     Field,
     FieldId,
     getItemId,
-    isAdditionalMetric,
     isDimension,
-    isField,
+    isTableCalculation,
+    Item,
     MetricType,
     ResultRow,
     TableCalculation,
@@ -18,20 +18,24 @@ type Args = {
     itemsMap: Record<FieldId, Field | TableCalculation>;
 };
 
-export const isSummable = (item: Field | TableCalculation) => {
-    if (isField(item) || isAdditionalMetric(item)) {
-        const numericTypes: string[] = [
-            DimensionType.NUMBER,
-            MetricType.NUMBER,
-            MetricType.COUNT,
-            MetricType.COUNT_DISTINCT,
-            MetricType.SUM,
-        ];
-        const isPercent = item.format === 'percent';
-        const isDatePart = isDimension(item) && item.timeInterval;
-        return numericTypes.includes(item.type) && !isPercent && !isDatePart;
+export const isSummable = (item: Item | undefined) => {
+    if (!item) {
+        return false;
     }
-    return true;
+
+    if (isTableCalculation(item)) {
+        return false;
+    }
+
+    const numericTypes: string[] = [
+        DimensionType.NUMBER,
+        MetricType.NUMBER,
+        MetricType.COUNT,
+        MetricType.SUM,
+    ];
+    const isPercent = item.format === 'percent';
+    const isDatePart = isDimension(item) && item.timeInterval;
+    return numericTypes.includes(item.type) && !isPercent && !isDatePart;
 };
 
 const getResultColumnTotals = (

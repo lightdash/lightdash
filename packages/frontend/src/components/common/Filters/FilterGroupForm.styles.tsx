@@ -2,7 +2,8 @@ import { Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const FilterGroupWrapper = styled.div`
-    margin: 10px 10px 20px 10px;
+    position: relative;
+    margin-bottom: 10px;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;

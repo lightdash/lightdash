@@ -155,19 +155,41 @@ module.exports = {
             type: 'category',
             label: 'References',
             items: [
-                'references/tables',
+                {
+                    type: 'doc',
+                    id: 'references/dimensions',
+                    label: 'Dimensions',
+                },
+                {
+                    type: 'doc',
+                    id: 'references/metrics',
+                    label: 'Metrics',
+                },
+                {
+                    type: 'doc',
+                    id: 'references/tables',
+                    label: 'Tables',
+                },
+                {
+                    type: 'doc',
+                    id: 'references/joins',
+                    label: 'Joins',
+                },
+                'references/syncing_your_dbt_changes',
                 'references/personal_tokens',
                 'references/ip_addresses',
                 'references/usage-analytics',
-                'references/dimensions',
-                'references/metrics',
-                'references/joins',
-                'references/syncing_your_dbt_changes',
-                'references/filters',
-                'references/roles'
-            ]
+                {
+                    type: 'doc',
+                    id: 'references/filters',
+                    label: 'Filters',
+                },
+                'references/roles',
+                'references/user-attributes',
+                'references/sql-variables',
+            ],
         },
-                        
+
         {
             type: 'category',
             label: 'Lightdash University: Best Practice',

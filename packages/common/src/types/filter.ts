@@ -1,9 +1,4 @@
-import {
-    ConditionalOperator as FilterOperator,
-    ConditionalRule,
-} from './conditionalRule';
-
-export { FilterOperator };
+import { ConditionalOperator, ConditionalRule } from './conditionalRule';
 
 export enum FilterType {
     STRING = 'string',
@@ -41,7 +36,7 @@ export type FieldTarget = {
 };
 
 export interface FilterRule<
-    O = FilterOperator,
+    O = ConditionalOperator,
     T = FieldTarget,
     V = any,
     S = any,
@@ -49,7 +44,11 @@ export interface FilterRule<
     id: string;
     target: T;
     settings?: S;
+    disabled?: boolean;
 }
+
+export interface MetricFilterRule
+    extends FilterRule<ConditionalOperator, { fieldRef: string }> {}
 
 export type DashboardFieldTarget = {
     fieldId: string;
@@ -57,7 +56,7 @@ export type DashboardFieldTarget = {
 };
 
 export type DashboardFilterRule<
-    O = FilterOperator,
+    O = ConditionalOperator,
     T extends DashboardFieldTarget = DashboardFieldTarget,
     V = any,
     S = any,
@@ -67,8 +66,8 @@ export type DashboardFilterRule<
 };
 
 export type DateFilterRule = FilterRule<
-    FilterOperator,
-    FieldTarget,
+    ConditionalOperator,
+    unknown,
     any,
     {
         unitOfTime?: UnitOfTime;
@@ -99,6 +98,15 @@ export type Filters = {
 export type DashboardFilters = {
     dimensions: DashboardFilterRule[];
     metrics: DashboardFilterRule[];
+};
+
+export type DashboardFiltersFromSearchParam = {
+    dimensions: (Omit<DashboardFilterRule, 'tileTargets'> & {
+        tileTargets?: (string | Record<string, DashboardFieldTarget>)[];
+    })[];
+    metrics: (Omit<DashboardFilterRule, 'tileTargets'> & {
+        tileTargets?: (string | Record<string, DashboardFieldTarget>)[];
+    })[];
 };
 
 /* Utils */
@@ -172,3 +180,73 @@ export const convertDashboardFiltersToFilters = (
     }
     return filters;
 };
+
+const isDashboardTileTargetFilterOverride = (
+    filter: string | Record<string, DashboardFieldTarget>,
+): filter is Record<string, DashboardFieldTarget> => typeof filter === 'object';
+
+export const convertDashboardFiltersParamToDashboardFilters = (
+    dashboardFilters: DashboardFiltersFromSearchParam,
+): DashboardFilters =>
+    Object.entries(dashboardFilters).reduce(
+        (result, [key, value]) => ({
+            ...result,
+            [key]: value.map((f) => ({
+                ...f,
+                ...(f.tileTargets && {
+                    tileTargets: f.tileTargets.reduce<
+                        Record<string, DashboardFieldTarget>
+                    >(
+                        (tileTargetsResult, tileTarget) => ({
+                            ...tileTargetsResult,
+                            ...(isDashboardTileTargetFilterOverride(tileTarget)
+                                ? {
+                                      [Object.keys(tileTarget)[0]]: {
+                                          fieldId:
+                                              tileTarget[
+                                                  Object.keys(tileTarget)[0]
+                                              ].fieldId,
+                                          tableName:
+                                              tileTarget[
+                                                  Object.keys(tileTarget)[0]
+                                              ].tableName,
+                                      },
+                                  }
+                                : {
+                                      [tileTarget]: {
+                                          fieldId: f.target.fieldId,
+                                          tableName: f.target.tableName,
+                                      },
+                                  }),
+                        }),
+                        {},
+                    ),
+                }),
+            })),
+        }),
+        { dimensions: [], metrics: [] },
+    );
+
+export const compressDashboardFiltersToParam = (
+    dashboardFilters: DashboardFilters,
+): DashboardFiltersFromSearchParam =>
+    Object.entries(dashboardFilters).reduce(
+        (result, [key, value]) => ({
+            ...result,
+            [key]: value.map((f) => ({
+                ...f,
+                ...(f.tileTargets && {
+                    tileTargets: Object.entries(f.tileTargets).map(
+                        ([tileTargetKey, tileTargetValue]) =>
+                            tileTargetValue.fieldId === f.target.fieldId &&
+                            tileTargetValue.tableName === f.target.tableName
+                                ? tileTargetKey
+                                : { [tileTargetKey]: tileTargetValue },
+                    ),
+                }),
+            })),
+        }),
+        { dimensions: [], metrics: [] },
+    );
+
+export { ConditionalOperator as FilterOperator };

@@ -1,10 +1,10 @@
-import { DbtError } from '@lightdash/common';
+import { DbtError, SupportedDbtVersions } from '@lightdash/common';
 import execa from 'execa';
 import * as fs from 'fs/promises';
 import { DbtCliClient } from './dbtCliClient';
 import {
     catalogMock,
-    cliArgs,
+    cliArgs as cliArgsWithoutVersion,
     cliMockImplementation,
     dbtProjectYml,
     expectedCommandOptions,
@@ -22,93 +22,102 @@ jest.mock('fs/promises', () => ({
 }));
 jest.mock('execa');
 
-describe('DbtCliClient', () => {
-    beforeEach(() => {
-        jest.resetAllMocks();
-    });
-    it('should install dependencies with success', async () => {
-        execaMock.mockImplementationOnce(cliMockImplementation.success);
-
-        const client = new DbtCliClient(cliArgs);
-
-        await expect(client.installDeps()).resolves.toEqual(undefined);
-        await expect(execaMock).toHaveBeenCalledTimes(1);
-        await expect(execaMock).toHaveBeenCalledWith(
-            'dbt',
-            [...expectedDbtOptions, 'deps', ...expectedCommandOptions],
-            expect.anything(),
-        );
-    });
-    it('should error on install dependencies', async () => {
-        execaMock.mockImplementationOnce(cliMockImplementation.error);
-
-        const client = new DbtCliClient(cliArgs);
-
-        await expect(client.installDeps()).rejects.toThrowError(DbtError);
-    });
-    it('should get manifest with success', async () => {
-        execaMock.mockImplementationOnce(cliMockImplementation.success);
-        jest.spyOn(fs, 'readFile').mockImplementationOnce(
-            async () => dbtProjectYml,
-        );
-        jest.spyOn(fs, 'readFile').mockImplementationOnce(async () =>
-            JSON.stringify(manifestMock),
-        );
-
-        const client = new DbtCliClient(cliArgs);
-
-        await expect(client.getDbtManifest()).resolves.toEqual({
-            manifest: manifestMock,
+Object.values(SupportedDbtVersions).map((dbtVersion) => {
+    const cliArgs = {
+        ...cliArgsWithoutVersion,
+        dbtVersion,
+    };
+    return describe(`DbtCliClient ${dbtVersion}`, () => {
+        beforeEach(() => {
+            jest.resetAllMocks();
         });
-        await expect(execaMock).toHaveBeenCalledTimes(1);
-        await expect(execaMock).toHaveBeenCalledWith(
-            'dbt',
-            [...expectedDbtOptions, 'compile', ...expectedCommandOptions],
-            expect.anything(),
-        );
-    });
-    it('should get catalog with success', async () => {
-        execaMock.mockImplementationOnce(cliMockImplementation.success);
-        jest.spyOn(fs, 'readFile').mockImplementationOnce(
-            async () => dbtProjectYml,
-        );
-        jest.spyOn(fs, 'readFile').mockImplementationOnce(async () =>
-            JSON.stringify(catalogMock),
-        );
+        it('should install dependencies with success', async () => {
+            execaMock.mockImplementationOnce(cliMockImplementation.success);
 
-        const client = new DbtCliClient(cliArgs);
+            const client = new DbtCliClient(cliArgs);
+            const dbtExec = client.getDbtExec();
 
-        await expect(client.getDbtCatalog()).resolves.toEqual(catalogMock);
-        await expect(execaMock).toHaveBeenCalledTimes(1);
-        await expect(execaMock).toHaveBeenCalledWith(
-            'dbt',
-            [
-                ...expectedDbtOptions,
-                'docs',
-                'generate',
-                ...expectedCommandOptions,
-            ],
-            expect.anything(),
-        );
-    });
-    it('should get packages with success', async () => {
-        jest.spyOn(fs, 'readFile').mockImplementationOnce(
-            async () => packagesYml,
-        );
-
-        const client = new DbtCliClient(cliArgs);
-
-        await expect(client.getDbtPackages()).resolves.toEqual(
-            expectedPackages,
-        );
-    });
-    it('should ignore error when packages.yml doesnt exist', async () => {
-        jest.spyOn(fs, 'readFile').mockImplementationOnce(() => {
-            throw new Error('file not found');
+            await expect(client.installDeps()).resolves.toEqual(undefined);
+            await expect(execaMock).toHaveBeenCalledTimes(1);
+            await expect(execaMock).toHaveBeenCalledWith(
+                dbtExec,
+                [...expectedDbtOptions, 'deps', ...expectedCommandOptions],
+                expect.anything(),
+            );
         });
+        it('should error on install dependencies', async () => {
+            execaMock.mockImplementationOnce(cliMockImplementation.error);
 
-        const client = new DbtCliClient(cliArgs);
+            const client = new DbtCliClient(cliArgs);
 
-        await expect(client.getDbtPackages()).resolves.toBeUndefined();
+            await expect(client.installDeps()).rejects.toThrowError(DbtError);
+        });
+        it('should get manifest with success', async () => {
+            execaMock.mockImplementationOnce(cliMockImplementation.success);
+            jest.spyOn(fs, 'readFile').mockImplementationOnce(
+                async () => dbtProjectYml,
+            );
+            jest.spyOn(fs, 'readFile').mockImplementationOnce(async () =>
+                JSON.stringify(manifestMock),
+            );
+
+            const client = new DbtCliClient(cliArgs);
+            const dbtExec = client.getDbtExec();
+
+            await expect(client.getDbtManifest()).resolves.toEqual({
+                manifest: manifestMock,
+            });
+            await expect(execaMock).toHaveBeenCalledTimes(1);
+            await expect(execaMock).toHaveBeenCalledWith(
+                dbtExec,
+                [...expectedDbtOptions, 'compile', ...expectedCommandOptions],
+                expect.anything(),
+            );
+        });
+        it('should get catalog with success', async () => {
+            execaMock.mockImplementationOnce(cliMockImplementation.success);
+            jest.spyOn(fs, 'readFile').mockImplementationOnce(
+                async () => dbtProjectYml,
+            );
+            jest.spyOn(fs, 'readFile').mockImplementationOnce(async () =>
+                JSON.stringify(catalogMock),
+            );
+
+            const client = new DbtCliClient(cliArgs);
+            const dbtExec = client.getDbtExec();
+
+            await expect(client.getDbtCatalog()).resolves.toEqual(catalogMock);
+            await expect(execaMock).toHaveBeenCalledTimes(1);
+            await expect(execaMock).toHaveBeenCalledWith(
+                dbtExec,
+                [
+                    ...expectedDbtOptions,
+                    'docs',
+                    'generate',
+                    ...expectedCommandOptions,
+                ],
+                expect.anything(),
+            );
+        });
+        it('should get packages with success', async () => {
+            jest.spyOn(fs, 'readFile').mockImplementationOnce(
+                async () => packagesYml,
+            );
+
+            const client = new DbtCliClient(cliArgs);
+
+            await expect(client.getDbtPackages()).resolves.toEqual(
+                expectedPackages,
+            );
+        });
+        it('should ignore error when packages.yml doesnt exist', async () => {
+            jest.spyOn(fs, 'readFile').mockImplementationOnce(() => {
+                throw new Error('file not found');
+            });
+
+            const client = new DbtCliClient(cliArgs);
+
+            await expect(client.getDbtPackages()).resolves.toBeUndefined();
+        });
     });
 });

@@ -24,16 +24,17 @@ import * as styles from '../styles';
 import { dbtCompile, DbtCompileOptions } from './dbt/compile';
 import { getDbtVersion, isSupportedDbtVersion } from './dbt/getDbtVersion';
 
-type GenerateHandlerOptions = DbtCompileOptions & {
+export type CompileHandlerOptions = DbtCompileOptions & {
     projectDir: string;
     profilesDir: string;
     target: string | undefined;
     profile: string | undefined;
+    vars: string | undefined;
     verbose: boolean;
     startOfWeek?: number;
 };
 
-export const compile = async (options: GenerateHandlerOptions) => {
+export const compile = async (options: CompileHandlerOptions) => {
     await LightdashAnalytics.track({
         event: 'compile.started',
         properties: {},
@@ -45,7 +46,7 @@ export const compile = async (options: GenerateHandlerOptions) => {
     if (!isSupportedDbtVersion(dbtVersion)) {
         if (process.env.CI === 'true') {
             console.error(
-                `Your dbt version ${dbtVersion} does not match our supported versions (1.3.0 - 1.4.*), this could cause problems on compile or validation.`,
+                `Your dbt version ${dbtVersion} does not match our supported versions (1.3.* - 1.5.*), this could cause problems on compile or validation.`,
             );
         } else {
             const answers = await inquirer.prompt([
@@ -53,7 +54,7 @@ export const compile = async (options: GenerateHandlerOptions) => {
                     type: 'confirm',
                     name: 'isConfirm',
                     message: `${styles.warning(
-                        `Your dbt version ${dbtVersion} does not match our supported version (1.3.0 - 1.4.*), this could cause problems on compile or validation.`,
+                        `Your dbt version ${dbtVersion} does not match our supported version (1.3.* - 1.5.*), this could cause problems on compile or validation.`,
                     )}\nDo you still want to continue?`,
                 },
             ]);
@@ -89,10 +90,8 @@ export const compile = async (options: GenerateHandlerOptions) => {
 
     const adapterType = manifest.metadata.adapter_type;
 
-    const { valid: validModels, invalid: failedExplores } = validateDbtModel(
-        adapterType,
-        models,
-    );
+    const { valid: validModels, invalid: failedExplores } =
+        await validateDbtModel(adapterType, models);
 
     if (failedExplores.length > 0) {
         const errors = failedExplores.map((failedExplore) =>
@@ -172,7 +171,7 @@ ${errors.join('')}`),
     });
     return explores;
 };
-export const compileHandler = async (options: GenerateHandlerOptions) => {
+export const compileHandler = async (options: CompileHandlerOptions) => {
     GlobalState.setVerbose(options.verbose);
     const explores = await compile(options);
     const errorsCount = explores.filter((e) => isExploreError(e)).length;

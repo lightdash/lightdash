@@ -8,6 +8,7 @@ import {
     LightdashUser,
     OrganizationMemberRole,
     PinnedItem,
+    ProjectMemberRole,
     RequestMethod,
     SchedulerFormat,
     TableSelectionType,
@@ -126,6 +127,14 @@ type UserJoinOrganizationEvent = BaseTrack & {
     };
 };
 
+export enum QueryExecutionContext {
+    DASHBOARD = 'dashboardView',
+    EXPLORE = 'exploreView',
+    CHART = 'chartView',
+    VIEW_UNDERLYING_DATA = 'viewUnderlyingData',
+    CSV = 'csvDownload',
+}
+
 type QueryExecutionEvent = BaseTrack & {
     event: 'query.executed';
     properties: {
@@ -133,22 +142,45 @@ type QueryExecutionEvent = BaseTrack & {
         metricsCount: number;
         dimensionsCount: number;
         tableCalculationsCount: number;
+        tableCalculationsPercentFormatCount: number;
+        tableCalculationsCurrencyFormatCount: number;
+        tableCalculationsNumberFormatCount: number;
         filtersCount: number;
         sortsCount: number;
         hasExampleMetric: boolean;
+        additionalMetricsCount: number;
+        additionalMetricsFilterCount: number;
+        context: QueryExecutionContext;
     };
 };
 
-type TrackOrganizationEvent = BaseTrack & {
-    event:
-        | 'organization.created'
-        | 'organization.updated'
-        | 'organization.deleted';
+type CreateOrganizationEvent = BaseTrack & {
+    event: 'organization.created';
     properties: {
         type: string;
         organizationId: string;
         organizationName: string;
-        defaultColourPaletteUpdated?: boolean;
+    };
+};
+
+type UpdateOrganizationEvent = BaseTrack & {
+    event: 'organization.updated';
+    properties: {
+        type: string;
+        organizationId: string;
+        organizationName: string;
+        defaultProjectUuid: string | undefined;
+        defaultColourPaletteUpdated: boolean;
+        defaultProjectUuidUpdated: boolean;
+    };
+};
+
+type DeleteOrganizationEvent = BaseTrack & {
+    event: 'organization.deleted';
+    properties: {
+        type: string;
+        organizationId: string;
+        organizationName: string;
     };
 };
 
@@ -159,6 +191,7 @@ type OrganizationAllowedEmailDomainUpdatedEvent = BaseTrack & {
         emailDomainsCount: number;
         role: OrganizationMemberRole;
         projectIds: string[];
+        projectRoles: ProjectMemberRole[];
     };
 };
 
@@ -169,16 +202,34 @@ type TrackUserDeletedEvent = BaseTrack & {
     };
 };
 
-type TrackSavedChart = BaseTrack & {
-    event: 'saved_chart.updated' | 'saved_chart.deleted';
+type ModeDashboardChartEvent = BaseTrack & {
+    event: 'dashboard_chart.moved';
+    properties: {
+        projectId: string;
+        savedQueryId: string;
+        dashboardId: string;
+        spaceId: string;
+    };
+};
+
+type UpdateSavedChartEvent = BaseTrack & {
+    event: 'saved_chart.updated';
+    properties: {
+        projectId: string;
+        savedQueryId: string;
+        dashboardId: string | undefined;
+    };
+};
+type DeleteSavedChartEvent = BaseTrack & {
+    event: 'saved_chart.deleted';
     properties: {
         projectId: string;
         savedQueryId: string;
     };
 };
 
-export type CreateSavedChartOrVersionEvent = BaseTrack & {
-    event: 'saved_chart.created' | 'saved_chart_version.created';
+export type CreateSavedChartVersionEvent = BaseTrack & {
+    event: 'saved_chart_version.created';
     properties: {
         projectId: string;
         savedQueryId: string;
@@ -198,12 +249,25 @@ export type CreateSavedChartOrVersionEvent = BaseTrack & {
             margins: string;
             showLegend: boolean;
         };
+        pie?: {
+            isDonut: boolean;
+        };
         table?: {
             conditionalFormattingRulesCount: number;
             hasMetricsAsRows: boolean;
             hasRowCalculation: boolean;
             hasColumnCalculations: boolean;
         };
+        bigValue?: {
+            hasBigValueComparison?: boolean;
+        };
+    };
+};
+
+export type CreateSavedChartEvent = BaseTrack & {
+    event: 'saved_chart.created';
+    properties: CreateSavedChartVersionEvent['properties'] & {
+        dashboardId: string | undefined;
         duplicated?: boolean;
     };
 };
@@ -227,6 +291,18 @@ export type DuplicatedChartCreatedEvent = BaseTrack & {
             seriesCount: number;
             seriesTypes: CartesianSeriesType[];
         };
+    };
+};
+
+export type ConditionalFormattingRuleSavedEvent = BaseTrack & {
+    event: 'conditional_formatting_rule.saved';
+    userId: string;
+    properties: {
+        projectId: string;
+        organizationId: string;
+        savedQueryId: string;
+        type: 'single color' | 'color range';
+        numConditions: number;
     };
 };
 
@@ -275,11 +351,14 @@ type ProjectCompiledEvent = BaseTrack & {
         warehouseType?: WarehouseTypes;
         modelsCount: number;
         modelsWithErrorsCount: number;
+        modelsWithGroupLabelCount: number;
         metricsCount: number;
         packagesCount?: number;
         roundCount?: number;
         formattedFieldsCount?: number;
         urlsCount?: number;
+        modelsWithSqlFiltersCount: number;
+        columnAccessFiltersCount: number;
     };
 };
 
@@ -296,12 +375,26 @@ type ProjectErrorEvent = BaseTrack & {
     };
 };
 
-type DashboardEvent = BaseTrack & {
-    event: 'dashboard.updated' | 'dashboard.deleted';
+type DeletedDashboardEvent = BaseTrack & {
+    event: 'dashboard.deleted';
     userId: string;
     properties: {
         projectId: string;
         dashboardId: string;
+    };
+};
+
+type UpdatedDashboardEvent = BaseTrack & {
+    event: 'dashboard.updated';
+    userId: string;
+    properties: {
+        projectId: string;
+        dashboardId: string;
+        tilesCount: number;
+        chartTilesCount: number;
+        markdownTilesCount: number;
+        loomTilesCount: number;
+        filtersCount: number;
     };
 };
 
@@ -627,6 +720,15 @@ export type Validation = BaseTrack & {
     };
 };
 
+export type ValidationErrorDismissed = BaseTrack & {
+    event: 'validation.error_dismissed';
+    userId: string;
+    properties: {
+        organizationId?: string;
+        projectId: string;
+    };
+};
+
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -635,18 +737,24 @@ type Track =
     | VerifiedUserEvent
     | UserJoinOrganizationEvent
     | QueryExecutionEvent
-    | TrackSavedChart
-    | CreateSavedChartOrVersionEvent
+    | ModeDashboardChartEvent
+    | UpdateSavedChartEvent
+    | DeleteSavedChartEvent
+    | CreateSavedChartEvent
+    | CreateSavedChartVersionEvent
     | TrackUserDeletedEvent
     | ProjectErrorEvent
     | ApiErrorEvent
     | ProjectEvent
     | ProjectDeletedEvent
     | ProjectCompiledEvent
-    | DashboardEvent
+    | UpdatedDashboardEvent
+    | DeletedDashboardEvent
     | CreateDashboardOrVersionEvent
     | ProjectTablesConfigurationEvent
-    | TrackOrganizationEvent
+    | CreateOrganizationEvent
+    | UpdateOrganizationEvent
+    | DeleteOrganizationEvent
     | OrganizationAllowedEmailDomainUpdatedEvent
     | LoginEvent
     | IdentityLinkedEvent
@@ -674,7 +782,9 @@ type Track =
     | PinnedListUpdated
     | DownloadCsv
     | SchedulerDashboardView
-    | Validation;
+    | Validation
+    | ValidationErrorDismissed
+    | ConditionalFormattingRuleSavedEvent;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {

@@ -2,8 +2,8 @@ import { SEED_PROJECT } from '@lightdash/common';
 
 function search(query: string) {
     cy.findByRole('search').click();
-    cy.findByRole('dialog')
-        .findByPlaceholderText(/Search/)
+    cy.findByPlaceholderText(/Search Jaffle shop/gi)
+        .clear()
         .type(query);
 }
 
@@ -37,11 +37,9 @@ describe('Global search', () => {
 
         // search and select saved chart
         search('Which');
-        cy.findByRole('dialog')
-            .findByRole('menuitem', {
-                name: 'Which customers have not recently ordered an item? Chart · A table of the 20 customers that least recently placed an order with us',
-            })
-            .click();
+        cy.get('[role="dialog"][aria-modal="true"]').within(() => {
+            cy.get('button').click();
+        });
         cy.url().should(
             'include',
             `/projects/${SEED_PROJECT.project_uuid}/saved/`,

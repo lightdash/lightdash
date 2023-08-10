@@ -14,15 +14,13 @@ describe('Settings - Invites', () => {
             'demo+marygreen@lightdash.com',
         );
         cy.contains(/(Generate|Send) invite/).click();
-        cy.get('#invite-link-input')
-            .should('be.visible')
-            .then(($input) => {
-                const value = $input.val();
-                if (typeof value === 'string') {
-                    cy.logout();
-                    cy.visit(value);
-                }
-            });
+        cy.get('#invite-link-input').then(($input) => {
+            const value = $input.val();
+            if (typeof value === 'string') {
+                cy.logout();
+                cy.visit(value);
+            }
+        });
         cy.get('[data-cy="welcome-user"]').should('be.visible');
         cy.contains('Join your team').click();
         cy.findByPlaceholderText('Your first name').type('Mary');
@@ -47,13 +45,13 @@ describe('Settings - Invites', () => {
         cy.findByRole('menuitem', { name: 'Organization settings' }).click();
 
         cy.contains('User management').click();
-        cy.findByText('demo+marygreen@lightdash.com')
-            .parents('.mantine-Card-root')
-            .find('[icon="delete"]')
+        cy.get('table')
+            .contains('tr', 'demo+marygreen@lightdash.com')
+            .contains('td', 'Delete')
             .click();
         cy.findByText('Are you sure you want to delete this user ?')
-            .parents('.bp4-dialog')
-            .findByRole('button', { name: 'Delete' })
+            .parents('.mantine-Modal-root')
+            .findByText('Delete')
             .click();
         cy.findByText('Success! User was deleted.').should('be.visible');
         cy.findByText('demo+marygreen@lightdash.com').should('not.exist');

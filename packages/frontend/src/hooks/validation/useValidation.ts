@@ -36,6 +36,7 @@ export const useValidation = (
     return useQuery<ValidationResponse[], ApiError>({
         queryKey: ['validation', fromSettings],
         queryFn: () => getValidation(projectUuid, fromSettings),
+        retry: (_, error) => error.error.statusCode !== 403,
         onSuccess: (data) => {
             if (data.length === 0) return;
             const latestValidationTimestamp = data[0].createdAt.toString();
@@ -73,7 +74,7 @@ export const useValidationMutation = (
     onComplete: () => void,
 ) => {
     const queryClient = useQueryClient();
-    const { showError } = useErrorLogs();
+    const { appendError } = useErrorLogs();
     const { showToastSuccess } = useToaster();
 
     return useMutation<ApiJobScheduledResponse['results'], ApiError>({
@@ -89,7 +90,7 @@ export const useValidationMutation = (
                     showToastSuccess({ title: 'Validation completed' });
                 })
                 .catch((error: Error) => {
-                    showError({
+                    appendError({
                         title: 'Unable to update validation',
                         body: error.message,
                     });
@@ -98,12 +99,12 @@ export const useValidationMutation = (
         onError: useCallback(
             (error) => {
                 const [title, ...rest] = error.error.message.split('\n');
-                showError({
+                appendError({
                     title,
                     body: rest.join('\n'),
                 });
             },
-            [showError],
+            [appendError],
         ),
     });
 };
@@ -142,4 +143,38 @@ export const useValidationNotificationChecker = (): [boolean, () => void] => {
         hasReadLastValidationNotification,
         setHasReadLastValidationNotification,
     ];
+};
+
+const deleteValidation = async (
+    projectUuid: string,
+    validationId: number,
+): Promise<undefined> =>
+    lightdashApi<undefined>({
+        url: `/projects/${projectUuid}/validate/${validationId}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useDeleteValidation = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastError, showToastSuccess } = useToaster();
+    return useMutation<undefined, ApiError, number>(
+        (validationId) => deleteValidation(projectUuid, validationId),
+        {
+            mutationKey: ['delete_validation', projectUuid],
+            onSuccess: async () => {
+                await queryClient.refetchQueries(['validation']);
+                showToastSuccess({
+                    title: 'Validation dismissed',
+                });
+            },
+            onError: async (error1) => {
+                const [title, ...rest] = error1.error.message.split('\n');
+                showToastError({
+                    title,
+                    subtitle: rest.join('\n'),
+                });
+            },
+        },
+    );
 };

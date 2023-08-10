@@ -1,5 +1,6 @@
 // organize-imports-ignore
-import './otel'; // must be imported first
+// eslint-disable-next-line import/order
+import otelSdk from './otel'; // must be imported first
 
 import { LightdashMode, SessionUser } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -24,17 +25,19 @@ import {
     googlePassportStrategy,
     localPassportStrategy,
     oktaPassportStrategy,
+    azureAdPassportStrategy,
     oneLoginPassportStrategy,
 } from './controllers/authentication';
 import database from './database/database';
 import { errorHandler } from './errors';
 import { RegisterRoutes } from './generated/routes';
-import Logger from './logger';
+import Logger from './logging/logger';
 import { slackAuthenticationModel, userModel } from './models/models';
-import morganMiddleware from './morganMiddleware';
+import { expressWinstonMiddleware } from './logging/winston';
 import { apiV1Router } from './routers/apiV1Router';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { VERSION } from './version';
+import { registerNodeMetrics } from './nodeMetrics';
 
 // @ts-ignore
 // eslint-disable-next-line no-extend-native, func-names
@@ -109,8 +112,6 @@ app.use(
 app.use(Sentry.Handlers.tracingHandler());
 app.use(express.json({ limit: lightdashConfig.maxPayloadSize }));
 
-// Logging
-app.use(morganMiddleware);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
@@ -134,6 +135,8 @@ app.use(
 app.use(flash());
 app.use(passport.initialize());
 app.use(passport.session());
+
+app.use(expressWinstonMiddleware);
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../../frontend/build', 'index.html'), {
@@ -220,6 +223,11 @@ app.use((error: Error, req: Request, res: Response, _: NextFunction) => {
     });
 });
 
+// Monitor Node.js process with opentelemetry
+if (process.env.NODE_ENV !== 'development') {
+    registerNodeMetrics();
+}
+
 // Run the server
 const port = process.env.PORT || 8080;
 app.listen(port, () => {
@@ -248,6 +256,9 @@ if (oktaPassportStrategy) {
 if (oneLoginPassportStrategy) {
     passport.use('oneLogin', oneLoginPassportStrategy);
 }
+if (azureAdPassportStrategy) {
+    passport.use('azuread', azureAdPassportStrategy);
+}
 passport.serializeUser((user, done) => {
     // On login (user changes), user.userUuid is written to the session store in the `sess.passport.data` field
     done(null, user.userUuid);
@@ -270,9 +281,44 @@ export const slackService = new SlackService({
     lightdashConfig,
 });
 
+let worker: SchedulerWorker | undefined;
 if (lightdashConfig.scheduler?.enabled) {
-    const worker = new SchedulerWorker({ lightdashConfig });
+    worker = new SchedulerWorker({ lightdashConfig });
     worker.run().catch((e) => {
         Logger.error('Error starting scheduler worker', e);
     });
 }
+
+const onExit = () => {
+    const asyncExit = async () => {
+        if (worker && worker.runner) {
+            try {
+                await worker.runner.stop();
+                Logger.info('Stopped scheduler worker');
+            } catch (e) {
+                Logger.error('Error stopping scheduler worker', e);
+            }
+        }
+        if (otelSdk) {
+            try {
+                await otelSdk.shutdown();
+                Logger.info('Stopped OpenTelemetry SDK');
+            } catch (e) {
+                Logger.error('Error stopping OpenTelemetry SDK', e);
+            }
+        }
+    };
+    asyncExit()
+        .catch((e) => {
+            Logger.error('Error stopping server', e);
+        })
+        .finally(() => {
+            process.exit();
+        });
+};
+
+process.on('SIGUSR2', onExit);
+process.on('SIGINT', onExit);
+process.on('SIGTERM', onExit);
+process.on('SIGHUP', onExit);
+process.on('SIGABRT', onExit);

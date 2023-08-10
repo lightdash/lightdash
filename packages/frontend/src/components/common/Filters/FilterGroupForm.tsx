@@ -1,4 +1,4 @@
-import { Button, HTMLSelect } from '@blueprintjs/core';
+import { Divider, HTMLSelect } from '@blueprintjs/core';
 import {
     createFilterRuleFromField,
     FilterableField,
@@ -10,7 +10,11 @@ import {
     isAndFilterGroup,
     isFilterGroup,
 } from '@lightdash/common';
+import { Button } from '@mantine/core';
+import { IconPlus } from '@tabler/icons-react';
 import React, { FC, useCallback } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import MantineIcon from '../MantineIcon';
 import {
     FilterGroupHeader,
     FilterGroupItemsWrapper,
@@ -20,6 +24,8 @@ import FilterRuleForm from './FilterRuleForm';
 
 type Props = {
     hideButtons?: boolean;
+    hideLine?: boolean;
+    allowConvertToGroup?: boolean;
     conditionLabel: string;
     fields: FilterableField[];
     filterGroup: FilterGroup;
@@ -30,6 +36,8 @@ type Props = {
 
 const FilterGroupForm: FC<Props> = ({
     hideButtons,
+    hideLine,
+    allowConvertToGroup,
     conditionLabel,
     fields,
     filterGroup,
@@ -94,6 +102,17 @@ const FilterGroupForm: FC<Props> = ({
 
     return (
         <FilterGroupWrapper>
+            {!hideLine && (
+                <Divider
+                    style={{
+                        position: 'absolute',
+                        height: 'calc(100% - 10px)',
+                        top: 0,
+                        left: 25,
+                    }}
+                />
+            )}
+
             <FilterGroupHeader>
                 <HTMLSelect
                     className={!isEditMode ? 'disabled-filter' : ''}
@@ -135,9 +154,19 @@ const FilterGroupForm: FC<Props> = ({
                                 isEditMode={isEditMode}
                                 onChange={(value) => onChangeItem(index, value)}
                                 onDelete={() => onDeleteItem(index)}
+                                onConvertToGroup={
+                                    allowConvertToGroup
+                                        ? () =>
+                                              onChangeItem(index, {
+                                                  id: uuidv4(),
+                                                  and: [item],
+                                              })
+                                        : undefined
+                                }
                             />
                         ) : (
                             <FilterGroupForm
+                                allowConvertToGroup={false}
                                 isEditMode={isEditMode}
                                 filterGroup={item}
                                 conditionLabel={conditionLabel}
@@ -151,9 +180,9 @@ const FilterGroupForm: FC<Props> = ({
             </FilterGroupItemsWrapper>
             {!hideButtons && fields.length > 0 && (
                 <Button
-                    minimal
-                    icon="plus"
-                    intent="primary"
+                    variant="light"
+                    size="xs"
+                    leftIcon={<MantineIcon icon={IconPlus} />}
                     onClick={onAddFilterRule}
                 >
                     Add filter

@@ -1,34 +1,52 @@
-import { Intent, NonIdealState } from '@blueprintjs/core';
+import { NonIdealState } from '@blueprintjs/core';
 import { CreateDbtCloudIntegration } from '@lightdash/common/dist/types/dbtCloud';
-import { Anchor, Text } from '@mantine/core';
+import {
+    Anchor,
+    Button,
+    Group,
+    PasswordInput,
+    Stack,
+    Text,
+    TextInput,
+    Title,
+    Tooltip,
+} from '@mantine/core';
+import { useForm, zodResolver } from '@mantine/form';
+import { IconHelp } from '@tabler/icons-react';
 import { FC } from 'react';
-import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 import {
     useProjectDbtCloud,
     useProjectDbtCloudDeleteMutation,
     useProjectDbtCloudUpdateMutation,
 } from '../../hooks/dbtCloud/useProjectDbtCloudSettings';
-import { ButtonsWrapper, SaveButton } from '../../pages/ProjectSettings.styles';
-import { SettingsCard } from '../common/Settings/SettingsCard';
-import Form from '../ReactHookForm/Form';
-import Input from '../ReactHookForm/Input';
-import PasswordInput from '../ReactHookForm/PasswordInput';
+import MantineIcon from '../common/MantineIcon';
+import { SettingsGridCard } from '../common/Settings/SettingsCard';
 
 interface DbtCloudSettingsProps {
     projectUuid: string;
 }
+
+const schema = z.object({
+    serviceToken: z.string().nonempty({
+        message: 'Service token is required',
+    }),
+    metricsJobId: z.string().nonempty({
+        message: 'Job ID is required',
+    }),
+});
+
 const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
     const form = useForm<CreateDbtCloudIntegration>({
-        mode: 'onSubmit',
-        defaultValues: {
-            metricsJobId: '',
+        validate: zodResolver(schema),
+        initialValues: {
             serviceToken: '',
+            metricsJobId: '',
         },
     });
-
     const dbtCloudSettings = useProjectDbtCloud(projectUuid, {
         onSuccess: (data) => {
-            form.setValue('metricsJobId', data?.metricsJobId ?? '');
+            form.setFieldValue('metricsJobId', data?.metricsJobId ?? '');
         },
     });
     const updateDbtCloud = useProjectDbtCloudUpdateMutation(projectUuid);
@@ -43,67 +61,90 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
     };
 
     return (
-        <>
-            <Text color="dimmed">
-                Connect Lightdash to your dbt Cloud account to start consuming
-                metrics from the dbt semantic layer and using dbt jinja in your
-                queries. To get started we recommend following the{' '}
-                <Anchor href="https://docs.lightdash.com/guides/dbt-semantic-layer">
-                    dbt cloud semantic layer guide
-                </Anchor>{' '}
-                in the Lightdash docs.
-            </Text>
+        <form onSubmit={form.onSubmit(handleSubmit)}>
+            {dbtCloudSettings.error ? (
+                <NonIdealState
+                    title={dbtCloudSettings.error.error.message}
+                    icon="error"
+                />
+            ) : (
+                <SettingsGridCard>
+                    <div>
+                        <Title order={4}>dbt cloud</Title>
 
-            <SettingsCard>
-                {dbtCloudSettings.error ? (
-                    <NonIdealState
-                        title={dbtCloudSettings.error.error.message}
-                        icon="error"
-                    />
-                ) : (
-                    <Form
-                        name="integration_dbt_cloud"
-                        methods={form}
-                        onSubmit={handleSubmit}
-                    >
+                        <Text color="dimmed">
+                            Connect Lightdash to your dbt Cloud account to start
+                            consuming metrics from the dbt semantic layer and
+                            using dbt jinja in your queries. To get started we
+                            recommend following the{' '}
+                            <Anchor href="https://docs.lightdash.com/guides/dbt-semantic-layer">
+                                dbt cloud semantic layer guide
+                            </Anchor>{' '}
+                            in the Lightdash docs.
+                        </Text>
+                    </div>
+
+                    <Stack>
                         <PasswordInput
-                            name="serviceToken"
-                            label="Service Token"
+                            {...form.getInputProps('serviceToken')}
+                            label={
+                                <Group display="inline-flex" spacing="xs">
+                                    Service Token
+                                    <Tooltip
+                                        label="Service tokens can be found in your dbt Cloud account settings: https://cloud.getdbt.com/next/settings - token needs at least 'metadata only' permissions."
+                                        multiline
+                                    >
+                                        <MantineIcon
+                                            icon={IconHelp}
+                                            color="gray.6"
+                                        />
+                                    </Tooltip>
+                                </Group>
+                            }
                             disabled={dbtCloudSettings.isLoading}
                             placeholder="Enter your token..."
-                            rules={{
-                                required: 'Required field',
-                            }}
-                            labelHelp="Service tokens can be found in your dbt Cloud account settings: https://cloud.getdbt.com/next/settings - token needs at least 'metadata only' permissions."
                         />
 
-                        <Input
-                            name="metricsJobId"
-                            label="Job ID"
+                        <TextInput
+                            {...form.getInputProps('metricsJobId')}
+                            label={
+                                <Group display="inline-flex" spacing="xs">
+                                    Job ID
+                                    <Tooltip
+                                        label="Your Job ID can be found by clicking Deploy > Jobs in the top bar in dbt Cloud. The Job ID in is the number in the URL after /jobs/12345."
+                                        multiline
+                                    >
+                                        <MantineIcon
+                                            icon={IconHelp}
+                                            color="gray.6"
+                                        />
+                                    </Tooltip>
+                                </Group>
+                            }
                             disabled={dbtCloudSettings.isLoading}
-                            rules={{
-                                required: 'Required field',
-                            }}
-                            labelHelp="Your Job ID can be found by clicking Deploy > Jobs in the top bar in dbt Cloud. The Job ID in is the number in the URL after /jobs/12345."
                         />
-                        <ButtonsWrapper>
+
+                        <Group ml="auto">
                             {dbtCloudSettings.data?.metricsJobId && (
-                                <SaveButton
-                                    text="Clear"
+                                <Button
+                                    variant="default"
                                     onClick={() => handleClear()}
-                                />
+                                >
+                                    Clear
+                                </Button>
                             )}
-                            <SaveButton
+
+                            <Button
                                 type="submit"
-                                intent={Intent.PRIMARY}
-                                text="Save"
                                 loading={dbtCloudSettings.isLoading}
-                            />
-                        </ButtonsWrapper>
-                    </Form>
-                )}
-            </SettingsCard>
-        </>
+                            >
+                                Save
+                            </Button>
+                        </Group>
+                    </Stack>
+                </SettingsGridCard>
+            )}
+        </form>
     );
 };
 

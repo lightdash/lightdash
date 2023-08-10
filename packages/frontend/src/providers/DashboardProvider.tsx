@@ -1,5 +1,7 @@
 import {
     ApiError,
+    compressDashboardFiltersToParam,
+    convertDashboardFiltersParamToDashboardFilters,
     Dashboard,
     DashboardAvailableFilters,
     DashboardFilterRule,
@@ -133,11 +135,11 @@ export const DashboardProvider: React.FC = ({ children }) => {
         useState<boolean>(false);
 
     useEffect(() => {
-        if (dashboard) {
+        if (dashboard && dashboardFilters === emptyFilters) {
             setDashboardFilters(dashboard.filters);
             setHaveFiltersChanged(false);
         }
-    }, [dashboard]);
+    }, [dashboardFilters, dashboard]);
 
     const addDimensionDashboardFilter = useCallback(
         (filter: DashboardFilterRule, isTemporary: boolean) => {
@@ -242,9 +244,31 @@ export const DashboardProvider: React.FC = ({ children }) => {
 
     useMount(() => {
         const searchParams = new URLSearchParams(search);
-        const filterSearchParam = searchParams.get('filters');
-        if (filterSearchParam) {
-            setDashboardTemporaryFilters(JSON.parse(filterSearchParam));
+        const tempFilterSearchParam = searchParams.get('tempFilters');
+        const filtersSearchParam = searchParams.get('filters');
+        const unsavedDashboardFiltersRaw = sessionStorage.getItem(
+            'unsavedDashboardFilters',
+        );
+        sessionStorage.removeItem('unsavedDashboardFilters');
+        if (unsavedDashboardFiltersRaw) {
+            const unsavedDashboardFilters = JSON.parse(
+                unsavedDashboardFiltersRaw,
+            );
+            setDashboardFilters(unsavedDashboardFilters);
+        }
+        if (tempFilterSearchParam) {
+            setDashboardTemporaryFilters(
+                convertDashboardFiltersParamToDashboardFilters(
+                    JSON.parse(tempFilterSearchParam),
+                ),
+            );
+        }
+        if (filtersSearchParam) {
+            setDashboardFilters(
+                convertDashboardFiltersParamToDashboardFilters(
+                    JSON.parse(filtersSearchParam),
+                ),
+            );
         }
     });
 
@@ -254,16 +278,41 @@ export const DashboardProvider: React.FC = ({ children }) => {
             dashboardTemporaryFilters?.dimensions?.length === 0 &&
             dashboardTemporaryFilters?.metrics?.length === 0
         ) {
+            newParams.delete('tempFilters');
+        } else {
+            newParams.set(
+                'tempFilters',
+                JSON.stringify(
+                    compressDashboardFiltersToParam(dashboardTemporaryFilters),
+                ),
+            );
+        }
+
+        if (
+            dashboardFilters?.dimensions?.length === 0 &&
+            dashboardFilters?.metrics?.length === 0
+        ) {
             newParams.delete('filters');
         } else {
-            newParams.set('filters', JSON.stringify(dashboardTemporaryFilters));
+            newParams.set(
+                'filters',
+                JSON.stringify(
+                    compressDashboardFiltersToParam(dashboardFilters),
+                ),
+            );
         }
 
         history.replace({
             pathname,
             search: newParams.toString(),
         });
-    }, [dashboardTemporaryFilters, history, pathname, search]);
+    }, [
+        dashboardTemporaryFilters,
+        dashboardFilters,
+        history,
+        pathname,
+        search,
+    ]);
 
     const allFilters = useMemo(() => {
         return {

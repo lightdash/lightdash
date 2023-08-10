@@ -312,7 +312,7 @@ describe('Lightdash API tests for an project admin accessing other private space
         });
     });
 
-    it('Should not list private spaces', () => {
+    it('Should list private spaces', () => {
         cy.request({
             url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
             failOnStatusCode: false,
@@ -321,7 +321,7 @@ describe('Lightdash API tests for an project admin accessing other private space
             const privateSpace = resp.body.results.find(
                 (space) => space.name === 'private space',
             );
-            expect(privateSpace).to.eq(undefined);
+            expect(privateSpace).to.not.eq(undefined);
         });
     });
 
@@ -348,7 +348,7 @@ describe('Lightdash API tests for an project admin accessing other private space
             ).to.eq(undefined);
         });
     });
-    it('Should not list private spaces', () => {
+    it('Should list private spaces', () => {
         cy.request({
             url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
             failOnStatusCode: false,
@@ -357,7 +357,7 @@ describe('Lightdash API tests for an project admin accessing other private space
             const privateSpace = resp.body.results.find(
                 (space) => space.name === 'private space',
             );
-            expect(privateSpace).to.eq(undefined);
+            expect(privateSpace).to.not.eq(undefined);
         });
     });
 

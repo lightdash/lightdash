@@ -81,14 +81,16 @@ import {
     ProjectTableName,
 } from '../database/entities/projects';
 import {
+    SavedChartAdditionalMetricTable,
+    SavedChartAdditionalMetricTableName,
     SavedChartsTableName,
+    SavedChartTable,
     SavedChartVersionFieldsTable,
     SavedChartVersionFieldsTableName,
     SavedChartVersionSortsTable,
     SavedChartVersionSortsTableName,
     SavedChartVersionsTable,
     SavedChartVersionsTableName,
-    SavedQueryTable,
     SavedQueryTableCalculationTable,
     SavedQueryTableCalculationTableName,
 } from '../database/entities/savedCharts';
@@ -126,6 +128,8 @@ import {
     GroupMembershipTableName,
 } from '../database/entities/group_memberships';
 import {
+    OrganizationAllowedEmailDomainProjectsTable,
+    OrganizationAllowedEmailDomainProjectsTableName,
     OrganizationAllowedEmailDomainsTable,
     OrganizationAllowedEmailDomainsTableName,
 } from '../database/entities/organizationsAllowedEmailDomains';
@@ -144,6 +148,12 @@ import {
     SshKeyPairTableName,
 } from '../database/entities/ssh_key_pairs';
 import {
+    DbOrganizationMemberUserAttribute,
+    DbUserAttribute,
+    OrganizationMemberUserAttributesTable,
+    UserAttributesTable,
+} from '../database/entities/userAttributes';
+import {
     DbValidationTable,
     ValidationTableName,
 } from '../database/entities/validation';
@@ -157,11 +167,12 @@ declare module 'knex/types/tables' {
         [SessionTableName]: SessionTable;
         [WarehouseCredentialTableName]: WarehouseCredentialTable;
         [ProjectTableName]: ProjectTable;
-        [SavedChartsTableName]: SavedQueryTable;
+        [SavedChartsTableName]: SavedChartTable;
         [SavedChartVersionsTableName]: SavedChartVersionsTable;
         [SavedChartVersionFieldsTableName]: SavedChartVersionFieldsTable;
         [SavedChartVersionSortsTableName]: SavedChartVersionSortsTable;
         [SavedQueryTableCalculationTableName]: SavedQueryTableCalculationTable;
+        [SavedChartAdditionalMetricTableName]: SavedChartAdditionalMetricTable;
         [SpaceTableName]: SpaceTable;
         [DashboardsTableName]: DashboardTable;
         [DashboardVersionsTableName]: DashboardVersionTable;
@@ -198,9 +209,12 @@ declare module 'knex/types/tables' {
         [EmailOneTimePasscodesTableName]: EmailOneTimePasscodeTable;
         [SchedulerLogTableName]: SchedulerLogTable;
         [OrganizationAllowedEmailDomainsTableName]: OrganizationAllowedEmailDomainsTable;
+        [OrganizationAllowedEmailDomainProjectsTableName]: OrganizationAllowedEmailDomainProjectsTable;
         [ValidationTableName]: DbValidationTable;
         [GroupTableName]: GroupTable;
         [GroupMembershipTableName]: GroupMembershipTable;
         [SshKeyPairTableName]: SshKeyPairTable;
+        [UserAttributesTable]: DbUserAttribute;
+        [OrganizationMemberUserAttributesTable]: DbOrganizationMemberUserAttribute;
     }
 }

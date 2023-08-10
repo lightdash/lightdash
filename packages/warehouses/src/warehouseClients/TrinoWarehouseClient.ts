@@ -3,6 +3,7 @@ import {
     DimensionType,
     Metric,
     MetricType,
+    SupportedDbtAdapter,
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
@@ -168,10 +169,14 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         };
     }
 
-    async runQuery(sql: string) {
+    async runQuery(sql: string, tags?: Record<string, string>) {
         const { session, close } = await this.getSession();
         let query: Iterator<QueryResult>;
         try {
+            let alteredQuery = sql;
+            if (tags) {
+                alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(tags)}`;
+            }
             query = await session.query(sql);
 
             const queryResult = await query.next();
@@ -247,6 +252,10 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
 
     getEscapeStringQuoteChar() {
         return "'";
+    }
+
+    getAdapterType(): SupportedDbtAdapter {
+        return SupportedDbtAdapter.TRINO;
     }
 
     getMetricSql(sql: string, metric: Metric) {

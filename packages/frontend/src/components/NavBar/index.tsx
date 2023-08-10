@@ -5,21 +5,20 @@ import {
     Button,
     Center,
     Divider,
+    getDefaultZIndex,
     Group,
     Header,
     MantineProvider,
     Text,
+    Tooltip,
 } from '@mantine/core';
-import { IconTool } from '@tabler/icons-react';
-import { memo } from 'react';
-import { Link } from 'react-router-dom';
+import { IconInfoCircle, IconTool } from '@tabler/icons-react';
+import { FC, memo, useEffect, useMemo } from 'react';
+import { Link, useHistory, useParams } from 'react-router-dom';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProjects } from '../../hooks/useProjects';
-import { useErrorLogs } from '../../providers/ErrorLogsProvider';
 import { ReactComponent as Logo } from '../../svgs/logo-icon.svg';
 import MantineIcon from '../common/MantineIcon';
-import { ErrorLogsDrawer } from '../ErrorLogsDrawer';
-import { ShowErrorsButton } from '../ShowErrorsButton';
 import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
 import GlobalSearch from './GlobalSearch';
@@ -31,20 +30,79 @@ import SettingsMenu from './SettingsMenu';
 import UserMenu from './UserMenu';
 
 export const NAVBAR_HEIGHT = 50;
-const PREVIEW_BANNER_HEIGHT = 20;
+export const BANNER_HEIGHT = 35;
 
 const PreviewBanner = () => (
-    <Center pos="fixed" w="100%" h={PREVIEW_BANNER_HEIGHT} bg="blue.6">
+    <Center pos="fixed" w="100%" h={BANNER_HEIGHT} bg="blue.6">
         <MantineIcon icon={IconTool} color="white" size="sm" />
-        <Text color="white" fw={500} fz="xs">
+        <Text color="white" fw={500} fz="xs" mx="xxs">
             This is a preview environment. Any changes you make here will not
             affect production.
         </Text>
     </Center>
 );
 
+const DashboardExplorerBanner: FC<{
+    dashboardName: string;
+    projectUuid: string;
+    dashboardUuid: string;
+}> = ({ dashboardName, projectUuid, dashboardUuid }) => {
+    const history = useHistory();
+    const { savedQueryUuid, mode } = useParams<{
+        savedQueryUuid: string;
+        mode?: string;
+    }>();
+
+    const action = useMemo(() => {
+        if (!savedQueryUuid) {
+            return 'creating';
+        }
+        switch (mode) {
+            case 'edit':
+                return 'editing';
+            case 'view':
+                return 'viewing';
+            default:
+                return 'viewing';
+        }
+    }, [savedQueryUuid, mode]);
+
+    return (
+        <Center w="100%" h={BANNER_HEIGHT} bg="blue.6">
+            <MantineIcon icon={IconInfoCircle} color="white" size="sm" />
+            <Text color="white" fw={500} fz="xs" mx="xxs">
+                You are {action} this chart from within "{dashboardName}"
+            </Text>
+            <Tooltip
+                withinPortal
+                label="Cancel chart creation and return to dashboard"
+                position="bottom"
+                maw={350}
+            >
+                <Button
+                    onClick={() => {
+                        history.push(
+                            `/projects/${projectUuid}/dashboards/${dashboardUuid}/${
+                                savedQueryUuid ? 'view' : 'edit'
+                            }`,
+                        );
+                        sessionStorage.removeItem('fromDashboard');
+                        sessionStorage.removeItem('dashboardUuid');
+                    }}
+                    size="xs"
+                    ml="md"
+                    variant="white"
+                    compact
+                >
+                    Cancel
+                </Button>
+            </Tooltip>
+        </Center>
+    );
+};
+
 const NavBar = memo(() => {
-    const { errorLogs, setErrorLogsVisible } = useErrorLogs();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: projects } = useProjects();
     const { activeProjectUuid, isLoading: isLoadingActiveProject } =
         useActiveProjectUuid();
@@ -58,6 +116,29 @@ const NavBar = memo(() => {
             project.projectUuid === activeProjectUuid &&
             project.type === ProjectType.PREVIEW,
     );
+    const fromDashboard = sessionStorage.getItem('fromDashboard');
+    const dashboardUuid = sessionStorage.getItem('dashboardUuid');
+
+    useEffect(() => {
+        const clearDashboardStorage = () => {
+            if (fromDashboard) {
+                sessionStorage.clear();
+            }
+        };
+        window.addEventListener('unload', clearDashboardStorage);
+        return () =>
+            window.removeEventListener('unload', clearDashboardStorage);
+    }, [fromDashboard]);
+
+    if (fromDashboard && dashboardUuid) {
+        return (
+            <DashboardExplorerBanner
+                dashboardName={fromDashboard}
+                projectUuid={projectUuid}
+                dashboardUuid={dashboardUuid}
+            />
+        );
+    }
 
     return (
         <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
@@ -66,17 +147,16 @@ const NavBar = memo(() => {
             <Box
                 h={
                     NAVBAR_HEIGHT +
-                    (isCurrentProjectPreview ? PREVIEW_BANNER_HEIGHT : 0)
+                    (isCurrentProjectPreview ? BANNER_HEIGHT : 0)
                 }
             />
             <Header
                 height={NAVBAR_HEIGHT}
                 fixed
-                mt={isCurrentProjectPreview ? PREVIEW_BANNER_HEIGHT : 'none'}
+                mt={isCurrentProjectPreview ? BANNER_HEIGHT : 'none'}
                 display="flex"
                 px="md"
-                // FIXME: adjust after removing Blueprint
-                zIndex={10}
+                zIndex={getDefaultZIndex('app')}
                 sx={{
                     alignItems: 'center',
                     boxShadow: 'lg',
@@ -114,12 +194,6 @@ const NavBar = memo(() => {
                 <Box sx={{ flexGrow: 1 }} />
 
                 <Group sx={{ flexShrink: 0 }}>
-                    <ErrorLogsDrawer />
-                    <ShowErrorsButton
-                        errorLogs={errorLogs}
-                        setErrorLogsVisible={setErrorLogsVisible}
-                    />
-
                     <Button.Group>
                         <SettingsMenu />
 

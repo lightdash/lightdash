@@ -37,9 +37,9 @@ export type OrganizationMemberProfile = {
     isInviteExpired?: boolean;
 };
 
-export type OrganizationMemberProfileUpdate = Partial<
-    Pick<OrganizationMemberProfile, 'role'>
->;
+export type OrganizationMemberProfileUpdate = {
+    role: OrganizationMemberRole;
+};
 
 export type ApiOrganizationMemberProfiles = {
     status: 'ok';
@@ -49,4 +49,23 @@ export type ApiOrganizationMemberProfiles = {
 export type ApiOrganizationMemberProfile = {
     status: 'ok';
     results: OrganizationMemberProfile;
+};
+
+export const getRoleDescription = (role: OrganizationMemberRole) => {
+    switch (role) {
+        case OrganizationMemberRole.MEMBER:
+            return 'No access to projects by default. Project level permissions to be set separately';
+        case OrganizationMemberRole.VIEWER:
+            return 'Has view only access to all projects';
+        case OrganizationMemberRole.INTERACTIVE_VIEWER:
+            return 'Has view access to all projects and can create new projects but cannot edit existing projects';
+        case OrganizationMemberRole.EDITOR:
+            return 'Can create, edit and delete projects';
+        case OrganizationMemberRole.DEVELOPER:
+            return 'Can create, edit and delete projects';
+        case OrganizationMemberRole.ADMIN:
+            return 'Full access to entire project, manage all projects and user access';
+        default:
+            return null;
+    }
 };

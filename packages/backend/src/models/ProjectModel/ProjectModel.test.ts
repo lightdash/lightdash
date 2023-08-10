@@ -7,7 +7,9 @@ import {
     encryptionServiceMock,
     expectedProject,
     expectedTablesConfiguration,
+    exploreWithMetricFilters,
     lightdashConfigMock,
+    mockExploreWithOutdatedMetricFilters,
     projectMock,
     projectUuid,
     tableSelectionMock,
@@ -76,5 +78,22 @@ describe('ProjectModel', () => {
         );
 
         expect(tracker.history.update).toHaveLength(1);
+    });
+
+    describe('should convert outdated metric filters in explores', () => {
+        test('should add fieldRef property when metric filters have fieldId', () => {
+            expect(
+                ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
+                    mockExploreWithOutdatedMetricFilters,
+                ),
+            ).toEqual(exploreWithMetricFilters);
+        });
+        test('should keep fieldRef property when metric filters have fieldRef', () => {
+            expect(
+                ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
+                    exploreWithMetricFilters,
+                ),
+            ).toEqual(exploreWithMetricFilters);
+        });
     });
 });

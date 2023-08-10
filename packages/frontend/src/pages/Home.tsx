@@ -19,6 +19,7 @@ import {
 import { useProject } from '../hooks/useProject';
 import { useSavedCharts } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
+import { PinnedItemsProvider } from '../providers/PinnedItemsProvider';
 
 const Home: FC = () => {
     const params = useParams<{ projectUuid: string }>();
@@ -28,7 +29,8 @@ const Home: FC = () => {
     const onboarding = useOnboardingStatus();
 
     const { data: pinnedItems = [], isLoading: pinnedItemsLoading } =
-        usePinnedItems(selectedProjectUuid, project?.data?.pinnedListUuid);
+        usePinnedItems(selectedProjectUuid, project.data?.pinnedListUuid);
+
     // only used for recently updated panel - could be faster
     const { data: dashboards = [], isLoading: dashboardsLoading } =
         useDashboards(selectedProjectUuid);
@@ -79,12 +81,17 @@ const Home: FC = () => {
                             userName={user.data?.firstName}
                             projectUuid={project.data.projectUuid}
                         />
-                        <PinnedItemsPanel
-                            data={pinnedItems}
+                        <PinnedItemsProvider
+                            organizationUuid={project.data.organizationUuid}
                             projectUuid={project.data.projectUuid}
                             pinnedListUuid={project.data.pinnedListUuid || ''}
-                            organizationUuid={project.data.organizationUuid}
-                        />
+                        >
+                            <PinnedItemsPanel
+                                pinnedItems={pinnedItems}
+                                dashboards={dashboards}
+                                savedCharts={savedCharts}
+                            />
+                        </PinnedItemsProvider>
                         <RecentlyUpdatedPanel
                             data={{ dashboards, savedCharts }}
                             projectUuid={project.data.projectUuid}

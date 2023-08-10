@@ -1,8 +1,8 @@
 import peg from 'pegjs';
-import { FilterOperator, FilterRule } from './filter';
+import { FilterOperator, MetricFilterRule } from './filter';
 import filterGrammar, { parseFilters } from './filterGrammar';
 
-describe('attachTypesToModels', () => {
+describe('Parse grammar', () => {
     const parser = peg.generate(filterGrammar);
 
     it('Simple peg grammar test', async () => {
@@ -39,6 +39,22 @@ describe('attachTypesToModels', () => {
             is: false,
             type: 'equals',
             values: ['pedram'],
+        });
+    });
+
+    it('Starts with grammar', async () => {
+        expect(parser.parse('katie%')).toEqual({
+            is: true,
+            type: 'startsWith',
+            values: ['katie'],
+        });
+    });
+
+    it('Ends with grammar', async () => {
+        expect(parser.parse('%katie')).toEqual({
+            is: true,
+            type: 'endsWith',
+            values: ['katie'],
         });
     });
 
@@ -90,10 +106,29 @@ describe('attachTypesToModels', () => {
         expect(parser.parse(' >=32')).toEqual(expected);
         expect(parser.parse(' >= 32')).toEqual(expected);
     });
+
+    it('Is null', async () => {
+        expect(parser.parse('NULL')).toEqual({
+            is: true,
+            type: 'null',
+        });
+
+        expect(parser.parse('null')).toEqual({
+            is: true,
+            type: 'null',
+        });
+    });
+
+    it('Is not null', async () => {
+        expect(parser.parse('!null')).toEqual({
+            is: false,
+            type: 'null',
+        });
+    });
 });
 
 describe('Parse metric filters', () => {
-    const removeIds = (filters: FilterRule[]) =>
+    const removeIds = (filters: MetricFilterRule[]) =>
         filters.map((filter) => ({ ...filter, id: undefined }));
     it('Should directly transform boolean filter', () => {
         const filters = [{ is_active: true }];
@@ -102,7 +137,7 @@ describe('Parse metric filters', () => {
                 id: undefined,
                 operator: FilterOperator.EQUALS,
                 target: {
-                    fieldId: 'is_active',
+                    fieldRef: 'is_active',
                 },
                 values: [true],
             },
@@ -115,7 +150,7 @@ describe('Parse metric filters', () => {
                 id: undefined,
                 operator: FilterOperator.EQUALS,
                 target: {
-                    fieldId: 'position',
+                    fieldRef: 'position',
                 },
                 values: [1],
             },
@@ -128,7 +163,7 @@ describe('Parse metric filters', () => {
                 id: undefined,
                 operator: FilterOperator.INCLUDE,
                 target: {
-                    fieldId: 'name',
+                    fieldRef: 'name',
                 },
                 values: ['katie'],
             },
@@ -143,7 +178,7 @@ describe('Parse metric filters', () => {
                 id: undefined,
                 operator: FilterOperator.NOT_INCLUDE,
                 target: {
-                    fieldId: 'name',
+                    fieldRef: 'name',
                 },
                 values: ['katie'],
             },
@@ -151,7 +186,7 @@ describe('Parse metric filters', () => {
                 id: undefined,
                 operator: FilterOperator.EQUALS,
                 target: {
-                    fieldId: 'money',
+                    fieldRef: 'money',
                 },
                 values: [15.33],
             },
@@ -166,7 +201,7 @@ describe('Parse metric filters', () => {
                 id: undefined,
                 operator: FilterOperator.GREATER_THAN,
                 target: {
-                    fieldId: 'order_id',
+                    fieldRef: 'order_id',
                 },
                 values: [5],
             },
@@ -174,9 +209,36 @@ describe('Parse metric filters', () => {
                 id: undefined,
                 operator: FilterOperator.LESS_THAN,
                 target: {
-                    fieldId: 'order_id',
+                    fieldRef: 'order_id',
                 },
                 values: [10],
+            },
+        ]);
+    });
+
+    it('Should parse NULL using gtrammar', () => {
+        const filters = [{ name: null }];
+        expect(removeIds(parseFilters(filters))).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.NULL,
+                target: {
+                    fieldRef: 'name',
+                },
+                values: [1],
+            },
+        ]);
+    });
+    it('Should parse NOT_NULL using gtrammar', () => {
+        const filters = [{ name: '!null' }];
+        expect(removeIds(parseFilters(filters))).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.NOT_NULL,
+                target: {
+                    fieldRef: 'name',
+                },
+                values: [1],
             },
         ]);
     });

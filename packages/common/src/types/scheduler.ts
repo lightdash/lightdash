@@ -1,3 +1,4 @@
+import { Explore, ExploreError } from './explore';
 import { MetricQuery } from './metricQuery';
 
 export type SchedulerCsvOptions = {
@@ -260,6 +261,7 @@ export type ValidateProjectPayload = {
     context: 'lightdash_app' | 'dbt_refresh' | 'test_and_compile' | 'cli';
     userUuid: string;
     organizationUuid: string | undefined;
+    explores?: (Explore | ExploreError)[];
 };
 
 export type ApiJobScheduledResponse = {

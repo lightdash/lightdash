@@ -87,6 +87,7 @@ export * from './authorization/types';
 export * from './compiler/exploreCompiler';
 export * from './compiler/filtersCompiler';
 export * from './compiler/translator';
+export * from './dbt/validation';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export * from './templating/template';
 export * from './types/analytics';
@@ -95,6 +96,7 @@ export * from './types/api/errors';
 export * from './types/api/integrations';
 export * from './types/api/share';
 export * from './types/api/success';
+export * from './types/api/uuid';
 export * from './types/conditionalFormatting';
 export * from './types/conditionalRule';
 export * from './types/csv';
@@ -131,6 +133,7 @@ export * from './types/SshKeyPair';
 export * from './types/table';
 export * from './types/timeFrames';
 export * from './types/user';
+export * from './types/userAttributes';
 export * from './types/validation';
 export * from './types/warehouse';
 export * from './utils/api';
@@ -576,6 +579,10 @@ export type HealthState = {
             loginPath: string;
         };
         oneLogin: {
+            enabled: boolean;
+            loginPath: string;
+        };
+        azuread: {
             enabled: boolean;
             loginPath: string;
         };

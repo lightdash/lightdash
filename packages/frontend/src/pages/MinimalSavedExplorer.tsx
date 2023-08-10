@@ -1,3 +1,4 @@
+import { MantineProvider, MantineThemeOverride } from '@mantine/core';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import styled from 'styled-components';
@@ -15,7 +16,13 @@ import {
 const StyledLightdashVisualization = styled(LightdashVisualization)`
     min-height: inherit;
 `;
-
+const themeOverride: MantineThemeOverride = {
+    globalStyles: () => ({
+        'html, body': {
+            backgroundColor: 'white',
+        },
+    }),
+};
 const MinimalExplorer: FC = () => {
     const queryResults = useExplorerContext(
         (context) => context.queryResults.data,
@@ -46,11 +53,13 @@ const MinimalExplorer: FC = () => {
             isLoading={isLoadingQueryResults}
             columnOrder={savedChart.tableConfig.columnOrder}
         >
-            <StyledLightdashVisualization
-                // get rid of the classNames once you remove analytics providers
-                className="sentry-block fs-block cohere-block"
-                data-testid="visualization"
-            />
+            <MantineProvider inherit theme={themeOverride}>
+                <StyledLightdashVisualization
+                    // get rid of the classNames once you remove analytics providers
+                    className="sentry-block fs-block cohere-block"
+                    data-testid="visualization"
+                />
+            </MantineProvider>
         </VisualizationProvider>
     );
 };
@@ -93,11 +102,18 @@ const MinimalSavedExplorer: FC = () => {
                               tableConfig: data.tableConfig,
                               pivotConfig: data.pivotConfig,
                           },
+                          modals: {
+                              additionalMetric: {
+                                  isOpen: false,
+                              },
+                          },
                       }
                     : undefined
             }
         >
-            <MinimalExplorer />
+            <MantineProvider inherit theme={themeOverride}>
+                <MinimalExplorer />
+            </MantineProvider>
         </ExplorerProvider>
     );
 };

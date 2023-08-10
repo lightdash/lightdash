@@ -27,6 +27,11 @@ import ConditionalFormattingRule from './assets/conditional-formatting-rule.png'
 import ColumnsRowsMetricsExample from './assets/columns-rows-metrics-example.jpg';
 import MetricsAsRows from './assets/metrics-as-rows.jpg';
 import PivotedTable from './assets/pivoted-table.jpg';
+import PieChartLayout from './assets/pie-chart-layout.png';
+import PieChartSeries from './assets/pie-chart-series.png';
+import PieChartDisplay from './assets/pie-chart-display.png';
+import PieChart from './assets/pie-chart.png';
+import ColorRangesExample from './assets/color-ranges-example.jpg';
 
 # Chart types
 
@@ -36,6 +41,7 @@ In Lightdash, the data in your results tables can be visualized in a bunch of di
 
 - [Big Value](#big-value)
 - [Table](#table)
+- [Pie chart](#pie-chart)
 - [Bar chart](#bar-chart)
 - [Area chart](#area-chart)
 - [Line chart](#line-chart)
@@ -73,7 +79,7 @@ The options for Big value include:
 
 ### Table
 
-<img src={TableChart} width="570" height="202" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={TableChart} width="593" height="201" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 The Table option is good for looking at (surprise, surprise) tabular data, or for lists of things like user IDs or transactions. 
 
@@ -130,13 +136,47 @@ If you have a very wide table, you may want some columns to always be locked to 
 
 Sometimes it’s helpful to highlight certain values in your tables when they meet a specific condition. You can set up conditional formatting rules by going to the Configure tab then clicking on Conditional Formatting.
 
-<img src={ConditionalFormatting} width="698" height="297" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={ConditionalFormatting} width="513" height="169" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-When you add a new rule, you’ll first need to pick which column should be affected, then you'll need to choose condition you want to match and the colour to change the cell if it matches that condition.
+When you add a new rule, you’ll first need to pick which column should be affected, the type of rule you'd like to use (`single color` or `color range`), then you'll need to choose condition you want to match and the colour to change the cell if it matches that condition.
 
-<img src={ConditionalFormattingRule} width="349" height="563" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={ConditionalFormattingRule} width="283" height="572" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 You can set as many rules on a table as you want. If two or more rules disagree with each other, the rule that’s on the bottom of your list of rules will win.
+
+To use color ranges for your rules, select `color range` as the type. The color range option highlights cells with color shades according to the value in a particular cell. 
+
+<img src={ColorRangesExample} width="676" height="431" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+By defult, the color range will use a set of 5 colors mapped across the min and max colors selected in your rule.
+
+### Pie chart
+
+<img src={PieChart} width="561" height="309" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+Pie charts can be useful visualize data that adds up to a meaningful "whole". For example, the split of total revenue across each of our product lines. 
+
+To use a pie chart type, you need at least one metric and one dimension in your query results.
+
+#### Layout 
+
+<img src={PieChartLayout} width="266" height="210" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+To use a pie chart type, you need at least one metric and one dimension in your query results. You can add multiple dimensions to create more granular `groups` in your pie charts. 
+
+By default, pie charts are shown in a donut shape (i.e. with the center removed) but you can easily toggle the `donut` toggle to switch between a traditional pie and donut chart.
+
+#### Series
+
+<img src={PieChartSeries} width="262" height="273" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+You can adjust the labels and colours for each of the slices of your pie chart in the `series` tab. You also have the option to show or hide value labels in your chart.
+
+#### Display
+
+<img src={PieChartDisplay} width="258" height="66" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+You can choose to show or hide the legend for your pie chart in the `display` tab. 
 
 ### Bar chart
 

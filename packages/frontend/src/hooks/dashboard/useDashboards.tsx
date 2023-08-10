@@ -13,9 +13,12 @@ import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 import useQueryError from '../useQueryError';
 
-const getDashboards = async (projectUuid: string) =>
+const getDashboards = async (
+    projectUuid: string,
+    includePrivateSpaces: boolean,
+) =>
     lightdashApi<DashboardBasicDetails[]>({
-        url: `/projects/${projectUuid}/dashboards`,
+        url: `/projects/${projectUuid}/dashboards?includePrivate=${includePrivateSpaces}`,
         method: 'GET',
         body: undefined,
     });
@@ -33,12 +36,13 @@ const getDashboardsContainingChart = async (
 export const useDashboards = (
     projectUuid: string,
     useQueryOptions?: UseQueryOptions<DashboardBasicDetails[], ApiError>,
+    includePrivateSpaces: boolean = false,
 ) => {
     const setErrorResponse = useQueryError();
 
     return useQuery<DashboardBasicDetails[], ApiError>(
-        ['dashboards', projectUuid],
-        () => getDashboards(projectUuid || ''),
+        ['dashboards', projectUuid, includePrivateSpaces],
+        () => getDashboards(projectUuid || '', includePrivateSpaces),
         {
             enabled: projectUuid !== undefined,
             ...useQueryOptions,

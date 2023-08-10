@@ -1,11 +1,12 @@
 import {
-    DashboardChartTile,
-    DashboardLoomTile,
-    DashboardMarkdownTile,
+    CreateDashboardChartTile,
+    CreateDashboardLoomTile,
+    CreateDashboardMarkdownTile,
     DashboardTileTypes,
     FilterOperator,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
+    SpaceQuery,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
@@ -40,7 +41,15 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_ORG_1_ADMIN.user_uuid,
     );
 
-    const loomTile: DashboardLoomTile = {
+    const getChartByName = (name: string): SpaceQuery => {
+        const chart = queries.find(({ name: queryName }) => queryName === name);
+        if (!chart) {
+            throw new Error(`Could not find seeded chart with name ${name}`);
+        }
+        return chart;
+    };
+
+    const loomTile: CreateDashboardLoomTile = {
         uuid: uuidv4(),
         x: 0,
         y: 0,
@@ -53,7 +62,7 @@ export async function seed(knex: Knex): Promise<void> {
         },
     };
 
-    const markdownTile: DashboardMarkdownTile = {
+    const markdownTile: CreateDashboardMarkdownTile = {
         uuid: uuidv4(),
         x: 18,
         y: 0,
@@ -66,7 +75,7 @@ export async function seed(knex: Knex): Promise<void> {
         },
     };
 
-    const markdownRevenueTile: DashboardMarkdownTile = {
+    const markdownRevenueTile: CreateDashboardMarkdownTile = {
         uuid: uuidv4(),
         x: 0,
         y: 9,
@@ -79,57 +88,76 @@ export async function seed(knex: Knex): Promise<void> {
         },
     };
 
-    const barChart: DashboardChartTile = {
+    const barChart: CreateDashboardChartTile = {
         uuid: uuidv4(),
         x: 0,
         y: 12,
         w: 24,
         h: 9,
         type: DashboardTileTypes.SAVED_CHART,
-        properties: { savedChartUuid: queries[0].uuid, title: queries[0].name },
+        properties: {
+            savedChartUuid: getChartByName(
+                'How much revenue do we have per payment method?',
+            ).uuid,
+        },
     };
 
-    const bigNumberTile: DashboardChartTile = {
+    const bigNumberTile: CreateDashboardChartTile = {
         uuid: uuidv4(),
         x: 24,
         y: 12,
         w: 12,
         h: 9,
         type: DashboardTileTypes.SAVED_CHART,
-        properties: { savedChartUuid: queries[1].uuid, title: queries[1].name },
+        properties: {
+            savedChartUuid: getChartByName("What's our total revenue to date?")
+                .uuid,
+        },
     };
 
-    const lineChartTile: DashboardChartTile = {
+    const lineChartTile: CreateDashboardChartTile = {
         uuid: uuidv4(),
         x: 0,
         y: 24,
         w: 18,
         h: 9,
         type: DashboardTileTypes.SAVED_CHART,
-        properties: { savedChartUuid: queries[2].uuid, title: queries[2].name },
+        properties: {
+            savedChartUuid: getChartByName(
+                'How many orders we have over time ?',
+            ).uuid,
+        },
     };
 
-    const barTile: DashboardChartTile = {
+    const barTile: CreateDashboardChartTile = {
         uuid: uuidv4(),
         x: 18,
         y: 24,
         w: 18,
         h: 9,
         type: DashboardTileTypes.SAVED_CHART,
-        properties: { savedChartUuid: queries[3].uuid, title: queries[3].name },
+        properties: {
+            savedChartUuid: getChartByName(
+                "What's the average spend per customer?",
+            ).uuid,
+        },
     };
 
-    const tableTile: DashboardChartTile = {
+    const tableTile: CreateDashboardChartTile = {
         uuid: uuidv4(),
         x: 0,
         y: 33,
         w: 36,
         h: 9,
         type: DashboardTileTypes.SAVED_CHART,
-        properties: { savedChartUuid: queries[4].uuid, title: queries[4].name },
+        properties: {
+            savedChartUuid: getChartByName(
+                'Which customers have not recently ordered an item?',
+            ).uuid,
+        },
     };
 
-    const markdownOrdersTile: DashboardMarkdownTile = {
+    const markdownOrdersTile: CreateDashboardMarkdownTile = {
         uuid: uuidv4(),
         x: 0,
         y: 21,
@@ -187,5 +215,6 @@ export async function seed(knex: Knex): Promise<void> {
         {
             userUuid: SEED_ORG_1_ADMIN.user_uuid,
         },
+        SEED_PROJECT.project_uuid,
     );
 }

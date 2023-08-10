@@ -35,12 +35,13 @@ import { analytics } from '../../analytics/client';
 import {
     DownloadCsv,
     parseAnalyticsLimit,
+    QueryExecutionContext,
 } from '../../analytics/LightdashAnalytics';
 import { S3Service } from '../../clients/Aws/s3';
 import { schedulerClient } from '../../clients/clients';
 import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
-import Logger from '../../logger';
+import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { UserModel } from '../../models/UserModel';
@@ -160,6 +161,10 @@ export class CsvService {
             const data = row[id];
             const item = itemMap[id];
 
+            if (data === null || data === undefined) {
+                return data;
+            }
+
             const itemIsField = isField(item);
             if (itemIsField && item.type === DimensionType.TIMESTAMP) {
                 return moment(data).format('YYYY-MM-DD HH:mm:ss');
@@ -167,7 +172,11 @@ export class CsvService {
             if (itemIsField && item.type === DimensionType.DATE) {
                 return moment(data).format('YYYY-MM-DD');
             }
+
+            // Return raw value and let csv-stringify handle the rest
             if (onlyRaw) return data;
+
+            // Use standard Lightdash formatting based on the item formatting configuration
             return formatItemValue(item, data);
         });
     }
@@ -320,12 +329,13 @@ export class CsvService {
             });
         }
 
-        const rows = await this.projectService.runQuery(
+        const rows = await this.projectService.runMetricQuery(
             user,
             metricQuery,
             chart.projectUuid,
             exploreId,
             getSchedulerCsvLimit(options),
+            QueryExecutionContext.CSV,
         );
         const numberRows = rows.length;
 
@@ -571,12 +581,13 @@ export class CsvService {
                 properties: analyticsProperties,
             });
 
-            const rows = await this.projectService.runQuery(
+            const rows = await this.projectService.runMetricQuery(
                 user,
                 metricQuery,
                 projectUuid,
                 exploreId,
                 csvLimit,
+                QueryExecutionContext.CSV,
             );
             const numberRows = rows.length;
 

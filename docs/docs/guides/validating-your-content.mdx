@@ -1,4 +1,5 @@
 import ValidateDashboard from './assets/validate-dashboard.jpg';
+import DismissErrors from './assets/dismiss-errors.png';
 
 
 # Validating your content
@@ -36,3 +37,11 @@ The content types included in the validator dashboard are:
 - **Tables** - errors in tables are caused when dimensions or metrics that have been deleted or renamed but are still referenced in other places in the table.
 - **Charts** - errors in charts are caused when the results table or filters reference a metric or dimension which no longer exists.
 - **Dashboards** - errors in dashboards are caused when a chart is broken in the dashboard or a filter references a metric or dimension which no longer exists.
+
+## How to dismiss errors 
+
+You can dismiss errors from validation by clicking on the "x" button that appears when you hover over a row on the validation table. 
+
+<img src={DismissErrors} width="1125" height="568" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+Dismissed validation errors are applied to everyone. So, if you dismiss an error, it will be removed from everyone else's validation results as well as yours. The errors you dismissed will reappear again if you run another validation and the issue hasn't been fixed yet. 

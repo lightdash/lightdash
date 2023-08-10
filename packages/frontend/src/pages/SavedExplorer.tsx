@@ -1,6 +1,7 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { useParams } from 'react-router-dom';
 
+import { useEffect } from 'react';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import Explorer from '../components/Explorer';
@@ -31,6 +32,13 @@ const SavedExplorer = () => {
         isViewOnly: !isEditMode,
     });
 
+    useEffect(() => {
+        if (data && data.dashboardUuid && data.dashboardName) {
+            sessionStorage.setItem('fromDashboard', data.dashboardName);
+            sessionStorage.setItem('dashboardUuid', data.dashboardUuid);
+        }
+    }, [data]);
+
     if (isLoading) {
         return (
             <div style={{ marginTop: '20px' }}>
@@ -57,6 +65,11 @@ const SavedExplorer = () => {
                               metricQuery: data.metricQuery,
                               tableConfig: data.tableConfig,
                               pivotConfig: data.pivotConfig,
+                          },
+                          modals: {
+                              additionalMetric: {
+                                  isOpen: false,
+                              },
                           },
                       }
                     : undefined

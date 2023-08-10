@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
     CompiledField,
     CreateChartValidation,
     CreateDashboardValidation,
@@ -10,6 +11,7 @@ import {
     fieldId as getFieldId,
     ForbiddenError,
     getFilterRules,
+    getItemId,
     InlineErrorType,
     isDashboardChartTileType,
     isDimension,
@@ -19,13 +21,15 @@ import {
     RequestMethod,
     SessionUser,
     TableCalculation,
+    TableSelectionType,
     ValidationErrorType,
     ValidationResponse,
+    ValidationSourceType,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import { schedulerClient } from '../../clients/clients';
 import { LightdashConfig } from '../../config/parseConfig';
-import Logger from '../../logger';
+import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -92,16 +96,77 @@ export class ValidationService {
         return tableCalculationFieldsInSql;
     }
 
-    private static async validateTables(
+    private async validateTables(
         projectUuid: string,
         explores: (Explore | ExploreError)[] | undefined,
     ): Promise<CreateTableValidation[]> {
+        const tablesConfiguration =
+            await this.projectModel.getTablesConfiguration(projectUuid);
+
         // Get existing errors from ExploreError and convert to ValidationInsert
         if (explores === undefined) {
             return [];
         }
+
+        const isTableEnabled = (explore: Explore | ExploreError) => {
+            switch (tablesConfiguration.tableSelection.type) {
+                case TableSelectionType.ALL:
+                    return true;
+                case TableSelectionType.WITH_TAGS:
+                    const hasSelectedJoinedExploredWithTags = explores.some(
+                        (e) =>
+                            e.joinedTables?.some(
+                                (jt) => jt.table === explore.name,
+                            ) &&
+                            e.tags?.some((tag) =>
+                                tablesConfiguration.tableSelection.value?.includes(
+                                    tag,
+                                ),
+                            ),
+                    );
+                    const exploreIsSelectedWithTags = explore.tags?.some(
+                        (tag) =>
+                            tablesConfiguration.tableSelection.value?.includes(
+                                tag,
+                            ),
+                    );
+                    return (
+                        hasSelectedJoinedExploredWithTags ||
+                        exploreIsSelectedWithTags
+                    );
+
+                case TableSelectionType.WITH_NAMES:
+                    const hasSelectedJoinedExplored = explores.some(
+                        (e) =>
+                            e.joinedTables?.some(
+                                (jt) => jt.table === explore.name,
+                            ) &&
+                            tablesConfiguration.tableSelection.value?.includes(
+                                e.name,
+                            ),
+                    );
+                    const exploreIsSelected =
+                        tablesConfiguration.tableSelection.value?.includes(
+                            explore.name,
+                        );
+
+                    return hasSelectedJoinedExplored || exploreIsSelected;
+                default:
+                    return assertUnreachable(
+                        tablesConfiguration.tableSelection.type,
+                        'Invalid table selection type',
+                    );
+            }
+        };
+
         const errors = explores.reduce<CreateTableValidation[]>(
             (acc, explore) => {
+                if (!isTableEnabled(explore)) {
+                    Logger.debug(
+                        `Table ${explore.name} is disabled, skipping validation`,
+                    );
+                    return acc;
+                }
                 if (isExploreError(explore)) {
                     const exploreErrors = explore.errors
                         .filter(
@@ -115,6 +180,7 @@ export class ValidationService {
                             errorType: ValidationErrorType.Model,
                             modelName: explore.name,
                             projectUuid,
+                            source: ValidationSourceType.Table,
                         }));
                     return [...acc, ...exploreErrors];
                 }
@@ -127,16 +193,15 @@ export class ValidationService {
 
     private async validateCharts(
         projectUuid: string,
-        existingFields: CompiledField[],
+        explorerFields: CompiledField[],
     ): Promise<CreateChartValidation[]> {
-        const existingFieldIds = existingFields.map(getFieldId);
-
-        const existingDimensionIds = existingFields
+        const explorerDimensionIds = explorerFields
             .filter(isDimension)
             .map(getFieldId);
-        const existingMetricIds = existingFields
+        const explorerMetricIds = explorerFields
             .filter(isMetric)
             .map(getFieldId);
+
         const chartSummaries = await this.savedChartModel.find({ projectUuid });
         const charts = await Promise.all(
             chartSummaries.map((chartSummary) =>
@@ -145,15 +210,24 @@ export class ValidationService {
         );
 
         const results = charts.flatMap((chart) => {
-            const filterAdditionalMetrics = (metric: string) =>
-                !chart.metricQuery.additionalMetrics
-                    ?.map((additionalMetric) => getFieldId(additionalMetric))
-                    ?.includes(metric);
+            const chartCustomMetricIds =
+                chart.metricQuery.additionalMetrics?.map(getItemId) || [];
+            const chartTableCalculationIds =
+                chart.metricQuery.tableCalculations?.map(getItemId) || [];
+
+            const allItemIdsAvailableInChart = [
+                ...explorerDimensionIds,
+                ...explorerMetricIds,
+                ...chartCustomMetricIds,
+                ...chartTableCalculationIds,
+            ];
 
             const commonValidation = {
                 chartUuid: chart.uuid,
                 name: chart.name,
                 projectUuid: chart.projectUuid,
+                source: ValidationSourceType.Chart,
+                chartName: chart.name,
             };
             const containsFieldId = ({
                 acc,
@@ -190,7 +264,7 @@ export class ValidationService {
                 (acc, field) =>
                     containsFieldId({
                         acc,
-                        fieldIds: existingDimensionIds,
+                        fieldIds: explorerDimensionIds,
                         fieldId: field,
                         error: `Dimension error: the field '${field}' no longer exists`,
                         errorType: ValidationErrorType.Dimension,
@@ -198,25 +272,23 @@ export class ValidationService {
                     }),
                 [],
             );
-            const metricErrors = chart.metricQuery.metrics
-                .filter(filterAdditionalMetrics)
-                .reduce<CreateChartValidation[]>(
-                    (acc, field) =>
-                        containsFieldId({
-                            acc,
-                            fieldIds: existingMetricIds,
-                            fieldId: field,
-                            error: `Metric error: the field '${field}' no longer exists`,
-                            errorType: ValidationErrorType.Metric,
-                            fieldName: field,
-                        }),
-                    [],
-                );
-
-            const filterTableCalculations = (fieldId: string) =>
-                !chart.metricQuery.tableCalculations
-                    ?.map((tableCalculation) => tableCalculation.name)
-                    ?.includes(fieldId);
+            const metricErrors = chart.metricQuery.metrics.reduce<
+                CreateChartValidation[]
+            >(
+                (acc, field) =>
+                    containsFieldId({
+                        acc,
+                        fieldIds: [
+                            ...explorerMetricIds,
+                            ...chartCustomMetricIds,
+                        ],
+                        fieldId: field,
+                        error: `Metric error: the field '${field}' no longer exists`,
+                        errorType: ValidationErrorType.Metric,
+                        fieldName: field,
+                    }),
+                [],
+            );
 
             const filterErrors = getFilterRules(
                 chart.metricQuery.filters,
@@ -224,7 +296,7 @@ export class ValidationService {
                 (acc, field) =>
                     containsFieldId({
                         acc,
-                        fieldIds: existingFieldIds,
+                        fieldIds: allItemIdsAvailableInChart,
                         fieldId: field.target.fieldId,
                         error: `Filter error: the field '${field.target.fieldId}' no longer exists`,
                         errorType: ValidationErrorType.Filter,
@@ -233,24 +305,20 @@ export class ValidationService {
                 [],
             );
 
-            const sortErrors = chart.metricQuery.sorts
-                .filter(
-                    (sort) =>
-                        filterTableCalculations(sort.fieldId) &&
-                        filterAdditionalMetrics(sort.fieldId),
-                )
-                .reduce<CreateChartValidation[]>(
-                    (acc, field) =>
-                        containsFieldId({
-                            acc,
-                            fieldIds: existingFieldIds,
-                            fieldId: field.fieldId,
-                            error: `Sorting error: the field '${field.fieldId}' no longer exists`,
-                            errorType: ValidationErrorType.Sorting,
-                            fieldName: field.fieldId,
-                        }),
-                    [],
-                );
+            const sortErrors = chart.metricQuery.sorts.reduce<
+                CreateChartValidation[]
+            >(
+                (acc, field) =>
+                    containsFieldId({
+                        acc,
+                        fieldIds: allItemIdsAvailableInChart,
+                        fieldId: field.fieldId,
+                        error: `Sorting error: the field '${field.fieldId}' no longer exists`,
+                        errorType: ValidationErrorType.Sorting,
+                        fieldName: field.fieldId,
+                    }),
+                [],
+            );
 
             /*
             // I think these are redundant, as we already check dimension/metrics
@@ -313,6 +381,7 @@ export class ValidationService {
                     name: dashboard.name,
                     dashboardUuid: dashboard.uuid,
                     projectUuid: dashboard.projectUuid,
+                    source: ValidationSourceType.Dashboard,
                 };
 
                 const containsFieldId = ({
@@ -393,10 +462,19 @@ export class ValidationService {
         return results;
     }
 
-    async generateValidation(projectUuid: string): Promise<CreateValidation[]> {
-        const explores = await this.projectModel.getExploresFromCache(
-            projectUuid,
+    async generateValidation(
+        projectUuid: string,
+        compiledExplores?: (Explore | ExploreError)[],
+    ): Promise<CreateValidation[]> {
+        Logger.debug(
+            `Generating validation for project ${projectUuid} with explores ${
+                compiledExplores ? 'from CLI' : 'from cache'
+            }`,
         );
+        const explores =
+            compiledExplores !== undefined
+                ? compiledExplores
+                : await this.projectModel.getExploresFromCache(projectUuid);
 
         const existingFields = explores?.reduce<CompiledField[]>(
             (acc, explore) => {
@@ -421,10 +499,7 @@ export class ValidationService {
             return [];
         }
 
-        const tableErrors = await ValidationService.validateTables(
-            projectUuid,
-            explores,
-        );
+        const tableErrors = await this.validateTables(projectUuid, explores);
         const chartErrors = await this.validateCharts(
             projectUuid,
             existingFields,
@@ -447,6 +522,7 @@ export class ValidationService {
         user: SessionUser,
         projectUuid: string,
         context?: RequestMethod,
+        explores?: (Explore | ExploreError)[],
     ): Promise<string> {
         const { organizationUuid } = await this.projectModel.get(projectUuid);
 
@@ -469,6 +545,7 @@ export class ValidationService {
             projectUuid,
             context: fromCLI ? 'cli' : 'lightdash_app',
             organizationUuid: user.organizationUuid,
+            explores,
         });
         return jobId;
     }
@@ -476,11 +553,13 @@ export class ValidationService {
     async storeValidation(
         projectUuid: string,
         validationErrors: CreateValidation[],
+        jobId?: string,
     ) {
-        await this.validationModel.delete(projectUuid);
+        // If not storing for an specific CLI validation, delete previous validations
+        if (jobId === undefined) await this.validationModel.delete(projectUuid);
 
         if (validationErrors.length > 0)
-            await this.validationModel.create(validationErrors);
+            await this.validationModel.create(validationErrors, jobId);
     }
 
     async hidePrivateContent(
@@ -510,8 +589,9 @@ export class ValidationService {
         user: SessionUser,
         projectUuid: string,
         fromSettings = false,
+        jobId?: string,
     ): Promise<ValidationResponse[]> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = user;
 
         if (
             user.ability.cannot(
@@ -524,7 +604,7 @@ export class ValidationService {
         ) {
             throw new ForbiddenError();
         }
-        const validations = await this.validationModel.get(projectUuid);
+        const validations = await this.validationModel.get(projectUuid, jobId);
 
         if (fromSettings) {
             const contentIds = validations.map(
@@ -557,5 +637,33 @@ export class ValidationService {
     ): Promise<ValidationResponse[]> {
         const validations = await this.validationModel.get(projectUuid);
         return this.hidePrivateContent(user, projectUuid, validations);
+    }
+
+    async delete(user: SessionUser, validationId: number): Promise<void> {
+        const validation = await this.validationModel.getByValidationId(
+            validationId,
+        );
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Validation', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid: validation.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        analytics.track({
+            event: 'validation.error_dismissed',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid,
+                projectId: validation.projectUuid,
+            },
+        });
+
+        await this.validationModel.deleteValidation(validationId);
     }
 }

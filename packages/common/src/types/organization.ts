@@ -1,4 +1,5 @@
 import { OrganizationMemberRole } from './organizationMemberProfile';
+import { ProjectMemberRole } from './projectMemberProfile';
 import { ProjectType } from './projects';
 
 /**
@@ -23,6 +24,10 @@ export type Organization = {
      * The organization needs a project if it doesn't have at least one project.
      */
     needsProject?: boolean;
+    /**
+     * The project a user sees when they first log in to the organization
+     */
+    defaultProjectUuid?: string;
 };
 
 export type CreateOrganization = Pick<Organization, 'name'>;
@@ -71,11 +76,51 @@ export type ApiOnboardingStatusResponse = {
     results: OnboardingStatus;
 };
 
+export type AllowedEmailDomainsRole =
+    | OrganizationMemberRole.EDITOR
+    | OrganizationMemberRole.INTERACTIVE_VIEWER
+    | OrganizationMemberRole.VIEWER
+    | OrganizationMemberRole.MEMBER;
+
+export const AllowedEmailDomainsRoles: Array<AllowedEmailDomainsRole> = [
+    OrganizationMemberRole.EDITOR,
+    OrganizationMemberRole.INTERACTIVE_VIEWER,
+    OrganizationMemberRole.VIEWER,
+    OrganizationMemberRole.MEMBER,
+];
+
+export function isAllowedEmailDomainsRole(
+    role: OrganizationMemberRole,
+): role is AllowedEmailDomainsRole {
+    return AllowedEmailDomainsRoles.includes(role as any);
+}
+
+export type AllowedEmailDomainProjectsRole =
+    | ProjectMemberRole.EDITOR
+    | ProjectMemberRole.INTERACTIVE_VIEWER
+    | ProjectMemberRole.VIEWER;
+
+export const AllowedEmailDomainProjectRoles: Array<AllowedEmailDomainProjectsRole> =
+    [
+        ProjectMemberRole.EDITOR,
+        ProjectMemberRole.INTERACTIVE_VIEWER,
+        ProjectMemberRole.VIEWER,
+    ];
+
+export function isAllowedEmailDomainProjectRole(
+    role: ProjectMemberRole,
+): role is AllowedEmailDomainProjectsRole {
+    return AllowedEmailDomainProjectRoles.includes(role as any);
+}
+
 export type AllowedEmailDomains = {
     organizationUuid: string;
     emailDomains: string[];
-    role: OrganizationMemberRole;
-    projectUuids: string[];
+    role: AllowedEmailDomainsRole;
+    projects: Array<{
+        projectUuid: string;
+        role: AllowedEmailDomainProjectsRole;
+    }>;
 };
 
 export type UpdateAllowedEmailDomains = Omit<

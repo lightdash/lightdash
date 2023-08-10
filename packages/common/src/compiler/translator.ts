@@ -5,6 +5,7 @@ import {
     DbtMetric,
     DbtModelColumn,
     DbtModelNode,
+    isV9MetricRef,
     LineageGraph,
     SupportedDbtAdapter,
 } from '../types/dbt';
@@ -138,6 +139,7 @@ const convertDimension = (
         format: column.meta.dimension?.format,
         round: column.meta.dimension?.round,
         compact: column.meta.dimension?.compact,
+        requiredAttributes: column.meta.dimension?.required_attributes,
         groupLabel: column.meta.dimension?.group_label,
         ...(column.meta.dimension?.urls
             ? { urls: column.meta.dimension.urls }
@@ -276,6 +278,7 @@ export const convertTable = (
                 [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
                     dimension.type,
                 ) &&
+                column.meta.dimension?.time_intervals !== false &&
                 ((column.meta.dimension?.time_intervals &&
                     column.meta.dimension.time_intervals !== 'OFF') ||
                     !column.meta.dimension?.time_intervals)
@@ -383,6 +386,7 @@ export const convertTable = (
     if (!model.relation_name) {
         throw new Error(`Model "${model.name}" has no table relation`);
     }
+
     return {
         name: model.name,
         label: tableLabel,
@@ -399,6 +403,8 @@ export const convertTable = (
             )
                 ? (meta.order_fields_by.toUpperCase() as OrderFieldsByStrategy)
                 : OrderFieldsByStrategy.LABEL,
+        groupLabel: meta.group_label,
+        sqlWhere: meta.sql_filter || meta.sql_where,
     };
 };
 
@@ -426,10 +432,16 @@ const modelCanUseMetric = (
     if (!metric) {
         return false;
     }
-    const modelRef = metric.refs?.[0]?.[0];
-    if (modelRef === modelName) {
-        return true;
+    const modelRef = metric?.refs?.[0];
+    if (modelRef) {
+        const modelRefName = isV9MetricRef(modelRef)
+            ? modelRef.name
+            : modelRef[0];
+        if (modelRefName === modelName) {
+            return true;
+        }
     }
+
     if (metric.calculation_method === 'derived') {
         const referencedMetrics = (metric.metrics || []).map((m) => m[0]);
         return referencedMetrics.every((m) =>
@@ -480,6 +492,7 @@ export const convertExplores = async (
                     name: model.name,
                     label: meta.label || friendlyName(model.name),
                     tags: model.tags,
+                    groupLabel: meta.group_label,
                     errors: [
                         {
                             type: e.name,
@@ -510,6 +523,7 @@ export const convertExplores = async (
                 label: meta.label || friendlyName(model.name),
                 tags: model.tags || [],
                 baseTable: model.name,
+                groupLabel: meta.group_label,
                 joinedTables: (meta?.joins || []).map((join) => ({
                     table: join.join,
                     sqlOn: join.sql_on,
@@ -524,6 +538,7 @@ export const convertExplores = async (
             return {
                 name: model.name,
                 label: meta.label || friendlyName(model.name),
+                groupLabel: meta.group_label,
                 errors: [{ type: e.name, message: e.message }],
             };
         }

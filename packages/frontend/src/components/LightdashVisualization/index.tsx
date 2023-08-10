@@ -1,6 +1,7 @@
-import { ChartType } from '@lightdash/common';
+import { assertUnreachable, ChartType } from '@lightdash/common';
 import { FC, memo } from 'react';
 import SimpleChart from '../SimpleChart';
+import SimplePieChart from '../SimplePieChart';
 import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
 import { useVisualizationContext } from './VisualizationProvider';
@@ -10,7 +11,6 @@ interface LightdashVisualizationProps {
     isDashboard?: boolean;
     isTitleHidden?: boolean;
     className?: string;
-    $padding?: number;
     'data-testid'?: string;
 }
 
@@ -44,7 +44,6 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                         isDashboard={!!isDashboard}
                         className={className}
                         $shouldExpand
-                        $padding={props.$padding}
                         data-testid={props['data-testid']}
                         {...props}
                     />
@@ -58,8 +57,21 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                         {...props}
                     />
                 );
+            case ChartType.PIE:
+                return (
+                    <SimplePieChart
+                        className={className}
+                        tileUuid={tileUuid}
+                        $shouldExpand
+                        data-testid={props['data-testid']}
+                        {...props}
+                    />
+                );
             default:
-                return null;
+                return assertUnreachable(
+                    chartType,
+                    `Chart type ${chartType} not implemented`,
+                );
         }
     },
 );

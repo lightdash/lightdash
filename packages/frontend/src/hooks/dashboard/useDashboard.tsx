@@ -81,7 +81,7 @@ export const useDashboardQuery = (
     return useQuery<Dashboard, ApiError>({
         queryKey: ['saved_dashboard_query', id],
         queryFn: () => getDashboard(id || ''),
-        enabled: id !== undefined,
+        enabled: !!id,
         retry: false,
         onError: (result) => setErrorResponse(result),
         ...useQueryOptions,
@@ -332,10 +332,10 @@ export const useDashboardDeleteMutation = () => {
     });
 };
 
-export const appendNewTilesToBottom = (
-    existingTiles: DashboardTile[] | [],
-    newTiles: DashboardTile[],
-): DashboardTile[] => {
+export const appendNewTilesToBottom = <T extends Pick<DashboardTile, 'y'>>(
+    existingTiles: T[] | [],
+    newTiles: T[],
+): T[] => {
     const tilesY =
         existingTiles &&
         existingTiles.map(function (tile) {

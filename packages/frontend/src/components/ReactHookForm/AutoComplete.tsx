@@ -81,7 +81,7 @@ const getGroupedItems = (
         if (groupBy === undefined) return acc;
         const group = groupBy(item);
 
-        const lastGroup = acc.at(-1);
+        const lastGroup = acc[acc.length - 1];
         if (lastGroup && lastGroup.group === group) {
             lastGroup.items.push(item);
         } else {
@@ -138,7 +138,13 @@ const ControlledSuggest: FC<{
 
     const renderGroupedItemList: ItemListRenderer<Item> = useCallback(
         (listProps: ItemListRendererProps<Item>) => {
-            const noResults = <MenuItem2 disabled text="No suggestions." />;
+            const createItem = suggestProps?.createNewItemRenderer;
+            const noResults =
+                createItem !== undefined ? (
+                    createItem(listProps.query, true, () => {})
+                ) : (
+                    <MenuItem2 disabled text="No suggestions." />
+                );
             const menuContent = renderGroupedMenuContent(
                 listProps,
                 noResults,
@@ -154,7 +160,7 @@ const ControlledSuggest: FC<{
                 </Menu>
             );
         },
-        [groupBy],
+        [groupBy, suggestProps?.createNewItemRenderer],
     );
 
     return (
@@ -209,7 +215,6 @@ const ControlledSuggest: FC<{
 interface Props extends Omit<InputWrapperProps, 'render'> {
     isLoading?: boolean;
     items: Item[];
-
     suggestProps?: Partial<React.ComponentProps<typeof Suggest2<Item>>>;
     groupBy?: (item: Item) => string;
 }

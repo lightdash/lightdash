@@ -77,6 +77,9 @@ export const organizationMemberAbilities: Record<
         can('manage', 'PinnedItems', {
             organizationUuid: member.organizationUuid,
         });
+        can('update', 'Project', {
+            organizationUuid: member.organizationUuid,
+        });
     },
     developer(member, { can }) {
         organizationMemberAbilities.editor(member, { can });

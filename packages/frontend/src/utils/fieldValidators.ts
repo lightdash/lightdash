@@ -8,6 +8,7 @@ export const hasNoWhiteSpaces: FieldValidator<string> =
             ? undefined
             : `${fieldName} should not have white spaces`;
 
+
 // Supports values: "1" "1,2,3" "1-3" "*/5" "*"
 const cronValueRegex = new RegExp(
     /^(\*\/\d)|((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*)$/,

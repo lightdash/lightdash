@@ -47,7 +47,9 @@ export const useExplorerRoute = () => {
     const queryResultsData = useExplorerContext(
         (context) => context.queryResults.data,
     );
-    const clear = useExplorerContext((context) => context.actions.clear);
+    const clearExplore = useExplorerContext(
+        (context) => context.actions.clearExplore,
+    );
     const setTableName = useExplorerContext(
         (context) => context.actions.setTableName,
     );
@@ -74,11 +76,11 @@ export const useExplorerRoute = () => {
 
     useEffect(() => {
         if (!pathParams.tableId) {
-            clear();
+            clearExplore();
         } else {
             setTableName(pathParams.tableId);
         }
-    }, [pathParams.tableId, clear, setTableName]);
+    }, [pathParams.tableId, clearExplore, setTableName]);
 };
 
 export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
@@ -121,6 +123,11 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                           ]
                         : [ExplorerSection.RESULTS],
                     unsavedChartVersion,
+                    modals: {
+                        additionalMetric: {
+                            isOpen: false,
+                        },
+                    },
                 };
             } catch (e: any) {
                 showToastError({ title: 'Error parsing url', subtitle: e });

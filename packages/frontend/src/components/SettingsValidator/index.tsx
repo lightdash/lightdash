@@ -6,7 +6,7 @@ import {
     Text,
     useMantineTheme,
 } from '@mantine/core';
-import { IconAlertCircle, IconCheck } from '@tabler/icons-react';
+import { IconCheck } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import {
     useValidation,
@@ -27,8 +27,6 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
     const { mutate: validateProject } = useValidationMutation(projectUuid, () =>
         setIsValidating(false),
     );
-
-    const hasNoErrorType = data?.every((err) => !err.errorType);
 
     return (
         <>
@@ -74,15 +72,7 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                                 : 'auto',
                     }}
                 >
-                    {!!data?.length && hasNoErrorType ? (
-                        <Group position="center" spacing="xs" p="md">
-                            <MantineIcon icon={IconAlertCircle} color="gray" />
-                            <Text fw={500} c="gray.7">
-                                Please run the validation again to see updated
-                                results.
-                            </Text>
-                        </Group>
-                    ) : !!data?.length ? (
+                    {!!data?.length ? (
                         <ValidatorTable data={data} projectUuid={projectUuid} />
                     ) : (
                         <Group position="center" spacing="xs" p="md">
