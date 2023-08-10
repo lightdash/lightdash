@@ -1,4 +1,3 @@
-import { Checkbox, FormGroup } from '@blueprintjs/core';
 import { Popover2Props } from '@blueprintjs/popover2';
 import {
     DashboardFilterRule,
@@ -10,13 +9,15 @@ import {
     matchFieldByTypeAndName,
     matchFieldExact,
 } from '@lightdash/common';
+import { Box, Checkbox, Stack, Text, useMantineTheme } from '@mantine/core';
+import { useListState } from '@mantine/hooks';
 import { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { FilterActions } from '.';
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 
-interface TileFilterConfigurationProps {
+type Props = {
     tiles: DashboardTile[];
     availableTileFilters: Record<string, FilterableField[] | undefined>;
     field: FilterableField;
@@ -27,9 +28,9 @@ interface TileFilterConfigurationProps {
         tileUuid: string,
         filter?: FilterableField,
     ) => void;
-}
+};
 
-const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
+const TileFilterConfiguration: FC<Props> = ({
     tiles,
     field,
     filterRule,
@@ -37,6 +38,7 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
     popoverProps,
     onChange,
 }) => {
+    const theme = useMantineTheme();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const { data: savedCharts } = useChartSummaries(projectUuid);
@@ -75,75 +77,135 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
             .sort(([, a], [, b]) => tilesSortBy(matchFieldExact, a, b));
     }, [tilesSortBy, availableTileFilters]);
 
-    return (
+    const initialFilterTilesValues = sortedTileEntries.map(
+        ([tileUuid, filters], index) => {
+            const tile = tiles.find((t) => t.uuid === tileUuid);
+            const tileConfig = filterRule.tileTargets?.[tileUuid];
+
+            const isAvailable = filters?.some(matchFieldByType(field));
+            const sortedFilters = filters
+                ?.filter(matchFieldByType(field))
+                .sort((a, b) => itemsSortBy(matchFieldByTypeAndName, a, b))
+                .sort((a, b) => itemsSortBy(matchFieldExact, a, b));
+
+            const fieldId = tileConfig?.fieldId;
+            const filter = filters?.find((f) => getFieldId(f) === fieldId);
+            const hasNoTitle =
+                !tile?.properties.title || tile.properties.title.length === 0;
+            const isChartTile = tile && isDashboardChartTileType(tile);
+
+            let label = '';
+            if (tile) {
+                if (hasNoTitle && isChartTile) {
+                    const matchingChart = savedCharts?.find(
+                        (chart) =>
+                            chart.uuid === tile.properties.savedChartUuid,
+                    );
+                    label = matchingChart?.name || '';
+                } else if (tile.properties.title) {
+                    label = tile.properties.title;
+                }
+            }
+            return {
+                key: tileUuid + index,
+                label,
+                checked: Boolean(isAvailable && tileConfig),
+                tileUuid,
+                sortedFilters,
+                filter,
+            };
+        },
+    );
+
+    const [values, handlers] = useListState(initialFilterTilesValues);
+
+    const allChecked = values.every(({ checked }) => checked);
+    const indeterminate = values.some(({ checked }) => checked) && !allChecked;
+
+    const items = values.map((value, index) => (
         <>
-            {sortedTileEntries.map(([tileUuid, filters]) => {
-                if (!filters) return null;
+            <Checkbox
+                size="xs"
+                fw={500}
+                label={value.label}
+                key={value.key}
+                checked={value.checked}
+                onChange={(event) => {
+                    handlers.setItemProp(
+                        index,
+                        'checked',
+                        event.currentTarget.checked,
+                    );
 
-                const tile = tiles.find((t) => t.uuid === tileUuid);
-                const tileConfig = filterRule.tileTargets?.[tileUuid];
+                    onChange(
+                        event.currentTarget.checked
+                            ? FilterActions.ADD
+                            : FilterActions.REMOVE,
+                        value.tileUuid,
+                    );
+                }}
+            />
 
-                const isAvailable = filters.some(matchFieldByType(field));
-                const isChecked = isAvailable && !!tileConfig;
+            {value.sortedFilters && (
+                <Box ml={24} display={!value.checked ? 'none' : 'auto'}>
+                    <FieldAutoComplete
+                        disabled={!value.checked}
+                        popoverProps={{
+                            lazy: true,
+                            minimal: true,
+                            matchTargetWidth: true,
+                            ...popoverProps,
+                        }}
+                        inputProps={{
+                            // TODO: Remove once this component is migrated to Mantine
+                            style: {
+                                borderRadius: '3px',
+                                boxShadow: 'none',
+                                fontSize: theme.fontSizes.xs,
+                            },
+                        }}
+                        fields={value.sortedFilters}
+                        activeField={value.filter}
+                        onChange={(newFilter) => {
+                            handlers.setItemProp(index, 'filter', newFilter);
 
-                const fieldId = tileConfig?.fieldId;
-                const filter = filters.find((f) => getFieldId(f) === fieldId);
-
-                const sortedFilters = filters
-                    .filter(matchFieldByType(field))
-                    .sort((a, b) => itemsSortBy(matchFieldByTypeAndName, a, b))
-                    .sort((a, b) => itemsSortBy(matchFieldExact, a, b));
-
-                const title =
-                    tile &&
-                    (!tile.properties.title ||
-                        tile.properties.title.length === 0) &&
-                    isDashboardChartTileType(tile)
-                        ? savedCharts?.find(
-                              (chart) =>
-                                  chart.uuid === tile.properties.savedChartUuid,
-                          )?.name
-                        : tile?.properties.title;
-                return (
-                    <FormGroup key={tileUuid}>
-                        <Checkbox
-                            label={title}
-                            disabled={!isAvailable}
-                            checked={isChecked}
-                            onChange={() => {
-                                onChange(
-                                    isChecked
-                                        ? FilterActions.REMOVE
-                                        : FilterActions.ADD,
-                                    tileUuid,
-                                );
-                            }}
-                        />
-
-                        <div style={{ marginLeft: 24 }}>
-                            <FieldAutoComplete
-                                disabled={!isAvailable || !isChecked}
-                                popoverProps={{
-                                    lazy: true,
-                                    minimal: true,
-                                    matchTargetWidth: true,
-                                    ...popoverProps,
-                                }}
-                                fields={sortedFilters}
-                                activeField={filter}
-                                onChange={(newFilter) => {
-                                    onChange(
-                                        FilterActions.ADD,
-                                        tileUuid,
-                                        newFilter,
-                                    );
-                                }}
-                            />
-                        </div>
-                    </FormGroup>
-                );
-            })}
+                            onChange(
+                                FilterActions.ADD,
+                                value.tileUuid,
+                                newFilter,
+                            );
+                        }}
+                    />
+                </Box>
+            )}
         </>
+    ));
+
+    return (
+        <Stack spacing="lg">
+            <Checkbox
+                size="xs"
+                checked={allChecked}
+                indeterminate={indeterminate}
+                label={
+                    <Text fw={500} fz="xs" color="gray.7">
+                        Select all
+                    </Text>
+                }
+                transitionDuration={0}
+                onChange={() =>
+                    handlers.setState((current) =>
+                        current.map((value) => ({
+                            ...value,
+                            checked: !allChecked,
+                        })),
+                    )
+                }
+            />
+            <Stack spacing="xs" ml={8}>
+                {items}
+            </Stack>
+        </Stack>
     );
 };
 
