@@ -166,7 +166,7 @@ const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
                             icon={<MantineIcon icon={IconArrowBarToDown} />}
                             onClick={handleOpenDrillIntoModal}
                         >
-                            Drill into "${value.formatted}"
+                            Drill into "{value.formatted}"
                         </Menu.Item>
                     </Can>
                 )}
