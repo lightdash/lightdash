@@ -1,3 +1,10 @@
+## [0.732.2](https://github.com/lightdash/lightdash/compare/0.732.1...0.732.2) (2023-08-10)
+
+
+### Bug Fixes
+
+* rollback to previous version of dbt ([#6685](https://github.com/lightdash/lightdash/issues/6685)) ([dd182a9](https://github.com/lightdash/lightdash/commit/dd182a9f7e4acaa8326110dc046cdfb14d19cbb9))
+
 ## [0.732.1](https://github.com/lightdash/lightdash/compare/0.732.0...0.732.1) (2023-08-09)
 
 
