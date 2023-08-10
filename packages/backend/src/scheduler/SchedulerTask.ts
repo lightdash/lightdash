@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     CompileProjectPayload,
+    CreateSchedulerLog,
     DownloadCsvPayload,
     EmailNotificationPayload,
     getHumanReadableCronExpression,
@@ -8,15 +9,19 @@ import {
     isChartValidationError,
     isDashboardValidationError,
     isEmailTarget,
+    isGdriveTarget,
     isSchedulerCsvOptions,
     isSlackTarget,
     LightdashPage,
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
     Scheduler,
+    SchedulerEmailTarget,
     SchedulerFormat,
+    SchedulerGdriveTarget,
     SchedulerJobStatus,
     SchedulerLog,
+    SchedulerSlackTarget,
     SlackNotificationPayload,
     ValidateProjectPayload,
 } from '@lightdash/common';
@@ -746,6 +751,50 @@ export const sendEmailNotification = async (
     }
 };
 
+const logScheduledTarget = async (
+    target: SchedulerSlackTarget | SchedulerEmailTarget | SchedulerGdriveTarget,
+    targetJobId: string,
+    schedulerUuid: string,
+    jobId: string,
+    scheduledTime: Date,
+) => {
+    const getTargetDetails = (): Pick<
+        CreateSchedulerLog,
+        'task' | 'target' | 'targetType'
+    > => {
+        if (isSlackTarget(target)) {
+            return {
+                task: 'sendSlackNotification',
+                target: target.channel,
+                targetType: 'slack',
+            };
+        }
+        if (isGdriveTarget(target)) {
+            return {
+                task: 'sendGdriveNotification',
+                target: target.gdriveId,
+                targetType: 'gdrive',
+            };
+        }
+        return {
+            task: 'sendEmailNotification',
+            target: target.recipient,
+            targetType: 'email',
+        };
+    };
+    const { task, target: jobTarget, targetType } = getTargetDetails();
+
+    await schedulerService.logSchedulerJob({
+        task,
+        target: jobTarget,
+        targetType,
+        jobId: targetJobId,
+        schedulerUuid,
+        jobGroup: jobId,
+        scheduledTime,
+        status: SchedulerJobStatus.SCHEDULED,
+    });
+};
 export const handleScheduledDelivery = async (
     jobId: string,
     scheduledTime: Date,
@@ -784,20 +833,13 @@ export const handleScheduledDelivery = async (
 
         // Create scheduled jobs for targets
         scheduledJobs.map(async ({ target, jobId: targetJobId }) => {
-            await schedulerService.logSchedulerJob({
-                task: isSlackTarget(target)
-                    ? 'sendSlackNotification'
-                    : 'sendEmailNotification',
-                schedulerUuid: scheduler.schedulerUuid,
-                jobId: targetJobId,
-                jobGroup: jobId,
+            logScheduledTarget(
+                target,
+                targetJobId,
+                schedulerUuid,
+                jobId,
                 scheduledTime,
-                target: isSlackTarget(target)
-                    ? target.channel
-                    : target.recipient,
-                targetType: isSlackTarget(target) ? 'slack' : 'email',
-                status: SchedulerJobStatus.SCHEDULED,
-            });
+            );
         });
 
         schedulerService.logSchedulerJob({

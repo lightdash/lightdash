@@ -2,14 +2,17 @@ import {
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     isChartScheduler,
+    isCreateSchedulerGdriveTarget,
     isCreateSchedulerSlackTarget,
     isSlackTarget,
     isUpdateSchedulerEmailTarget,
+    isUpdateSchedulerGdriveTarget,
     isUpdateSchedulerSlackTarget,
     NotFoundError,
     Scheduler,
     SchedulerAndTargets,
     SchedulerEmailTarget,
+    SchedulerGdriveTarget,
     SchedulerJobStatus,
     SchedulerLog,
     SchedulerSlackTarget,
@@ -24,6 +27,8 @@ import {
     SchedulerDb,
     SchedulerEmailTargetDb,
     SchedulerEmailTargetTableName,
+    SchedulerGdriveTargetDb,
+    SchedulerGdriveTargetTableName,
     SchedulerLogDb,
     SchedulerLogTableName,
     SchedulerSlackTargetDb,
@@ -90,8 +95,27 @@ export class SchedulerModel {
         };
     }
 
+    static convertGdriveTarget(
+        scheduler: SchedulerGdriveTargetDb,
+    ): SchedulerGdriveTarget {
+        return {
+            schedulerGdriveTargetUuid: scheduler.scheduler_gdrive_target_uuid,
+            createdAt: scheduler.created_at,
+            updatedAt: scheduler.updated_at,
+            schedulerUuid: scheduler.scheduler_uuid,
+            gdriveId: scheduler.gdrive_id,
+            gdriveName: scheduler.gdrive_name,
+            url: scheduler.url,
+            gdriveOrganizationName: scheduler.gdrive_organization_name,
+        };
+    }
+
     static getSlackChannels(
-        targets: (SchedulerSlackTarget | SchedulerEmailTarget)[],
+        targets: (
+            | SchedulerSlackTarget
+            | SchedulerEmailTarget
+            | SchedulerGdriveTarget
+        )[],
     ): string[] {
         return targets.reduce<string[]>((acc, target) => {
             if (isSlackTarget(target)) {
@@ -183,9 +207,18 @@ export class SchedulerModel {
                 `${SchedulerEmailTargetTableName}.scheduler_uuid`,
                 schedulerUuid,
             );
+        const gdriveTargets = await this.database(
+            SchedulerGdriveTargetTableName,
+        )
+            .select()
+            .where(
+                `${SchedulerGdriveTargetTableName}.scheduler_uuid`,
+                schedulerUuid,
+            );
         const targets = [
             ...slackTargets.map(SchedulerModel.convertSlackTarget),
             ...emailTargets.map(SchedulerModel.convertEmailTarget),
+            ...gdriveTargets.map(SchedulerModel.convertGdriveTarget),
         ];
 
         return {
@@ -215,6 +248,16 @@ export class SchedulerModel {
                     return trx(SchedulerSlackTargetTableName).insert({
                         scheduler_uuid: scheduler.scheduler_uuid,
                         channel: target.channel,
+                        updated_at: new Date(),
+                    });
+                }
+                if (isCreateSchedulerGdriveTarget(target)) {
+                    return trx(SchedulerGdriveTargetTableName).insert({
+                        scheduler_uuid: scheduler.scheduler_uuid,
+                        gdrive_id: target.gdriveId,
+                        gdrive_name: target.gdriveName,
+                        gdrive_organization_name: target.gdriveOrganizationName,
+                        url: target.url,
                         updated_at: new Date(),
                     });
                 }
@@ -277,11 +320,26 @@ export class SchedulerModel {
                     'not in',
                     emailTargetsToUpdate,
                 );
+            const gdriveTargetsToUpdate = scheduler.targets.reduce<string[]>(
+                (acc, target) =>
+                    isUpdateSchedulerGdriveTarget(target)
+                        ? [...acc, target.schedulerGdriveTargetUuid]
+                        : acc,
+                [],
+            );
+            await trx(SchedulerGdriveTargetTableName)
+                .delete()
+                .where('scheduler_uuid', scheduler.schedulerUuid)
+                .andWhere(
+                    'scheduler_gdrive_target_uuid',
+                    'not in',
+                    gdriveTargetsToUpdate,
+                );
 
             const targetPromises = scheduler.targets.map(async (target) => {
                 // Update existing targets
                 if (isUpdateSchedulerSlackTarget(target)) {
-                    await trx(SchedulerSlackTargetTableName)
+                    return trx(SchedulerSlackTargetTableName)
                         .update({
                             channel: target.channel,
                             updated_at: new Date(),
@@ -291,8 +349,9 @@ export class SchedulerModel {
                             target.schedulerSlackTargetUuid,
                         )
                         .andWhere('scheduler_uuid', scheduler.schedulerUuid);
-                } else if (isUpdateSchedulerEmailTarget(target)) {
-                    await trx(SchedulerEmailTargetTableName)
+                }
+                if (isUpdateSchedulerEmailTarget(target)) {
+                    return trx(SchedulerEmailTargetTableName)
                         .update({
                             recipient: target.recipient,
                             updated_at: new Date(),
@@ -304,19 +363,28 @@ export class SchedulerModel {
                         .andWhere('scheduler_uuid', scheduler.schedulerUuid);
                 }
                 // Create new targets
-                else if (isCreateSchedulerSlackTarget(target)) {
-                    await trx(SchedulerSlackTargetTableName).insert({
+                if (isCreateSchedulerSlackTarget(target)) {
+                    return trx(SchedulerSlackTargetTableName).insert({
                         scheduler_uuid: scheduler.schedulerUuid,
                         channel: target.channel,
                         updated_at: new Date(),
                     });
-                } else {
-                    await trx(SchedulerEmailTargetTableName).insert({
+                }
+                if (isCreateSchedulerGdriveTarget(target)) {
+                    return trx(SchedulerGdriveTargetTableName).insert({
                         scheduler_uuid: scheduler.schedulerUuid,
-                        recipient: target.recipient,
+                        gdrive_id: target.gdriveId,
+                        gdrive_name: target.gdriveName,
+                        gdrive_organization_name: target.gdriveOrganizationName,
+                        url: target.url,
                         updated_at: new Date(),
                     });
                 }
+                return trx(SchedulerEmailTargetTableName).insert({
+                    scheduler_uuid: scheduler.schedulerUuid,
+                    recipient: target.recipient,
+                    updated_at: new Date(),
+                });
             });
 
             await Promise.all(targetPromises);
@@ -333,6 +401,9 @@ export class SchedulerModel {
                 .delete()
                 .where('scheduler_uuid', schedulerUuid);
             await trx(SchedulerEmailTargetTableName)
+                .delete()
+                .where('scheduler_uuid', schedulerUuid);
+            await trx(SchedulerGdriveTargetTableName)
                 .delete()
                 .where('scheduler_uuid', schedulerUuid);
         });

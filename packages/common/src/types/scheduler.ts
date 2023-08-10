@@ -27,6 +27,7 @@ export type SchedulerLog = {
         | 'handleScheduledDelivery'
         | 'sendEmailNotification'
         | 'sendSlackNotification'
+        | 'sendGdriveNotification'
         | 'downloadCsv'
         | 'compileProject'
         | 'testAndCompileProject'
@@ -38,7 +39,7 @@ export type SchedulerLog = {
     createdAt: Date;
     status: SchedulerJobStatus;
     target?: string;
-    targetType?: 'email' | 'slack';
+    targetType?: 'email' | 'slack' | 'gdrive';
     details?: Record<string, any>;
 };
 
@@ -69,7 +70,11 @@ export type DashboardScheduler = SchedulerBase & {
 export type Scheduler = ChartScheduler | DashboardScheduler;
 
 export type SchedulerAndTargets = Scheduler & {
-    targets: (SchedulerSlackTarget | SchedulerEmailTarget)[];
+    targets: (
+        | SchedulerSlackTarget
+        | SchedulerEmailTarget
+        | SchedulerGdriveTarget
+    )[];
 };
 
 export type SchedulerSlackTarget = {
@@ -88,9 +93,25 @@ export type SchedulerEmailTarget = {
     recipient: string;
 };
 
+export type SchedulerGdriveTarget = {
+    schedulerGdriveTargetUuid: string;
+    createdAt: Date;
+    updatedAt: Date;
+    schedulerUuid: string;
+    gdriveId: string;
+    gdriveName: string;
+    gdriveOrganizationName: string;
+    url: string;
+};
+
 export type CreateSchedulerTarget =
     | Pick<SchedulerSlackTarget, 'channel'>
-    | Pick<SchedulerEmailTarget, 'recipient'>;
+    | Pick<SchedulerEmailTarget, 'recipient'>
+    | Pick<
+          SchedulerGdriveTarget,
+          'gdriveId' | 'gdriveName' | 'gdriveOrganizationName' | 'url'
+      >;
+
 export type UpdateSchedulerSlackTarget = Pick<
     SchedulerSlackTarget,
     'schedulerSlackTargetUuid' | 'channel'
@@ -99,6 +120,15 @@ export type UpdateSchedulerSlackTarget = Pick<
 export type UpdateSchedulerEmailTarget = Pick<
     SchedulerEmailTarget,
     'schedulerEmailTargetUuid' | 'recipient'
+>;
+
+export type UpdateSchedulerGdriveTarget = Pick<
+    SchedulerGdriveTarget,
+    | 'schedulerGdriveTargetUuid'
+    | 'gdriveId'
+    | 'gdriveName'
+    | 'gdriveOrganizationName'
+    | 'url'
 >;
 
 export type CreateSchedulerAndTargets = Omit<
@@ -139,22 +169,39 @@ export const isUpdateSchedulerEmailTarget = (
 ): data is UpdateSchedulerEmailTarget =>
     'schedulerEmailTargetUuid' in data && !!data.schedulerEmailTargetUuid;
 
+export const isUpdateSchedulerGdriveTarget = (
+    data: CreateSchedulerTarget | UpdateSchedulerEmailTarget,
+): data is UpdateSchedulerGdriveTarget =>
+    'schedulerEmailTargetUuid' in data && !!data.schedulerEmailTargetUuid;
+
 export const isChartScheduler = (data: Scheduler): data is ChartScheduler =>
     'savedChartUuid' in data && !!data.savedChartUuid;
 
 export const isSlackTarget = (
-    target: SchedulerSlackTarget | SchedulerEmailTarget,
+    target: SchedulerSlackTarget | SchedulerEmailTarget | SchedulerGdriveTarget,
 ): target is SchedulerSlackTarget => 'channel' in target;
 
 export const isEmailTarget = (
-    target: SchedulerSlackTarget | SchedulerEmailTarget,
-): target is SchedulerEmailTarget => !isSlackTarget(target);
+    target: SchedulerSlackTarget | SchedulerEmailTarget | SchedulerGdriveTarget,
+): target is SchedulerEmailTarget => 'recipient' in target;
+
+export const isGdriveTarget = (
+    target: SchedulerSlackTarget | SchedulerEmailTarget | SchedulerGdriveTarget,
+): target is SchedulerGdriveTarget => 'gdriveId' in target;
 
 export const isCreateSchedulerSlackTarget = (
     target:
         | Pick<SchedulerSlackTarget, 'channel'>
-        | Pick<SchedulerEmailTarget, 'recipient'>,
+        | Pick<SchedulerEmailTarget, 'recipient'>
+        | Pick<SchedulerGdriveTarget, 'gdriveId'>,
 ): target is Pick<SchedulerSlackTarget, 'channel'> => 'channel' in target;
+
+export const isCreateSchedulerGdriveTarget = (
+    target:
+        | Pick<SchedulerSlackTarget, 'channel'>
+        | Pick<SchedulerEmailTarget, 'recipient'>
+        | Pick<SchedulerGdriveTarget, 'gdriveId'>,
+): target is Pick<SchedulerGdriveTarget, 'gdriveId'> => 'gdriveId' in target;
 
 export const isSchedulerCsvOptions = (
     options: SchedulerCsvOptions | SchedulerImageOptions,

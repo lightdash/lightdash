@@ -77,6 +77,8 @@ export class HealthService {
                     loginPath: this.lightdashConfig.auth.google.loginPath,
                     oauth2ClientId:
                         this.lightdashConfig.auth.google.oauth2ClientId,
+                    googleDriveApiKey:
+                        this.lightdashConfig.auth.google.googleDriveApiKey,
                 },
                 okta: {
                     loginPath: this.lightdashConfig.auth.okta.loginPath,

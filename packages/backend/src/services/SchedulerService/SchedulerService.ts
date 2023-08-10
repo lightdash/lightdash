@@ -17,6 +17,7 @@ import cronstrue from 'cronstrue';
 import { analytics } from '../../analytics/client';
 import { schedulerClient, slackClient } from '../../clients/clients';
 import { LightdashConfig } from '../../config/parseConfig';
+import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
@@ -134,19 +135,7 @@ export class SchedulerService {
                 resourceId: isChartScheduler(scheduler)
                     ? scheduler.savedChartUuid
                     : scheduler.dashboardUuid,
-                targets: scheduler.targets.map((target) =>
-                    isSlackTarget(target)
-                        ? {
-                              schedulerTargetId:
-                                  target.schedulerSlackTargetUuid,
-                              type: 'slack',
-                          }
-                        : {
-                              schedulerTargetId:
-                                  target.schedulerEmailTargetUuid,
-                              type: 'email',
-                          },
-                ),
+                targets: scheduler.targets.map(getSchedulerTargetType),
             },
         });
         await slackClient.joinChannels(

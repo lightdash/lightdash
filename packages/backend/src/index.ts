@@ -13,6 +13,7 @@ import cookieParser from 'cookie-parser';
 import express, { NextFunction, Request, Response } from 'express';
 import expressSession from 'express-session';
 import passport from 'passport';
+import refresh from 'passport-oauth2-refresh';
 import path from 'path';
 import reDoc from 'redoc-express';
 import apiSpec from './generated/swagger.json';
@@ -249,6 +250,7 @@ passport.use(apiKeyPassportStrategy);
 passport.use(localPassportStrategy);
 if (googlePassportStrategy) {
     passport.use(googlePassportStrategy);
+    refresh.use(googlePassportStrategy);
 }
 if (oktaPassportStrategy) {
     passport.use('okta', oktaPassportStrategy);

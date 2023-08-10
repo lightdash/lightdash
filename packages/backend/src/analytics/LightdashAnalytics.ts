@@ -611,7 +611,7 @@ export type SchedulerUpsertEvent = BaseTrack & {
         format: SchedulerFormat;
         targets: Array<{
             schedulerTargetId: string;
-            type: 'slack' | 'email';
+            type: 'slack' | 'email' | 'gdrive';
         }>;
     };
 };
@@ -654,7 +654,7 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
         schedulerId: string;
         schedulerTargetId: string;
         resourceType?: 'dashboard' | 'chart';
-        type: 'slack' | 'email';
+        type: 'slack' | 'email' | 'gdrive';
         format?: SchedulerFormat;
     };
 };

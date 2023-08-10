@@ -166,6 +166,7 @@ export type AuthGoogleConfig = {
     oauth2ClientSecret: string | undefined;
     loginPath: string;
     callbackPath: string;
+    googleDriveApiKey: string | undefined;
 };
 
 type AuthOktaConfig = {
@@ -305,6 +306,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                     process.env.AUTH_GOOGLE_OAUTH2_CLIENT_SECRET,
                 loginPath: '/login/google',
                 callbackPath: '/oauth/redirect/google',
+                googleDriveApiKey: process.env.GOOGLE_DRIVE_API_KEY,
             },
             okta: {
                 oauth2Issuer: process.env.AUTH_OKTA_OAUTH_ISSUER,

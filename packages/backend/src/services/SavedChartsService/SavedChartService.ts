@@ -11,6 +11,7 @@ import {
     isChartScheduler,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
+    isGdriveTarget,
     isSlackTarget,
     isUserWithOrg,
     SavedChart,
@@ -28,6 +29,7 @@ import {
     CreateSavedChartVersionEvent,
 } from '../../analytics/LightdashAnalytics';
 import { schedulerClient, slackClient } from '../../clients/clients';
+import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -652,19 +654,7 @@ export class SavedChartService {
                 resourceId: isChartScheduler(scheduler)
                     ? scheduler.savedChartUuid
                     : scheduler.dashboardUuid,
-                targets: scheduler.targets.map((target) =>
-                    isSlackTarget(target)
-                        ? {
-                              schedulerTargetId:
-                                  target.schedulerSlackTargetUuid,
-                              type: 'slack',
-                          }
-                        : {
-                              schedulerTargetId:
-                                  target.schedulerEmailTargetUuid,
-                              type: 'email',
-                          },
-                ),
+                targets: scheduler.targets.map(getSchedulerTargetType),
             },
         });
 

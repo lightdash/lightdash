@@ -1,8 +1,19 @@
+import {
+    assertUnreachable,
+    isEmailTarget,
+    isGdriveTarget,
+    isSlackTarget,
+    SchedulerEmailTarget,
+    SchedulerGdriveTarget,
+    SchedulerSlackTarget,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const SchedulerTableName = 'scheduler';
 export const SchedulerSlackTargetTableName = 'scheduler_slack_target';
 export const SchedulerEmailTargetTableName = 'scheduler_email_target';
+export const SchedulerGdriveTargetTableName = 'scheduler_gdrive_target';
+
 export const SchedulerLogTableName = 'scheduler_log';
 
 export type SchedulerDb = {
@@ -43,6 +54,17 @@ export type SchedulerEmailTargetDb = {
     recipient: string; // email address
 };
 
+export type SchedulerGdriveTargetDb = {
+    scheduler_gdrive_target_uuid: string;
+    created_at: Date;
+    updated_at: Date;
+    scheduler_uuid: string;
+    gdrive_id: string;
+    gdrive_name: string;
+    url: string;
+    gdrive_organization_name: string;
+};
+
 export type SchedulerTable = Knex.CompositeTableType<
     SchedulerDb,
     Omit<
@@ -64,6 +86,22 @@ export type SchedulerEmailTargetTable = Knex.CompositeTableType<
     Pick<SchedulerEmailTargetDb, 'recipient' | 'updated_at'>
 >;
 
+export type SchedulerGdriveTargetTable = Knex.CompositeTableType<
+    SchedulerGdriveTargetDb,
+    Omit<
+        SchedulerGdriveTargetDb,
+        'scheduler_gdrive_target_uuid' | 'created_at'
+    >,
+    Pick<
+        SchedulerGdriveTargetDb,
+        | 'gdrive_id'
+        | 'gdrive_name'
+        | 'url'
+        | 'gdrive_organization_name'
+        | 'updated_at'
+    >
+>;
+
 export type SchedulerLogDb = {
     task: string;
     scheduler_uuid?: string;
@@ -81,3 +119,30 @@ export type SchedulerLogTable = Knex.CompositeTableType<
     SchedulerLogDb,
     Omit<SchedulerLogDb, 'created_at'>
 >;
+
+export const getSchedulerTargetType = (
+    target: SchedulerSlackTarget | SchedulerEmailTarget | SchedulerGdriveTarget,
+): {
+    schedulerTargetId: string;
+    type: 'slack' | 'email' | 'gdrive';
+} => {
+    if (isSlackTarget(target)) {
+        return {
+            schedulerTargetId: target.schedulerSlackTargetUuid,
+            type: 'slack',
+        };
+    }
+    if (isGdriveTarget(target)) {
+        return {
+            schedulerTargetId: target.schedulerGdriveTargetUuid,
+            type: 'gdrive',
+        };
+    }
+    if (isEmailTarget(target)) {
+        return {
+            schedulerTargetId: target.schedulerEmailTargetUuid,
+            type: 'email',
+        };
+    }
+    return assertUnreachable(target, 'Uknown target type');
+};

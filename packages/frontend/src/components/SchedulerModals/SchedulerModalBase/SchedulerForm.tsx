@@ -13,11 +13,13 @@ import {
     SchedulerFormat,
 } from '@lightdash/common';
 import { Anchor, Box, Tooltip } from '@mantine/core';
-import React, { FC, useEffect, useMemo, useState } from 'react';
+import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import useHealth from '../../../hooks/health/useHealth';
 
 import { IconInfoCircle } from '@tabler/icons-react';
+import useDrivePicker from 'react-google-drive-picker';
+import { useGdriveAccessToken } from '../../../hooks/gdrive/useGdrive';
 import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
 import { useGetSlack } from '../../../hooks/useSlack';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
@@ -26,6 +28,7 @@ import { ArrayInput } from '../../ReactHookForm/ArrayInput';
 import AutoComplete from '../../ReactHookForm/AutoComplete';
 import CronInput from '../../ReactHookForm/CronInput';
 import {
+    GsheetsName,
     InlinedInputs,
     InlinedLabel,
     InlineIcon,
@@ -35,6 +38,7 @@ import Input from '../../ReactHookForm/Input';
 import { hasRequiredScopes } from '../../UserSettings/SlackSettingsPanel';
 import {
     EmailIcon,
+    GsheetsIcon,
     InputGroupWrapper,
     InputWrapper,
     SlackIcon,
@@ -221,9 +225,51 @@ const SchedulerForm: FC<{
         [slackChannelsQuery.data],
     );
     const health = useHealth();
-
+    const [openPicker] = useDrivePicker();
     const isAddSlackDisabled = disabled || slackState !== SlackStates.SUCCESS;
     const isAddEmailDisabled = disabled || !health.data?.hasEmailClient;
+    const hasGoogleDrive =
+        health.data?.auth.google.oauth2ClientId !== undefined &&
+        health.data?.auth.google.googleDriveApiKey !== undefined;
+    const { data: gdriveAuth, refetch } = useGdriveAccessToken();
+
+    const handleOpenPicker = useCallback(
+        (callback) => {
+            if (
+                !health.data?.auth.google.oauth2ClientId ||
+                !health.data.auth.google.googleDriveApiKey
+            )
+                return;
+
+            if (gdriveAuth === undefined) {
+                const gdriveUrl = `${health?.data?.siteUrl}/api/v1/login/gdrive`;
+                window.open(gdriveUrl, 'login-popup', 'width=600,height=600');
+
+                // Refetching until user logs in with google drive auth
+                const refetchAuth = setInterval(() => {
+                    refetch().then((r) => {
+                        if (r.data !== undefined) clearInterval(refetchAuth);
+                    });
+                }, 2000);
+                return false;
+            }
+
+            openPicker({
+                clientId: health.data.auth.google.oauth2ClientId,
+                developerKey: health.data.auth.google.googleDriveApiKey,
+                viewId: 'SPREADSHEETS',
+                token: gdriveAuth,
+                showUploadView: true,
+                showUploadFolders: true,
+                setSelectFolderEnabled: false,
+                setIncludeFolders: true,
+                supportDrives: true,
+                multiselect: false,
+                callbackFunction: callback,
+            });
+        },
+        [openPicker, gdriveAuth, health?.data, refetch],
+    );
     const isImageDisabled = !health.data?.hasHeadlessBrowser;
 
     const format = methods.watch(
@@ -324,12 +370,10 @@ const SchedulerForm: FC<{
                     )}
                     <Title>4. Add destination(s)</Title>
 
+                    {showDestinationLabel && (
+                        <InlinedLabel>No destination(s) selected</InlinedLabel>
+                    )}
                     <InlinedInputs>
-                        {showDestinationLabel && (
-                            <InlinedLabel>
-                                No destination(s) selected
-                            </InlinedLabel>
-                        )}
                         <ArrayInput
                             name="targets"
                             label=""
@@ -443,7 +487,32 @@ const SchedulerForm: FC<{
                                             />
                                         </TargetRow>
                                     );
+                                } else if ('gdriveId' in target) {
+                                    //TODO replace with isGdrive
+                                    return (
+                                        <TargetRow key={key}>
+                                            <GsheetsIcon />
+                                            <GsheetsName>
+                                                {methods.getValues(
+                                                    `targets.${index}.gdriveName`,
+                                                )}
+                                            </GsheetsName>
+
+                                            <Button
+                                                minimal={true}
+                                                icon={'cross'}
+                                                onClick={() => {
+                                                    remove(index);
+                                                    setShowDestinationLabel(
+                                                        true,
+                                                    );
+                                                }}
+                                                disabled={disabled}
+                                            />
+                                        </TargetRow>
+                                    );
                                 } else {
+                                    // Email
                                     return (
                                         <TargetRow key={key}>
                                             <EmailIcon
@@ -544,6 +613,65 @@ const SchedulerForm: FC<{
                                             text="Add email"
                                             className={
                                                 isAddEmailDisabled
+                                                    ? Classes.DISABLED
+                                                    : undefined
+                                            }
+                                        />
+                                    </Tooltip2>
+                                    <Tooltip2
+                                        interactionKind="hover"
+                                        content={
+                                            <>
+                                                <p>
+                                                    No Google integration found
+                                                </p>
+                                                <p>
+                                                    To create a google sheets
+                                                    delivery, you need to add
+                                                    <Anchor href="https://docs.lightdash.com/self-host/customize-deployment/use-sso-login-for-self-hosted-lightdash#google">
+                                                        {' '}
+                                                        Google SSO{' '}
+                                                    </Anchor>
+                                                    and authenticate with your
+                                                    Google account
+                                                </p>
+                                            </>
+                                        }
+                                        position="bottom"
+                                        disabled={hasGoogleDrive}
+                                    >
+                                        <Button
+                                            minimal
+                                            onClick={() => {
+                                                handleOpenPicker(
+                                                    (data: any) => {
+                                                        if (
+                                                            data.action ===
+                                                                'cancel' ||
+                                                            data.docs ===
+                                                                undefined ||
+                                                            data.docs.length ===
+                                                                0
+                                                        ) {
+                                                            return;
+                                                        }
+                                                        const doc =
+                                                            data.docs[0];
+                                                        append({
+                                                            gdriveId: doc.id,
+                                                            gdriveName:
+                                                                doc.name,
+                                                            url: doc.url,
+                                                            gdriveOrganizationName:
+                                                                doc.organizationDisplayName,
+                                                        });
+                                                    },
+                                                );
+                                            }}
+                                            icon={'plus'}
+                                            text="Add Google sheets"
+                                            className={
+                                                !hasGoogleDrive
                                                     ? Classes.DISABLED
                                                     : undefined
                                             }
