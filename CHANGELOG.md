@@ -1,3 +1,10 @@
+## [0.732.3](https://github.com/lightdash/lightdash/compare/0.732.2...0.732.3) (2023-08-10)
+
+
+### Bug Fixes
+
+* set to default tab filter tab when saving ([#6690](https://github.com/lightdash/lightdash/issues/6690)) ([ccaf19d](https://github.com/lightdash/lightdash/commit/ccaf19d63b8802918091631b57fed36f630fc665))
+
 ## [0.732.2](https://github.com/lightdash/lightdash/compare/0.732.1...0.732.2) (2023-08-10)
 
 
