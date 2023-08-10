@@ -123,12 +123,16 @@ const TileFilterConfiguration: FC<Props> = ({
     const indeterminate = values.some(({ checked }) => checked) && !allChecked;
 
     const items = values.map((value, index) => (
-        <>
+        <Box key={value.key}>
             <Checkbox
                 size="xs"
                 fw={500}
                 label={value.label}
-                key={value.key}
+                styles={{
+                    label: {
+                        paddingLeft: theme.spacing.xs,
+                    },
+                }}
                 checked={value.checked}
                 onChange={(event) => {
                     handlers.setItemProp(
@@ -147,7 +151,7 @@ const TileFilterConfiguration: FC<Props> = ({
             />
 
             {value.sortedFilters && (
-                <Box ml={24} display={!value.checked ? 'none' : 'auto'}>
+                <Box ml={24} mt={6} display={!value.checked ? 'none' : 'auto'}>
                     <FieldAutoComplete
                         disabled={!value.checked}
                         popoverProps={{
@@ -178,7 +182,7 @@ const TileFilterConfiguration: FC<Props> = ({
                     />
                 </Box>
             )}
-        </>
+        </Box>
     ));
 
     return (
@@ -188,10 +192,15 @@ const TileFilterConfiguration: FC<Props> = ({
                 checked={allChecked}
                 indeterminate={indeterminate}
                 label={
-                    <Text fw={500} fz="xs" color="gray.7">
+                    <Text span fz="10px" color="gray.8" fw={500}>
                         Select all
                     </Text>
                 }
+                styles={{
+                    label: {
+                        paddingLeft: theme.spacing.xs,
+                    },
+                }}
                 transitionDuration={0}
                 onChange={() =>
                     handlers.setState((current) =>
@@ -202,9 +211,7 @@ const TileFilterConfiguration: FC<Props> = ({
                     )
                 }
             />
-            <Stack spacing="xs" ml={8}>
-                {items}
-            </Stack>
+            <Stack spacing="md">{items}</Stack>
         </Stack>
     );
 };
