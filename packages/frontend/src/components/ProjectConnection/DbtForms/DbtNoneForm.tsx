@@ -1,11 +1,10 @@
 import { Callout } from '@blueprintjs/core';
-import { Anchor } from '@mantine/core';
+import { Anchor, Group, Switch } from '@mantine/core';
 import { FC } from 'react';
-import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 
-const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => (
+const DbtNoneForm: FC<{ disabled: boolean }> = () => (
     <>
-        <Callout intent="warning" style={{ marginBottom: 20 }}>
+        <Callout intent="warning" style={{ marginBottom: 20, marginTop: 15 }}>
             This project was created from the CLI. If you want to keep Lightdash
             in sync with your dbt project, you need to either{' '}
             <Anchor
@@ -39,10 +38,9 @@ const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             </Anchor>
             ) from your command line.
         </Callout>
-        <BooleanSwitch
-            name="dbt.hideRefreshButton"
+        <Switch.Group
             label="Hide refresh dbt button in the app"
-            labelHelp={
+            description={
                 <p>
                     This will hide the refresh dbt button from the explore page.
                     Read more about your{' '}
@@ -57,9 +55,11 @@ const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => (
                     </Anchor>
                 </p>
             }
-            disabled={disabled}
-            defaultValue={false}
-        />
+        >
+            <Group mt="xs">
+                <Switch value="yes" onLabel="Yes" offLabel="No" />
+            </Group>
+        </Switch.Group>
     </>
 );
 

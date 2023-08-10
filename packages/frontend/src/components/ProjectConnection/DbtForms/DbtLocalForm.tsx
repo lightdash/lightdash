@@ -3,7 +3,7 @@ import React, { FC } from 'react';
 
 const DbtLocalForm: FC = () => (
     <>
-        <Callout intent="warning" style={{ marginBottom: 20 }}>
+        <Callout intent="warning" style={{ marginBottom: 20, marginTop: 15 }}>
             This connection type should only be used for local development.
         </Callout>
         <Callout intent="primary" style={{ marginBottom: 20 }}>

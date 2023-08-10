@@ -1,4 +1,4 @@
-import { Switch } from '@blueprintjs/core';
+import { Switch } from '@mantine/core';
 import React, { FC } from 'react';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
 
@@ -11,10 +11,8 @@ const BooleanSwitch: FC<Props> = ({ switchProps, ...rest }) => (
         {...rest}
         render={(props, { field }) => (
             <Switch
-                inline
-                large
-                innerLabelChecked="Yes"
-                innerLabel="No"
+                onLabel="Yes"
+                offLabel="No"
                 {...switchProps}
                 checked={field.value}
                 {...props}
