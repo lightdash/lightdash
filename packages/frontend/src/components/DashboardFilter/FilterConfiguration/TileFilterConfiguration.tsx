@@ -193,7 +193,12 @@ const TileFilterConfiguration: FC<Props> = ({
                 indeterminate={indeterminate}
                 label={
                     <Text span fz="10px" color="gray.8" fw={500}>
-                        Select all
+                        Select all{' '}
+                        {indeterminate
+                            ? ` (${
+                                  values.filter((v) => v.checked).length
+                              } charts selected)`
+                            : ''}
                     </Text>
                 }
                 styles={{
