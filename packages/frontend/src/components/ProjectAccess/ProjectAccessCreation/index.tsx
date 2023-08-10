@@ -5,7 +5,7 @@ import {
     ProjectMemberRole,
     validateEmail,
 } from '@lightdash/common';
-import { Button, Group, Modal, Select, Title } from '@mantine/core';
+import { Button, Grid, Group, Modal, Select, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconUser } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
@@ -121,12 +121,12 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
             title={
                 <Group spacing="xs">
                     <MantineIcon size="lg" icon={IconUser} />
+
                     <Title order={4}>
                         Provide access to your project to a new user
                     </Title>
                 </Group>
             }
-            size="lg"
         >
             <TrackPage
                 name={PageName.INVITE_MANAGEMENT_SETTINGS}
@@ -139,55 +139,71 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
                         handleSubmit(values),
                     )}
                 >
-                    <Group align="flex-end" spacing="xs">
-                        <Select
-                            name="email"
-                            label="Select user email address"
-                            placeholder="example@gmail.com"
-                            required
-                            creatable
-                            searchable
-                            getCreateLabel={(value) =>
-                                `Invite ${value} as new member of this organization`
-                            }
-                            onCreate={(value) => {
-                                if (validateEmail(value)) {
-                                    setAddNewMember(true);
-                                    return value;
-                                }
-                                return null;
-                            }}
-                            disabled={isLoading}
-                            data={orgUserEmails as string[]}
-                            dropdownPosition="bottom"
-                            withinPortal
-                            w="43%"
-                            {...form.getInputProps('email')}
-                        />
-                        {user.data?.ability?.can('manage', 'Organization') && (
+                    <Grid columns={3} align="flex-end">
+                        <Grid.Col span={2}>
                             <Select
-                                data={Object.values(OrganizationMemberRole).map(
-                                    (orgMemberRole) => ({
-                                        value: orgMemberRole,
-                                        label: orgMemberRole.replace('_', ' '),
-                                    }),
-                                )}
-                                disabled={isLoading}
+                                name="email"
+                                label="Select user email address"
+                                placeholder="example@gmail.com"
                                 required
-                                placeholder="Select role"
+                                creatable
+                                searchable
+                                getCreateLabel={(value) =>
+                                    `Invite ${value} as new member of this organization`
+                                }
+                                onCreate={(value) => {
+                                    if (validateEmail(value)) {
+                                        setAddNewMember(true);
+                                        return value;
+                                    }
+                                    return null;
+                                }}
+                                disabled={isLoading}
+                                data={orgUserEmails as string[]}
                                 dropdownPosition="bottom"
                                 withinPortal
-                                {...form.getInputProps('role')}
+                                {...form.getInputProps('email')}
                             />
-                        )}
-                        <Button
-                            disabled={isLoading || isInvitationLoading}
-                            type="submit"
+                        </Grid.Col>
+
+                        <Grid.Col span={1}>
+                            {user.data?.ability?.can(
+                                'manage',
+                                'Organization',
+                            ) && (
+                                <Select
+                                    data={Object.values(
+                                        OrganizationMemberRole,
+                                    ).map((orgMemberRole) => ({
+                                        value: orgMemberRole,
+                                        label: orgMemberRole.replace('_', ' '),
+                                    }))}
+                                    disabled={isLoading}
+                                    required
+                                    placeholder="Select role"
+                                    dropdownPosition="bottom"
+                                    withinPortal
+                                    {...form.getInputProps('role')}
+                                />
+                            )}
+                        </Grid.Col>
+
+                        <Grid.Col span={2} />
+
+                        <Grid.Col
+                            span={1}
+                            sx={{ display: 'flex', justifyContent: 'flex-end' }}
                         >
-                            Give Access
-                        </Button>
-                    </Group>
+                            <Button
+                                disabled={isLoading || isInvitationLoading}
+                                type="submit"
+                            >
+                                Give Access
+                            </Button>
+                        </Grid.Col>
+                    </Grid>
                 </form>
+
                 {inviteLink && (
                     <InviteSuccess invite={inviteLink} hasMarginTop />
                 )}
