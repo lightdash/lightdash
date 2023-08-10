@@ -189,7 +189,7 @@ const FilterConfiguration: FC<Props> = ({
                     </Tabs.List>
                 ) : null}
 
-                <Tabs.Panel value="settings">
+                <Tabs.Panel value={FilterTabs.SETTINGS}>
                     <FilterSettings
                         isEditMode={isEditMode}
                         field={field}
@@ -200,7 +200,7 @@ const FilterConfiguration: FC<Props> = ({
                     />
                 </Tabs.Panel>
 
-                <Tabs.Panel value="tiles">
+                <Tabs.Panel value={FilterTabs.TILES}>
                     <TileFilterConfiguration
                         field={field}
                         filterRule={internalFilterRule}
@@ -248,7 +248,10 @@ const FilterConfiguration: FC<Props> = ({
                             internalFilterRule,
                         )
                     }
-                    onClick={() => onSave(internalFilterRule)}
+                    onClick={() => {
+                        onSave(internalFilterRule);
+                        onTabChange(FilterTabs.SETTINGS);
+                    }}
                 >
                     Apply
                 </Button>
