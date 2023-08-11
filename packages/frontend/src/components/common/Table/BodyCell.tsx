@@ -10,7 +10,7 @@ import { CellContextMenuProps } from './types';
 
 interface CommonBodyCellProps {
     cell: Cell<ResultRow, unknown>;
-    rowIndex: number;
+    index: number;
     isNumericItem: boolean;
     hasData: boolean;
     cellContextMenu?: FC<CellContextMenuProps>;
@@ -20,7 +20,9 @@ interface CommonBodyCellProps {
     fontColor?: string;
     copying?: boolean;
     selected?: boolean;
+    isLargeText?: boolean;
     tooltipContent?: string;
+    minimal?: boolean;
     onSelect: () => void;
     onDeselect: () => void;
     onKeyDown: React.KeyboardEventHandler<HTMLElement>;
@@ -36,10 +38,12 @@ const BodyCell: FC<CommonBodyCellProps> = ({
     copying = false,
     hasData,
     isNumericItem,
-    rowIndex,
+    index,
     selected = false,
+    isLargeText = false,
     style,
     tooltipContent,
+    minimal = false,
     onSelect,
     onDeselect,
     onKeyDown,
@@ -78,6 +82,7 @@ const BodyCell: FC<CommonBodyCellProps> = ({
                 <Tooltip2
                     lazy
                     position={Position.TOP}
+                    disabled={!tooltipContent || minimal}
                     content={tooltipContent}
                     renderTarget={({ ref: ref1, ...tooltipProps }) => (
                         <Td
@@ -86,8 +91,10 @@ const BodyCell: FC<CommonBodyCellProps> = ({
                             {...popoverProps}
                             className={className}
                             style={style}
-                            $rowIndex={rowIndex}
+                            $rowIndex={index}
                             $isSelected={selected}
+                            $isLargeText={isLargeText}
+                            $isMinimal={minimal}
                             $isInteractive={hasContextMenu}
                             $isCopying={copying}
                             $backgroundColor={backgroundColor}

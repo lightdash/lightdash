@@ -1,13 +1,20 @@
 import { subject } from '@casl/ability';
 import {
+    ChartSummary,
+    CreateSchedulerLog,
+    Dashboard,
     ForbiddenError,
     isChartScheduler,
+    isSlackTarget,
+    isUserWithOrg,
     ScheduledJobs,
     Scheduler,
     SchedulerAndTargets,
     SessionUser,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
+import cronstrue from 'cronstrue';
+import { analytics } from '../../analytics/client';
 import { schedulerClient, slackClient } from '../../clients/clients';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -44,35 +51,38 @@ export class SchedulerService {
         this.savedChartModel = savedChartModel;
     }
 
-    private async checkUserCanUpdateScheduler(
+    private async getSchedulerResource(
+        scheduler: Scheduler,
+    ): Promise<ChartSummary | Dashboard> {
+        return isChartScheduler(scheduler)
+            ? this.savedChartModel.getSummary(scheduler.savedChartUuid)
+            : this.dashboardModel.getById(scheduler.dashboardUuid);
+    }
+
+    private async checkUserCanUpdateSchedulerResource(
         user: SessionUser,
         schedulerUuid: string,
-    ): Promise<void> {
+    ): Promise<{ scheduler: Scheduler; resource: ChartSummary | Dashboard }> {
         const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
-        if (isChartScheduler(scheduler)) {
-            const { organizationUuid, projectUuid } =
-                await this.savedChartModel.get(scheduler.savedChartUuid);
-
-            if (
-                user.ability.cannot(
-                    'update',
-                    subject('SavedChart', { organizationUuid, projectUuid }),
-                )
-            ) {
-                throw new ForbiddenError();
-            }
-        } else {
-            const { organizationUuid, projectUuid } =
-                await this.dashboardModel.getById(scheduler.dashboardUuid);
-            if (
-                user.ability.cannot(
-                    'update',
-                    subject('Dashboard', { organizationUuid, projectUuid }),
-                )
-            ) {
-                throw new ForbiddenError();
-            }
+        const resource = await this.getSchedulerResource(scheduler);
+        const { organizationUuid, projectUuid } = resource;
+        if (
+            isChartScheduler(scheduler) &&
+            user.ability.cannot(
+                'update',
+                subject('SavedChart', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        } else if (
+            user.ability.cannot(
+                'update',
+                subject('Dashboard', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
         }
+        return { scheduler, resource };
     }
 
     async getAllSchedulers(): Promise<SchedulerAndTargets[]> {
@@ -91,20 +101,61 @@ export class SchedulerService {
         schedulerUuid: string,
         updatedScheduler: UpdateSchedulerAndTargetsWithoutId,
     ): Promise<SchedulerAndTargets> {
-        await this.checkUserCanUpdateScheduler(user, schedulerUuid);
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const {
+            resource: { organizationUuid, projectUuid },
+        } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
 
         await schedulerClient.deleteScheduledJobs(schedulerUuid);
+        await this.schedulerModel.deleteScheduledLogs(schedulerUuid);
 
         const scheduler = await this.schedulerModel.updateScheduler({
             ...updatedScheduler,
             schedulerUuid,
         });
+        analytics.track({
+            userId: user.userUuid,
+            event: 'scheduler.updated',
+            properties: {
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+                schedulerId: scheduler.schedulerUuid,
+                resourceType: isChartScheduler(scheduler)
+                    ? 'chart'
+                    : 'dashboard',
+                cronExpression: scheduler.cron,
+                format: scheduler.format,
+                cronString: cronstrue.toString(scheduler.cron, {
+                    verbose: true,
+                    throwExceptionOnParseError: false,
+                }),
+                resourceId: isChartScheduler(scheduler)
+                    ? scheduler.savedChartUuid
+                    : scheduler.dashboardUuid,
+                targets: scheduler.targets.map((target) =>
+                    isSlackTarget(target)
+                        ? {
+                              schedulerTargetId:
+                                  target.schedulerSlackTargetUuid,
+                              type: 'slack',
+                          }
+                        : {
+                              schedulerTargetId:
+                                  target.schedulerEmailTargetUuid,
+                              type: 'email',
+                          },
+                ),
+            },
+        });
         await slackClient.joinChannels(
             user.organizationUuid,
-            scheduler.targets.map((target) => target.channel),
+            SchedulerModel.getSlackChannels(scheduler.targets),
         );
 
         await schedulerClient.generateDailyJobsForScheduler(scheduler);
+
         return scheduler;
     }
 
@@ -112,18 +163,90 @@ export class SchedulerService {
         user: SessionUser,
         schedulerUuid: string,
     ): Promise<void> {
-        await this.checkUserCanUpdateScheduler(user, schedulerUuid);
-
+        const {
+            scheduler,
+            resource: { organizationUuid, projectUuid },
+        } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
         await schedulerClient.deleteScheduledJobs(schedulerUuid);
+        await this.schedulerModel.deleteScheduler(schedulerUuid);
+        await this.schedulerModel.deleteScheduledLogs(schedulerUuid);
 
-        return this.schedulerModel.deleteScheduler(schedulerUuid);
+        analytics.track({
+            userId: user.userUuid,
+            event: 'scheduler.deleted',
+            properties: {
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+                schedulerId: scheduler.schedulerUuid,
+                resourceType: isChartScheduler(scheduler)
+                    ? 'chart'
+                    : 'dashboard',
+                resourceId: isChartScheduler(scheduler)
+                    ? scheduler.savedChartUuid
+                    : scheduler.dashboardUuid,
+            },
+        });
     }
 
     async getScheduledJobs(
         user: SessionUser,
         schedulerUuid: string,
     ): Promise<ScheduledJobs[]> {
-        await this.checkUserCanUpdateScheduler(user, schedulerUuid);
+        await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
         return schedulerClient.getScheduledJobs(schedulerUuid);
+    }
+
+    async logSchedulerJob(log: CreateSchedulerLog): Promise<void> {
+        await this.schedulerModel.logSchedulerJob(log);
+    }
+
+    async getCsvUrl(user: SessionUser, jobId: string) {
+        const job = await this.schedulerModel.getCsvUrl(jobId, user.userUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('CsvJobResult', {
+                    createdByUserUuid: job.details?.createdByUserUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return job;
+    }
+
+    async getSchedulerLogs(user: SessionUser, projectUuid: string) {
+        // Only allow editors to view scheduler logs
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const schedulerLogs = await this.schedulerModel.getSchedulerLogs(
+            projectUuid,
+        );
+
+        analytics.track({
+            userId: user.userUuid,
+            event: 'scheduled_deliveries.dashboard_viewed',
+            properties: {
+                projectId: projectUuid,
+                organizationId: user.organizationUuid,
+                numScheduledDeliveries: schedulerLogs.schedulers.length,
+            },
+        });
+        return schedulerLogs;
+    }
+
+    async getJobStatus(jobId: string): Promise<string> {
+        const job = await this.schedulerModel.getJobStatus(jobId);
+        return job.status;
     }
 }

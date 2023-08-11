@@ -4,9 +4,9 @@ import {
     Field,
     FieldId,
     getItemId,
-    isAdditionalMetric,
     isDimension,
-    isField,
+    isTableCalculation,
+    Item,
     MetricType,
     ResultRow,
     TableCalculation,
@@ -18,38 +18,39 @@ type Args = {
     itemsMap: Record<FieldId, Field | TableCalculation>;
 };
 
-export const isSummable = (item: Field | TableCalculation) => {
-    if (isField(item) || isAdditionalMetric(item)) {
-        const numericTypes: string[] = [
-            DimensionType.NUMBER,
-            MetricType.NUMBER,
-            MetricType.COUNT,
-            MetricType.COUNT_DISTINCT,
-            MetricType.SUM,
-        ];
-        const isPercent = item.format === 'percent';
-        const isDatePart = isDimension(item) && item.timeInterval;
-        return numericTypes.includes(item.type) && !isPercent && !isDatePart;
+export const isSummable = (item: Item | undefined) => {
+    if (!item) {
+        return false;
     }
-    return true;
+
+    if (isTableCalculation(item)) {
+        return false;
+    }
+
+    const numericTypes: string[] = [
+        DimensionType.NUMBER,
+        MetricType.NUMBER,
+        MetricType.COUNT,
+        MetricType.SUM,
+    ];
+    const isPercent = item.format === 'percent';
+    const isDatePart = isDimension(item) && item.timeInterval;
+    return numericTypes.includes(item.type) && !isPercent && !isDatePart;
 };
 
-export const getResultColumnTotals = (
+const getResultColumnTotals = (
     rows: ResultRow[],
     keys: Array<string>,
 ): Record<FieldId, number | undefined> => {
     if (keys.length > 0) {
-        return rows.reduce<Record<FieldId, number | undefined>>(
-            (acc, row: ResultRow) => {
-                keys.forEach((key) => {
-                    if (row[key]) {
-                        acc[key] = (acc[key] || 0) + Number(row[key].value.raw);
-                    }
-                });
-                return acc;
-            },
-            {},
-        );
+        return rows.reduce<Record<FieldId, number | undefined>>((acc, row) => {
+            keys.forEach((key) => {
+                if (row[key]) {
+                    acc[key] = (acc[key] || 0) + Number(row[key].value.raw);
+                }
+            });
+            return acc;
+        }, {});
     }
     return {};
 };

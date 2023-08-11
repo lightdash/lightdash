@@ -1,38 +1,52 @@
 import { Button, Classes, Divider, Intent, Menu } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
-import { Dashboard, Space, UpdatedByUser } from '@lightdash/common';
-import { useState } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { Dashboard, SpaceSummary, UpdatedByUser } from '@lightdash/common';
+import { Box, Tooltip } from '@mantine/core';
+import {
+    IconCheck,
+    IconCopy,
+    IconDots,
+    IconFolders,
+    IconPencil,
+    IconPlus,
+    IconSend,
+    IconTrash,
+    IconUpload,
+} from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
 import DashboardSchedulersModal from '../../SchedulerModals/DashboardSchedulersModal';
+import { getSchedulerUuidFromUrlParams } from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
 import ShareLinkButton from '../../ShareLinkButton';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
+import PageHeader from '../Page/PageHeader';
 import {
     PageActionsContainer,
     PageDetailsContainer,
-    PageHeaderContainer,
     PageTitle,
     PageTitleAndDetailsContainer,
     PageTitleContainer,
     SeparatorDot,
 } from '../PageHeader';
-import SpaceInfo from '../PageHeader/SpaceInfo';
+import SpaceAndDashboardInfo from '../PageHeader/SpaceAndDashboardInfo';
 import { UpdatedInfo } from '../PageHeader/UpdatedInfo';
 import ViewInfo from '../PageHeader/ViewInfo';
 import SpaceActionModal, { ActionType } from '../SpaceActionModal';
 
 type DashboardHeaderProps = {
-    spaces?: Space[];
+    spaces?: SpaceSummary[];
     dashboardDescription?: string;
     dashboardName: string;
     dashboardSpaceName?: string;
     dashboardSpaceUuid?: string;
     dashboardUpdatedAt: Date;
     dashboardViews: number;
+    dashboardFirstViewedAt: Date | string | null;
     dashboardUpdatedByUser?: UpdatedByUser;
     hasDashboardChanged: boolean;
     isEditMode: boolean;
@@ -43,6 +57,7 @@ type DashboardHeaderProps = {
     onDelete: () => void;
     onDuplicate: () => void;
     onMoveToSpace: (spaceUuid: string) => void;
+    onExport: () => void;
 };
 
 const DashboardHeader = ({
@@ -52,6 +67,7 @@ const DashboardHeader = ({
     dashboardSpaceName,
     dashboardSpaceUuid,
     dashboardViews,
+    dashboardFirstViewedAt,
     dashboardUpdatedAt,
     dashboardUpdatedByUser,
     hasDashboardChanged,
@@ -63,7 +79,9 @@ const DashboardHeader = ({
     onDelete,
     onDuplicate,
     onMoveToSpace,
+    onExport,
 }: DashboardHeaderProps) => {
+    const { search } = useLocation();
     const { projectUuid, dashboardUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
@@ -79,12 +97,22 @@ const DashboardHeader = ({
         track({ name: EventName.UPDATE_DASHBOARD_NAME_CLICKED });
     };
 
-    const { user } = useApp();
+    useEffect(() => {
+        const schedulerUuidFromUrlParams =
+            getSchedulerUuidFromUrlParams(search);
+        if (schedulerUuidFromUrlParams) {
+            toggleSchedulerDeliveriesModel(true);
+        }
+    }, [search, toggleSchedulerDeliveriesModel]);
 
-    if (user.data?.ability?.cannot('manage', 'Dashboard')) return <></>;
+    const { user } = useApp();
+    const userCanManageDashboard = user.data?.ability.can(
+        'manage',
+        'Dashboard',
+    );
 
     return (
-        <PageHeaderContainer>
+        <PageHeader>
             <PageTitleAndDetailsContainer>
                 <PageTitleContainer className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
                     <PageTitle>{dashboardName}</PageTitle>
@@ -98,21 +126,23 @@ const DashboardHeader = ({
                         </Tooltip2>
                     )}
 
-                    {user.data?.ability?.can('manage', 'Dashboard') && (
+                    {isEditMode && userCanManageDashboard && (
                         <Button
-                            icon="edit"
+                            icon={<IconPencil size={16} />}
                             disabled={isSaving}
                             onClick={handleEditClick}
                             minimal
                         />
                     )}
 
-                    <DashboardUpdateModal
-                        uuid={dashboardUuid}
-                        isOpen={isUpdating}
-                        onClose={() => setIsUpdating(false)}
-                        onConfirm={() => setIsUpdating(false)}
-                    />
+                    {isUpdating && (
+                        <DashboardUpdateModal
+                            uuid={dashboardUuid}
+                            isOpen={isUpdating}
+                            onClose={() => setIsUpdating(false)}
+                            onConfirm={() => setIsUpdating(false)}
+                        />
+                    )}
                 </PageTitleContainer>
 
                 <PageDetailsContainer>
@@ -123,51 +153,53 @@ const DashboardHeader = ({
 
                     <SeparatorDot icon="dot" size={6} />
 
-                    <ViewInfo views={dashboardViews} />
+                    <ViewInfo
+                        views={dashboardViews}
+                        firstViewedAt={dashboardFirstViewedAt}
+                    />
 
                     {dashboardSpaceName && (
                         <>
                             <SeparatorDot icon="dot" size={6} />
 
-                            <SpaceInfo
-                                link={`/projects/${projectUuid}/spaces/${dashboardSpaceUuid}`}
-                                name={dashboardSpaceName}
+                            <SpaceAndDashboardInfo
+                                space={{
+                                    link: `/projects/${projectUuid}/spaces/${dashboardSpaceUuid}`,
+                                    name: dashboardSpaceName,
+                                }}
                             />
                         </>
                     )}
                 </PageDetailsContainer>
             </PageTitleAndDetailsContainer>
-
-            {isEditMode ? (
+            {userCanManageDashboard && isEditMode ? (
                 <PageActionsContainer>
                     <AddTileButton onAddTiles={onAddTiles} />
-
-                    <Tooltip2
-                        position="top"
-                        content={
-                            !hasDashboardChanged
-                                ? 'No changes to save'
-                                : undefined
-                        }
+                    <Tooltip
+                        withinPortal
+                        position="bottom"
+                        label="No changes to save"
+                        disabled={hasDashboardChanged}
                     >
-                        <Button
-                            text="Save"
-                            disabled={!hasDashboardChanged || isSaving}
-                            intent={Intent.PRIMARY}
-                            onClick={onSaveDashboard}
-                        />
-                    </Tooltip2>
-
+                        <Box>
+                            <Button
+                                text="Save"
+                                disabled={!hasDashboardChanged || isSaving}
+                                intent={Intent.PRIMARY}
+                                onClick={onSaveDashboard}
+                            />
+                        </Box>
+                    </Tooltip>
                     <Button
                         text="Cancel"
                         disabled={isSaving}
                         onClick={onCancel}
                     />
                 </PageActionsContainer>
-            ) : (
+            ) : userCanManageDashboard ? (
                 <PageActionsContainer>
                     <Button
-                        icon="edit"
+                        icon={<IconPencil size={16} />}
                         text="Edit dashboard"
                         onClick={() => {
                             history.replace(
@@ -176,22 +208,20 @@ const DashboardHeader = ({
                         }}
                     />
 
-                    <ShareLinkButton
-                        url={`${window.location.origin}/projects/${projectUuid}/dashboards/${dashboardUuid}/view`}
-                    />
+                    <ShareLinkButton url={`${window.location.href}`} />
 
                     <Popover2
                         placement="bottom"
                         content={
                             <Menu>
                                 <MenuItem2
-                                    icon="duplicate"
+                                    icon={<IconCopy />}
                                     text="Duplicate"
                                     onClick={onDuplicate}
                                 />
 
                                 <MenuItem2
-                                    icon="folder-close"
+                                    icon={<IconFolders />}
                                     text="Move to space"
                                     onClick={(e) => {
                                         e.preventDefault();
@@ -207,9 +237,9 @@ const DashboardHeader = ({
                                                 key={spaceToMove.uuid}
                                                 text={spaceToMove.name}
                                                 icon={
-                                                    isDisabled
-                                                        ? 'small-tick'
-                                                        : undefined
+                                                    isDisabled ? (
+                                                        <IconCheck />
+                                                    ) : undefined
                                                 }
                                                 className={
                                                     isDisabled
@@ -217,7 +247,6 @@ const DashboardHeader = ({
                                                         : ''
                                                 }
                                                 onClick={(e) => {
-                                                    // Use className disabled instead of disabled property to capture and preventdefault its clicks
                                                     e.preventDefault();
                                                     e.stopPropagation();
                                                     if (
@@ -232,11 +261,9 @@ const DashboardHeader = ({
                                             />
                                         );
                                     })}
-
                                     <Divider />
-
                                     <MenuItem2
-                                        icon="plus"
+                                        icon={<IconPlus />}
                                         text="Create new"
                                         onClick={(e) => {
                                             e.preventDefault();
@@ -246,16 +273,20 @@ const DashboardHeader = ({
                                     />
                                 </MenuItem2>
                                 <MenuItem2
-                                    icon={'send-message'}
-                                    text={'Scheduled deliveries'}
+                                    icon={<IconSend />}
+                                    text="Scheduled deliveries"
                                     onClick={() => {
                                         toggleSchedulerDeliveriesModel(true);
                                     }}
                                 />
-                                <Divider />
-
                                 <MenuItem2
-                                    icon="cross"
+                                    icon={<IconUpload />}
+                                    text="Export dashboard"
+                                    onClick={onExport}
+                                />
+                                <Divider />
+                                <MenuItem2
+                                    icon={<IconTrash />}
                                     text="Delete"
                                     intent="danger"
                                     onClick={onDelete}
@@ -263,7 +294,10 @@ const DashboardHeader = ({
                             </Menu>
                         }
                     >
-                        <Button icon="more" />
+                        <Button
+                            style={{ padding: '5px 7px' }}
+                            icon={<IconDots size={16} />}
+                        />
                     </Popover2>
 
                     {isCreatingNewSpace && (
@@ -290,8 +324,8 @@ const DashboardHeader = ({
                         />
                     )}
                 </PageActionsContainer>
-            )}
-        </PageHeaderContainer>
+            ) : null}
+        </PageHeader>
     );
 };
 

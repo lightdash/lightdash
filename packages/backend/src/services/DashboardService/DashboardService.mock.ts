@@ -1,11 +1,13 @@
 import { Ability } from '@casl/ability';
 import {
+    ChartType,
     CreateDashboard,
     CreateDashboardChartTile,
     Dashboard,
     DashboardBasicDetails,
     DashboardTileTypes,
     OrganizationMemberRole,
+    SavedChart,
     SessionUser,
     Space,
     UpdateDashboard,
@@ -30,6 +32,10 @@ export const user: SessionUser = {
             subject: 'Dashboard',
             action: ['view', 'update', 'delete', 'create'],
         },
+        {
+            subject: 'Project',
+            action: ['manage'],
+        },
     ]),
     isActive: true,
     abilityRules: [],
@@ -42,7 +48,7 @@ export const space: SpaceTable['base'] = {
     is_private: true,
     created_at: new Date(),
     project_id: 0,
-    organization_uuid: user.organizationUuid,
+    organization_uuid: user.organizationUuid!,
 };
 
 export const publicSpace: Space = {
@@ -54,6 +60,8 @@ export const publicSpace: Space = {
     dashboards: [],
     access: [],
     name: '',
+    pinnedListUuid: null,
+    pinnedListOrder: null,
 };
 export const privateSpace: Space = {
     ...publicSpace,
@@ -61,7 +69,7 @@ export const privateSpace: Space = {
 };
 
 export const dashboard: Dashboard = {
-    organizationUuid: user.organizationUuid,
+    organizationUuid: user.organizationUuid!,
     projectUuid: 'projectUuid',
     uuid: 'uuid',
     name: 'name',
@@ -87,21 +95,54 @@ export const dashboard: Dashboard = {
     },
     spaceUuid: 'spaceUuid',
     spaceName: 'space name',
-    pinnedListUuid: undefined,
+    pinnedListUuid: null,
+    pinnedListOrder: null,
     views: 1,
+    firstViewedAt: new Date(1),
+};
+
+export const chart: SavedChart = {
+    uuid: 'chart_uuid',
+    projectUuid: dashboard.projectUuid,
+    name: 'chart name',
+    tableName: 'table_name',
+    metricQuery: {
+        dimensions: [],
+        metrics: [],
+        filters: {},
+        sorts: [],
+        limit: 0,
+        tableCalculations: [],
+    },
+    chartConfig: {
+        type: ChartType.TABLE,
+    },
+    tableConfig: {
+        columnOrder: [],
+    },
+    updatedAt: new Date(),
+    organizationUuid: user.organizationUuid!,
+    spaceUuid: 'spaceUuid',
+    spaceName: 'space name',
+    pinnedListUuid: null,
+    pinnedListOrder: null,
+    dashboardUuid: dashboard.uuid,
+    dashboardName: dashboard.name,
 };
 
 export const dashboardsDetails: DashboardBasicDetails[] = [
     {
-        organizationUuid: user.organizationUuid,
+        organizationUuid: user.organizationUuid!,
         projectUuid: dashboard.projectUuid,
         uuid: dashboard.uuid,
         name: dashboard.name,
         description: dashboard.description,
         updatedAt: dashboard.updatedAt,
         spaceUuid: 'spaceUuid',
-        pinnedListUuid: undefined,
+        pinnedListUuid: null,
+        pinnedListOrder: null,
         views: 1,
+        firstViewedAt: new Date(1),
     },
 ];
 

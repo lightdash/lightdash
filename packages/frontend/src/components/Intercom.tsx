@@ -1,4 +1,4 @@
-import { LightdashMode } from '@lightdash/common';
+import { isUserWithOrg, LightdashMode } from '@lightdash/common';
 import React, { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useIntercom } from 'react-use-intercom';
@@ -35,12 +35,14 @@ export const Intercom: React.FC = () => {
                           userId: user.data.userUuid,
                           name: `${user.data.firstName} ${user.data.lastName}`,
                           email: user.data.email,
-                          company: {
-                              companyId: user.data.organizationUuid,
-                              name: user.data.organizationName,
-                              createdAt:
-                                  user.data.organizationCreatedAt.toString(),
-                          },
+                          company: isUserWithOrg(user.data)
+                              ? {
+                                    companyId: user.data.organizationUuid,
+                                    name: user.data.organizationName,
+                                    createdAt:
+                                        user.data.organizationCreatedAt.toString(),
+                                }
+                              : undefined,
                           customAttributes: {
                               role: user.data.role,
                               is_setup_complete: user.data.isSetupComplete,

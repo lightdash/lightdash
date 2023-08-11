@@ -1,21 +1,25 @@
 import {
+    assertUnreachable,
     DbtError,
     DbtLog,
+    DbtManifestVersion,
     DbtPackages,
     DbtRpcDocsGenerateResults,
     DbtRpcGetManifestResults,
+    DefaultSupportedDbtVersion,
     isDbtLog,
     isDbtPackages,
     isDbtRpcDocsGenerateResults,
     isDbtRpcManifestResults,
     ParseError,
+    SupportedDbtVersions,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import execa from 'execa';
 import * as fs from 'fs/promises';
 import yaml, { dump as dumpYaml, load as loadYaml } from 'js-yaml';
 import path from 'path';
-import Logger from '../logger';
+import Logger from '../logging/logger';
 import { DbtClient } from '../types';
 
 type DbtProjectConfig = {
@@ -64,7 +68,13 @@ type DbtCliArgs = {
     environment: Record<string, string>;
     profileName?: string;
     target?: string;
+    dbtVersion: SupportedDbtVersions;
 };
+
+enum DbtCommands {
+    DBT_1_4 = 'dbt',
+    DBT_1_5 = 'dbt1.5',
+}
 
 export class DbtCliClient implements DbtClient {
     dbtProjectDirectory: string;
@@ -79,12 +89,15 @@ export class DbtCliClient implements DbtClient {
 
     targetDirectory: string | undefined;
 
+    dbtVersion: SupportedDbtVersions;
+
     constructor({
         dbtProjectDirectory,
         dbtProfilesDirectory,
         environment,
         profileName,
         target,
+        dbtVersion,
     }: DbtCliArgs) {
         this.dbtProjectDirectory = dbtProjectDirectory;
         this.dbtProfilesDirectory = dbtProfilesDirectory;
@@ -92,6 +105,7 @@ export class DbtCliClient implements DbtClient {
         this.profileName = profileName;
         this.target = target;
         this.targetDirectory = undefined;
+        this.dbtVersion = dbtVersion;
     }
 
     private async _getTargetDirectory(): Promise<string> {
@@ -118,7 +132,22 @@ export class DbtCliClient implements DbtClient {
         }, []);
     }
 
+    getDbtExec(): string {
+        switch (this.dbtVersion) {
+            case SupportedDbtVersions.V1_4:
+                return DbtCommands.DBT_1_4;
+            case SupportedDbtVersions.V1_5:
+                return DbtCommands.DBT_1_5;
+            default:
+                return assertUnreachable(
+                    this.dbtVersion,
+                    'Missing dbt version command mapping',
+                );
+        }
+    }
+
     private async _runDbtCommand(...command: string[]): Promise<DbtLog[]> {
+        const dbtExec = this.getDbtExec();
         const dbtArgs = [
             '--no-use-colors',
             '--log-format',
@@ -136,8 +165,12 @@ export class DbtCliClient implements DbtClient {
             dbtArgs.push('--profile', this.profileName);
         }
         try {
-            Logger.debug(`Running dbt command: dbt ${dbtArgs.join(' ')}`);
-            const dbtProcess = await execa('dbt', dbtArgs, {
+            Logger.debug(
+                `Running dbt command with version "${
+                    this.dbtVersion
+                }": ${dbtExec} ${dbtArgs.join(' ')}`,
+            );
+            const dbtProcess = await execa(dbtExec, dbtArgs, {
                 all: true,
                 stdio: ['pipe', 'pipe', process.stderr],
                 env: {
@@ -146,8 +179,14 @@ export class DbtCliClient implements DbtClient {
             });
             return DbtCliClient.parseDbtJsonLogs(dbtProcess.all);
         } catch (e) {
+            Logger.error(
+                `Error running dbt command with version ${this.dbtVersion}: ${e}`,
+            );
+
             throw new DbtError(
-                `Failed to run "dbt ${command.join(' ')}"`,
+                `Failed to run "${dbtExec} ${command.join(
+                    ' ',
+                )}" with dbt version "${this.dbtVersion}}"`,
                 DbtCliClient.parseDbtJsonLogs(e.all),
             );
         }
@@ -173,7 +212,7 @@ export class DbtCliClient implements DbtClient {
             op: 'dbt',
             description: 'getDbtManifest',
         });
-        const dbtLogs = await this._runDbtCommand('compile');
+        const logs = await this._runDbtCommand('compile');
         const rawManifest = {
             manifest: await this.loadDbtTargetArtifact('manifest.json'),
         };
@@ -183,7 +222,7 @@ export class DbtCliClient implements DbtClient {
         }
         throw new DbtError(
             'Cannot read response from dbt, manifest.json not valid',
-            dbtLogs,
+            logs,
         );
     }
 
@@ -207,6 +246,7 @@ export class DbtCliClient implements DbtClient {
 
     private async loadDbtTargetArtifact(filename: string): Promise<any> {
         const targetDir = await this._getTargetDirectory();
+
         const fullPath = path.join(
             this.dbtProjectDirectory,
             targetDir,
@@ -241,7 +281,7 @@ export class DbtCliClient implements DbtClient {
             op: 'dbt',
             description: 'getDbtbCatalog',
         });
-        const dbtLogs = await this._runDbtCommand('docs', 'generate');
+        const logs = await this._runDbtCommand('docs', 'generate');
         const rawCatalog = await this.loadDbtTargetArtifact('catalog.json');
         span?.finish();
         if (isDbtRpcDocsGenerateResults(rawCatalog)) {
@@ -249,7 +289,7 @@ export class DbtCliClient implements DbtClient {
         }
         throw new DbtError(
             'Cannot read response from dbt, catalog.json is not a valid dbt catalog',
-            dbtLogs,
+            logs,
         );
     }
 

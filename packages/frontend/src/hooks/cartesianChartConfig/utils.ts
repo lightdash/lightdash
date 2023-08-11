@@ -11,6 +11,8 @@ import {
 import { getPivotedData } from '../plottedData/usePlottedData';
 
 export type GetExpectedSeriesMapArgs = {
+    defaultSmooth?: boolean;
+    defaultShowSymbol?: boolean;
     defaultCartesianType: CartesianSeriesType;
     defaultAreaStyle: Series['areaStyle'];
     isStacked: boolean;
@@ -22,6 +24,8 @@ export type GetExpectedSeriesMapArgs = {
 };
 
 export const getExpectedSeriesMap = ({
+    defaultSmooth,
+    defaultShowSymbol,
     defaultCartesianType,
     defaultAreaStyle,
     isStacked,
@@ -32,6 +36,14 @@ export const getExpectedSeriesMap = ({
     availableDimensions,
 }: GetExpectedSeriesMapArgs) => {
     let expectedSeriesMap: Record<string, Series>;
+
+    const defaultProperties = {
+        smooth: defaultSmooth,
+        showSymbol: defaultShowSymbol,
+        type: defaultCartesianType,
+        areaStyle: defaultAreaStyle,
+        yAxisIndex: 0,
+    };
     if (pivotKeys && pivotKeys.length > 0) {
         const { rowKeyMap } = getPivotedData(
             resultsData.rows,
@@ -46,23 +58,21 @@ export const getExpectedSeriesMap = ({
             let series: Series;
             if (typeof rowKey === 'string') {
                 series = {
+                    ...defaultProperties,
                     encode: {
                         xRef: { field: xField },
                         yRef: {
                             field: rowKey,
                         },
                     },
-                    type: defaultCartesianType,
-                    areaStyle: defaultAreaStyle,
                 };
             } else {
                 series = {
-                    type: defaultCartesianType,
+                    ...defaultProperties,
                     encode: {
                         xRef: { field: xField },
                         yRef: rowKey,
                     },
-                    areaStyle: defaultAreaStyle,
                     stack:
                         defaultAreaStyle || isStacked
                             ? rowKey.field
@@ -75,14 +85,13 @@ export const getExpectedSeriesMap = ({
         expectedSeriesMap = (yFields || []).reduce<Record<string, Series>>(
             (sum, yField) => {
                 const series = {
+                    ...defaultProperties,
                     encode: {
                         xRef: { field: xField },
                         yRef: {
                             field: yField,
                         },
                     },
-                    type: defaultCartesianType,
-                    areaStyle: defaultAreaStyle,
                     stack:
                         isStacked || !!defaultAreaStyle
                             ? 'stack-all-series'

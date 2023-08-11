@@ -1,10 +1,29 @@
 const lightdashUrl = Cypress.config('baseUrl');
 const projectDir = `../../examples/full-jaffle-shop-demo/dbt`;
 const profilesDir = `../../examples/full-jaffle-shop-demo/profiles`;
-const cliCommand = `../../packages/cli/dist/index.js`;
+const cliCommand = `lightdash`;
 
 describe('CLI', () => {
     const previewName = `e2e preview ${new Date().getTime()}`;
+    let projectToDelete: string;
+    const databaseEnvVars = {
+        PGHOST: Cypress.env('PGHOST') || 'localhost',
+        PGPORT: 5432,
+        PGUSER: 'postgres',
+        PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
+        PGDATABASE: 'postgres',
+        SEED_SCHEMA: Cypress.env('SEED_SCHEMA') || 'jaffle',
+    };
+
+    after(() => {
+        if (projectToDelete) {
+            cy.request({
+                url: `api/v1/org/projects/${projectToDelete}`,
+                headers: { 'Content-type': 'application/json' },
+                method: 'DELETE',
+            });
+        }
+    });
 
     it('Should test lightdash command help', () => {
         cy.exec(`${cliCommand} help`)
@@ -17,18 +36,12 @@ describe('CLI', () => {
             .should('contain', '0.');
     });
 
-    it('Should run DBT first', () => {
+    it('Should run dbt first', () => {
         cy.exec(
             ` dbt run --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
             {
                 failOnNonZeroExit: false,
-                env: {
-                    PGHOST: Cypress.env('PGHOST') || 'localhost',
-                    PGPORT: 5432,
-                    PGUSER: 'postgres',
-                    PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
-                    PGDATABASE: 'postgres',
-                },
+                env: databaseEnvVars,
             },
         )
             .its('stdout')
@@ -43,11 +56,7 @@ describe('CLI', () => {
                 env: {
                     CI: true,
                     NODE_ENV: 'development',
-                    PGHOST: Cypress.env('PGHOST') || 'localhost',
-                    PGPORT: 5432,
-                    PGUSER: 'postgres',
-                    PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
-                    PGDATABASE: 'postgres',
+                    ...databaseEnvVars,
                 },
             },
         )
@@ -63,11 +72,7 @@ describe('CLI', () => {
                 env: {
                     CI: true,
                     NODE_ENV: 'development',
-                    PGHOST: Cypress.env('PGHOST') || 'localhost',
-                    PGPORT: 5432,
-                    PGUSER: 'postgres',
-                    PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
-                    PGDATABASE: 'postgres',
+                    ...databaseEnvVars,
                 },
             },
         )
@@ -83,11 +88,7 @@ describe('CLI', () => {
                 env: {
                     CI: true,
                     NODE_ENV: 'development',
-                    PGHOST: Cypress.env('PGHOST') || 'localhost',
-                    PGPORT: 5432,
-                    PGUSER: 'postgres',
-                    PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
-                    PGDATABASE: 'postgres',
+                    ...databaseEnvVars,
                 },
             },
         ).then((result) => {
@@ -125,16 +126,23 @@ describe('CLI', () => {
                         NODE_ENV: 'development',
                         LIGHTDASH_API_KEY: apiToken,
                         LIGHTDASH_URL: lightdashUrl,
-                        PGHOST: Cypress.env('PGHOST') || 'localhost',
-                        PGPORT: 5432,
-                        PGUSER: 'postgres',
-                        PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
-                        PGDATABASE: 'postgres',
+                        ...databaseEnvVars,
                     },
                 },
-            )
-                .its('stderr')
-                .should('contain', 'Successfully deployed');
+            ).then((result) => {
+                expect(result.stderr).to.contain('Successfully deployed');
+                // Delete project
+                const matches = result.stderr.match(/projectUuid=([\w-]*)/);
+                const projectUuid = matches?.[1];
+                if (!projectUuid) {
+                    throw new Error(
+                        `Could not find project uuid in success message: ${result.stderr}`,
+                    );
+                }
+
+                // save project uuid to delete after all tests
+                projectToDelete = projectUuid;
+            });
         });
     });
 
@@ -150,11 +158,7 @@ describe('CLI', () => {
                         NODE_ENV: 'development',
                         LIGHTDASH_API_KEY: apiToken,
                         LIGHTDASH_URL: lightdashUrl,
-                        PGHOST: Cypress.env('PGHOST') || 'localhost',
-                        PGPORT: 5432,
-                        PGUSER: 'postgres',
-                        PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
-                        PGDATABASE: 'postgres',
+                        ...databaseEnvVars,
                     },
                 },
             )

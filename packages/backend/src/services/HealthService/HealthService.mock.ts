@@ -22,6 +22,10 @@ export const BaseResponse = {
             enabled: false,
             loginPath: '',
         },
+        azuread: {
+            enabled: false,
+            loginPath: '',
+        },
     },
     defaultProject: undefined,
     latest: { version: '0.2.7' },
@@ -32,6 +36,10 @@ export const BaseResponse = {
     rudder: undefined,
     sentry: undefined,
     hasSlack: false,
+    hasHeadlessBrowser: false,
+    fullstory: undefined,
+    query: undefined,
+    staticIp: undefined,
 };
 
 export const Config = {
@@ -48,6 +56,9 @@ export const Config = {
             loginPath: '',
         },
         oneLogin: {
+            loginPath: '',
+        },
+        azuread: {
             loginPath: '',
         },
     },

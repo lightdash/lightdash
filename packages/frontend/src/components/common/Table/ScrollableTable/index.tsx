@@ -6,17 +6,21 @@ import TableFooter from './TableFooter';
 import TableHeader from './TableHeader';
 
 interface ScrollableTableProps {
-    $shouldExpand?: boolean;
+    minimal?: boolean;
 }
 
-const ScrollableTable: FC<ScrollableTableProps> = ({ $shouldExpand }) => {
+const ScrollableTable: FC<ScrollableTableProps> = ({ minimal = true }) => {
     const { footer } = useTableContext();
     const tableContainerRef = useRef<HTMLDivElement>(null);
+
     return (
         <TableScrollableWrapper ref={tableContainerRef}>
-            <Table bordered condensed $showFooter={!!footer?.show}>
-                <TableHeader />
-                <TableBody tableContainerRef={tableContainerRef} />
+            <Table $showFooter={!!footer?.show}>
+                <TableHeader minimal={minimal} />
+                <TableBody
+                    tableContainerRef={tableContainerRef}
+                    minimal={minimal}
+                />
                 <TableFooter />
             </Table>
         </TableScrollableWrapper>

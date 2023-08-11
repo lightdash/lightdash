@@ -34,6 +34,8 @@ services:
       - LIGHTDASH_MAX_PAYLOAD=${LIGHTDASH_MAX_PAYLOAD:-5mb}
       - HEADLESS_BROWSER_HOST=headless-browser
       - HEADLESS_BROWSER_PORT=3000
+      - RUDDERSTACK_WRITE_KEY=${RUDDERSTACK_WRITE_KEY}
+      - SCHEDULER_ENABLED=true
     volumes:
       - "${DBT_PROJECT_DIR}:/usr/app/dbt"
     ports:
@@ -54,20 +56,6 @@ services:
     restart: always
     ports:
       - "3001:3000"
-
-  scheduler:
-    image: lightdash/lightdash:latest
-    entrypoint: ["yarn", "workspace", "backend", "scheduler"]
-    depends_on:
-      - db
-    environment:
-      - PGHOST=${PGHOST:-db}
-      - PGPORT=${PGPORT:-5432}
-      - PGUSER=${PGUSER:-postgres}
-      - PGPASSWORD=${PGPASSWORD}
-      - PGDATABASE=${PGDATABASE:-postgres}
-      - LIGHTDASH_SECRET=${LIGHTDASH_SECRET}
-
 
 volumes:
   db-data:

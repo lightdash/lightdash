@@ -1,18 +1,25 @@
-import { Button, InputGroup } from '@blueprintjs/core';
 import { InviteLink } from '@lightdash/common';
+import {
+    ActionIcon,
+    Alert,
+    CopyButton,
+    Stack,
+    Text,
+    TextInput,
+    Tooltip,
+} from '@mantine/core';
+import { IconCheck, IconCopy } from '@tabler/icons-react';
 import React, { FC, useMemo } from 'react';
-import CopyToClipboard from 'react-copy-to-clipboard';
 import { useToggle } from 'react-use';
-import useToaster from '../../../hooks/toaster/useToaster';
 import { useApp } from '../../../providers/AppProvider';
-import { InviteSuccessCallout, MessageWrapper } from './InviteSuccess.styles';
+import MantineIcon from '../../common/MantineIcon';
 
-const InviteSuccess: FC<{ invite: InviteLink; hasMarginTop?: boolean }> = ({
-    invite,
-    hasMarginTop,
-}) => {
+const InviteSuccess: FC<{
+    invite: InviteLink;
+    hasMarginTop?: boolean;
+    onClose?: () => void;
+}> = ({ invite, hasMarginTop, onClose }) => {
     const { health } = useApp();
-    const { showToastSuccess } = useToaster();
     const [show, toggle] = useToggle(true);
 
     const message = useMemo(() => {
@@ -36,45 +43,54 @@ const InviteSuccess: FC<{ invite: InviteLink; hasMarginTop?: boolean }> = ({
                 your organization. This link will expire in {days} days.
             </>
         );
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [health.data?.hasEmailClient, invite.email, invite.expiresAt]);
 
     if (!show) {
         return null;
     }
 
     return (
-        <InviteSuccessCallout intent="success" $hasMarginTop={hasMarginTop}>
-            <MessageWrapper>
-                <p>{message}</p>
-                <Button
-                    aria-label="Close"
-                    icon="cross"
-                    onClick={toggle}
-                    minimal
-                    small
+        <Alert
+            icon={<IconCheck />}
+            mt={hasMarginTop ? 'md' : 0}
+            color="green"
+            withCloseButton={true}
+            closeButtonLabel="Close alert"
+            onClose={() => {
+                toggle(false);
+                onClose?.();
+            }}
+        >
+            <Stack spacing="md">
+                <Text>{message}</Text>
+                <TextInput
+                    id="invite-link-input"
+                    readOnly
+                    className="cohere-block sentry-block fs-block"
+                    value={invite.inviteUrl}
+                    rightSection={
+                        <CopyButton value={invite.inviteUrl}>
+                            {({ copied, copy }) => (
+                                <Tooltip
+                                    label={copied ? 'Copied' : 'Copy'}
+                                    withArrow
+                                    position="right"
+                                >
+                                    <ActionIcon
+                                        color={copied ? 'teal' : 'gray'}
+                                        onClick={copy}
+                                    >
+                                        <MantineIcon
+                                            icon={copied ? IconCheck : IconCopy}
+                                        />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                        </CopyButton>
+                    }
                 />
-            </MessageWrapper>
-            <InputGroup
-                id="invite-link-input"
-                className="cohere-block"
-                type="text"
-                readOnly
-                value={invite.inviteUrl}
-                rightElement={
-                    <CopyToClipboard
-                        text={invite.inviteUrl}
-                        options={{ message: 'Copied' }}
-                        onCopy={() =>
-                            showToastSuccess({
-                                title: 'Invite link copied',
-                            })
-                        }
-                    >
-                        <Button minimal icon="clipboard" />
-                    </CopyToClipboard>
-                }
-            />
-        </InviteSuccessCallout>
+            </Stack>
+        </Alert>
     );
 };
 

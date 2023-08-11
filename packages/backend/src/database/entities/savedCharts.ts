@@ -1,23 +1,71 @@
-import { ChartConfig, CompactOrAlias, DBFieldTypes } from '@lightdash/common';
+import {
+    ChartConfig,
+    ChartKind,
+    ChartType,
+    CompactOrAlias,
+    DBFieldTypes,
+    MetricFilterRule,
+    MetricType,
+    TableCalculationFormat,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const SavedChartsTableName = 'saved_queries';
 export const SavedChartVersionsTableName = 'saved_queries_versions';
 
-type DbSavedChart = {
-    saved_query_id: number;
-    saved_query_uuid: string;
+type InsertChartInSpace = Pick<
+    DbSavedChart,
+    | 'name'
+    | 'description'
+    | 'last_version_chart_kind'
+    | 'last_version_updated_by_user_uuid'
+> & {
     space_id: number;
-    name: string;
-    created_at: Date;
-    description: string | undefined;
+    dashboard_uuid: null;
 };
+
+type InsertChartInDashboard = Pick<
+    DbSavedChart,
+    | 'name'
+    | 'description'
+    | 'last_version_chart_kind'
+    | 'last_version_updated_by_user_uuid'
+> & {
+    space_id: null;
+    dashboard_uuid: string;
+};
+
+export type InsertChart = InsertChartInSpace | InsertChartInDashboard;
 
 export type SavedChartTable = Knex.CompositeTableType<
     DbSavedChart,
-    Pick<DbSavedChart, 'name' | 'space_id' | 'description'>,
-    Pick<DbSavedChart, 'name' | 'description'>
+    InsertChart,
+    Partial<
+        Pick<
+            DbSavedChart,
+            | 'space_id'
+            | 'name'
+            | 'description'
+            | 'last_version_chart_kind'
+            | 'last_version_updated_at'
+            | 'last_version_updated_by_user_uuid'
+            | 'dashboard_uuid'
+        >
+    >
 >;
+
+export type DbSavedChart = {
+    saved_query_id: number;
+    saved_query_uuid: string;
+    space_id: number | null;
+    dashboard_uuid: string | null;
+    name: string;
+    created_at: Date;
+    description: string | undefined;
+    last_version_chart_kind: ChartKind;
+    last_version_updated_at: Date;
+    last_version_updated_by_user_uuid: string | undefined;
+};
 
 export type DbSavedChartVersion = {
     saved_queries_version_id: number;
@@ -26,7 +74,7 @@ export type DbSavedChartVersion = {
     explore_name: string;
     filters: any;
     row_limit: number;
-    chart_type: 'big_number' | 'table' | 'cartesian';
+    chart_type: ChartType;
     saved_query_id: number;
     chart_config: ChartConfig['config'] | undefined;
     pivot_dimensions: string[] | undefined;
@@ -97,6 +145,7 @@ export type DbSavedChartTableCalculation = {
     order: number;
     calculation_raw_sql: string;
     saved_queries_version_id: number;
+    format?: TableCalculationFormat;
 };
 
 export type DbSavedChartTableCalculationInsert = Omit<
@@ -115,16 +164,49 @@ export type DbSavedChartAdditionalMetric = {
     table: string;
     name: string;
     label?: string;
-    type: string;
+    type: MetricType;
     description?: string;
-    sql?: string;
+    sql: string;
     hidden?: boolean;
     round?: number;
     compact?: CompactOrAlias;
     format?: string;
     saved_queries_version_id: number;
+    filters: MetricFilterRule[] | null; // JSONB
+    base_dimension_name: string | null;
+    uuid: string;
 };
 export type DbSavedChartAdditionalMetricInsert = Omit<
     DbSavedChartAdditionalMetric,
-    'saved_queries_version_additional_metric_id'
+    'saved_queries_version_additional_metric_id' | 'filters' | 'uuid'
+> & {
+    filters: string | null;
+};
+
+export type SavedChartAdditionalMetricTable = Knex.CompositeTableType<
+    DbSavedChartAdditionalMetric,
+    DbSavedChartAdditionalMetricInsert
 >;
+
+export type DBFilteredAdditionalMetrics = Pick<
+    DbSavedChartAdditionalMetric,
+    | 'saved_queries_version_additional_metric_id'
+    | 'table'
+    | 'name'
+    | 'type'
+    | 'sql'
+    | 'uuid'
+> &
+    Partial<
+        Pick<
+            DbSavedChartAdditionalMetric,
+            | 'label'
+            | 'description'
+            | 'hidden'
+            | 'round'
+            | 'compact'
+            | 'format'
+            | 'filters'
+            | 'base_dimension_name'
+        >
+    >;

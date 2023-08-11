@@ -1,15 +1,7 @@
-import { Colors } from '@blueprintjs/core';
 import { AdditionalMetric, CompiledTable, getItemId } from '@lightdash/common';
+import { Center, Group, Text } from '@mantine/core';
 import { FC, useMemo } from 'react';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
-import {
-    CustomMetricsSectionRow,
-    DimensionsSectionRow,
-    EmptyState,
-    MetricsSectionRow,
-    SpanFlex,
-    TooltipContent,
-} from './TableTree.styles';
 import { getSearchResults, TreeProvider } from './Tree/TreeProvider';
 import TreeRoot from './Tree/TreeRoot';
 
@@ -19,7 +11,6 @@ type Props = {
     additionalMetrics: AdditionalMetric[];
     selectedItems: Set<string>;
     onSelectedNodeChange: (itemId: string, isDimension: boolean) => void;
-    depth: number;
 };
 const TableTreeSections: FC<Props> = ({
     searchQuery,
@@ -27,14 +18,7 @@ const TableTreeSections: FC<Props> = ({
     additionalMetrics,
     selectedItems,
     onSelectedNodeChange,
-    depth,
 }) => {
-    const sectionDepth = depth;
-    const treeRootDepth = depth + 1;
-    const hasNoMetrics = Object.keys(table.metrics).length <= 0;
-
-    const isSearching = !!searchQuery && searchQuery !== '';
-
     const dimensions = useMemo(() => {
         return Object.values(table.dimensions).reduce(
             (acc, item) => ({ ...acc, [getItemId(item)]: item }),
@@ -50,28 +34,32 @@ const TableTreeSections: FC<Props> = ({
     }, [table.metrics]);
 
     const customMetrics = useMemo(() => {
-        return additionalMetrics.reduce<Record<string, AdditionalMetric>>(
-            (acc, item) => ({ ...acc, [getItemId(item)]: item }),
-            {},
-        );
-    }, [additionalMetrics]);
+        return additionalMetrics
+            .filter((metric) => metric.table === table.name)
+            .reduce<Record<string, AdditionalMetric>>(
+                (acc, item) => ({ ...acc, [getItemId(item)]: item }),
+                {},
+            );
+    }, [additionalMetrics, table]);
+
+    const isSearching = !!searchQuery && searchQuery !== '';
+
+    const hasMetrics = Object.keys(table.metrics).length > 0;
+    const hasDimensions = Object.keys(table.dimensions).length > 0;
+    const hasCustomMetrics = additionalMetrics.length > 0;
 
     return (
         <>
             {isSearching &&
-            getSearchResults(dimensions, searchQuery).size === 0 ? (
-                <></>
-            ) : (
-                <DimensionsSectionRow depth={sectionDepth}>
-                    Dimensions
-                </DimensionsSectionRow>
+            getSearchResults(dimensions, searchQuery).size === 0 ? null : (
+                <Group mt="sm" mb="xs">
+                    <Text fw={600} color="blue.9">
+                        Dimensions
+                    </Text>
+                </Group>
             )}
 
-            {Object.keys(table.dimensions).length <= 0 ? (
-                <EmptyState>
-                    No dimensions defined in your dbt project
-                </EmptyState>
-            ) : (
+            {hasDimensions ? (
                 <TreeProvider
                     orderFieldsBy={table.orderFieldsBy}
                     searchQuery={searchQuery}
@@ -79,43 +67,47 @@ const TableTreeSections: FC<Props> = ({
                     selectedItems={selectedItems}
                     onItemClick={(key) => onSelectedNodeChange(key, true)}
                 >
-                    <TreeRoot depth={treeRootDepth} />
+                    <TreeRoot />
                 </TreeProvider>
+            ) : (
+                <Center pt="sm" pb="md">
+                    <Text color="dimmed">
+                        No dimensions defined in your dbt project
+                    </Text>
+                </Center>
             )}
 
             {isSearching &&
-            getSearchResults(metrics, searchQuery).size === 0 ? (
-                <></>
-            ) : (
-                <MetricsSectionRow depth={sectionDepth}>
-                    Metrics
-                    <SpanFlex />
-                    {hasNoMetrics && (
+            getSearchResults(metrics, searchQuery).size === 0 ? null : (
+                <Group position="apart" mt="sm" mb="xs" pr="sm">
+                    <Text fw={600} color="yellow.9">
+                        Metrics
+                    </Text>
+
+                    {hasMetrics ? null : (
                         <DocumentationHelpButton
-                            url={
-                                'https://docs.lightdash.com/guides/how-to-create-metrics'
-                            }
+                            href="https://docs.lightdash.com/guides/how-to-create-metrics"
                             tooltipProps={{
-                                content: (
-                                    <TooltipContent>
-                                        <b>View docs</b> - Add a metric to your
-                                        project
-                                    </TooltipContent>
+                                label: (
+                                    <>
+                                        No metrics defined in your dbt project.
+                                        <br />
+                                        Click to{' '}
+                                        <Text component="span" fw={600}>
+                                            view docs
+                                        </Text>{' '}
+                                        and learn how to add a metric to your
+                                        project.
+                                    </>
                                 ),
-                            }}
-                            iconProps={{
-                                style: {
-                                    color: Colors.GRAY3,
-                                },
+                                multiline: true,
                             }}
                         />
                     )}
-                </MetricsSectionRow>
+                </Group>
             )}
 
-            {hasNoMetrics ? (
-                <EmptyState>No metrics defined in your dbt project</EmptyState>
-            ) : (
+            {hasMetrics ? (
                 <TreeProvider
                     orderFieldsBy={table.orderFieldsBy}
                     searchQuery={searchQuery}
@@ -123,46 +115,40 @@ const TableTreeSections: FC<Props> = ({
                     selectedItems={selectedItems}
                     onItemClick={(key) => onSelectedNodeChange(key, false)}
                 >
-                    <TreeRoot depth={treeRootDepth} />
+                    <TreeRoot />
                 </TreeProvider>
-            )}
+            ) : null}
 
-            {isSearching &&
-            getSearchResults(customMetrics, searchQuery).size === 0 ? (
-                <></>
-            ) : (
-                <CustomMetricsSectionRow depth={sectionDepth}>
-                    Custom metrics
-                    <SpanFlex />
+            {hasCustomMetrics &&
+            !(
+                isSearching &&
+                getSearchResults(customMetrics, searchQuery).size === 0
+            ) ? (
+                <Group position="apart" mt="sm" mb="xs" pr="sm">
+                    <Text fw={600} color="yellow.9">
+                        Custom metrics
+                    </Text>
+
                     <DocumentationHelpButton
-                        url={
-                            'https://docs.lightdash.com/guides/how-to-create-metrics#-adding-custom-metrics-in-the-explore-view'
-                        }
+                        href="https://docs.lightdash.com/guides/how-to-create-metrics#-adding-custom-metrics-in-the-explore-view"
                         tooltipProps={{
-                            content: (
-                                <TooltipContent>
+                            label: (
+                                <>
                                     Add custom metrics by hovering over the
                                     dimension of your choice & selecting the
                                     three-dot Action Menu.{' '}
-                                    <b>Click to view docs.</b>
-                                </TooltipContent>
+                                    <Text component="span" fw={600}>
+                                        Click to view docs.
+                                    </Text>
+                                </>
                             ),
-                        }}
-                        iconProps={{
-                            style: {
-                                color: Colors.GRAY3,
-                            },
+                            multiline: true,
                         }}
                     />
-                </CustomMetricsSectionRow>
-            )}
+                </Group>
+            ) : null}
 
-            {hasNoMetrics && additionalMetrics.length <= 0 ? (
-                <EmptyState>
-                    Add custom metrics by hovering over the dimension of your
-                    choice & selecting the three-dot Action Menu
-                </EmptyState>
-            ) : (
+            {!hasMetrics || hasCustomMetrics ? (
                 <TreeProvider
                     orderFieldsBy={table.orderFieldsBy}
                     searchQuery={searchQuery}
@@ -170,9 +156,9 @@ const TableTreeSections: FC<Props> = ({
                     selectedItems={selectedItems}
                     onItemClick={(key) => onSelectedNodeChange(key, false)}
                 >
-                    <TreeRoot depth={treeRootDepth} />
+                    <TreeRoot />
                 </TreeProvider>
-            )}
+            ) : null}
         </>
     );
 };

@@ -11,6 +11,7 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 import {
+    groupService,
     organizationService,
     projectService,
     userService,
@@ -18,73 +19,9 @@ import {
 
 export const organizationRouter = express.Router();
 
-organizationRouter.get('/', isAuthenticated, async (req, res, next) => {
-    organizationService
-        .get(req.user!)
-        .then((results) => {
-            res.json({
-                status: 'ok',
-                results,
-            });
-        })
-        .catch(next);
-});
-
-organizationRouter.patch(
-    '/',
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) =>
-        organizationService
-            .updateOrg(req.user!, req.body)
-            .then(() => {
-                res.json({
-                    status: 'ok',
-                });
-            })
-            .catch(next),
-);
-
-organizationRouter.delete(
-    '/:organizationUuid',
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) =>
-        organizationService
-            .delete(req.params.organizationUuid, req.user!)
-            .then((results) => {
-                req.session.destroy((err2) => {
-                    if (err2) {
-                        next(err2);
-                    } else {
-                        res.json({
-                            status: 'ok',
-                            results,
-                        });
-                    }
-                });
-            })
-            .catch(next),
-);
-
-organizationRouter.get(
-    '/projects',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    async (req, res, next) =>
-        organizationService
-            .getProjects(req.user!)
-            .then((results) => {
-                res.json({
-                    status: 'ok',
-                    results,
-                });
-            })
-            .catch(next),
-);
-
 organizationRouter.post(
     '/projects/precompiled',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) =>
@@ -139,59 +76,6 @@ organizationRouter.delete(
                 });
             })
             .catch(next),
-);
-
-organizationRouter.get(
-    '/users',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    async (req, res, next) =>
-        organizationService
-            .getUsers(req.user!)
-            .then((results) => {
-                res.json({
-                    status: 'ok',
-                    results,
-                });
-            })
-            .catch(next),
-);
-
-organizationRouter.patch(
-    '/users/:userUuid',
-    isAuthenticated,
-    async (req, res, next) => {
-        organizationService
-            .updateMember(req.user!, req.params.userUuid, req.body)
-            .then((results) => {
-                res.json({
-                    status: 'ok',
-                    results,
-                });
-            })
-            .catch(next);
-    },
-);
-
-organizationRouter.delete(
-    '/user/:userUuid',
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) => {
-        if (req.user!.userUuid === req.params.userUuid) {
-            throw new ForbiddenError('User can not delete themself');
-        }
-
-        await userService
-            .delete(req.user!, req.params.userUuid)
-            .then(() => {
-                res.json({
-                    status: 'ok',
-                    results: undefined,
-                });
-            })
-            .catch(next);
-    },
 );
 
 organizationRouter.get(

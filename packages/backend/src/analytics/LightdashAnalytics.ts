@@ -2,16 +2,17 @@
 import {
     CartesianSeriesType,
     ChartType,
-    CreateChartPinnedItem,
-    CreateDashboardPinnedItem,
     DbtProjectType,
     LightdashInstallType,
+    LightdashMode,
     LightdashUser,
     OrganizationMemberRole,
     PinnedItem,
+    ProjectMemberRole,
     RequestMethod,
-    Space,
+    SchedulerFormat,
     TableSelectionType,
+    ValidateProjectPayload,
     WarehouseTypes,
 } from '@lightdash/common';
 import Analytics, {
@@ -108,6 +109,32 @@ type UpdateUserEvent = BaseTrack & {
     properties: LightdashUser & { jobTitle?: string };
 };
 
+type VerifiedUserEvent = BaseTrack & {
+    event: 'user.verified';
+    properties: {
+        isTrackingAnonymized: boolean;
+        email?: string;
+        location: 'onboarding' | 'settings';
+    };
+};
+
+type UserJoinOrganizationEvent = BaseTrack & {
+    event: 'user.joined_organization';
+    properties: {
+        organizationId: string;
+        role: OrganizationMemberRole;
+        projectIds: string[];
+    };
+};
+
+export enum QueryExecutionContext {
+    DASHBOARD = 'dashboardView',
+    EXPLORE = 'exploreView',
+    CHART = 'chartView',
+    VIEW_UNDERLYING_DATA = 'viewUnderlyingData',
+    CSV = 'csvDownload',
+}
+
 type QueryExecutionEvent = BaseTrack & {
     event: 'query.executed';
     properties: {
@@ -115,22 +142,56 @@ type QueryExecutionEvent = BaseTrack & {
         metricsCount: number;
         dimensionsCount: number;
         tableCalculationsCount: number;
+        tableCalculationsPercentFormatCount: number;
+        tableCalculationsCurrencyFormatCount: number;
+        tableCalculationsNumberFormatCount: number;
         filtersCount: number;
         sortsCount: number;
         hasExampleMetric: boolean;
+        additionalMetricsCount: number;
+        additionalMetricsFilterCount: number;
+        context: QueryExecutionContext;
     };
 };
 
-type TrackOrganizationEvent = BaseTrack & {
-    event:
-        | 'organization.created'
-        | 'organization.updated'
-        | 'organization.deleted';
+type CreateOrganizationEvent = BaseTrack & {
+    event: 'organization.created';
     properties: {
         type: string;
         organizationId: string;
         organizationName: string;
-        defaultColourPaletteUpdated?: boolean;
+    };
+};
+
+type UpdateOrganizationEvent = BaseTrack & {
+    event: 'organization.updated';
+    properties: {
+        type: string;
+        organizationId: string;
+        organizationName: string;
+        defaultProjectUuid: string | undefined;
+        defaultColourPaletteUpdated: boolean;
+        defaultProjectUuidUpdated: boolean;
+    };
+};
+
+type DeleteOrganizationEvent = BaseTrack & {
+    event: 'organization.deleted';
+    properties: {
+        type: string;
+        organizationId: string;
+        organizationName: string;
+    };
+};
+
+type OrganizationAllowedEmailDomainUpdatedEvent = BaseTrack & {
+    event: 'organization_allowed_email_domains.updated';
+    properties: {
+        organizationId: string;
+        emailDomainsCount: number;
+        role: OrganizationMemberRole;
+        projectIds: string[];
+        projectRoles: ProjectMemberRole[];
     };
 };
 
@@ -141,16 +202,34 @@ type TrackUserDeletedEvent = BaseTrack & {
     };
 };
 
-type TrackSavedChart = BaseTrack & {
-    event: 'saved_chart.updated' | 'saved_chart.deleted';
+type ModeDashboardChartEvent = BaseTrack & {
+    event: 'dashboard_chart.moved';
+    properties: {
+        projectId: string;
+        savedQueryId: string;
+        dashboardId: string;
+        spaceId: string;
+    };
+};
+
+type UpdateSavedChartEvent = BaseTrack & {
+    event: 'saved_chart.updated';
+    properties: {
+        projectId: string;
+        savedQueryId: string;
+        dashboardId: string | undefined;
+    };
+};
+type DeleteSavedChartEvent = BaseTrack & {
+    event: 'saved_chart.deleted';
     properties: {
         projectId: string;
         savedQueryId: string;
     };
 };
 
-export type CreateSavedChartOrVersionEvent = BaseTrack & {
-    event: 'saved_chart.created' | 'saved_chart_version.created';
+export type CreateSavedChartVersionEvent = BaseTrack & {
+    event: 'saved_chart_version.created';
     properties: {
         projectId: string;
         savedQueryId: string;
@@ -170,9 +249,25 @@ export type CreateSavedChartOrVersionEvent = BaseTrack & {
             margins: string;
             showLegend: boolean;
         };
+        pie?: {
+            isDonut: boolean;
+        };
         table?: {
             conditionalFormattingRulesCount: number;
+            hasMetricsAsRows: boolean;
+            hasRowCalculation: boolean;
+            hasColumnCalculations: boolean;
         };
+        bigValue?: {
+            hasBigValueComparison?: boolean;
+        };
+    };
+};
+
+export type CreateSavedChartEvent = BaseTrack & {
+    event: 'saved_chart.created';
+    properties: CreateSavedChartVersionEvent['properties'] & {
+        dashboardId: string | undefined;
         duplicated?: boolean;
     };
 };
@@ -199,6 +294,18 @@ export type DuplicatedChartCreatedEvent = BaseTrack & {
     };
 };
 
+export type ConditionalFormattingRuleSavedEvent = BaseTrack & {
+    event: 'conditional_formatting_rule.saved';
+    userId: string;
+    properties: {
+        projectId: string;
+        organizationId: string;
+        savedQueryId: string;
+        type: 'single color' | 'color range';
+        numConditions: number;
+    };
+};
+
 type ProjectEvent = BaseTrack & {
     event: 'project.updated' | 'project.created';
     userId: string;
@@ -211,6 +318,7 @@ type ProjectEvent = BaseTrack & {
         dbtConnectionType: DbtProjectType;
         isPreview: boolean;
         method: RequestMethod;
+        copiedFromProjectUuid?: string;
     };
 };
 
@@ -243,11 +351,14 @@ type ProjectCompiledEvent = BaseTrack & {
         warehouseType?: WarehouseTypes;
         modelsCount: number;
         modelsWithErrorsCount: number;
+        modelsWithGroupLabelCount: number;
         metricsCount: number;
         packagesCount?: number;
         roundCount?: number;
         formattedFieldsCount?: number;
         urlsCount?: number;
+        modelsWithSqlFiltersCount: number;
+        columnAccessFiltersCount: number;
     };
 };
 
@@ -260,15 +371,30 @@ type ProjectErrorEvent = BaseTrack & {
         name: string;
         statusCode: number;
         projectType: DbtProjectType;
+        warehouseType?: WarehouseTypes;
     };
 };
 
-type DashboardEvent = BaseTrack & {
-    event: 'dashboard.updated' | 'dashboard.deleted';
+type DeletedDashboardEvent = BaseTrack & {
+    event: 'dashboard.deleted';
     userId: string;
     properties: {
         projectId: string;
         dashboardId: string;
+    };
+};
+
+type UpdatedDashboardEvent = BaseTrack & {
+    event: 'dashboard.updated';
+    userId: string;
+    properties: {
+        projectId: string;
+        dashboardId: string;
+        tilesCount: number;
+        chartTilesCount: number;
+        markdownTilesCount: number;
+        loomTilesCount: number;
+        filtersCount: number;
     };
 };
 
@@ -312,26 +438,19 @@ type ApiErrorEvent = BaseTrack & {
     };
 };
 
-type SpaceCreated = BaseTrack & {
-    event: 'space.created';
+type SpaceEvent = BaseTrack & {
+    event: 'space.created' | 'space.updated';
     userId?: string;
     anonymousId?: string;
     properties: {
         name: string;
         spaceId: string;
         projectId: string;
+        isPrivate: boolean;
+        userAccessCount: number;
     };
 };
-type SpaceUpdated = BaseTrack & {
-    event: 'space.updated';
-    userId?: string;
-    anonymousId?: string;
-    properties: {
-        name: string;
-        spaceId: string;
-        projectId: string;
-    };
-};
+
 type SpaceDeleted = BaseTrack & {
     event: 'space.deleted';
     userId?: string;
@@ -422,7 +541,7 @@ type ShareSlack = BaseTrack & {
     properties: {
         pageType?: string;
         error?: string;
-        organizationUuid?: string;
+        organizationId?: string;
     };
 };
 
@@ -456,6 +575,16 @@ type AnalyticsDashboardView = BaseTrack & {
     };
 };
 
+type SchedulerDashboardView = BaseTrack & {
+    event: 'scheduled_deliveries.dashboard_viewed';
+    userId: string;
+    properties: {
+        projectId: string;
+        organizationId?: string;
+        numScheduledDeliveries: number;
+    };
+};
+
 type PinnedListUpdated = BaseTrack & {
     event: 'pinned_list.updated';
     userId: string;
@@ -468,24 +597,165 @@ type PinnedListUpdated = BaseTrack & {
     };
 };
 
+export type SchedulerUpsertEvent = BaseTrack & {
+    event: 'scheduler.created' | 'scheduler.updated';
+    userId: string;
+    properties: {
+        projectId: string;
+        organizationId: string;
+        schedulerId: string;
+        resourceType: 'dashboard' | 'chart';
+        cronExpression: string;
+        cronString: string;
+        resourceId: string;
+        format: SchedulerFormat;
+        targets: Array<{
+            schedulerTargetId: string;
+            type: 'slack' | 'email';
+        }>;
+    };
+};
+
+export type SchedulerDeleteEvent = BaseTrack & {
+    event: 'scheduler.deleted';
+    userId: string;
+    properties: {
+        projectId: string;
+        organizationId: string;
+        schedulerId: string;
+        resourceType: 'dashboard' | 'chart';
+        resourceId: string;
+    };
+};
+
+export type SchedulerJobEvent = BaseTrack & {
+    event:
+        | 'scheduler_job.created'
+        | 'scheduler_job.deleted'
+        | 'scheduler_job.started'
+        | 'scheduler_job.completed'
+        | 'scheduler_job.failed';
+    anonymousId: string;
+    properties: {
+        jobId: string;
+        schedulerId: string;
+    };
+};
+
+export type SchedulerNotificationJobEvent = BaseTrack & {
+    event:
+        | 'scheduler_notification_job.created'
+        | 'scheduler_notification_job.started'
+        | 'scheduler_notification_job.completed'
+        | 'scheduler_notification_job.failed';
+    anonymousId: string;
+    properties: {
+        jobId: string;
+        schedulerId: string;
+        schedulerTargetId: string;
+        resourceType?: 'dashboard' | 'chart';
+        type: 'slack' | 'email';
+        format?: SchedulerFormat;
+    };
+};
+
+export const parseAnalyticsLimit = (
+    limit: 'table' | 'all' | number | null | undefined,
+) => {
+    switch (limit) {
+        case 'all':
+        case null:
+            return 'all';
+        case 'table':
+        case undefined:
+            return 'results';
+        default:
+            return 'custom';
+    }
+};
+export type DownloadCsv = BaseTrack & {
+    event:
+        | 'download_results.started'
+        | 'download_results.completed'
+        | 'download_results.error';
+    userId: string;
+    properties: {
+        jobId: string;
+        organizationId?: string;
+        projectId: string;
+        tableId?: string;
+        fileType: SchedulerFormat.CSV;
+        values?: 'raw' | 'formatted';
+        limit?: 'results' | 'all' | 'custom';
+        context?:
+            | 'results'
+            | 'chart'
+            | 'scheduled delivery chart'
+            | 'scheduled delivery dashboard'
+            | 'sql runner';
+        storage: 'local' | 's3';
+        numCharts?: number;
+        numRows?: number;
+        numColumns?: number;
+        error?: string;
+    };
+};
+
+export type Validation = BaseTrack & {
+    event:
+        | 'validation.page_viewed'
+        | 'validation.run'
+        | 'validation.completed'
+        | 'validation.error';
+    userId: string;
+    properties: {
+        organizationId?: string;
+        projectId: string;
+        validationRunId?: number;
+
+        context?: ValidateProjectPayload['context'];
+        numErrorsDetected?: number;
+        numContentAffected?: number;
+        error?: string;
+    };
+};
+
+export type ValidationErrorDismissed = BaseTrack & {
+    event: 'validation.error_dismissed';
+    userId: string;
+    properties: {
+        organizationId?: string;
+        projectId: string;
+    };
+};
+
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
     | UpdateUserEvent
     | DeleteUserEvent
+    | VerifiedUserEvent
+    | UserJoinOrganizationEvent
     | QueryExecutionEvent
-    | TrackSavedChart
-    | CreateSavedChartOrVersionEvent
+    | ModeDashboardChartEvent
+    | UpdateSavedChartEvent
+    | DeleteSavedChartEvent
+    | CreateSavedChartEvent
+    | CreateSavedChartVersionEvent
     | TrackUserDeletedEvent
     | ProjectErrorEvent
     | ApiErrorEvent
     | ProjectEvent
     | ProjectDeletedEvent
     | ProjectCompiledEvent
-    | DashboardEvent
+    | UpdatedDashboardEvent
+    | DeletedDashboardEvent
     | CreateDashboardOrVersionEvent
     | ProjectTablesConfigurationEvent
-    | TrackOrganizationEvent
+    | CreateOrganizationEvent
+    | UpdateOrganizationEvent
+    | DeleteOrganizationEvent
+    | OrganizationAllowedEmailDomainUpdatedEvent
     | LoginEvent
     | IdentityLinkedEvent
     | SqlExecutedEvent
@@ -494,8 +764,7 @@ type Track =
     | DuplicatedChartCreatedEvent
     | DuplicatedDashboardCreatedEvent
     | ProjectSearch
-    | SpaceCreated
-    | SpaceUpdated
+    | SpaceEvent
     | SpaceDeleted
     | DashboardUpdateMultiple
     | SavedChartUpdateMultiple
@@ -506,7 +775,16 @@ type Track =
     | SavedChartView
     | DashboardView
     | AnalyticsDashboardView
-    | PinnedListUpdated;
+    | SchedulerUpsertEvent
+    | SchedulerDeleteEvent
+    | SchedulerJobEvent
+    | SchedulerNotificationJobEvent
+    | PinnedListUpdated
+    | DownloadCsv
+    | SchedulerDashboardView
+    | Validation
+    | ValidationErrorDismissed
+    | ConditionalFormattingRuleSavedEvent;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {
@@ -515,6 +793,10 @@ export class LightdashAnalytics extends Analytics {
             name: 'lightdash_server',
             version: VERSION,
             mode: lightdashConfig.mode,
+            siteUrl:
+                lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                    ? lightdashConfig.siteUrl
+                    : null,
             installId: process.env.LIGHTDASH_INSTALL_ID || uuidv4(),
             installType:
                 process.env.LIGHTDASH_INSTALL_TYPE ||
@@ -552,6 +834,20 @@ export class LightdashAnalytics extends Analytics {
                           first_name: payload.properties.firstName,
                           last_name: payload.properties.lastName,
                       },
+            });
+            return;
+        }
+        if (payload.event === 'user.verified') {
+            super.track({
+                ...payload,
+                event: `${LightdashAnalytics.lightdashContext.app.name}.${payload.event}`,
+                context: { ...LightdashAnalytics.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
+                properties: {
+                    ...payload.properties,
+                    email: payload.properties.isTrackingAnonymized
+                        ? undefined
+                        : payload.properties.email,
+                },
             });
             return;
         }

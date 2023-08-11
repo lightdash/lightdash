@@ -1,10 +1,10 @@
-import { Collapse, Colors, Intent, Tag, Text } from '@blueprintjs/core';
 import { hasIntersection } from '@lightdash/common';
-import { intersectionBy } from 'lodash-es';
+import { Badge, Group, Highlight, NavLink, Text } from '@mantine/core';
+import { IconChevronRight } from '@tabler/icons-react';
+import intersectionBy from 'lodash-es/intersectionBy';
 import { FC } from 'react';
 import { useToggle } from 'react-use';
-import HighlightedText from '../../../../common/HighlightedText';
-import { Highlighted, Row, RowIcon } from '../TableTree.styles';
+import MantineIcon from '../../../../common/MantineIcon';
 import TreeNodes from './TreeNodes';
 import { GroupNode, Node, useTableTreeContext } from './TreeProvider';
 
@@ -15,13 +15,15 @@ const getAllChildrenKeys = (nodes: Node[]): string[] => {
     });
 };
 
-const TreeGroupNode: FC<{ node: GroupNode; depth: number }> = ({
-    node,
-    depth,
-}) => {
+type Props = {
+    node: GroupNode;
+};
+
+const TreeGroupNode: FC<Props> = ({ node }) => {
     const { selectedItems, isSearching, searchQuery, searchResults } =
         useTableTreeContext();
-    const [isOpen, toggle] = useToggle(false);
+    const [isOpen, toggleOpen] = useToggle(false);
+
     const allChildrenKeys: string[] = getAllChildrenKeys([node]);
     const hasSelectedChildren = hasIntersection(
         allChildrenKeys,
@@ -40,38 +42,46 @@ const TreeGroupNode: FC<{ node: GroupNode; depth: number }> = ({
         return null;
     }
 
-    return (
-        <>
-            <Row depth={depth} onClick={toggle}>
-                <RowIcon
-                    icon={
-                        isOpen || forceOpen ? 'chevron-down' : 'chevron-right'
-                    }
-                    size={16}
-                />
-                <Text ellipsize>
-                    <HighlightedText
-                        text={node.label}
-                        query={searchQuery || ''}
-                        highlightElement={Highlighted}
-                    />
-                </Text>
-                {!isOpen && hasSelectedChildren && (
-                    <Tag
-                        round
-                        minimal
-                        intent={Intent.PRIMARY}
-                        style={{ marginLeft: '10px' }}
-                    >
-                        {selectedChildrenCount}
-                    </Tag>
-                )}
-            </Row>
+    const isNavLinkOpen = forceOpen || isOpen;
 
-            <Collapse isOpen={isOpen || forceOpen}>
-                <TreeNodes nodeMap={node.children} depth={depth + 1} />
-            </Collapse>
-        </>
+    return (
+        <NavLink
+            opened={isNavLinkOpen}
+            onClick={toggleOpen}
+            // --start moves chevron to the left
+            // mostly hardcoded, to match mantine's internal sizes
+            disableRightSectionRotation
+            rightSection={<></>}
+            icon={
+                <MantineIcon
+                    icon={IconChevronRight}
+                    size={14}
+                    style={{
+                        margin: 1,
+                        transition: 'transform 200ms ease',
+                        transform: isNavLinkOpen ? 'rotate(90deg)' : undefined,
+                    }}
+                />
+            }
+            // --end
+            label={
+                <Group>
+                    <Highlight
+                        component={Text}
+                        highlight={searchQuery || ''}
+                        truncate
+                    >
+                        {node.label}
+                    </Highlight>
+
+                    {!isOpen && hasSelectedChildren && (
+                        <Badge>{selectedChildrenCount}</Badge>
+                    )}
+                </Group>
+            }
+        >
+            <TreeNodes nodeMap={node.children} />
+        </NavLink>
     );
 };
 

@@ -9,22 +9,29 @@ import {
     ExploreError,
     NotExistsError,
     OrganizationProject,
+    PreviewContentMapping,
     Project,
     ProjectMemberProfile,
     ProjectMemberRole,
     ProjectType,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
+    SupportedDbtVersions,
     TablesConfiguration,
     UnexpectedServerError,
     UpdateProject,
     WarehouseCredentials,
 } from '@lightdash/common';
-import { WarehouseCatalog } from '@lightdash/warehouses';
+import {
+    WarehouseCatalog,
+    warehouseClientFromCredentials,
+} from '@lightdash/warehouses';
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
 import { LightdashConfig } from '../../config/parseConfig';
+import { DbDashboard } from '../../database/entities/dashboards';
 import { OrganizationTableName } from '../../database/entities/organizations';
+import { PinnedListTableName } from '../../database/entities/pinnedList';
 import { DbProjectMembership } from '../../database/entities/projectMemberships';
 import {
     CachedExploresTableName,
@@ -34,8 +41,10 @@ import {
     DbProject,
     ProjectTableName,
 } from '../../database/entities/projects';
+import { DbSavedChart, InsertChart } from '../../database/entities/savedCharts';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
+import Logger from '../../logging/logger';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
 import Transaction = Knex.Transaction;
 
@@ -205,6 +214,13 @@ export class ProjectModel {
             } catch (e) {
                 throw new UnexpectedServerError('Could not save credentials.');
             }
+
+            // Make sure the project to copy exists and is owned by the same organization
+            const copiedProjects = data.copiedFromProjectUuid
+                ? await trx('projects')
+                      .where('organization_id', orgs[0].organization_id)
+                      .andWhere('project_uuid', data.copiedFromProjectUuid)
+                : [];
             const [project] = await trx('projects')
                 .insert({
                     name: data.name,
@@ -212,6 +228,11 @@ export class ProjectModel {
                     organization_id: orgs[0].organization_id,
                     dbt_connection_type: data.dbtConnection.type,
                     dbt_connection: encryptedCredentials,
+                    copied_from_project_uuid:
+                        copiedProjects.length === 1
+                            ? copiedProjects[0].project_uuid
+                            : null,
+                    dbt_version: data.dbtVersion,
                 })
                 .returning('*');
 
@@ -241,11 +262,13 @@ export class ProjectModel {
             } catch (e) {
                 throw new UnexpectedServerError('Could not save credentials.');
             }
+
             const projects = await trx('projects')
                 .update({
                     name: data.name,
                     dbt_connection_type: data.dbtConnection.type,
                     dbt_connection: encryptedCredentials,
+                    dbt_version: data.dbtVersion,
                 })
                 .where('project_uuid', projectUuid)
                 .returning('*');
@@ -279,6 +302,8 @@ export class ProjectModel {
                   encrypted_credentials: null;
                   warehouse_type: null;
                   organization_uuid: string;
+                  pinned_list_uuid?: string;
+                  dbt_version: SupportedDbtVersions;
               }
             | {
                   name: string;
@@ -287,6 +312,8 @@ export class ProjectModel {
                   encrypted_credentials: Buffer;
                   warehouse_type: string;
                   organization_uuid: string;
+                  pinned_list_uuid?: string;
+                  dbt_version: SupportedDbtVersions;
               }
         )[];
         const projects = await this.database('projects')
@@ -299,6 +326,11 @@ export class ProjectModel {
                 OrganizationTableName,
                 'organizations.organization_id',
                 'projects.organization_id',
+            )
+            .leftJoin(
+                PinnedListTableName,
+                'pinned_list.project_uuid',
+                'projects.project_uuid',
             )
             .column([
                 this.database.ref('name').withSchema(ProjectTableName),
@@ -315,9 +347,13 @@ export class ProjectModel {
                 this.database
                     .ref('organization_uuid')
                     .withSchema(OrganizationTableName),
+                this.database
+                    .ref('pinned_list_uuid')
+                    .withSchema(PinnedListTableName),
+                this.database.ref('dbt_version').withSchema(ProjectTableName),
             ])
             .select<QueryResult>()
-            .where('project_uuid', projectUuid);
+            .where('projects.project_uuid', projectUuid);
         if (projects.length === 0) {
             throw new NotExistsError(
                 `Cannot find project with id: ${projectUuid}`,
@@ -335,12 +371,14 @@ export class ProjectModel {
         } catch (e) {
             throw new UnexpectedServerError('Failed to load dbt credentials');
         }
-        const result = {
+        const result: Omit<Project, 'warehouseConnection'> = {
             organizationUuid: project.organization_uuid,
             projectUuid,
             name: project.name,
             type: project.project_type,
             dbtConnection: dbtSensitiveCredentials,
+            pinnedListUuid: project.pinned_list_uuid,
+            dbtVersion: project.dbt_version,
         };
         if (!project.warehouse_type) {
             return result;
@@ -386,6 +424,8 @@ export class ProjectModel {
             type: project.type,
             dbtConnection: nonSensitiveDbtCredentials,
             warehouseConnection: nonSensitiveCredentials,
+            pinnedListUuid: project.pinnedListUuid,
+            dbtVersion: project.dbtVersion,
         };
     }
 
@@ -431,6 +471,32 @@ export class ProjectModel {
         return undefined;
     }
 
+    static convertMetricFiltersFieldIdsToFieldRef = (explore: Explore) => {
+        const convertedExplore = { ...explore };
+        if (convertedExplore.tables) {
+            Object.values(convertedExplore.tables).forEach((table) => {
+                if (table.metrics) {
+                    Object.values(table.metrics).forEach((metric) => {
+                        if (metric.filters) {
+                            metric.filters.forEach((filter) => {
+                                // @ts-expect-error cached explore types might not be up to date
+                                const { fieldId, fieldRef, ...rest } =
+                                    filter.target;
+                                // eslint-disable-next-line no-param-reassign
+                                filter.target = {
+                                    ...rest,
+                                    fieldRef: fieldRef ?? fieldId,
+                                };
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        return convertedExplore;
+    };
+
     async getExploreFromCache(
         projectUuid: string,
         exploreName: string,
@@ -449,7 +515,11 @@ export class ProjectModel {
                 `Explore "${exploreName}" does not exist.`,
             );
         }
-        return row.explore;
+
+        const exploreFromCache: Explore =
+            ProjectModel.convertMetricFiltersFieldIdsToFieldRef(row.explore);
+
+        return exploreFromCache;
     }
 
     async saveExploresToCache(
@@ -520,6 +590,45 @@ export class ProjectModel {
             .returning('*');
 
         return cachedWarehouse;
+    }
+
+    async getProjectMemberAccess(
+        projectUuid: string,
+        userUuid: string,
+    ): Promise<ProjectMemberProfile | undefined> {
+        type QueryResult = {
+            user_uuid: string;
+            email: string;
+            role: ProjectMemberRole;
+            first_name: string;
+            last_name: string;
+        };
+        const [projectMemberProfile] = await this.database(
+            'project_memberships',
+        )
+            .leftJoin('users', 'project_memberships.user_id', 'users.user_id')
+            .leftJoin('emails', 'emails.user_id', 'users.user_id')
+            .leftJoin(
+                'projects',
+                'project_memberships.project_id',
+                'projects.project_id',
+            )
+            .select<QueryResult[]>()
+            .where('project_uuid', projectUuid)
+            .where('users.user_id', userUuid)
+            .andWhere('is_primary', true);
+
+        if (projectMemberProfile === undefined) {
+            return undefined;
+        }
+        return {
+            userUuid: projectMemberProfile.user_uuid,
+            projectUuid,
+            role: projectMemberProfile.role,
+            email: projectMemberProfile.email,
+            firstName: projectMemberProfile.first_name,
+            lastName: projectMemberProfile.last_name,
+        };
     }
 
     async getProjectAccess(
@@ -702,5 +811,468 @@ export class ProjectModel {
                    AND p.project_uuid = ?`,
             [projectUuid],
         );
+    }
+
+    async getWarehouseCredentialsForProject(
+        projectUuid: string,
+    ): Promise<CreateWarehouseCredentials> {
+        const [row] = await this.database('warehouse_credentials')
+            .innerJoin(
+                'projects',
+                'warehouse_credentials.project_id',
+                'projects.project_id',
+            )
+            .select(['warehouse_type', 'encrypted_credentials'])
+            .where('project_uuid', projectUuid);
+        if (row === undefined) {
+            throw new NotExistsError(
+                `Cannot find any warehouse credentials for project.`,
+            );
+        }
+        try {
+            return JSON.parse(
+                this.encryptionService.decrypt(row.encrypted_credentials),
+            ) as CreateWarehouseCredentials;
+        } catch (e) {
+            throw new UnexpectedServerError(
+                'Unexpected error: failed to parse warehouse credentials',
+            );
+        }
+    }
+
+    async duplicateContent(projectUuid: string, previewProjectUuid: string) {
+        Logger.debug(
+            `Duplicating content from ${projectUuid} to ${previewProjectUuid}`,
+        );
+
+        return this.database.transaction(async (trx) => {
+            const [previewProject] = await trx('projects').where(
+                'project_uuid',
+                previewProjectUuid,
+            );
+
+            const [project] = await trx('projects')
+                .where('project_uuid', projectUuid)
+                .select('project_id');
+            const projectId = project.project_id;
+
+            const spaces = await trx('spaces').where('project_id', projectId);
+
+            Logger.debug(
+                `Duplicating ${spaces.length} spaces on ${previewProjectUuid}`,
+            );
+            const spaceIds = spaces.map((s) => s.space_id);
+
+            const newSpaces =
+                spaces.length > 0
+                    ? await trx('spaces')
+                          .insert(
+                              spaces.map((d) => {
+                                  const createSpace = {
+                                      ...d,
+                                      space_id: undefined,
+                                      space_uuid: undefined,
+                                      project_id: previewProject.project_id,
+                                  };
+                                  // Remove the keys for the autogenerated fields
+                                  // Some databases do not support undefined values
+                                  delete createSpace.space_id;
+                                  delete createSpace.space_uuid;
+                                  return createSpace;
+                              }),
+                          )
+                          .returning('*')
+                    : [];
+
+            const spaceMapping = spaces.map((s, i) => ({
+                id: s.space_id,
+                newId: newSpaces[i].space_id,
+            }));
+
+            const getNewSpace = (oldSpaceId: number): number =>
+                spaceMapping.find((s) => s.id === oldSpaceId)?.newId!;
+            const spaceShares = await trx('space_share').whereIn(
+                'space_id',
+                spaceIds,
+            );
+
+            const newSpaceShare =
+                spaceShares.length > 0
+                    ? await trx('space_share')
+                          .insert(
+                              spaceShares.map((d) => ({
+                                  ...d,
+                                  space_id: getNewSpace(d.space_id),
+                              })),
+                          )
+                          .returning('*')
+                    : [];
+
+            const charts = await trx('saved_queries')
+                .leftJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
+                .where('spaces.project_id', projectId)
+                .select<DbSavedChart[]>('saved_queries.*');
+
+            Logger.debug(
+                `Duplicating ${charts.length} charts on ${previewProjectUuid}`,
+            );
+
+            const newCharts =
+                charts.length > 0
+                    ? await trx('saved_queries')
+                          .insert(
+                              charts.map((d) => {
+                                  if (!d.space_id) {
+                                      throw new Error(
+                                          `Chart ${d.saved_query_id} has no space_id`,
+                                      );
+                                  }
+                                  const createChart = {
+                                      ...d,
+                                      saved_query_id: undefined,
+                                      saved_query_uuid: undefined,
+                                      space_id: getNewSpace(d.space_id),
+                                      dashboard_uuid: null,
+                                  };
+                                  delete createChart.saved_query_id;
+                                  delete createChart.saved_query_uuid;
+                                  return createChart;
+                              }),
+                          )
+                          .returning('*')
+                    : [];
+
+            const chartsInDashboards = await trx('saved_queries')
+                .leftJoin(
+                    'dashboards',
+                    'saved_queries.dashboard_uuid',
+                    'dashboards.dashboard_uuid',
+                )
+                .leftJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
+                .where('spaces.project_id', projectId)
+                .select<DbSavedChart[]>('saved_queries.*');
+
+            Logger.debug(
+                `Duplicating ${chartsInDashboards.length} charts in dashboards on ${previewProjectUuid}`,
+            );
+
+            // We also copy charts in dashboards, we will replace the dashboard_uuid later
+            const newChartsInDashboards =
+                chartsInDashboards.length > 0
+                    ? await trx('saved_queries')
+                          .insert(
+                              chartsInDashboards.map((d) => {
+                                  if (!d.dashboard_uuid) {
+                                      throw new Error(
+                                          `Chart in dashboard ${d.saved_query_id} has no dashboard_uuid`,
+                                      );
+                                  }
+                                  const createChart = {
+                                      ...d,
+                                      saved_query_id: undefined,
+                                      saved_query_uuid: undefined,
+                                      space_id: null,
+                                      dashboard_uuid: d.dashboard_uuid,
+                                  };
+                                  delete createChart.saved_query_id;
+                                  delete createChart.saved_query_uuid;
+
+                                  return createChart;
+                              }),
+                          )
+                          .returning('*')
+                    : [];
+            const chartInSpacesMapping = charts.map((c, i) => ({
+                id: c.saved_query_id,
+                newId: newCharts[i].saved_query_id,
+            }));
+            const chartInDashboardsMapping = chartsInDashboards.map((c, i) => ({
+                id: c.saved_query_id,
+                newId: newChartsInDashboards[i].saved_query_id,
+            }));
+
+            const chartMapping = [
+                ...chartInSpacesMapping,
+                ...chartInDashboardsMapping,
+            ];
+
+            const chartIds = chartMapping.map((c) => c.id);
+
+            // only get last chart version
+            const lastVersionIds = await trx('saved_queries_versions')
+                .whereIn('saved_query_id', chartIds)
+                .groupBy('saved_query_id')
+                .max('saved_queries_version_id');
+
+            const chartVersions = await trx('saved_queries_versions')
+                .whereIn(
+                    'saved_queries_version_id',
+                    lastVersionIds.map((d) => d.max),
+                )
+                .select('*');
+
+            const chartVersionIds = chartVersions.map(
+                (d) => d.saved_queries_version_id,
+            );
+
+            const newChartVersions =
+                chartVersions.length > 0
+                    ? await trx('saved_queries_versions')
+                          .insert(
+                              chartVersions.map((d) => {
+                                  const newSavedQueryId = chartMapping.find(
+                                      (m) => m.id === d.saved_query_id,
+                                  )?.newId;
+                                  if (!newSavedQueryId) {
+                                      throw new Error(
+                                          `Cannot find new chart id for ${d.saved_query_id}`,
+                                      );
+                                  }
+                                  const createChartVersion = {
+                                      ...d,
+                                      saved_queries_version_id: undefined,
+                                      saved_queries_version_uuid: undefined,
+                                      saved_query_id: newSavedQueryId,
+                                  };
+                                  delete createChartVersion.saved_queries_version_id;
+                                  delete createChartVersion.saved_queries_version_uuid;
+
+                                  return createChartVersion;
+                              }),
+                          )
+                          .returning('*')
+                    : [];
+
+            const chartVersionMapping = chartVersions.map((c, i) => ({
+                id: c.saved_queries_version_id,
+                newId: newChartVersions[i].saved_queries_version_id,
+            }));
+
+            const copyChartVersionContent = async (
+                table: string,
+                excludedFields: string[],
+            ) => {
+                const content = await trx(table)
+                    .whereIn('saved_queries_version_id', chartVersionIds)
+                    .select(`*`);
+
+                if (content.length === 0) return undefined;
+
+                const newContent = await trx(table)
+                    .insert(
+                        content.map((d) => {
+                            const createContent = {
+                                ...d,
+                                saved_queries_version_id:
+                                    chartVersionMapping.find(
+                                        (m) =>
+                                            m.id === d.saved_queries_version_id,
+                                    )?.newId,
+                            };
+                            excludedFields.forEach((fieldId) => {
+                                delete createContent[fieldId];
+                            });
+                            return createContent;
+                        }),
+                    )
+                    .returning('*');
+
+                return newContent;
+            };
+
+            await copyChartVersionContent(
+                'saved_queries_version_table_calculations',
+                ['saved_queries_version_table_calculation_id'],
+            );
+            await copyChartVersionContent('saved_queries_version_sorts', [
+                'saved_queries_version_sort_id',
+            ]);
+            await copyChartVersionContent('saved_queries_version_fields', [
+                'saved_queries_version_field_id',
+            ]);
+            await copyChartVersionContent(
+                'saved_queries_version_additional_metrics',
+                ['saved_queries_version_additional_metric_id', 'uuid'],
+            );
+
+            const dashboards = await trx('dashboards')
+                .leftJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
+                .where('spaces.project_id', projectId)
+                .select<DbDashboard[]>('dashboards.*');
+
+            const dashboardIds = dashboards.map((d) => d.dashboard_id);
+
+            Logger.debug(
+                `Duplicating ${dashboards.length} dashboards on ${previewProjectUuid}`,
+            );
+
+            const newDashboards =
+                dashboards.length > 0
+                    ? await trx('dashboards')
+                          .insert(
+                              dashboards.map((d) => {
+                                  const createDashboard = {
+                                      ...d,
+                                      dashboard_id: undefined,
+                                      dashboard_uuid: undefined,
+                                      space_id: getNewSpace(d.space_id),
+                                  };
+                                  delete createDashboard.dashboard_id;
+                                  delete createDashboard.dashboard_uuid;
+                                  return createDashboard;
+                              }),
+                          )
+                          .returning('*')
+                    : [];
+
+            const dashboardMapping = dashboards.map((c, i) => ({
+                id: c.dashboard_id,
+                newId: newDashboards[i].dashboard_id,
+                uuid: c.dashboard_uuid,
+                newUuid: newDashboards[i].dashboard_uuid,
+            }));
+
+            // Get last version of a dashboard
+            const lastDashboardVersionsIds = await trx('dashboard_versions')
+                .whereIn('dashboard_id', dashboardIds)
+                .groupBy('dashboard_id')
+                .max('dashboard_version_id');
+
+            const dashboardVersionIds = lastDashboardVersionsIds.map(
+                (d) => d.max,
+            );
+
+            const dashboardVersions = await trx('dashboard_versions')
+                .whereIn('dashboard_version_id', dashboardVersionIds)
+                .select('*');
+
+            const newDashboardVersions =
+                dashboardVersions.length > 0
+                    ? await trx('dashboard_versions')
+                          .insert(
+                              dashboardVersions.map((d) => {
+                                  const createDashboardVersion = {
+                                      ...d,
+                                      dashboard_version_id: undefined,
+                                      dashboard_id: dashboardMapping.find(
+                                          (m) => m.id === d.dashboard_id,
+                                      )?.newId!,
+                                  };
+                                  delete createDashboardVersion.dashboard_version_id;
+                                  return createDashboardVersion;
+                              }),
+                          )
+                          .returning('*')
+                    : [];
+
+            const dashboardVersionsMapping = dashboardVersions.map((c, i) => ({
+                id: c.dashboard_version_id,
+                newId: newDashboardVersions[i].dashboard_version_id,
+            }));
+
+            const dashboardTiles = await trx('dashboard_tiles').whereIn(
+                'dashboard_version_id',
+                dashboardVersionIds,
+            );
+
+            Logger.debug(
+                `Duplicating ${dashboardTiles.length} dashboard tiles on ${previewProjectUuid}`,
+            );
+
+            const dashboardTileUuids = dashboardTiles.map(
+                (dv) => dv.dashboard_tile_uuid,
+            );
+
+            Logger.debug(
+                `Updating ${chartsInDashboards.length} charts in dashboards`,
+            );
+            // Update chart in dashboards with new dashboardUuids
+            await newChartsInDashboards.map(async (chart) => {
+                const newDashboardUuid = dashboardMapping.find(
+                    (m) => m.uuid === chart.dashboard_uuid,
+                )?.newUuid;
+
+                return trx('saved_queries')
+                    .update({
+                        dashboard_uuid: newDashboardUuid,
+                    })
+                    .where('saved_query_id', chart.saved_query_id);
+            });
+
+            const newDashboardTiles =
+                dashboardTiles.length > 0
+                    ? await trx('dashboard_tiles')
+                          .insert(
+                              dashboardTiles.map((d) => ({
+                                  ...d,
+                                  // we keep the same dashboard_tile_uuid
+                                  dashboard_version_id:
+                                      dashboardVersionsMapping.find(
+                                          (m) =>
+                                              m.id === d.dashboard_version_id,
+                                      )?.newId!,
+                              })),
+                          )
+                          .returning('*')
+                    : [];
+
+            const dashboardTilesMapping = dashboardTiles.map((c, i) => ({
+                id: c.dashboard_tile_uuid,
+                newId: newDashboardTiles[i].dashboard_tile_uuid,
+            }));
+
+            const copyDashboardTileContent = async (table: string) => {
+                const content = await trx(table)
+                    .whereIn('dashboard_tile_uuid', dashboardTileUuids)
+                    .and.whereIn('dashboard_version_id', dashboardVersionIds);
+
+                if (content.length === 0) return undefined;
+
+                const newContent = await trx(table).insert(
+                    content.map((d) => ({
+                        ...d,
+
+                        // only applied to tile charts
+                        ...(d.saved_chart_id && {
+                            saved_chart_id: chartMapping.find(
+                                (c) => c.id === d.saved_chart_id,
+                            )?.newId,
+                        }),
+
+                        dashboard_version_id: dashboardVersionsMapping.find(
+                            (m) => m.id === d.dashboard_version_id,
+                        )?.newId!,
+                        dashboard_tile_uuid: dashboardTilesMapping.find(
+                            (m) => m.id === d.dashboard_tile_uuid,
+                        )?.newId!,
+                    })),
+                );
+                return newContent;
+            };
+
+            await copyDashboardTileContent('dashboard_tile_charts');
+            await copyDashboardTileContent('dashboard_tile_looms');
+            await copyDashboardTileContent('dashboard_tile_markdowns');
+
+            const contentMapping: PreviewContentMapping = {
+                charts: chartMapping,
+                chartVersions: chartVersionMapping,
+                spaces: spaceMapping,
+                dashboards: dashboardMapping,
+                dashboardVersions: dashboardVersionsMapping,
+            };
+            // Insert mapping on database
+            await trx('preview_content').insert({
+                project_uuid: projectUuid,
+                preview_project_uuid: previewProjectUuid,
+                content_mapping: contentMapping,
+            });
+        });
+    }
+
+    // Easier to mock in ProjectService
+    // eslint-disable-next-line class-methods-use-this
+    getWarehouseClientFromCredentials(credentials: CreateWarehouseCredentials) {
+        return warehouseClientFromCredentials(credentials);
     }
 }

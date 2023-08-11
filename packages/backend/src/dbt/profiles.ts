@@ -61,9 +61,8 @@ const credentialsTarget = (
                     threads: DEFAULT_THREADS,
                     keepalives_idle: credentials.keepalivesIdle,
                     sslmode: credentials.sslmode,
-                    sslrootcert: path.resolve(
-                        __dirname,
-                        '../services/warehouseClients/amazon-trust-ca-bundle.crt',
+                    sslrootcert: require.resolve(
+                        '@lightdash/warehouses/dist/warehouseClients/ca-bundle-aws-redshift.crt',
                     ),
                     ra3_node: credentials.ra3Node || true,
                 },
@@ -87,6 +86,13 @@ const credentialsTarget = (
                     search_path: credentials.searchPath,
                     role: credentials.role,
                     sslmode: credentials.sslmode,
+                    ...(credentials.host.endsWith('.rds.amazonaws.com')
+                        ? {
+                              sslrootcert: require.resolve(
+                                  '@lightdash/warehouses/dist/warehouseClients/ca-bundle-aws-rds-global.pem',
+                              ),
+                          }
+                        : {}),
                 },
                 environment: {
                     [envVar('user')]: credentials.user,

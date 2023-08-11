@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     ConditionalRule,
+    ConditionalRuleLabels,
     DimensionType,
     Field,
     FilterableField,
@@ -28,12 +29,13 @@ import DefaultFilterInputs, {
     FilterInputsProps,
 } from './FilterInputs/DefaultFilterInputs';
 
-export const filterOperatorLabel: Record<FilterOperator, string> = {
+const filterOperatorLabel: Record<FilterOperator, string> = {
     [FilterOperator.NULL]: 'is null',
     [FilterOperator.NOT_NULL]: 'is not null',
-    [FilterOperator.EQUALS]: 'is equal to',
-    [FilterOperator.NOT_EQUALS]: 'is not equal to',
+    [FilterOperator.EQUALS]: 'is',
+    [FilterOperator.NOT_EQUALS]: 'is not',
     [FilterOperator.STARTS_WITH]: 'starts with',
+    [FilterOperator.ENDS_WITH]: 'ends with',
     [FilterOperator.NOT_INCLUDE]: 'does not include',
     [FilterOperator.INCLUDE]: 'includes',
     [FilterOperator.LESS_THAN]: 'is less than',
@@ -41,6 +43,7 @@ export const filterOperatorLabel: Record<FilterOperator, string> = {
     [FilterOperator.GREATER_THAN]: 'is greater than',
     [FilterOperator.GREATER_THAN_OR_EQUAL]: 'is greater than or equal',
     [FilterOperator.IN_THE_PAST]: 'in the last',
+    [FilterOperator.NOT_IN_THE_PAST]: 'not in the last',
     [FilterOperator.IN_THE_NEXT]: 'in the next',
     [FilterOperator.IN_THE_CURRENT]: 'in the current',
     [FilterOperator.IN_BETWEEN]: 'is between',
@@ -64,6 +67,7 @@ const timeFilterOptions: Array<{
         FilterOperator.EQUALS,
         FilterOperator.NOT_EQUALS,
         FilterOperator.IN_THE_PAST,
+        FilterOperator.NOT_IN_THE_PAST,
         FilterOperator.IN_THE_NEXT,
         FilterOperator.IN_THE_CURRENT,
     ]),
@@ -92,6 +96,7 @@ export const FilterTypeConfig: Record<
             FilterOperator.EQUALS,
             FilterOperator.NOT_EQUALS,
             FilterOperator.STARTS_WITH,
+            FilterOperator.ENDS_WITH,
             FilterOperator.INCLUDE,
             FilterOperator.NOT_INCLUDE,
         ]),
@@ -122,13 +127,7 @@ export const FilterTypeConfig: Record<
     },
 };
 
-type FilterRuleLabels = {
-    field: string;
-    operator: string;
-    value?: string;
-};
-
-export const getValueAsString = (
+const getValueAsString = (
     filterType: FilterType,
     rule: ConditionalRule,
     field: Field | TableCalculation,
@@ -146,6 +145,7 @@ export const getValueAsString = (
         case FilterType.DATE:
             switch (operator) {
                 case FilterOperator.IN_THE_PAST:
+                case FilterOperator.NOT_IN_THE_PAST:
                 case FilterOperator.IN_THE_NEXT:
                     if (!isFilterRule(rule)) throw new Error('Invalid rule');
 
@@ -163,6 +163,7 @@ export const getValueAsString = (
                 case FilterOperator.EQUALS:
                 case FilterOperator.NOT_EQUALS:
                 case FilterOperator.STARTS_WITH:
+                case FilterOperator.ENDS_WITH:
                 case FilterOperator.INCLUDE:
                 case FilterOperator.NOT_INCLUDE:
                 case FilterOperator.LESS_THAN:
@@ -208,7 +209,7 @@ export const getValueAsString = (
 export const getConditionalRuleLabel = (
     rule: ConditionalRule,
     item: FilterableItem,
-): FilterRuleLabels => {
+): ConditionalRuleLabels => {
     const filterType = isFilterableItem(item)
         ? getFilterTypeFromItem(item)
         : FilterType.STRING;

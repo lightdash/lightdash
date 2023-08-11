@@ -1,28 +1,12 @@
-import { Colors, H3, Icon } from '@blueprintjs/core';
+import { Colors, H4, Icon } from '@blueprintjs/core';
 import styled from 'styled-components';
-
-export const PAGE_HEADER_HEIGHT = 80;
-
-export const PageHeaderContainer = styled.div`
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-end;
-    height: ${PAGE_HEADER_HEIGHT}px;
-    width: 100%;
-    position: relative;
-    z-index: 1;
-    background: ${Colors.WHITE};
-    border-bottom: 0.5px solid #c5cbd3;
-    padding: 15px 20px 15px 20px;
-`;
 
 export const PageTitleAndDetailsContainer = styled.div`
     flex: 1;
 `;
 
-export const PageTitle = styled(H3)`
-    margin: 0 5px 0 0;
+export const PageTitle = styled(H4)`
+    margin: 4px 5px 4px 0;
 `;
 
 export const PageTitleContainer = styled.div`

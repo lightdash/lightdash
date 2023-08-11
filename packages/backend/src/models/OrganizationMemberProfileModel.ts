@@ -136,15 +136,18 @@ export class OrganizationMemberProfileModel {
         ).insert<DbOrganizationMembershipIn>(membershipIn);
     };
 
-    async getOrganizationMember(organizationUuid: string, userUuid: string) {
+    async getOrganizationMemberByUuid(
+        organizationUuid: string,
+        userUuid: string,
+    ): Promise<OrganizationMemberProfile> {
         const member = await this.findOrganizationMember(
             organizationUuid,
             userUuid,
         );
-        if (member) {
-            return member;
+        if (!member) {
+            throw new NotFoundError('No matching member found in organization');
         }
-        throw new NotFoundError('No matching member found in organization');
+        return member;
     }
 
     async updateOrganizationMember(
@@ -173,6 +176,6 @@ export class OrganizationMemberProfileModel {
                 sqlParams,
             );
         }
-        return this.getOrganizationMember(organizationUuid, userUuid);
+        return this.getOrganizationMemberByUuid(organizationUuid, userUuid);
     }
 }

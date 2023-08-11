@@ -1,12 +1,10 @@
 import { WarehouseTypes } from '@lightdash/common';
+import { Button, Stack } from '@mantine/core';
+import { IconChevronLeft } from '@tabler/icons-react';
 import { FC } from 'react';
 import { CreateProjectConnection } from '../..';
-import {
-    BackButton,
-    CreateHeaderWrapper,
-    CreateProjectWrapper,
-} from '../../../../pages/CreateProject.styles';
-import { Title } from '../ProjectConnectFlow.styles';
+import MantineIcon from '../../../common/MantineIcon';
+import { OnboardingTitle } from '../common/OnboardingTitle';
 import { getWarehouseLabel } from '../SelectWarehouse';
 
 interface ConnectManuallyStep2Props {
@@ -21,21 +19,28 @@ const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
     onBack,
 }) => {
     return (
-        <CreateProjectWrapper>
-            <CreateHeaderWrapper>
-                <BackButton icon="chevron-left" text="Back" onClick={onBack} />
+        <>
+            <Stack align="left">
+                <Button
+                    variant="subtle"
+                    size="sm"
+                    leftIcon={<MantineIcon icon={IconChevronLeft} />}
+                    onClick={onBack}
+                    sx={{ alignSelf: 'flex-start' }}
+                >
+                    Back
+                </Button>
 
-                <Title>
-                    Create a {getWarehouseLabel(selectedWarehouse).label}{' '}
-                    connection
-                </Title>
-            </CreateHeaderWrapper>
+                <OnboardingTitle>
+                    Create a {getWarehouseLabel(selectedWarehouse)} connection
+                </OnboardingTitle>
 
-            <CreateProjectConnection
-                isCreatingFirstProject={isCreatingFirstProject}
-                selectedWarehouse={selectedWarehouse}
-            />
-        </CreateProjectWrapper>
+                <CreateProjectConnection
+                    isCreatingFirstProject={isCreatingFirstProject}
+                    selectedWarehouse={selectedWarehouse}
+                />
+            </Stack>
+        </>
     );
 };
 

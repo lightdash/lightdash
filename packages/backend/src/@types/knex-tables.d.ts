@@ -65,6 +65,8 @@ import {
     PinnedDashboardTableName,
     PinnedListTable,
     PinnedListTableName,
+    PinnedSpaceTable,
+    PinnedSpaceTableName,
 } from '../database/entities/pinnedList';
 import {
     ProjectMembershipsTable,
@@ -79,14 +81,16 @@ import {
     ProjectTableName,
 } from '../database/entities/projects';
 import {
+    SavedChartAdditionalMetricTable,
+    SavedChartAdditionalMetricTableName,
     SavedChartsTableName,
+    SavedChartTable,
     SavedChartVersionFieldsTable,
     SavedChartVersionFieldsTableName,
     SavedChartVersionSortsTable,
     SavedChartVersionSortsTableName,
     SavedChartVersionsTable,
     SavedChartVersionsTableName,
-    SavedQueryTable,
     SavedQueryTableCalculationTable,
     SavedQueryTableCalculationTableName,
 } from '../database/entities/savedCharts';
@@ -115,11 +119,44 @@ import {
     DbAnalyticsDashboardViews,
 } from '../database/entities/analytics';
 import {
+    EmailOneTimePasscodesTableName,
+    EmailOneTimePasscodeTable,
+} from '../database/entities/email_one_time_passcodes';
+import { GroupTable, GroupTableName } from '../database/entities/groups';
+import {
+    GroupMembershipTable,
+    GroupMembershipTableName,
+} from '../database/entities/group_memberships';
+import {
+    OrganizationAllowedEmailDomainProjectsTable,
+    OrganizationAllowedEmailDomainProjectsTableName,
+    OrganizationAllowedEmailDomainsTable,
+    OrganizationAllowedEmailDomainsTableName,
+} from '../database/entities/organizationsAllowedEmailDomains';
+import {
+    SchedulerEmailTargetTable,
+    SchedulerEmailTargetTableName,
+    SchedulerLogTable,
+    SchedulerLogTableName,
     SchedulerSlackTargetTable,
     SchedulerSlackTargetTableName,
     SchedulerTable,
     SchedulerTableName,
 } from '../database/entities/scheduler';
+import {
+    SshKeyPairTable,
+    SshKeyPairTableName,
+} from '../database/entities/ssh_key_pairs';
+import {
+    DbOrganizationMemberUserAttribute,
+    DbUserAttribute,
+    OrganizationMemberUserAttributesTable,
+    UserAttributesTable,
+} from '../database/entities/userAttributes';
+import {
+    DbValidationTable,
+    ValidationTableName,
+} from '../database/entities/validation';
 
 declare module 'knex/types/tables' {
     interface Tables {
@@ -130,11 +167,12 @@ declare module 'knex/types/tables' {
         [SessionTableName]: SessionTable;
         [WarehouseCredentialTableName]: WarehouseCredentialTable;
         [ProjectTableName]: ProjectTable;
-        [SavedChartsTableName]: SavedQueryTable;
+        [SavedChartsTableName]: SavedChartTable;
         [SavedChartVersionsTableName]: SavedChartVersionsTable;
         [SavedChartVersionFieldsTableName]: SavedChartVersionFieldsTable;
         [SavedChartVersionSortsTableName]: SavedChartVersionSortsTable;
         [SavedQueryTableCalculationTableName]: SavedQueryTableCalculationTable;
+        [SavedChartAdditionalMetricTableName]: SavedChartAdditionalMetricTable;
         [SpaceTableName]: SpaceTable;
         [DashboardsTableName]: DashboardTable;
         [DashboardVersionsTableName]: DashboardVersionTable;
@@ -164,7 +202,19 @@ declare module 'knex/types/tables' {
         [PinnedListTableName]: PinnedListTable;
         [PinnedChartTableName]: PinnedChartTable;
         [PinnedDashboardTableName]: PinnedDashboardTable;
+        [PinnedSpaceTableName]: PinnedSpaceTable;
         [SchedulerTableName]: SchedulerTable;
         [SchedulerSlackTargetTableName]: SchedulerSlackTargetTable;
+        [SchedulerEmailTargetTableName]: SchedulerEmailTargetTable;
+        [EmailOneTimePasscodesTableName]: EmailOneTimePasscodeTable;
+        [SchedulerLogTableName]: SchedulerLogTable;
+        [OrganizationAllowedEmailDomainsTableName]: OrganizationAllowedEmailDomainsTable;
+        [OrganizationAllowedEmailDomainProjectsTableName]: OrganizationAllowedEmailDomainProjectsTable;
+        [ValidationTableName]: DbValidationTable;
+        [GroupTableName]: GroupTable;
+        [GroupMembershipTableName]: GroupMembershipTable;
+        [SshKeyPairTableName]: SshKeyPairTable;
+        [UserAttributesTable]: DbUserAttribute;
+        [OrganizationMemberUserAttributesTable]: DbOrganizationMemberUserAttribute;
     }
 }

@@ -7,22 +7,30 @@ import {
     DBT_METRIC_WITH_CUSTOM_SQL,
     DBT_METRIC_WITH_FILTER,
     DBT_METRIC_WITH_SQL_FIELD,
+    DBT_V9_METRIC,
     expectedModelWithType,
     INVALID_ID_COLUMN_NAMES,
+    LIGHTDASH_TABLE_SQL_WHERE,
     LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS,
     LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
     LIGHTDASH_TABLE_WITH_DBT_METRICS,
+    LIGHTDASH_TABLE_WITH_DBT_V9_METRICS,
     LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY,
     LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE,
+    LIGHTDASH_TABLE_WITH_GROUP_LABEL,
     LIGHTDASH_TABLE_WITH_METRICS,
     LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS,
     model,
     MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS,
+    MODEL_WITH_GROUP_LABEL,
     MODEL_WITH_METRIC,
     MODEL_WITH_NO_METRICS,
     MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS,
+    MODEL_WITH_OFF_BOOLEAN_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS,
+    MODEL_WITH_SQL_FILTER,
+    MODEL_WITH_SQL_WHERE,
     MODEL_WITH_WRONG_METRIC,
     MODEL_WITH_WRONG_METRICS,
     VALID_ID_COLUMN_NAMES,
@@ -131,6 +139,12 @@ describe('convert tables from dbt models', () => {
                 DBT_METRIC_DERIVED,
             ]),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_DBT_METRICS);
+        // dbt 1.5 metrics
+        expect(
+            convertTable(SupportedDbtAdapter.BIGQUERY, MODEL_WITH_NO_METRICS, [
+                DBT_V9_METRIC,
+            ]),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_DBT_V9_METRICS);
     });
     it('should convert dbt model with metrics in meta', () => {
         expect(
@@ -190,6 +204,15 @@ describe('convert tables from dbt models', () => {
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS);
     });
+    it('should convert dbt model with dimension with off boolean time intervals', () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_OFF_BOOLEAN_TIME_INTERVAL_DIMENSIONS,
+                [],
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS);
+    });
     it('should convert dbt model with dimension with custom time intervals', () => {
         expect(
             convertTable(
@@ -229,5 +252,35 @@ describe('convert tables from dbt models', () => {
                 [],
             ),
         ).toThrowError('Model has not been compiled by dbt');
+    });
+
+    it('should convert dbt model with group label', async () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_GROUP_LABEL,
+                [],
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_GROUP_LABEL);
+    });
+
+    it('should convert dbt model with sql where', async () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_SQL_WHERE,
+                [],
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_SQL_WHERE);
+    });
+
+    it('should convert dbt model with sql filter', async () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_SQL_FILTER,
+                [],
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_SQL_WHERE);
     });
 });

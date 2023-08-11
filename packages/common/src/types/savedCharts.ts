@@ -1,8 +1,10 @@
 import assertUnreachable from '../utils/assertUnreachable';
+import { ViewStatistics } from './analytics';
 import { ConditionalFormattingConfig } from './conditionalFormatting';
 import { CompactOrAlias } from './field';
 import { MetricQuery } from './metricQuery';
 import { UpdatedByUser } from './user';
+import { ValidationSummary } from './validation';
 
 export enum ChartKind {
     LINE = 'line',
@@ -11,6 +13,7 @@ export enum ChartKind {
     SCATTER = 'scatter',
     AREA = 'area',
     MIXED = 'mixed',
+    PIE = 'pie',
     TABLE = 'table',
     BIG_NUMBER = 'big_number',
 }
@@ -19,17 +22,69 @@ export enum ChartType {
     CARTESIAN = 'cartesian',
     TABLE = 'table',
     BIG_NUMBER = 'big_number',
+    PIE = 'pie',
+}
+
+export enum ComparisonFormatTypes {
+    RAW = 'raw',
+    PERCENTAGE = 'percentage',
+}
+
+export enum ComparisonDiffTypes {
+    POSITIVE = 'positive',
+    NEGATIVE = 'negative',
+    NONE = 'none',
+    NAN = 'NaN',
+    UNDEFINED = 'undefined',
 }
 
 export type BigNumber = {
     label?: string;
     style?: CompactOrAlias;
     selectedField?: string;
+    showBigNumberLabel?: boolean;
+    showComparison?: boolean;
+    comparisonFormat?: ComparisonFormatTypes;
+    flipColors?: boolean;
+    comparisonLabel?: string;
 };
 
 export type BigNumberConfig = {
     type: ChartType.BIG_NUMBER;
     config?: BigNumber;
+};
+
+export const PieChartValueLabels = {
+    hidden: 'Hidden',
+    inside: 'Inside',
+    outside: 'Outside',
+} as const;
+
+export type PieChartValueLabel = keyof typeof PieChartValueLabels;
+
+export type PieChartValueOptions = {
+    valueLabel: PieChartValueLabel;
+    showValue: boolean;
+    showPercentage: boolean;
+};
+
+export type PieChart = {
+    groupFieldIds?: string[];
+    metricId?: string;
+    isDonut?: boolean;
+    valueLabel?: PieChartValueOptions['valueLabel'];
+    showValue?: PieChartValueOptions['showValue'];
+    showPercentage?: PieChartValueOptions['showPercentage'];
+    groupLabelOverrides?: Record<string, string>;
+    groupColorOverrides?: Record<string, string>;
+    groupValueOptionOverrides?: Record<string, Partial<PieChartValueOptions>>;
+    groupSortOverrides?: string[];
+    showLegend?: boolean;
+};
+
+export type PieChartConfig = {
+    type: ChartType.PIE;
+    config?: PieChart;
 };
 
 export type ColumnProperties = {
@@ -40,10 +95,13 @@ export type ColumnProperties = {
 
 export type TableChart = {
     showColumnCalculation?: boolean;
+    showRowCalculation?: boolean;
     showTableNames?: boolean;
     hideRowNumbers?: boolean;
+    showResultsTotal?: boolean;
     columns?: Record<string, ColumnProperties>;
     conditionalFormattings?: ConditionalFormattingConfig[];
+    metricsAsRows?: boolean;
 };
 
 type TableChartConfig = {
@@ -58,9 +116,14 @@ export enum CartesianSeriesType {
     AREA = 'area',
 }
 
+export type PivotValue = {
+    field: string;
+    value: unknown;
+};
+
 export type PivotReference = {
     field: string;
-    pivotValues?: { field: string; value: any }[];
+    pivotValues?: PivotValue[];
 };
 
 export const isPivotReferenceWithValues = (
@@ -187,6 +250,7 @@ export type CartesianChartConfig = {
 };
 
 export type ChartConfig =
+    | PieChartConfig
     | BigNumberConfig
     | TableChartConfig
     | CartesianChartConfig;
@@ -212,21 +276,34 @@ export type SavedChart = {
     organizationUuid: string;
     spaceUuid: string;
     spaceName: string;
-    views: number;
-    pinnedListUuid: string | undefined;
+    pinnedListUuid: string | null;
+    pinnedListOrder: number | null;
+    dashboardUuid: string | null;
+    dashboardName: string | null;
 };
 
-export type CreateSavedChart = Omit<
+type CreateChartBase = Pick<
     SavedChart,
-    | 'uuid'
-    | 'updatedAt'
-    | 'projectUuid'
-    | 'organizationUuid'
-    | 'spaceUuid'
-    | 'spaceName'
-    | 'pinnedListUuid'
-    | 'views'
-> & { spaceUuid?: string };
+    | 'name'
+    | 'description'
+    | 'tableName'
+    | 'metricQuery'
+    | 'pivotConfig'
+    | 'chartConfig'
+    | 'tableConfig'
+>;
+
+export type CreateChartInSpace = CreateChartBase & {
+    spaceUuid?: string;
+    dashboardUuid?: null;
+};
+
+export type CreateChartInDashboard = CreateChartBase & {
+    dashboardUuid: string;
+    spaceUuid?: null;
+};
+
+export type CreateSavedChart = CreateChartInSpace | CreateChartInDashboard;
 
 export type CreateSavedChartVersion = Omit<
     SavedChart,
@@ -238,7 +315,11 @@ export type CreateSavedChartVersion = Omit<
     | 'spaceUuid'
     | 'spaceName'
     | 'pinnedListUuid'
+    | 'pinnedListOrder'
     | 'views'
+    | 'firstViewedAt'
+    | 'dashboardUuid'
+    | 'dashboardName'
 >;
 
 export type UpdateSavedChart = Partial<
@@ -258,9 +339,13 @@ export type SpaceQuery = Pick<
     | 'updatedByUser'
     | 'description'
     | 'spaceUuid'
-    | 'views'
     | 'pinnedListUuid'
-> & { chartType: ChartKind | undefined };
+    | 'pinnedListOrder'
+> &
+    ViewStatistics & {
+        chartType: ChartKind | undefined;
+        validationErrors?: ValidationSummary[];
+    };
 
 export const isCompleteLayout = (
     value: CartesianChartLayout | undefined,
@@ -284,6 +369,33 @@ export const isBigNumberConfig = (
 export const isTableChartConfig = (
     value: ChartConfig['config'],
 ): value is TableChart => !!value && !isCartesianChartConfig(value);
+
+export const isPieChartConfig = (
+    value: ChartConfig['config'],
+): value is PieChart => !!value && 'isDonut' in value;
+
+export const getCustomLabelsFromColumnProperties = (
+    columns: Record<string, ColumnProperties> | undefined,
+): Record<string, string> | undefined =>
+    columns
+        ? Object.entries(columns).reduce(
+              (acc, [key, value]) =>
+                  value.name
+                      ? {
+                            ...acc,
+                            [key]: value.name,
+                        }
+                      : acc,
+              {},
+          )
+        : undefined;
+
+export const getCustomLabelsFromTableConfig = (
+    config: ChartConfig['config'],
+): Record<string, string> | undefined =>
+    isTableChartConfig(config)
+        ? getCustomLabelsFromColumnProperties(config.columns)
+        : undefined;
 
 export const hashFieldReference = (reference: PivotReference) =>
     reference.pivotValues
@@ -324,13 +436,28 @@ export const isSeriesWithMixedChartTypes = (
         ),
     ).size >= 2;
 
-export const getChartType = (
+export const getChartType = (chartKind: ChartKind | undefined): ChartType => {
+    if (chartKind === undefined) return ChartType.CARTESIAN;
+    switch (chartKind) {
+        case ChartKind.PIE:
+            return ChartType.PIE;
+        case ChartKind.BIG_NUMBER:
+            return ChartType.BIG_NUMBER;
+        case ChartKind.TABLE:
+            return ChartType.TABLE;
+        default:
+            return ChartType.CARTESIAN;
+    }
+};
+export const getChartKind = (
     chartType: ChartType,
     value: ChartConfig['config'],
 ): ChartKind | undefined => {
     if (value === undefined) return undefined;
 
     switch (chartType) {
+        case ChartType.PIE:
+            return ChartKind.PIE;
         case ChartType.BIG_NUMBER:
             return ChartKind.BIG_NUMBER;
         case ChartType.TABLE:
@@ -369,6 +496,28 @@ export const getChartType = (
 
             return undefined;
         default:
-            return undefined;
+            return assertUnreachable(
+                chartType,
+                `Unknown chart type: ${chartType}`,
+            );
     }
+};
+
+export type ChartSummary = Pick<
+    SavedChart,
+    | 'uuid'
+    | 'name'
+    | 'description'
+    | 'spaceName'
+    | 'spaceUuid'
+    | 'projectUuid'
+    | 'organizationUuid'
+    | 'pinnedListUuid'
+    | 'dashboardUuid'
+    | 'dashboardName'
+> & { chartType?: ChartType | undefined };
+
+export type ApiChartSummaryListResponse = {
+    status: 'ok';
+    results: ChartSummary[];
 };

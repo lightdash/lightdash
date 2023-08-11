@@ -17,7 +17,7 @@ export const useUserCompleteMutation = () => {
             mutationKey: ['user_complete'],
             onSuccess: async () => {
                 await queryClient.invalidateQueries('user');
-                await queryClient.invalidateQueries('organisation');
+                await queryClient.invalidateQueries('organization');
             },
         },
     );

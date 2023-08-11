@@ -1,5 +1,6 @@
 import { Menu, MenuDivider } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import {
     DashboardFilterRule,
     Explore,
@@ -10,14 +11,21 @@ import {
     getItemId,
     isDimension,
     isField,
-    ResultRow,
+    ResultValue,
 } from '@lightdash/common';
 import { uuid4 } from '@sentry/utils';
-import React, { FC } from 'react';
+import mapValues from 'lodash-es/mapValues';
+import { FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
+import { useParams } from 'react-router-dom';
+
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useApp } from '../../providers/AppProvider';
 import { useDashboardContext } from '../../providers/DashboardProvider';
+import { useTracking } from '../../providers/TrackingProvider';
+import { EventName } from '../../types/Events';
+import { Can } from '../common/Authorization';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
@@ -30,7 +38,7 @@ const DashboardCellContextMenu: FC<
     }
 > = ({ cell, explore, tileUuid }) => {
     const { showToastSuccess } = useToaster();
-    const { openUnderlyingDataModel } = useMetricQueryDataContext();
+    const { openUnderlyingDataModal } = useMetricQueryDataContext();
     const { addDimensionDashboardFilter } = useDashboardContext();
     const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
         tileUuid,
@@ -40,7 +48,8 @@ const DashboardCellContextMenu: FC<
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
 
-    const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
+    const value: ResultValue = cell.getValue()?.value || {};
+    const fieldValues = mapValues(cell.row.original, (v) => v?.value) || {};
 
     const filterField =
         isDimension(item) && !item.hidden
@@ -82,6 +91,10 @@ const DashboardCellContextMenu: FC<
         ...possiblePivotFilters,
     ];
 
+    const { track } = useTracking();
+    const { user } = useApp();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
     return (
         <Menu>
             {item && value.raw && isField(item) && (
@@ -99,27 +112,59 @@ const DashboardCellContextMenu: FC<
                 <MenuItem2 text="Copy value" icon="duplicate" />
             </CopyToClipboard>
 
-            <MenuItem2
-                text="View underlying data"
-                icon="layers"
-                onClick={() => {
-                    openUnderlyingDataModel(
-                        value,
-                        meta,
-                        cell.row.original || {},
-                        undefined,
-                        meta?.pivotReference,
-                        dashboardFiltersThatApplyToChart,
-                    );
-                }}
-            />
+            {item && !isDimension(item) && (
+                <Can
+                    I="view"
+                    this={subject('UnderlyingData', {
+                        organizationUuid: user.data?.organizationUuid,
+                        projectUuid: projectUuid,
+                    })}
+                >
+                    <MenuItem2
+                        text="View underlying data"
+                        icon="layers"
+                        onClick={() => {
+                            track({
+                                name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                                properties: {
+                                    organizationId:
+                                        user?.data?.organizationUuid,
+                                    userId: user?.data?.userUuid,
+                                    projectId: projectUuid,
+                                },
+                            });
+                            openUnderlyingDataModal({
+                                item: meta.item,
+                                value,
+                                fieldValues,
+                                pivotReference: meta?.pivotReference,
+                                dashboardFilters:
+                                    dashboardFiltersThatApplyToChart,
+                            });
+                        }}
+                    />
+                </Can>
+            )}
 
-            <DrillDownMenuItem
-                row={cell.row.original || {}}
-                dashboardFilters={dashboardFiltersThatApplyToChart}
-                pivotReference={meta?.pivotReference}
-                selectedItem={item}
-            />
+            <Can
+                I="manage"
+                this={subject('Explore', {
+                    organizationUuid: user.data?.organizationUuid,
+                    projectUuid: projectUuid,
+                })}
+            >
+                <DrillDownMenuItem
+                    item={item}
+                    fieldValues={fieldValues}
+                    dashboardFilters={dashboardFiltersThatApplyToChart}
+                    pivotReference={meta?.pivotReference}
+                    trackingData={{
+                        organizationId: user?.data?.organizationUuid,
+                        userId: user?.data?.userUuid,
+                        projectId: projectUuid,
+                    }}
+                />
+            </Can>
 
             {filters.length > 0 && (
                 <MenuItem2 icon="filter" text="Filter dashboard to...">

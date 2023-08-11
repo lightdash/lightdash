@@ -1,48 +1,71 @@
 import { MenuItem2 } from '@blueprintjs/popover2';
 import {
-    DashboardFilters,
-    Field,
     fieldId as getFieldId,
+    hashFieldReference,
     isField,
     isMetric,
-    PivotReference,
-    ResultRow,
-    TableCalculation,
 } from '@lightdash/common';
 import { FC } from 'react';
-import { useMetricQueryDataContext } from './MetricQueryDataProvider';
+import { useTracking } from '../../providers/TrackingProvider';
+import { EventName } from '../../types/Events';
+import {
+    DrillDownConfig,
+    useMetricQueryDataContext,
+} from './MetricQueryDataProvider';
 
-export const DrillDownMenuItem: FC<{
-    row: ResultRow | undefined;
-    selectedItem: Field | TableCalculation | undefined;
-    dashboardFilters?: DashboardFilters;
-    pivotReference?: PivotReference;
-}> = ({ row, selectedItem, dashboardFilters, pivotReference }) => {
+type DrillDownMenuItemProps = Partial<DrillDownConfig> & {
+    trackingData: {
+        organizationId: string | undefined;
+        userId: string | undefined;
+        projectId: string | undefined;
+    };
+};
+
+const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
+    item,
+    fieldValues,
+    dashboardFilters,
+    pivotReference,
+    trackingData,
+}) => {
     const { explore, metricQuery, openDrillDownModel } =
         useMetricQueryDataContext();
+    const { track } = useTracking();
 
     if (
-        selectedItem &&
-        isField(selectedItem) &&
-        isMetric(selectedItem) &&
+        item &&
+        isField(item) &&
+        isMetric(item) &&
         explore &&
-        row &&
+        fieldValues &&
         metricQuery
     ) {
-        const value = row[getFieldId(selectedItem)]?.value.formatted;
+        const fieldId =
+            pivotReference !== undefined
+                ? hashFieldReference(pivotReference)
+                : getFieldId(item);
+        const value = fieldValues[fieldId]?.formatted;
 
         return (
             <MenuItem2
                 text={`Drill into "${value}"`}
                 icon="path"
-                onClick={() =>
+                onClick={() => {
                     openDrillDownModel({
-                        row,
-                        selectedItem,
+                        item,
+                        fieldValues,
                         dashboardFilters,
                         pivotReference,
-                    })
-                }
+                    });
+                    track({
+                        name: EventName.DRILL_BY_CLICKED,
+                        properties: {
+                            organizationId: trackingData.organizationId,
+                            userId: trackingData.userId,
+                            projectId: trackingData.projectId,
+                        },
+                    });
+                }}
             />
         );
     }

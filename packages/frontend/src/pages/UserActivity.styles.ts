@@ -1,6 +1,10 @@
-import { Callout, Card, Colors, H5, Tabs } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
+import { Card, Colors } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
+
+export const UserAnalyticsPageHeader = styled.div`
+    margin-top: 10px;
+    margin-bottom: 30px;
+`;
 
 export const Container = styled.div`
     display: grid;
@@ -8,12 +12,13 @@ export const Container = styled.div`
     grid-template-rows: 200px 200px 400px 400px 400px;
     gap: 10px 10px;
     grid-template-areas:
-        'total-users total-users total-users weekly-active'
-        'viewers editors admins weekly-active'
+        'total-users  total-users weekly-active weekly-active'
+        'viewers interactive-viewers editors admins '
         'chart-active-users chart-active-users queries-per-user queries-per-user'
         'table-most-queries table-most-queries table-most-charts table-most-charts'
         'table-not-logged-in table-not-logged-in . .';
 `;
+
 export const ActivityCard = styled(Card)<{ grid: string }>`
     vertical-align: middle;
     text-align: center;

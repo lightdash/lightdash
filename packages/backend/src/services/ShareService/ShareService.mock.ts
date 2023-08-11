@@ -25,9 +25,27 @@ export const User: SessionUser = {
     isSetupComplete: true,
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
-    ability: new Ability([{ subject: 'Organization', action: ['view'] }]),
+    ability: new Ability([
+        {
+            subject: 'OrganizationMemberProfile',
+            action: ['view'],
+            conditions: { organizationUuid: 'organizationUuid' },
+        },
+    ]),
     isActive: true,
     abilityRules: [],
+};
+
+export const UserFromAnotherOrg: SessionUser = {
+    ...User,
+    organizationUuid: 'anotherOrg',
+    ability: new Ability([
+        {
+            subject: 'OrganizationMemberProfile',
+            action: ['view'],
+            conditions: { organizationUuid: 'anotherOrg' },
+        },
+    ]),
 };
 
 export const SampleShareUrl: ShareUrl = {
@@ -46,6 +64,7 @@ export const FullShareUrl = {
 };
 
 export const ShareUrlWithoutParams = {
+    ...SampleShareUrl,
     nanoid: 'abc123',
     params: '',
     path: '/projects/uuid/tables/customers',

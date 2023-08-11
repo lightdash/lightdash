@@ -1,4 +1,5 @@
 import { WarehouseTypes } from '@lightdash/common';
+import { Anchor } from '@mantine/core';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import {
@@ -128,13 +129,13 @@ const SnowflakeForm: FC<{
                             This is intended to keep Snowflake sessions alive
                             beyond the typical 4 hour timeout limit You can see
                             more details in{' '}
-                            <a
+                            <Anchor
                                 target="_blank"
                                 href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive"
                                 rel="noreferrer"
                             >
                                 dbt documentation
-                            </a>
+                            </Anchor>
                             .
                         </p>
                     }
@@ -148,13 +149,13 @@ const SnowflakeForm: FC<{
                         <p>
                             This is Snowflake query tags parameter. You can see
                             more details in{' '}
-                            <a
+                            <Anchor
                                 target="_blank"
                                 href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#query_tag"
                                 rel="noreferrer"
                             >
                                 dbt documentation
-                            </a>
+                            </Anchor>
                             .
                         </p>
                     }

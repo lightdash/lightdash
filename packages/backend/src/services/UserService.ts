@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     ActivateUser,
     AuthorizationError,
@@ -6,10 +7,13 @@ import {
     CreatePasswordResetLink,
     CreateUserArgs,
     DeleteOpenIdentity,
+    EmailStatusExpiring,
     ExpiredError,
     ForbiddenError,
+    getEmailDomain,
     InviteLink,
     isOpenIdUser,
+    isUserWithOrg,
     LightdashMode,
     LightdashUser,
     NotExistsError,
@@ -21,16 +25,20 @@ import {
     PasswordReset,
     SessionUser,
     UpdateUserArgs,
+    UserAllowedOrganization,
+    validateOrganizationEmailDomains,
 } from '@lightdash/common';
+import { randomInt } from 'crypto';
 import { nanoid } from 'nanoid';
 import { analytics, identifyUser } from '../analytics/client';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../config/lightdashConfig';
-import Logger from '../logger';
+import Logger from '../logging/logger';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
 import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
+import { OrganizationAllowedEmailDomainsModel } from '../models/OrganizationAllowedEmailDomainsModel';
 import { OrganizationMemberProfileModel } from '../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../models/OrganizationModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
@@ -48,6 +56,7 @@ type UserServiceDependencies = {
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     organizationModel: OrganizationModel;
     personalAccessTokenModel: PersonalAccessTokenModel;
+    organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
 };
 
 export class UserService {
@@ -71,6 +80,12 @@ export class UserService {
 
     private readonly personalAccessTokenModel: PersonalAccessTokenModel;
 
+    private readonly organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
+
+    private readonly emailOneTimePasscodeExpirySeconds = 60 * 15;
+
+    private readonly emailOneTimePasscodeMaxAttempts = 5;
+
     constructor({
         inviteLinkModel,
         userModel,
@@ -82,6 +97,7 @@ export class UserService {
         organizationModel,
         organizationMemberProfileModel,
         personalAccessTokenModel,
+        organizationAllowedEmailDomainsModel,
     }: UserServiceDependencies) {
         this.inviteLinkModel = inviteLinkModel;
         this.userModel = userModel;
@@ -93,6 +109,29 @@ export class UserService {
         this.organizationModel = organizationModel;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.personalAccessTokenModel = personalAccessTokenModel;
+        this.organizationAllowedEmailDomainsModel =
+            organizationAllowedEmailDomainsModel;
+    }
+
+    private async tryVerifyUserEmail(
+        user: LightdashUser,
+        email: string,
+    ): Promise<void> {
+        const updatedEmails = await this.emailModel.verifyUserEmailIfExists(
+            user.userUuid,
+            email,
+        );
+        if (updatedEmails.length > 0) {
+            analytics.track({
+                userId: user.userUuid,
+                event: 'user.verified',
+                properties: {
+                    email,
+                    location: user.isSetupComplete ? 'settings' : 'onboarding',
+                    isTrackingAnonymized: user.isTrackingAnonymized,
+                },
+            });
+        }
     }
 
     async activateUserFromInvite(
@@ -109,14 +148,7 @@ export class UserService {
         const userEmail = isOpenIdUser(activateUser)
             ? activateUser.openId.email
             : inviteLink.email;
-        if (
-            !(await this.verifyUserEmail(
-                inviteLink.organisationUuid,
-                userEmail,
-            ))
-        ) {
-            throw new AuthorizationError('Email domain not allowed');
-        }
+
         if (inviteLink.email.toLowerCase() !== userEmail.toLowerCase()) {
             Logger.error(
                 `User accepted invite with wrong email ${userEmail} when the invited email was ${inviteLink.email}`,
@@ -138,30 +170,31 @@ export class UserService {
                 userConnectionType: 'password',
             },
         });
+        if (!isOpenIdUser(activateUser)) {
+            await this.sendOneTimePasscodeToPrimaryEmail(user);
+        }
         return user;
     }
 
     async delete(user: SessionUser, userUuidToDelete: string): Promise<void> {
-        if (user.organizationUuid === undefined) {
-            throw new NotExistsError('Organization not found');
-        }
+        if (user.organizationUuid) {
+            if (user.ability.cannot('delete', 'OrganizationMemberProfile')) {
+                throw new ForbiddenError();
+            }
 
-        if (user.ability.cannot('delete', 'OrganizationMemberProfile')) {
-            throw new ForbiddenError();
-        }
-
-        // Race condition between check and delete
-        const [admin, ...remainingAdmins] =
-            await this.organizationMemberProfileModel.getOrganizationAdmins(
-                user.organizationUuid,
-            );
-        if (
-            remainingAdmins.length === 0 &&
-            admin.userUuid === userUuidToDelete
-        ) {
-            throw new ForbiddenError(
-                'Organization must have at least one admin',
-            );
+            // Race condition between check and delete
+            const [admin, ...remainingAdmins] =
+                await this.organizationMemberProfileModel.getOrganizationAdmins(
+                    user.organizationUuid,
+                );
+            if (
+                remainingAdmins.length === 0 &&
+                admin.userUuid === userUuidToDelete
+            ) {
+                throw new ForbiddenError(
+                    'Organization must have at least one admin',
+                );
+            }
         }
 
         await this.sessionModel.deleteAllByUserUuid(userUuidToDelete);
@@ -188,10 +221,6 @@ export class UserService {
         const inviteCode = nanoid(30);
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
-        }
-
-        if (!(await this.verifyUserEmail(organizationUuid, email))) {
-            throw new AuthorizationError('Email domain not allowed');
         }
 
         const existingUserWithEmail = await this.userModel.findUserByEmail(
@@ -292,6 +321,7 @@ export class UserService {
             await this.openIdIdentityModel.updateIdentityByOpenId(
                 openIdUser.openId,
             );
+            await this.tryVerifyUserEmail(loginUser, openIdUser.openId.email);
             identifyUser(loginUser);
             analytics.track({
                 userId: loginUser.userUuid,
@@ -305,14 +335,6 @@ export class UserService {
 
         // User already logged in? Link openid identity to logged-in user
         if (sessionUser?.userId) {
-            if (
-                !(await this.verifyUserEmail(
-                    sessionUser.organizationUuid,
-                    openIdUser.openId.email,
-                ))
-            ) {
-                throw new AuthorizationError('Email domain not allowed');
-            }
             await this.openIdIdentityModel.createIdentity({
                 userId: sessionUser.userId,
                 issuer: openIdUser.openId.issuer,
@@ -320,6 +342,7 @@ export class UserService {
                 email: openIdUser.openId.email,
                 issuerType: openIdUser.openId.issuerType,
             });
+            await this.tryVerifyUserEmail(sessionUser, openIdUser.openId.email);
             analytics.track({
                 userId: sessionUser.userUuid,
                 event: 'user.identity_linked',
@@ -331,10 +354,15 @@ export class UserService {
         }
 
         // Create user
-        return this.activateUserWithOpenId(openIdUser, inviteCode);
+        const createdUser = await this.activateUserWithOpenId(
+            openIdUser,
+            inviteCode,
+        );
+        await this.tryVerifyUserEmail(createdUser, openIdUser.openId.email);
+        return createdUser;
     }
 
-    async activateUserWithOpenId(
+    private async activateUserWithOpenId(
         openIdUser: OpenIdUser,
         inviteCode: string | undefined,
     ): Promise<SessionUser> {
@@ -345,7 +373,7 @@ export class UserService {
             );
             return this.userModel.findSessionUserByUUID(user.userUuid);
         }
-        const user = await this.registerNewUserWithOrg(openIdUser);
+        const user = await this.registerUser(openIdUser);
         return this.userModel.findSessionUserByUUID(user.userUuid);
     }
 
@@ -356,9 +384,23 @@ export class UserService {
             jobTitle,
             isTrackingAnonymized,
             isMarketingOptedIn,
+            enableEmailDomainAccess,
         }: CompleteUserArgs,
     ): Promise<LightdashUser> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         if (organizationName) {
+            if (
+                user.ability.cannot(
+                    'update',
+                    subject('Organization', {
+                        organizationUuid: user.organizationUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             await this.organizationModel.update(user.organizationUuid, {
                 name: organizationName,
             });
@@ -372,8 +414,27 @@ export class UserService {
                             : 'self-hosted',
                     organizationId: user.organizationUuid,
                     organizationName,
+                    defaultProjectUuid: undefined,
+                    defaultColourPaletteUpdated: false,
+                    defaultProjectUuidUpdated: false,
                 },
             });
+            if (enableEmailDomainAccess && user.email) {
+                const emailDomain = getEmailDomain(user.email);
+
+                const error = validateOrganizationEmailDomains([emailDomain]);
+                if (error) {
+                    throw new ParameterError(error);
+                }
+                await this.organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains(
+                    {
+                        organizationUuid: user.organizationUuid,
+                        emailDomains: [emailDomain],
+                        role: OrganizationMemberRole.VIEWER,
+                        projects: [],
+                    },
+                );
+            }
         }
         const completeUser = await this.userModel.updateUser(
             user.userUuid,
@@ -397,24 +458,11 @@ export class UserService {
         return completeUser;
     }
 
-    async verifyUserEmail(
-        organisationUuid: string,
-        email: string,
-    ): Promise<boolean> {
-        const { allowedEmailDomains } = await this.organizationModel.get(
-            organisationUuid,
-        );
-        return (
-            allowedEmailDomains.length === 0 ||
-            allowedEmailDomains.some((allowedEmailDomain) =>
-                email.endsWith(`@${allowedEmailDomain}`),
-            )
-        );
-    }
-
     async getLinkedIdentities({
         userId,
-    }: Pick<SessionUser, 'userId'>): Promise<OpenIdIdentitySummary[]> {
+    }: Pick<SessionUser, 'userId'>): Promise<
+        Record<OpenIdIdentitySummary['issuerType'], OpenIdIdentitySummary[]>
+    > {
         return this.openIdIdentityModel.getIdentitiesByUserId(userId);
     }
 
@@ -527,23 +575,14 @@ export class UserService {
         return updatedUser;
     }
 
-    async registerNewUserWithOrg(createUser: CreateUserArgs | OpenIdUser) {
-        if (
-            !lightdashConfig.allowMultiOrgs &&
-            (await this.userModel.hasUsers())
-        ) {
-            throw new ForbiddenError(
-                'Cannot register user in a new organization. Ask an existing admin for an invite link.',
-            );
-        }
+    async registerUser(createUser: CreateUserArgs | OpenIdUser) {
         if (
             !isOpenIdUser(createUser) &&
             lightdashConfig.auth.disablePasswordAuthentication
         ) {
             throw new ForbiddenError('Password credentials are not allowed');
         }
-
-        const user = await this.userModel.createNewUserWithOrg(createUser);
+        const user = await this.userModel.createUser(createUser);
         identifyUser({
             ...user,
             isMarketingOptedIn: user.isMarketingOptedIn,
@@ -557,18 +596,6 @@ export class UserService {
                     : 'password',
             },
         });
-        analytics.track({
-            event: 'organization.created',
-            userId: user.userUuid,
-            properties: {
-                type:
-                    lightdashConfig.mode === LightdashMode.CLOUD_BETA
-                        ? 'cloud'
-                        : 'self-hosted',
-                organizationId: user.organizationUuid,
-                organizationName: user.organizationName,
-            },
-        });
         if (isOpenIdUser(createUser)) {
             analytics.track({
                 userId: user.userUuid,
@@ -577,6 +604,8 @@ export class UserService {
                     loginProvider: 'google',
                 },
             });
+        } else {
+            await this.sendOneTimePasscodeToPrimaryEmail(user);
         }
         return user;
     }
@@ -650,5 +679,170 @@ export class UserService {
             throw new AuthorizationError();
         }
         return user;
+    }
+
+    async getSessionByUserUuid(userUuid: string): Promise<SessionUser> {
+        return this.userModel.findSessionUserByUUID(userUuid);
+    }
+
+    private otpExpirationDate(createdAt: Date) {
+        return new Date(
+            createdAt.getTime() + this.emailOneTimePasscodeExpirySeconds * 1000,
+        );
+    }
+
+    async sendOneTimePasscodeToPrimaryEmail(
+        user: Pick<SessionUser, 'userUuid'>,
+    ): Promise<EmailStatusExpiring> {
+        const passcode =
+            lightdashConfig.mode === LightdashMode.PR ||
+            lightdashConfig.mode === LightdashMode.DEV
+                ? '000000'
+                : randomInt(999999).toString().padStart(6, '0');
+        const emailStatus = await this.emailModel.createPrimaryEmailOtp({
+            passcode,
+            userUuid: user.userUuid,
+        });
+        await this.emailClient.sendOneTimePasscodeEmail({
+            recipient: emailStatus.email,
+            passcode,
+        });
+        return {
+            ...emailStatus,
+            otp: emailStatus.otp && {
+                ...emailStatus.otp,
+                expiresAt: this.otpExpirationDate(emailStatus.otp.createdAt),
+                isExpired: this.isOtpExpired(emailStatus.otp.createdAt),
+                isMaxAttempts: this.isOtpMaxAttempts(
+                    emailStatus.otp.numberOfAttempts,
+                ),
+            },
+        };
+    }
+
+    private isOtpExpired(createdAt: Date) {
+        return this.otpExpirationDate(createdAt) < new Date();
+    }
+
+    private isOtpMaxAttempts(attempts: number) {
+        return attempts >= this.emailOneTimePasscodeMaxAttempts;
+    }
+
+    async getPrimaryEmailStatus(
+        user: SessionUser,
+        passcode?: string,
+    ): Promise<EmailStatusExpiring> {
+        // Attempt to verify the passcode if it's provided
+        if (passcode) {
+            try {
+                const emailStatus =
+                    await this.emailModel.getPrimaryEmailStatusByUserAndOtp({
+                        userUuid: user.userUuid,
+                        passcode,
+                    });
+                if (
+                    emailStatus.otp &&
+                    !this.isOtpMaxAttempts(emailStatus.otp.numberOfAttempts) &&
+                    !this.isOtpExpired(emailStatus.otp.createdAt)
+                ) {
+                    await this.tryVerifyUserEmail(user, emailStatus.email);
+                    await this.emailModel.deleteEmailOtp(
+                        user.userUuid,
+                        emailStatus.email,
+                    );
+                }
+            } catch (e) {
+                // Attempt to find an email+passcode combo failed, increment the number of attempts
+                if (e instanceof NotFoundError) {
+                    await this.emailModel.incrementPrimaryEmailOtpAttempts(
+                        user.userUuid,
+                    );
+                } else {
+                    throw e;
+                }
+            }
+        }
+
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        const emailStatusExpiring = {
+            ...emailStatus,
+            otp: emailStatus.otp && {
+                ...emailStatus.otp,
+                expiresAt: this.otpExpirationDate(emailStatus.otp.createdAt),
+                isMaxAttempts: this.isOtpMaxAttempts(
+                    emailStatus.otp.numberOfAttempts,
+                ),
+                isExpired: this.isOtpExpired(emailStatus.otp.createdAt),
+            },
+        };
+        return emailStatusExpiring;
+    }
+
+    async getAllowedOrganizations(
+        user: SessionUser,
+    ): Promise<UserAllowedOrganization[]> {
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        if (emailStatus.isVerified) {
+            return this.organizationModel.getAllowedOrgsForDomain(
+                getEmailDomain(emailStatus.email),
+            );
+        }
+        return [];
+    }
+
+    async joinOrg(user: SessionUser, orgUuid: string): Promise<void> {
+        if (isUserWithOrg(user)) {
+            throw new ForbiddenError('User already has an organization');
+        }
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        if (!emailStatus.isVerified) {
+            throw new ForbiddenError('User has not verified their email');
+        }
+        const allowedEmailDomains =
+            await this.organizationAllowedEmailDomainsModel.getAllowedEmailDomains(
+                orgUuid,
+            );
+        if (
+            !allowedEmailDomains.emailDomains.some(
+                (domain) =>
+                    domain.toLowerCase() === getEmailDomain(emailStatus.email),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User is not allowed to join this organization',
+            );
+        }
+        await this.userModel.joinOrg(
+            user.userUuid,
+            orgUuid,
+            allowedEmailDomains.role,
+            allowedEmailDomains.role === OrganizationMemberRole.MEMBER
+                ? allowedEmailDomains.projects.reduce(
+                      (acc, project) => ({
+                          ...acc,
+                          [project.projectUuid]: project.role,
+                      }),
+                      {},
+                  )
+                : undefined,
+        );
+
+        await analytics.track({
+            userId: user.userUuid,
+            event: 'user.joined_organization',
+            properties: {
+                organizationId: orgUuid,
+                role: allowedEmailDomains.role,
+                projectIds: allowedEmailDomains.projects.map(
+                    (project) => project.projectUuid,
+                ),
+            },
+        });
     }
 }

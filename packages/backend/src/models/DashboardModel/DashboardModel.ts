@@ -10,11 +10,13 @@ import {
     DashboardUnversionedFields,
     DashboardVersionedFields,
     NotFoundError,
+    SavedChart,
     SessionUser,
     UnexpectedServerError,
     UpdateMultipleDashboards,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { AnalyticsDashboardViewsTableName } from '../../database/entities/analytics';
 import {
     DashboardsTableName,
     DashboardTable,
@@ -32,6 +34,7 @@ import {
     OrganizationTableName,
 } from '../../database/entities/organizations';
 import {
+    PinnedDashboardTable,
     PinnedDashboardTableName,
     PinnedListTable,
     PinnedListTableName,
@@ -46,6 +49,7 @@ import {
 } from '../../database/entities/savedCharts';
 import { getSpaceId, SpaceTableName } from '../../database/entities/spaces';
 import { UserTable, UserTableName } from '../../database/entities/users';
+import { DbValidationTable } from '../../database/entities/validation';
 import Transaction = Knex.Transaction;
 
 export type GetDashboardQuery = Pick<
@@ -56,8 +60,10 @@ export type GetDashboardQuery = Pick<
     Pick<ProjectTable['base'], 'project_uuid'> &
     Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'> &
     Pick<OrganizationTable['base'], 'organization_uuid'> &
-    Pick<PinnedListTable['base'], 'pinned_list_uuid'> & {
+    Pick<PinnedListTable['base'], 'pinned_list_uuid'> &
+    Pick<PinnedDashboardTable['base'], 'order'> & {
         views: string;
+        first_viewed_at: Date | null;
     };
 
 export type GetDashboardDetailsQuery = Pick<
@@ -68,7 +74,8 @@ export type GetDashboardDetailsQuery = Pick<
     Pick<ProjectTable['base'], 'project_uuid'> &
     Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'> &
     Pick<OrganizationTable['base'], 'organization_uuid'> &
-    Pick<PinnedListTable['base'], 'pinned_list_uuid'> & {
+    Pick<PinnedListTable['base'], 'pinned_list_uuid'> &
+    Pick<PinnedDashboardTable['base'], 'order'> & {
         views: string;
     };
 
@@ -127,14 +134,12 @@ export class DashboardModel {
                 .returning('*');
 
             switch (tile.type) {
-                case DashboardTileTypes.SAVED_CHART:
-                    if (tile.properties.savedChartUuid) {
+                case DashboardTileTypes.SAVED_CHART: {
+                    const chartUuid = tile.properties.savedChartUuid;
+                    if (chartUuid) {
                         const [savedChart] = await trx(SavedChartsTableName)
                             .select(['saved_query_id'])
-                            .where(
-                                'saved_query_uuid',
-                                tile.properties.savedChartUuid,
-                            )
+                            .where('saved_query_uuid', chartUuid)
                             .limit(1);
                         if (!savedChart) {
                             throw new NotFoundError('Saved chart not found');
@@ -146,9 +151,11 @@ export class DashboardModel {
                                 insertedTile.dashboard_tile_uuid,
                             saved_chart_id: savedChart.saved_query_id,
                             hide_title: tile.properties.hideTitle,
+                            title: tile.properties.title,
                         });
                     }
                     break;
+                }
                 case DashboardTileTypes.MARKDOWN:
                     await trx(DashboardTileMarkdownsTableName).insert({
                         dashboard_version_id: versionId.dashboard_version_id,
@@ -268,9 +275,22 @@ export class DashboardModel {
                         `${OrganizationTableName}.organization_uuid`,
                         `${SpaceTableName}.space_uuid`,
                         `${PinnedListTableName}.pinned_list_uuid`,
+                        `${PinnedDashboardTableName}.order`,
                         this.database.raw(
-                            `(SELECT COUNT('analytics_dashboard_views.dashboard_uuid') FROM analytics_dashboard_views where analytics_dashboard_views.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid) as views`,
+                            `(SELECT COUNT('${AnalyticsDashboardViewsTableName}.dashboard_uuid') FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid) as views`,
                         ),
+                        this.database.raw(
+                            `(SELECT ${AnalyticsDashboardViewsTableName}.timestamp FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid ORDER BY ${AnalyticsDashboardViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
+                        ),
+                        this.database.raw(`
+                            COALESCE(
+                                (
+                                    SELECT json_agg(validations.*) 
+                                    FROM validations 
+                                    WHERE validations.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid
+                                ), '[]'
+                            ) as validation_errors
+                        `),
                     ])
                     .orderBy([
                         {
@@ -324,7 +344,10 @@ export class DashboardModel {
                 organization_uuid,
                 space_uuid,
                 pinned_list_uuid,
+                order,
                 views,
+                first_viewed_at,
+                validation_errors,
             }) => ({
                 organizationUuid: organization_uuid,
                 name,
@@ -339,7 +362,16 @@ export class DashboardModel {
                 },
                 spaceUuid: space_uuid,
                 pinnedListUuid: pinned_list_uuid,
+                pinnedListOrder: order,
                 views: parseInt(views, 10) || 0,
+                firstViewedAt: first_viewed_at,
+                validationErrors: validation_errors?.map(
+                    (error: DbValidationTable) => ({
+                        validationId: error.validation_id,
+                        error: error.error,
+                        createdAt: error.created_at,
+                    }),
+                ),
             }),
         );
     }
@@ -384,7 +416,7 @@ export class DashboardModel {
             .select<
                 (GetDashboardQuery & {
                     space_uuid: string;
-                    spaceName: string;
+                    space_name: string;
                 })[]
             >([
                 `${ProjectTableName}.project_uuid`,
@@ -399,10 +431,15 @@ export class DashboardModel {
                 `${UserTableName}.last_name`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${SpaceTableName}.space_uuid`,
-                `${SpaceTableName}.name as spaceName`,
+                `${SpaceTableName}.name as space_name`,
                 `${PinnedListTableName}.pinned_list_uuid`,
+                `${PinnedDashboardTableName}.order`,
                 this.database.raw(
-                    `(SELECT COUNT('analytics_dashboard_views.dashboard_uuid') FROM analytics_dashboard_views where analytics_dashboard_views.dashboard_uuid = ?) as views`,
+                    `(SELECT COUNT('${AnalyticsDashboardViewsTableName}.dashboard_uuid') FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ?) as views`,
+                    dashboardUuid,
+                ),
+                this.database.raw(
+                    `(SELECT ${AnalyticsDashboardViewsTableName}.timestamp FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ? ORDER BY ${AnalyticsDashboardViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
                     dashboardUuid,
                 ),
             ])
@@ -434,6 +471,9 @@ export class DashboardModel {
                     hide_title: boolean | null;
                     title: string | null;
                     views: string;
+                    first_viewed_at: Date | null;
+                    belongs_to_dashboard: boolean;
+                    name: string | null;
                 }[]
             >(
                 `${DashboardTilesTableName}.x_offset`,
@@ -443,9 +483,13 @@ export class DashboardModel {
                 `${DashboardTilesTableName}.height`,
                 `${DashboardTilesTableName}.dashboard_tile_uuid`,
                 `${SavedChartsTableName}.saved_query_uuid`,
+                `${SavedChartsTableName}.name`,
+                this.database.raw(
+                    `${SavedChartsTableName}.dashboard_uuid IS NOT NULL AS belongs_to_dashboard`,
+                ),
                 this.database.raw(
                     `COALESCE(
-                        ${SavedChartsTableName}.name,
+                        ${DashboardTileChartTableName}.title,
                         ${DashboardTileLoomsTableName}.title,
                         ${DashboardTileMarkdownsTableName}.title
                     ) AS title`,
@@ -513,6 +557,7 @@ export class DashboardModel {
             description: dashboard.description,
             updatedAt: dashboard.created_at,
             pinnedListUuid: dashboard.pinned_list_uuid,
+            pinnedListOrder: dashboard.order,
             tiles: tiles.map(
                 ({
                     type,
@@ -526,6 +571,8 @@ export class DashboardModel {
                     hide_title,
                     url,
                     content,
+                    belongs_to_dashboard,
+                    name,
                 }) => {
                     const base: Omit<
                         Dashboard['tiles'][number],
@@ -551,6 +598,8 @@ export class DashboardModel {
                                 properties: {
                                     ...commonProperties,
                                     savedChartUuid: saved_query_uuid,
+                                    belongsToDashboard: belongs_to_dashboard,
+                                    chartName: name,
                                 },
                             };
                         case DashboardTileTypes.MARKDOWN:
@@ -587,8 +636,9 @@ export class DashboardModel {
                 metrics: [],
             },
             spaceUuid: dashboard.space_uuid,
-            spaceName: dashboard.spaceName,
+            spaceName: dashboard.space_name,
             views: parseInt(dashboard.views, 10) || 0,
+            firstViewedAt: dashboard.first_viewed_at,
             updatedByUser: {
                 userUuid: dashboard.user_uuid,
                 firstName: dashboard.first_name,
@@ -601,6 +651,7 @@ export class DashboardModel {
         spaceUuid: string,
         dashboard: CreateDashboard,
         user: Pick<SessionUser, 'userUuid'>,
+        projectUuid: string,
     ): Promise<Dashboard> {
         const dashboardId = await this.database.transaction(async (trx) => {
             const [space] = await trx(SpaceTableName)
@@ -688,6 +739,7 @@ export class DashboardModel {
         dashboardUuid: string,
         version: DashboardVersionedFields,
         user: Pick<SessionUser, 'userUuid'>,
+        projectUuid: string,
     ): Promise<Dashboard> {
         const [dashboard] = await this.database(DashboardsTableName)
             .select(['dashboard_id'])
@@ -703,5 +755,35 @@ export class DashboardModel {
             });
         });
         return this.getById(dashboardUuid);
+    }
+
+    async getOrphanedCharts(
+        dashboardUuid: string,
+    ): Promise<Pick<SavedChart, 'uuid'>[]> {
+        const getLastVersionIdQuery = this.database(DashboardsTableName)
+            .leftJoin(
+                DashboardVersionsTableName,
+                `${DashboardsTableName}.dashboard_id`,
+                `${DashboardVersionsTableName}.dashboard_id`,
+            )
+            .select([`${DashboardVersionsTableName}.dashboard_version_id`])
+            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+            .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
+            .limit(1);
+
+        const getChartsInTilesQuery = this.database(DashboardTileChartTableName)
+            .select(`saved_chart_id`)
+            .where(
+                `${DashboardTileChartTableName}.dashboard_version_id`,
+                getLastVersionIdQuery,
+            );
+        const orphanedCharts = await this.database(SavedChartsTableName)
+            .select(`saved_query_uuid`)
+            .where(`${SavedChartsTableName}.dashboard_uuid`, dashboardUuid)
+            .whereNotIn(`saved_query_id`, getChartsInTilesQuery);
+
+        return orphanedCharts.map((chart) => ({
+            uuid: chart.saved_query_uuid,
+        }));
     }
 }

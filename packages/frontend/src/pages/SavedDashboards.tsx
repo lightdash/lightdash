@@ -1,32 +1,22 @@
-import { Button, NonIdealState, Spinner } from '@blueprintjs/core';
-import { Breadcrumbs2, Tooltip2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
-import { LightdashMode } from '@lightdash/common';
+import {
+    LightdashMode,
+    ResourceViewItemType,
+    wrapResourceView,
+} from '@lightdash/common';
+import { Button, Group, Stack, Tooltip } from '@mantine/core';
+import { IconLayoutDashboard, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
-import { Helmet } from 'react-helmet';
-import { Redirect, useHistory, useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
+
+import LoadingState from '../components/common/LoadingState';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import Page from '../components/common/Page/Page';
-import {
-    PageBreadcrumbsWrapper,
-    PageContentWrapper,
-    PageHeader,
-} from '../components/common/Page/Page.styles';
-import ResourceList from '../components/common/ResourceList';
-import {
-    ResourceBreadcrumbTitle,
-    ResourceEmptyStateHeader,
-    ResourceEmptyStateIcon,
-    ResourceTag,
-} from '../components/common/ResourceList/ResourceList.styles';
-import { SortDirection } from '../components/common/ResourceList/ResourceTable';
-import {
-    ResourceListType,
-    wrapResourceList,
-} from '../components/common/ResourceList/ResourceTypeUtils';
-import { useCreateMutation } from '../hooks/dashboard/useDashboard';
+import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
+import ResourceView from '../components/common/ResourceView';
+import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
-import { useSpaces } from '../hooks/useSpaces';
+import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
 export const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
@@ -38,16 +28,10 @@ const SavedDashboards = () => {
     const [isCreateDashboardOpen, setIsCreateDashboardOpen] =
         useState<boolean>(false);
 
-    const {
-        isLoading: isCreatingDashboard,
-        isSuccess: hasCreatedDashboard,
-        mutate: createDashboard,
-        data: newDashboard,
-    } = useCreateMutation(projectUuid);
-
     const { user, health } = useApp();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
-    const { data: spaces, isLoading: isLoadingSpaces } = useSpaces(projectUuid);
+    const { data: spaces, isLoading: isLoadingSpaces } =
+        useSpaceSummaries(projectUuid);
     const hasNoSpaces = spaces && spaces.length === 0;
 
     const userCanManageDashboards = user.data?.ability?.can(
@@ -59,20 +43,7 @@ const SavedDashboards = () => {
     );
 
     if (isLoading || isLoadingSpaces) {
-        return (
-            <div style={{ marginTop: '20px' }}>
-                <NonIdealState title="Loading dashboards" icon={<Spinner />} />
-            </div>
-        );
-    }
-
-    if (hasCreatedDashboard && newDashboard) {
-        return (
-            <Redirect
-                push
-                to={`/projects/${projectUuid}/dashboards/${newDashboard.uuid}`}
-            />
-        );
+        return <LoadingState title="Loading dashboards" />;
     }
 
     const handleCreateDashboard = () => {
@@ -80,105 +51,81 @@ const SavedDashboards = () => {
     };
 
     return (
-        <Page>
-            <Helmet>
-                <title>Dashboards - Lightdash</title>
-            </Helmet>
-            <PageContentWrapper>
-                <PageHeader>
-                    <PageBreadcrumbsWrapper>
-                        <Breadcrumbs2
-                            items={[
-                                {
-                                    href: '/home',
-                                    text: 'Home',
-                                    className: 'home-breadcrumb',
-                                    onClick: (e) => {
-                                        history.push('/home');
-                                    },
-                                },
-                                {
-                                    text: (
-                                        <ResourceBreadcrumbTitle>
-                                            All dashboards
-                                            {dashboards.length > 0 && (
-                                                <ResourceTag round>
-                                                    {dashboards.length}
-                                                </ResourceTag>
-                                            )}
-                                        </ResourceBreadcrumbTitle>
-                                    ),
-                                },
-                            ]}
-                        />
-                    </PageBreadcrumbsWrapper>
+        <Page title="Dashboards" withFixedContent withPaddedContent>
+            <Stack spacing="xl">
+                <Group position="apart">
+                    <PageBreadcrumbs
+                        items={[
+                            { title: 'Home', to: '/home' },
+                            { title: 'All dashboards', active: true },
+                        ]}
+                    />
 
-                    {userCanManageDashboards &&
-                        !isDemo &&
-                        (dashboards.length > 0 || hasNoSpaces) && (
-                            <Tooltip2
-                                content={
-                                    hasNoSpaces
-                                        ? 'First you must create a space for this dashboard'
-                                        : undefined
-                                }
-                                interactionKind="hover"
+                    {dashboards.length > 0 &&
+                        userCanManageDashboards &&
+                        !isDemo && (
+                            <Button
+                                leftIcon={<IconPlus size={18} />}
+                                onClick={handleCreateDashboard}
+                                disabled={hasNoSpaces}
                             >
+                                Create dashboard
+                            </Button>
+                        )}
+                </Group>
+
+                <ResourceView
+                    items={wrapResourceView(
+                        dashboards,
+                        ResourceViewItemType.DASHBOARD,
+                    )}
+                    listProps={{
+                        defaultSort: { updatedAt: SortDirection.DESC },
+                    }}
+                    emptyStateProps={{
+                        icon: <IconLayoutDashboard size={30} />,
+                        title: 'No dashboards added yet',
+                        action:
+                            userCanManageDashboards &&
+                            !isDemo &&
+                            hasNoSpaces ? (
+                                <Tooltip label="First you must create a space for this dashboard">
+                                    <div>
+                                        <Button
+                                            leftIcon={<IconPlus size={18} />}
+                                            onClick={handleCreateDashboard}
+                                            disabled={hasNoSpaces}
+                                        >
+                                            Create dashboard
+                                        </Button>
+                                    </div>
+                                </Tooltip>
+                            ) : userCanManageDashboards && !isDemo ? (
                                 <Button
-                                    icon="plus"
-                                    loading={isCreatingDashboard}
+                                    leftIcon={<IconPlus size={18} />}
                                     onClick={handleCreateDashboard}
                                     disabled={hasNoSpaces}
-                                    intent="primary"
                                 >
                                     Create dashboard
                                 </Button>
-                            </Tooltip2>
-                        )}
-                </PageHeader>
-
-                <DashboardCreateModal
-                    projectUuid={projectUuid}
-                    isOpen={isCreateDashboardOpen}
-                    onClose={() => setIsCreateDashboardOpen(false)}
-                    onConfirm={(dashboard) => {
-                        history.push(
-                            `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
-                        );
-
-                        setIsCreateDashboardOpen(false);
+                            ) : undefined,
                     }}
                 />
+            </Stack>
 
-                <ResourceList
-                    items={wrapResourceList(
-                        dashboards,
-                        ResourceListType.DASHBOARD,
-                    )}
-                    defaultSort={{ updatedAt: SortDirection.DESC }}
-                    renderEmptyState={() => (
-                        <>
-                            <ResourceEmptyStateIcon icon="chart" size={40} />
+            <DashboardCreateModal
+                projectUuid={projectUuid}
+                defaultSpaceUuid={spaces?.[0]?.uuid}
+                isOpen={isCreateDashboardOpen}
+                onClose={() => setIsCreateDashboardOpen(false)}
+                onConfirm={(dashboard) => {
+                    history.push(
+                        `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
+                    );
 
-                            <ResourceEmptyStateHeader>
-                                No dashboards added yet
-                            </ResourceEmptyStateHeader>
-
-                            {!isDemo &&
-                                !hasNoSpaces &&
-                                userCanManageDashboards && (
-                                    <Button
-                                        icon="plus"
-                                        intent="primary"
-                                        onClick={handleCreateDashboard}
-                                    >
-                                        Create dashboard
-                                    </Button>
-                                )}
-                        </>
-                    )}
-                />
-            </PageContentWrapper>
+                    setIsCreateDashboardOpen(false);
+                }}
+            />
         </Page>
     );
 };

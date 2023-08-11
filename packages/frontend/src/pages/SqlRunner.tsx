@@ -1,26 +1,26 @@
+import { subject } from '@casl/ability';
 import {
-    HotkeyConfig,
-    Menu,
-    Tab,
-    TreeNodeInfo,
-    useHotkeys,
-} from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
-import { DbtCloudMetric, TableBase } from '@lightdash/common';
-import { useCallback, useMemo, useState } from 'react';
-import { Helmet } from 'react-helmet';
+    ChartType,
+    DbtCloudMetric,
+    getCustomLabelsFromTableConfig,
+    NotFoundError,
+} from '@lightdash/common';
+import { Alert, Box, Group, NavLink, Stack, Tabs } from '@mantine/core';
+import { getHotkeyHandler } from '@mantine/hooks';
+import { Icon123, IconAlertCircle } from '@tabler/icons-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
+
 import { ChartDownloadMenu } from '../components/ChartDownload';
 import CollapsableCard from '../components/common/CollapsableCard';
-import {
-    PageContentContainer,
-    PageWithSidebar,
-} from '../components/common/Page/Page.styles';
-import Sidebar, { SidebarDivider } from '../components/common/Page/Sidebar';
+import MantineIcon from '../components/common/MantineIcon';
+import Page from '../components/common/Page/Page';
+import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ShareShortLinkButton from '../components/common/ShareShortLinkButton';
 import SideBarLoadingState from '../components/common/SideBarLoadingState';
-import { Tree } from '../components/common/Tree';
-import { StyledBreadcrumb } from '../components/Explorer/ExploreSideBar/ExploreSideBar.styles';
+import CatalogTree from '../components/common/SqlRunner/CatalogTree';
+import DownloadSqlCsvButton from '../components/DownloadSqlCsvButton';
 import VisualizationConfigPanel from '../components/Explorer/VisualizationCard/VisualizationConfigPanel';
 import VisualizationCardOptions from '../components/Explorer/VisualizationCardOptions';
 import ForbiddenPanel from '../components/ForbiddenPanel';
@@ -31,8 +31,12 @@ import RunSqlQueryButton from '../components/SqlRunner/RunSqlQueryButton';
 import SqlRunnerInput from '../components/SqlRunner/SqlRunnerInput';
 import SqlRunnerResultsTable from '../components/SqlRunner/SqlRunnerResultsTable';
 import { useProjectDbtCloudMetrics } from '../hooks/dbtCloud/useProjectDbtCloudMetrics';
+import { downloadCsvFromSqlRunner } from '../hooks/useDownloadCsv';
 import { useProjectCatalog } from '../hooks/useProjectCatalog';
-import { useProjectCatalogTree } from '../hooks/useProjectCatalogTree';
+import {
+    ProjectCatalogTreeNode,
+    useProjectCatalogTree,
+} from '../hooks/useProjectCatalogTree';
 import { useSqlQueryMutation } from '../hooks/useSqlQuery';
 import useSqlQueryVisualization from '../hooks/useSqlQueryVisualization';
 import {
@@ -42,17 +46,10 @@ import {
 import { useApp } from '../providers/AppProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
-import {
-    ButtonsWrapper,
-    MissingTablesInfo,
-    SideBarWrapper,
-    SqlCallout,
-    StyledTabs,
-} from './SqlRunner.styles';
 
 const generateBasicSqlQuery = (table: string) =>
     `SELECT *
-     FROM ${table} LIMIT 25`;
+   FROM ${table} LIMIT 25`;
 
 const generateDefaultDbtMetricQuery = (metric: DbtCloudMetric) => {
     const args: string[] = [`metric('${metric.name}')`];
@@ -65,10 +62,9 @@ const generateDefaultDbtMetricQuery = (metric: DbtCloudMetric) => {
         args.push(`grain='${metric.timeGrains[0]}'`);
     }
     return `SELECT *
-FROM {{ metrics.calculate(
-    ${args.join(',\n    ')}
-)}}
-LIMIT 500`;
+          FROM {{ metrics.calculate(
+                  ${args.join(',\n    ')}
+              )}} LIMIT 500`;
 };
 
 enum SqlRunnerCards {
@@ -78,10 +74,8 @@ enum SqlRunnerCards {
 }
 
 const SqlRunnerPage = () => {
-    const [activeTabId, setActiveTabId] = useState<string | number>(
-        'warehouse-schema',
-    );
     const { user } = useApp();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const initialState = useSqlRunnerUrlState();
     const metrics = useProjectDbtCloudMetrics();
     const sqlQueryMutation = useSqlQueryMutation();
@@ -90,9 +84,8 @@ const SqlRunnerPage = () => {
 
     const [sql, setSql] = useState<string>(initialState?.sqlRunner?.sql || '');
     const [lastSqlRan, setLastSqlRan] = useState<string>();
-    const [expandedCards, setExpandedCards] = useState<
-        Map<SqlRunnerCards, boolean>
-    >(
+
+    const [expandedCards, setExpandedCards] = useState(
         new Map([
             [SqlRunnerCards.CHART, false],
             [SqlRunnerCards.SQL, true],
@@ -132,104 +125,154 @@ const SqlRunnerPage = () => {
 
     useSqlRunnerRoute(sqlRunnerState);
 
-    const onSubmit = useCallback(() => {
-        if (sql) {
-            mutate(sql);
-            setLastSqlRan(sql);
-        }
+    const handleSubmit = useCallback(() => {
+        if (!sql) return;
+
+        mutate(sql);
+        setLastSqlRan(sql);
     }, [mutate, sql]);
 
     useMount(() => {
-        if (sql) {
-            mutate(sql);
-            setLastSqlRan(sql);
-        }
+        handleSubmit();
     });
 
-    const hotkeys: HotkeyConfig[] = useMemo(
-        () => [
-            {
-                combo: 'mod+enter',
-                group: 'SQL runner',
-                label: 'Run SQL query',
-                allowInInput: true,
-                onKeyDown: onSubmit,
-                global: true,
-                preventDefault: true,
-                stopPropagation: true,
-            },
-        ],
-        [onSubmit],
-    );
-
-    useHotkeys(hotkeys);
+    useEffect(() => {
+        const handler = getHotkeyHandler([['mod+Enter', handleSubmit]]);
+        document.body.addEventListener('keydown', handler);
+        return () => document.body.removeEventListener('keydown', handler);
+    }, [handleSubmit]);
 
     const catalogTree = useProjectCatalogTree(catalogData);
 
-    const handleNodeClick = useCallback(
-        (node: TreeNodeInfo) => {
-            if (node.nodeData) {
-                setSql(
-                    generateBasicSqlQuery(
-                        (node.nodeData as TableBase).sqlTable,
-                    ),
-                );
-            }
+    const handleTableSelect = useCallback(
+        (node: ProjectCatalogTreeNode) => {
+            if (!node.sqlTable) return;
+
+            const query = generateBasicSqlQuery(node.sqlTable);
+
+            setSql(query);
+            handleCardExpand(SqlRunnerCards.SQL, true);
         },
         [setSql],
     );
 
-    if (user.data?.ability?.cannot('view', 'Project')) {
+    const cannotManageSqlRunner = user.data?.ability?.cannot(
+        'manage',
+        subject('SqlRunner', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+    const cannotViewProject = user.data?.ability?.cannot('view', 'Project');
+    if (cannotManageSqlRunner || cannotViewProject) {
         return <ForbiddenPanel />;
     }
 
+    const getCsvLink = async () => {
+        if (sql) {
+            const customLabels = getCustomLabelsFromTableConfig(
+                createSavedChart?.chartConfig.config,
+            );
+            const customLabelsWithoutTablePrefix = customLabels
+                ? Object.fromEntries<string>(
+                      Object.entries(customLabels).map(([key, value]) => [
+                          key.replace(/^sql_runner_/, ''),
+                          value,
+                      ]),
+                  )
+                : undefined;
+            const csvResponse = await downloadCsvFromSqlRunner({
+                projectUuid,
+                sql,
+                customLabels: customLabelsWithoutTablePrefix,
+            });
+            return csvResponse.url;
+        }
+        throw new NotFoundError('no SQL query defined');
+    };
+
     return (
-        <PageWithSidebar>
-            <Helmet>
-                <title>SQL Runner - Lightdash</title>
-            </Helmet>
-            <Sidebar>
-                <StyledBreadcrumb items={[{ text: 'SQL Runner' }]} />
+        <Page
+            title="SQL Runner"
+            withSidebarFooter
+            withFullHeight
+            withPaddedContent
+            sidebar={
+                <Stack
+                    spacing="xl"
+                    mah="100%"
+                    sx={{ overflowY: 'hidden', flex: 1 }}
+                >
+                    <PageBreadcrumbs
+                        items={[{ title: 'SQL Runner', active: true }]}
+                    />
 
-                <SidebarDivider />
-
-                {!!metrics.data?.metrics.length && (
-                    <StyledTabs
-                        id="sql-runner"
-                        selectedTabId={activeTabId}
-                        onChange={setActiveTabId}
+                    <Tabs
+                        defaultValue="warehouse-schema"
+                        display="flex"
+                        sx={{
+                            overflowY: 'hidden',
+                            flexGrow: 1,
+                            flexDirection: 'column',
+                        }}
                     >
-                        <Tab id="warehouse-schema" title="Warehouse Schema" />
-                        <Tab id="metrics" title="dbt metrics" />
-                    </StyledTabs>
-                )}
+                        {metrics.data?.metrics &&
+                        metrics.data.metrics.length > 0 ? (
+                            <Tabs.List mb="lg">
+                                <Tabs.Tab value="warehouse-schema">
+                                    Warehouse schema
+                                </Tabs.Tab>
+                                <Tabs.Tab value="metrics">dbt metrics</Tabs.Tab>
+                            </Tabs.List>
+                        ) : null}
 
-                <SideBarWrapper>
-                    {activeTabId === 'warehouse-schema' &&
-                        (isCatalogLoading ? (
-                            <SideBarLoadingState />
-                        ) : (
-                            <>
-                                <Tree
-                                    contents={catalogTree}
-                                    handleSelect={false}
-                                    onNodeClick={handleNodeClick}
-                                />
-                                <MissingTablesInfo content="Currently we only display tables that are declared in the dbt project.">
-                                    <SqlCallout intent="none" icon="info-sign">
-                                        Tables missing?
-                                    </SqlCallout>
-                                </MissingTablesInfo>
-                            </>
-                        ))}
-                    {activeTabId === 'metrics' &&
-                        !!metrics.data?.metrics.length && (
-                            <Menu>
+                        <Tabs.Panel
+                            value="warehouse-schema"
+                            display="flex"
+                            sx={{ overflowY: 'hidden', flex: 1 }}
+                        >
+                            {isCatalogLoading ? (
+                                <SideBarLoadingState />
+                            ) : (
+                                <Stack sx={{ overflowY: 'auto', flex: 1 }}>
+                                    <Box>
+                                        <CatalogTree
+                                            nodes={catalogTree}
+                                            onSelect={handleTableSelect}
+                                        />
+                                    </Box>
+
+                                    <Alert
+                                        icon={<IconAlertCircle />}
+                                        title="Tables missing?"
+                                        color="blue"
+                                        sx={{ flexShrink: 0 }}
+                                    >
+                                        Currently we only display tables that
+                                        are declared in the dbt project.
+                                    </Alert>
+                                </Stack>
+                            )}
+                        </Tabs.Panel>
+
+                        {metrics.data?.metrics &&
+                        metrics.data.metrics.length > 0 ? (
+                            <Tabs.Panel
+                                value="metrics"
+                                sx={{ overflowY: 'auto', flex: 1 }}
+                            >
                                 {metrics.data.metrics.map((metric) => (
-                                    <MenuItem2
+                                    <NavLink
                                         key={metric.uniqueId}
-                                        icon="numerical"
-                                        text={metric.label}
+                                        icon={
+                                            <MantineIcon
+                                                icon={Icon123}
+                                                size="lg"
+                                                color="gray.7"
+                                            />
+                                        }
+                                        label={metric.label}
+                                        description={metric.description}
                                         onClick={() =>
                                             setSql(
                                                 generateDefaultDbtMetricQuery(
@@ -239,27 +282,29 @@ const SqlRunnerPage = () => {
                                         }
                                     />
                                 ))}
-                            </Menu>
-                        )}
-                </SideBarWrapper>
-            </Sidebar>
+                            </Tabs.Panel>
+                        ) : null}
+                    </Tabs>
+                </Stack>
+            }
+        >
+            <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
+                <Group position="apart">
+                    <RefreshDbtButton />
 
-            <PageContentContainer>
-                <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
-                    <ButtonsWrapper>
-                        <RefreshDbtButton />
-                        <div>
-                            <RunSqlQueryButton
-                                onSubmit={onSubmit}
-                                isLoading={isLoading}
-                            />
-                            <ShareShortLinkButton
-                                disabled={lastSqlRan === undefined}
-                            />
-                        </div>
-                    </ButtonsWrapper>
-                </TrackSection>
+                    <div>
+                        <RunSqlQueryButton
+                            onSubmit={handleSubmit}
+                            isLoading={isLoading}
+                        />
+                        <ShareShortLinkButton
+                            disabled={lastSqlRan === undefined}
+                        />
+                    </div>
+                </Group>
+            </TrackSection>
 
+            <Stack mt="lg" spacing="sm" sx={{ flexGrow: 1 }}>
                 <VisualizationProvider
                     initialChartConfig={initialChartConfig}
                     chartType={chartType}
@@ -281,7 +326,15 @@ const SqlRunnerPage = () => {
                                     <VisualizationConfigPanel
                                         chartType={chartType}
                                     />
-                                    <ChartDownloadMenu />
+                                    {chartType === ChartType.TABLE && (
+                                        <DownloadSqlCsvButton
+                                            getCsvLink={getCsvLink}
+                                            disabled={!sql}
+                                        />
+                                    )}
+                                    <ChartDownloadMenu
+                                        projectUuid={projectUuid}
+                                    />
                                 </>
                             )
                         }
@@ -291,7 +344,7 @@ const SqlRunnerPage = () => {
                             handleCardExpand(SqlRunnerCards.CHART, value)
                         }
                     >
-                        <LightdashVisualization className="cohere-block" />
+                        <LightdashVisualization className="sentry-block fs-block cohere-block" />
                     </CollapsableCard>
                 </VisualizationProvider>
 
@@ -318,14 +371,14 @@ const SqlRunnerPage = () => {
                     }
                 >
                     <SqlRunnerResultsTable
-                        onSubmit={onSubmit}
+                        onSubmit={handleSubmit}
                         resultsData={resultsData}
                         fieldsMap={fieldsMap}
                         sqlQueryMutation={sqlQueryMutation}
                     />
                 </CollapsableCard>
-            </PageContentContainer>
-        </PageWithSidebar>
+            </Stack>
+        </Page>
     );
 };
 export default SqlRunnerPage;

@@ -16,7 +16,7 @@ const MarkdownTile: FC<Props> = (props) => {
         },
     } = props;
     return (
-        <TileBase title={title} clickableTitle={false} {...props}>
+        <TileBase title={title} {...props}>
             <MarkdownWrapper className="non-draggable">
                 <MDEditor.Markdown source={content} linkTarget="_blank" />
             </MarkdownWrapper>

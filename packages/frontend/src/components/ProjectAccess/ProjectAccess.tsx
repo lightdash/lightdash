@@ -16,6 +16,7 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
 } from '@lightdash/common';
+import { Stack } from '@mantine/core';
 import { FC, useMemo, useState } from 'react';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import {
@@ -25,15 +26,14 @@ import {
 } from '../../hooks/useProjectAccess';
 import { useApp } from '../../providers/AppProvider';
 import { useAbilityContext } from '../common/Authorization';
+import { SettingsCard } from '../common/Settings/SettingsCard';
 import {
     ItemContent,
-    ProjectAccessWrapper,
     RelevantOrgRoleIcon,
     RoleSelectButton,
     SectionWrapper,
     UserEmail,
     UserInfo,
-    UserListItemWrapper,
     UserName,
 } from './ProjectAccess.styles';
 
@@ -53,7 +53,7 @@ const UserListItem: FC<{
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     return (
-        <UserListItemWrapper>
+        <SettingsCard>
             <ItemContent>
                 <SectionWrapper>
                     <UserInfo>
@@ -65,7 +65,7 @@ const UserListItem: FC<{
 
                     {relevantOrgRole && (
                         <Tooltip2
-                            content={`This user inherits the organisation role: ${relevantOrgRole}`}
+                            content={`This user inherits the organization role: ${relevantOrgRole}`}
                         >
                             <RelevantOrgRoleIcon
                                 icon="warning-sign"
@@ -82,7 +82,7 @@ const UserListItem: FC<{
                                 options={Object.values(ProjectMemberRole).map(
                                     (orgMemberRole) => ({
                                         value: orgMemberRole,
-                                        label: orgMemberRole,
+                                        label: orgMemberRole.replace('_', ' '),
                                     }),
                                 )}
                                 required
@@ -138,7 +138,7 @@ const UserListItem: FC<{
                     </div>
                 </div>
             </Dialog>
-        </UserListItemWrapper>
+        </SettingsCard>
     );
 };
 
@@ -147,10 +147,21 @@ const relevantOrgRolesForProjectRole: Record<
     OrganizationMemberRole[]
 > = {
     [ProjectMemberRole.VIEWER]: [
+        OrganizationMemberRole.INTERACTIVE_VIEWER,
         OrganizationMemberRole.EDITOR,
+        OrganizationMemberRole.DEVELOPER,
         OrganizationMemberRole.ADMIN,
     ],
-    [ProjectMemberRole.EDITOR]: [OrganizationMemberRole.ADMIN],
+    [ProjectMemberRole.INTERACTIVE_VIEWER]: [
+        OrganizationMemberRole.EDITOR,
+        OrganizationMemberRole.DEVELOPER,
+        OrganizationMemberRole.ADMIN,
+    ],
+    [ProjectMemberRole.EDITOR]: [
+        OrganizationMemberRole.DEVELOPER,
+        OrganizationMemberRole.ADMIN,
+    ],
+    [ProjectMemberRole.DEVELOPER]: [OrganizationMemberRole.ADMIN],
     [ProjectMemberRole.ADMIN]: [],
 };
 
@@ -202,7 +213,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
         return <NonIdealState title="Loading..." icon={<Spinner />} />;
     }
     return (
-        <ProjectAccessWrapper>
+        <Stack>
             {projectAccess?.map((projectMember) => (
                 <UserListItem
                     key={projectMember.email}
@@ -236,10 +247,10 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                 <UserListItem
                     key={orgUser.email}
                     user={orgUser}
-                    roleTooltip={`This user inherits the organisation role: ${orgUser.role}`}
+                    roleTooltip={`This user inherits the organization role: ${orgUser.role}`}
                 />
             ))}
-        </ProjectAccessWrapper>
+        </Stack>
     );
 };
 

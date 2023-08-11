@@ -13,12 +13,8 @@ const runqueryBody = {
 };
 const sqlQueryBody = { sql: 'select 1' };
 describe('Lightdash API', () => {
-    before(() => {
-        cy.login();
-    });
-
     beforeEach(() => {
-        Cypress.Cookies.preserveOnce('connect.sid');
+        cy.login();
     });
 
     it('Should identify user', () => {
@@ -47,7 +43,7 @@ describe('Lightdash API', () => {
         const endpoints = [
             `/projects/${projectUuid}`,
             `/projects/${projectUuid}/explores`,
-            `/projects/${projectUuid}/spaces`,
+            `/projects/${projectUuid}/spaces-and-content`,
             `/projects/${projectUuid}/dashboards`,
             `/projects/${projectUuid}/catalog`,
             `/projects/${projectUuid}/tablesConfiguration`,
@@ -141,13 +137,11 @@ describe('Lightdash API', () => {
         cy.request(`${apiUrl}/projects/${projectUuid}/dashboards`).then(
             (projectResponse) => {
                 expect(projectResponse.status).to.eq(200);
-                cy.log(projectResponse.body);
 
                 const dashboardUuid = projectResponse.body.results[0].uuid;
                 const endpoint = `${apiUrl}/dashboards/${dashboardUuid}`;
 
                 cy.request(endpoint).then((dashboardResponse) => {
-                    cy.log(dashboardResponse.body);
                     expect(dashboardResponse.status).to.eq(200);
                     expect(dashboardResponse.body.results).to.have.property(
                         'name',
@@ -165,7 +159,6 @@ describe('Lightdash API', () => {
                             filters: dashboard.filters,
                         },
                     }).then((resp) => {
-                        cy.log(resp.body);
                         expect(resp.status).to.eq(200);
                         expect(resp.body).to.have.property('status', 'ok');
                     });
@@ -173,15 +166,17 @@ describe('Lightdash API', () => {
             },
         );
     });
+
     it('Should get success response (200) from GET savedChartRouter endpoints', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
-        cy.request(`${apiUrl}/projects/${projectUuid}/spaces`).then(
+
+        cy.request(`${apiUrl}/projects/${projectUuid}/spaces-and-content`).then(
             (projectResponse) => {
                 expect(projectResponse.status).to.eq(200);
-                cy.log(projectResponse.body);
 
-                const savedChartUuid =
-                    projectResponse.body.results[0].queries[0].uuid;
+                const savedChartUuid = projectResponse.body.results.find(
+                    (space) => space.queries.length > 0,
+                ).queries[0].uuid;
 
                 const endpoints = [
                     `/saved/${savedChartUuid}`,
@@ -190,7 +185,6 @@ describe('Lightdash API', () => {
 
                 endpoints.forEach((endpoint) => {
                     cy.request(`${apiUrl}${endpoint}`).then((resp) => {
-                        cy.log(resp.body);
                         expect(resp.status).to.eq(200);
                         expect(resp.body).to.have.property('status', 'ok');
                     });
@@ -212,7 +206,6 @@ describe('Lightdash API', () => {
                 url: `${apiUrl}${endpoint}`,
                 headers: { 'Content-type': 'application/json' },
             }).then((resp) => {
-                cy.log(resp.body);
                 expect(resp.status).to.eq(200);
                 expect(resp.body).to.have.property('status', 'ok');
             });
@@ -271,7 +264,7 @@ describe('Lightdash API forbidden tests', () => {
         const endpoints = [
             `/projects/${projectUuid}`,
             `/projects/${projectUuid}/explores`,
-            // `/projects/${projectUuid}/spaces`, // This will return 200 but an empty list, check test below
+            // `/projects/${projectUuid}/spaces-and-content`, // This will return 200 but an empty list, check test below
             // `/projects/${projectUuid}/dashboards`, // This will return 200 but an empty list, check test below
             `/projects/${projectUuid}/catalog`,
             `/projects/${projectUuid}/tablesConfiguration`,
@@ -283,7 +276,6 @@ describe('Lightdash API forbidden tests', () => {
         endpoints.forEach((endpoint) => {
             cy.request({
                 url: `${apiUrl}${endpoint}`,
-                timeout: 500,
                 failOnStatusCode: false,
             }).then((resp) => {
                 expect(resp.status).to.eq(403);
@@ -296,7 +288,7 @@ describe('Lightdash API forbidden tests', () => {
 
         const projectUuid = SEED_PROJECT.project_uuid;
         cy.request({
-            url: `${apiUrl}/projects/${projectUuid}/spaces`,
+            url: `${apiUrl}/projects/${projectUuid}/spaces-and-content`,
             failOnStatusCode: false,
         }).then((resp) => {
             cy.log(resp.body);
@@ -372,12 +364,13 @@ describe('Lightdash API forbidden tests', () => {
         cy.login(); // Make request as first user to get the chartUuid
 
         const projectUuid = SEED_PROJECT.project_uuid;
-        cy.request(`${apiUrl}/projects/${projectUuid}/spaces`).then(
+        cy.request(`${apiUrl}/projects/${projectUuid}/spaces-and-content`).then(
             (projectResponse) => {
                 expect(projectResponse.status).to.eq(200);
                 cy.log(projectResponse.body);
-                const savedChartUuid =
-                    projectResponse.body.results[0].queries[0].uuid;
+                const savedChartUuid = projectResponse.body.results.find(
+                    (space) => space.queries.length > 0,
+                ).queries[0].uuid;
 
                 cy.anotherLogin(); // Now we login as another user
 
@@ -389,7 +382,6 @@ describe('Lightdash API forbidden tests', () => {
                 endpoints.forEach((endpoint) => {
                     cy.request({
                         url: `${apiUrl}${endpoint}`,
-                        timeout: 500,
                         failOnStatusCode: false,
                     }).then((resp) => {
                         expect(resp.status).to.eq(403);

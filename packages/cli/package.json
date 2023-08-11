@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/cli",
-    "version": "0.407.1",
+    "version": "0.732.3",
     "license": "MIT",
     "bin": {
         "lightdash": "dist/index.js"
@@ -10,13 +10,15 @@
         "track.sh"
     ],
     "dependencies": {
-        "@lightdash/common": "^0.407.1",
-        "@lightdash/warehouses": "^0.407.1",
+        "@lightdash/common": "^0.732.3",
+        "@lightdash/warehouses": "^0.732.3",
+        "@types/columnify": "^1.5.1",
         "ajv": "^8.11.0",
         "ajv-formats": "^2.1.1",
         "better-ajv-errors": "^1.2.0",
         "chalk": "4.1.2",
         "chokidar": "^3.5.3",
+        "columnify": "^1.6.0",
         "commander": "^9.2.0",
         "execa": "^5",
         "google-auth-library": "^8.5.1",
@@ -26,14 +28,16 @@
         "node-fetch": "^2.6.1",
         "nunjucks": "^3.2.3",
         "ora": "5.4.1",
+        "parse-node-version": "^2.0.0",
         "unique-names-generator": "^4.7.1",
         "uuid": "^8.3.2"
     },
     "description": "Lightdash CLI tool",
     "devDependencies": {
-        "@types/lodash": "^4.14.185",
         "@types/inquirer": "^8.2.1",
-        "@types/nunjucks": "^3.2.1"
+        "@types/lodash": "^4.14.185",
+        "@types/nunjucks": "^3.2.1",
+        "@types/parse-node-version": "^1.0.0"
     },
     "scripts": {
         "test": "jest",

@@ -4,6 +4,7 @@ import {
     ChartKind,
     DbtCloudIDEProjectConfig,
     DbtProjectType,
+    DefaultSupportedDbtVersion,
     Explore,
     ExploreError,
     FieldType,
@@ -219,10 +220,11 @@ export const expectedCatalog = {
 };
 
 export const projectWithSensitiveFields: Project = {
-    organizationUuid: user.organizationUuid,
+    organizationUuid: user.organizationUuid!,
     projectUuid: 'projectUuid',
     name: 'name',
     type: ProjectType.DEFAULT,
+    dbtVersion: DefaultSupportedDbtVersion,
     dbtConnection: {
         account_id: 'account_id',
         environment_id: 'environment_id',
@@ -239,19 +241,23 @@ export const defaultProject: OrganizationProject = {
 
 export const spacesWithSavedCharts: Space[] = [
     {
-        organizationUuid: user.organizationUuid,
+        organizationUuid: user.organizationUuid!,
         name: 'sapce',
         isPrivate: false,
         uuid: 'uuid',
+        pinnedListUuid: null,
+        pinnedListOrder: null,
         queries: [
             {
                 uuid: 'savedChartUuid',
                 name: 'saved chart name',
                 updatedAt: new Date(),
                 spaceUuid: 'uuid',
-                pinnedListUuid: undefined,
+                pinnedListUuid: null,
+                pinnedListOrder: null,
                 chartType: ChartKind.AREA,
                 views: 1,
+                firstViewedAt: new Date(),
             },
         ],
         projectUuid,
@@ -262,9 +268,11 @@ export const spacesWithSavedCharts: Space[] = [
 
 export const spacesWithNoSavedCharts: Space[] = [
     {
-        organizationUuid: user.organizationUuid,
+        organizationUuid: user.organizationUuid!,
         name: 'sapce',
         uuid: 'uuid',
+        pinnedListUuid: null,
+        pinnedListOrder: null,
         queries: [],
         projectUuid,
         isPrivate: false,

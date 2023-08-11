@@ -1,18 +1,15 @@
+import { Intent } from '@blueprintjs/core';
 import {
     ApiError,
     CreateDashboard,
     Dashboard,
+    DashboardAvailableFilters,
     DashboardTile,
-    FilterableField,
-    isDashboardChartTileType,
     UpdateDashboard,
-    UpdateDashboardDetails,
 } from '@lightdash/common';
-import { useMemo, useState } from 'react';
-import { useMutation, useQueries, useQuery, useQueryClient } from 'react-query';
-import { UseQueryOptions, UseQueryResult } from 'react-query/types/react/types';
+import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { UseQueryOptions } from 'react-query/types/react/types';
 import { useHistory, useParams } from 'react-router-dom';
-import { useDeepCompareEffect } from 'react-use';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 import useQueryError from '../useQueryError';
@@ -55,99 +52,26 @@ const deleteDashboard = async (id: string) =>
         body: undefined,
     });
 
-export const getChartAvailableFilters = async (savedChartUuid: string) =>
-    lightdashApi<FilterableField[]>({
-        url: `/saved/${savedChartUuid}/availableFilters`,
-        method: 'GET',
+const postDashboardsAvailableFilters = async (savedQueryUuids: string[]) =>
+    lightdashApi<DashboardAvailableFilters>({
+        url: `/dashboards/availableFilters`,
+        method: 'POST',
+        body: JSON.stringify(savedQueryUuids),
+    });
+
+const exportDashboard = async (id: string) =>
+    lightdashApi<string>({
+        url: `/dashboards/${id}/export`,
+        method: 'POST',
         body: undefined,
     });
 
-export const getQueryConfig = (
-    savedChartUuid: string,
-    queryOptions?: Omit<UseQueryOptions, 'queryKey' | 'queryFn'>,
-): UseQueryOptions => {
-    return {
-        queryKey: ['available_filters', savedChartUuid],
-        queryFn: () => getChartAvailableFilters(savedChartUuid),
-        ...queryOptions,
-    };
-};
-
-export const useDashboardAvailableTileFilters = (tiles: DashboardTile[]) => {
-    const savedChartTiles = useMemo(() => {
-        return tiles
-            .filter(isDashboardChartTileType)
-            .filter((tile) => !!tile.properties.savedChartUuid);
-    }, [tiles]);
-
-    const queries = useQueries(
-        savedChartTiles.map((tile) =>
-            getQueryConfig(tile.properties.savedChartUuid!, { retry: false }),
-        ),
-    ) as UseQueryResult<FilterableField[], ApiError>[]; // useQueries doesn't allow us to specify TError
-
-    const results = queries.map((query) =>
-        query.isSuccess ? query.data : undefined,
+export const useDashboardsAvailableFilters = (savedQueryUuids: string[]) =>
+    useQuery<DashboardAvailableFilters, ApiError>(
+        ['dashboards', 'availableFilters', ...savedQueryUuids],
+        () => postDashboardsAvailableFilters(savedQueryUuids),
+        { enabled: savedQueryUuids.length > 0 },
     );
-
-    const isFetched = queries.every((query) => query.isFetched);
-
-    const [data, setData] =
-        useState<Record<string, FilterableField[] | undefined>>();
-
-    useDeepCompareEffect(() => {
-        if (!isFetched) return;
-
-        const newData = results.reduce<
-            Record<string, FilterableField[] | undefined>
-        >(
-            (acc, result, index) => ({
-                ...acc,
-                [savedChartTiles[index].uuid]: result,
-            }),
-            {},
-        );
-
-        setData(newData);
-    }, [results]);
-
-    return useMemo(
-        () => ({
-            isLoading: !isFetched,
-            data,
-        }),
-        [isFetched, data],
-    );
-};
-
-export const useAvailableDashboardFilterTargets = (tiles: DashboardTile[]) => {
-    const { isLoading, data } = useDashboardAvailableTileFilters(tiles);
-
-    const availableFilters = useMemo(() => {
-        if (isLoading || !data) return;
-
-        const allFilters = Object.values(data)
-            .flat()
-            .filter((f): f is FilterableField => !!f);
-        if (allFilters.length === 0) return;
-
-        return allFilters.filter(
-            (field, index, allFields) =>
-                index ===
-                allFields.findIndex(
-                    (f) => f.table === field.table && f.name === field.name,
-                ),
-        );
-    }, [isLoading, data]);
-
-    return useMemo(
-        () => ({
-            isLoading,
-            data: availableFilters,
-        }),
-        [isLoading, availableFilters],
-    );
-};
 
 export const useDashboardQuery = (
     id?: string,
@@ -157,15 +81,47 @@ export const useDashboardQuery = (
     return useQuery<Dashboard, ApiError>({
         queryKey: ['saved_dashboard_query', id],
         queryFn: () => getDashboard(id || ''),
-        enabled: id !== undefined,
+        enabled: !!id,
         retry: false,
         onError: (result) => setErrorResponse(result),
         ...useQueryOptions,
     });
 };
 
+export const useExportDashboard = () => {
+    const { showToastSuccess, showToastError, showToast } = useToaster();
+    return useMutation<string, ApiError, Dashboard>(
+        (data) => exportDashboard(data.uuid),
+        {
+            mutationKey: ['export_dashboard'],
+            onMutate: (data) => {
+                showToast({
+                    key: 'dashboard_export_toast',
+                    intent: Intent.PRIMARY,
+                    title: `${data.name} is being exported. This might take a few seconds.`,
+                    timeout: 0,
+                });
+            },
+            onSuccess: async (url, data) => {
+                if (url) window.open(url, '_blank');
+                showToastSuccess({
+                    key: 'dashboard_export_toast',
+                    title: `Success! ${data.name} was exported.`,
+                });
+            },
+            onError: (error, data) => {
+                showToastError({
+                    key: 'dashboard_export_toast',
+                    title: `Failed to export ${data.name}`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
+};
+
 export const useUpdateDashboard = (
-    id: string,
+    id?: string,
     showRedirectButton: boolean = false,
 ) => {
     const history = useHistory();
@@ -173,7 +129,13 @@ export const useUpdateDashboard = (
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<Dashboard, ApiError, UpdateDashboard>(
-        (data) => updateDashboard(id, data),
+        (data) => {
+            if (id === undefined) {
+                throw new Error('Dashboard id is undefined');
+            }
+
+            return updateDashboard(id, data);
+        },
         {
             mutationKey: ['dashboard_update'],
             onSuccess: async (_, variables) => {
@@ -257,18 +219,6 @@ export const useMoveDashboardMutation = () => {
             },
         },
     );
-};
-
-export const useUpdateDashboardName = (
-    id: string,
-    showRedirectButton: boolean = false,
-) => {
-    const hook = useUpdateDashboard(id, showRedirectButton);
-    return {
-        ...hook,
-        mutate: ({ name, description }: UpdateDashboardDetails) =>
-            hook.mutate({ name, description }),
-    };
 };
 
 export const useCreateMutation = (
@@ -360,7 +310,7 @@ export const useDuplicateDashboardMutation = (
     );
 };
 
-export const useDeleteMutation = () => {
+export const useDashboardDeleteMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<undefined, ApiError, string>(deleteDashboard, {
@@ -382,10 +332,10 @@ export const useDeleteMutation = () => {
     });
 };
 
-export const appendNewTilesToBottom = (
-    existingTiles: DashboardTile[] | [],
-    newTiles: DashboardTile[],
-): DashboardTile[] => {
+export const appendNewTilesToBottom = <T extends Pick<DashboardTile, 'y'>>(
+    existingTiles: T[] | [],
+    newTiles: T[],
+): T[] => {
     const tilesY =
         existingTiles &&
         existingTiles.map(function (tile) {

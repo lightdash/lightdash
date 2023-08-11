@@ -3,17 +3,16 @@ import { SEED_PROJECT } from '@lightdash/common';
 const apiUrl = '/api/v1';
 
 describe('Lightdash pinning endpoints', () => {
-    before(() => {
-        cy.login();
-    });
     beforeEach(() => {
-        Cypress.Cookies.preserveOnce('connect.sid');
+        cy.login();
     });
     it('Should pin/unpin chart', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
-        cy.request(`${apiUrl}/projects/${projectUuid}/spaces`).then(
+        cy.request(`${apiUrl}/projects/${projectUuid}/spaces-and-content`).then(
             (projectResponse) => {
-                const savedChart = projectResponse.body.results[0].queries[0];
+                const savedChart = projectResponse.body.results.find(
+                    (space) => space.queries.length > 0,
+                ).queries[0];
 
                 // change once
                 cy.request(

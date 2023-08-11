@@ -1,24 +1,47 @@
 import { FC } from 'react';
+
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { StyledSwitch } from './ShowTotalsToggle.styles';
 
 const ShowTotalsToggle: FC = () => {
     const {
-        tableConfig: { showColumnCalculation, setShowColumnCalculation },
+        tableConfig: {
+            showColumnCalculation,
+            setShowColumnCalculation,
+            showRowCalculation,
+            setShowRowCalculation,
+            canUsePivotTable,
+        },
     } = useVisualizationContext();
+
     return (
-        <StyledSwitch
-            large
-            id="showTotals"
-            innerLabelChecked="Yes"
-            innerLabel="No"
-            label="Show column total"
-            alignIndicator="right"
-            checked={showColumnCalculation}
-            onChange={(e) => {
-                setShowColumnCalculation(!showColumnCalculation);
-            }}
-        />
+        <>
+            {canUsePivotTable ? (
+                <StyledSwitch
+                    large
+                    id="showTotals"
+                    innerLabelChecked="Yes"
+                    innerLabel="No"
+                    alignIndicator="right"
+                    label="Show row total"
+                    checked={showRowCalculation}
+                    onChange={() => setShowRowCalculation(!showRowCalculation)}
+                />
+            ) : null}
+
+            <StyledSwitch
+                large
+                id="showTotals"
+                innerLabelChecked="Yes"
+                innerLabel="No"
+                alignIndicator="right"
+                label="Show column total"
+                checked={showColumnCalculation}
+                onChange={() =>
+                    setShowColumnCalculation(!showColumnCalculation)
+                }
+            />
+        </>
     );
 };
 

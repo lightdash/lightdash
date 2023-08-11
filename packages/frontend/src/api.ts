@@ -26,7 +26,7 @@ const handleError = (err: any): ApiError => {
 };
 
 type LightdashApiProps = {
-    method: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+    method: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
     url: string;
     body: BodyInit | null | undefined;
 };

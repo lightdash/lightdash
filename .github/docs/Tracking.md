@@ -12,10 +12,10 @@ On the client side we want to know how the user behaves/interacts with our appli
 
 Examples:
 
-- clicked nav button
-- clicked create dashboard button
-- opened settings modal
-- used run query key shortcut
+-   clicked nav button
+-   clicked create dashboard button
+-   opened settings modal
+-   used run query key shortcut
 
 Note: client side events aren't as reliable since users have multiple ways to prevent tracking.
 
@@ -23,8 +23,8 @@ On the server side we want to know what features are being used.
 
 Examples:
 
-- created dashboard with 3 charts
-- updated saved chart with type BAR
+-   created dashboard with 3 charts
+-   updated saved chart with type BAR
 
 ## Client side (browser) tracking
 
@@ -45,7 +45,7 @@ Example:
 ```jsx
 <Route path="/welcome">
     <TrackPage name={PageName.WELCOME}>
-        <Welcome/>
+        <Welcome />
     </TrackPage>
 </Route>
 ```
@@ -60,7 +60,7 @@ Example:
     type={PageType.MODAL}
     category={CategoryName.SETTINGS}
 >
-    <OrganisationPanel/>
+    <OrganizationPanel />
 </TrackPage>
 ```
 
@@ -72,7 +72,7 @@ When adding a button or interactive element/component we can record an event usi
 Example:
 
 ```js
-const {track} = useTracking();
+const { track } = useTracking();
 const onClick = useCallback(() => {
     // other click logic
     track({
@@ -87,9 +87,7 @@ the same event in different sections of the page.
 Example:
 
 ```jsx
-<TrackSection name={SectionName.PAGE_FOOTER}>
-    ...
-</TrackSection>
+<TrackSection name={SectionName.PAGE_FOOTER}>...</TrackSection>
 ```
 
 ## Server side tracking
@@ -108,15 +106,17 @@ Tracking should be done at the service layer. It should avoid sensitive informat
 results.
 
 **What we shouldn't track:**
-- sensitive information like passwords/secrets/credentials
-- dbt modal/fields names
-- warehouse schema names
-- query sql
+
+-   sensitive information like passwords/secrets/credentials
+-   dbt modal/fields names
+-   warehouse schema names
+-   query sql
 
 **What we can track instead:**
-- what warehouse are they using eg: bigquery, postgres, snowflake
-- how many modals does the dbt project have
-- how many filters are they using in their query
+
+-   what warehouse are they using eg: bigquery, postgres, snowflake
+-   how many modals does the dbt project have
+-   how many filters are they using in their query
 
 Example:
 

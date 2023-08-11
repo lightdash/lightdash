@@ -3,17 +3,13 @@ import execa from 'execa';
 import { LightdashAnalytics } from '../../analytics/analytics';
 import GlobalState from '../../globalState';
 import { generateHandler } from '../generate';
+import { DbtCompileOptions } from './compile';
 
-type DbtRunHandlerOptions = {
-    profilesDir: string;
-    projectDir: string;
-    target: string | undefined;
-    profile: string | undefined;
-    select: string[] | undefined;
-    models: string[] | undefined;
+type DbtRunHandlerOptions = DbtCompileOptions & {
     excludeMeta: boolean;
     verbose: boolean;
 };
+
 export const dbtRunHandler = async (
     options: DbtRunHandlerOptions,
     command: any,
@@ -31,7 +27,7 @@ export const dbtRunHandler = async (
         return [...acc, arg];
     }, []);
 
-    GlobalState.debug(`> Running DBT command: ${commands}`);
+    GlobalState.debug(`> Running dbt command: ${commands}`);
 
     try {
         const subprocess = execa('dbt', commands, {

@@ -90,18 +90,30 @@ limit 10
 export const tableNoQueriesSql = (userUuids: string[], projectUuid: string) => `
 select 
   users.user_uuid, 
-  MIN(users.first_name), 
-  MIN(users.last_name),
-  MAX(analytics_chart_views.timestamp) 
+  MIN(users.first_name) as first_name, 
+  MIN(users.last_name) as last_name,
+  EXTRACT(DAY FROM  NOW() - COALESCE(MAX(analytics_chart_views.timestamp), MAX(users.created_at) ))   as count 
 from users
   LEFT JOIN analytics_chart_views ON users.user_uuid = analytics_chart_views.user_uuid
   left join saved_queries sq on sq.saved_query_uuid = analytics_chart_views.chart_uuid
   left join spaces s on s.space_id  = sq.space_id 
   left join projects on projects.project_id = s.project_id
-WHERE users.user_uuid in ('${userUuids.join(`','`)}')
-  AND projects.project_uuid = '${projectUuid}'
-  AND analytics_chart_views.timestamp <> null
-  AND analytics_chart_views.timestamp < NOW() - interval '90 days'
+WHERE users.user_uuid in ('${userUuids.join(
+    `','`,
+)}') AND users.first_name <> '' 
+  AND 
+  (
+    ( 
+      projects.project_uuid = '${projectUuid}'
+      AND analytics_chart_views.timestamp <> null
+      AND analytics_chart_views.timestamp < NOW() - interval '90 days'
+    )
+    OR 
+    (
+      analytics_chart_views.timestamp is null 
+      AND users.created_at < NOW() - interval '90 days'
+    )
+  )
 GROUP BY users.user_uuid
 limit 10
 `;

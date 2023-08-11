@@ -32,14 +32,15 @@ export default defineConfig({
     // },
     build: {
         outDir: 'build',
-        // sourcemap: true,
         target: 'es2015',
         minify: true,
+        sourcemap: true, 
         rollupOptions: {
             output: {
                 manualChunks: mapManualChunks({
                     '@blueprintjs/icons': 'blueprint-icons-vendor',
                     '@blueprintjs/': 'blueprint-vendor',
+                    '@mantine': 'mantine-vendor',
                     'highlight.js': 'highlight-vendor',
                     echarts: 'echarts-vendor',
                     '@mapbox/': 'mapbox-vendor',

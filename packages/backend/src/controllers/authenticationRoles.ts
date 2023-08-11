@@ -12,8 +12,12 @@ const inheritedProjectRoleFromOrgRole = (
             return null;
         case OrganizationMemberRole.VIEWER:
             return ProjectMemberRole.VIEWER;
+        case OrganizationMemberRole.INTERACTIVE_VIEWER:
+            return ProjectMemberRole.INTERACTIVE_VIEWER;
         case OrganizationMemberRole.EDITOR:
             return ProjectMemberRole.EDITOR;
+        case OrganizationMemberRole.DEVELOPER:
+            return ProjectMemberRole.DEVELOPER;
         case OrganizationMemberRole.ADMIN:
             return ProjectMemberRole.ADMIN;
         default:

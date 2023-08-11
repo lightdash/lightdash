@@ -63,6 +63,7 @@ export class HealthService {
             latest: { version: getDockerHubVersion() },
             rudder: this.lightdashConfig.rudder,
             sentry: this.lightdashConfig.sentry,
+            fullstory: this.lightdashConfig.fullstory,
             intercom: this.lightdashConfig.intercom,
             cohere: this.lightdashConfig.cohere,
             siteUrl: this.lightdashConfig.siteUrl,
@@ -86,8 +87,14 @@ export class HealthService {
                     enabled:
                         !!this.lightdashConfig.auth.oneLogin.oauth2ClientId,
                 },
+                azuread: {
+                    loginPath: this.lightdashConfig.auth.azuread.loginPath,
+                    enabled: !!this.lightdashConfig.auth.azuread.oauth2ClientId,
+                },
             },
             hasEmailClient: !!this.lightdashConfig.smtp,
+            hasHeadlessBrowser:
+                this.lightdashConfig.headlessBrowser?.host !== undefined,
         };
     }
 }

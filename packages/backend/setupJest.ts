@@ -8,6 +8,11 @@ jest.mock('./src/config/lightdashConfig', () => ({
     lightdashConfig: {
         mode: LightdashMode.DEFAULT,
         database: {},
+        logging: {
+            level: 'debug',
+            outputs: 'console',
+            format: 'pretty',
+        },
     },
 }));
 

@@ -1,10 +1,13 @@
 import { BigQuery } from '@google-cloud/bigquery';
+
+import { Readable } from 'stream';
 import { BigqueryWarehouseClient } from './BigqueryWarehouseClient';
 import {
     createJobResponse,
     credentials,
     getDatasetResponse,
     getTableResponse,
+    rows,
 } from './BigqueryWarehouseClient.mock';
 import {
     config,
@@ -15,12 +18,14 @@ import {
 
 describe('BigqueryWarehouseClient', () => {
     it('expect query rows with mapped values', async () => {
-        BigQuery.prototype.createQueryJob = jest.fn();
         const warehouse = new BigqueryWarehouseClient(credentials);
-        (warehouse.client.createQueryJob as jest.Mock).mockImplementationOnce(
+
+        (warehouse.client.createQueryJob as jest.Mock) = jest.fn(
             () => createJobResponse,
         );
+
         const results = await warehouse.runQuery('fake sql');
+
         expect(results.fields).toEqual(expectedFields);
         expect(results.rows[0]).toEqual(expectedRow);
         expect(

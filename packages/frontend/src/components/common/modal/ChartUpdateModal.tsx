@@ -9,6 +9,7 @@ import { SavedChart } from '@lightdash/common';
 import { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useSavedQuery, useUpdateMutation } from '../../../hooks/useSavedQuery';
+import useSearchParams from '../../../hooks/useSearchParams';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
 
@@ -24,8 +25,12 @@ const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
     onConfirm,
     ...modalProps
 }) => {
+    const dashboardUuid = useSearchParams('fromDashboard');
     const { data: chart, isLoading } = useSavedQuery({ id: uuid });
-    const { mutateAsync, isLoading: isUpdating } = useUpdateMutation(uuid);
+    const { mutateAsync, isLoading: isUpdating } = useUpdateMutation(
+        dashboardUuid ? dashboardUuid : undefined,
+        uuid,
+    );
 
     const form = useForm<FormState>({
         mode: 'onChange',

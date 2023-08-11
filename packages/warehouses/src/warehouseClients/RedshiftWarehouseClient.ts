@@ -2,11 +2,10 @@ import { CreateRedshiftCredentials } from '@lightdash/common';
 import * as fs from 'fs';
 import path from 'path';
 import { PoolConfig } from 'pg';
-import { WarehouseClient } from '../types';
 import { PostgresClient } from './PostgresWarehouseClient';
 
 const AMAZON_CA_BUNDLE = [
-    fs.readFileSync(path.resolve(__dirname, './amazon-trust-ca-bundle.crt')),
+    fs.readFileSync(path.resolve(__dirname, './ca-bundle-aws-redshift.crt')),
 ];
 
 const getSSLConfigFromMode = (mode: string): PoolConfig['ssl'] => {
@@ -34,25 +33,17 @@ const getSSLConfigFromMode = (mode: string): PoolConfig['ssl'] => {
     }
 };
 
-export class RedshiftWarehouseClient
-    extends PostgresClient
-    implements WarehouseClient
-{
+export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCredentials> {
     constructor(credentials: CreateRedshiftCredentials) {
         const sslmode = credentials.sslmode || 'prefer';
         const ssl = getSSLConfigFromMode(sslmode);
-        super(
-            {
-                connectionString: `postgres://${encodeURIComponent(
-                    credentials.user,
-                )}:${encodeURIComponent(
-                    credentials.password,
-                )}@${encodeURIComponent(credentials.host)}:${
-                    credentials.port
-                }/${encodeURIComponent(credentials.dbname)}`,
-                ssl,
-            },
-            credentials.startOfWeek,
-        );
+        super(credentials, {
+            connectionString: `postgres://${encodeURIComponent(
+                credentials.user,
+            )}:${encodeURIComponent(credentials.password)}@${encodeURIComponent(
+                credentials.host,
+            )}:${credentials.port}/${encodeURIComponent(credentials.dbname)}`,
+            ssl,
+        });
     }
 }

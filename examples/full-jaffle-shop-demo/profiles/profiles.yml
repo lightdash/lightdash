@@ -12,4 +12,4 @@ jaffle_shop:
       pass: "{{ env_var('PGPASSWORD') }}"
       dbname: "{{ env_var('PGDATABASE') }}"
       sslmode: disable
-      schema: jaffle
+      schema: "{{ env_var('SEED_SCHEMA', 'jaffle') }}"

@@ -1,6 +1,5 @@
 import express from 'express';
 import passport from 'passport';
-import { setFlagsFromString } from 'v8';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     redirectOIDCFailure,
@@ -53,7 +52,7 @@ apiV1Router.get('/flash', (req, res) => {
 
 apiV1Router.post('/register', unauthorisedInDemo, async (req, res, next) => {
     try {
-        const lightdashUser = await userService.registerNewUserWithOrg({
+        const lightdashUser = await userService.registerUser({
             firstName: sanitizeStringParam(req.body.firstName),
             lastName: sanitizeStringParam(req.body.lastName),
             email: sanitizeEmailParam(req.body.email),
@@ -100,6 +99,23 @@ apiV1Router.get(
 apiV1Router.get(
     lightdashConfig.auth.okta.callbackPath,
     passport.authenticate('okta', {
+        failureRedirect: '/api/v1/oauth/failure',
+        successRedirect: '/api/v1/oauth/success',
+        failureFlash: true,
+    }),
+);
+
+apiV1Router.get(
+    lightdashConfig.auth.azuread.loginPath,
+    storeOIDCRedirect,
+    passport.authenticate('azuread', {
+        scope: ['openid', 'profile', 'email'],
+    }),
+);
+
+apiV1Router.get(
+    lightdashConfig.auth.azuread.callbackPath,
+    passport.authenticate('azuread', {
         failureRedirect: '/api/v1/oauth/failure',
         successRedirect: '/api/v1/oauth/success',
         failureFlash: true,
@@ -164,7 +180,7 @@ apiV1Router.use('/invite-links', inviteLinksRouter);
 apiV1Router.use('/org', organizationRouter);
 apiV1Router.use('/user', userRouter);
 apiV1Router.use('/projects/:projectUuid', projectRouter);
-apiV1Router.use('/dashboards/:dashboardUuid', dashboardRouter);
+apiV1Router.use('/dashboards', dashboardRouter);
 apiV1Router.use('/password-reset', passwordResetLinksRouter);
 apiV1Router.use('/jobs', jobsRouter);
 apiV1Router.use('/slack', slackRouter);

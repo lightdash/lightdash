@@ -1,15 +1,44 @@
-import { ParseError } from '@lightdash/common';
+import {
+    DefaultSupportedDbtVersion,
+    ParseError,
+    SupportedDbtVersions,
+} from '@lightdash/common';
 import execa from 'execa';
+import * as styles from '../../styles';
 
 export const getDbtVersion = async () => {
     try {
-        const { stderr } = await execa('dbt', ['--version']);
+        const { all } = await execa('dbt', ['--version'], {
+            all: true,
+            stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        const logs = all || '';
         const coreVersionRegex = /installed:.*/;
-        const version = await stderr.match(coreVersionRegex);
+        const version = await logs.match(coreVersionRegex);
         if (version === null || version.length === 0)
-            throw new ParseError(`Can't locate dbt --version: ${stderr}`);
+            throw new ParseError(`Can't locate dbt --version: ${logs}`);
         return version[0].split(':')[1].trim();
     } catch (e: any) {
         throw new ParseError(`Failed to get dbt --version:\n  ${e.message}`);
     }
+};
+
+export const getSupportedDbtVersion = async () => {
+    const version = await getDbtVersion();
+    if (version.startsWith('1.4.')) return SupportedDbtVersions.V1_4;
+    if (version.startsWith('1.5.')) return SupportedDbtVersions.V1_5;
+
+    console.error(
+        styles.warning(
+            `We don't currently support version ${version} on Lightdash, we'll be using ${DefaultSupportedDbtVersion} instead when dbt is refresh from the UI.`,
+        ),
+    );
+    return DefaultSupportedDbtVersion;
+};
+
+export const isSupportedDbtVersion = (version: string) => {
+    const supportedVersions = ['1.3.', '1.4.', '1.5.'];
+    return supportedVersions.some((supportedVersion) =>
+        version.startsWith(supportedVersion),
+    );
 };

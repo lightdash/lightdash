@@ -3,7 +3,7 @@ import {
     allowApiKeyAuthentication,
     isAuthenticated,
 } from '../controllers/authentication';
-import { analyticsService, projectService } from '../services/services';
+import { analyticsService } from '../services/services';
 
 export const analyticsRouter = express.Router({ mergeParams: true });
 

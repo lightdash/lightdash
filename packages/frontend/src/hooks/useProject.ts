@@ -6,11 +6,9 @@ import {
     UpdateProject,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
-import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useActiveJob } from '../providers/ActiveJobProvider';
 import useToaster from './toaster/useToaster';
-import { getLastProject, useDefaultProject, useProjects } from './useProjects';
 import useQueryError from './useQueryError';
 
 const createProject = async (data: CreateProject) =>
@@ -90,22 +88,5 @@ export const useCreateMutation = () => {
                 });
             },
         },
-    );
-};
-
-export const useActiveProjectUuid = () => {
-    const params = useParams<{ projectUuid?: string }>();
-    const { data: defaultProject } = useDefaultProject();
-    const { data: projects } = useProjects();
-
-    const lastProjectUuid = getLastProject();
-    const lastProject = projects?.find(
-        (project) => project.projectUuid === lastProjectUuid,
-    );
-
-    return (
-        params.projectUuid ||
-        lastProject?.projectUuid ||
-        defaultProject?.projectUuid
     );
 };

@@ -9,7 +9,6 @@ import {
     isFilterableField,
 } from '@lightdash/common';
 import { FC, useState } from 'react';
-import { useDashboardAvailableTileFilters } from '../../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -22,33 +21,29 @@ type Props = {
     isEditMode: boolean;
     popoverProps?: Popover2Props;
     onClose: () => void;
-    onSelectField: (field: FilterableField) => void;
 };
 
 const FilterSearch: FC<Props> = ({
     fields,
     isEditMode,
     onClose,
-    onSelectField,
     popoverProps,
 }) => {
     const { track } = useTracking();
-    const { dashboardTiles } = useDashboardContext();
-    const { data: availableTileFilters, isLoading } =
-        useDashboardAvailableTileFilters(dashboardTiles);
+    const { dashboardTiles, filterableFieldsByTileUuid } =
+        useDashboardContext();
     const { addDimensionDashboardFilter } = useDashboardContext();
 
     const [selectedField, setSelectedField] = useState<FilterableField>();
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>();
 
-    if (isLoading || !availableTileFilters) {
+    if (!filterableFieldsByTileUuid) {
         return null;
     }
 
     const handleChangeField = (field: FilterableField) => {
         if (isField(field) && isFilterableField(field)) {
             setSelectedField(field);
-            onSelectField(field);
         }
     };
 
@@ -90,6 +85,7 @@ const FilterSearch: FC<Props> = ({
                     labelFor="field-autocomplete"
                 >
                     <FieldAutoComplete
+                        hasGrouping
                         id="field-autocomplete"
                         fields={fields}
                         onChange={handleChangeField}
@@ -104,12 +100,13 @@ const FilterSearch: FC<Props> = ({
                 </FormGroup>
             ) : (
                 <FilterConfiguration
+                    isCreatingNew
                     isEditMode={isEditMode}
                     selectedTabId={selectedTabId}
                     onTabChange={setSelectedTabId}
                     tiles={dashboardTiles}
                     field={selectedField}
-                    availableTileFilters={availableTileFilters}
+                    availableTileFilters={filterableFieldsByTileUuid}
                     popoverProps={{
                         lazy: true,
                         captureDismiss: !popoverProps?.isOpen,

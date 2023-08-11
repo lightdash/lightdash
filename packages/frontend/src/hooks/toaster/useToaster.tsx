@@ -1,22 +1,20 @@
-import { Intent, IToastProps } from '@blueprintjs/core';
+import { Intent, ToastProps } from '@blueprintjs/core';
 import MDEditor from '@uiw/react-md-editor';
-import React, { useCallback } from 'react';
+import { useCallback } from 'react';
 import { AppToaster } from '../../components/AppToaster';
 
-interface Message extends Omit<IToastProps, 'message'> {
+interface Message extends Omit<ToastProps, 'message'> {
     title: string;
     subtitle?: string;
     key?: string;
 }
 
 const useToaster = () => {
-    const showToastSuccess = useCallback(
-        ({ title, subtitle, key, ...rest }: Message) => {
+    const showToast = useCallback(
+        ({ title, subtitle, key, timeout = 5000, ...rest }: Message) => {
             AppToaster.show(
                 {
-                    intent: Intent.SUCCESS,
-                    icon: 'tick-circle',
-                    timeout: 5000,
+                    intent: Intent.NONE,
                     message: (
                         <div>
                             <p style={{ fontWeight: 'bold', marginBottom: 0 }}>
@@ -30,6 +28,7 @@ const useToaster = () => {
                             )}
                         </div>
                     ),
+                    timeout,
                     ...rest,
                 },
                 key || title,
@@ -38,29 +37,57 @@ const useToaster = () => {
         [],
     );
 
+    const showToastSuccess = useCallback(
+        (props: Message) => {
+            showToast({
+                intent: Intent.SUCCESS,
+                icon: 'tick-circle',
+                ...props,
+            });
+        },
+        [showToast],
+    );
+
     const showToastError = useCallback(
         (props: Message) => {
-            showToastSuccess({
+            showToast({
                 intent: Intent.DANGER,
                 icon: 'error',
                 ...props,
             });
         },
-        [showToastSuccess],
+        [showToast],
     );
 
     const showToastInfo = useCallback(
         (props: Message) => {
-            showToastSuccess({
+            showToast({
                 intent: Intent.NONE,
                 icon: 'info-sign',
                 ...props,
             });
         },
-        [showToastSuccess],
+        [showToast],
     );
 
-    return { showToastSuccess, showToastError, showToastInfo };
+    const showToastPrimary = useCallback(
+        (props: Message) => {
+            showToast({
+                intent: Intent.PRIMARY,
+                icon: 'info-sign',
+                ...props,
+            });
+        },
+        [showToast],
+    );
+
+    return {
+        showToast,
+        showToastSuccess,
+        showToastError,
+        showToastInfo,
+        showToastPrimary,
+    };
 };
 
 export default useToaster;

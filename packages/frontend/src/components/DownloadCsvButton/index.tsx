@@ -1,29 +1,46 @@
 import { Button } from '@blueprintjs/core';
+import { ApiScheduledDownloadCsv } from '@lightdash/common';
 import { FC, memo } from 'react';
-import CSVExporter from '../CSVExporter';
+import useToaster from '../../hooks/toaster/useToaster';
+import { pollCsvFileUrl } from '../../hooks/useDownloadCsv';
 
 type Props = {
-    fileName: string | undefined;
-    rows: object[] | undefined;
+    disabled: boolean;
+    getCsvLink: () => Promise<ApiScheduledDownloadCsv>;
 };
 
-const DownloadCsvButton: FC<Props> = memo(({ fileName, rows = [] }) => {
+const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
+    const { showToastError } = useToaster();
+
     return (
-        <CSVExporter
-            data={rows}
-            filename={`lightdash-${fileName || 'export'}-${new Date()
-                .toISOString()
-                .slice(0, 10)}.csv`}
-            renderElement={({ handleCsvExport, isDisabled }) => (
-                <Button
-                    icon="export"
-                    disabled={isDisabled}
-                    onClick={handleCsvExport}
-                >
-                    Export CSV
-                </Button>
-            )}
-        />
+        <Button
+            intent="primary"
+            icon="export"
+            disabled={disabled}
+            onClick={() => {
+                getCsvLink()
+                    .then((scheduledCsvResponse) => {
+                        pollCsvFileUrl(scheduledCsvResponse)
+                            .then((url) => {
+                                window.location.href = url;
+                            })
+                            .catch((error) => {
+                                showToastError({
+                                    title: `Unable to download CSV`,
+                                    subtitle: error?.error?.message,
+                                });
+                            });
+                    })
+                    .catch((error) => {
+                        showToastError({
+                            title: `Unable to schedule download CSV`,
+                            subtitle: error?.error?.message,
+                        });
+                    });
+            }}
+        >
+            Export CSV
+        </Button>
     );
 });
 

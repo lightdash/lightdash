@@ -6,6 +6,7 @@ import {
     UseQueryOptions,
 } from 'react-query';
 import { lightdashApi } from '../api';
+import { useOrganization } from './organization/useOrganization';
 import useToaster from './toaster/useToaster';
 
 const getProjectsQuery = async () =>
@@ -25,30 +26,24 @@ export const useProjects = (
     });
 };
 
-const LAST_PROJECT_KEY = 'lastProject';
+export const useDefaultProject = (): {
+    isLoading: boolean;
+    data: OrganizationProject | undefined;
+} => {
+    const { isLoading: isOrganizationLoading, data: org } = useOrganization();
+    const { isLoading: isLoadingProjects, data: projects = [] } = useProjects();
 
-export const getLastProject = (): string | undefined => {
-    return localStorage.getItem(LAST_PROJECT_KEY) || undefined;
-};
+    const defaultProject = projects?.find(
+        (project) => project.projectUuid === org?.defaultProjectUuid,
+    );
 
-export const setLastProject = (projectUuid: string) => {
-    localStorage.setItem(LAST_PROJECT_KEY, projectUuid);
-};
-
-export const deleteLastProject = () => {
-    localStorage.removeItem(LAST_PROJECT_KEY);
-};
-
-export const useDefaultProject = () => {
-    const query = useProjects();
-
-    const defaultProject = query.data?.find(
+    const fallbackProject = projects?.find(
         ({ type }) => type === ProjectType.DEFAULT,
     );
 
     return {
-        ...query,
-        data: defaultProject || query.data?.[0],
+        isLoading: isOrganizationLoading || isLoadingProjects,
+        data: defaultProject || fallbackProject || projects?.[0],
     };
 };
 

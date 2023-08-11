@@ -55,7 +55,8 @@ const FileInput: FC<FileFieldProps> = ({
             />
             {fileName && (
                 <Callout intent="success">
-                    Your file <b>{fileName}</b> was uploaded successfully!
+                    Your file <b>{fileName}</b> was uploaded successfully! Click
+                    `test and compile` to apply these changes to your project.
                 </Callout>
             )}
         </>

@@ -1,93 +1,101 @@
-import { Intent } from '@blueprintjs/core';
-import React, { FC } from 'react';
-import { useForm } from 'react-hook-form';
-import AnchorLink from '../components/common/AnchorLink';
-import Form from '../components/ReactHookForm/Form';
+import {
+    Anchor,
+    Button,
+    Center,
+    List,
+    Stack,
+    Text,
+    TextInput,
+    Title,
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { FC } from 'react';
+import { Link } from 'react-router-dom';
 import { usePasswordResetLinkMutation } from '../hooks/usePasswordReset';
 import { useApp } from '../providers/AppProvider';
-import {
-    FormLink,
-    InputField,
-    List,
-    ListItem,
-    SubmitButton,
-    Subtitle,
-    Title,
-} from './PasswordRecovery.styles';
 
 type RecoverPasswordForm = { email: string };
 
 export const PasswordRecoveryForm: FC = () => {
     const { health } = useApp();
+    const form = useForm<RecoverPasswordForm>({
+        initialValues: {
+            email: '',
+        },
+    });
 
     const { isLoading, isSuccess, mutate, reset } =
         usePasswordResetLinkMutation();
-    const methods = useForm<RecoverPasswordForm>({
-        mode: 'onSubmit',
-    });
-
-    const handleSubmit = (data: RecoverPasswordForm) => {
-        mutate(data);
-    };
 
     return (
         <div>
             {!isSuccess ? (
                 <>
-                    <Title>Forgot your password? 🙈</Title>
-                    <Subtitle>
+                    <Title order={3} ta="center" mb="sm">
+                        Forgot your password?
+                    </Title>
+                    <Text ta="center" mb="md" color="dimmed">
                         Enter your email address and we’ll send you a password
                         reset link
-                    </Subtitle>
-                    <Form
-                        name="password_recovery"
-                        methods={methods}
-                        onSubmit={handleSubmit}
+                    </Text>
+                    <form
+                        name="password-recovery"
+                        onSubmit={form.onSubmit((values) => mutate(values))}
                     >
-                        <InputField
-                            label="E-mail address"
-                            name="email"
-                            placeholder="Your email address"
-                            disabled={isLoading}
-                            rules={{
-                                required: 'Required field',
-                            }}
-                        />
+                        <Stack spacing="lg">
+                            <TextInput
+                                label="Email address"
+                                name="email"
+                                placeholder="Your email address"
+                                required
+                                {...form.getInputProps('email')}
+                                disabled={isLoading || isSuccess}
+                            />
 
-                        <SubmitButton
-                            type="submit"
-                            intent={Intent.PRIMARY}
-                            text="Send reset email"
-                            loading={isLoading}
-                        />
-                        {!health.data?.isAuthenticated && (
-                            <FormLink href="/login">Back to sign in</FormLink>
-                        )}
-                    </Form>
+                            <Button type="submit" loading={isLoading}>
+                                Send reset email
+                            </Button>
+                            {!health.data?.isAuthenticated && (
+                                <Center>
+                                    <Anchor component={Link} to="/login">
+                                        Back to sign in
+                                    </Anchor>
+                                </Center>
+                            )}
+                        </Stack>
+                    </form>
                 </>
             ) : (
                 <>
-                    <Title>Check your inbox! ✅</Title>
-                    <Subtitle>
+                    <Title order={3} ta="center" mb="sm">
+                        Check your inbox!
+                    </Title>
+                    <Text ta="center" mb="lg" color="dimmed">
                         We have emailed you instructions about how to reset your
                         password. Haven’t received anything yet?
-                    </Subtitle>
+                    </Text>
 
-                    <List>
-                        <ListItem>Try checking your spam folder</ListItem>
-                        <ListItem>
+                    <List size="sm" spacing="xs">
+                        <List.Item>Try checking your spam folder</List.Item>
+                        <List.Item>
                             Try{' '}
-                            <AnchorLink
-                                href="/recover-password"
+                            <Anchor
+                                component={Link}
+                                to="/recover-password"
                                 onClick={reset}
                             >
                                 resubmitting a password reset
-                            </AnchorLink>{' '}
+                            </Anchor>{' '}
                             request,
                             <br /> ensuring that there are no typos!
-                        </ListItem>
+                        </List.Item>
                     </List>
-                    <FormLink href="/login">Back to sign in</FormLink>
+
+                    <Center mt="lg">
+                        <Anchor component={Link} to="/login">
+                            Back to sign in
+                        </Anchor>
+                    </Center>
                 </>
             )}
         </div>

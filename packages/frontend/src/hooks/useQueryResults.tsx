@@ -1,29 +1,51 @@
 import {
     ApiError,
     ApiQueryResults,
-    CreateSavedChartVersion,
+    Filters,
     MetricQuery,
-    SavedChart,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useMutation, useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
+import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
-export const getQueryResults = async ({
+type QueryResultsProps = {
+    projectUuid: string;
+    tableId: string;
+    query?: MetricQuery;
+    csvLimit?: number | null; //giving null returns all results (no limit)
+    chartUuid?: string;
+};
+
+// This API call will be used for getting charts in view mode and dashboard tiles
+const getChartResults = async ({
+    chartUuid,
+    filters,
+}: {
+    chartUuid?: string;
+    filters?: Filters;
+}) => {
+    return lightdashApi<ApiQueryResults>({
+        url: `/saved/${chartUuid}/results`,
+        method: 'POST',
+        body: JSON.stringify({ filters }),
+    });
+};
+
+const getQueryResults = async ({
     projectUuid,
     tableId,
     query,
     csvLimit,
-}: {
-    projectUuid: string;
-    tableId: string;
-    query: MetricQuery;
-    csvLimit?: number | null; //giving null returns all results (no limit)
-}) => {
-    const timezoneFixQuery = convertDateFilters(query);
+}: QueryResultsProps) => {
+    const timezoneFixQuery = query && {
+        ...query,
+        filters: convertDateFilters(query.filters),
+    };
+
     return lightdashApi<ApiQueryResults>({
         url: `/projects/${projectUuid}/explores/${tableId}/runQuery`,
         method: 'POST',
@@ -31,50 +53,88 @@ export const getQueryResults = async ({
     });
 };
 
-export const useQueryResults = (
-    isValidQuery: boolean,
-    unsavedChartVersion: CreateSavedChartVersion,
-) => {
+export const useQueryResults = (props?: {
+    chartUuid?: string;
+    isViewOnly?: boolean;
+}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const setErrorResponse = useQueryError();
-    const mutation = useMutation<
-        ApiQueryResults,
-        ApiError,
+    const { showToastError } = useToaster();
+    const fetchQuery =
+        props?.isViewOnly === true ? getChartResults : getQueryResults;
+    const mutation = useMutation<ApiQueryResults, ApiError, QueryResultsProps>(
+        fetchQuery,
         {
-            projectUuid: string;
-            tableId: string;
-            query: MetricQuery;
-        }
-    >(getQueryResults, {
-        mutationKey: ['queryResults'],
-        onError: useCallback(
-            (result) => setErrorResponse(result),
-            [setErrorResponse],
-        ),
-    });
+            mutationKey: ['queryResults'],
+            onError: useCallback(
+                (result) => {
+                    showToastError({
+                        title: 'Error running query',
+                        subtitle: result.error.message,
+                    });
+
+                    return setErrorResponse(result);
+                },
+                [setErrorResponse, showToastError],
+            ),
+        },
+    );
+
     const { mutateAsync } = mutation;
 
-    const mutateAsyncOverride = useCallback(() => {
-        if (!!unsavedChartVersion.tableName && isValidQuery) {
-            return mutateAsync({
-                projectUuid,
-                tableId: unsavedChartVersion.tableName,
-                query: unsavedChartVersion.metricQuery,
-            });
-        } else {
-            console.warn(
-                `Can't make SQL request, invalid state`,
-                unsavedChartVersion.tableName,
-                isValidQuery,
-            );
-            return Promise.reject();
-        }
-    }, [mutateAsync, projectUuid, isValidQuery, unsavedChartVersion]);
+    const mutateAsyncOverride = useCallback(
+        async (tableName: string, metricQuery: MetricQuery) => {
+            const fields = new Set([
+                ...metricQuery.dimensions,
+                ...metricQuery.metrics,
+                ...metricQuery.tableCalculations.map(({ name }) => name),
+            ]);
+            const isValidQuery = fields.size > 0;
+            if (!!tableName && isValidQuery) {
+                await mutateAsync({
+                    projectUuid,
+                    tableId: tableName,
+                    query: metricQuery,
+                    chartUuid: props?.chartUuid,
+                });
+            } else {
+                console.warn(
+                    `Can't make SQL request, invalid state`,
+                    tableName,
+                    isValidQuery,
+                    metricQuery,
+                );
+                return Promise.reject();
+            }
+        },
+        [mutateAsync, projectUuid, props?.chartUuid],
+    );
 
     return useMemo(
         () => ({ ...mutation, mutateAsync: mutateAsyncOverride }),
         [mutation, mutateAsyncOverride],
     );
+};
+
+const getUnderlyingDataResults = async ({
+    projectUuid,
+    tableId,
+    query,
+}: {
+    projectUuid: string;
+    tableId: string;
+    query: MetricQuery;
+}) => {
+    const timezoneFixQuery = {
+        ...query,
+        filters: convertDateFilters(query.filters),
+    };
+
+    return lightdashApi<ApiQueryResults>({
+        url: `/projects/${projectUuid}/explores/${tableId}/runUnderlyingDataQuery`,
+        method: 'POST',
+        body: JSON.stringify(timezoneFixQuery),
+    });
 };
 
 export const useUnderlyingDataResults = (
@@ -90,7 +150,7 @@ export const useUnderlyingDataResults = (
     return useQuery<ApiQueryResults, ApiError>({
         queryKey,
         queryFn: () =>
-            getQueryResults({
+            getUnderlyingDataResults({
                 projectUuid,
                 tableId,
                 query,
@@ -99,23 +159,17 @@ export const useUnderlyingDataResults = (
     });
 };
 
-export const useSavedChartResults = (
-    projectUuid: string,
-    savedChart: SavedChart,
-) => {
-    const queryKey = [
-        'savedChartResults',
-        savedChart.uuid,
-        JSON.stringify(savedChart),
-        projectUuid,
-    ];
+// This hook will be used for getting charts in view mode and dashboard tiles
+export const useChartResults = (chartUuid: string, filters?: Filters) => {
+    const queryKey = ['savedChartResults', chartUuid, JSON.stringify(filters)];
+    const timezoneFixFilters = filters && convertDateFilters(filters);
+
     return useQuery<ApiQueryResults, ApiError>({
         queryKey,
         queryFn: () =>
-            getQueryResults({
-                projectUuid,
-                tableId: savedChart.tableName,
-                query: savedChart.metricQuery,
+            getChartResults({
+                chartUuid,
+                filters: timezoneFixFilters,
             }),
         retry: false,
         refetchOnMount: false,

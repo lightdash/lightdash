@@ -1,5 +1,4 @@
 import { Ability, ForcedSubject } from '@casl/ability';
-import { Organization } from '../types/organization';
 import { OrganizationMemberProfile } from '../types/organizationMemberProfile';
 
 type Action = 'manage' | 'update' | 'view' | 'create' | 'delete';
@@ -7,6 +6,10 @@ type Action = 'manage' | 'update' | 'view' | 'create' | 'delete';
 interface Project {
     organizationUuid: string;
     projectUuid: string;
+}
+
+interface Organization {
+    organizationUuid: string;
 }
 
 type Subject =
@@ -23,6 +26,13 @@ type Subject =
     | 'Job'
     | 'SqlRunner'
     | 'Analytics'
+    | 'Explore'
+    | 'UnderlyingData'
+    | 'ExportCsv'
+    | 'CsvJobResult'
+    | 'PinnedItems'
+    | 'Validation'
+    | 'Group'
     | 'all';
 
 type PossibleAbilities = [

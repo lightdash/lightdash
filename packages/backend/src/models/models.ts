@@ -6,15 +6,18 @@ import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
 import { DbtCloudMetricsModel } from './DbtCloudMetricsModel';
 import { EmailModel } from './EmailModel';
+import { GroupsModel } from './GroupsModel';
 import { InviteLinkModel } from './InviteLinkModel';
 import { JobModel } from './JobModel/JobModel';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
 import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
+import { OrganizationAllowedEmailDomainsModel } from './OrganizationAllowedEmailDomainsModel';
 import { OrganizationMemberProfileModel } from './OrganizationMemberProfileModel';
 import { OrganizationModel } from './OrganizationModel';
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { PinnedListModel } from './PinnedListModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
+import { ResourceViewItemModel } from './ResourceViewItemModel';
 import { SavedChartModel } from './SavedChartModel';
 import { SchedulerModel } from './SchedulerModel';
 import { SearchModel } from './SearchModel';
@@ -22,7 +25,10 @@ import { SessionModel } from './SessionModel';
 import { ShareModel } from './ShareModel';
 import { SlackAuthenticationModel } from './SlackAuthenticationModel';
 import { SpaceModel } from './SpaceModel';
+import { SshKeyPairModel } from './SshKeyPairModel';
+import { UserAttributesModel } from './UserAttributesModel';
 import { UserModel } from './UserModel';
+import { ValidationModel } from './ValidationModel/ValidationModel';
 
 export const encryptionService = new EncryptionService({ lightdashConfig });
 
@@ -72,3 +78,22 @@ export const analyticsModel = new AnalyticsModel({
 export const pinnedListModel = new PinnedListModel({ database });
 
 export const schedulerModel = new SchedulerModel({ database });
+
+export const organizationAllowedEmailDomainsModel =
+    new OrganizationAllowedEmailDomainsModel({ database });
+
+export const resourceViewItemModel = new ResourceViewItemModel({
+    database,
+});
+export const validationModel = new ValidationModel({
+    database,
+});
+
+export const groupsModel = new GroupsModel({ database });
+
+export const sshKeyPairModel = new SshKeyPairModel({
+    database,
+    encryptionService,
+});
+
+export const userAttributesModel = new UserAttributesModel({ database });

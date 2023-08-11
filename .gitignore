@@ -10,6 +10,7 @@
 /packages/**/coverage
 /packages/e2e/cypress/screenshots/**/*
 /packages/e2e/cypress/videos/**/*
+/packages/e2e/cypress/downloads/**/*
 
 # logs
 /packages/backend/logs
@@ -55,3 +56,7 @@ package-lock.json
 
 # credentials
 credentials.json
+
+# dbt
+/target
+packages/backend/target/

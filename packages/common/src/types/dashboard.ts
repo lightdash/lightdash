@@ -1,6 +1,8 @@
+import { FilterableField } from './field';
 import { DashboardFilters } from './filter';
 import { SavedChartType } from './savedCharts';
 import { UpdatedByUser } from './user';
+import { ValidationSummary } from './validation';
 
 export enum DashboardTileTypes {
     SAVED_CHART = 'saved_chart',
@@ -39,9 +41,11 @@ export type DashboardLoomTileProperties = {
 export type DashboardChartTileProperties = {
     type: DashboardTileTypes.SAVED_CHART;
     properties: {
-        title: string | null;
+        title?: string;
         hideTitle?: boolean;
         savedChartUuid: string | null;
+        belongsToDashboard?: boolean; // this should be required and not part of the "create" types, but we need to fix tech debt first. Open ticket https://github.com/lightdash/lightdash/issues/6450
+        chartName?: string | null;
     };
 };
 
@@ -58,6 +62,10 @@ export type CreateDashboardChartTile = CreateDashboardTileBase &
     DashboardChartTileProperties;
 export type DashboardChartTile = DashboardTileBase &
     DashboardChartTileProperties;
+
+export const isChartTile = (
+    tile: DashboardTileBase,
+): tile is DashboardChartTile => tile.type === DashboardTileTypes.SAVED_CHART;
 
 export type CreateDashboard = {
     name: string;
@@ -94,7 +102,9 @@ export type Dashboard = {
     spaceUuid: string;
     spaceName: string;
     views: number;
-    pinnedListUuid: string | undefined;
+    firstViewedAt: Date | string | null;
+    pinnedListUuid: string | null;
+    pinnedListOrder: number | null;
 };
 
 export type DashboardBasicDetails = Pick<
@@ -108,8 +118,12 @@ export type DashboardBasicDetails = Pick<
     | 'organizationUuid'
     | 'spaceUuid'
     | 'views'
+    | 'firstViewedAt'
     | 'pinnedListUuid'
->;
+    | 'pinnedListOrder'
+> & { validationErrors?: ValidationSummary[] };
+
+export type SpaceDashboard = DashboardBasicDetails;
 
 export type DashboardUnversionedFields = Pick<
     CreateDashboard,
@@ -132,6 +146,8 @@ export type UpdateMultipleDashboards = Pick<
     Dashboard,
     'uuid' | 'name' | 'description' | 'spaceUuid'
 >;
+
+export type DashboardAvailableFilters = Record<string, FilterableField[]>;
 
 export const isDashboardUnversionedFields = (
     data: UpdateDashboard,
@@ -165,3 +181,8 @@ export const getDefaultChartTileSize = (
             return defaultTileSize;
     }
 };
+
+export const hasChartsInDashboard = (dashboard: Dashboard) =>
+    dashboard.tiles.some(
+        (tile) => isChartTile(tile) && tile.properties.belongsToDashboard,
+    );

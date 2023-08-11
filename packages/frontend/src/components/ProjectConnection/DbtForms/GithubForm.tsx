@@ -1,4 +1,5 @@
 import { DbtProjectType } from '@lightdash/common';
+import { Anchor } from '@mantine/core';
 import React, { FC } from 'react';
 import {
     hasNoWhiteSpaces,
@@ -22,14 +23,14 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 labelHelp={
                     <p>
                         This is used to access your repo.
-                        <a
+                        <Anchor
                             target="_blank"
                             href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#github"
                             rel="noreferrer"
                         >
                             {' '}
                             Click to open documentation
-                        </a>
+                        </Anchor>
                         .
                     </p>
                 }

@@ -1,10 +1,6 @@
 import { AnchorButton, Button, Classes, Colors } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 
-export const OpenShareModal = styled(Button)`
-    margin-right: 10px;
-`;
-
 export const FlexWrapper = styled.div`
     display: flex;
     align-items: center;

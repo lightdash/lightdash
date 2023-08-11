@@ -1,24 +1,5 @@
-import {
-    Button,
-    Card,
-    Collapse,
-    HTMLSelect,
-    Icon,
-    Tag,
-} from '@blueprintjs/core';
+import { Button, HTMLSelect, Icon, Tag } from '@blueprintjs/core';
 import styled from 'styled-components';
-
-export const ProjectAccessWrapper = styled.div`
-    margin-top: 20px;
-    padding-bottom: 50px;
-`;
-
-export const UserListItemWrapper = styled(Card)`
-    display: flex;
-    flex-direction: column;
-    margin-bottom: 1.25em;
-    width: 100%;
-`;
 
 export const ItemContent = styled.div`
     display: flex;
@@ -56,27 +37,6 @@ export const RoleSelectButton = styled(HTMLSelect)`
 
 export const AddUserButton = styled(Button)`
     float: right;
-`;
-
-export const OrgAccess = styled.div`
-    margin-top: 40px;
-    width: 100%;
-`;
-
-export const OrgAccessHeader = styled.div`
-    display: flex;
-    justify-content: flex-start;
-    align-items: center;
-`;
-export const OrgAccessTitle = styled.p`
-    margin: 0;
-    padding: 0;
-    margin-right: 10px;
-`;
-
-// @ts-ignore
-export const OrgAccessList = styled(Collapse)`
-    margin-top: 25px;
 `;
 
 export const RelevantOrgRoleIcon = styled(Icon)`

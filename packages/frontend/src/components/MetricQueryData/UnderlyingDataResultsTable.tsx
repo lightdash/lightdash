@@ -76,6 +76,7 @@ const UnderlyingDataResultsTable: FC<{
                     show: true,
                 }}
                 cellContextMenu={CellContextMenu}
+                $padding={10}
             />
         </TrackSection>
     );

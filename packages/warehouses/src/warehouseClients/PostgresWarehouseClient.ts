@@ -1,19 +1,25 @@
 import {
-    CompileError,
     CreatePostgresCredentials,
+    CreatePostgresLikeCredentials,
     DimensionType,
     Metric,
     MetricType,
     SupportedDbtAdapter,
-    WarehouseConnectionError,
     WarehouseQueryError,
-    WeekDay,
 } from '@lightdash/common';
-import assertUnreachable from '@lightdash/common/dist/utils/assertUnreachable';
+import { readFileSync } from 'fs';
+import path from 'path';
 import * as pg from 'pg';
-import { PoolConfig } from 'pg';
-import { WarehouseClient } from '../types';
-import { getDefaultMetricSql } from '../utils/sql';
+import { PoolConfig, QueryResult } from 'pg';
+import { Writable } from 'stream';
+import { rootCertificates } from 'tls';
+import QueryStream from './PgQueryStream';
+import WarehouseBaseClient from './WarehouseBaseClient';
+
+const POSTGRES_CA_BUNDLES = [
+    ...rootCertificates,
+    readFileSync(path.resolve(__dirname, './ca-bundle-aws-rds-global.pem')),
+];
 
 export enum PostgresTypes {
     INTEGER = 'integer',
@@ -125,45 +131,99 @@ const convertDataTypeIdToDimensionType = (
     }
 };
 
-export class PostgresClient implements WarehouseClient {
-    pool: pg.Pool;
+export class PostgresClient<
+    T extends CreatePostgresLikeCredentials,
+> extends WarehouseBaseClient<T> {
+    config: pg.PoolConfig;
 
-    startOfWeek: WeekDay | null | undefined;
+    constructor(credentials: T, config: pg.PoolConfig) {
+        super(credentials);
+        this.config = config;
+    }
 
-    constructor(config: PoolConfig, startOfWeek: WeekDay | null | undefined) {
-        this.startOfWeek = startOfWeek;
-        try {
-            const pool = new pg.Pool(config);
-            this.pool = pool;
-        } catch (e) {
-            throw new WarehouseConnectionError(e.message);
+    private getSQLWithMetadata(sql: string, tags?: Record<string, string>) {
+        let alteredQuery = sql;
+        if (tags) {
+            alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(tags)}`;
         }
+        return alteredQuery;
     }
 
-    getStartOfWeek() {
-        return this.startOfWeek;
+    private convertQueryResultFields(
+        fields: QueryResult<any>['fields'],
+    ): Record<string, { type: DimensionType }> {
+        return fields.reduce(
+            (acc, { name, dataTypeID }) => ({
+                ...acc,
+                [name]: {
+                    type: convertDataTypeIdToDimensionType(dataTypeID),
+                },
+            }),
+            {},
+        );
     }
 
-    async runQuery(sql: string) {
-        try {
-            const results = await this.pool.query(sql); // automatically checkouts client and cleans up
-            const fields = results.fields.reduce(
-                (acc, { name, dataTypeID }) => ({
-                    ...acc,
-                    [name]: {
-                        type: convertDataTypeIdToDimensionType(dataTypeID),
-                    },
-                }),
-                {},
-            );
-            return { fields, rows: results.rows };
-        } catch (e) {
-            throw new WarehouseQueryError(e.message);
-        }
-    }
-
-    async test(): Promise<void> {
-        await this.runQuery('SELECT 1');
+    async runQuery(sql: string, tags?: Record<string, string>) {
+        let pool: pg.Pool | undefined;
+        return new Promise<{
+            fields: Record<string, { type: DimensionType }>;
+            rows: Record<string, any>[];
+        }>((resolve, reject) => {
+            pool = new pg.Pool(this.config);
+            pool.connect((err, client, done) => {
+                if (err) {
+                    reject(err);
+                    done();
+                    return;
+                }
+                // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
+                //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
+                const stream = client.query(
+                    new QueryStream(this.getSQLWithMetadata(sql, tags)),
+                );
+                const rows: any[] = [];
+                let fields: QueryResult<any>['fields'] = [];
+                // release the client when the stream is finished
+                stream.on('end', () => {
+                    done();
+                    resolve({
+                        rows,
+                        fields: this.convertQueryResultFields(fields),
+                    });
+                });
+                stream.on('error', (err2) => {
+                    reject(err2);
+                    done();
+                });
+                stream.pipe(
+                    new Writable({
+                        objectMode: true,
+                        write(
+                            chunk: {
+                                row: any;
+                                fields: QueryResult<any>['fields'];
+                            },
+                            encoding,
+                            callback,
+                        ) {
+                            rows.push(chunk.row);
+                            fields = chunk.fields;
+                            callback();
+                        },
+                    }),
+                );
+            });
+        })
+            .catch((e) => {
+                throw new WarehouseQueryError(
+                    `Error running postgres query: ${e}`,
+                );
+            })
+            .finally(() => {
+                pool?.end().catch(() => {
+                    console.info('Failed to end postgres pool');
+                });
+            });
     }
 
     async getCatalog(
@@ -251,6 +311,10 @@ export class PostgresClient implements WarehouseClient {
         return "'";
     }
 
+    getAdapterType(): SupportedDbtAdapter {
+        return SupportedDbtAdapter.POSTGRES;
+    }
+
     getMetricSql(sql: string, metric: Metric) {
         switch (metric.type) {
             case MetricType.PERCENTILE:
@@ -260,29 +324,41 @@ export class PostgresClient implements WarehouseClient {
             case MetricType.MEDIAN:
                 return `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${sql})`;
             default:
-                return getDefaultMetricSql(sql, metric.type);
+                return super.getMetricSql(sql, metric);
         }
     }
 }
 
-export class PostgresWarehouseClient
-    extends PostgresClient
-    implements WarehouseClient
-{
+// Mimics behaviour in https://github.com/brianc/node-postgres/blob/master/packages/pg-connection-string/index.js
+const getSSLConfigFromMode = (mode: string): PoolConfig['ssl'] => {
+    switch (mode) {
+        case 'disable':
+            return false;
+        case 'prefer':
+        case 'require':
+        case 'allow':
+        case 'verify-ca':
+        case 'verify-full':
+            return {
+                ca: POSTGRES_CA_BUNDLES,
+            };
+        case 'no-verify':
+            return { rejectUnauthorized: false, ca: POSTGRES_CA_BUNDLES };
+        default:
+            throw new Error(`Unknown sslmode for postgres: ${mode}`);
+    }
+};
+
+export class PostgresWarehouseClient extends PostgresClient<CreatePostgresCredentials> {
     constructor(credentials: CreatePostgresCredentials) {
-        super(
-            {
-                connectionString: `postgres://${encodeURIComponent(
-                    credentials.user,
-                )}:${encodeURIComponent(
-                    credentials.password,
-                )}@${encodeURIComponent(credentials.host)}:${
-                    credentials.port
-                }/${encodeURIComponent(credentials.dbname)}?sslmode=${
-                    credentials.sslmode || 'prefer'
-                }`,
-            },
-            credentials.startOfWeek,
-        );
+        const ssl = getSSLConfigFromMode(credentials.sslmode || 'prefer');
+        super(credentials, {
+            connectionString: `postgres://${encodeURIComponent(
+                credentials.user,
+            )}:${encodeURIComponent(credentials.password)}@${encodeURIComponent(
+                credentials.host,
+            )}:${credentials.port}/${encodeURIComponent(credentials.dbname)}`,
+            ssl,
+        });
     }
 }

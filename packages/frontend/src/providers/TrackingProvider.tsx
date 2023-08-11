@@ -1,5 +1,5 @@
 import { LightdashMode } from '@lightdash/common';
-import React, {
+import {
     createContext,
     FC,
     memo,
@@ -44,11 +44,14 @@ type GenericEvent = {
         | EventName.REMOVE_CUSTOM_METRIC_CLICKED
         | EventName.CUSTOM_AXIS_RANGE_TOGGLE_CLICKED
         | EventName.CREATE_PROJECT_ACCESS_BUTTON_CLICKED
+        | EventName.CREATE_PROJECT_CLI_BUTTON_CLICKED
         | EventName.CREATE_PROJECT_MANUALLY_BUTTON_CLICKED
         | EventName.COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED
         | EventName.TRY_DEMO_CLICKED
         | EventName.GO_TO_LINK_CLICKED
-        | EventName.USAGE_ANALYTICS_CLICKED;
+        | EventName.USAGE_ANALYTICS_CLICKED
+        | EventName.VIEW_UNDERLYING_DATA_CLICKED
+        | EventName.DRILL_BY_CLICKED;
     properties?: {};
 };
 
@@ -129,6 +132,24 @@ export type CrossFilterDashboardAppliedEvent = {
     };
 };
 
+export type ViewUnderlyingDataClickedEvent = {
+    name: EventName.VIEW_UNDERLYING_DATA_CLICKED;
+    properties: {
+        organizationId: string;
+        userId: string;
+        projectId: string;
+    };
+};
+
+export type DrillByClickedEvent = {
+    name: EventName.DRILL_BY_CLICKED;
+    properties: {
+        organizationId: string;
+        userId: string;
+        projectId: string;
+    };
+};
+
 export type EventData =
     | GenericEvent
     | FormClickedEvent
@@ -138,7 +159,9 @@ export type EventData =
     | GlobalSearchOpenEvent
     | GlobalSearchClosedEvent
     | OnboardingStepClickedEvent
-    | CrossFilterDashboardAppliedEvent;
+    | CrossFilterDashboardAppliedEvent
+    | ViewUnderlyingDataClickedEvent
+    | DrillByClickedEvent;
 
 type IdentifyData = {
     id: string;
@@ -173,7 +196,7 @@ const Context = createContext<TrackingContext>(undefined as any);
 
 const LIGHTDASH_APP_NAME = 'lightdash_webapp';
 
-export const TrackingProvider: FC<TrackingData> = ({
+const TrackingProviderMain: FC<TrackingData> = ({
     rudder,
     page: pageContext,
     section: sectionContext,
@@ -292,11 +315,33 @@ export const TrackingProvider: FC<TrackingData> = ({
     );
 };
 
-export function useTracking(): TrackingContext {
+interface TrackingProviderProps extends TrackingData {
+    enabled?: boolean;
+}
+
+export const TrackingProvider: FC<TrackingProviderProps> = ({
+    children,
+    enabled = true,
+    ...rest
+}) => {
+    if (enabled) {
+        return (
+            <TrackingProviderMain {...rest}>{children}</TrackingProviderMain>
+        );
+    } else {
+        return <>{children}</>;
+    }
+};
+
+export function useTracking<S extends boolean = false>(
+    failSilently?: S,
+): S extends false ? TrackingContext : TrackingContext | undefined {
     const context = useContext(Context);
-    if (context === undefined) {
+
+    if (context === undefined && failSilently !== true) {
         throw new Error('useTracking must be used within a TrackingProvider');
     }
+
     return context;
 }
 

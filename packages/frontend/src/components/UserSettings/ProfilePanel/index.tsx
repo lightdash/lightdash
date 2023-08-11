@@ -1,16 +1,24 @@
-import { Button, FormGroup, InputGroup, Intent } from '@blueprintjs/core';
 import {
     ApiError,
     LightdashUser,
     UpdateUserArgs,
     validateEmail,
 } from '@lightdash/common';
-import React, { FC, useEffect, useState } from 'react';
+import { Anchor, Button, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { IconAlertCircle, IconCircleCheck } from '@tabler/icons-react';
+import { FC, useCallback, useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import {
+    useEmailStatus,
+    useOneTimePassword,
+} from '../../../hooks/useEmailVerification';
+import { VerifyEmailModal } from '../../../pages/VerifyEmail';
 import { useApp } from '../../../providers/AppProvider';
 import { useErrorLogs } from '../../../providers/ErrorLogsProvider';
+import MantineIcon from '../../common/MantineIcon';
 
 const updateUserQuery = async (data: Partial<UpdateUserArgs>) =>
     lightdashApi<LightdashUser>({
@@ -21,18 +29,30 @@ const updateUserQuery = async (data: Partial<UpdateUserArgs>) =>
 
 const ProfilePanel: FC = () => {
     const queryClient = useQueryClient();
-    const { user } = useApp();
+    const { user, health } = useApp();
     const { showToastSuccess, showToastError } = useToaster();
-    const { showError } = useErrorLogs();
-    const [firstName, setFirstName] = useState<string | undefined>(
-        user.data?.firstName,
-    );
-    const [lastName, setLastName] = useState<string | undefined>(
-        user.data?.lastName,
-    );
-    const [email, setEmail] = useState<string | undefined>(user.data?.email);
+    const { appendError } = useErrorLogs();
 
-    const { isLoading, error, mutate } = useMutation<
+    const isEmailServerConfigured = health.data?.hasEmailClient;
+    const { data, isLoading: statusLoading } = useEmailStatus();
+    const {
+        mutate: sendVerificationEmail,
+        error: sendVerificationEmailError,
+        isLoading: emailLoading,
+    } = useOneTimePassword();
+
+    const form = useForm({
+        initialValues: {
+            firstName: user.data?.firstName,
+            lastName: user.data?.lastName,
+            email: user.data?.email,
+        },
+    });
+
+    const [showVerifyEmailModal, setShowVerifyEmailModal] =
+        useState<boolean>(false);
+
+    const { isLoading: isUpdateUserLoading, mutate: updateUser } = useMutation<
         LightdashUser,
         ApiError,
         Partial<UpdateUserArgs>
@@ -40,25 +60,36 @@ const ProfilePanel: FC = () => {
         mutationKey: ['user_update'],
         onSuccess: async () => {
             await queryClient.refetchQueries('user');
+            await queryClient.refetchQueries('email_status');
             showToastSuccess({
                 title: 'Success! User details were updated.',
             });
         },
+        onError: useCallback(
+            (error: ApiError) => {
+                const [title, ...rest] = error.error.message.split('\n');
+                appendError({
+                    title,
+                    body: rest.join('\n'),
+                });
+            },
+            [appendError],
+        ),
     });
 
     useEffect(() => {
-        if (error) {
-            const [title, ...rest] = error.error.message.split('\n');
-            showError({
-                title,
-                body: rest.join('\n'),
-            });
+        if (
+            sendVerificationEmailError ||
+            data?.isVerified ||
+            !isEmailServerConfigured
+        ) {
+            setShowVerifyEmailModal(false);
         }
-    }, [error, showError]);
+    }, [data?.isVerified, isEmailServerConfigured, sendVerificationEmailError]);
 
-    const handleUpdate = () => {
+    const handleOnSubmit = form.onSubmit(({ firstName, lastName, email }) => {
         if (firstName && lastName && email && validateEmail(email)) {
-            mutate({
+            updateUser({
                 firstName,
                 lastName,
                 email,
@@ -73,70 +104,105 @@ const ProfilePanel: FC = () => {
                 timeout: 3000,
             });
         }
-    };
+    });
 
     return (
-        <div
-            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-        >
-            <FormGroup
-                label="First name"
-                labelFor="first-name-input"
-                labelInfo="(required)"
-            >
-                <InputGroup
+        <form onSubmit={handleOnSubmit}>
+            <Stack mt="md">
+                <TextInput
                     id="first-name-input"
                     placeholder="First name"
+                    label="First name"
                     type="text"
                     required
-                    disabled={isLoading}
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
+                    disabled={isUpdateUserLoading}
                     data-cy="first-name-input"
+                    {...form.getInputProps('firstName')}
                 />
-            </FormGroup>
-            <FormGroup
-                label="Last name"
-                labelFor="last-name-input"
-                labelInfo="(required)"
-            >
-                <InputGroup
+
+                <TextInput
                     id="last-name-input"
                     placeholder="Last name"
+                    label="Last name"
                     type="text"
                     required
-                    disabled={isLoading}
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
+                    disabled={isUpdateUserLoading}
                     data-cy="last-name-input"
+                    {...form.getInputProps('lastName')}
                 />
-            </FormGroup>
-            <FormGroup
-                label="Email"
-                labelFor="email-input"
-                labelInfo="(required)"
-            >
-                <InputGroup
+
+                <TextInput
                     id="email-input"
                     placeholder="Email"
+                    label="Email"
                     type="email"
                     required
-                    disabled={isLoading}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value.trim())}
+                    disabled={isUpdateUserLoading}
+                    inputWrapperOrder={[
+                        'label',
+                        'input',
+                        'error',
+                        'description',
+                    ]}
+                    {...form.getInputProps('email')}
                     data-cy="email-input"
+                    rightSection={
+                        isEmailServerConfigured && data?.isVerified ? (
+                            <Tooltip label="This e-mail has been verified">
+                                <MantineIcon
+                                    size="lg"
+                                    icon={IconCircleCheck}
+                                    color="green.6"
+                                />
+                            </Tooltip>
+                        ) : (
+                            <MantineIcon
+                                size="lg"
+                                icon={IconAlertCircle}
+                                color="gray.6"
+                            />
+                        )
+                    }
+                    descriptionProps={{ mt: 'xs' }}
+                    description={
+                        isEmailServerConfigured && !data?.isVerified ? (
+                            <Text color="dimmed">
+                                This email has not been verified.{' '}
+                                <Anchor
+                                    component="span"
+                                    onClick={() => {
+                                        if (!data?.otp) {
+                                            sendVerificationEmail();
+                                        }
+                                        setShowVerifyEmailModal(true);
+                                    }}
+                                >
+                                    Click here to verify it
+                                </Anchor>
+                                .
+                            </Text>
+                        ) : null
+                    }
                 />
-            </FormGroup>
-            <div style={{ flex: 1 }} />
-            <Button
-                style={{ alignSelf: 'flex-end', marginTop: 20 }}
-                intent={Intent.PRIMARY}
-                text="Update"
-                onClick={handleUpdate}
-                loading={isLoading}
-                data-cy="update-profile-settings"
-            />
-        </div>
+
+                <Button
+                    type="submit"
+                    display="block"
+                    ml="auto"
+                    loading={isUpdateUserLoading}
+                    data-cy="update-profile-settings"
+                >
+                    Update
+                </Button>
+                <VerifyEmailModal
+                    opened={showVerifyEmailModal}
+                    onClose={() => {
+                        setShowVerifyEmailModal(false);
+                    }}
+                    isLoading={statusLoading || emailLoading}
+                />
+            </Stack>
+        </form>
     );
 };
 

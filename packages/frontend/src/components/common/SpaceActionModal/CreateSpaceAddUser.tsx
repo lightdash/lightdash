@@ -1,7 +1,11 @@
 import { Classes } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemPredicate, ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
-import { OrganizationMemberRole, Space } from '@lightdash/common';
+import {
+    OrganizationMemberRole,
+    ProjectMemberRole,
+    Space,
+} from '@lightdash/common';
 import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
@@ -82,12 +86,12 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
                 userUuid: userUuid,
                 firstName: '',
                 lastName: '',
-                role: null,
+                role: ProjectMemberRole.VIEWER,
             })),
         );
     }, [form, usersSelected]);
     const renderUserShare: ItemRenderer<string> = useCallback(
-        (userUuid, { modifiers, handleClick, query }) => {
+        (userUuid, { modifiers, handleClick }) => {
             if (!modifiers.matchesPredicate) {
                 return null;
             }
@@ -96,20 +100,30 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
             );
             if (!user) return null;
 
+            const projectUser = projectAccess?.find(
+                (pUser) => pUser.userUuid === userUuid,
+            );
+            const isAdmin =
+                user.role === OrganizationMemberRole.ADMIN ||
+                projectUser?.role === ProjectMemberRole.ADMIN;
+
             const isSelected = usersSelected.includes(userUuid);
-            const isYou = sessionUser?.userUuid === user.userUuid;
+            const isDisabled =
+                isAdmin || sessionUser?.userUuid === user.userUuid;
             return (
                 <MenuItem2
                     className={isSelected ? Classes.SELECTED : undefined}
                     key={user.userUuid}
-                    disabled={isYou}
+                    disabled={isDisabled}
                     text={
                         <FlexWrapper key={user.userUuid}>
                             <UserCircle>
                                 {getInitials(user.userUuid, organizationUsers)}
                             </UserCircle>
 
-                            <PrimaryAndSecondaryTextWrapper $disabled={isYou}>
+                            <PrimaryAndSecondaryTextWrapper
+                                $disabled={isDisabled}
+                            >
                                 {user.firstName || user.lastName ? (
                                     <>
                                         <PrimaryText $selected={isSelected}>
@@ -144,7 +158,12 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
                 />
             );
         },
-        [usersSelected, organizationUsers],
+        [
+            organizationUsers,
+            usersSelected,
+            sessionUser?.userUuid,
+            projectAccess,
+        ],
     );
 
     return (

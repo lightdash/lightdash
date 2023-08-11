@@ -1,18 +1,16 @@
+import { LightdashMode } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import { App, ExpressReceiver, LogLevel } from '@slack/bolt';
-
 import { nanoid } from 'nanoid';
 import { analytics } from '../../analytics/client';
 import { LightdashConfig } from '../../config/parseConfig';
-import Logger from '../../logger';
+import Logger from '../../logging/logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { apiV1Router } from '../../routers/apiV1Router';
 import { unfurlService } from '../../services/services';
-import {
-    LightdashPage,
-    Unfurl,
-} from '../../services/UnfurlService/UnfurlService';
+import { Unfurl } from '../../services/UnfurlService/UnfurlService';
+import { getUnfurlBlocks } from './SlackMessageBlocks';
 import { slackOptions } from './SlackOptions';
-import { unfurlChartAndDashboard, unfurlExplore } from './SlackUnfurl';
 
 const notifySlackError = async (
     error: unknown,
@@ -25,27 +23,15 @@ const notifySlackError = async (
      */
     Logger.error(`Unable to unfurl slack URL ${url}: ${error} `);
 
-    const unfurls = {
-        [url]: {
-            blocks: [
-                {
-                    type: 'section',
-                    text: {
-                        type: 'mrkdwn',
-                        text: `Unable to unfurl slack URL ${url}: ${error} `,
-                    },
-                },
-            ],
-        },
-    };
+    // Send message in thread
     await client.chat
-        .unfurl({
-            ts: event.message_ts,
+        .postMessage({
+            thread_ts: event.message_ts,
             channel: event.channel,
-            unfurls,
+            text: `:fire: Unable to unfurl ${url}: ${error}`,
         })
         .catch((er: any) =>
-            Logger.error(`Unable to unfurl slack URL ${url}: ${error} `),
+            Logger.error(`Unable send slack error message: ${er} `),
         );
 };
 
@@ -117,15 +103,12 @@ export class SlackService {
         unfurl: Unfurl,
         client: any,
     ) {
-        const blocks =
-            unfurl?.pageType === LightdashPage.EXPLORE
-                ? unfurlExplore(originalUrl, unfurl)
-                : unfurlChartAndDashboard(originalUrl, unfurl);
+        const unfurlBlocks = getUnfurlBlocks(originalUrl, unfurl);
         await client.chat
             .unfurl({
                 ts: event.message_ts,
                 channel: event.channel,
-                unfurls: blocks,
+                unfurls: unfurlBlocks,
             })
             .catch((e: any) => {
                 analytics.track({
@@ -137,7 +120,7 @@ export class SlackService {
                 });
                 Logger.error(
                     `Unable to unfurl on slack ${JSON.stringify(
-                        blocks,
+                        unfurlBlocks,
                     )}: ${JSON.stringify(e)}`,
                 );
             });
@@ -155,17 +138,20 @@ export class SlackService {
 
             try {
                 const { teamId } = context;
-
-                analytics.track({
-                    event: 'share_slack.unfurl',
-                    userId: eventUserId,
-                    properties: {},
-                });
-
                 const details = await unfurlService.unfurlDetails(l.url);
 
                 if (details) {
-                    Logger.debug(`Unfurling URL ${l.url}`);
+                    analytics.track({
+                        event: 'share_slack.unfurl',
+                        userId: eventUserId,
+                        properties: {
+                            organizationId: details?.organizationUuid,
+                        },
+                    });
+
+                    Logger.debug(
+                        `Unfurling ${details.pageType} with URL ${details.minimalUrl}`,
+                    );
 
                     await SlackService.sendUnfurl(
                         event,
@@ -179,7 +165,7 @@ export class SlackService {
                         await this.slackAuthenticationModel.getUserUuid(teamId);
 
                     const imageUrl = await unfurlService.unfurlImage(
-                        l.url,
+                        details.minimalUrl,
                         details.pageType,
                         imageId,
                         authUserUuid,
@@ -196,11 +182,19 @@ export class SlackService {
                         analytics.track({
                             event: 'share_slack.unfurl_completed',
                             userId: eventUserId,
-                            properties: { pageType: details.pageType },
+                            properties: {
+                                pageType: details.pageType,
+                                organizationId: details?.organizationUuid,
+                            },
                         });
                     }
                 }
             } catch (e) {
+                if (this.lightdashConfig.mode === LightdashMode.PR)
+                    notifySlackError(e, l.url, client, event);
+
+                Sentry.captureException(e);
+
                 analytics.track({
                     event: 'share_slack.unfurl_error',
                     userId: eventUserId,
@@ -209,8 +203,6 @@ export class SlackService {
                         error: `${e}`,
                     },
                 });
-
-                notifySlackError(e, l.url, client, event);
             }
         });
     }

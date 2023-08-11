@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 type Args = {
     defaultWidth: number;
@@ -11,37 +11,39 @@ const useSidebarResize = ({ maxWidth, minWidth, defaultWidth }: Args) => {
     const [isResizing, setIsResizing] = useState(false);
     const [sidebarWidth, setSidebarWidth] = useState(defaultWidth);
 
-    const startResizing = React.useCallback(() => {
+    const startResizing = useCallback(() => {
         setIsResizing(true);
     }, []);
 
-    const stopResizing = React.useCallback(() => {
+    const stopResizing = useCallback(() => {
         setIsResizing(false);
     }, []);
 
-    const resize = React.useCallback(
-        (mouseMoveEvent) => {
-            if (isResizing && sidebarRef.current) {
-                mouseMoveEvent.preventDefault();
-                const newWidth =
-                    mouseMoveEvent.clientX -
-                    sidebarRef.current.getBoundingClientRect().left;
-                setSidebarWidth(
-                    Math.min(maxWidth, Math.max(minWidth, newWidth)),
-                );
-            }
+    const resize = useCallback(
+        // mouse event on div
+        (event: MouseEvent) => {
+            if (!isResizing || !sidebarRef.current) return;
+            event.preventDefault();
+
+            const newWidth =
+                event.clientX - sidebarRef.current.getBoundingClientRect().left;
+
+            setSidebarWidth(Math.min(maxWidth, Math.max(minWidth, newWidth)));
         },
         [isResizing, minWidth, maxWidth],
     );
 
-    React.useEffect(() => {
+    useLayoutEffect(() => {
+        if (!isResizing) return;
+
         window.addEventListener('mousemove', resize);
         window.addEventListener('mouseup', stopResizing);
+
         return () => {
             window.removeEventListener('mousemove', resize);
             window.removeEventListener('mouseup', stopResizing);
         };
-    }, [resize, stopResizing]);
+    }, [isResizing, resize, stopResizing]);
 
     return { sidebarRef, sidebarWidth, isResizing, startResizing };
 };

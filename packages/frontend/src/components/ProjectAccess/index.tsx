@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
+import { Anchor, Group, Text } from '@mantine/core';
 import { FC, useState } from 'react';
-import { Subtitle, SubtitleWrapper } from '../../pages/ProjectSettings.styles';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
 import ProjectAccess from './ProjectAccess';
@@ -27,18 +27,19 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
                 />
             ) : (
                 <>
-                    <SubtitleWrapper>
-                        <Subtitle>
+                    <Group position="apart">
+                        <Text color="dimmed">
                             Learn more about permissions in our{' '}
-                            <a
+                            <Anchor
                                 role="button"
                                 href="https://docs.lightdash.com/references/roles"
                                 target="_blank"
                                 rel="noreferrer"
                             >
                                 docs
-                            </a>
-                        </Subtitle>
+                            </Anchor>
+                        </Text>
+
                         {!showProjectAccessCreate && (
                             <Can
                                 I={'manage'}
@@ -57,7 +58,7 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
                                 />
                             </Can>
                         )}
-                    </SubtitleWrapper>
+                    </Group>
 
                     <ProjectAccess projectUuid={projectUuid} />
                 </>

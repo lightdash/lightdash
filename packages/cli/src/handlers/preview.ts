@@ -9,7 +9,7 @@ import {
 } from 'unique-names-generator';
 import { URL } from 'url';
 import { LightdashAnalytics } from '../analytics/analytics';
-import { getConfig } from '../config';
+import { getConfig, setPreviewProject, unsetPreviewProject } from '../config';
 import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
@@ -75,11 +75,13 @@ export const previewHandler = async (
     );
     let project: Project | undefined;
 
+    const config = await getConfig();
     try {
         project = await createProject({
             ...options,
             name,
             type: ProjectType.PREVIEW,
+            copiedFromProjectUuid: config.context?.project,
         });
     } catch (e) {
         GlobalState.debug(`> Unable to create project: ${e}`);
@@ -92,7 +94,6 @@ export const previewHandler = async (
         console.error(
             "To create your project, you'll need to manually enter your warehouse connection details.",
         );
-        const config = await getConfig();
         const createProjectUrl =
             config.context?.serverUrl &&
             new URL('/createProject', config.context.serverUrl);
@@ -117,6 +118,9 @@ export const previewHandler = async (
             projectUuid: project.projectUuid,
             ignoreErrors: true,
         });
+
+        setPreviewProject(project.projectUuid, name);
+
         spinner.succeed(
             `  Developer preview "${name}" ready at: ${await projectUrl(
                 project,
@@ -141,7 +145,7 @@ export const previewHandler = async (
                 console.error(
                     `${styles.title(
                         '↻',
-                    )}   Detected changes on DBT project. Updating preview`,
+                    )}   Detected changes on dbt project. Updating preview`,
                 );
                 watcher.unwatch(manifestFilePath);
                 // Deploying will change manifest.json too, so we need to stop watching the file until it is deployed
@@ -175,6 +179,9 @@ export const previewHandler = async (
             url: `/api/v1/org/projects/${project.projectUuid}`,
             body: undefined,
         });
+
+        unsetPreviewProject();
+
         await LightdashAnalytics.track({
             event: 'preview.error',
             properties: {
@@ -236,19 +243,21 @@ export const startPreviewHandler = async (
             console.info(`::set-output name=url::${url}`);
         }
     } else {
+        const config = await getConfig();
+
         // Create
         console.error(`Creating new project preview ${projectName}`);
         const project = await createProject({
             ...options,
             name: projectName,
             type: ProjectType.PREVIEW,
+            copiedFromProjectUuid: config.context?.project,
         });
 
         if (!project) {
             console.error(
                 "To create your project, you'll need to manually enter your warehouse connection details.",
             );
-            const config = await getConfig();
             const createProjectUrl =
                 config.context?.serverUrl &&
                 new URL('/createProject', config.context.serverUrl);
@@ -259,6 +268,9 @@ export const startPreviewHandler = async (
             }
             return;
         }
+
+        setPreviewProject(project.projectUuid, projectName);
+
         await LightdashAnalytics.track({
             event: 'start_preview.create',
             properties: {
@@ -273,6 +285,7 @@ export const startPreviewHandler = async (
             ignoreErrors: true,
         });
         const url = await projectUrl(project);
+
         console.error(`New project created on ${url}`);
         if (process.env.CI === 'true') {
             console.info(`::set-output name=url::${url}`);
@@ -292,6 +305,8 @@ export const stopPreviewHandler = async (
     }
 
     const projectName = options.name;
+
+    unsetPreviewProject();
 
     const previewProject = await getPreviewProject(projectName);
     if (previewProject) {

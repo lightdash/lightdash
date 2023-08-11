@@ -1,3 +1,4 @@
+import { IconLink } from '@tabler/icons-react';
 import copy from 'copy-to-clipboard';
 import React, { FC, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -36,7 +37,7 @@ const ShareShortLinkButton: FC<{ disabled?: boolean }> = ({ disabled }) => {
                 createShareUrl(shareUrl);
             }}
             disabled={isDisabled}
-            icon="link"
+            icon={<IconLink size={16} />}
         />
     );
 };

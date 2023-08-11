@@ -1,15 +1,22 @@
-import { getResultValues } from '@lightdash/common';
+import { subject } from '@casl/ability';
+import { Button, Popover } from '@mantine/core';
+import { IconShare2 } from '@tabler/icons-react';
 import { FC, memo, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { downloadCsv } from '../../../hooks/useDownloadCsv';
-import { getQueryResults } from '../../../hooks/useQueryResults';
+import { useApp } from '../../../providers/AppProvider';
 import {
     ExplorerSection,
     useExplorerContext,
 } from '../../../providers/ExplorerProvider';
 import AddColumnButton from '../../AddColumnButton';
-import CollapsableCard from '../../common/CollapsableCard';
-import DownloadCsvPopup from '../../DownloadCsvPopup';
+import { Can } from '../../common/Authorization';
+import CollapsableCard, {
+    COLLAPSABLE_CARD_BUTTON_PROPS,
+    COLLAPSABLE_CARD_POPOVER_PROPS,
+} from '../../common/CollapsableCard';
+import MantineIcon from '../../common/MantineIcon';
+import ExportCSV from '../../ExportCSV';
 import LimitButton from '../../LimitButton';
 import SortButton from '../../SortButton';
 import { ExplorerResults } from './ExplorerResults';
@@ -33,6 +40,9 @@ const ResultsCard: FC = memo(() => {
     const rows = useExplorerContext(
         (context) => context.queryResults.data?.rows,
     );
+    const resultsData = useExplorerContext(
+        (context) => context.queryResults.data,
+    );
     const setRowLimit = useExplorerContext(
         (context) => context.actions.setRowLimit,
     );
@@ -42,6 +52,13 @@ const ResultsCard: FC = memo(() => {
     const metricQuery = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery,
     );
+
+    const columnOrder = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableConfig.columnOrder,
+    );
+
+    const disabled = !resultsData || resultsData.rows.length <= 0;
+
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const getCsvLink = async (csvLimit: number | null, onlyRaw: boolean) => {
@@ -51,8 +68,10 @@ const ResultsCard: FC = memo(() => {
             query: metricQuery,
             csvLimit,
             onlyRaw,
+            columnOrder,
+            showTableNames: true,
         });
-        return csvResponse.url;
+        return csvResponse;
     };
 
     const resultsIsOpen = useMemo(
@@ -63,6 +82,7 @@ const ResultsCard: FC = memo(() => {
         () => toggleExpandedSection(ExplorerSection.RESULTS),
         [toggleExpandedSection],
     );
+    const { user } = useApp();
     return (
         <CollapsableCard
             title="Results"
@@ -89,11 +109,41 @@ const ResultsCard: FC = memo(() => {
                 tableName && (
                     <>
                         {isEditMode && <AddColumnButton />}
-                        <DownloadCsvPopup
-                            fileName={tableName}
-                            rows={rows}
-                            getCsvLink={getCsvLink}
-                        />
+
+                        <Can
+                            I="manage"
+                            this={subject('ExportCsv', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid: projectUuid,
+                            })}
+                        >
+                            <Popover
+                                {...COLLAPSABLE_CARD_POPOVER_PROPS}
+                                disabled={disabled}
+                                position="bottom-end"
+                            >
+                                <Popover.Target>
+                                    <Button
+                                        data-testid="export-csv-button"
+                                        {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                                        disabled={disabled}
+                                        px="xs"
+                                    >
+                                        <MantineIcon
+                                            icon={IconShare2}
+                                            color="gray"
+                                        />
+                                    </Button>
+                                </Popover.Target>
+
+                                <Popover.Dropdown>
+                                    <ExportCSV
+                                        rows={rows}
+                                        getCsvLink={getCsvLink}
+                                    />
+                                </Popover.Dropdown>
+                            </Popover>
+                        </Can>
                     </>
                 )
             }

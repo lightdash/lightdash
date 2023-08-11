@@ -15,7 +15,15 @@ import {
     stopPreviewHandler,
 } from './handlers/preview';
 import { setProjectInteractivelyHandler } from './handlers/setProject';
+import { validateHandler } from './handlers/validate';
 import * as styles from './styles';
+
+// Suppress AWS SDK V2 warning, imported by snowflake SDK
+process.env.AWS_SDK_JS_SUPPRESS_MAINTENANCE_MODE_MESSAGE = '1';
+
+const nodeVersion = require('parse-node-version')(process.version);
+
+const OPTIMIZED_NODE_VERSION = 16;
 
 const { version: VERSION } = require('../package.json');
 
@@ -33,7 +41,7 @@ function parseIntArgument(value: string) {
 
 function parseStartOfWeekArgument(value: string) {
     const number = parseIntArgument(value);
-    if (number <= 0 || number > 6) {
+    if (number < 0 || number > 6) {
         throw new InvalidArgumentError(
             'Not a valid number. Please use a number from 0 (Monday) to 6 (Sunday)',
         );
@@ -394,7 +402,11 @@ program
     .option('--full-refresh')
     .option('--verbose', undefined, false)
 
-    .option('--create', 'Create a new project on your organization', false)
+    .option(
+        '--create [project_name]',
+        "Create a new project. If a project name is not provided, you'll be prompted for one on creation.",
+        undefined,
+    )
     .option('--ignore-errors', 'Allows deploy with errors on compile', false)
     .option(
         '--start-of-week <number>',
@@ -415,6 +427,48 @@ ${styles.bold('Examples:')}
     )
     .option('--verbose', undefined, false)
     .action(refreshHandler);
+
+program
+    .command('validate')
+    .description('Validate a project')
+    .option(
+        '--project <project uuid>',
+        'Project UUID to validate, if not provided, the last preview will be used',
+    )
+    .option('--verbose', undefined, false)
+    .option(
+        '--project-dir <path>',
+        'The directory of the dbt project',
+        defaultProjectDir,
+    )
+    .option(
+        '--profiles-dir <path>',
+        'The directory of the dbt profiles',
+        defaultProfilesDir,
+    )
+    .option(
+        '--profile <name>',
+        'The name of the profile to use (defaults to profile name in dbt_project.yml)',
+        undefined,
+    )
+    .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .option('--vars <vars>')
+    .option('--threads <number>')
+    .option('--no-version-check')
+    .option(
+        '-s, --select <models...>',
+        'specify models (accepts dbt selection syntax)',
+    )
+    .option(
+        '-m, --models <models...>',
+        'specify models (accepts dbt selection syntax)',
+    )
+    .option('--exclude <models...>')
+    .option('--selector <selector_name>')
+    .option('--state <state>')
+    .option('--full-refresh')
+    .option('--verbose', undefined, false)
+    .action(validateHandler);
 
 program
     .command('generate')
@@ -473,6 +527,7 @@ ${styles.bold('Examples:')}
         undefined,
     )
     .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .option('--vars <vars>')
     .option('-y, --assume-yes', 'assume yes to prompts', false)
     .option(
         '--exclude-meta',
@@ -499,6 +554,20 @@ const errorHandler = (err: Error) => {
             `  🐛 https://github.com/lightdash/lightdash/issues/new?assignees=&labels=🐛+bug&template=bug_report.md&title=${encodeURIComponent(
                 err.message,
             )}`,
+        );
+    }
+    if (err.message.includes('ENOENT: dbt')) {
+        console.error(
+            styles.error(
+                `\n You must have dbt installed to use this command. See https://docs.getdbt.com/docs/core/installation for installation instructions`,
+            ),
+        );
+    }
+    if (nodeVersion.major !== OPTIMIZED_NODE_VERSION) {
+        console.warn(
+            styles.warning(
+                `⚠️ You are using Node.js version ${process.version}. Lightdash CLI is optimized for v${OPTIMIZED_NODE_VERSION} so you might experience issues.`,
+            ),
         );
     }
     process.exit(1);

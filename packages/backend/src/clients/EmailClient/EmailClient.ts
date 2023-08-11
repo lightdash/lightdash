@@ -12,8 +12,12 @@ import Mail from 'nodemailer/lib/mailer';
 import { AuthenticationType } from 'nodemailer/lib/smtp-connection';
 import path from 'path';
 import { LightdashConfig } from '../../config/parseConfig';
-import Logger from '../../logger';
+import Logger from '../../logging/logger';
 
+export type AttachmentUrl = {
+    path: string;
+    filename: string;
+};
 type Dependencies = {
     lightdashConfig: Pick<LightdashConfig, 'smtp' | 'siteUrl'>;
 };
@@ -125,7 +129,7 @@ export default class EmailClient {
         return this.sendEmail({
             to: invite.email,
             subject: `You've been invited to join Lightdash`,
-            template: 'invite',
+            template: 'invitation',
             context: {
                 orgName: userThatInvited.organizationName,
                 inviteUrl: `${invite.inviteUrl}?from=email`,
@@ -146,11 +150,15 @@ export default class EmailClient {
             case ProjectMemberRole.VIEWER:
                 roleAction = 'view';
                 break;
+            case ProjectMemberRole.INTERACTIVE_VIEWER:
+                roleAction = 'explore';
+                break;
             case ProjectMemberRole.EDITOR:
+            case ProjectMemberRole.DEVELOPER:
                 roleAction = 'edit';
                 break;
             case ProjectMemberRole.ADMIN:
-                roleAction = 'admin';
+                roleAction = 'manage';
                 break;
             default:
                 const nope: never = projectMember.role;
@@ -167,6 +175,161 @@ export default class EmailClient {
                 roleAction,
             },
             text: `${userThatInvited.firstName} ${userThatInvited.lastName} has invited you to ${roleAction} this project: ${projectUrl}`,
+        });
+    }
+
+    public async sendImageNotificationEmail(
+        recipient: string,
+        subject: string,
+        title: string,
+        description: string,
+        date: string,
+        frequency: string,
+        imageUrl: string,
+        url: string,
+        schedulerUrl: string,
+    ) {
+        return this.sendEmail({
+            to: recipient,
+            subject,
+            template: 'imageNotification',
+            context: {
+                title,
+                imageUrl,
+                description,
+                date,
+                frequency,
+                url,
+                host: this.lightdashConfig.siteUrl,
+                schedulerUrl,
+            },
+            text: title,
+        });
+    }
+
+    public async sendChartCsvNotificationEmail(
+        recipient: string,
+        subject: string,
+        title: string,
+        description: string,
+        date: string,
+        frequency: string,
+        attachment: AttachmentUrl,
+        url: string,
+        schedulerUrl: string,
+    ) {
+        const csvUrl = attachment.path;
+        return this.sendEmail({
+            to: recipient,
+            subject,
+            template: 'chartCsvNotification',
+            context: {
+                title,
+                description,
+                date,
+                frequency,
+                url,
+                csvUrl,
+                host: this.lightdashConfig.siteUrl,
+                schedulerUrl,
+            },
+            text: title,
+        });
+    }
+
+    public async sendDashboardCsvNotificationEmail(
+        recipient: string,
+        subject: string,
+        title: string,
+        description: string,
+        date: string,
+        frequency: string,
+        attachments: AttachmentUrl[],
+        url: string,
+        schedulerUrl: string,
+    ) {
+        const csvUrls = `<table
+        role="presentation"
+        width="100%"
+        cellpadding="0"
+        cellspacing="0"
+        class="t179"
+     >
+            ${attachments
+                .map(
+                    (attachment) =>
+                        `
+                          <tr>
+                            <td
+                              class="t180"
+                              style="
+       overflow: hidden;
+       text-align: center;
+       line-height: 32px;
+       mso-line-height-rule: exactly;
+       mso-text-raise: 5px;
+       padding: 0
+       5px
+       0
+       5px;
+       border-radius: 3px
+       3px
+       3px
+       3px;
+       "
+                            >
+                                <a class="t181"
+                                   style="display:block;font-family:BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif, 'Roboto';line-height:32px;font-weight:500;font-style:normal;font-size:14px;text-decoration:underline;direction:ltr;color:#7262FF;text-align:center;mso-line-height-rule:exactly;mso-text-raise:5px;"
+                                   target="_blank"
+                                   href="${attachment.path}">
+                                     ${attachment.filename}
+                                   </a>
+                         
+                           </td>
+                           </tr>
+`,
+                )
+                .join('')}
+                </table>`;
+        return this.sendEmail({
+            to: recipient,
+            subject,
+            template: 'dashboardCsvNotification',
+            context: {
+                title,
+                description,
+                date,
+                frequency,
+                csvUrls,
+                url,
+                host: this.lightdashConfig.siteUrl,
+                schedulerUrl,
+            },
+            text: title,
+        });
+    }
+
+    async sendOneTimePasscodeEmail({
+        recipient,
+        passcode,
+    }: {
+        recipient: string;
+        passcode: string;
+    }): Promise<void> {
+        const subject = 'Verify your email address';
+        const text = `
+        Verify your email address by entering the following passcode in Lightdash: ${passcode}
+            `;
+        return this.sendEmail({
+            to: recipient,
+            subject,
+            template: 'oneTimePasscode',
+            context: {
+                passcode,
+                title: subject,
+                host: this.lightdashConfig.siteUrl,
+            },
+            text,
         });
     }
 }

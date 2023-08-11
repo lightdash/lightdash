@@ -11,12 +11,12 @@ import {
     Metric,
     MetricType,
     ParseError,
+    SupportedDbtAdapter,
     WarehouseConnectionError,
     WarehouseQueryError,
-    WeekDay,
 } from '@lightdash/common';
-import { WarehouseCatalog, WarehouseClient } from '../types';
-import { getDefaultMetricSql } from '../utils/sql';
+import { WarehouseCatalog } from '../types';
+import WarehouseBaseClient from './WarehouseBaseClient';
 
 type SchemaResult = {
     TABLE_CAT: string;
@@ -160,36 +160,24 @@ const mapFieldType = (type: string): DimensionType => {
     }
 };
 
-export class DatabricksWarehouseClient implements WarehouseClient {
+export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabricksCredentials> {
     schema: string;
 
     catalog?: string;
 
     connectionOptions: ConnectionOptions;
 
-    startOfWeek: WeekDay | null | undefined;
-
-    constructor({
-        serverHostName,
-        personalAccessToken,
-        httpPath,
-        // this supposed to be a `schema` but changing it will break for existing customers
-        database: schema,
-        catalog,
-        startOfWeek,
-    }: CreateDatabricksCredentials) {
-        this.startOfWeek = startOfWeek;
-        this.schema = schema;
-        this.catalog = catalog;
+    constructor(credentials: CreateDatabricksCredentials) {
+        super(credentials);
+        this.schema = credentials.database;
+        this.catalog = credentials.catalog;
         this.connectionOptions = {
-            token: personalAccessToken,
-            host: serverHostName,
-            path: httpPath.startsWith('/') ? httpPath : `/${httpPath}`,
+            token: credentials.personalAccessToken,
+            host: credentials.serverHostName,
+            path: credentials.httpPath.startsWith('/')
+                ? credentials.httpPath
+                : `/${credentials.httpPath}`,
         };
-    }
-
-    getStartOfWeek() {
-        return this.startOfWeek;
     }
 
     private async getSession() {
@@ -217,12 +205,19 @@ export class DatabricksWarehouseClient implements WarehouseClient {
         };
     }
 
-    async runQuery(sql: string) {
+    async runQuery(sql: string, tags?: Record<string, string>) {
         const { session, close } = await this.getSession();
         let query: IOperation | null = null;
 
+        let alteredQuery = sql;
+        if (tags) {
+            alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(tags)}`;
+        }
+
         try {
-            query = await session.executeStatement(sql);
+            query = await session.executeStatement(alteredQuery, {
+                runAsync: true,
+            });
 
             const result = await query.fetchAll();
             const schema = await query.getSchema();
@@ -249,10 +244,6 @@ export class DatabricksWarehouseClient implements WarehouseClient {
             if (query) await query.close();
             await close();
         }
-    }
-
-    async test(): Promise<void> {
-        await this.runQuery('SELECT 1');
     }
 
     async getCatalog(
@@ -317,6 +308,10 @@ export class DatabricksWarehouseClient implements WarehouseClient {
         return "'";
     }
 
+    getAdapterType(): SupportedDbtAdapter {
+        return SupportedDbtAdapter.DATABRICKS;
+    }
+
     getEscapeStringQuoteChar() {
         return '\\';
     }
@@ -328,7 +323,7 @@ export class DatabricksWarehouseClient implements WarehouseClient {
             case MetricType.MEDIAN:
                 return `PERCENTILE(${sql}, 0.5)`;
             default:
-                return getDefaultMetricSql(sql, metric.type);
+                return super.getMetricSql(sql, metric);
         }
     }
 }

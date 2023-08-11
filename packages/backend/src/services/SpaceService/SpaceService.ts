@@ -4,32 +4,57 @@ import {
     ForbiddenError,
     SessionUser,
     Space,
+    SpaceSummary,
     UpdateSpace,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
+import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
 
 type Dependencies = {
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
+    pinnedListModel: PinnedListModel;
 };
 
-export const hasSpaceAccess = (space: Space, userUuid: string): boolean =>
-    !space.isPrivate ||
-    space.access.find(
-        (userAccess) =>
-            userAccess.userUuid === userUuid && userAccess.role !== null,
-    ) !== undefined;
+export const hasSpaceAccess = (
+    user: SessionUser,
+    space: Pick<
+        SpaceSummary | Space,
+        'isPrivate' | 'access' | 'organizationUuid' | 'projectUuid'
+    >,
+    checkAdminAccess: boolean = true,
+): boolean => {
+    const hasAdminAccess = user.ability.can(
+        'manage',
+        subject('Project', {
+            organizationUuid: space.organizationUuid,
+            projectUuid: space.projectUuid,
+        }),
+    );
+
+    const userUuidsWithAccess = space.access.map((access) =>
+        typeof access === 'string' ? access : access.userUuid,
+    );
+
+    const hasAccess =
+        !space.isPrivate || userUuidsWithAccess.includes(user.userUuid);
+
+    return checkAdminAccess ? hasAdminAccess || hasAccess : hasAccess;
+};
 
 export class SpaceService {
     private readonly projectModel: ProjectModel;
 
     private readonly spaceModel: SpaceModel;
 
+    private readonly pinnedListModel: PinnedListModel;
+
     constructor(dependencies: Dependencies) {
         this.projectModel = dependencies.projectModel;
         this.spaceModel = dependencies.spaceModel;
+        this.pinnedListModel = dependencies.pinnedListModel;
     }
 
     async getAllSpaces(
@@ -45,7 +70,7 @@ export class SpaceService {
                         organizationUuid: space.organizationUuid,
                         projectUuid,
                     }),
-                ) && hasSpaceAccess(space, user.userUuid),
+                ) && hasSpaceAccess(user, space, false),
         );
     }
 
@@ -64,7 +89,7 @@ export class SpaceService {
                     projectUuid,
                 }),
             ) ||
-            !hasSpaceAccess(space, user.userUuid)
+            !hasSpaceAccess(user, space, true) // admins can also view private spaces
         ) {
             throw new ForbiddenError();
         }
@@ -110,6 +135,8 @@ export class SpaceService {
                 name: space.name,
                 spaceId: newSpace.uuid,
                 projectId: projectUuid,
+                isPrivate: newSpace.isPrivate,
+                userAccessCount: space.access?.length ?? 0,
             },
         });
         return newSpace;
@@ -120,7 +147,7 @@ export class SpaceService {
         spaceUuid: string,
         updateSpace: UpdateSpace,
     ): Promise<Space> {
-        const space = await this.spaceModel.getFullSpace(spaceUuid);
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
         if (
             user.ability.cannot(
                 'manage',
@@ -129,7 +156,7 @@ export class SpaceService {
                     projectUuid: space.projectUuid,
                 }),
             ) ||
-            !hasSpaceAccess(space, user.userUuid)
+            !hasSpaceAccess(user, space, true)
         ) {
             throw new ForbiddenError();
         }
@@ -152,13 +179,15 @@ export class SpaceService {
                 name: space.name,
                 spaceId: spaceUuid,
                 projectId: space.projectUuid,
+                isPrivate: space.isPrivate,
+                userAccessCount: space.access.length,
             },
         });
         return updatedSpace;
     }
 
     async deleteSpace(user: SessionUser, spaceUuid: string): Promise<void> {
-        const space = await this.spaceModel.getFullSpace(spaceUuid);
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
         if (
             user.ability.cannot(
                 'delete',
@@ -167,7 +196,7 @@ export class SpaceService {
                     projectUuid: space.projectUuid,
                 }),
             ) ||
-            !hasSpaceAccess(space, user.userUuid)
+            !hasSpaceAccess(user, space, true)
         ) {
             throw new ForbiddenError();
         }
@@ -189,7 +218,7 @@ export class SpaceService {
         spaceUuid: string,
         shareWithUserUuid: string,
     ): Promise<void> {
-        const space = await this.spaceModel.getFullSpace(spaceUuid);
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
         if (
             user.ability.cannot(
                 'manage',
@@ -198,7 +227,7 @@ export class SpaceService {
                     projectUuid: space.projectUuid,
                 }),
             ) ||
-            !hasSpaceAccess(space, user.userUuid)
+            !hasSpaceAccess(user, space, true)
         ) {
             throw new ForbiddenError();
         }
@@ -211,7 +240,7 @@ export class SpaceService {
         spaceUuid: string,
         shareWithUserUuid: string,
     ): Promise<void> {
-        const space = await this.spaceModel.getFullSpace(spaceUuid);
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
         if (
             user.ability.cannot(
                 'manage',
@@ -220,19 +249,62 @@ export class SpaceService {
                     projectUuid: space.projectUuid,
                 }),
             ) ||
-            !hasSpaceAccess(space, user.userUuid)
+            !hasSpaceAccess(user, space, true)
         ) {
             throw new ForbiddenError();
         }
 
         if (
-            space.access.filter(
-                (userAccess) => userAccess.userUuid !== shareWithUserUuid,
-            ).length === 0
+            space.access.filter((userUuid) => userUuid !== shareWithUserUuid)
+                .length === 0
         ) {
             throw new Error('There must be at least 1 user in this space');
         }
 
         await this.spaceModel.removeSpaceAccess(spaceUuid, shareWithUserUuid);
+    }
+
+    async togglePinning(user: SessionUser, spaceUuid: string): Promise<Space> {
+        const existingSpace = await this.spaceModel.get(spaceUuid);
+        const { projectUuid, organizationUuid, pinnedListUuid } = existingSpace;
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('PinnedItems', { projectUuid, organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (pinnedListUuid) {
+            await this.pinnedListModel.deleteItem({
+                pinnedListUuid,
+                spaceUuid,
+            });
+        } else {
+            await this.pinnedListModel.addItem({
+                projectUuid,
+                spaceUuid,
+            });
+        }
+
+        const pinnedList = await this.pinnedListModel.getPinnedListAndItems(
+            existingSpace.projectUuid,
+        );
+
+        analytics.track({
+            event: 'pinned_list.updated',
+            userId: user.userUuid,
+            properties: {
+                projectId: existingSpace.projectUuid,
+                organizationId: existingSpace.organizationUuid,
+                location: 'homepage',
+                pinnedListId: pinnedList.pinnedListUuid,
+                pinnedItems: pinnedList.items,
+            },
+        });
+
+        return this.getSpace(projectUuid, user, spaceUuid);
     }
 }

@@ -3,11 +3,12 @@ import {
     CompiledMetric,
     CompiledTableCalculation,
     FieldId,
+    Format,
     friendlyName,
     MetricType,
     TableCalculation,
 } from './field';
-import { Filters } from './filter';
+import { Filters, MetricFilterRule } from './filter';
 
 export interface AdditionalMetric {
     label?: string;
@@ -17,14 +18,20 @@ export interface AdditionalMetric {
     hidden?: boolean;
     round?: number;
     compact?: CompactOrAlias;
-    format?: string;
+    format?: Format;
     table: string;
     name: string;
     index?: number;
+    filters?: MetricFilterRule[];
+    baseDimensionName?: string;
+    uuid?: string | null;
 }
 
 export const isAdditionalMetric = (value: any): value is AdditionalMetric =>
     value?.table && value?.name && !value?.fieldType;
+
+export const getCustomMetricDimensionId = (metric: AdditionalMetric) =>
+    `${metric.table}_${metric.baseDimensionName}`;
 
 // Object used to query an explore. Queries only happen within a single explore
 export type MetricQuery = {

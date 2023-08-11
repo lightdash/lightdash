@@ -1,5 +1,8 @@
+import { subject } from '@casl/ability';
+
 import {
     ChartType,
+    convertFieldRefToFieldId,
     CreateSavedChartVersion,
     Field,
     fieldId as getFieldId,
@@ -7,7 +10,6 @@ import {
     FilterRule,
     getDimensions,
     getFields,
-    getResultValues,
     isDimension,
     isField,
     isMetric,
@@ -17,9 +19,12 @@ import {
 import { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
+import { downloadCsv } from '../../hooks/useDownloadCsv';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useUnderlyingDataResults } from '../../hooks/useQueryResults';
+import { useApp } from '../../providers/AppProvider';
+import { Can } from '../common/Authorization';
 import ErrorState from '../common/ErrorState';
 import LinkButton from '../common/LinkButton';
 import { TableColumn } from '../common/Table/types';
@@ -45,6 +50,8 @@ const UnderlyingDataModalContent: FC<Props> = () => {
     const { tableName, metricQuery, underlyingDataConfig } =
         useMetricQueryDataContext();
 
+    const { user } = useApp();
+
     const { data: explore } = useExplore(tableName, { refetchOnMount: false });
 
     const allFields = useMemo(
@@ -65,12 +72,12 @@ const UnderlyingDataModalContent: FC<Props> = () => {
     );
 
     const showUnderlyingValues: string[] | undefined = useMemo(() => {
-        return underlyingDataConfig?.meta !== undefined &&
-            isField(underlyingDataConfig?.meta?.item) &&
-            isMetric(underlyingDataConfig?.meta.item)
-            ? underlyingDataConfig?.meta.item.showUnderlyingValues
+        return underlyingDataConfig?.item !== undefined &&
+            isField(underlyingDataConfig.item) &&
+            isMetric(underlyingDataConfig.item)
+            ? underlyingDataConfig?.item.showUnderlyingValues
             : undefined;
-    }, [underlyingDataConfig?.meta]);
+    }, [underlyingDataConfig?.item]);
 
     const sortByUnderlyingValues = useCallback(
         (columnA: TableColumn, columnB: TableColumn) => {
@@ -99,17 +106,18 @@ const UnderlyingDataModalContent: FC<Props> = () => {
 
     const underlyingDataMetricQuery = useMemo<MetricQuery>(() => {
         if (!underlyingDataConfig) return defaultMetricQuery;
-        const { meta, row, pivotReference, dimensions, value } =
+        const { item, fieldValues, pivotReference, dimensions, value } =
             underlyingDataConfig;
-        if (meta?.item === undefined) return defaultMetricQuery;
+
+        if (item === undefined) return defaultMetricQuery;
 
         // We include tables from all fields that appear on the SQL query (aka tables from all columns in results)
         const rowFieldIds = pivotReference?.pivotValues
             ? [
                   ...pivotReference.pivotValues.map(({ field }) => field),
-                  ...Object.keys(row),
+                  ...Object.keys(fieldValues),
               ]
-            : Object.keys(row);
+            : Object.keys(fieldValues);
 
         // On charts, we might want to include the dimensions from SQLquery and not from rowdata, so we include those instead
         const dimensionFieldIds = dimensions ? dimensions : rowFieldIds;
@@ -123,14 +131,9 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         ]);
 
         // If we are viewing data from a metric or a table calculation, we filter using all existing dimensions in the table
-        const dimensionFilters = !isDimension(meta?.item)
-            ? Object.entries(row).reduce((acc, r) => {
-                  const [
-                      key,
-                      {
-                          value: { raw },
-                      },
-                  ] = r;
+        const dimensionFilters = !isDimension(item)
+            ? Object.entries(fieldValues).reduce((acc, r) => {
+                  const [key, { raw }] = r;
 
                   const dimensionFilter: FilterRule = {
                       id: uuidv4(),
@@ -156,7 +159,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                   {
                       id: uuidv4(),
                       target: {
-                          fieldId: getFieldId(meta?.item),
+                          fieldId: getFieldId(item),
                       },
                       operator:
                           value.raw === null
@@ -177,21 +180,20 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             values: [pivot.value],
         }));
 
-        // Metric filters fieldId don't have table prefixes, we add it here
         const metric: Metric | undefined =
-            isField(meta?.item) && isMetric(meta.item) ? meta.item : undefined;
+            isField(item) && isMetric(item) ? item : undefined;
+
         const metricFilters =
-            metric?.filters?.map((filter) => {
-                return {
-                    ...filter,
-                    target: {
-                        fieldId: getFieldId({
-                            ...metric,
-                            name: filter.target.fieldId,
-                        }),
-                    },
-                };
-            }) || [];
+            metric?.filters?.map((filter) => ({
+                ...filter,
+                target: {
+                    fieldId: convertFieldRefToFieldId(
+                        filter.target.fieldRef,
+                        metric.table,
+                    ),
+                },
+            })) || [];
+
         const exploreFilters =
             metricQuery?.filters?.dimensions !== undefined
                 ? [metricQuery.filters.dimensions]
@@ -214,8 +216,8 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                 and: combinedFilters,
             },
         };
-        const showUnderlyingTable: string | undefined = isField(meta?.item)
-            ? meta.item.table
+        const showUnderlyingTable: string | undefined = isField(item)
+            ? item.table
             : undefined;
         const availableDimensions = allDimensions.filter(
             (dimension) =>
@@ -304,21 +306,52 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         return <ErrorState error={error.error} hasMarginTop={false} />;
     }
 
+    const getCsvLink = async () => {
+        const csvResponse = await downloadCsv({
+            projectUuid,
+            tableId: tableName,
+            query: underlyingDataMetricQuery,
+            csvLimit: resultsData?.rows.length,
+            onlyRaw: false,
+            showTableNames: true,
+            columnOrder: [],
+        });
+        return csvResponse;
+    };
+
     return (
         <>
             <HeaderRightContent>
-                <DownloadCsvButton
-                    fileName={tableName}
-                    rows={resultsData && getResultValues(resultsData.rows)}
-                />
-                <LinkButton
-                    intent="primary"
-                    href={exploreFromHereUrl}
-                    icon="series-search"
-                    forceRefresh
+                <Can
+                    I="manage"
+                    this={subject('ExportCsv', {
+                        organizationUuid: user.data?.organizationUuid,
+                        projectUuid: projectUuid,
+                    })}
                 >
-                    Explore from here
-                </LinkButton>
+                    <DownloadCsvButton
+                        getCsvLink={getCsvLink}
+                        disabled={
+                            !resultsData?.rows || resultsData?.rows.length <= 0
+                        }
+                    />
+                </Can>
+                <Can
+                    I="manage"
+                    this={subject('Explore', {
+                        organizationUuid: user.data?.organizationUuid,
+                        projectUuid: projectUuid,
+                    })}
+                >
+                    <LinkButton
+                        intent="primary"
+                        href={exploreFromHereUrl}
+                        icon="series-search"
+                        forceRefresh
+                    >
+                        Explore from here
+                    </LinkButton>
+                </Can>
             </HeaderRightContent>
             <UnderlyingDataResultsTable
                 isLoading={isLoading}

@@ -1,11 +1,9 @@
 import { Dialog } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useMetricQueryDataContext } from './MetricQueryDataProvider';
 import UnderlyingDataModalContent from './UnderlyingDataModalContent';
 
-interface Props {}
-
-const UnderlyingDataModal: FC<Props> = () => {
+const UnderlyingDataModal: FC = () => {
     const { isUnderlyingDataModalOpen, closeUnderlyingDataModal } =
         useMetricQueryDataContext();
 

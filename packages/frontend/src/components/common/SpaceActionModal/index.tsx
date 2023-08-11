@@ -6,20 +6,25 @@ import {
     IconName,
     Intent,
 } from '@blueprintjs/core';
-import { assertUnreachable, Space } from '@lightdash/common';
+import {
+    assertUnreachable,
+    OrganizationMemberProfile,
+    Space,
+} from '@lightdash/common';
 import { FC, useState } from 'react';
 import { useForm, UseFormReturn } from 'react-hook-form';
 import { useHistory } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useCreateMutation,
-    useDeleteMutation,
     useSpace,
+    useSpaceDeleteMutation,
     useUpdateMutation,
 } from '../../../hooks/useSpaces';
 import Form from '../../ReactHookForm/Form';
 import SimpleButton from '../SimpleButton';
 
+import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import CreateSpaceModalContent, {
     CreateModalStep,
 } from './CreateSpaceModalContent';
@@ -57,6 +62,7 @@ export interface CreateSpaceModalBody {
     projectUuid: string;
     form: UseFormReturn<Space, object>;
     setIsShared: (isShared: boolean) => void;
+    organizationUsers: OrganizationMemberProfile[] | undefined;
 }
 
 const SpaceModal: FC<ActionModalProps> = ({
@@ -93,6 +99,7 @@ const SpaceModal: FC<ActionModalProps> = ({
         CreateModalStep.SET_NAME,
     );
     const [isShared, setIsShared] = useState<boolean>(false);
+    const { data: organizationUsers } = useOrganizationUsers();
 
     return (
         <Dialog isOpen title={title} icon={icon} onClose={onClose}>
@@ -105,6 +112,7 @@ const SpaceModal: FC<ActionModalProps> = ({
                             modalStep={modalStep}
                             form={form}
                             setIsShared={setIsShared}
+                            organizationUsers={organizationUsers}
                         />
                     ) : actionType === ActionType.UPDATE ? (
                         <UpdateSpaceModalContent data={data} />
@@ -134,7 +142,6 @@ const SpaceModal: FC<ActionModalProps> = ({
                                             }}
                                         />
                                         <Button
-                                            data-cy="submit-base-modal"
                                             type="submit"
                                             disabled={
                                                 isDisabled ||
@@ -169,7 +176,6 @@ const SpaceModal: FC<ActionModalProps> = ({
                                     modalStep === CreateModalStep.SET_NAME &&
                                     !isShared)) && (
                                 <Button
-                                    data-cy="submit-base-modal"
                                     type="submit"
                                     disabled={
                                         isDisabled || !form.formState.isValid
@@ -216,7 +222,7 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
         useUpdateMutation(projectUuid, spaceUuid!);
 
     const { mutateAsync: deleteMutation, isLoading: isDeleting } =
-        useDeleteMutation(projectUuid);
+        useSpaceDeleteMutation(projectUuid);
 
     const handleSubmitForm = async (state?: Space) => {
         if (actionType === ActionType.CREATE) {

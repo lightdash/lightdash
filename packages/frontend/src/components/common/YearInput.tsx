@@ -1,39 +1,46 @@
-import { NumericInput } from '@blueprintjs/core';
+import { YearPickerInput, YearPickerInputProps } from '@mantine/dates';
+import { useDisclosure } from '@mantine/hooks';
 import moment from 'moment';
-import React, { FC } from 'react';
+import { FC } from 'react';
 
-type Props = {
-    value: Date;
+type Props = Omit<YearPickerInputProps, 'value' | 'onChange'> & {
+    value: Date | null;
     onChange: (value: Date) => void;
-    disabled?: boolean;
 };
+const YearInput: FC<Props> = ({ value, onChange, ...props }) => {
+    const [isPopoverOpen, { open, close, toggle }] = useDisclosure();
 
-const YearInput: FC<Props> = ({ value, onChange, disabled }) => {
-    const utcYearValue = moment(value).year();
+    const yearValue = value ? moment(value).toDate() : null;
 
     return (
-        <NumericInput
-            className={disabled ? 'disabled-filter' : ''}
-            disabled={disabled}
-            fill
-            max={9999}
-            min={1000}
-            minLength={4}
-            maxLength={4}
-            defaultValue={utcYearValue}
-            onValueChange={(year) => {
-                if (year > 1000 && year < 9999) {
-                    onChange(moment(value).year(year).toDate());
-                }
+        <YearPickerInput
+            sx={{ width: '100%' }}
+            size="xs"
+            minDate={moment().year(1000).toDate()}
+            maxDate={moment().year(9999).toDate()}
+            onClick={toggle}
+            {...props}
+            popoverProps={{
+                withArrow: true,
+                withinPortal: false,
+                shadow: 'md',
+                // FIXME: remove this once we migrate off of Blueprint
+                ...props.popoverProps,
+                opened: isPopoverOpen,
+                onOpen: () => {
+                    props.popoverProps?.onOpen?.();
+                    open();
+                },
+                onClose: () => {
+                    props.popoverProps?.onClose?.();
+                    close();
+                },
             }}
-            onBlur={(e) => {
-                let year = parseInt(e.currentTarget.value, 10);
-                if (year < 1000) {
-                    year = 1000;
-                } else if (year > 9999) {
-                    year = 9999;
-                }
-                onChange(moment(value).year(year).toDate());
+            value={yearValue}
+            onChange={(date) => {
+                if (!date || Array.isArray(date)) return;
+                onChange(date);
+                close();
             }}
         />
     );

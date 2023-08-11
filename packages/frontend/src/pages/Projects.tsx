@@ -1,38 +1,26 @@
-import { NonIdealState, Spinner } from '@blueprintjs/core';
-import React, { FC } from 'react';
-import { Redirect, useParams } from 'react-router-dom';
+import { FC } from 'react';
+import { Redirect } from 'react-router-dom';
 import ErrorState from '../components/common/ErrorState';
-import { getLastProject, useProjects } from '../hooks/useProjects';
+import PageSpinner from '../components/PageSpinner';
+import { useActiveProjectUuid } from '../hooks/useActiveProject';
+import { useProjects } from '../hooks/useProjects';
 
-export const Projects: FC = () => {
-    const params = useParams<{ projectUuid: string | undefined }>();
+const Projects: FC = () => {
     const { isLoading, data, error } = useProjects();
-    if (isLoading) {
-        return (
-            <div style={{ marginTop: '20px' }}>
-                <NonIdealState title="Loading..." icon={<Spinner />} />
-            </div>
-        );
+    const { isLoading: isActiveProjectLoading, activeProjectUuid } =
+        useActiveProjectUuid();
+
+    if (isLoading || isActiveProjectLoading || !activeProjectUuid) {
+        return <PageSpinner />;
     }
-    if (error) {
+    if (error && error.error) {
         return <ErrorState error={error.error} />;
     }
     if (!data || data.length <= 0) {
         return <Redirect to="/no-access" />;
     }
 
-    const availableProjectUuids = data.map(({ projectUuid }) => projectUuid);
-
-    const find = (projectUuid: string | undefined) => {
-        return projectUuid && availableProjectUuids.includes(projectUuid)
-            ? projectUuid
-            : undefined;
-    };
-    const lastProject = getLastProject();
-    const projectUuid =
-        find(params.projectUuid) ||
-        find(lastProject) ||
-        availableProjectUuids[0];
-
-    return <Redirect to={`/projects/${projectUuid}/home`} />;
+    return <Redirect to={`/projects/${activeProjectUuid}/home`} />;
 };
+
+export default Projects;

@@ -1,19 +1,31 @@
 import { subject } from '@casl/ability';
 import {
+    AllowedEmailDomains,
+    CreateGroup,
+    CreateOrganization,
     ForbiddenError,
+    Group,
+    isUserWithOrg,
     LightdashMode,
     NotExistsError,
     OnbordingRecord,
-    Organisation,
+    Organization,
     OrganizationMemberProfile,
     OrganizationMemberProfileUpdate,
+    OrganizationMemberRole,
     OrganizationProject,
+    ParameterError,
     SessionUser,
+    UpdateOrganization,
+    validateOrganizationEmailDomains,
 } from '@lightdash/common';
+import { UpdateAllowedEmailDomains } from '@lightdash/common/src/types/organization';
 import { analytics } from '../../analytics/client';
 import { lightdashConfig } from '../../config/lightdashConfig';
+import { GroupsModel } from '../../models/GroupsModel';
 import { InviteLinkModel } from '../../models/InviteLinkModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
+import { OrganizationAllowedEmailDomainsModel } from '../../models/OrganizationAllowedEmailDomainsModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -26,6 +38,9 @@ type OrganizationServiceDependencies = {
     inviteLinkModel: InviteLinkModel;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     userModel: UserModel;
+
+    groupsModel: GroupsModel;
+    organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
 };
 
 export class OrganizationService {
@@ -41,6 +56,10 @@ export class OrganizationService {
 
     private readonly userModel: UserModel;
 
+    private readonly organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
+
+    private readonly groupsModel: GroupsModel;
+
     constructor({
         organizationModel,
         projectModel,
@@ -48,6 +67,8 @@ export class OrganizationService {
         inviteLinkModel,
         organizationMemberProfileModel,
         userModel,
+        groupsModel,
+        organizationAllowedEmailDomainsModel,
     }: OrganizationServiceDependencies) {
         this.organizationModel = organizationModel;
         this.projectModel = projectModel;
@@ -55,25 +76,31 @@ export class OrganizationService {
         this.inviteLinkModel = inviteLinkModel;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.userModel = userModel;
+        this.organizationAllowedEmailDomainsModel =
+            organizationAllowedEmailDomainsModel;
+        this.groupsModel = groupsModel;
     }
 
-    async get(user: SessionUser): Promise<Organisation> {
+    async get(user: SessionUser): Promise<Organization> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         const needsProject = !(await this.projectModel.hasProjects(
             user.organizationUuid,
         ));
 
-        const organisation = await this.organizationModel.get(
+        const organization = await this.organizationModel.get(
             user.organizationUuid,
         );
         return {
-            ...organisation,
+            ...organization,
             needsProject,
         };
     }
 
     async updateOrg(
         { organizationUuid, organizationName, userUuid, ability }: SessionUser,
-        data: Organisation,
+        data: UpdateOrganization,
     ): Promise<void> {
         if (
             ability.cannot(
@@ -97,7 +124,10 @@ export class OrganizationService {
                         : 'self-hosted',
                 organizationId: organizationUuid,
                 organizationName: org.name,
+                defaultProjectUuid: org.defaultProjectUuid,
                 defaultColourPaletteUpdated: data.chartColors !== undefined,
+                defaultProjectUuidUpdated:
+                    data.defaultProjectUuid !== undefined,
             },
         });
     }
@@ -201,6 +231,9 @@ export class OrganizationService {
     }
 
     async setOnboardingSuccessDate(user: SessionUser): Promise<void> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         const { shownSuccessAt } = await this.getOnboarding(user);
         if (shownSuccessAt) {
             throw new NotExistsError('Can not override "shown success" date');
@@ -210,11 +243,41 @@ export class OrganizationService {
         });
     }
 
+    async getMemberByUuid(
+        user: SessionUser,
+        memberUuid: string,
+    ): Promise<OrganizationMemberProfile> {
+        const { organizationUuid } = user;
+        if (
+            organizationUuid === undefined ||
+            user.ability.cannot('view', 'OrganizationMemberProfile')
+        ) {
+            throw new ForbiddenError();
+        }
+        const member =
+            await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
+                organizationUuid,
+                memberUuid,
+            );
+        if (
+            user.ability.cannot(
+                'view',
+                subject('OrganizationMemberProfile', member),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return member;
+    }
+
     async updateMember(
         authenticatedUser: SessionUser,
         memberUserUuid: string,
         data: OrganizationMemberProfileUpdate,
     ): Promise<OrganizationMemberProfile> {
+        if (!isUserWithOrg(authenticatedUser)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         const { organizationUuid } = authenticatedUser;
         if (
             authenticatedUser.ability.cannot(
@@ -260,5 +323,154 @@ export class OrganizationService {
             memberUserUuid,
             data,
         );
+    }
+
+    async getAllowedEmailDomains(
+        user: SessionUser,
+    ): Promise<AllowedEmailDomains> {
+        const { organizationUuid } = user;
+        if (organizationUuid === undefined) {
+            throw new NotExistsError('Organization not found');
+        }
+
+        const allowedEmailDomains =
+            await this.organizationAllowedEmailDomainsModel.findAllowedEmailDomains(
+                organizationUuid,
+            );
+        if (!allowedEmailDomains) {
+            return {
+                organizationUuid,
+                emailDomains: [],
+                role: OrganizationMemberRole.VIEWER,
+                projects: [],
+            };
+        }
+        return allowedEmailDomains;
+    }
+
+    async updateAllowedEmailDomains(
+        user: SessionUser,
+        data: UpdateAllowedEmailDomains,
+    ): Promise<AllowedEmailDomains> {
+        const { organizationUuid } = user;
+        if (organizationUuid === undefined) {
+            throw new NotExistsError('Organization not found');
+        }
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const error = validateOrganizationEmailDomains(data.emailDomains);
+
+        if (error) {
+            throw new ParameterError(error);
+        }
+
+        const allowedEmailDomains =
+            await this.organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains(
+                { ...data, organizationUuid },
+            );
+        analytics.track({
+            event: 'organization_allowed_email_domains.updated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: allowedEmailDomains.organizationUuid,
+                emailDomainsCount: allowedEmailDomains.emailDomains.length,
+                role: allowedEmailDomains.role,
+                projectIds: allowedEmailDomains.projects.map(
+                    (p) => p.projectUuid,
+                ),
+                projectRoles: allowedEmailDomains.projects.map((p) => p.role),
+            },
+        });
+
+        return allowedEmailDomains;
+    }
+
+    async createAndJoinOrg(
+        user: SessionUser,
+        data: CreateOrganization,
+    ): Promise<void> {
+        if (
+            !lightdashConfig.allowMultiOrgs &&
+            (await this.userModel.hasUsers()) &&
+            (await this.organizationModel.hasOrgs())
+        ) {
+            throw new ForbiddenError(
+                'Cannot register user in a new organization. Ask an existing admin for an invite link.',
+            );
+        }
+        if (isUserWithOrg(user)) {
+            throw new ForbiddenError('User already has an organization');
+        }
+        const org = await this.organizationModel.create(data);
+        analytics.track({
+            event: 'organization.created',
+            userId: user.userUuid,
+            properties: {
+                type:
+                    lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                        ? 'cloud'
+                        : 'self-hosted',
+                organizationId: org.organizationUuid,
+                organizationName: org.name,
+            },
+        });
+        await this.userModel.joinOrg(
+            user.userUuid,
+            org.organizationUuid,
+            OrganizationMemberRole.ADMIN,
+            undefined,
+        );
+        await analytics.track({
+            userId: user.userUuid,
+            event: 'user.joined_organization',
+            properties: {
+                organizationId: org.organizationUuid,
+                role: OrganizationMemberRole.ADMIN,
+                projectIds: [],
+            },
+        });
+    }
+
+    async addGroupToOrganization(
+        actor: SessionUser,
+        createGroup: Pick<CreateGroup, 'name'>,
+    ): Promise<Group> {
+        if (
+            actor.organizationUuid === undefined ||
+            actor.ability.cannot(
+                'create',
+                subject('Group', {
+                    organizationUuid: actor.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const group = await this.groupsModel.createGroup({
+            organizationUuid: actor.organizationUuid,
+            ...createGroup,
+        });
+        return group;
+    }
+
+    async listGroupsInOrganization(actor: SessionUser): Promise<Group[]> {
+        if (actor.organizationUuid === undefined) {
+            throw new ForbiddenError();
+        }
+        const groups = await this.groupsModel.find({
+            organizationUuid: actor.organizationUuid,
+        });
+        const allowedGroups = groups.filter((group) =>
+            actor.ability.can('view', subject('Group', group)),
+        );
+        return allowedGroups;
     }
 }

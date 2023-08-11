@@ -1,23 +1,23 @@
-import { MenuDivider } from '@blueprintjs/core';
-import { MenuItem2, Tooltip2 } from '@blueprintjs/popover2';
+import { Skeleton, Stack } from '@mantine/core';
+import { FC, memo } from 'react';
 
-import React, { FC, memo } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
-import { SidebarDivider } from '../../common/Page/Sidebar';
-import { StyledBreadcrumb } from '../ExploreSideBar/ExploreSideBar.styles';
+import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import ExploreTree from '../ExploreTree';
-import { LoadingStateWrapper } from './ExplorePanel.styles';
 
-const SideBarLoadingState = () => (
-    <LoadingStateWrapper large>
-        {[0, 1, 2, 3, 4].map((idx) => (
-            <React.Fragment key={idx}>
-                <MenuItem2 className="bp4-skeleton" />
-                <MenuDivider />
-            </React.Fragment>
-        ))}
-    </LoadingStateWrapper>
+const LoadingSkeleton = () => (
+    <Stack>
+        <Skeleton h="md" />
+
+        <Skeleton h="xxl" />
+
+        <Stack spacing="xxs">
+            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((index) => (
+                <Skeleton key={index} h="xxl" />
+            ))}
+        </Stack>
+    </Stack>
 );
 
 interface ExplorePanelProps {
@@ -42,52 +42,50 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const { data, status } = useExplore(activeTableName);
 
     if (status === 'loading') {
-        return <SideBarLoadingState />;
+        return <LoadingSkeleton />;
     }
 
-    if (data) {
-        const tableBreadcrumbItem = {
-            children: (
-                <Tooltip2 content={data.tables[data.baseTable].description}>
-                    {data.label}
-                </Tooltip2>
-            ),
-        };
-
-        return (
-            <>
-                <StyledBreadcrumb
-                    items={
-                        onBack
-                            ? [
-                                  {
-                                      text: 'Tables',
-                                      onClick: onBack,
-                                  },
-                                  tableBreadcrumbItem,
-                              ]
-                            : [tableBreadcrumbItem]
-                    }
-                />
-
-                <SidebarDivider />
-
-                <ExploreTree
-                    explore={data}
-                    additionalMetrics={additionalMetrics || []}
-                    selectedNodes={activeFields}
-                    onSelectedFieldChange={toggleActiveField}
-                />
-            </>
-        );
-    }
+    if (!data) return null;
 
     if (status === 'error') {
         if (onBack) onBack();
         return null;
     }
 
-    return <span>Cannot load explore</span>;
+    return (
+        <>
+            <PageBreadcrumbs
+                size="md"
+                items={[
+                    ...(onBack
+                        ? [
+                              {
+                                  title: 'Tables',
+                                  onClick: onBack,
+                              },
+                          ]
+                        : []),
+                    {
+                        title: data.label,
+                        active: true,
+                        tooltipProps: {
+                            withinPortal: true,
+                            disabled: !data.tables[data.baseTable].description,
+                            label: data.tables[data.baseTable].description,
+                            position: 'right',
+                        },
+                    },
+                ]}
+            />
+
+            <ExploreTree
+                explore={data}
+                additionalMetrics={additionalMetrics || []}
+                selectedNodes={activeFields}
+                onSelectedFieldChange={toggleActiveField}
+            />
+        </>
+    );
 });
 
 export default ExplorePanel;

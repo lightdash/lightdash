@@ -1,16 +1,14 @@
-import { Classes, Dialog } from '@blueprintjs/core';
+import { Dialog } from '@blueprintjs/core';
 import { Space } from '@lightdash/common';
+import { Anchor, Button } from '@mantine/core';
+import { IconLock, IconUsers } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useApp } from '../../../providers/AppProvider';
 import { ShareSpaceAccessType } from './ShareSpaceAccessType';
 import { ShareSpaceAddUser } from './ShareSpaceAddUser';
-import {
-    DialogBody,
-    DialogFooter,
-    OpenShareModal,
-} from './ShareSpaceModal.style';
+import { DialogBody, DialogFooter } from './ShareSpaceModal.style';
 import {
     AccessOption,
     SpaceAccessOptions,
@@ -34,17 +32,21 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
 
     return (
         <>
-            <OpenShareModal
-                icon={
-                    selectedAccess.value === SpaceAccessType.PRIVATE
-                        ? 'lock'
-                        : 'people'
+            <Button
+                leftIcon={
+                    selectedAccess.value === SpaceAccessType.PRIVATE ? (
+                        <IconLock size={18} />
+                    ) : (
+                        <IconUsers size={18} />
+                    )
                 }
-                text="Share"
-                onClick={(e) => {
+                onClick={() => {
                     setIsOpen(true);
                 }}
-            />
+                variant="default"
+            >
+                Share
+            </Button>
 
             <Dialog
                 style={{
@@ -88,23 +90,24 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                     sessionUser.data?.ability?.can('create', 'InviteLink') ? (
                         <>
                             Can’t find a user? Spaces can only be shared with{' '}
-                            <Link
+                            <Anchor
+                                component={Link}
                                 to={`/generalSettings/projectManagement/${projectUuid}/projectAccess`}
                             >
                                 existing project members
-                            </Link>
+                            </Anchor>
                             .
                         </>
                     ) : (
                         <>
                             Learn more about permissions in our{' '}
-                            <a
+                            <Anchor
                                 href="https://docs.lightdash.com/references/roles"
                                 target="_blank"
                                 rel="noreferrer"
                             >
                                 docs
-                            </a>
+                            </Anchor>
                             .
                         </>
                     )}

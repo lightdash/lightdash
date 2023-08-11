@@ -1,32 +1,23 @@
-import { ApiError, CreateUserArgs, LightdashUser } from '@lightdash/common';
-import React, { FC } from 'react';
-import { Helmet } from 'react-helmet';
+import {
+    ApiError,
+    CreateUserArgs,
+    LightdashUser,
+    OpenIdIdentityIssuerType,
+} from '@lightdash/common';
+import { Anchor, Card, Image, Stack, Text, Title } from '@mantine/core';
+import { FC } from 'react';
 import { useMutation } from 'react-query';
 import { useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import {
-    GoogleLoginButton,
-    OktaLoginButton,
-    OneLoginLoginButton,
-} from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
-import CreateUserForm from '../components/CreateUserForm';
+import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
 import PageSpinner from '../components/PageSpinner';
+import CreateUserForm from '../components/RegisterForms/CreateUserForm';
 import useToaster from '../hooks/toaster/useToaster';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
-import {
-    CardWrapper,
-    Divider,
-    DividerWrapper,
-    FooterCta,
-    FormFooterCopy,
-    FormWrapper,
-    Logo,
-    LogoWrapper,
-    Title,
-} from './SignUp.styles';
+import { Divider, DividerWrapper } from './Invite.styles';
 
 const registerQuery = async (data: CreateUserArgs) =>
     lightdashApi<LightdashUser>({
@@ -42,7 +33,7 @@ const Register: FC = () => {
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
     const { identify } = useTracking();
-    const { isLoading, mutate } = useMutation<
+    const { isLoading, mutate, isSuccess } = useMutation<
         LightdashUser,
         ApiError,
         CreateUserArgs
@@ -69,17 +60,22 @@ const Register: FC = () => {
     const ssoAvailable =
         !!health.data?.auth.google.oauth2ClientId ||
         health.data?.auth.okta.enabled ||
-        health.data?.auth.oneLogin.enabled;
+        health.data?.auth.oneLogin.enabled ||
+        health.data?.auth.azuread.enabled;
     const ssoLogins = ssoAvailable && (
-        <>
-            {health.data?.auth.google.oauth2ClientId && <GoogleLoginButton />}
-            {health.data?.auth.okta.enabled && <OktaLoginButton />}
-            {health.data?.auth.oneLogin.enabled && <OneLoginLoginButton />}
-        </>
+        <Stack>
+            {Object.values(OpenIdIdentityIssuerType).map((providerName) => (
+                <ThirdPartySignInButton
+                    key={providerName}
+                    providerName={providerName}
+                    intent="signup"
+                />
+            ))}
+        </Stack>
     );
     const passwordLogin = allowPasswordAuthentication && (
         <CreateUserForm
-            isLoading={isLoading}
+            isLoading={isLoading || isSuccess}
             onSubmit={(data: CreateUserArgs) => {
                 mutate(data);
             }}
@@ -99,28 +95,40 @@ const Register: FC = () => {
         </>
     );
     return (
-        <Page isFullHeight>
-            <Helmet>
-                <title>Register - Lightdash</title>
-            </Helmet>
-            <FormWrapper>
-                <LogoWrapper>
-                    <Logo src={LightdashLogo} alt="lightdash logo" />
-                </LogoWrapper>
-                <CardWrapper elevation={2}>
-                    <Title>Create your account</Title>
+        <Page title="Register" withCenteredContent withNavbar={false}>
+            <Stack w={400} mt="4xl">
+                <Image
+                    src={LightdashLogo}
+                    alt="lightdash logo"
+                    width={130}
+                    mx="auto"
+                    my="lg"
+                />
+                <Card p="xl" radius="xs" withBorder shadow="xs">
+                    <Title order={3} ta="center" mb="md">
+                        Sign up
+                    </Title>
                     {logins}
-                </CardWrapper>
-                <FormFooterCopy>
-                    By creating an account, you agree to our{' '}
-                    <FooterCta
+                </Card>
+                <Text color="gray.6" ta="center">
+                    By creating an account, you agree to
+                    <br />
+                    our{' '}
+                    <Anchor
                         href="https://www.lightdash.com/privacy-policy"
                         target="_blank"
                     >
-                        Privacy Policy.
-                    </FooterCta>
-                </FormFooterCopy>
-            </FormWrapper>
+                        Privacy Policy
+                    </Anchor>{' '}
+                    and our{' '}
+                    <Anchor
+                        href="https://www.lightdash.com/terms-of-service"
+                        target="_blank"
+                    >
+                        Terms of Service.
+                    </Anchor>
+                </Text>
+            </Stack>
         </Page>
     );
 };

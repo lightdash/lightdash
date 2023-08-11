@@ -1,5 +1,10 @@
 import { subject } from '@casl/ability';
-import { ForbiddenError, SessionUser, ShareUrl } from '@lightdash/common';
+import {
+    ForbiddenError,
+    isUserWithOrg,
+    SessionUser,
+    ShareUrl,
+} from '@lightdash/common';
 import { nanoid as nanoidGenerator } from 'nanoid';
 import { analytics } from '../../analytics/client';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -31,12 +36,15 @@ export class ShareService {
     }
 
     async getShareUrl(user: SessionUser, nanoid: string): Promise<ShareUrl> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         const shareUrl = await this.shareModel.getSharedUrl(nanoid);
 
         if (
             user.ability.cannot(
                 'view',
-                subject('Organization', {
+                subject('OrganizationMemberProfile', {
                     organizationUuid: shareUrl.organizationUuid,
                 }),
             )
@@ -59,6 +67,9 @@ export class ShareService {
         path: string,
         params: string,
     ): Promise<ShareUrl> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         const shareUrl = await this.shareModel.createSharedUrl({
             path,
             params,

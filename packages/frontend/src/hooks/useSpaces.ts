@@ -1,28 +1,72 @@
-import { ApiError, CreateSpace, Space, UpdateSpace } from '@lightdash/common';
+import {
+    ApiError,
+    CreateSpace,
+    Space,
+    SpaceSummary,
+    UpdateSpace,
+} from '@lightdash/common';
 import {
     useMutation,
     useQuery,
     useQueryClient,
     UseQueryOptions,
 } from 'react-query';
-import { useHistory } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
+import useUser from './user/useUser';
 
 const getSpaces = async (projectUuid: string) =>
     lightdashApi<Space[]>({
-        url: `/projects/${projectUuid}/spaces`,
+        url: `/projects/${projectUuid}/spaces-and-content`,
         method: 'GET',
         body: undefined,
     });
 
-export const useSpaces = (projectUuid: string) => {
-    return useQuery<Space[], ApiError>({
-        queryKey: ['spaces', projectUuid],
-        queryFn: () => getSpaces(projectUuid),
+const useSpaces = (
+    projectUuid: string,
+    queryOptions?: UseQueryOptions<Space[], ApiError>,
+) => {
+    return useQuery<Space[], ApiError>(
+        ['spaces', projectUuid],
+        () => getSpaces(projectUuid),
+        { ...queryOptions },
+    );
+};
+
+const getSpaceSummaries = async (projectUuid: string) => {
+    return lightdashApi<SpaceSummary[]>({
+        url: `/projects/${projectUuid}/spaces`,
+        method: 'GET',
+        body: undefined,
     });
 };
 
+export const useSpaceSummaries = (
+    projectUuid: string,
+    includePrivateSpaces: boolean = false,
+    queryOptions?: UseQueryOptions<SpaceSummary[], ApiError>,
+) => {
+    const { data: user } = useUser(true);
+    return useQuery<SpaceSummary[], ApiError>(
+        ['projects', projectUuid, 'spaces'],
+        () => getSpaceSummaries(projectUuid),
+        {
+            select: (data) =>
+                // only get spaces that the user has direct access to
+                !includePrivateSpaces
+                    ? data.filter(
+                          (space) =>
+                              !space.isPrivate ||
+                              (!!user && space.access.includes(user.userUuid)),
+                      )
+                    : data,
+            ...queryOptions,
+        },
+    );
+};
+
+// DEPRECATED: masks usage of `/spaces-and-content` endpoint
+// Use `useSpaceSummaries` where possible
 export const useSavedCharts = (projectUuid: string) => {
     const spaces = useSpaces(projectUuid);
     const allCharts = spaces.data?.flatMap((space) => space.queries);
@@ -54,8 +98,7 @@ const deleteQuery = async (projectUuid: string, spaceUuid: string) =>
         body: undefined,
     });
 
-export const useDeleteMutation = (projectUuid: string) => {
-    const history = useHistory();
+export const useSpaceDeleteMutation = (projectUuid: string) => {
     const { showToastSuccess, showToastError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -65,9 +108,6 @@ export const useDeleteMutation = (projectUuid: string) => {
             mutationKey: ['space_delete', projectUuid],
             onSuccess: async () => {
                 await queryClient.refetchQueries(['spaces', projectUuid]);
-                history.push({
-                    pathname: `/projects/${projectUuid}/home`,
-                });
                 showToastSuccess({
                     title: `Success! Space was deleted.`,
                 });
@@ -183,7 +223,7 @@ export const useAddSpaceShareMutation = (
         (userUuid) => addSpaceShare(projectUuid, spaceUuid, userUuid),
         {
             mutationKey: ['space_share', projectUuid, spaceUuid],
-            onSuccess: async (space) => {
+            onSuccess: async () => {
                 await queryClient.refetchQueries(['spaces', projectUuid]);
                 await queryClient.refetchQueries([
                     'space',

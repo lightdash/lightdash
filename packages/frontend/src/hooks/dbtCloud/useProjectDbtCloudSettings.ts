@@ -9,7 +9,7 @@ import {
     useQueryClient,
     UseQueryOptions,
 } from 'react-query';
-import { useParams } from 'react-router-dom';
+
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 

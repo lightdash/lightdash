@@ -57,7 +57,8 @@ const applyReferenceLines = (
             },
         );
 
-        if (referenceLinesForSerie.length === 0) return serie;
+        if (referenceLinesForSerie.length === 0)
+            return { ...serie, markLine: undefined };
         const markLineData: MarkLineData[] = referenceLinesForSerie.map(
             (line) => {
                 if (line.fieldId === undefined) return line.data;
@@ -251,11 +252,11 @@ const useCartesianChartConfig = ({
         }));
     }, []);
 
-    const updateYField = useCallback((index: number, type: string) => {
+    const updateYField = useCallback((index: number, fieldId: string) => {
         setDirtyLayout((prev) => ({
             ...prev,
             yField: prev?.yField?.map((field, i) => {
-                return i === index ? type : field;
+                return i === index ? fieldId : field;
             }),
         }));
     }, []);
@@ -567,7 +568,11 @@ const useCartesianChartConfig = ({
                     defaultCartesianType === CartesianSeriesType.LINE
                         ? prev?.series?.[0]?.areaStyle
                         : undefined;
-                let expectedSeriesMap = getExpectedSeriesMap({
+                const defaultSmooth = prev?.series?.[0]?.smooth;
+                const defaultShowSymbol = prev?.series?.[0]?.showSymbol;
+                const expectedSeriesMap = getExpectedSeriesMap({
+                    defaultSmooth,
+                    defaultShowSymbol,
                     defaultAreaStyle,
                     defaultCartesianType,
                     availableDimensions,
@@ -577,7 +582,7 @@ const useCartesianChartConfig = ({
                     xField: dirtyLayout.xField,
                     yFields: dirtyLayout.yField,
                 });
-                let newSeries = mergeExistingAndExpectedSeries({
+                const newSeries = mergeExistingAndExpectedSeries({
                     expectedSeriesMap,
                     existingSeries: prev?.series || [],
                 });
@@ -590,7 +595,13 @@ const useCartesianChartConfig = ({
 
                 return {
                     ...prev,
-                    series: seriesWithReferenceLines,
+                    series: seriesWithReferenceLines.map((serie) => ({
+                        ...serie,
+                        // NOTE: Addresses old chart configs where yAxisIndex was not set
+                        ...(!serie.yAxisIndex && {
+                            yAxisIndex: 0,
+                        }),
+                    })),
                 };
             });
         }

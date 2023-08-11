@@ -1,5 +1,5 @@
 import fetch from 'node-fetch';
-import Logger from '../../logger';
+import Logger from '../../logging/logger';
 
 let dockerHubVersion: string | undefined;
 

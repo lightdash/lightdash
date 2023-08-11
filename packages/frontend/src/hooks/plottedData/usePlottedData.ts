@@ -4,11 +4,12 @@ import {
     hashFieldReference,
     PivotReference,
     ResultRow,
+    ResultValue,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 
 export type PivotValueMap = {
-    [pivotKey: string]: Record<string, ResultRow[0]['value']>;
+    [pivotKey: string]: Record<string, ResultValue>;
 };
 export type RowKeyMap = Record<string, FieldId | PivotReference>;
 
@@ -43,7 +44,8 @@ export const getPivotedData = (
                     if (!pivotValuesMap[pivotKey]) {
                         pivotValuesMap[pivotKey] = {};
                     }
-                    pivotValuesMap[pivotKey][row[pivotKey].value.raw] =
+
+                    pivotValuesMap[pivotKey][`${row[pivotKey].value.raw}`] =
                         row[pivotKey].value;
                 });
                 pivotedRow[pivotedKeyHash] = value;

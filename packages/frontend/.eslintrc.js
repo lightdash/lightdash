@@ -1,10 +1,17 @@
 const restrictedGlobals = require('confusing-browser-globals');
 
+const unusedVarExceptions = {
+    argsIgnorePattern: '^_',
+    destructuredArrayIgnorePattern: '^_',
+    ignoreRestSiblings: true,
+};
+
 module.exports = {
     parserOptions: {
         project: './tsconfig.json',
         createDefaultProgram: true,
     },
+    ignorePatterns: ['**/styles/*.css'],
     extends: [
         './../../.eslintrc.js',
         'plugin:@typescript-eslint/recommended',
@@ -36,6 +43,18 @@ module.exports = {
     rules: {
         'no-restricted-globals': ['error'].concat(restrictedGlobals),
         'react/prop-types': 'off',
+        'no-unused-vars': ['error', unusedVarExceptions],
+        '@typescript-eslint/no-unused-vars': ['error', unusedVarExceptions],
+        '@typescript-eslint/naming-convention': [
+            'error',
+            {
+                selector: 'variable',
+                format: ['camelCase', 'PascalCase', 'UPPER_CASE'],
+                leadingUnderscore: 'allow',
+            },
+        ],
+        'react-hooks/exhaustive-deps': 'error',
+
         // TODO: enable these rules once the codebase is fixed
         '@typescript-eslint/ban-ts-comment': 'off',
         '@typescript-eslint/ban-types': 'off',
@@ -44,7 +63,6 @@ module.exports = {
         '@typescript-eslint/no-inferrable-types': 'off',
         '@typescript-eslint/no-non-null-assertion': 'off',
         '@typescript-eslint/no-throw-literal': 'off',
-        '@typescript-eslint/no-unused-vars': 'off',
         'import/no-extraneous-dependencies': 'off',
         'import/no-named-as-default': 'off',
         'jsx-a11y/click-events-have-key-events': 'off',

@@ -1,16 +1,13 @@
-import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { DashboardTileTypes } from '@lightdash/common';
+import { Button, Flex, Popover, Text, Tooltip } from '@mantine/core';
+import { IconFilter } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useAvailableDashboardFilterTargets } from '../../hooks/dashboard/useDashboard';
 import { useProject } from '../../hooks/useProject';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { FiltersProvider } from '../common/Filters/FiltersProvider';
+import MantineIcon from '../common/MantineIcon';
 import ActiveFilters from './ActiveFilters';
-import {
-    DashboardFilterWrapper,
-    FilterTrigger,
-} from './DashboardFilter.styles';
 import FilterSearch from './FilterSearch';
 
 interface Props {
@@ -19,81 +16,90 @@ interface Props {
 
 const DashboardFilter: FC<Props> = ({ isEditMode }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const [isOpen, setIsOpen] = useState(false);
-    const [isSubmenuOpen, setIsSubmenuOpen] = useState(false);
+    const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
 
     const project = useProject(projectUuid);
-    const { dashboardFilters, fieldsWithSuggestions, dashboardTiles } =
-        useDashboardContext();
-
-    const { isLoading, data: filterableFields } =
-        useAvailableDashboardFilterTargets(dashboardTiles);
+    const {
+        allFilters,
+        fieldsWithSuggestions,
+        dashboardTiles,
+        allFilterableFields,
+    } = useDashboardContext();
 
     const hasChartTiles =
         dashboardTiles.filter(
             (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
         ).length >= 1;
 
-    const handleClose = () => {
-        setIsSubmenuOpen(false);
-        setIsOpen(false);
-    };
-
     return (
         <FiltersProvider
             projectUuid={projectUuid}
             fieldsMap={fieldsWithSuggestions}
             startOfWeek={project.data?.warehouseConnection?.startOfWeek}
+            dashboardFilters={allFilters}
         >
-            <DashboardFilterWrapper>
-                <Popover2
-                    disabled={!hasChartTiles || isLoading}
-                    canEscapeKeyClose={isSubmenuOpen ? false : true}
-                    interactionKind={isSubmenuOpen ? 'click-target' : 'click'}
-                    placement="bottom-start"
-                    onOpened={() => setIsOpen(true)}
-                    onClose={handleClose}
-                    content={
+            <Flex gap={3} mb={8} ml={8} wrap="wrap">
+                <Popover
+                    position="bottom-start"
+                    trapFocus
+                    opened={isFilterPopoverOpen}
+                    disabled={!hasChartTiles}
+                    onClose={() => setIsFilterPopoverOpen(false)}
+                    transitionProps={{
+                        transition: 'pop',
+                    }}
+                    withArrow
+                    shadow="md"
+                    offset={-1}
+                    keepMounted
+                >
+                    <Popover.Target>
+                        <Tooltip
+                            disabled={isFilterPopoverOpen || isEditMode}
+                            position="bottom"
+                            openDelay={500}
+                            label={
+                                <Text fz="xs">
+                                    Only filters added in <b>'edit'</b> mode
+                                    will be saved
+                                </Text>
+                            }
+                        >
+                            <Button
+                                size="xs"
+                                variant="default"
+                                leftIcon={
+                                    <MantineIcon
+                                        color="blue"
+                                        icon={IconFilter}
+                                    />
+                                }
+                                disabled={!hasChartTiles}
+                                onClick={() =>
+                                    setIsFilterPopoverOpen(
+                                        (prevIsOpen) => !prevIsOpen,
+                                    )
+                                }
+                            >
+                                Add filter
+                            </Button>
+                        </Tooltip>
+                    </Popover.Target>
+
+                    <Popover.Dropdown ml={5} p={0}>
                         <FilterSearch
                             isEditMode={isEditMode}
-                            fields={filterableFields || []}
+                            fields={allFilterableFields || []}
                             popoverProps={{
-                                onOpened: () => setIsSubmenuOpen(true),
-                                onOpening: () => setIsSubmenuOpen(true),
-                                onClose: () => setIsSubmenuOpen(false),
-                                onClosing: () => setIsSubmenuOpen(false),
+                                usePortal: false,
                             }}
-                            onClose={handleClose}
-                            onSelectField={handleClose}
+                            onClose={() => setIsFilterPopoverOpen(false)}
                         />
-                    }
-                >
-                    <Tooltip2
-                        disabled={isOpen || isEditMode}
-                        placement="bottom-start"
-                        interactionKind="hover"
-                        content={
-                            <>
-                                Only filters added in <b>'edit'</b> mode will be
-                                saved
-                            </>
-                        }
-                    >
-                        <FilterTrigger
-                            minimal
-                            icon="filter-list"
-                            loading={isLoading}
-                            disabled={!hasChartTiles || isLoading}
-                        >
-                            Add filter
-                        </FilterTrigger>
-                    </Tooltip2>
-                </Popover2>
+                    </Popover.Dropdown>
+                </Popover>
 
-                {!isLoading && dashboardFilters && (
-                    <ActiveFilters isEditMode={isEditMode} />
-                )}
-            </DashboardFilterWrapper>
+                <ActiveFilters isEditMode={isEditMode} />
+            </Flex>
         </FiltersProvider>
     );
 };

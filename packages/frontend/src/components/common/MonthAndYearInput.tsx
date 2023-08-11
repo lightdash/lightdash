@@ -1,38 +1,47 @@
-import { HTMLSelect } from '@blueprintjs/core';
+import { MonthPickerInput, MonthPickerInputProps } from '@mantine/dates';
+import { useDisclosure } from '@mantine/hooks';
 import moment from 'moment';
-import React, { FC } from 'react';
-import YearInput from './YearInput';
+import { FC } from 'react';
 
-type Props = {
-    value: Date;
+type Props = Omit<MonthPickerInputProps, 'value' | 'onChange'> & {
+    value: Date | null;
     onChange: (value: Date) => void;
-    disabled?: boolean;
 };
 
-const months = moment.months();
+const MonthAndYearInput: FC<Props> = ({ value, onChange, ...props }) => {
+    const [isPopoverOpen, { open, close, toggle }] = useDisclosure();
 
-const MonthAndYearInput: FC<Props> = ({ value, onChange, disabled }) => {
-    const utcMonthValue = moment(value).month();
+    const yearValue = value ? moment(value).toDate() : null;
+
     return (
-        <>
-            <HTMLSelect
-                className={disabled ? 'disabled-filter' : ''}
-                disabled={disabled}
-                fill={false}
-                style={{ width: 150 }}
-                onChange={(e) =>
-                    onChange(
-                        moment(value).month(e.currentTarget.value).toDate(),
-                    )
-                }
-                options={months.map((label, index) => ({
-                    value: index,
-                    label,
-                }))}
-                value={utcMonthValue}
-            />
-            <YearInput disabled={disabled} value={value} onChange={onChange} />
-        </>
+        <MonthPickerInput
+            sx={{ width: '100%' }}
+            size="xs"
+            onClick={toggle}
+            {...props}
+            popoverProps={{
+                withArrow: true,
+                withinPortal: false,
+                shadow: 'md',
+                // FIXME: remove this once we migrate off of Blueprint
+                ...props.popoverProps,
+                opened: isPopoverOpen,
+                onOpen: () => {
+                    props.popoverProps?.onOpen?.();
+                    open();
+                },
+                onClose: () => {
+                    props.popoverProps?.onClose?.();
+                    close();
+                },
+            }}
+            value={yearValue}
+            onChange={(date) => {
+                if (!date || Array.isArray(date)) return;
+                onChange(date);
+                close();
+            }}
+        />
     );
 };
 

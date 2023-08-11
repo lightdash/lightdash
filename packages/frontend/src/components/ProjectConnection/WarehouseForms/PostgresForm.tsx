@@ -1,7 +1,13 @@
+import { Button } from '@blueprintjs/core';
 import { WarehouseTypes } from '@lightdash/common';
+import { ActionIcon, Anchor, CopyButton, Tooltip } from '@mantine/core';
+import { IconCheck, IconCopy } from '@tabler/icons-react';
 import React, { FC } from 'react';
+import { useFormContext, useWatch } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
+import MantineIcon from '../../common/MantineIcon';
+import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
@@ -13,6 +19,7 @@ import {
 } from '../ProjectConnection.styles';
 import { useProjectFormContext } from '../ProjectFormProvider';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
+import { useCreateSshKeyPair } from './sshHooks';
 
 export const PostgresSchemaInput: FC<{
     disabled: boolean;
@@ -40,6 +47,27 @@ const PostgresForm: FC<{
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.POSTGRES;
+    const { setValue } = useFormContext();
+    const showSshTunnelConfiguration: boolean = useWatch({
+        name: 'warehouse.useSshTunnel',
+        defaultValue:
+            (savedProject?.warehouseConnection?.type ===
+                WarehouseTypes.POSTGRES &&
+                savedProject?.warehouseConnection?.useSshTunnel) ||
+            false,
+    });
+    const sshTunnelPublicKey: string = useWatch({
+        name: 'warehouse.sshTunnelPublicKey',
+        defaultValue:
+            savedProject?.warehouseConnection?.type ===
+                WarehouseTypes.POSTGRES &&
+            savedProject?.warehouseConnection?.sshTunnelPublicKey,
+    });
+    const { mutate, isLoading } = useCreateSshKeyPair({
+        onSuccess: (data) => {
+            setValue('warehouse.sshTunnelPublicKey', data.publicKey);
+        },
+    });
     return (
         <>
             <Input
@@ -114,13 +142,13 @@ const PostgresForm: FC<{
                             activity after which the operating system should
                             send a TCP keepalive message to the client. You can
                             see more details in{' '}
-                            <a
+                            <Anchor
                                 target="_blank"
                                 href="https://postgresqlco.nf/doc/en/param/tcp_keepalives_idle/"
                                 rel="noreferrer"
                             >
                                 postgresqlco documentation
-                            </a>
+                            </Anchor>
                             .
                         </p>
                     }
@@ -137,13 +165,13 @@ const PostgresForm: FC<{
                         <p>
                             This controls the Postgres "search path". You can
                             see more details in{' '}
-                            <a
+                            <Anchor
                                 target="_blank"
                                 href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#search_path"
                                 rel="noreferrer"
                             >
                                 dbt documentation
-                            </a>
+                            </Anchor>
                             .
                         </p>
                     }
@@ -156,13 +184,13 @@ const PostgresForm: FC<{
                         <p>
                             This controls how dbt connects to Postgres databases
                             using SSL. You can see more details in
-                            <a
+                            <Anchor
                                 target="_blank"
                                 href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#sslmode"
                                 rel="noreferrer"
                             >
                                 dbt documentation
-                            </a>
+                            </Anchor>
                             .
                         </p>
                     }
@@ -180,6 +208,80 @@ const PostgresForm: FC<{
                 />
                 <Input name="warehouse.role" label="Role" disabled={disabled} />
                 <StartOfWeekSelect disabled={disabled} />
+                <BooleanSwitch
+                    name="warehouse.useSshTunnel"
+                    label="Use SSH tunnel"
+                    disabled={disabled}
+                />
+                <FormSection
+                    isOpen={showSshTunnelConfiguration}
+                    name="ssh-config"
+                >
+                    <Input
+                        name="warehouse.sshTunnelHost"
+                        label="SSH Remote Host"
+                        disabled={disabled}
+                    />
+                    <NumericInput
+                        name="warehouse.sshTunnelPort"
+                        label="SSH Remote Port"
+                        disabled={disabled}
+                        defaultValue={22}
+                    />
+                    <Input
+                        name="warehouse.sshTunnelUser"
+                        label="SSH Username"
+                        disabled={disabled}
+                    />
+                    {sshTunnelPublicKey && (
+                        <Input
+                            name="warehouse.sshTunnelPublicKey"
+                            label="Generated SSH Public Key"
+                            readOnly={true}
+                            disabled={disabled}
+                            rightElement={
+                                <>
+                                    <CopyButton value={sshTunnelPublicKey}>
+                                        {({ copied, copy }) => (
+                                            <Tooltip
+                                                label={
+                                                    copied ? 'Copied' : 'Copy'
+                                                }
+                                                withArrow
+                                                position="right"
+                                            >
+                                                <ActionIcon
+                                                    color={
+                                                        copied ? 'teal' : 'gray'
+                                                    }
+                                                    onClick={copy}
+                                                >
+                                                    <MantineIcon
+                                                        icon={
+                                                            copied
+                                                                ? IconCheck
+                                                                : IconCopy
+                                                        }
+                                                    />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        )}
+                                    </CopyButton>
+                                </>
+                            }
+                        />
+                    )}
+                    <Button
+                        text={
+                            sshTunnelPublicKey
+                                ? `Regenerate key`
+                                : `Generate public key`
+                        }
+                        onClick={() => mutate()}
+                        loading={isLoading}
+                        disabled={disabled || isLoading}
+                    />
+                </FormSection>
             </FormSection>
             <AdvancedButtonWrapper>
                 <AdvancedButton

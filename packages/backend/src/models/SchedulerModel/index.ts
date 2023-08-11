@@ -1,24 +1,48 @@
 import {
     CreateSchedulerAndTargets,
+    CreateSchedulerLog,
+    isChartScheduler,
+    isCreateSchedulerSlackTarget,
+    isSlackTarget,
+    isUpdateSchedulerEmailTarget,
     isUpdateSchedulerSlackTarget,
     NotFoundError,
     Scheduler,
     SchedulerAndTargets,
+    SchedulerEmailTarget,
+    SchedulerJobStatus,
+    SchedulerLog,
     SchedulerSlackTarget,
+    SchedulerWithLogs,
     UpdateSchedulerAndTargets,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { DashboardsTableName } from '../../database/entities/dashboards';
+import { ProjectTableName } from '../../database/entities/projects';
+import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import {
     SchedulerDb,
+    SchedulerEmailTargetDb,
+    SchedulerEmailTargetTableName,
+    SchedulerLogDb,
+    SchedulerLogTableName,
     SchedulerSlackTargetDb,
     SchedulerSlackTargetTableName,
-    SchedulerTable,
     SchedulerTableName,
 } from '../../database/entities/scheduler';
+import { SpaceTableName } from '../../database/entities/spaces';
+import { UserTableName } from '../../database/entities/users';
 
 type ModelDependencies = {
     database: Knex;
 };
+
+const statusOrder = [
+    SchedulerJobStatus.ERROR,
+    SchedulerJobStatus.COMPLETED,
+    SchedulerJobStatus.STARTED,
+    SchedulerJobStatus.SCHEDULED,
+].map((s) => s.toString());
 
 export class SchedulerModel {
     private database: Knex;
@@ -37,6 +61,8 @@ export class SchedulerModel {
             cron: scheduler.cron,
             savedChartUuid: scheduler.saved_chart_uuid,
             dashboardUuid: scheduler.dashboard_uuid,
+            format: scheduler.format,
+            options: scheduler.options,
         } as Scheduler;
     }
 
@@ -52,33 +78,60 @@ export class SchedulerModel {
         };
     }
 
+    static convertEmailTarget(
+        scheduler: SchedulerEmailTargetDb,
+    ): SchedulerEmailTarget {
+        return {
+            schedulerEmailTargetUuid: scheduler.scheduler_email_target_uuid,
+            createdAt: scheduler.created_at,
+            updatedAt: scheduler.updated_at,
+            schedulerUuid: scheduler.scheduler_uuid,
+            recipient: scheduler.recipient,
+        };
+    }
+
+    static getSlackChannels(
+        targets: (SchedulerSlackTarget | SchedulerEmailTarget)[],
+    ): string[] {
+        return targets.reduce<string[]>((acc, target) => {
+            if (isSlackTarget(target)) {
+                return [...acc, target.channel];
+            }
+            return acc;
+        }, []);
+    }
+
     private async getSchedulersWithTargets(
-        schedulersQueryBuilder: Knex.QueryBuilder<
-            SchedulerTable,
-            SchedulerDb[]
-        >,
+        schedulers: SchedulerDb[],
     ): Promise<SchedulerAndTargets[]> {
-        const schedulers = await schedulersQueryBuilder;
-        const targets = await this.database(SchedulerSlackTargetTableName)
+        const slackTargets = await this.database(SchedulerSlackTargetTableName)
             .select()
             .whereIn(
                 `${SchedulerSlackTargetTableName}.scheduler_uuid`,
                 schedulers.map((s) => s.scheduler_uuid),
             );
+        const emailTargets = await this.database(SchedulerEmailTargetTableName)
+            .select()
+            .whereIn(
+                `${SchedulerEmailTargetTableName}.scheduler_uuid`,
+                schedulers.map((s) => s.scheduler_uuid),
+            );
+        const targets = [
+            ...slackTargets.map(SchedulerModel.convertSlackTarget),
+            ...emailTargets.map(SchedulerModel.convertEmailTarget),
+        ];
+
         return schedulers.map((scheduler) => ({
             ...SchedulerModel.convertScheduler(scheduler),
-            targets: targets
-                .filter(
-                    (target) =>
-                        target.scheduler_uuid === scheduler.scheduler_uuid,
-                )
-                .map(SchedulerModel.convertSlackTarget),
+            targets: targets.filter(
+                (target) => target.schedulerUuid === scheduler.scheduler_uuid,
+            ),
         }));
     }
 
     async getAllSchedulers(): Promise<SchedulerAndTargets[]> {
         const schedulers = this.database(SchedulerTableName).select();
-        return this.getSchedulersWithTargets(schedulers);
+        return this.getSchedulersWithTargets(await schedulers);
     }
 
     async getChartSchedulers(
@@ -87,7 +140,7 @@ export class SchedulerModel {
         const schedulers = this.database(SchedulerTableName)
             .select()
             .where(`${SchedulerTableName}.saved_chart_uuid`, savedChartUuid);
-        return this.getSchedulersWithTargets(schedulers);
+        return this.getSchedulersWithTargets(await schedulers);
     }
 
     async getDashboardSchedulers(
@@ -96,7 +149,7 @@ export class SchedulerModel {
         const schedulers = this.database(SchedulerTableName)
             .select()
             .where(`${SchedulerTableName}.dashboard_uuid`, dashboardUuid);
-        return this.getSchedulersWithTargets(schedulers);
+        return this.getSchedulersWithTargets(await schedulers);
     }
 
     async getScheduler(schedulerUuid: string): Promise<Scheduler> {
@@ -118,16 +171,26 @@ export class SchedulerModel {
         if (!scheduler) {
             throw new NotFoundError('Scheduler not found');
         }
-        const targets = await this.database(SchedulerSlackTargetTableName)
+        const slackTargets = await this.database(SchedulerSlackTargetTableName)
             .select()
             .where(
                 `${SchedulerSlackTargetTableName}.scheduler_uuid`,
                 schedulerUuid,
             );
+        const emailTargets = await this.database(SchedulerEmailTargetTableName)
+            .select()
+            .where(
+                `${SchedulerEmailTargetTableName}.scheduler_uuid`,
+                schedulerUuid,
+            );
+        const targets = [
+            ...slackTargets.map(SchedulerModel.convertSlackTarget),
+            ...emailTargets.map(SchedulerModel.convertEmailTarget),
+        ];
 
         return {
             ...SchedulerModel.convertScheduler(scheduler),
-            targets: targets.map(SchedulerModel.convertSlackTarget),
+            targets,
         };
     }
 
@@ -138,20 +201,29 @@ export class SchedulerModel {
             const [scheduler] = await trx(SchedulerTableName)
                 .insert({
                     name: newScheduler.name,
+                    format: newScheduler.format,
                     created_by: newScheduler.createdBy,
                     cron: newScheduler.cron,
                     saved_chart_uuid: newScheduler.savedChartUuid,
                     dashboard_uuid: newScheduler.dashboardUuid,
                     updated_at: new Date(),
+                    options: newScheduler.options,
                 })
                 .returning('*');
-            const targetPromises = newScheduler.targets.map(async (target) =>
-                trx(SchedulerSlackTargetTableName).insert({
+            const targetPromises = newScheduler.targets.map(async (target) => {
+                if (isCreateSchedulerSlackTarget(target)) {
+                    return trx(SchedulerSlackTargetTableName).insert({
+                        scheduler_uuid: scheduler.scheduler_uuid,
+                        channel: target.channel,
+                        updated_at: new Date(),
+                    });
+                }
+                return trx(SchedulerEmailTargetTableName).insert({
                     scheduler_uuid: scheduler.scheduler_uuid,
-                    channel: target.channel,
+                    recipient: target.recipient,
                     updated_at: new Date(),
-                }),
-            );
+                });
+            });
 
             await Promise.all(targetPromises);
             return scheduler.scheduler_uuid;
@@ -166,12 +238,14 @@ export class SchedulerModel {
             await trx(SchedulerTableName)
                 .update({
                     name: scheduler.name,
+                    format: scheduler.format,
                     cron: scheduler.cron,
                     updated_at: new Date(),
+                    options: scheduler.options,
                 })
                 .where('scheduler_uuid', scheduler.schedulerUuid);
 
-            const targetsToUpdate = scheduler.targets.reduce<string[]>(
+            const slackTargetsToUpdate = scheduler.targets.reduce<string[]>(
                 (acc, target) =>
                     isUpdateSchedulerSlackTarget(target)
                         ? [...acc, target.schedulerSlackTargetUuid]
@@ -184,10 +258,28 @@ export class SchedulerModel {
                 .andWhere(
                     'scheduler_slack_target_uuid',
                     'not in',
-                    targetsToUpdate,
+                    slackTargetsToUpdate,
+                );
+
+            const emailTargetsToUpdate = scheduler.targets.reduce<string[]>(
+                (acc, target) =>
+                    isUpdateSchedulerEmailTarget(target)
+                        ? [...acc, target.schedulerEmailTargetUuid]
+                        : acc,
+                [],
+            );
+
+            await trx(SchedulerEmailTargetTableName)
+                .delete()
+                .where('scheduler_uuid', scheduler.schedulerUuid)
+                .andWhere(
+                    'scheduler_email_target_uuid',
+                    'not in',
+                    emailTargetsToUpdate,
                 );
 
             const targetPromises = scheduler.targets.map(async (target) => {
+                // Update existing targets
                 if (isUpdateSchedulerSlackTarget(target)) {
                     await trx(SchedulerSlackTargetTableName)
                         .update({
@@ -199,10 +291,29 @@ export class SchedulerModel {
                             target.schedulerSlackTargetUuid,
                         )
                         .andWhere('scheduler_uuid', scheduler.schedulerUuid);
-                } else {
+                } else if (isUpdateSchedulerEmailTarget(target)) {
+                    await trx(SchedulerEmailTargetTableName)
+                        .update({
+                            recipient: target.recipient,
+                            updated_at: new Date(),
+                        })
+                        .where(
+                            'scheduler_email_target_uuid',
+                            target.schedulerEmailTargetUuid,
+                        )
+                        .andWhere('scheduler_uuid', scheduler.schedulerUuid);
+                }
+                // Create new targets
+                else if (isCreateSchedulerSlackTarget(target)) {
                     await trx(SchedulerSlackTargetTableName).insert({
                         scheduler_uuid: scheduler.schedulerUuid,
                         channel: target.channel,
+                        updated_at: new Date(),
+                    });
+                } else {
+                    await trx(SchedulerEmailTargetTableName).insert({
+                        scheduler_uuid: scheduler.schedulerUuid,
+                        recipient: target.recipient,
                         updated_at: new Date(),
                     });
                 }
@@ -221,6 +332,237 @@ export class SchedulerModel {
             await trx(SchedulerSlackTargetTableName)
                 .delete()
                 .where('scheduler_uuid', schedulerUuid);
+            await trx(SchedulerEmailTargetTableName)
+                .delete()
+                .where('scheduler_uuid', schedulerUuid);
         });
+    }
+
+    static parseSchedulerLog(logDb: SchedulerLogDb): SchedulerLog {
+        return {
+            task: logDb.task as SchedulerLog['task'],
+            scheduledTime: logDb.scheduled_time,
+            createdAt: logDb.created_at,
+            schedulerUuid: logDb.scheduler_uuid,
+            jobGroup: logDb.job_group,
+            jobId: logDb.job_id,
+            status: logDb.status as SchedulerJobStatus,
+            target: logDb.target === null ? undefined : logDb.target,
+            targetType:
+                logDb.target_type === null
+                    ? undefined
+                    : (logDb.target_type as SchedulerLog['targetType']),
+            details: logDb.details === null ? undefined : logDb.details,
+        };
+    }
+
+    async getSchedulerForProject(
+        projectUuid: string,
+    ): Promise<SchedulerAndTargets[]> {
+        const schedulerCharts = this.database(SchedulerTableName)
+            .select('scheduler.*')
+            .leftJoin(
+                SavedChartsTableName,
+                `${SavedChartsTableName}.saved_query_uuid`,
+                `${SchedulerTableName}.saved_chart_uuid`,
+            )
+            .leftJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${SavedChartsTableName}.space_id`,
+            )
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+
+        const schedulerDashboards = this.database(SchedulerTableName)
+            .select('scheduler.*')
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SchedulerTableName}.dashboard_uuid`,
+            )
+            .leftJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+
+        const schedulerDashboardWithTargets =
+            await this.getSchedulersWithTargets(await schedulerDashboards);
+        const schedulerChartWithTargets = await this.getSchedulersWithTargets(
+            await schedulerCharts,
+        );
+
+        return [...schedulerChartWithTargets, ...schedulerDashboardWithTargets];
+    }
+
+    async getSchedulerLogs(projectUuid: string): Promise<SchedulerWithLogs> {
+        const schedulers = await this.getSchedulerForProject(projectUuid);
+        const { schedulerUuids, userUuids, chartUuids, dashboardUuids } =
+            schedulers.reduce<{
+                schedulerUuids: string[];
+                userUuids: string[];
+                chartUuids: string[];
+                dashboardUuids: string[];
+            }>(
+                (acc, s) => ({
+                    schedulerUuids: [...acc.schedulerUuids, s.schedulerUuid],
+                    userUuids: [...acc.userUuids, s.createdBy],
+                    chartUuids: isChartScheduler(s)
+                        ? [...acc.chartUuids, s.savedChartUuid]
+                        : acc.chartUuids,
+                    dashboardUuids: isChartScheduler(s)
+                        ? acc.dashboardUuids
+                        : [...acc.dashboardUuids, s.dashboardUuid],
+                }),
+                {
+                    schedulerUuids: [],
+                    userUuids: [],
+                    chartUuids: [],
+                    dashboardUuids: [],
+                },
+            );
+
+        const sevenDaysAgo: Date = new Date(
+            Date.now() - 7 * 24 * 60 * 60 * 1000,
+        );
+        const logs = await this.database(SchedulerLogTableName)
+            .select()
+            .whereIn(`scheduler_uuid`, schedulerUuids)
+            .where(`scheduled_time`, '>', sevenDaysAgo)
+            .where(`scheduled_time`, '<', new Date())
+            .orderBy('created_at', 'desc');
+
+        const schedulerLogs: SchedulerLog[] = logs.map(
+            SchedulerModel.parseSchedulerLog,
+        );
+
+        const sortedLogs = schedulerLogs.sort(SchedulerModel.sortLogs);
+        const uniqueLogs = sortedLogs.reduce<SchedulerLog[]>((acc, log) => {
+            if (
+                acc.some(
+                    (l) => l.jobGroup === log.jobGroup && l.task === log.task,
+                )
+            ) {
+                return acc;
+            }
+            return [...acc, log];
+        }, []);
+        const users = await this.database(UserTableName)
+            .select('first_name', 'last_name', 'user_uuid')
+            .whereIn('user_uuid', userUuids);
+        const charts = await this.database(SavedChartsTableName)
+            .select('name', 'saved_query_uuid')
+            .whereIn('saved_query_uuid', chartUuids);
+        const dashboards = await this.database(DashboardsTableName)
+            .select('name', 'dashboard_uuid')
+            .whereIn('dashboard_uuid', dashboardUuids);
+
+        return {
+            schedulers,
+            users: users.map((u) => ({
+                firstName: u.first_name,
+                lastName: u.last_name,
+                userUuid: u.user_uuid,
+            })),
+            charts: charts.map((c) => ({
+                name: c.name,
+                savedChartUuid: c.saved_query_uuid,
+            })),
+            dashboards: dashboards.map((d) => ({
+                name: d.name,
+                dashboardUuid: d.dashboard_uuid,
+            })),
+            logs: uniqueLogs,
+        };
+    }
+
+    async logSchedulerJob(log: CreateSchedulerLog): Promise<void> {
+        try {
+            await this.database(SchedulerLogTableName).insert({
+                task: log.task,
+                scheduler_uuid: log.schedulerUuid,
+                status: log.status,
+                job_id: log.jobId,
+                job_group: log.jobGroup,
+                scheduled_time: log.scheduledTime,
+                target: log.target || null,
+                target_type: log.targetType || null,
+                details: log.details || null,
+            });
+        } catch (error) {
+            const FOREIGN_KEY_VIOLATION_ERROR_CODE = '23503';
+
+            if (
+                !(
+                    error.code === FOREIGN_KEY_VIOLATION_ERROR_CODE &&
+                    error.constraint === 'scheduler_log_scheduler_uuid_foreign'
+                )
+            )
+                throw error;
+        }
+    }
+
+    async deleteScheduledLogs(schedulerUuid: string): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await trx(SchedulerLogTableName)
+                .delete()
+                .where('scheduler_uuid', schedulerUuid)
+                .andWhere('status', SchedulerJobStatus.SCHEDULED);
+        });
+    }
+
+    static sortLogs = (a: SchedulerLog, b: SchedulerLog) => {
+        /**
+         *  Sometimes scheduled event is added after the job is completed
+            First sort by date DESC, then sort by status,
+         */
+        if (a.scheduledTime.getTime() === b.scheduledTime.getTime()) {
+            return (
+                statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status)
+            );
+        }
+        return b.scheduledTime.getTime() - a.scheduledTime.getTime();
+    };
+
+    async getCsvUrl(jobId: string, userUuid: string) {
+        const jobs = await this.database(SchedulerLogTableName)
+            .where(`job_id`, jobId)
+            .andWhere('task', 'downloadCsv')
+            .orderBy('scheduled_time', 'desc')
+            .returning('*');
+
+        const job = jobs.sort(
+            (a, b) =>
+                statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status),
+        )[0];
+        if (!job || job.details?.createdByUserUuid !== userUuid)
+            throw new NotFoundError('Download CSV job not found');
+
+        return job;
+    }
+
+    async getJobStatus(jobId: string) {
+        const jobs = await this.database(SchedulerLogTableName)
+            .where(`job_id`, jobId)
+            .orderBy('scheduled_time', 'desc')
+            .returning('*');
+
+        const job = jobs.sort(
+            (a, b) =>
+                statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status),
+        )[0];
+
+        return job;
     }
 }

@@ -21,6 +21,7 @@ const useDashboardFiltersForExplore = (
     const overrideTileFilters = useCallback(
         (rules: DashboardFilterRule[]) =>
             rules
+                .filter((rule) => !rule.disabled)
                 .filter((f) => f.tileTargets?.[tileUuid] ?? true)
                 .map((filter) => {
                     const { tileTargets, ...rest } = filter;
@@ -46,11 +47,11 @@ const useDashboardFiltersForExplore = (
         return {
             dimensions: overrideTileFilters([
                 ...dashboardFilters.dimensions,
-                ...dashboardTemporaryFilters.dimensions,
+                ...(dashboardTemporaryFilters?.dimensions ?? []),
             ]),
             metrics: overrideTileFilters([
                 ...dashboardFilters.metrics,
-                ...dashboardTemporaryFilters.metrics,
+                ...(dashboardTemporaryFilters?.metrics ?? []),
             ]),
         };
     }, [dashboardFilters, dashboardTemporaryFilters, overrideTileFilters]);

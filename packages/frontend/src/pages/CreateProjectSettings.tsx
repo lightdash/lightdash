@@ -1,6 +1,7 @@
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useQueryClient } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
+
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
@@ -18,19 +19,18 @@ const CreateProjectSettings: FC = () => {
 
     const onSuccess = async () => {
         await queryClient.invalidateQueries(['health']);
-        await queryClient.refetchQueries(['organisation']);
+        await queryClient.refetchQueries(['organization']);
         history.push({
             pathname: `/projects/${projectUuid}/home`,
         });
     };
 
     return (
-        <Page>
+        <Page withFixedContent withPaddedContent>
             <div
                 style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    width: '800px',
                     paddingTop: 60,
                 }}
             >

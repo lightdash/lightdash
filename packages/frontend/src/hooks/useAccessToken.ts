@@ -62,7 +62,7 @@ export const useCreateAccessToken = () => {
     >((data) => createAccessToken(data), {
         mutationKey: ['personal_access_tokens'],
         retry: 3,
-        onSuccess: async (data) => {
+        onSuccess: async () => {
             await queryClient.invalidateQueries('personal_access_tokens');
         },
         onError: (error) => {

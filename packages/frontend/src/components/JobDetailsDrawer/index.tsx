@@ -149,10 +149,12 @@ const JobDetailsDrawer: FC = () => {
                                 <ErrorMessageWrapper>
                                     <p>{step.stepError}</p>
                                     {step.stepDbtLogs
-                                        ?.filter((log) => log.level === 'error')
+                                        ?.filter(
+                                            (log) => log.info.level === 'error',
+                                        )
                                         .map((log) => (
-                                            <p key={log.ts}>
-                                                {log.msg
+                                            <p key={log.info.ts}>
+                                                {log.info.msg
                                                     .split('\n')
                                                     .map((line) => (
                                                         <>

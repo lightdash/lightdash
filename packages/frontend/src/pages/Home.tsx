@@ -1,22 +1,25 @@
-import { NonIdealState, Spinner } from '@blueprintjs/core';
+import { Stack } from '@mantine/core';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
-import { PageContentWrapper } from '../components/common/Page/Page.styles';
-import SpaceBrowser from '../components/Explorer/SpaceBrowser';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import LandingPanel from '../components/Home/LandingPanel';
 import OnboardingPanel from '../components/Home/OnboardingPanel/index';
 import RecentlyUpdatedPanel from '../components/Home/RecentlyUpdatedPanel';
+import PageSpinner from '../components/PageSpinner';
 import PinnedItemsPanel from '../components/PinnedItemsPanel';
+import { useDashboards } from '../hooks/dashboard/useDashboards';
+import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
 import {
     useOnboardingStatus,
     useProjectSavedChartStatus,
 } from '../hooks/useOnboardingStatus';
 import { useProject } from '../hooks/useProject';
+import { useSavedCharts } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
+import { PinnedItemsProvider } from '../providers/PinnedItemsProvider';
 
 const Home: FC = () => {
     const params = useParams<{ projectUuid: string }>();
@@ -25,10 +28,25 @@ const Home: FC = () => {
     const project = useProject(selectedProjectUuid);
     const onboarding = useOnboardingStatus();
 
+    const { data: pinnedItems = [], isLoading: pinnedItemsLoading } =
+        usePinnedItems(selectedProjectUuid, project.data?.pinnedListUuid);
+
+    // only used for recently updated panel - could be faster
+    const { data: dashboards = [], isLoading: dashboardsLoading } =
+        useDashboards(selectedProjectUuid);
+    const { data: savedCharts = [], isLoading: chartsLoading } =
+        useSavedCharts(selectedProjectUuid);
+    // -----
+
     const { user } = useApp();
 
     const isLoading =
-        onboarding.isLoading || project.isLoading || savedChartStatus.isLoading;
+        onboarding.isLoading ||
+        project.isLoading ||
+        savedChartStatus.isLoading ||
+        dashboardsLoading ||
+        chartsLoading ||
+        pinnedItemsLoading;
     const error = onboarding.error || project.error || savedChartStatus.error;
 
     useUnmount(() => onboarding.remove());
@@ -38,11 +56,7 @@ const Home: FC = () => {
     }
 
     if (isLoading) {
-        return (
-            <div style={{ marginTop: '20px' }}>
-                <NonIdealState title="Loading..." icon={<Spinner />} />
-            </div>
-        );
+        return <PageSpinner />;
     }
 
     if (error) {
@@ -54,8 +68,8 @@ const Home: FC = () => {
     }
 
     return (
-        <Page>
-            <PageContentWrapper>
+        <Page withFixedContent withPaddedContent withFooter>
+            <Stack spacing="xl">
                 {!onboarding.data.ranQuery ? (
                     <OnboardingPanel
                         projectUuid={project.data.projectUuid}
@@ -67,17 +81,24 @@ const Home: FC = () => {
                             userName={user.data?.firstName}
                             projectUuid={project.data.projectUuid}
                         />
-                        <PinnedItemsPanel
+                        <PinnedItemsProvider
+                            organizationUuid={project.data.organizationUuid}
                             projectUuid={project.data.projectUuid}
-                        />
-                        <SpaceBrowser projectUuid={project.data.projectUuid} />
-
+                            pinnedListUuid={project.data.pinnedListUuid || ''}
+                        >
+                            <PinnedItemsPanel
+                                pinnedItems={pinnedItems}
+                                dashboards={dashboards}
+                                savedCharts={savedCharts}
+                            />
+                        </PinnedItemsProvider>
                         <RecentlyUpdatedPanel
+                            data={{ dashboards, savedCharts }}
                             projectUuid={project.data.projectUuid}
                         />
                     </>
                 )}
-            </PageContentWrapper>
+            </Stack>
         </Page>
     );
 };

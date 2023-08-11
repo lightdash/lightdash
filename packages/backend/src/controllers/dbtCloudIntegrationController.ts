@@ -15,12 +15,14 @@ import {
     Request,
     Response,
     Route,
+    Tags,
 } from 'tsoa';
 import { projectService } from '../services/services';
 import { isAuthenticated } from './authentication';
 
 @Route('/api/v1/projects/{projectUuid}/integrations/dbt-cloud')
 @Response<ApiErrorPayload>('default', 'Error')
+@Tags('Integrations')
 export class DbtCloudIntegrationController extends Controller {
     /**
      * Get the current dbt Cloud integration settings for a project

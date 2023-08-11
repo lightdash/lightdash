@@ -5,12 +5,15 @@ import {
     ChartType,
     CreateSavedChartVersion,
     deepEqual,
+    Dimension,
     FieldId,
     fieldId as getFieldId,
     isBigNumberConfig,
     isCartesianChartConfig,
+    isPieChartConfig,
     isTableChartConfig,
     MetricQuery,
+    MetricType,
     removeEmptyProperties,
     SavedChart,
     SortField,
@@ -21,11 +24,8 @@ import produce from 'immer';
 import cloneDeep from 'lodash-es/cloneDeep';
 import isEqual from 'lodash-es/isEqual';
 import { FC, useCallback, useEffect, useMemo, useReducer } from 'react';
-import {
-    createContext,
-    useContext,
-    useContextSelector,
-} from 'use-context-selector';
+import { useHistory } from 'react-router-dom';
+import { createContext, useContextSelector } from 'use-context-selector';
 import useDefaultSortField from '../hooks/useDefaultSortField';
 import { useQueryResults } from '../hooks/useQueryResults';
 
@@ -61,7 +61,9 @@ export enum ActionType {
     SET_FETCH_RESULTS_FALSE,
     SET_PREVIOUSLY_FETCHED_STATE,
     ADD_ADDITIONAL_METRIC,
+    EDIT_ADDITIONAL_METRIC,
     REMOVE_ADDITIONAL_METRIC,
+    TOGGLE_ADDITIONAL_METRIC_MODAL,
     SET_PIVOT_FIELDS,
     SET_CHART_TYPE,
     SET_CHART_CONFIG,
@@ -73,7 +75,7 @@ type Action =
     | { type: ActionType.SET_FETCH_RESULTS_FALSE }
     | {
           type: ActionType.SET_PREVIOUSLY_FETCHED_STATE;
-          payload: CreateSavedChartVersion;
+          payload: MetricQuery;
       }
     | { type: ActionType.SET_TABLE_NAME; payload: string }
     | { type: ActionType.TOGGLE_EXPANDED_SECTION; payload: ExplorerSection }
@@ -130,8 +132,22 @@ type Action =
           payload: AdditionalMetric;
       }
     | {
+          type: ActionType.EDIT_ADDITIONAL_METRIC;
+          payload: {
+              additionalMetric: AdditionalMetric;
+              previousAdditionalMetricName: string;
+          };
+      }
+    | {
           type: ActionType.REMOVE_ADDITIONAL_METRIC;
           payload: FieldId;
+      }
+    | {
+          type: ActionType.TOGGLE_ADDITIONAL_METRIC_MODAL;
+          payload?: Omit<
+              ExplorerReduceState['modals']['additionalMetric'],
+              'isOpen'
+          >;
       }
     | {
           type: ActionType.SET_PIVOT_FIELDS;
@@ -150,7 +166,15 @@ export interface ExplorerReduceState {
     shouldFetchResults: boolean;
     expandedSections: ExplorerSection[];
     unsavedChartVersion: CreateSavedChartVersion;
-    previouslyFetchedState?: CreateSavedChartVersion;
+    previouslyFetchedState?: MetricQuery;
+    modals: {
+        additionalMetric: {
+            isOpen: boolean;
+            isEditing?: boolean;
+            item?: Dimension | AdditionalMetric;
+            type?: MetricType;
+        };
+    };
 }
 
 export interface ExplorerState extends ExplorerReduceState {
@@ -166,7 +190,8 @@ export interface ExplorerContext {
     queryResults: ReturnType<typeof useQueryResults>;
     hasUnfetchedChanges: boolean;
     actions: {
-        clear: () => void;
+        clearExplore: () => void;
+        clearQuery: () => void;
         reset: () => void;
         setTableName: (tableName: string) => void;
         removeActiveField: (fieldId: FieldId) => void;
@@ -185,7 +210,17 @@ export interface ExplorerContext {
             syncPristineState: boolean,
         ) => void;
         addAdditionalMetric: (metric: AdditionalMetric) => void;
+        editAdditionalMetric: (
+            metric: AdditionalMetric,
+            previousMetricName: string,
+        ) => void;
         removeAdditionalMetric: (key: FieldId) => void;
+        toggleAdditionalMetricModal: (
+            additionalMetricModalData?: Omit<
+                ExplorerReduceState['modals']['additionalMetric'],
+                'isOpen'
+            >,
+        ) => void;
         setColumnOrder: (order: string[]) => void;
         addTableCalculation: (tableCalculation: TableCalculation) => void;
         updateTableCalculation: (
@@ -229,6 +264,11 @@ const defaultState: ExplorerReduceState = {
             config: { layout: {}, eChartsConfig: {} },
         },
     },
+    modals: {
+        additionalMetric: {
+            isOpen: false,
+        },
+    },
 };
 
 export const getValidChartConfig = (
@@ -256,6 +296,14 @@ export const getValidChartConfig = (
                 config: isTableChartConfig(config) ? config : {},
             };
         }
+        case ChartType.PIE: {
+            return {
+                type,
+                config: isPieChartConfig(config) ? config : {},
+            };
+        }
+        default:
+            return assertUnreachable(type, 'Invalid chart type');
     }
 };
 
@@ -578,6 +626,32 @@ function reducer(
             };
         }
 
+        case ActionType.EDIT_ADDITIONAL_METRIC: {
+            return {
+                ...state,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        metrics:
+                            state.unsavedChartVersion.metricQuery.metrics.filter(
+                                (metric) =>
+                                    metric !==
+                                    action.payload.previousAdditionalMetricName,
+                            ),
+                        additionalMetrics:
+                            state.unsavedChartVersion.metricQuery.additionalMetrics?.map(
+                                (metric) =>
+                                    metric.uuid ===
+                                    action.payload.additionalMetric.uuid
+                                        ? action.payload.additionalMetric
+                                        : metric,
+                            ),
+                    },
+                },
+            };
+        }
+
         case ActionType.REMOVE_ADDITIONAL_METRIC: {
             return {
                 ...state,
@@ -605,6 +679,18 @@ function reducer(
                             state.unsavedChartVersion.tableConfig.columnOrder.filter(
                                 (fieldId) => fieldId !== action.payload,
                             ),
+                    },
+                },
+            };
+        }
+        case ActionType.TOGGLE_ADDITIONAL_METRIC_MODAL: {
+            return {
+                ...state,
+                modals: {
+                    ...state.modals,
+                    additionalMetric: {
+                        isOpen: !state.modals.additionalMetric.isOpen,
+                        ...(action.payload && { ...action.payload }),
                     },
                 },
             };
@@ -777,10 +863,17 @@ function reducer(
 }
 
 export const ExplorerProvider: FC<{
-    isEditMode: boolean;
+    isEditMode?: boolean;
     initialState?: ExplorerReduceState;
     savedChart?: SavedChart;
-}> = ({ isEditMode, initialState, savedChart, children }) => {
+    queryResults: ReturnType<typeof useQueryResults>;
+}> = ({
+    isEditMode = false,
+    initialState,
+    savedChart,
+    children,
+    queryResults,
+}) => {
     const [reducerState, dispatch] = useReducer(
         reducer,
         initialState || defaultState,
@@ -960,12 +1053,46 @@ export const ExplorerProvider: FC<{
         [],
     );
 
+    const editAdditionalMetric = useCallback(
+        (
+            additionalMetric: AdditionalMetric,
+            previousAdditionalMetricName: string,
+        ) => {
+            dispatch({
+                type: ActionType.EDIT_ADDITIONAL_METRIC,
+                payload: { additionalMetric, previousAdditionalMetricName },
+            });
+            dispatch({
+                type: ActionType.TOGGLE_METRIC,
+                payload: getFieldId(additionalMetric),
+            });
+        },
+        [],
+    );
+
     const removeAdditionalMetric = useCallback((key: FieldId) => {
         dispatch({
             type: ActionType.REMOVE_ADDITIONAL_METRIC,
             payload: key,
         });
     }, []);
+
+    const toggleAdditionalMetricModal = useCallback(
+        (
+            additionalMetricModalData?: Omit<
+                ExplorerReduceState['modals']['additionalMetric'],
+                'isOpen'
+            >,
+        ) => {
+            dispatch({
+                type: ActionType.TOGGLE_ADDITIONAL_METRIC_MODAL,
+                ...(additionalMetricModalData && {
+                    payload: additionalMetricModalData,
+                }),
+            });
+        },
+        [],
+    );
 
     const setColumnOrder = useCallback((order: string[]) => {
         dispatch({
@@ -988,6 +1115,9 @@ export const ExplorerProvider: FC<{
             dispatch({
                 type: ActionType.ADD_TABLE_CALCULATION,
                 payload: tableCalculation,
+                options: {
+                    shouldFetchResults: true,
+                },
             });
         },
         [unsavedChartVersion],
@@ -1007,6 +1137,9 @@ export const ExplorerProvider: FC<{
             dispatch({
                 type: ActionType.UPDATE_TABLE_CALCULATION,
                 payload: { oldName, tableCalculation },
+                options: {
+                    shouldFetchResults: true,
+                },
             });
         },
         [unsavedChartVersion],
@@ -1052,10 +1185,6 @@ export const ExplorerProvider: FC<{
             savedChart,
         ],
     );
-    const queryResults = useQueryResults(
-        state.isValidQuery,
-        state.unsavedChartVersion,
-    );
 
     // Fetch query results after state update
     const { mutateAsync: mutateAsyncQuery, reset: resetQueryResults } =
@@ -1063,25 +1192,32 @@ export const ExplorerProvider: FC<{
 
     const mutateAsync = useCallback(async () => {
         try {
-            const result = await mutateAsyncQuery();
+            const result = await mutateAsyncQuery(
+                unsavedChartVersion.tableName,
+                unsavedChartVersion.metricQuery,
+            );
 
             dispatch({
                 type: ActionType.SET_PREVIOUSLY_FETCHED_STATE,
-                payload: cloneDeep(state.unsavedChartVersion),
+                payload: cloneDeep(unsavedChartVersion.metricQuery),
             });
 
             return result;
         } catch (e) {
             console.error(e);
         }
-    }, [mutateAsyncQuery, state.unsavedChartVersion]);
+    }, [
+        mutateAsyncQuery,
+        unsavedChartVersion.tableName,
+        unsavedChartVersion.metricQuery,
+    ]);
 
     const hasUnfetchedChanges = useMemo(() => {
         return !isEqual(
-            state.unsavedChartVersion,
+            state.unsavedChartVersion.metricQuery,
             state.previouslyFetchedState,
         );
-    }, [state.unsavedChartVersion, state.previouslyFetchedState]);
+    }, [state.unsavedChartVersion.metricQuery, state.previouslyFetchedState]);
 
     useEffect(() => {
         if (!state.shouldFetchResults) return;
@@ -1093,13 +1229,31 @@ export const ExplorerProvider: FC<{
         });
     }, [mutateAsync, state.shouldFetchResults]);
 
-    const clear = useCallback(async () => {
+    const clearExplore = useCallback(async () => {
         dispatch({
             type: ActionType.RESET,
             payload: defaultState,
         });
         resetQueryResults();
     }, [resetQueryResults]);
+    const history = useHistory();
+    const clearQuery = useCallback(async () => {
+        dispatch({
+            type: ActionType.RESET,
+            payload: {
+                ...defaultState,
+                unsavedChartVersion: {
+                    ...defaultState.unsavedChartVersion,
+                    tableName: unsavedChartVersion.tableName,
+                },
+            },
+        });
+        resetQueryResults();
+        // clear state in url params
+        history.replace({
+            search: '',
+        });
+    }, [history, resetQueryResults, unsavedChartVersion.tableName]);
 
     const defaultSort = useDefaultSortField(unsavedChartVersion);
 
@@ -1113,7 +1267,8 @@ export const ExplorerProvider: FC<{
 
     const actions = useMemo(
         () => ({
-            clear,
+            clearExplore,
+            clearQuery,
             reset,
             setTableName,
             removeActiveField,
@@ -1127,7 +1282,9 @@ export const ExplorerProvider: FC<{
             setRowLimit,
             setColumnOrder,
             addAdditionalMetric,
+            editAdditionalMetric,
             removeAdditionalMetric,
+            toggleAdditionalMetricModal,
             addTableCalculation,
             deleteTableCalculation,
             updateTableCalculation,
@@ -1138,7 +1295,8 @@ export const ExplorerProvider: FC<{
             toggleExpandedSection,
         }),
         [
-            clear,
+            clearExplore,
+            clearQuery,
             reset,
             setTableName,
             removeActiveField,
@@ -1152,7 +1310,9 @@ export const ExplorerProvider: FC<{
             setRowLimit,
             setColumnOrder,
             addAdditionalMetric,
+            editAdditionalMetric,
             removeAdditionalMetric,
+            toggleAdditionalMetricModal,
             addTableCalculation,
             deleteTableCalculation,
             updateTableCalculation,
@@ -1175,17 +1335,6 @@ export const ExplorerProvider: FC<{
     );
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };
-
-/**
- * @deprecated The method should not be used. Should be replaced with useExplorerContext hook
- */
-export function useExplorer(): ExplorerContext {
-    const context = useContext(Context);
-    if (context === undefined) {
-        throw new Error('useExplorer must be used within a ExplorerProvider');
-    }
-    return context;
-}
 
 export function useExplorerContext<Selected>(
     selector: (value: ExplorerContext) => Selected,

@@ -3,6 +3,7 @@ import {
     NotExistsError,
     NotFoundError,
     OpenIdIdentity,
+    OpenIdIdentityIssuerType,
     OpenIdIdentitySummary,
     ParameterError,
     UpdateOpenIdentity,
@@ -72,11 +73,19 @@ export class OpenIdIdentityModel {
 
     async getIdentitiesByUserId(
         userId: number,
-    ): Promise<OpenIdIdentitySummary[]> {
+    ): Promise<Record<OpenIdIdentityIssuerType, OpenIdIdentitySummary[]>> {
         const identities = await this.database('openid_identities').where(
             'user_id',
             userId,
         );
+
+        const defaultIdentities = Object.values(
+            OpenIdIdentityIssuerType,
+        ).reduce(
+            (acc, curr) => ({ ...acc, [curr]: [] }),
+            {} as Record<OpenIdIdentityIssuerType, OpenIdIdentitySummary[]>,
+        );
+
         return identities
             .map(OpenIdIdentityModel._parseDbIdentity)
             .map((id) => ({
@@ -84,7 +93,14 @@ export class OpenIdIdentityModel {
                 issuer: id.issuer,
                 email: id.email,
                 createdAt: id.createdAt,
-            }));
+            }))
+            .reduce<Record<OpenIdIdentityIssuerType, OpenIdIdentitySummary[]>>(
+                (acc, curr) => ({
+                    ...acc,
+                    [curr.issuerType]: [...(acc[curr.issuerType] || []), curr],
+                }),
+                defaultIdentities,
+            );
     }
 
     async createIdentity(

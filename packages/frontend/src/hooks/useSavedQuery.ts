@@ -8,24 +8,34 @@ import {
 } from '@lightdash/common';
 import {
     useMutation,
+    UseMutationOptions,
     useQuery,
     useQueryClient,
     UseQueryOptions,
 } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
+import { convertDateFilters } from '../utils/dateFilter';
 import useToaster from './toaster/useToaster';
 import useSearchParams from './useSearchParams';
 
 const createSavedQuery = async (
     projectUuid: string,
     payload: CreateSavedChart,
-): Promise<SavedChart> =>
-    lightdashApi<SavedChart>({
+): Promise<SavedChart> => {
+    const timezoneFixPayload: CreateSavedChart = {
+        ...payload,
+        metricQuery: {
+            ...payload.metricQuery,
+            filters: convertDateFilters(payload.metricQuery.filters),
+        },
+    };
+    return lightdashApi<SavedChart>({
         url: `/projects/${projectUuid}/saved`,
         method: 'POST',
-        body: JSON.stringify(payload),
+        body: JSON.stringify(timezoneFixPayload),
     });
+};
 
 const duplicateSavedQuery = async (
     projectUuid: string,
@@ -37,7 +47,7 @@ const duplicateSavedQuery = async (
         body: undefined,
     });
 
-const deleteSavedQuery = async (id: string) =>
+export const deleteSavedQuery = async (id: string) =>
     lightdashApi<undefined>({
         url: `/saved/${id}`,
         method: 'DELETE',
@@ -72,12 +82,20 @@ const addVersionSavedQuery = async ({
 }: {
     uuid: string;
     payload: CreateSavedChartVersion;
-}): Promise<SavedChart> =>
-    lightdashApi<SavedChart>({
+}): Promise<SavedChart> => {
+    const timezoneFixPayload: CreateSavedChartVersion = {
+        ...payload,
+        metricQuery: {
+            ...payload.metricQuery,
+            filters: convertDateFilters(payload.metricQuery.filters),
+        },
+    };
+    return lightdashApi<SavedChart>({
         url: `/saved/${uuid}/version`,
         method: 'POST',
-        body: JSON.stringify(payload),
+        body: JSON.stringify(timezoneFixPayload),
     });
+};
 
 interface Args {
     id?: string;
@@ -93,7 +111,7 @@ export const useSavedQuery = ({ id, useQueryOptions }: Args = {}) =>
         ...useQueryOptions,
     });
 
-export const useDeleteMutation = () => {
+export const useSavedQueryDeleteMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<undefined, ApiError, string>(deleteSavedQuery, {
@@ -159,12 +177,19 @@ export const useUpdateMultipleMutation = (projectUuid: string) => {
     );
 };
 
-export const useUpdateMutation = (savedQueryUuid?: string) => {
+export const useUpdateMutation = (
+    dashboardUuid?: string,
+    savedQueryUuid?: string,
+) => {
+    const history = useHistory();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    return useMutation<SavedChart, ApiError, UpdateSavedChart>(
+    return useMutation<
+        SavedChart,
+        ApiError,
+        Pick<UpdateSavedChart, 'name' | 'description'>
+    >(
         (data) => {
             if (savedQueryUuid) {
                 return updateSavedQuery(savedQueryUuid, data);
@@ -174,12 +199,25 @@ export const useUpdateMutation = (savedQueryUuid?: string) => {
         {
             mutationKey: ['saved_query_create'],
             onSuccess: async (data) => {
-                await queryClient.invalidateQueries(['space', projectUuid]);
+                await queryClient.invalidateQueries([
+                    'space',
+                    data.projectUuid,
+                ]);
 
                 await queryClient.invalidateQueries('spaces');
                 queryClient.setQueryData(['saved_query', data.uuid], data);
                 showToastSuccess({
                     title: `Success! Chart was saved.`,
+                    action: dashboardUuid
+                        ? {
+                              text: 'Open dashboard',
+                              icon: 'arrow-right',
+                              onClick: () =>
+                                  history.push(
+                                      `/projects/${data.projectUuid}/dashboards/${dashboardUuid}`,
+                                  ),
+                          }
+                        : undefined,
                 });
             },
             onError: (error) => {
@@ -192,7 +230,13 @@ export const useUpdateMutation = (savedQueryUuid?: string) => {
     );
 };
 
-export const useMoveChartMutation = () => {
+export const useMoveChartMutation = (
+    options?: UseMutationOptions<
+        SavedChart,
+        ApiError,
+        Pick<SavedChart, 'uuid' | 'spaceUuid'>
+    >,
+) => {
     const history = useHistory();
     const queryClient = useQueryClient();
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -201,37 +245,35 @@ export const useMoveChartMutation = () => {
     return useMutation<
         SavedChart,
         ApiError,
-        Pick<SavedChart, 'uuid' | 'name' | 'spaceUuid'>
-    >(
-        ({ uuid, name, spaceUuid }) =>
-            updateSavedQuery(uuid, { name, spaceUuid }),
-        {
-            mutationKey: ['saved_query_move'],
-            onSuccess: async (data) => {
-                await queryClient.invalidateQueries('spaces');
-                await queryClient.invalidateQueries(['space', projectUuid]);
+        Pick<SavedChart, 'uuid' | 'spaceUuid'>
+    >(({ uuid, spaceUuid }) => updateSavedQuery(uuid, { spaceUuid }), {
+        mutationKey: ['saved_query_move'],
+        ...options,
+        onSuccess: async (data, _, __) => {
+            await queryClient.invalidateQueries('spaces');
+            await queryClient.invalidateQueries(['space', projectUuid]);
 
-                queryClient.setQueryData(['saved_query', data.uuid], data);
-                showToastSuccess({
-                    title: `Chart has been moved to ${data.spaceName}`,
-                    action: {
-                        text: 'Go to space',
-                        icon: 'arrow-right',
-                        onClick: () =>
-                            history.push(
-                                `/projects/${projectUuid}/spaces/${data.spaceUuid}`,
-                            ),
-                    },
-                });
-            },
-            onError: (error) => {
-                showToastError({
-                    title: `Failed to move chart`,
-                    subtitle: error.error.message,
-                });
-            },
+            queryClient.setQueryData(['saved_query', data.uuid], data);
+            showToastSuccess({
+                title: `Chart has been moved to ${data.spaceName}`,
+                action: {
+                    text: 'Go to space',
+                    icon: 'arrow-right',
+                    onClick: () =>
+                        history.push(
+                            `/projects/${projectUuid}/spaces/${data.spaceUuid}`,
+                        ),
+                },
+            });
+            options?.onSuccess?.(data, _, __);
         },
-    );
+        onError: (error) => {
+            showToastError({
+                title: `Failed to move chart`,
+                subtitle: error.error.message,
+            });
+        },
+    });
 };
 
 export const useCreateMutation = () => {

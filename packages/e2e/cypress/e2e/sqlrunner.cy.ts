@@ -6,12 +6,8 @@ const firstCustomer = {
     created: '2017-01-30T06:00:00.000Z',
 };
 describe('SQL Runner', () => {
-    before(() => {
-        cy.login();
-    });
-
     beforeEach(() => {
-        Cypress.Cookies.preserveOnce('connect.sid');
+        cy.login();
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/sqlRunner`);
     });
 
@@ -27,7 +23,6 @@ describe('SQL Runner', () => {
             .type('{ctrl}{enter}');
 
         const find = [
-            '1 result',
             'First name',
             firstCustomer.created,
             firstCustomer.firstName,
@@ -74,8 +69,5 @@ describe('SQL Runner', () => {
         const sql = `select a from ( values ('foo'), ('bar')) s(a);`;
 
         cy.get('.ace_content').type(sql).type('{ctrl}{enter}');
-
-        const find = ['2 results'];
-        find.forEach((text) => cy.findAllByText(text));
     });
 });

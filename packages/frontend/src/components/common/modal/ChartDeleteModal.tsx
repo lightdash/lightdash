@@ -5,10 +5,14 @@ import {
     DialogFooter,
     DialogProps,
 } from '@blueprintjs/core';
+import { Anchor } from '@mantine/core';
 import { FC } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
-import { useDeleteMutation, useSavedQuery } from '../../../hooks/useSavedQuery';
+import {
+    useSavedQuery,
+    useSavedQueryDeleteMutation,
+} from '../../../hooks/useSavedQuery';
 
 interface ChartDeleteModalProps extends DialogProps {
     uuid: string;
@@ -25,7 +29,7 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
     const { data: relatedDashboards, isLoading: isLoadingRelatedDashboards } =
         useDashboardsContainingChart(projectUuid, uuid);
     const { mutateAsync: deleteChart, isLoading: isDeleting } =
-        useDeleteMutation();
+        useSavedQueryDeleteMutation();
 
     if (
         isLoading ||
@@ -60,12 +64,13 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
                         <ul>
                             {relatedDashboards.map((dashboard) => (
                                 <li key={dashboard.uuid}>
-                                    <Link
+                                    <Anchor
+                                        component={Link}
                                         target="_blank"
                                         to={`/projects/${projectUuid}/dashboards/${dashboard.uuid}`}
                                     >
                                         {dashboard.name}
-                                    </Link>
+                                    </Anchor>
                                 </li>
                             ))}
                         </ul>

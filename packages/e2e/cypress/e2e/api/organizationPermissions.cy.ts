@@ -33,7 +33,7 @@ describe('Lightdash API organization permission tests', () => {
         const endpoints = [
             `/projects/${projectUuid}`,
             `/projects/${projectUuid}/explores`,
-            // `/projects/${projectUuid}/spaces`, // This will return 200 but an empty list, check test below
+            // `/projects/${projectUuid}/spaces-and-content`, // This will return 200 but an empty list, check test below
             // `/projects/${projectUuid}/dashboards`, // This will return 200 but an empty list, check test below
             `/projects/${projectUuid}/catalog`,
             `/projects/${projectUuid}/tablesConfiguration`,
@@ -45,7 +45,6 @@ describe('Lightdash API organization permission tests', () => {
         endpoints.forEach((endpoint) => {
             cy.request({
                 url: `${apiUrl}${endpoint}`,
-                timeout: 500,
                 failOnStatusCode: false,
             }).then((resp) => {
                 expect(resp.status).to.eq(403);
@@ -58,7 +57,7 @@ describe('Lightdash API organization permission tests', () => {
 
         const projectUuid = SEED_PROJECT.project_uuid;
         cy.request({
-            url: `${apiUrl}/projects/${projectUuid}/spaces`,
+            url: `${apiUrl}/projects/${projectUuid}/spaces-and-content`,
             failOnStatusCode: false,
         }).then((resp) => {
             expect(resp.status).to.eq(200);
@@ -132,11 +131,12 @@ describe('Lightdash API organization permission tests', () => {
         cy.login(); // Make request as first user to get the chartUuid
 
         const projectUuid = SEED_PROJECT.project_uuid;
-        cy.request(`${apiUrl}/projects/${projectUuid}/spaces`).then(
+        cy.request(`${apiUrl}/projects/${projectUuid}/spaces-and-content`).then(
             (projectResponse) => {
                 expect(projectResponse.status).to.eq(200);
-                const savedChartUuid =
-                    projectResponse.body.results[0].queries[0].uuid;
+                const savedChartUuid = projectResponse.body.results.find(
+                    (space) => space.queries.length > 0,
+                ).queries[0].uuid;
 
                 cy.anotherLogin(); // Now we login as another user
 
@@ -148,7 +148,6 @@ describe('Lightdash API organization permission tests', () => {
                 endpoints.forEach((endpoint) => {
                     cy.request({
                         url: `${apiUrl}${endpoint}`,
-                        timeout: 500,
                         failOnStatusCode: false,
                     }).then((resp) => {
                         expect(resp.status).to.eq(403);
@@ -224,5 +223,140 @@ describe('Lightdash API organization permission tests', () => {
                 });
             },
         );
+    });
+});
+
+describe('Lightdash API tests for viewer org user', () => {
+    let email;
+
+    before(() => {
+        cy.loginWithPermissions('viewer', []).then((e) => {
+            email = e;
+        });
+    });
+    beforeEach(() => {
+        cy.loginWithEmail(email);
+    });
+    it('Should identify user', () => {
+        cy.request(`${apiUrl}/user`).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body.results).to.have.property('email', email);
+            expect(resp.body.results).to.have.property('role', 'viewer');
+        });
+    });
+
+    it('Should get success response (200) from GET public endpoints', () => {
+        const endpoints = ['/livez', '/health', '/flash'];
+        endpoints.forEach((endpoint) => {
+            cy.request(`${apiUrl}${endpoint}`).then((resp) => {
+                expect(resp.status).to.eq(200);
+                expect(resp.body).to.have.property('status', 'ok');
+            });
+        });
+    });
+
+    it('Should get success response (200) from GET org', () => {
+        const endpoint = `${apiUrl}/org/`;
+
+        cy.request({
+            url: endpoint,
+            headers: { 'Content-type': 'application/json' },
+            method: 'GET',
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+        });
+    });
+
+    it('Should get a forbidden (403) from POST project', () => {
+        const endpoint = `${apiUrl}/org/projects/`;
+
+        cy.request({
+            url: endpoint,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: {},
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
+        });
+    });
+
+    it('Should get success response (200) from GET userRouter endpoints', () => {
+        const endpoints = [`/user`, `/user/identities`];
+        endpoints.forEach((endpoint) => {
+            cy.request(`${apiUrl}${endpoint}`).then((resp) => {
+                expect(resp.status).to.eq(200);
+                expect(resp.body).to.have.property('status', 'ok');
+            });
+        });
+    });
+});
+
+describe('Lightdash API tests for interactive_viewer org user', () => {
+    let email;
+
+    before(() => {
+        cy.loginWithPermissions('interactive_viewer', []).then((e) => {
+            email = e;
+        });
+    });
+    beforeEach(() => {
+        cy.loginWithEmail(email);
+    });
+    it('Should identify user', () => {
+        cy.request(`${apiUrl}/user`).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body.results).to.have.property('email', email);
+            expect(resp.body.results).to.have.property(
+                'role',
+                'interactive_viewer',
+            );
+        });
+    });
+
+    it('Should get success response (200) from GET public endpoints', () => {
+        const endpoints = ['/livez', '/health', '/flash'];
+        endpoints.forEach((endpoint) => {
+            cy.request(`${apiUrl}${endpoint}`).then((resp) => {
+                expect(resp.status).to.eq(200);
+                expect(resp.body).to.have.property('status', 'ok');
+            });
+        });
+    });
+
+    it('Should get success response (200) from GET org', () => {
+        const endpoint = `${apiUrl}/org/`;
+
+        cy.request({
+            url: endpoint,
+            headers: { 'Content-type': 'application/json' },
+            method: 'GET',
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+        });
+    });
+
+    it('Should get a credentials error (500) from POST project', () => {
+        const endpoint = `${apiUrl}/org/projects/`;
+
+        cy.request({
+            url: endpoint,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: {},
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(500);
+        });
+    });
+
+    it('Should get success response (200) from GET userRouter endpoints', () => {
+        const endpoints = [`/user`, `/user/identities`];
+        endpoints.forEach((endpoint) => {
+            cy.request(`${apiUrl}${endpoint}`).then((resp) => {
+                expect(resp.status).to.eq(200);
+                expect(resp.body).to.have.property('status', 'ok');
+            });
+        });
     });
 });

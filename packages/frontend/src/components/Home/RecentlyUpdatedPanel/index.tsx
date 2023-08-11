@@ -1,47 +1,42 @@
-import { AnchorButton, Button } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
-import { LightdashMode } from '@lightdash/common';
+import {
+    DashboardBasicDetails,
+    isResourceViewSpaceItem,
+    LightdashMode,
+    ResourceViewItemType,
+    SpaceQuery,
+    wrapResourceView,
+} from '@lightdash/common';
+import { Button } from '@mantine/core';
+import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { FC, useMemo } from 'react';
 import { useHistory } from 'react-router-dom';
-import { useDashboards } from '../../../hooks/dashboard/useDashboards';
-import { useSavedCharts } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
-import ResourceList from '../../common/ResourceList';
-import {
-    ResourceEmptyStateHeader,
-    ResourceEmptyStateHeaderWrapper,
-    ResourceEmptyStateIcon,
-    ResourceEmptyStateText,
-} from '../../common/ResourceList/ResourceList.styles';
-import { SortDirection } from '../../common/ResourceList/ResourceTable';
-import {
-    ResourceListType,
-    wrapResourceList,
-} from '../../common/ResourceList/ResourceTypeUtils';
+import MantineIcon from '../../common/MantineIcon';
+import MantineLinkButton from '../../common/MantineLinkButton';
+import ResourceView from '../../common/ResourceView';
 
 interface Props {
+    data: {
+        dashboards: DashboardBasicDetails[];
+        savedCharts: SpaceQuery[];
+    };
     projectUuid: string;
 }
 
-const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
+const RecentlyUpdatedPanel: FC<Props> = ({ data, projectUuid }) => {
     const history = useHistory();
     const { user, health } = useApp();
-    const { data: dashboards = [] } = useDashboards(projectUuid);
-    const { data: savedCharts = [] } = useSavedCharts(projectUuid);
 
     const recentItems = useMemo(() => {
         return [
-            ...wrapResourceList(dashboards, ResourceListType.DASHBOARD),
-            ...wrapResourceList(savedCharts, ResourceListType.CHART),
-        ]
-            .sort((a, b) => {
-                return (
-                    new Date(b.data.updatedAt).getTime() -
-                    new Date(a.data.updatedAt).getTime()
-                );
-            })
-            .slice(0, 10);
-    }, [dashboards, savedCharts]);
+            ...wrapResourceView(
+                data.dashboards,
+                ResourceViewItemType.DASHBOARD,
+            ),
+            ...wrapResourceView(data.savedCharts, ResourceViewItemType.CHART),
+        ];
+    }, [data]);
 
     const handleCreateChart = () => {
         history.push(`/projects/${projectUuid}/tables`);
@@ -58,48 +53,82 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
     );
 
     return (
-        <ResourceList
+        <ResourceView
             items={recentItems}
-            enableSorting={false}
-            defaultSort={{ updatedAt: SortDirection.DESC }}
-            defaultColumnVisibility={{ space: false }}
-            showCount={false}
-            headerTitle="Recently updated"
-            headerAction={
-                recentItems.length === 0 && (
-                    <AnchorButton
-                        text="Learn"
-                        minimal
-                        target="_blank"
-                        href="https://docs.lightdash.com/get-started/exploring-data/intro"
-                    />
-                )
+            maxItems={10}
+            tabs={[
+                {
+                    id: 'most-popular',
+                    name: 'Most popular',
+                    sort: (a, b) => {
+                        if (
+                            isResourceViewSpaceItem(a) ||
+                            isResourceViewSpaceItem(b)
+                        ) {
+                            return 0;
+                        }
+
+                        return b.data.views - a.data.views;
+                    },
+                },
+                {
+                    id: 'recently-updated',
+                    name: 'Recently updated',
+                    sort: (a, b) => {
+                        if (
+                            isResourceViewSpaceItem(a) ||
+                            isResourceViewSpaceItem(b)
+                        ) {
+                            return 0;
+                        }
+
+                        return (
+                            new Date(b.data.updatedAt).getTime() -
+                            new Date(a.data.updatedAt).getTime()
+                        );
+                    },
+                },
+            ]}
+            listProps={{
+                enableSorting: false,
+                defaultColumnVisibility: { space: false },
+            }}
+            headerProps={
+                recentItems.length === 0
+                    ? {
+                          title: 'Charts and Dashboards',
+                          action: (
+                              <MantineLinkButton
+                                  color="gray.6"
+                                  compact
+                                  variant="subtle"
+                                  target="_blank"
+                                  href="https://docs.lightdash.com/get-started/exploring-data/intro"
+                              >
+                                  Learn
+                              </MantineLinkButton>
+                          ),
+                      }
+                    : undefined
             }
-            renderEmptyState={() => (
-                <>
-                    <ResourceEmptyStateIcon icon="chart" size={40} />
-
-                    <ResourceEmptyStateHeaderWrapper>
-                        <ResourceEmptyStateHeader>
-                            Feels a little bit empty over here...
-                        </ResourceEmptyStateHeader>
-
-                        <ResourceEmptyStateText>
-                            get started by creating some charts
-                        </ResourceEmptyStateText>
-                    </ResourceEmptyStateHeaderWrapper>
-
-                    {!isDemo && userCanManageCharts && (
+            emptyStateProps={{
+                icon: <MantineIcon icon={IconChartBar} size={30} />,
+                title: userCanManageCharts
+                    ? 'Feels a little bit empty over here'
+                    : 'No items added yet',
+                description: userCanManageCharts
+                    ? 'get started by creating some charts'
+                    : undefined,
+                action:
+                    !isDemo && userCanManageCharts ? (
                         <Button
-                            icon="plus"
-                            intent="primary"
+                            leftIcon={<MantineIcon icon={IconPlus} size={18} />}
                             onClick={handleCreateChart}
                         >
                             Create chart
                         </Button>
-                    )}
-                </>
-            )}
+                    ) : undefined,
+            }}
         />
     );
 };

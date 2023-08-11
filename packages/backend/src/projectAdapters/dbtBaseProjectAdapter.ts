@@ -1,6 +1,7 @@
 import {
     attachTypesToModels,
     convertExplores,
+    DbtManifestVersion,
     DbtMetric,
     DbtModelNode,
     DbtPackages,
@@ -8,51 +9,21 @@ import {
     Explore,
     ExploreError,
     friendlyName,
+    GetDbtManifestVersion,
     getSchemaStructureFromDbtModels,
     InlineError,
     InlineErrorType,
     isSupportedDbtAdapter,
+    ManifestValidator,
     MissingCatalogEntryError,
     normaliseModelDatabase,
     ParseError,
     SupportedDbtAdapter,
+    SupportedDbtVersions,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
-import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
-import { AnyValidateFunction } from 'ajv/dist/types';
-import Logger from '../logger';
-import dbtManifestSchema from '../manifestv7.json';
-import lightdashDbtSchema from '../schema.json';
+import Logger from '../logging/logger';
 import { CachedWarehouse, DbtClient, ProjectAdapter } from '../types';
-
-const ajv = new Ajv({ schemas: [lightdashDbtSchema, dbtManifestSchema] });
-addFormats(ajv);
-
-const getModelValidator = () => {
-    const modelValidator = ajv.getSchema<DbtRawModelNode>(
-        'https://schemas.lightdash.com/dbt/manifest/v7.json#/definitions/LightdashCompiledModelNode',
-    );
-    if (modelValidator === undefined) {
-        throw new ParseError('Could not parse Lightdash schema.');
-    }
-    return modelValidator;
-};
-
-const getMetricValidator = () => {
-    const metricValidator = ajv.getSchema<DbtMetric>(
-        'https://schemas.getdbt.com/dbt/manifest/v7.json#/definitions/ParsedMetric',
-    );
-    if (metricValidator === undefined) {
-        throw new ParseError('Could not parse dbt schema.');
-    }
-    return metricValidator;
-};
-
-const formatAjvErrors = (validator: AnyValidateFunction): string =>
-    (validator.errors || [])
-        .map((err) => `Field at "${err.instancePath}" ${err.message}`)
-        .join('\n');
 
 export class DbtBaseProjectAdapter implements ProjectAdapter {
     dbtClient: DbtClient;
@@ -61,14 +32,18 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     cachedWarehouse: CachedWarehouse;
 
+    dbtVersion: SupportedDbtVersions;
+
     constructor(
         dbtClient: DbtClient,
         warehouseClient: WarehouseClient,
         cachedWarehouse: CachedWarehouse,
+        dbtVersion: SupportedDbtVersions,
     ) {
         this.dbtClient = dbtClient;
         this.warehouseClient = warehouseClient;
         this.cachedWarehouse = cachedWarehouse;
+        this.dbtVersion = dbtVersion;
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -111,14 +86,23 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
         // Validate models in the manifest - models with invalid metadata will compile to failed Explores
         const models = Object.values(manifest.nodes).filter(
-            (node) => node.resource_type === 'model',
+            (node: any) => node.resource_type === 'model',
         ) as DbtRawModelNode[];
-        Logger.debug(`Validate ${models.length} models in manifest`);
+        const manifestVersion = GetDbtManifestVersion(this.dbtVersion);
+        Logger.debug(
+            `Validate ${models.length} models in manifest with version ${manifestVersion}`,
+        );
+
         const [validModels, failedExplores] =
-            DbtBaseProjectAdapter._validateDbtModel(adapterType, models);
+            DbtBaseProjectAdapter._validateDbtModel(
+                adapterType,
+                models,
+                manifestVersion,
+            );
 
         // Validate metrics in the manifest - compile fails if any invalid
         const metrics = DbtBaseProjectAdapter._validateDbtMetrics(
+            manifestVersion,
             Object.values(manifest.metrics),
         );
 
@@ -194,15 +178,16 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         return this.warehouseClient.runQuery(sql);
     }
 
-    static _validateDbtMetrics(metrics: DbtMetric[]): DbtMetric[] {
-        const validator = getMetricValidator();
+    static _validateDbtMetrics(
+        version: DbtManifestVersion,
+        metrics: DbtMetric[],
+    ): DbtMetric[] {
+        const validator = new ManifestValidator(version);
         metrics.forEach((metric) => {
-            const isValid = validator(metric);
-            if (isValid !== true) {
+            const [isValid, errorMessage] = validator.isDbtMetricValid(metric);
+            if (!isValid) {
                 throw new ParseError(
-                    `Could not parse dbt metric with id ${
-                        metric.unique_id
-                    }: ${formatAjvErrors(validator)}`,
+                    `Could not parse dbt metric with id ${metric.unique_id}: ${errorMessage}`,
                     {},
                 );
             }
@@ -213,17 +198,18 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     static _validateDbtModel(
         adapterType: SupportedDbtAdapter,
         models: DbtRawModelNode[],
+        manifestVersion: DbtManifestVersion,
     ): [DbtModelNode[], ExploreError[]] {
-        const validator = getModelValidator();
+        const validator = new ManifestValidator(manifestVersion);
         return models.reduce(
             ([validModels, invalidModels], model) => {
                 let error: InlineError | undefined;
                 // Match against json schema
-                const isValid = validator(model);
+                const [isValid, errorMessage] = validator.isModelValid(model);
                 if (!isValid) {
                     error = {
                         type: InlineErrorType.METADATA_PARSE_ERROR,
-                        message: formatAjvErrors(validator),
+                        message: errorMessage,
                     };
                 } else if (
                     isValid &&
@@ -238,7 +224,17 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     const exploreError: ExploreError = {
                         name: model.name,
                         label: model.meta.label || friendlyName(model.name),
-                        errors: [error],
+                        groupLabel: model.meta.group_label,
+                        errors: [
+                            error.type === InlineErrorType.METADATA_PARSE_ERROR
+                                ? {
+                                      ...error,
+                                      message: `${
+                                          model.name ? `${model.name}: ` : ''
+                                      }${error.message}`,
+                                  }
+                                : error,
+                        ],
                     };
                     return [validModels, [...invalidModels, exploreError]];
                 }

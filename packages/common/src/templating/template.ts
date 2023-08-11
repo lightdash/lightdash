@@ -1,4 +1,5 @@
 import { Liquid, TokenKind } from 'liquidjs';
+import { ResultValue } from '../types/results';
 
 const templateEngine = new Liquid({
     cache: true,
@@ -12,8 +13,8 @@ const templateEngine = new Liquid({
 
 export const renderTemplatedUrl = (
     templatedUrl: string,
-    value: { raw: any; formatted: string },
-    row: Record<string, Record<string, { raw: any; formatted: string }>>,
+    value: ResultValue,
+    row: Record<string, Record<string, ResultValue>>,
 ): string => templateEngine.parseAndRenderSync(templatedUrl, { value, row });
 
 export const getTemplatedUrlRowDependencies = (

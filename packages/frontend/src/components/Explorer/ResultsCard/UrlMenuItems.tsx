@@ -10,6 +10,7 @@ import {
     isField,
     renderTemplatedUrl,
     ResultRow,
+    ResultValue,
     TableCalculation,
 } from '@lightdash/common';
 import { Cell } from '@tanstack/react-table';
@@ -21,8 +22,8 @@ const UrlMenuItem: FC<{
     urlConfig: FieldUrl;
     itemsMap?: Record<string, Field | TableCalculation>;
     itemIdsInRow: string[];
-    value: { raw: any; formatted: string };
-    row: Record<string, Record<string, { raw: any; formatted: string }>>;
+    value: ResultValue;
+    row: Record<string, Record<string, ResultValue>>;
 }> = ({ urlConfig, itemsMap, itemIdsInRow, value, row }) => {
     const { track } = useTracking();
     const [url, renderError] = useMemo(() => {
@@ -101,25 +102,26 @@ const UrlMenuItems: FC<{
     cell: Cell<ResultRow, ResultRow[0]>;
     itemsMap?: Record<string, Field | TableCalculation>;
 }> = ({ urls, cell, itemsMap }) => {
-    const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
+    const value: ResultValue = cell.getValue()?.value || {};
     const [itemIdsInRow, rowData] = useMemo(() => {
         const itemIds: string[] = [];
         const row = cell.row
             .getAllCells()
-            .reduce<
-                Record<string, Record<string, { raw: any; formatted: string }>>
-            >((acc, rowCell) => {
-                const item = rowCell.column.columnDef.meta?.item;
-                const rowCellValue = (rowCell.getValue() as ResultRow[0])
-                    ?.value;
-                if (item && isField(item) && rowCellValue) {
-                    itemIds.push(getItemId(item));
-                    acc[item.table] = acc[item.table] || {};
-                    acc[item.table][item.name] = rowCellValue;
+            .reduce<Record<string, Record<string, ResultValue>>>(
+                (acc, rowCell) => {
+                    const item = rowCell.column.columnDef.meta?.item;
+                    const rowCellValue = (rowCell.getValue() as ResultRow[0])
+                        ?.value;
+                    if (item && isField(item) && rowCellValue) {
+                        itemIds.push(getItemId(item));
+                        acc[item.table] = acc[item.table] || {};
+                        acc[item.table][item.name] = rowCellValue;
+                        return acc;
+                    }
                     return acc;
-                }
-                return acc;
-            }, {});
+                },
+                {},
+            );
         return [itemIds, row];
     }, [cell]);
 

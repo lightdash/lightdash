@@ -1,8 +1,9 @@
 import {
     ApiErrorPayload,
+    ApiJobStatusResponse,
     ApiScheduledJobsResponse,
     ApiSchedulerAndTargetsResponse,
-    UpdateSchedulerAndTargetsWithoutId,
+    ApiSchedulerLogsResponse,
 } from '@lightdash/common';
 import { Delete } from '@tsoa/runtime';
 import express from 'express';
@@ -18,14 +19,42 @@ import {
     Response,
     Route,
     SuccessResponse,
+    Tags,
 } from 'tsoa';
-import { SchedulerService } from '../services/SchedulerService/SchedulerService';
 import { schedulerService } from '../services/services';
-import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import {
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+} from './authentication';
 
 @Route('/api/v1/schedulers')
 @Response<ApiErrorPayload>('default', 'Error')
+@Tags('Schedulers')
 export class SchedulerController extends Controller {
+    /**
+     * Get scheduled logs
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{projectUuid}/logs')
+    @OperationId('getSchedulerLogs')
+    async getLogs(
+        @Path() projectUuid: string,
+
+        @Request() req: express.Request,
+    ): Promise<ApiSchedulerLogsResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await schedulerService.getSchedulerLogs(
+                req.user!,
+                projectUuid,
+            ),
+        };
+    }
+
     /**
      * Get a scheduler
      * @param schedulerUuid The uuid of the scheduler to update
@@ -55,7 +84,11 @@ export class SchedulerController extends Controller {
      * @param req express request
      * @param body the new scheduler data
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('201', 'Updated')
     @Patch('{schedulerUuid}')
     @OperationId('updateScheduler')
@@ -80,7 +113,11 @@ export class SchedulerController extends Controller {
      * @param schedulerUuid The uuid of the scheduler to delete
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('201', 'Deleted')
     @Delete('{schedulerUuid}')
     @OperationId('deleteScheduler')
@@ -119,6 +156,27 @@ export class SchedulerController extends Controller {
                 req.user!,
                 schedulerUuid,
             ),
+        };
+    }
+
+    /**
+     * Get a generic job status
+     * This method can be used when polling from the frontend
+     * @param jobId the jobId for the status to check
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('job/{jobId}/status')
+    @OperationId('getSchedulerJobStatus')
+    async getSchedulerStatus(
+        @Path() jobId: string,
+        @Request() req: express.Request,
+    ): Promise<ApiJobStatusResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: { status: await schedulerService.getJobStatus(jobId) },
         };
     }
 }

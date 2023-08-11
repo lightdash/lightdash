@@ -19,11 +19,11 @@ import {
     Filters,
     getDimensions,
     getItemId,
+    hashFieldReference,
     isField,
-    isMetric,
     MetricQuery,
     PivotReference,
-    ResultRow,
+    ResultValue,
 } from '@lightdash/common';
 import React, { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
@@ -33,15 +33,15 @@ import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { useMetricQueryDataContext } from './MetricQueryDataProvider';
 
 type CombineFiltersArgs = {
+    fieldValues: Record<string, ResultValue>;
     metricQuery: MetricQuery;
-    row: ResultRow;
     pivotReference?: PivotReference;
     dashboardFilters?: DashboardFilters;
     extraFilters?: Filters;
 };
 const combineFilters = ({
+    fieldValues,
     metricQuery,
-    row,
     pivotReference,
     dashboardFilters,
     extraFilters,
@@ -74,7 +74,7 @@ const combineFilters = ({
     const dimensionFilters: FilterRule[] = metricQuery.dimensions.reduce<
         FilterRule[]
     >((acc, dimension) => {
-        const rowValue = row[dimension];
+        const rowValue = fieldValues[dimension];
         if (!rowValue) {
             return acc;
         }
@@ -84,11 +84,10 @@ const combineFilters = ({
                 fieldId: dimension,
             },
             operator:
-                rowValue.value.raw === null
+                rowValue.raw === null
                     ? FilterOperator.NULL
                     : FilterOperator.EQUALS,
-            values:
-                rowValue.value.raw === null ? undefined : [rowValue.value.raw],
+            values: rowValue.raw === null ? undefined : [rowValue.raw],
         };
         return [...acc, dimensionFilter];
     }, []);
@@ -103,10 +102,10 @@ const combineFilters = ({
 };
 
 type DrillDownExploreUrlArgs = {
+    fieldValues: Record<string, ResultValue>;
     projectUuid: string;
     tableName: string;
     metricQuery: MetricQuery;
-    row: ResultRow;
     drillByMetric: FieldId;
     drillByDimension: FieldId;
     dashboardFilters?: DashboardFilters;
@@ -115,10 +114,10 @@ type DrillDownExploreUrlArgs = {
 };
 
 const drillDownExploreUrl = ({
+    fieldValues,
     projectUuid,
     tableName,
     metricQuery,
-    row,
     drillByMetric,
     drillByDimension,
     dashboardFilters,
@@ -133,7 +132,7 @@ const drillDownExploreUrl = ({
             metrics: [drillByMetric],
             filters: combineFilters({
                 metricQuery,
-                row,
+                fieldValues,
                 dashboardFilters,
                 extraFilters,
                 pivotReference,
@@ -177,11 +176,14 @@ const DrillDownModal: FC = () => {
         }
         return [];
     }, [explore]);
-
     const value = useMemo(() => {
-        if (drillDownConfig && isField(drillDownConfig.selectedItem))
-            return drillDownConfig.row[getFieldId(drillDownConfig.selectedItem)]
-                ?.value.formatted;
+        if (drillDownConfig && isField(drillDownConfig.item)) {
+            const fieldId =
+                drillDownConfig.pivotReference !== undefined
+                    ? hashFieldReference(drillDownConfig.pivotReference)
+                    : getFieldId(drillDownConfig.item);
+            return drillDownConfig.fieldValues[fieldId]?.formatted;
+        }
     }, [drillDownConfig]);
 
     const url = useMemo(() => {
@@ -190,8 +192,8 @@ const DrillDownModal: FC = () => {
                 projectUuid,
                 tableName: explore.name,
                 metricQuery,
-                row: drillDownConfig.row,
-                drillByMetric: getItemId(drillDownConfig.selectedItem),
+                fieldValues: drillDownConfig.fieldValues,
+                drillByMetric: getItemId(drillDownConfig.item),
                 drillByDimension: getItemId(selectedDimension),
                 dashboardFilters: drillDownConfig.dashboardFilters,
                 pivotReference: drillDownConfig.pivotReference,

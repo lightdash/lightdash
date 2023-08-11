@@ -1,111 +1,167 @@
-import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { DashboardFilterRule, FilterableField } from '@lightdash/common';
-import { FC, useState } from 'react';
-import {
-    useAvailableDashboardFilterTargets,
-    useDashboardAvailableTileFilters,
-} from '../../../hooks/dashboard/useDashboard';
+import { ActionIcon, Button, Popover, Text, Tooltip } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+import { IconX } from '@tabler/icons-react';
+import { FC, useCallback, useState } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import {
     getConditionalRuleLabel,
     getFilterRuleTables,
 } from '../../common/Filters/configs';
+import MantineIcon from '../../common/MantineIcon';
 import FilterConfiguration, { FilterTabs } from '../FilterConfiguration';
 import { FilterModalContainer } from '../FilterSearch/FilterSearch.styles';
-import {
-    FilterValues,
-    InvalidFilterTag,
-    TagContainer,
-} from './ActiveFilters.styles';
 
 type Props = {
     isEditMode: boolean;
-    fieldId: string;
-    field: FilterableField | undefined;
+    isTemporary?: boolean;
+    field: FilterableField;
     filterRule: DashboardFilterRule;
-    onClick?: () => void;
     onRemove: () => void;
     onUpdate: (value: DashboardFilterRule) => void;
 };
 
 const ActiveFilter: FC<Props> = ({
     isEditMode,
-    fieldId,
+    isTemporary,
     field,
     filterRule,
-    onClick,
     onRemove,
     onUpdate,
 }) => {
-    const { dashboardTiles } = useDashboardContext();
-    const { data: availableTileFilters, isLoading: isLoadingTileFilters } =
-        useDashboardAvailableTileFilters(dashboardTiles);
     const {
-        data: availableDashboardFilterTargets,
-        isLoading: isLoadingDashboardFilterTargets,
-    } = useAvailableDashboardFilterTargets(dashboardTiles);
+        dashboard,
+        dashboardTiles,
+        allFilterableFields,
+        filterableFieldsByTileUuid,
+    } = useDashboardContext();
+
+    const originalFilterRule = dashboard?.filters?.dimensions.find(
+        (item) => item.id === filterRule.id,
+    );
+
+    const [isPopoverOpen, { close: closePopover, toggle: togglePopover }] =
+        useDisclosure();
+    const [isSubPopoverOpen, { close: closeSubPopover, open: openSubPopover }] =
+        useDisclosure();
+
+    const handleClose = useCallback(() => {
+        closeSubPopover();
+        closePopover();
+    }, [closeSubPopover, closePopover]);
 
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>();
 
-    if (
-        isLoadingTileFilters ||
-        isLoadingDashboardFilterTargets ||
-        !availableTileFilters ||
-        !availableDashboardFilterTargets
-    ) {
+    if (!filterableFieldsByTileUuid || !allFilterableFields) {
         return null;
     }
 
-    if (!field) {
-        return (
-            <InvalidFilterTag onRemove={onRemove}>
-                Tried to reference field with unknown id: {fieldId}
-            </InvalidFilterTag>
-        );
-    }
     const filterRuleLabels = getConditionalRuleLabel(filterRule, field);
     const filterRuleTables = getFilterRuleTables(
         filterRule,
         field,
-        availableDashboardFilterTargets,
+        allFilterableFields,
     );
 
     return (
-        <Popover2
-            placement="bottom-start"
-            content={
+        <Popover
+            position="bottom-start"
+            withArrow
+            shadow="md"
+            opened={isPopoverOpen}
+            closeOnEscape={!isSubPopoverOpen}
+            closeOnClickOutside={!isSubPopoverOpen}
+            onClose={handleClose}
+            offset={-1}
+            keepMounted
+        >
+            <Popover.Target>
+                <Tooltip
+                    position="top-start"
+                    disabled={isPopoverOpen}
+                    label={
+                        <Text fs="xs">
+                            {filterRuleTables.length === 0
+                                ? `Table: ${filterRuleTables[0]}`
+                                : `Tables: ${filterRuleTables.join(', ')}`}
+                        </Text>
+                    }
+                >
+                    <Button
+                        size="xs"
+                        variant={isTemporary ? 'outline' : 'default'}
+                        bg="white"
+                        rightIcon={
+                            (isEditMode || isTemporary) && (
+                                <ActionIcon
+                                    color="dark"
+                                    size="xs"
+                                    onClick={onRemove}
+                                >
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            )
+                        }
+                        styles={{
+                            inner: {
+                                color: 'black',
+                            },
+                        }}
+                        onClick={togglePopover}
+                    >
+                        <Text fz="xs">
+                            <Text fw={600} span>
+                                {filterRule.label || filterRuleLabels.field}{' '}
+                            </Text>
+                            <Text fw={400} span>
+                                {filterRule.disabled ? (
+                                    <Text span color="gray.6">
+                                        is any value
+                                    </Text>
+                                ) : (
+                                    <>
+                                        <Text span color="gray.7">
+                                            {filterRuleLabels.operator}{' '}
+                                        </Text>
+                                        <Text fw={700} span>
+                                            {filterRuleLabels.value}
+                                        </Text>
+                                    </>
+                                )}
+                            </Text>
+                        </Text>
+                    </Button>
+                </Tooltip>
+            </Popover.Target>
+
+            {/* FIXME: remove p={0} once we remove Blueprint popover from FilterSearch */}
+            <Popover.Dropdown p={0}>
                 <FilterModalContainer $wide={selectedTabId === 'tiles'}>
                     <FilterConfiguration
                         isEditMode={isEditMode}
+                        isTemporary={isTemporary}
                         tiles={dashboardTiles}
                         selectedTabId={selectedTabId}
-                        onTabChange={setSelectedTabId}
                         field={field}
-                        availableTileFilters={availableTileFilters}
+                        availableTileFilters={filterableFieldsByTileUuid}
+                        originalFilterRule={originalFilterRule}
                         filterRule={filterRule}
-                        onSave={onUpdate}
+                        onTabChange={setSelectedTabId}
+                        onSave={(dashboardFilterRule) => {
+                            onUpdate(dashboardFilterRule);
+                            handleClose();
+                        }}
+                        // FIXME: remove this once we migrate off of Blueprint
+                        popoverProps={{
+                            onOpened: () => openSubPopover(),
+                            onOpening: () => openSubPopover(),
+                            onClose: () => closeSubPopover(),
+                            onClosing: () => closeSubPopover(),
+                        }}
                     />
                 </FilterModalContainer>
-            }
-        >
-            <TagContainer interactive onRemove={onRemove} onClick={onClick}>
-                <Tooltip2
-                    interactionKind="hover"
-                    placement="bottom-start"
-                    content={
-                        filterRuleTables.length === 0
-                            ? `Table: ${filterRuleTables[0]}`
-                            : `Tables: ${filterRuleTables.join(', ')}`
-                    }
-                >
-                    <>
-                        {filterRule.label || filterRuleLabels.field}:{' '}
-                        {filterRuleLabels.operator}{' '}
-                        <FilterValues>{filterRuleLabels.value}</FilterValues>
-                    </>
-                </Tooltip2>
-            </TagContainer>
-        </Popover2>
+            </Popover.Dropdown>
+        </Popover>
     );
 };
 

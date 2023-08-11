@@ -2,6 +2,7 @@ import {
     CreatePostgresCredentials,
     DbtLocalProjectConfig,
     DbtProjectType,
+    DefaultSupportedDbtVersion,
     LightdashMode,
     OrganizationMemberRole,
     RequestMethod,
@@ -49,17 +50,15 @@ export async function seed(knex: Knex): Promise<void> {
             throw new Error('Organization was not created');
         }
 
-        const [{ user_id: userId }] = await knex('users')
-            .insert(seedUser)
-            .returning('user_id');
-        if (userId === undefined) {
+        const [user] = await knex('users').insert(seedUser).returning('*');
+        if (user.user_id === undefined) {
             throw new Error('User was not created');
         }
 
-        await knex('emails').insert({ ...seedEmail, user_id: userId });
+        await knex('emails').insert({ ...seedEmail, user_id: user.user_id });
 
         await knex('password_logins').insert({
-            user_id: userId,
+            user_id: user.user_id,
             password_hash: await bcrypt.hash(
                 seedPassword.password,
                 await bcrypt.genSalt(),
@@ -67,7 +66,7 @@ export async function seed(knex: Knex): Promise<void> {
         });
 
         await knex('organization_memberships').insert({
-            user_id: userId,
+            user_id: user.user_id,
             organization_id: organizationId,
             role: OrganizationMemberRole.ADMIN,
         });
@@ -78,10 +77,10 @@ export async function seed(knex: Knex): Promise<void> {
             shownSuccess_at: new Date(),
         });
 
-        return organizationId;
+        return { organizationId, user };
     };
 
-    const organizationId = await addUser(
+    const { organizationId, user } = await addUser(
         SEED_ORG_1,
         SEED_ORG_1_ADMIN,
         SEED_ORG_1_ADMIN_EMAIL,
@@ -116,8 +115,10 @@ export async function seed(knex: Knex): Promise<void> {
             ...SEED_PROJECT,
             organization_id: organizationId,
             dbt_connection: encryptedProjectSettings,
+            dbt_version: DefaultSupportedDbtVersion,
         })
         .returning('project_id');
+
     if (projectId === undefined) {
         throw new Error('Project was not created');
     }
@@ -179,10 +180,17 @@ export async function seed(knex: Knex): Promise<void> {
         warehouse_type: 'postgres',
     });
 
-    await knex('spaces').insert({
-        ...SEED_SPACE,
-        is_private: false,
-        project_id: projectId,
+    const [{ space_id: spaceId }] = await knex('spaces')
+        .insert({
+            ...SEED_SPACE,
+            is_private: false,
+            project_id: projectId,
+        })
+        .returning('space_id');
+
+    await knex('space_share').insert({
+        user_id: user.user_id,
+        space_id: spaceId,
     });
 
     try {

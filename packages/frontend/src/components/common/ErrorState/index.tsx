@@ -1,10 +1,5 @@
 import { NonIdealState } from '@blueprintjs/core';
-import {
-    AuthorizationError,
-    ForbiddenError,
-    LightdashError,
-    NotExistsError,
-} from '@lightdash/common';
+import { LightdashError } from '@lightdash/common';
 import { ComponentProps, FC, useMemo } from 'react';
 import styled from 'styled-components';
 
@@ -14,7 +9,7 @@ const DEFAULT_ERROR_PROPS: ComponentProps<typeof NonIdealState> = {
     description: 'Please contact support',
 };
 
-export const StyledNonIdealState = styled(NonIdealState)<{
+const StyledNonIdealState = styled(NonIdealState)<{
     $hasMarginTop?: boolean;
 }>`
     ${({ $hasMarginTop }) => $hasMarginTop && 'margin-top: 20px;'}

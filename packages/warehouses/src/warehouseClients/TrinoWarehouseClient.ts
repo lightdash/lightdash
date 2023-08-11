@@ -3,9 +3,9 @@ import {
     DimensionType,
     Metric,
     MetricType,
+    SupportedDbtAdapter,
     WarehouseConnectionError,
     WarehouseQueryError,
-    WeekDay,
 } from '@lightdash/common';
 import {
     BasicAuth,
@@ -15,8 +15,8 @@ import {
     QueryResult,
     Trino,
 } from 'trino-client';
-import { WarehouseCatalog, WarehouseClient } from '../types';
-import { getDefaultMetricSql } from '../utils/sql';
+import { WarehouseCatalog } from '../types';
+import WarehouseBaseClient from './WarehouseBaseClient';
 
 export enum TrinoTypes {
     BOOLEAN = 'boolean',
@@ -138,32 +138,17 @@ const resultHandler = (schema: { [key: string]: any }[], data: any[][]) => {
     });
 };
 
-export class TrinoWarehouseClient implements WarehouseClient {
+export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredentials> {
     connectionOptions: ConnectionOptions;
 
-    startOfWeek: WeekDay | null | undefined;
-
-    constructor({
-        host,
-        user,
-        password,
-        port,
-        dbname,
-        schema,
-        http_scheme,
-        startOfWeek,
-    }: CreateTrinoCredentials) {
-        this.startOfWeek = startOfWeek;
+    constructor(credentials: CreateTrinoCredentials) {
+        super(credentials);
         this.connectionOptions = {
-            auth: new BasicAuth(user, password),
-            catalog: dbname,
-            schema,
-            server: `${http_scheme}://${host}:${port}`,
+            auth: new BasicAuth(credentials.user, credentials.password),
+            catalog: credentials.dbname,
+            schema: credentials.schema,
+            server: `${credentials.http_scheme}://${credentials.host}:${credentials.port}`,
         };
-    }
-
-    getStartOfWeek() {
-        return this.startOfWeek;
     }
 
     private async getSession() {
@@ -179,15 +164,19 @@ export class TrinoWarehouseClient implements WarehouseClient {
         return {
             session,
             close: async () => {
-                console.log('Close trino connection');
+                console.info('Close trino connection');
             },
         };
     }
 
-    async runQuery(sql: string) {
+    async runQuery(sql: string, tags?: Record<string, string>) {
         const { session, close } = await this.getSession();
         let query: Iterator<QueryResult>;
         try {
+            let alteredQuery = sql;
+            if (tags) {
+                alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(tags)}`;
+            }
             query = await session.query(sql);
 
             const queryResult = await query.next();
@@ -225,10 +214,6 @@ export class TrinoWarehouseClient implements WarehouseClient {
         } finally {
             await close();
         }
-    }
-
-    async test(): Promise<void> {
-        await this.runQuery(`SELECT 1`);
     }
 
     async getCatalog(requests: TableInfo[]): Promise<WarehouseCatalog> {
@@ -269,6 +254,10 @@ export class TrinoWarehouseClient implements WarehouseClient {
         return "'";
     }
 
+    getAdapterType(): SupportedDbtAdapter {
+        return SupportedDbtAdapter.TRINO;
+    }
+
     getMetricSql(sql: string, metric: Metric) {
         switch (metric.type) {
             case MetricType.PERCENTILE:
@@ -278,7 +267,7 @@ export class TrinoWarehouseClient implements WarehouseClient {
             case MetricType.MEDIAN:
                 return `APPROX_PERCENTILE(${sql},0.5)`;
             default:
-                return getDefaultMetricSql(sql, metric.type);
+                return super.getMetricSql(sql, metric);
         }
     }
 }

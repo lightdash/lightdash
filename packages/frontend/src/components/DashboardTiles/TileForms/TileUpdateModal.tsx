@@ -8,13 +8,14 @@ import {
 import {
     assertUnreachable,
     Dashboard,
+    DashboardLoomTileProperties,
+    DashboardMarkdownTileProperties,
     DashboardTileTypes,
 } from '@lightdash/common';
+import { useForm, UseFormReturnType } from '@mantine/form';
 import produce from 'immer';
-import { useForm } from 'react-hook-form';
-import Form from '../../ReactHookForm/Form';
 import ChartTileForm from './ChartTileForm';
-import LoomTileForm from './LoomTileForm';
+import LoomTileForm, { getLoomId } from './LoomTileForm';
 import MarkdownTileForm from './MarkdownTileForm';
 
 type Tile = Dashboard['tiles'][number];
@@ -32,43 +33,64 @@ const TileUpdateModal = <T extends Tile>({
     onConfirm,
     ...modalProps
 }: TileUpdateModalProps<T>) => {
+    const getValidators = () => {
+        const urlValidator = {
+            url: (value: string | undefined) =>
+                getLoomId(value) ? null : 'Loom url not valid',
+        };
+        const titleValidator = {
+            title: (value: string | undefined) => {
+                return !value || !value.length ? 'Required field' : null;
+            },
+        };
+
+        if (tile.type === DashboardTileTypes.LOOM)
+            return { ...urlValidator, ...titleValidator };
+    };
+
     const form = useForm<TileProperties>({
-        mode: 'onChange',
-        defaultValues: tile.properties,
+        initialValues: { ...tile.properties },
+        validate: getValidators(),
+        validateInputOnChange: ['title', 'url'],
     });
 
-    const handleConfirm = async (properties: TileProperties) => {
+    const handleConfirm = form.onSubmit(({ ...properties }) => {
         onConfirm?.(
             produce(tile, (draft) => {
                 draft.properties = properties;
             }),
         );
-    };
-
-    const handleClose = () => {
-        form.reset();
-        onClose?.();
-    };
+    });
 
     return (
         <Dialog
             lazy
             title="Edit tile content"
             {...modalProps}
-            onClose={handleClose}
+            onClose={() => onClose?.()}
+            backdropClassName="non-draggable"
         >
-            <Form
-                name="Edit tile content"
-                methods={form}
-                onSubmit={handleConfirm}
-            >
+            <form onSubmit={handleConfirm}>
                 <DialogBody>
                     {tile.type === DashboardTileTypes.SAVED_CHART ? (
                         <ChartTileForm />
                     ) : tile.type === DashboardTileTypes.MARKDOWN ? (
-                        <MarkdownTileForm />
+                        <MarkdownTileForm
+                            form={
+                                form as UseFormReturnType<
+                                    DashboardMarkdownTileProperties['properties']
+                                >
+                            }
+                        />
                     ) : tile.type === DashboardTileTypes.LOOM ? (
-                        <LoomTileForm />
+                        <LoomTileForm
+                            form={
+                                form as UseFormReturnType<
+                                    DashboardLoomTileProperties['properties']
+                                >
+                            }
+                            withHideTitle
+                        />
                     ) : (
                         assertUnreachable(tile, 'Tile type not supported')
                     )}
@@ -77,19 +99,19 @@ const TileUpdateModal = <T extends Tile>({
                 <DialogFooter
                     actions={
                         <>
-                            <Button onClick={handleClose}>Cancel</Button>
+                            <Button onClick={() => onClose?.()}>Cancel</Button>
 
                             <Button
                                 intent="primary"
                                 type="submit"
-                                disabled={!form.formState.isValid}
+                                disabled={!form.isValid()}
                             >
                                 Save
                             </Button>
                         </>
                     }
                 />
-            </Form>
+            </form>
         </Dialog>
     );
 };

@@ -1,46 +1,37 @@
 import { WarehouseTypes } from '@lightdash/common';
 import { FC, useState } from 'react';
-import { useHistory } from 'react-router-dom';
 import ConnectManuallyStep1 from './ConnectManuallyStep1';
 import ConnectManuallyStep2 from './ConnectManuallyStep2';
 
 interface ConnectManuallyProps {
     isCreatingFirstProject: boolean;
     selectedWarehouse: WarehouseTypes;
+    onBack: () => void;
 }
 
 const ConnectManually: FC<ConnectManuallyProps> = ({
     isCreatingFirstProject,
     selectedWarehouse,
+    onBack,
 }) => {
-    const history = useHistory();
-
     const [hasDimensions, setHasDimensions] = useState<boolean>();
 
-    return (
-        <>
-            {!hasDimensions && (
-                <ConnectManuallyStep1
-                    isCreatingFirstProject={isCreatingFirstProject}
-                    onBack={() => {
-                        history.goBack();
-                    }}
-                    onForward={() => {
-                        setHasDimensions(true);
-                    }}
-                />
-            )}
-
-            {hasDimensions && (
-                <ConnectManuallyStep2
-                    isCreatingFirstProject={isCreatingFirstProject}
-                    selectedWarehouse={selectedWarehouse}
-                    onBack={() => {
-                        setHasDimensions(false);
-                    }}
-                />
-            )}
-        </>
+    return !hasDimensions ? (
+        <ConnectManuallyStep1
+            isCreatingFirstProject={isCreatingFirstProject}
+            onBack={onBack}
+            onForward={() => {
+                setHasDimensions(true);
+            }}
+        />
+    ) : (
+        <ConnectManuallyStep2
+            isCreatingFirstProject={isCreatingFirstProject}
+            selectedWarehouse={selectedWarehouse}
+            onBack={() => {
+                setHasDimensions(false);
+            }}
+        />
     );
 };
 

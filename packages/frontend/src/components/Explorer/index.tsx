@@ -1,8 +1,12 @@
+import { Stack } from '@mantine/core';
 import { FC, memo } from 'react';
+import { useParams } from 'react-router-dom';
+
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import DrillDownModal from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
+import { CustomMetricModal } from './CustomMetricModal';
 import ExplorerHeader from './ExplorerHeader';
 import FiltersCard from './FiltersCard/FiltersCard';
 import ResultsCard from './ResultsCard/ResultsCard';
@@ -16,18 +20,28 @@ const Explorer: FC = memo(() => {
     const unsavedChartVersionMetricQuery = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery,
     );
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
     return (
         <MetricQueryDataProvider
             metricQuery={unsavedChartVersionMetricQuery}
             tableName={unsavedChartVersionTableName}
         >
-            <ExplorerHeader />
-            <FiltersCard />
-            <VisualizationCard />
-            <ResultsCard />
-            <SqlCard />
+            <Stack sx={{ flexGrow: 1 }}>
+                <ExplorerHeader />
+
+                <FiltersCard />
+
+                <VisualizationCard projectUuid={projectUuid} />
+
+                <ResultsCard />
+
+                <SqlCard projectUuid={projectUuid} />
+            </Stack>
+
             <UnderlyingDataModal />
             <DrillDownModal />
+            <CustomMetricModal />
         </MetricQueryDataProvider>
     );
 });

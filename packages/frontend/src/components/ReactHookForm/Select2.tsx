@@ -1,10 +1,9 @@
 import { Button } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemRenderer, Select2 as BlueprintSelect2 } from '@blueprintjs/select';
-import React, { FC, useCallback } from 'react';
+import { Highlight } from '@mantine/core';
+import { FC, useCallback } from 'react';
 import { ControllerRenderProps, FieldValues } from 'react-hook-form';
-import HighlightedText from '../common/HighlightedText';
-import { Hightlighed } from '../NavBar/GlobalSearch/globalSearch.styles';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
 
 type Item = {
@@ -46,20 +45,12 @@ const renderItem: ItemRenderer<Item> = (
 
     const text = item.subLabel ? (
         <>
-            <HighlightedText
-                text={label}
-                query={query}
-                highlightElement={Hightlighed}
-            />
+            <Highlight highlight={query}>{label}</Highlight>
             <br />
             {item.subLabel}
         </>
     ) : (
-        <HighlightedText
-            text={label}
-            query={query}
-            highlightElement={Hightlighed}
-        />
+        <Highlight highlight={query}>{label}</Highlight>
     );
     return (
         <MenuItem2

@@ -1,70 +1,87 @@
-import { H6, Intent, NonIdealState } from '@blueprintjs/core';
-import React, { FC } from 'react';
-import { FloatingBackButton } from '../../../pages/CreateProject.styles';
+import { Anchor, Avatar, Button } from '@mantine/core';
+import { IconChevronLeft, IconExclamationCircle } from '@tabler/icons-react';
+import { FC } from 'react';
+import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import LinkButton from '../../common/LinkButton';
-import InviteExpertFooter from './InviteExpertFooter';
-import { ConnectWarehouseWrapper, Wrapper } from './ProjectConnectFlow.styles';
+import { EmptyState } from '../../common/EmptyState';
+import MantineIcon from '../../common/MantineIcon';
+import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
+import OnboardingWrapper from './common/OnboardingWrapper';
 
 interface UnsupportedWarehouseProps {
     onBack: () => void;
 }
 
 const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
-    return (
-        <Wrapper>
-            <FloatingBackButton
-                icon="chevron-left"
-                text="Back"
-                onClick={onBack}
-            />
+    const { track } = useTracking();
 
-            <ConnectWarehouseWrapper>
-                <NonIdealState
-                    icon="error"
+    return (
+        <OnboardingWrapper>
+            <Button
+                pos="absolute"
+                variant="subtle"
+                size="sm"
+                top={-50}
+                leftIcon={<MantineIcon icon={IconChevronLeft} />}
+                onClick={onBack}
+            >
+                Back
+            </Button>
+
+            <ProjectCreationCard>
+                <EmptyState
+                    py="unset"
+                    icon={
+                        <Avatar size="lg" radius="xl">
+                            <MantineIcon
+                                icon={IconExclamationCircle}
+                                size="xxl"
+                                strokeWidth={1.5}
+                                color="black"
+                            />
+                        </Avatar>
+                    }
                     title={
-                        <H6>
+                        <>
                             We only support warehouses that have{' '}
-                            <a
+                            <Anchor
                                 href="https://docs.getdbt.com/docs/supported-data-platforms#verified-adapters"
                                 target="_blank"
-                                rel="noreferrer"
+                                rel="noreferrer noopener"
                             >
                                 verified dbt adapters
-                            </a>{' '}
+                            </Anchor>{' '}
                             for now
-                        </H6>
+                        </>
                     }
                     description={
                         <>
                             You can vote on your warehouse in our{' '}
-                            <a
+                            <Anchor
                                 href="https://github.com/lightdash/lightdash/issues"
                                 target="_blank"
-                                rel="noreferrer"
+                                rel="noreferrer noopener"
                             >
                                 GitHub issues
-                            </a>{' '}
+                            </Anchor>{' '}
                             or create a new issue if you can't see yours there.
                         </>
                     }
-                    action={
-                        <LinkButton
-                            intent={Intent.PRIMARY}
-                            href="https://demo.lightdash.com/"
-                            target="_blank"
-                            trackingEvent={{
-                                name: EventName.TRY_DEMO_CLICKED,
-                            }}
-                        >
-                            try our demo project
-                        </LinkButton>
-                    }
-                />
-            </ConnectWarehouseWrapper>
-
-            <InviteExpertFooter />
-        </Wrapper>
+                >
+                    <Button
+                        component="a"
+                        href="https://demo.lightdash.com/"
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        onClick={() => {
+                            track({ name: EventName.TRY_DEMO_CLICKED });
+                        }}
+                    >
+                        Try our demo project
+                    </Button>
+                </EmptyState>
+            </ProjectCreationCard>
+        </OnboardingWrapper>
     );
 };
 export default UnsupportedWarehouse;

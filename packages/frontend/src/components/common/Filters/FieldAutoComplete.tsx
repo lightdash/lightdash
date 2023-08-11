@@ -8,8 +8,14 @@ import {
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { createGlobalStyle } from 'styled-components';
+import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
+import { useExplores } from '../../../hooks/useExplores';
 import FieldIcon from './FieldIcon';
-import renderFilterItem from './renderFilterItem';
+import {
+    renderFilterItem,
+    renderFilterItemWithoutTableName,
+} from './renderFilterItem';
+import renderFilterList from './renderFilterList';
 
 const AutocompleteMaxHeight = createGlobalStyle`
   .autocomplete-max-height {
@@ -31,6 +37,7 @@ type FieldAutoCompleteProps<T> = {
     onClosed?: () => void;
     popoverProps?: Popover2Props;
     inputProps?: React.ComponentProps<typeof Suggest2>['inputProps'];
+    hasGrouping?: boolean;
 };
 
 const FieldAutoComplete = <T extends Field | TableCalculation>({
@@ -45,14 +52,18 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
     placeholder,
     popoverProps,
     inputProps,
+    hasGrouping = false,
 }: FieldAutoCompleteProps<T>) => {
+    const { activeProjectUuid } = useActiveProjectUuid();
+    const { data: exploresData } = useExplores(activeProjectUuid ?? '');
+
     const sortedFields = useMemo(() => {
         return fields.sort((a, b) =>
             getItemLabel(a).localeCompare(getItemLabel(b)),
         );
     }, [fields]);
 
-    return (
+    return (hasGrouping && exploresData) || !hasGrouping ? (
         <>
             <AutocompleteMaxHeight />
             <Suggest2<T>
@@ -64,7 +75,13 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
                     name,
                     autoFocus,
                     placeholder: placeholder || 'Search field...',
-                    leftIcon: activeField && <FieldIcon item={activeField} />,
+                    leftElement: activeField && (
+                        <FieldIcon
+                            item={activeField}
+                            size={16}
+                            style={{ margin: '7px 8px' }}
+                        />
+                    ),
                     ...inputProps,
                 }}
                 items={sortedFields}
@@ -84,7 +101,21 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
                     captureDismiss: true,
                     ...popoverProps,
                 }}
-                itemRenderer={renderFilterItem}
+                itemRenderer={
+                    hasGrouping
+                        ? renderFilterItemWithoutTableName
+                        : renderFilterItem
+                }
+                {...(hasGrouping && {
+                    itemListRenderer: (itemListRendererProps) => {
+                        const tables =
+                            exploresData?.map((explore) => ({
+                                description: explore.description,
+                                name: explore.name,
+                            })) ?? [];
+                        return renderFilterList(itemListRendererProps, tables);
+                    },
+                })}
                 activeItem={activeField}
                 selectedItem={activeField}
                 noResults={<MenuItem2 disabled text="No results." />}
@@ -98,7 +129,7 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
                 }}
             />
         </>
-    );
+    ) : null;
 };
 
 export default FieldAutoComplete;

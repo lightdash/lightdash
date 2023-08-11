@@ -1,10 +1,18 @@
 import { Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Popover2Props } from '@blueprintjs/popover2';
-import { ResultRow } from '@lightdash/common';
+import { subject } from '@casl/ability';
+import mapValues from 'lodash-es/mapValues';
 import { FC, useCallback, useMemo } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
+import { useParams } from 'react-router-dom';
+
+import { ResultValue } from '@lightdash/common';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useExplore } from '../../hooks/useExplore';
+import { useApp } from '../../providers/AppProvider';
+import { useTracking } from '../../providers/TrackingProvider';
+import { EventName } from '../../types/Events';
+import { Can } from '../common/Authorization';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
@@ -18,9 +26,12 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
 }) => {
     const { showToastSuccess } = useToaster();
     const { resultsData, bigNumberConfig } = useVisualizationContext();
-    const { openUnderlyingDataModel, tableName } = useMetricQueryDataContext();
+    const { openUnderlyingDataModal, tableName } = useMetricQueryDataContext();
     const { data: explore } = useExplore(tableName);
 
+    const { track } = useTracking();
+    const { user } = useApp();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const selectedItem = useMemo(
         () =>
             bigNumberConfig?.selectedField
@@ -29,15 +40,15 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
         [bigNumberConfig],
     );
 
-    const row: ResultRow = useMemo(() => {
-        return resultsData?.rows?.[0] || {};
+    const fieldValues: Record<string, ResultValue> = useMemo(() => {
+        return mapValues(resultsData?.rows?.[0], (col) => col.value) ?? {};
     }, [resultsData]);
 
     const value = useMemo(() => {
         if (bigNumberConfig.selectedField) {
-            return row[bigNumberConfig.selectedField]?.value;
+            return fieldValues[bigNumberConfig.selectedField];
         }
-    }, [row, bigNumberConfig]);
+    }, [fieldValues, bigNumberConfig]);
 
     const viewUnderlyingData = useCallback(() => {
         if (
@@ -45,13 +56,31 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
             bigNumberConfig.selectedField !== undefined &&
             value
         ) {
-            const meta = {
-                item: bigNumberConfig.getField(bigNumberConfig.selectedField),
-            };
+            const item = bigNumberConfig.getField(
+                bigNumberConfig.selectedField,
+            );
 
-            openUnderlyingDataModel(value, meta, row);
+            openUnderlyingDataModal({ item, value, fieldValues });
+            track({
+                name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                properties: {
+                    organizationId: user?.data?.organizationUuid,
+                    userId: user?.data?.userUuid,
+                    projectId: projectUuid,
+                },
+            });
         }
-    }, [explore, bigNumberConfig, row, value, openUnderlyingDataModel]);
+    }, [
+        projectUuid,
+        explore,
+        value,
+        fieldValues,
+        bigNumberConfig,
+        track,
+        openUnderlyingDataModal,
+        user?.data?.organizationUuid,
+        user?.data?.userUuid,
+    ]);
 
     return (
         <Popover2
@@ -73,18 +102,38 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
                             <MenuItem2 text="Copy value" icon="duplicate" />
                         </CopyToClipboard>
                     )}
-
-                    <MenuItem2
-                        text="View underlying data"
-                        icon="layers"
-                        onClick={() => {
-                            viewUnderlyingData();
-                        }}
-                    />
-                    <DrillDownMenuItem
-                        row={resultsData?.rows[0]}
-                        selectedItem={selectedItem}
-                    />
+                    <Can
+                        I="view"
+                        this={subject('UnderlyingData', {
+                            organizationUuid: user.data?.organizationUuid,
+                            projectUuid: projectUuid,
+                        })}
+                    >
+                        <MenuItem2
+                            text="View underlying data"
+                            icon="layers"
+                            onClick={() => {
+                                viewUnderlyingData();
+                            }}
+                        />
+                    </Can>
+                    <Can
+                        I="manage"
+                        this={subject('Explore', {
+                            organizationUuid: user.data?.organizationUuid,
+                            projectUuid: projectUuid,
+                        })}
+                    >
+                        <DrillDownMenuItem
+                            item={selectedItem}
+                            fieldValues={fieldValues}
+                            trackingData={{
+                                organizationId: user?.data?.organizationUuid,
+                                userId: user?.data?.userUuid,
+                                projectId: projectUuid,
+                            }}
+                        />
+                    </Can>
                 </Menu>
             }
         />

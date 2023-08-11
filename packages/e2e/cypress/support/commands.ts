@@ -24,10 +24,14 @@
 // -- This will overwrite an existing command --
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 import {
+    ApiChartSummaryListResponse,
+    DashboardBasicDetails,
+    OrganizationProject,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
     SEED_ORG_2_ADMIN_EMAIL,
     SEED_ORG_2_ADMIN_PASSWORD,
+    SEED_PROJECT,
 } from '@lightdash/common';
 import '@testing-library/cypress/add-commands';
 import 'cypress-file-upload';
@@ -36,44 +40,86 @@ declare global {
     namespace Cypress {
         interface Chainable {
             login(): Chainable<Element>;
+
             anotherLogin(): Chainable<Element>;
+
             logout(): Chainable<Element>;
+
             registerNewUser(): Chainable<Element>;
+
             invite(email, role): Chainable<string>;
+
             registerWithCode(email, inviteCode): Chainable<Element>;
+
+            verifyEmail(): Chainable<Element>;
+
             addProjectPermission(email, role, projectUuid): Chainable<Element>;
+
             loginWithPermissions(
                 orgRole,
                 projectPermissions,
             ): Chainable<Element>;
+
+            loginWithEmail: (email) => Chainable<Element>;
+
             getApiToken(): Chainable<string>;
+
+            deleteProjectsByName(names: string[]): Chainable;
+
+            deleteDashboardsByName(names: string[]): Chainable;
+
+            deleteChartsByName(names: string[]): Chainable;
         }
     }
 }
 
 Cypress.Commands.add('login', () => {
-    cy.request({
-        url: 'api/v1/login',
-        method: 'POST',
-        body: {
-            email: SEED_ORG_1_ADMIN_EMAIL.email,
-            password: SEED_ORG_1_ADMIN_PASSWORD.password,
+    cy.session(
+        SEED_ORG_1_ADMIN_EMAIL.email,
+        () => {
+            cy.request({
+                url: 'api/v1/login',
+                method: 'POST',
+                body: {
+                    email: SEED_ORG_1_ADMIN_EMAIL.email,
+                    password: SEED_ORG_1_ADMIN_PASSWORD.password,
+                },
+            })
+                .its('status')
+                .should('eq', 200);
         },
-    });
+        {
+            validate() {
+                cy.request('api/v1/user').its('status').should('eq', 200);
+            },
+        },
+    );
 });
 
 Cypress.Commands.add('anotherLogin', () => {
-    cy.request({
-        url: 'api/v1/login',
-        method: 'POST',
-        body: {
-            email: SEED_ORG_2_ADMIN_EMAIL.email,
-            password: SEED_ORG_2_ADMIN_PASSWORD.password,
+    cy.session(
+        SEED_ORG_2_ADMIN_EMAIL.email,
+        () => {
+            cy.request({
+                url: 'api/v1/login',
+                method: 'POST',
+                body: {
+                    email: SEED_ORG_2_ADMIN_EMAIL.email,
+                    password: SEED_ORG_2_ADMIN_PASSWORD.password,
+                },
+            })
+                .its('status')
+                .should('eq', 200);
         },
-    });
+        {
+            validate() {
+                cy.request('api/v1/user').its('status').should('eq', 200);
+            },
+        },
+    );
 });
 Cypress.Commands.add('registerNewUser', () => {
-    const email = `test+${new Date().getTime()}@lightdash.com`;
+    const email = `demo+${new Date().getTime()}@lightdash.com`;
     cy.request({
         url: 'api/v1/register',
         method: 'POST',
@@ -107,6 +153,18 @@ Cypress.Commands.add(
     },
 );
 
+Cypress.Commands.add('verifyEmail', () => {
+    cy.request({
+        url: `api/v1/user/me/email/status?passcode=000000`,
+        headers: { 'Content-type': 'application/json' },
+        method: 'GET',
+        body: undefined,
+    }).then((resp) => {
+        cy.log(JSON.stringify(resp.body));
+        expect(resp.status).to.eq(200);
+    });
+});
+
 Cypress.Commands.add('invite', (email: string, role: string) => {
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // in 1 day
 
@@ -136,6 +194,7 @@ Cypress.Commands.add(
             body: {
                 role,
                 email,
+                sendEmail: false,
             },
         }).then((resp) => {
             expect(resp.status).to.eq(200);
@@ -159,7 +218,7 @@ Cypress.Commands.add(
     (orgRole: string, projectPermissions: ProjectPermission[]) => {
         cy.login();
 
-        const email = `${orgRole}-${new Date().getTime()}@lightdash.com`;
+        const email = `demo+${orgRole}-${new Date().getTime()}@lightdash.com`;
 
         cy.invite(email, orgRole).then((inviteCode) => {
             projectPermissions.forEach((projectPermission) => {
@@ -171,12 +230,30 @@ Cypress.Commands.add(
             });
 
             cy.registerWithCode(email, inviteCode);
-
+            cy.verifyEmail();
             cy.wrap(email);
         });
     },
 );
 
+Cypress.Commands.add('loginWithEmail', (email: string) => {
+    cy.session(
+        email,
+        () => {
+            cy.request({
+                url: 'api/v1/login',
+                method: 'POST',
+                body: {
+                    email,
+                    password: 'test',
+                },
+            })
+                .its('status')
+                .should('eq', 200);
+        },
+        {},
+    );
+});
 Cypress.Commands.add('getApiToken', () => {
     cy.request({
         url: `api/v1/user/me/personal-access-tokens`,
@@ -189,5 +266,65 @@ Cypress.Commands.add('getApiToken', () => {
     }).then((resp) => {
         expect(resp.status).to.eq(200);
         cy.wrap(resp.body.results.token, { log: false });
+    });
+});
+Cypress.Commands.add('deleteProjectsByName', (names: string[]) => {
+    cy.request({
+        url: `api/v1/org/projects`,
+        headers: { 'Content-type': 'application/json' },
+    }).then((resp) => {
+        expect(resp.status).to.eq(200);
+        (resp.body.results as OrganizationProject[]).forEach(
+            ({ projectUuid, name }) => {
+                if (names.includes(name)) {
+                    cy.request({
+                        url: `api/v1/org/projects/${projectUuid}`,
+                        headers: { 'Content-type': 'application/json' },
+                        method: 'DELETE',
+                    }).then((deleteResp) => {
+                        expect(deleteResp.status).to.eq(200);
+                    });
+                }
+            },
+        );
+    });
+});
+Cypress.Commands.add('deleteDashboardsByName', (names: string[]) => {
+    cy.request<{
+        results: DashboardBasicDetails[];
+    }>(`api/v1/projects/${SEED_PROJECT.project_uuid}/dashboards`).then(
+        (resp) => {
+            expect(resp.status).to.eq(200);
+            resp.body.results.forEach(({ uuid, name }) => {
+                if (names.includes(name)) {
+                    cy.request({
+                        url: `api/v1/dashboards/${uuid}`,
+                        headers: { 'Content-type': 'application/json' },
+                        method: 'DELETE',
+                    }).then((deleteResp) => {
+                        expect(deleteResp.status).to.eq(200);
+                    });
+                }
+            });
+        },
+    );
+});
+Cypress.Commands.add('deleteChartsByName', (names: string[]) => {
+    cy.request<ApiChartSummaryListResponse>({
+        url: `api/v1/projects/${SEED_PROJECT.project_uuid}/charts`,
+        headers: { 'Content-type': 'application/json' },
+    }).then((resp) => {
+        expect(resp.status).to.eq(200);
+        resp.body.results.forEach(({ uuid, name }) => {
+            if (names.includes(name)) {
+                cy.request({
+                    url: `api/v1/saved/${uuid}`,
+                    headers: { 'Content-type': 'application/json' },
+                    method: 'DELETE',
+                }).then((deleteResp) => {
+                    expect(deleteResp.status).to.eq(200);
+                });
+            }
+        });
     });
 });

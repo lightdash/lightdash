@@ -34,8 +34,8 @@ savedChartRouter.get(
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
-        analyticsService
-            .getChartViews(req.params.savedQueryUuid)
+        savedChartsService
+            .getViewStats(req.user!, req.params.savedQueryUuid)
             .then((results) => {
                 res.json({
                     status: 'ok',
@@ -48,6 +48,7 @@ savedChartRouter.get(
 
 savedChartRouter.get(
     '/:savedQueryUuid/availableFilters',
+    allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) =>
         projectService
@@ -66,6 +67,7 @@ savedChartRouter.get(
 
 savedChartRouter.delete(
     '/:savedQueryUuid',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -83,6 +85,7 @@ savedChartRouter.delete(
 
 savedChartRouter.patch(
     '/:savedQueryUuid',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -118,6 +121,7 @@ savedChartRouter.patch(
 
 savedChartRouter.post(
     '/:savedQueryUuid/version',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -156,6 +160,7 @@ savedChartRouter.post(
     '/:savedQueryUuid/schedulers',
     allowApiKeyAuthentication,
     isAuthenticated,
+    unauthorisedInDemo,
     async (req, res, next) => {
         try {
             res.json({

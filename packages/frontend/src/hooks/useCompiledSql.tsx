@@ -15,7 +15,10 @@ const getCompiledQuery = async (
     tableId: string,
     query: MetricQuery,
 ) => {
-    const timezoneFixQuery = convertDateFilters(query);
+    const timezoneFixQuery = {
+        ...query,
+        filters: convertDateFilters(query.filters),
+    };
 
     return lightdashApi<ApiCompiledQueryResults>({
         url: `/projects/${projectUuid}/explores/${tableId}/compileQuery`,
@@ -24,7 +27,7 @@ const getCompiledQuery = async (
     });
 };
 
-export const useCompliedSql = () => {
+export const useCompiledSql = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const tableId = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,

@@ -4,6 +4,7 @@ import {
     Popover2,
     Popover2TargetProps,
 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import { getItemMap } from '@lightdash/common';
 import React, {
     FC,
@@ -14,10 +15,15 @@ import React, {
     useState,
 } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
+import { useParams } from 'react-router-dom';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplore } from '../../../hooks/useExplore';
+import { useApp } from '../../../providers/AppProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
+import { Can } from '../../common/Authorization';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import {
@@ -41,12 +47,16 @@ export const SeriesContextMenu: FC<{
     const { resultsData: { metricQuery } = {} } = context;
 
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
-    const { openUnderlyingDataModel } = useMetricQueryDataContext();
+    const { openUnderlyingDataModal } = useMetricQueryDataContext();
 
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
         top: number;
     }>();
+
+    const { track } = useTracking();
+    const { user } = useApp();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     useEffect(() => {
         if (echartSeriesClickEvent !== undefined) {
@@ -78,15 +88,12 @@ export const SeriesContextMenu: FC<{
 
     const onViewUnderlyingData = useCallback(() => {
         if (underlyingData !== undefined) {
-            openUnderlyingDataModel(
-                underlyingData.value,
-                underlyingData.meta,
-                underlyingData.row,
+            openUnderlyingDataModal({
+                ...underlyingData,
                 dimensions,
-                underlyingData.pivotReference,
-            );
+            });
         }
-    }, [openUnderlyingDataModel, dimensions, underlyingData]);
+    }, [openUnderlyingDataModal, dimensions, underlyingData]);
     const contextMenuRenderTarget = useCallback(
         ({ ref }: Popover2TargetProps) => (
             <Portal>
@@ -111,12 +118,30 @@ export const SeriesContextMenu: FC<{
             content={
                 <div onContextMenu={cancelContextMenu}>
                     <Menu>
-                        <MenuItem2
-                            text={`View underlying data`}
-                            icon={'layers'}
-                            onClick={onViewUnderlyingData}
-                        />
-
+                        <Can
+                            I="view"
+                            this={subject('UnderlyingData', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid: projectUuid,
+                            })}
+                        >
+                            <MenuItem2
+                                text={`View underlying data`}
+                                icon={'layers'}
+                                onClick={() => {
+                                    onViewUnderlyingData();
+                                    track({
+                                        name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                                        properties: {
+                                            organizationId:
+                                                user?.data?.organizationUuid,
+                                            userId: user?.data?.userUuid,
+                                            projectId: projectUuid,
+                                        },
+                                    });
+                                }}
+                            />
+                        </Can>
                         {underlyingData?.value && (
                             <CopyToClipboard
                                 text={underlyingData.value.formatted}
@@ -129,12 +154,23 @@ export const SeriesContextMenu: FC<{
                                 <MenuItem2 text="Copy value" icon="duplicate" />
                             </CopyToClipboard>
                         )}
-
-                        <DrillDownMenuItem
-                            row={underlyingData?.row}
-                            selectedItem={underlyingData?.meta?.item}
-                            pivotReference={underlyingData?.pivotReference}
-                        />
+                        <Can
+                            I="view"
+                            this={subject('Explore', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid: projectUuid,
+                            })}
+                        >
+                            <DrillDownMenuItem
+                                {...underlyingData}
+                                trackingData={{
+                                    organizationId:
+                                        user?.data?.organizationUuid,
+                                    userId: user?.data?.userUuid,
+                                    projectId: projectUuid,
+                                }}
+                            />
+                        </Can>
                     </Menu>
                 </div>
             }

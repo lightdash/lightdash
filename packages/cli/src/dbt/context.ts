@@ -43,7 +43,7 @@ export const getDbtContext = async ({
 
     const targetSubDir = config['target-path'] || './target';
 
-    GlobalState.debug(`> DBT target directory: ${targetSubDir}`);
+    GlobalState.debug(`> dbt target directory: ${targetSubDir}`);
 
     const targetDir = path.join(projectDir, targetSubDir);
     const modelsSubDir = config['models-path'] || './models';

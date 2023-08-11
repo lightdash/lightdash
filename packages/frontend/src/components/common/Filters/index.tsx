@@ -1,4 +1,4 @@
-import { Button, Colors, Divider, Tag } from '@blueprintjs/core';
+import { Colors, Divider, Tag } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     addFilterRule,
@@ -8,6 +8,7 @@ import {
     Filters,
     getFilterRulesByFieldType,
     getTotalFilterRules,
+    hasNestedGroups,
     isDimension,
     isField,
     isFilterableField,
@@ -15,9 +16,12 @@ import {
     Metric,
     TableCalculation,
 } from '@lightdash/common';
-import { FC, useCallback, useMemo } from 'react';
+import { ActionIcon, Button } from '@mantine/core';
+import { IconPlus, IconX } from '@tabler/icons-react';
+import React, { FC, useCallback, useMemo } from 'react';
 import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
+import MantineIcon from '../MantineIcon';
 import FieldAutoComplete from './FieldAutoComplete';
 import { FieldAutoCompleteWrapper } from './FieldAutoComplete.styles';
 import FilterGroupForm from './FilterGroupForm';
@@ -51,7 +55,8 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
     );
     const showSimplifiedForm: boolean =
         filterRulesPerFieldType.dimensions.length <= 1 &&
-        filterRulesPerFieldType.metrics.length <= 1;
+        filterRulesPerFieldType.metrics.length <= 1 &&
+        !hasNestedGroups(filters);
     const showMandatoryAndOperator: boolean =
         filterRulesPerFieldType.dimensions.length >= 1 &&
         filterRulesPerFieldType.metrics.length >= 1;
@@ -96,7 +101,11 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
         [fields, filters, setFilters],
     );
     return (
-        <>
+        <div
+            style={{
+                margin: '10px',
+            }}
+        >
             {totalFilterRules.length >= 1 && (
                 <>
                     {showSimplifiedForm ? (
@@ -107,20 +116,22 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                             onChange={updateFieldRules}
                         />
                     ) : (
-                        <>
-                            <div style={{ position: 'relative' }}>
-                                {showMandatoryAndOperator && (
-                                    <Divider
-                                        style={{
-                                            position: 'absolute',
-                                            height: '100%',
-                                            top: 15,
-                                            left: 35,
-                                        }}
-                                    />
-                                )}
-                                {filters.dimensions && (
+                        <div style={{ position: 'relative' }}>
+                            <Divider
+                                style={{
+                                    position: 'absolute',
+                                    height: '100%',
+                                    top: 10,
+                                    left: 25,
+                                }}
+                            />
+
+                            {filters.dimensions &&
+                                filterRulesPerFieldType.dimensions.length >=
+                                    1 && (
                                     <FilterGroupForm
+                                        allowConvertToGroup
+                                        hideLine
                                         hideButtons
                                         conditionLabel="dimension"
                                         filterGroup={filters.dimensions}
@@ -146,56 +157,59 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                                         }
                                     />
                                 )}
-                                {showMandatoryAndOperator && (
-                                    <Tooltip2 content="You can only use the 'and' operator when combining metrics & dimensions">
-                                        <Tag
-                                            minimal
-                                            round
-                                            style={{
-                                                background: Colors.LIGHT_GRAY2,
-                                                marginLeft: 20,
-                                                marginBottom: 10,
-                                            }}
-                                        >
-                                            and
-                                        </Tag>
-                                    </Tooltip2>
-                                )}
-                            </div>
-                            {filters.metrics && (
-                                <FilterGroupForm
-                                    hideButtons
-                                    conditionLabel="metric"
-                                    filterGroup={filters.metrics}
-                                    fields={metrics}
-                                    isEditMode={isEditMode}
-                                    onChange={(value) =>
-                                        setFilters(
-                                            {
-                                                ...filters,
-                                                metrics: value,
-                                            },
-                                            false,
-                                        )
-                                    }
-                                    onDelete={() =>
-                                        setFilters(
-                                            {
-                                                ...filters,
-                                                metrics: undefined,
-                                            },
-                                            true,
-                                        )
-                                    }
-                                />
+                            {showMandatoryAndOperator && (
+                                <Tooltip2 content="You can only use the 'and' operator when combining metrics & dimensions">
+                                    <Tag
+                                        minimal
+                                        round
+                                        style={{
+                                            background: Colors.LIGHT_GRAY2,
+                                            marginLeft: 10,
+                                            marginBottom: 10,
+                                        }}
+                                    >
+                                        and
+                                    </Tag>
+                                </Tooltip2>
                             )}
-                        </>
+
+                            {filters.metrics &&
+                                filterRulesPerFieldType.metrics.length >= 1 && (
+                                    <FilterGroupForm
+                                        allowConvertToGroup
+                                        hideLine
+                                        hideButtons
+                                        conditionLabel="metric"
+                                        filterGroup={filters.metrics}
+                                        fields={metrics}
+                                        isEditMode={isEditMode}
+                                        onChange={(value) =>
+                                            setFilters(
+                                                {
+                                                    ...filters,
+                                                    metrics: value,
+                                                },
+                                                false,
+                                            )
+                                        }
+                                        onDelete={() =>
+                                            setFilters(
+                                                {
+                                                    ...filters,
+                                                    metrics: undefined,
+                                                },
+                                                true,
+                                            )
+                                        }
+                                    />
+                                )}
+                        </div>
                     )}
                 </>
             )}
             <div
                 style={{
-                    margin: '10px',
+                    margin: '10px 0',
                 }}
             >
                 {isOpen && (
@@ -205,27 +219,26 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                             fields={fields}
                             onChange={addFieldRule}
                             onClosed={toggleFieldInput}
+                            hasGrouping
                         />
-                        <Button
-                            minimal
-                            icon="cross"
-                            onClick={toggleFieldInput}
-                        />
+                        <ActionIcon onClick={toggleFieldInput}>
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
                     </FieldAutoCompleteWrapper>
                 )}
                 {isEditMode && !isOpen && (
                     <Button
-                        minimal
-                        icon="plus"
-                        intent="primary"
-                        onClick={toggleFieldInput}
+                        variant="light"
+                        size="xs"
+                        leftIcon={<MantineIcon icon={IconPlus} />}
                         disabled={fields.length <= 0}
+                        onClick={toggleFieldInput}
                     >
                         Add filter
                     </Button>
                 )}
             </div>
-        </>
+        </div>
     );
 };
 

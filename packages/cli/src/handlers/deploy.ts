@@ -11,7 +11,7 @@ import inquirer from 'inquirer';
 import path from 'path';
 import { URL } from 'url';
 import { LightdashAnalytics } from '../analytics/analytics';
-import { getConfig, setProjectUuid } from '../config';
+import { getConfig, setProject } from '../config';
 import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
@@ -25,7 +25,7 @@ type DeployHandlerOptions = DbtCompileOptions & {
     profilesDir: string;
     target: string | undefined;
     profile: string | undefined;
-    create?: boolean;
+    create?: boolean | string;
     verbose: boolean;
     ignoreErrors: boolean;
     startOfWeek?: number;
@@ -34,6 +34,7 @@ type DeployHandlerOptions = DbtCompileOptions & {
 type DeployArgs = DeployHandlerOptions & {
     projectUuid: string;
 };
+
 export const deploy = async (
     explores: (Explore | ExploreError)[],
     options: DeployArgs,
@@ -79,17 +80,27 @@ const createNewProject = async (
     });
     const dbtName = friendlyName(context.projectName);
 
-    let projectName = dbtName;
-    if (process.env.CI !== 'true') {
+    // default project name
+    const defaultProjectName = dbtName;
+    let projectName = defaultProjectName;
+
+    // If interactive and no name provided, prompt for project name
+    if (options.create === true && process.env.CI !== 'true') {
         const answers = await inquirer.prompt([
             {
                 type: 'input',
                 name: 'name',
-                message: `Add a project name or press enter to use the default: [${dbtName}] `,
+                message: `Add a project name or press enter to use the default: [${defaultProjectName}] `,
             },
         ]);
-        projectName = answers.name ? answers.name : dbtName;
+        projectName = answers.name ? answers.name : defaultProjectName;
     }
+    // If explicit name provided, use it
+    if (typeof options.create === 'string') {
+        projectName = options.create;
+    }
+
+    // Create the project
     console.error('');
     const spinner = GlobalState.startSpinner(
         `  Creating new project ${styles.bold(projectName)}`,
@@ -143,7 +154,7 @@ export const deployHandler = async (options: DeployHandlerOptions) => {
     const config = await getConfig();
     let projectUuid: string;
 
-    if (options.create) {
+    if (options.create !== undefined) {
         const project = await createNewProject(options);
         if (!project) {
             console.error(
@@ -160,7 +171,7 @@ export const deployHandler = async (options: DeployHandlerOptions) => {
             return;
         }
         projectUuid = project.projectUuid;
-        await setProjectUuid(projectUuid);
+        await setProject(projectUuid, project.name);
     } else {
         if (!(config.context?.project && config.context.serverUrl)) {
             throw new AuthorizationError(

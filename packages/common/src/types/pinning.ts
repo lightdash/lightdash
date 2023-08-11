@@ -1,3 +1,11 @@
+import {
+    ResourceViewChartItem,
+    ResourceViewDashboardItem,
+    ResourceViewItem,
+    ResourceViewItemType,
+    ResourceViewSpaceItem,
+} from './resourceViewItem';
+
 export type PinnedList = {
     pinnedListUuid: string;
     projectUuid: string;
@@ -8,6 +16,7 @@ export type PinnedItem = {
     pinnedListUuid: string;
     savedChartUuid?: string;
     dashboardUuid?: string;
+    spaceUuid?: string;
     createdAt: Date;
 };
 
@@ -25,20 +34,64 @@ export type CreateDashboardPinnedItem = {
     dashboardUuid: string;
 };
 
+export type CreateSpacePinnedItem = {
+    projectUuid: string;
+    spaceUuid: string;
+};
+
 export type DeleteChartPinnedItem = {
     pinnedListUuid: string;
     savedChartUuid: string;
 };
+
 export type DeleteDashboardPinnedItem = {
     pinnedListUuid: string;
     dashboardUuid: string;
 };
 
+export type DeleteSpacePinnedItem = {
+    pinnedListUuid: string;
+    spaceUuid: string;
+};
+
+export type DeletePinnedItem =
+    | DeleteChartPinnedItem
+    | DeleteDashboardPinnedItem
+    | DeleteSpacePinnedItem;
+
+export type CreatePinnedItem =
+    | CreateChartPinnedItem
+    | CreateDashboardPinnedItem
+    | CreateSpacePinnedItem;
+
+export type UpdatePinnedItemOrder = {
+    type: ResourceViewItemType;
+    data: Pick<ResourceViewItem['data'], 'uuid' | 'pinnedListOrder'>;
+};
+
 export const isCreateChartPinnedItem = (
-    item: CreateChartPinnedItem | CreateDashboardPinnedItem,
+    item: CreatePinnedItem,
 ): item is CreateChartPinnedItem =>
     'savedChartUuid' in item && !!item.savedChartUuid;
+
 export const isDeleteChartPinnedItem = (
-    item: DeleteChartPinnedItem | DeleteDashboardPinnedItem,
+    item: DeletePinnedItem,
 ): item is DeleteChartPinnedItem =>
     'savedChartUuid' in item && !!item.savedChartUuid;
+
+export const isCreateSpacePinnedItem = (
+    item: CreatePinnedItem,
+): item is CreateSpacePinnedItem => 'spaceUuid' in item && !!item.spaceUuid;
+
+export const isDeleteSpacePinnedItem = (
+    item: DeletePinnedItem,
+): item is DeleteSpacePinnedItem => 'spaceUuid' in item && !!item.spaceUuid;
+
+export type ApiPinnedItems = {
+    status: 'ok';
+    results: PinnedItems;
+};
+
+export type PinnedItems = Array<
+    ResourceViewDashboardItem | ResourceViewChartItem | ResourceViewSpaceItem
+>;

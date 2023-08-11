@@ -2,6 +2,7 @@ import {
     defineUserAbility,
     NotFoundError,
     OrganizationMemberRole,
+    ParameterError,
     SessionUser,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
@@ -12,7 +13,10 @@ import {
     projectModel,
     savedChartModel,
     spaceModel,
+    sshKeyPairModel,
+    userAttributesModel,
 } from '../../models/models';
+import { METRIC_QUERY, warehouseClientMock } from '../../queryBuilder.mock';
 import { projectService } from '../services';
 import { ProjectService } from './ProjectService';
 import {
@@ -25,7 +29,6 @@ import {
     expectedSqlResults,
     job,
     lightdashConfigWithNoSMTP,
-    projectAdapterMock,
     projectWithSensitiveFields,
     spacesWithSavedCharts,
     tablesConfiguration,
@@ -39,6 +42,7 @@ jest.mock('../../analytics/client', () => ({
         track: jest.fn(),
     },
 }));
+
 jest.mock('../../clients/clients', () => ({}));
 
 jest.mock('../../models/models', () => ({
@@ -49,6 +53,13 @@ jest.mock('../../models/models', () => ({
         updateTablesConfiguration: jest.fn(),
         getExploresFromCache: jest.fn(async () => allExplores),
         lockProcess: jest.fn((projectUuid, fun) => fun()),
+        getWarehouseCredentialsForProject: jest.fn(
+            async () => warehouseClientMock.credentials,
+        ),
+        getWarehouseClientFromCredentials: jest.fn(() => ({
+            ...warehouseClientMock,
+            runQuery: jest.fn(async () => expectedSqlResults),
+        })),
     },
     onboardingModel: {},
     savedChartModel: {
@@ -60,6 +71,8 @@ jest.mock('../../models/models', () => ({
     spaceModel: {
         getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
     },
+    sshKeyPairModel: {},
+    userAttributesModel: {},
 }));
 
 describe('ProjectService', () => {
@@ -73,13 +86,13 @@ describe('ProjectService', () => {
             lightdashConfig: lightdashConfigWithNoSMTP,
         }),
         spaceModel,
+        sshKeyPairModel,
+        userAttributesModel,
     });
     afterEach(() => {
         jest.clearAllMocks();
     });
-    test('should get dashboard by uuid', async () => {
-        service.projectAdapters[projectUuid] = projectAdapterMock;
-
+    test('should run sql query', async () => {
         const result = await service.runSqlQuery(user, projectUuid, 'fake sql');
 
         expect(result).toEqual(expectedSqlResults);
@@ -190,6 +203,42 @@ describe('ProjectService', () => {
             await expect(
                 projectService.getJobStatus('jobUuid', anotherUser),
             ).rejects.toThrowError(NotFoundError);
+        });
+
+        test('should limit CSV results', async () => {
+            expect(
+                ProjectService.metricQueryWithLimit(METRIC_QUERY, undefined),
+            ).toEqual(METRIC_QUERY); // Returns same metricquery
+
+            expect(
+                ProjectService.metricQueryWithLimit(METRIC_QUERY, 5).limit,
+            ).toEqual(5);
+            expect(
+                ProjectService.metricQueryWithLimit(METRIC_QUERY, null).limit,
+            ).toEqual(33333);
+            expect(
+                ProjectService.metricQueryWithLimit(METRIC_QUERY, 9999).limit,
+            ).toEqual(9999);
+            expect(
+                ProjectService.metricQueryWithLimit(METRIC_QUERY, 9999999)
+                    .limit,
+            ).toEqual(33333);
+
+            const metricWithoutRows = {
+                ...METRIC_QUERY,
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            };
+            expect(() =>
+                ProjectService.metricQueryWithLimit(metricWithoutRows, null),
+            ).toThrowError(ParameterError);
+
+            const metricWithDimension = { ...METRIC_QUERY, metrics: [] };
+            expect(
+                ProjectService.metricQueryWithLimit(metricWithDimension, null)
+                    .limit,
+            ).toEqual(50000);
         });
     });
 });

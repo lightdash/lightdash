@@ -1,18 +1,32 @@
 import {
-    Button,
+    Button as BlueprintButton,
     Divider,
     FormGroup,
     HTMLSelect,
     Intent,
-    PopoverPosition,
 } from '@blueprintjs/core';
-import { Classes, Popover2 } from '@blueprintjs/popover2';
-import { ChartType, getResultValues, ResultRow } from '@lightdash/common';
+import { subject } from '@casl/ability';
+import {
+    ApiScheduledDownloadCsv,
+    assertUnreachable,
+    ChartType,
+    getCustomLabelsFromColumnProperties,
+} from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
-import React, { memo, RefObject, useCallback, useRef, useState } from 'react';
+import React, { memo, RefObject, useCallback, useState } from 'react';
+
+import { Button, Popover } from '@mantine/core';
+import { IconShare2 } from '@tabler/icons-react';
 import useEcharts from '../hooks/echarts/useEcharts';
-import CSVExporter from './CSVExporter';
+import { useApp } from '../providers/AppProvider';
+import { Can } from './common/Authorization';
+import {
+    COLLAPSABLE_CARD_BUTTON_PROPS,
+    COLLAPSABLE_CARD_POPOVER_PROPS,
+} from './common/CollapsableCard';
+import MantineIcon from './common/MantineIcon';
+import ExportCSV from './ExportCSV';
 import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
 
 const FILE_NAME = 'lightdash_chart';
@@ -101,12 +115,10 @@ function downloadPdf(base64: string, width: number, height: number) {
 type DownloadOptions = {
     chartRef: RefObject<EChartsReact>;
     chartType: ChartType;
-    tableData: ResultRow[];
 };
-export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
+const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     chartRef,
     chartType,
-    tableData,
 }) => {
     const [type, setType] = useState<DownloadType>(DownloadType.JPEG);
     const isTable = chartType === ChartType.TABLE;
@@ -144,8 +156,7 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                 downloadJson(echartsInstance.getOption());
                 break;
             default: {
-                const never: never = type;
-                throw new Error(`Unexpected download type: ${type}`);
+                assertUnreachable(type, `Unexpected download type: ${type}`);
             }
         }
     }, [chartRef, type]);
@@ -165,42 +176,23 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
             <Divider />
 
             <FormGroup label="File format" labelFor="download-type" inline>
-                {isTable ? (
-                    <CSVExporter
-                        data={tableData}
-                        filename={`lightdash-export-${new Date()
-                            .toISOString()
-                            .slice(0, 10)}.csv`}
-                        renderElement={({ handleCsvExport, isDisabled }) => (
-                            <Button
-                                intent="primary"
-                                icon="export"
-                                disabled={isDisabled}
-                                onClick={handleCsvExport}
-                            >
-                                Export CSV
-                            </Button>
-                        )}
-                    />
-                ) : (
-                    <HTMLSelect
-                        id="download-type"
-                        value={type}
-                        onChange={(e) =>
-                            setType(e.currentTarget.value as DownloadType)
-                        }
-                        options={Object.values(DownloadType).map(
-                            (downloadType) => ({
-                                value: downloadType,
-                                label: downloadType,
-                            }),
-                        )}
-                    />
-                )}
+                <HTMLSelect
+                    id="download-type"
+                    value={type}
+                    onChange={(e) =>
+                        setType(e.currentTarget.value as DownloadType)
+                    }
+                    options={Object.values(DownloadType).map(
+                        (downloadType) => ({
+                            value: downloadType,
+                            label: downloadType,
+                        }),
+                    )}
+                />
             </FormGroup>
             <Divider />
             {!isTable && (
-                <Button
+                <BlueprintButton
                     style={{ alignSelf: 'flex-end' }}
                     intent={Intent.PRIMARY}
                     icon="cloud-download"
@@ -212,41 +204,105 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     );
 };
 
-export const ChartDownloadMenu: React.FC = memo(() => {
-    const {
-        chartRef,
-        chartType,
-        tableConfig: { rows },
-    } = useVisualizationContext();
-    const eChartsOptions = useEcharts();
-    const [isOpen, setIsOpen] = useState(false);
-    const disabled =
-        (chartType === ChartType.TABLE && rows.length <= 0) ||
-        chartType === ChartType.BIG_NUMBER ||
-        (chartType === ChartType.CARTESIAN && !eChartsOptions);
+interface ChartDownloadMenuProps {
+    projectUuid: string;
+    getCsvLink?: (
+        limit: number | null,
+        onlyRaw: boolean,
+        showTableNames: boolean,
+        columnOrder: string[],
+        customLabels?: Record<string, string>,
+    ) => Promise<ApiScheduledDownloadCsv>;
+}
 
-    return (
-        <Popover2
-            lazy
-            content={
-                <ChartDownloadOptions
-                    chartRef={chartRef}
-                    chartType={chartType}
-                    tableData={getResultValues(rows)}
-                />
-            }
-            popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
-            isOpen={isOpen}
-            onInteraction={setIsOpen}
-            position={PopoverPosition.BOTTOM_LEFT}
-            disabled={disabled}
-        >
-            <Button
-                minimal
-                rightIcon="caret-down"
-                text="Export as"
+export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
+    ({ getCsvLink, projectUuid }) => {
+        const {
+            chartRef,
+            chartType,
+            tableConfig: { showTableNames, columnProperties, columnOrder },
+            resultsData,
+        } = useVisualizationContext();
+        const eChartsOptions = useEcharts();
+        const disabled =
+            (chartType === ChartType.TABLE &&
+                resultsData?.rows &&
+                resultsData.rows.length <= 0) ||
+            !resultsData?.metricQuery ||
+            chartType === ChartType.BIG_NUMBER ||
+            (chartType === ChartType.CARTESIAN && !eChartsOptions);
+
+        const { user } = useApp();
+
+        return chartType === ChartType.TABLE && getCsvLink ? (
+            <Can
+                I="manage"
+                this={subject('ExportCsv', {
+                    organizationUuid: user.data?.organizationUuid,
+                    projectUuid,
+                })}
+            >
+                <Popover
+                    {...COLLAPSABLE_CARD_POPOVER_PROPS}
+                    disabled={disabled}
+                    position="bottom-end"
+                >
+                    <Popover.Target>
+                        <Button
+                            data-testid="export-csv-button"
+                            {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                            disabled={disabled}
+                            px="xs"
+                        >
+                            <MantineIcon icon={IconShare2} color="gray" />
+                        </Button>
+                    </Popover.Target>
+
+                    <Popover.Dropdown>
+                        <ExportCSV
+                            getCsvLink={async (
+                                limit: number | null,
+                                onlyRaw: boolean,
+                            ) =>
+                                getCsvLink(
+                                    limit,
+                                    onlyRaw,
+                                    showTableNames,
+                                    columnOrder,
+                                    getCustomLabelsFromColumnProperties(
+                                        columnProperties,
+                                    ),
+                                )
+                            }
+                            rows={resultsData?.rows}
+                        />
+                    </Popover.Dropdown>
+                </Popover>
+            </Can>
+        ) : chartType === ChartType.TABLE && !getCsvLink ? null : (
+            <Popover
+                {...COLLAPSABLE_CARD_POPOVER_PROPS}
                 disabled={disabled}
-            />
-        </Popover2>
-    );
-});
+                position="bottom-end"
+            >
+                <Popover.Target>
+                    <Button
+                        data-testid="export-csv-button"
+                        {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                        disabled={disabled}
+                        px="xs"
+                    >
+                        <MantineIcon icon={IconShare2} color="gray" />
+                    </Button>
+                </Popover.Target>
+
+                <Popover.Dropdown>
+                    <ChartDownloadOptions
+                        chartRef={chartRef}
+                        chartType={chartType}
+                    />
+                </Popover.Dropdown>
+            </Popover>
+        );
+    },
+);

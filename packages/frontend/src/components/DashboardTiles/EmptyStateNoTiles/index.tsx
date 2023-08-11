@@ -1,12 +1,13 @@
 import { Intent, NonIdealState, PopoverPosition } from '@blueprintjs/core';
-import { Dashboard, Dashboard as IDashboard } from '@lightdash/common';
-import { FC, useCallback } from 'react';
+import { subject } from '@casl/ability';
+import { Dashboard } from '@lightdash/common';
+import { FC } from 'react';
 import { useParams } from 'react-router-dom';
-import { appendNewTilesToBottom } from '../../../hooks/dashboard/useDashboard';
-import { useSavedCharts } from '../../../hooks/useSpaces';
-import { useDashboardContext } from '../../../providers/DashboardProvider';
+import { useChartSummaries } from '../../../hooks/useChartSummaries';
+import { useApp } from '../../../providers/AppProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
+import { Can } from '../../common/Authorization';
 import AddTileButton from '../AddTileButton';
 import {
     ButtonWrapper,
@@ -18,20 +19,34 @@ import {
 
 interface SavedChartsAvailableProps {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
+    isEditMode: boolean;
 }
 
 const SavedChartsAvailable: FC<SavedChartsAvailableProps> = ({
     onAddTiles,
+    isEditMode,
 }) => {
+    const { user } = useApp();
+    const userCanManageDashboard = user.data?.ability.can(
+        'manage',
+        'Dashboard',
+    );
+
     return (
         <EmptyStateWrapper>
             <EmptyStateIcon icon="grouped-bar-chart" size={59} />
-            <Title>Start building your dashboard!</Title>
-            <AddTileButton
-                onAddTiles={onAddTiles}
-                intent={Intent.PRIMARY}
-                popoverPosition={PopoverPosition.BOTTOM}
-            />
+            <Title>
+                {userCanManageDashboard
+                    ? 'Start building your dashboard!'
+                    : 'Dashboard is empty.'}
+            </Title>
+            {userCanManageDashboard && isEditMode ? (
+                <AddTileButton
+                    onAddTiles={onAddTiles}
+                    intent={Intent.PRIMARY}
+                    popoverPosition={PopoverPosition.BOTTOM}
+                />
+            ) : null}
         </EmptyStateWrapper>
     );
 };
@@ -53,11 +68,16 @@ const NoSavedChartsAvailable = () => (
     </EmptyStateWrapper>
 );
 
-const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({ onAddTiles }) => {
+const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
+    onAddTiles,
+    isEditMode,
+}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const savedChartsRequest = useSavedCharts(projectUuid);
+    const savedChartsRequest = useChartSummaries(projectUuid);
     const savedCharts = savedChartsRequest.data || [];
     const hasSavedCharts = savedCharts.length > 0;
+
+    const { user } = useApp();
 
     return (
         <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
@@ -65,14 +85,26 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({ onAddTiles }) => {
                 <NonIdealState
                     description={
                         hasSavedCharts ? (
-                            <SavedChartsAvailable onAddTiles={onAddTiles} />
+                            <SavedChartsAvailable
+                                onAddTiles={onAddTiles}
+                                isEditMode={isEditMode}
+                            />
                         ) : (
                             <NoSavedChartsAvailable />
                         )
                     }
                     action={
                         !hasSavedCharts ? (
-                            <RunQueryButton projectId={projectUuid} />
+                            <Can
+                                I="manage"
+                                this={subject('Explore', {
+                                    organizationUuid:
+                                        user.data?.organizationUuid,
+                                    projectUuid: projectUuid,
+                                })}
+                            >
+                                <RunQueryButton projectId={projectUuid} />
+                            </Can>
                         ) : undefined
                     }
                 />

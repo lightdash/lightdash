@@ -1,10 +1,14 @@
 import {
+    assertUnreachable,
     DbtProjectType,
     DbtProjectTypeLabels,
+    DefaultSupportedDbtVersion,
+    SupportedDbtVersions,
     WarehouseTypes,
 } from '@lightdash/common';
 import { FC, useMemo, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
+
 import { useApp } from '../../providers/AppProvider';
 import FormSection from '../ReactHookForm/FormSection';
 import Input from '../ReactHookForm/Input';
@@ -94,8 +98,10 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
             case DbtProjectType.NONE:
                 return <DbtNoneForm disabled={disabled} />;
             default: {
-                const never: never = type;
-                return null;
+                return assertUnreachable(
+                    type,
+                    `Unknown dbt project type ${type}`,
+                );
             }
         }
     }, [disabled, type, resetField]);
@@ -159,43 +165,62 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 disabled={disabled}
                 defaultValue={DbtProjectType.GITHUB}
             />
+            <SelectField
+                name="dbtVersion"
+                label="dbt version"
+                options={Object.values(SupportedDbtVersions).map((version) => ({
+                    value: version,
+                    label: version,
+                }))}
+                disabled={disabled}
+                defaultValue={DefaultSupportedDbtVersion}
+            />
             {form}
-            <FormSection name="target">
-                <Input
-                    name="dbt.target"
-                    label="Target name"
-                    labelHelp={
-                        <p>
-                            <b>target</b> is the dataset/schema in your data
-                            warehouse that Lightdash will look for your dbt
-                            models. By default, we set this to be the same value
-                            as you have as the default in your profiles.yml
-                            file.
-                        </p>
-                    }
-                    disabled={disabled}
-                    placeholder="prod"
-                />
-                {warehouseSchemaInput}
-            </FormSection>
-            <FormSection name={'Advanced'} isOpen={isAdvancedSettingsOpen}>
-                <MultiKeyValuePairsInput
-                    name="dbt.environment"
-                    label="Environment variables"
-                    documentationUrl={`${baseDocUrl}${typeDocUrls[type].env}`}
-                    disabled={disabled}
-                />
-                <></>
-            </FormSection>
-            <AdvancedButtonWrapper>
-                <AdvancedButton
-                    icon={
-                        isAdvancedSettingsOpen ? 'chevron-up' : 'chevron-down'
-                    }
-                    text={`Advanced configuration options`}
-                    onClick={toggleAdvancedSettingsOpen}
-                />
-            </AdvancedButtonWrapper>
+            {type !== DbtProjectType.NONE && (
+                <>
+                    <FormSection name="target">
+                        <Input
+                            name="dbt.target"
+                            label="Target name"
+                            labelHelp={
+                                <p>
+                                    <b>target</b> is the dataset/schema in your
+                                    data warehouse that Lightdash will look for
+                                    your dbt models. By default, we set this to
+                                    be the same value as you have as the default
+                                    in your profiles.yml file.
+                                </p>
+                            }
+                            disabled={disabled}
+                            placeholder="prod"
+                        />
+                        {warehouseSchemaInput}
+                    </FormSection>
+                    <FormSection
+                        name={'Advanced'}
+                        isOpen={isAdvancedSettingsOpen}
+                    >
+                        <MultiKeyValuePairsInput
+                            name="dbt.environment"
+                            label="Environment variables"
+                            documentationUrl={`${baseDocUrl}${typeDocUrls[type].env}`}
+                            disabled={disabled}
+                        />
+                        <></>
+                    </FormSection>
+                    <AdvancedButtonWrapper>
+                        <AdvancedButton
+                            icon={
+                                isAdvancedSettingsOpen
+                                    ? 'chevron-up'
+                                    : 'chevron-down'
+                            }
+                            text={`Advanced configuration options`}
+                            onClick={toggleAdvancedSettingsOpen}
+                        />
+                    </AdvancedButtonWrapper>
+                </>
+            )}
         </div>
     );
 };

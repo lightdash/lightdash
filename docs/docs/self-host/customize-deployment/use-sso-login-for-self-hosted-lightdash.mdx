@@ -1,0 +1,134 @@
+---
+sidebar_label: SSO and auth
+---
+
+# Configure Lightdash to use SSO for authentication
+
+## Password
+
+To enforce SSO, it's recommended to disable password authentication. This can be done by setting the following environment variable:
+
+| Variable                               | Description                                          | Required? | Default |
+|----------------------------------------|------------------------------------------------------|-----------|---------|
+| `AUTH_DISABLE_PASSWORD_AUTHENTICATION` | If `"true"` disables signing in with plain passwords |           | false   |
+
+## Okta
+
+Lightdash supports Okta as an authentication provider. The integration uses OpenID Connect (OIDC) to authenticate
+users and JIT provisioning to create users in Lightdash when they first log in.
+
+### Creating an Okta application
+
+In the Okta admin panel, navigate to **Applications** and click **Create App Integration**, choose the following
+settings:
+
+- **Sign-in method**: OIDC - OpenID Connect
+- **Application type**: Web application
+
+On the following page you'll need to use the following settings, replace `{{ lightdash_url }}` with the URL of your
+Lightdash instance. For example if you normally access Lightdash at `https://lightdash.example.com/login` then you
+should use `https://lightdash.example.com` as your `{{ lightdash_url }}`.
+
+- **Grant type**: Authorization Code
+- **Sign-in redirect URIs**: `{{ lightdash_url }}/api/v1/oauth/redirect/okta`
+- **Sign-out redirect URIs**: `{{ lightdash_url }}`
+- **Controlled access**: Select who can access this application
+
+Hit **Save** and you'll be taken to the application settings page. For the optimal user experience, we recommend
+allowing Okta to initiate the login flow. To do this, click **Edit** next to **General Settings** and set:
+
+- **Login initiated by**: App and Okta Sign-in Page
+- **Application visibility**: Display application icon to users
+- **Login flow**: Redirect to app to initiate login (OIDC Compliant)
+- **Initiate login URI**: `{{ lightdash_url }}/api/v1/login/okta`
+
+Hit **Save** to finish.
+
+### Okta configuration variables
+
+From the application settings page, you'll need to copy the following values:
+
+- **Client ID**
+- **Client secret**
+
+You'll also need your **Okta domain**, which is the first part of your okta URL. For example if your Okta URL is
+https://dev-123456.okta.com then your Okta domain is `dev-123456.okta.com`.
+
+Finally, you need the **Issuer URI**. This is the URL of your Okta authorization server. You can use
+your [Org authorization server](https://developer.okta.com/docs/concepts/auth-servers/#org-authorization-server)
+which uses `https://dev-123456.okta.com` as your issuer or select a custom authorization server. To find the issuer URI
+for a custom authorization server navigate to **API** > **Authorization Servers** and click on the authorization
+server and note the **Issuer URI** and **Name** of the authorization server. For example the `default` authorization
+server has an issuer URI of `https://dev-123456.okta.com/oauth2/default`.
+
+### Configuring Lightdash for Okta
+
+You'll need to set the following environment variables in your Lightdash deployment:
+
+| Variable                            | Description                                                                                        | Required? |
+|-------------------------------------|----------------------------------------------------------------------------------------------------|-----------|
+| `AUTH_OKTA_DOMAIN`                  | The `{{ okta_domain }}`. Should not include `https://`                                             | ✅         |
+| `AUTH_OKTA_OAUTH_CLIENT_ID`         | The **Client ID** copied from the application settings in okta                                     | ✅         |
+| `AUTH_OKTA_OAUTH_CLIENT_SECRET`     | The **Client secret** copied from the application settings in okta                                 | ✅         |
+| `AUTH_OKTA_OAUTH_ISSUER`            | The **Issuer URI** copied from the authorization server. Should include `https://`                 | ✅         |
+| `AUTH_OKTA_AUTHORIZATION_SERVER_ID` | Optional. The **Name** of a custom authorization server if not using the org authorization server. |           |
+
+## Google
+
+To enable Google Single Sign On (SSO) you'll need to follow these instructions to 
+[Create the OAuth web client ID](https://support.google.com/workspacemigrate/answer/9222992?hl=en).
+Once you reach **Step 13** to configure the client you'll need to enter the following details:
+
+- Authorized JavaScript Origins: `https://{{ lightdash_domain }}`
+- Authorized redirect URIs: `https://{{ lightdash_domain }}/api/v1/oauth/redirect/google`
+
+Where `{{ lightdash_domain }}` is the domain you use to sign in to Lightdash such as `mycompany.lightdash.com`
+
+These environment variables must be provided to Lightdash to enable you to control Single Sign On (SSO) functionality for Google
+
+| Variable                               | Description                                          | Required? | Default |
+|----------------------------------------|------------------------------------------------------|-----------|---------|
+| `AUTH_GOOGLE_OAUTH2_CLIENT_ID`         | Required for Google SSO                              |   ✅      |         |
+| `AUTH_GOOGLE_OAUTH2_CLIENT_SECRET`     | Required for Google SSO                              |   ✅      |         |
+
+## One Login
+
+These variables enable you to control Single Sign On (SSO) functionality for One Login
+
+| Variable                               | Description                                          | Required? | Default |
+|----------------------------------------|------------------------------------------------------|-----------|---------|
+| `AUTH_ONE_LOGIN_OAUTH_CLIENT_ID`       | Required for One Login SSO                           | ✅        |         |
+| `AUTH_ONE_LOGIN_OAUTH_CLIENT_SECRET`   | Required for One Login SSO                           | ✅        |         |
+| `AUTH_ONE_LOGIN_OAUTH_ISSUER`          | Required for One Login SSO                           | ✅        |         |
+
+## Azure Active Directory
+
+### Creating an Azure AD application
+
+In the admin panel, navigate to **App Registrations** and click **New registration**, choose the following
+settings for the redirect URI:
+
+- **Type**: Web
+- **URI**: `{{ lightdash_url }}/api/v1/oauth/redirect/azuread`
+
+On the following page you'll need to use the following settings, replace `{{ lightdash_url }}` with the URL of your
+Lightdash instance. For example if you normally access Lightdash at `https://lightdash.example.com/login` then you
+should use `https://lightdash.example.com` as your `{{ lightdash_url }}`.
+
+Hit **Register** and you'll be taken to the application settings page. Copy the "Application (client) ID" and "Directory
+(tenant) ID" values as you'll need them later.
+
+In the left hand menu, navigate to **Certificates & secrets** and click **New client secret**. Give the secret a
+description and choose an expiry time. Hit **Add** and you'll be shown the secret value. Copy this value as you'll
+need it later.
+
+### Configuring Lightdash for Azure AD
+
+These variables enable you to control Single Sign On (SSO) functionality for Azure Active Directory.
+
+| Variable                               | Description                                          | Required? | Default |
+|----------------------------------------|------------------------------------------------------|-----------|---------|
+| `AUTH_AZURE_AD_OAUTH_CLIENT_ID`        | Required for Azure AD                                | ✅        |         |
+| `AUTH_AZURE_AD_OAUTH_CLIENT_SECRET`    | Required for Azure AD                                | ✅        |         |
+| `AUTH_AZURE_AD_OAUTH_TENANT_ID`        | Required for Azure AD                                | ✅        |         |
+

@@ -1,7 +1,7 @@
 import { OrganizationProject } from '@lightdash/common';
 import inquirer from 'inquirer';
 import { URL } from 'url';
-import { getConfig, setProjectUuid } from '../config';
+import { getConfig, setProject } from '../config';
 import GlobalState from '../globalState';
 import { lightdashApi } from './dbt/apiClient';
 
@@ -33,7 +33,11 @@ export const setProjectInteractively = async () => {
         },
     ]);
 
-    await setProjectUuid(answers.project);
+    const selectedProject = projects.find(
+        (project) => project.projectUuid === answers.project,
+    );
+
+    await setProject(answers.project, selectedProject?.name || answers.project);
     const config = await getConfig();
     const projectUrl =
         config.context?.serverUrl &&
@@ -53,7 +57,7 @@ export const setFirstProject = async () => {
     });
     const firstProject = projects[0];
 
-    await setProjectUuid(firstProject.projectUuid);
+    await setProject(firstProject.projectUuid, firstProject.name);
     const config = await getConfig();
     const projectUrl =
         config.context?.serverUrl &&

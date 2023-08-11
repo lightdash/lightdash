@@ -1,5 +1,6 @@
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { DbtProjectType, ProjectType } from '@lightdash/common';
+import { Anchor } from '@mantine/core';
 import React, { ComponentProps, FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProject } from '../../hooks/useProject';
@@ -48,7 +49,7 @@ const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
                         To keep your Lightdash project in sync with your dbt
                         project,
                         <br /> you need to either{' '}
-                        <a
+                        <Anchor
                             href={
                                 'https://docs.lightdash.com/get-started/setup-lightdash/connect-project#2-import-a-dbt-project'
                             }
@@ -56,9 +57,9 @@ const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
                             rel="noreferrer"
                         >
                             change your connection type
-                        </a>
+                        </Anchor>
                         , setup a{' '}
-                        <a
+                        <Anchor
                             href={
                                 'https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy#automatically-deploy-your-changes-to-lightdash-using-a-github-action'
                             }
@@ -66,10 +67,10 @@ const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
                             rel="noreferrer"
                         >
                             GitHub action
-                        </a>
+                        </Anchor>
                         <br />
                         or, run{' '}
-                        <a
+                        <Anchor
                             href={
                                 'https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy#lightdash-deploy-syncs-the-changes-in-your-dbt-project-to-lightdash'
                             }
@@ -77,7 +78,7 @@ const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
                             rel="noreferrer"
                         >
                             lightdash deploy
-                        </a>
+                        </Anchor>
                         ) from your command line.
                     </p>
                 }
@@ -112,12 +113,14 @@ const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
     }
 
     return (
-        <RefreshDbt
-            {...props}
-            icon={!isLoading ? 'refresh' : <LoadingSpinner size={15} />}
-            text={!isLoading ? 'Refresh dbt' : 'Refreshing dbt'}
-            onClick={onClick}
-        />
+        <Tooltip2 content="If you've updated your YAML files, you can sync your changes to Lightdash by clicking this button.">
+            <RefreshDbt
+                {...props}
+                icon={!isLoading ? 'refresh' : <LoadingSpinner size={15} />}
+                text={!isLoading ? 'Refresh dbt' : 'Refreshing dbt'}
+                onClick={onClick}
+            />
+        </Tooltip2>
     );
 };
 

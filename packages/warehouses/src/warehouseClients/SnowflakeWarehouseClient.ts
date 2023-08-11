@@ -5,15 +5,16 @@ import {
     Metric,
     MetricType,
     ParseError,
+    SupportedDbtAdapter,
     WarehouseConnectionError,
     WarehouseQueryError,
-    WeekDay,
 } from '@lightdash/common';
 import * as crypto from 'crypto';
 import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
+import { pipeline, Transform, Writable } from 'stream';
 import * as Util from 'util';
-import { WarehouseCatalog, WarehouseClient } from '../types';
-import { getDefaultMetricSql } from '../utils/sql';
+import { WarehouseCatalog } from '../types';
+import WarehouseBaseClient from './WarehouseBaseClient';
 
 export enum SnowflakeTypes {
     NUMBER = 'NUMBER',
@@ -99,23 +100,17 @@ const parseCell = (cell: any) => {
     return cell;
 };
 
-const parseRows = (rows: Record<string, any>[]) =>
-    rows.map((row) =>
-        Object.fromEntries(
-            Object.entries(row).map(([name, value]) => [
-                name,
-                parseCell(value),
-            ]),
-        ),
+const parseRow = (row: Record<string, any>) =>
+    Object.fromEntries(
+        Object.entries(row).map(([name, value]) => [name, parseCell(value)]),
     );
+const parseRows = (rows: Record<string, any>[]) => rows.map(parseRow);
 
-export class SnowflakeWarehouseClient implements WarehouseClient {
+export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflakeCredentials> {
     connectionOptions: ConnectionOptions;
 
-    startOfWeek: WeekDay | null | undefined;
-
     constructor(credentials: CreateSnowflakeCredentials) {
-        this.startOfWeek = credentials.startOfWeek;
+        super(credentials);
         let decodedPrivateKey: string | Buffer | undefined =
             credentials.privateKey;
         if (credentials.privateKey && credentials.privateKeyPass) {
@@ -150,11 +145,7 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
         } as ConnectionOptions; // force type because accessUrl property is not recognised
     }
 
-    getStartOfWeek() {
-        return this.startOfWeek;
-    }
-
-    async runQuery(sqlText: string) {
+    async runQuery(sqlText: string, tags?: Record<string, string>) {
         let connection: Connection;
         try {
             connection = createConnection(this.connectionOptions);
@@ -170,11 +161,20 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
                     `ALTER SESSION SET WEEK_START = ${snowflakeStartOfWeekIndex};`,
                 );
             }
+            if (tags) {
+                await this.executeStatement(
+                    connection,
+                    `ALTER SESSION SET QUERY_TAG = '${JSON.stringify(tags)}';`,
+                );
+            }
             await this.executeStatement(
                 connection,
                 "ALTER SESSION SET TIMEZONE = 'UTC'",
             );
-            const result = await this.executeStatement(connection, sqlText);
+            const result = await this.executeStreamStatement(
+                connection,
+                sqlText,
+            );
             return result;
         } catch (e) {
             throw new WarehouseQueryError(e.message);
@@ -188,6 +188,68 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
                 });
             });
         }
+    }
+
+    private async executeStreamStatement(
+        connection: Connection,
+        sqlText: string,
+    ) {
+        return new Promise<{
+            fields: Record<string, { type: DimensionType }>;
+            rows: any[];
+        }>((resolve, reject) => {
+            connection.execute({
+                sqlText,
+                streamResult: true,
+                complete: (err, stmt) => {
+                    if (err) {
+                        reject(new WarehouseQueryError(err.message));
+                    }
+                    const rows: any[] = [];
+
+                    pipeline(
+                        stmt.streamRows(),
+                        new Transform({
+                            objectMode: true,
+                            transform(chunk, encoding, callback) {
+                                callback(null, parseRow(chunk));
+                            },
+                        }),
+                        new Writable({
+                            objectMode: true,
+                            write(chunk, encoding, callback) {
+                                rows.push(chunk);
+                                callback();
+                            },
+                        }),
+                        (error) => {
+                            if (error) {
+                                reject(new WarehouseQueryError(error.message));
+                            } else {
+                                const columns = stmt.getColumns();
+                                const fields = columns
+                                    ? columns.reduce(
+                                          (acc, column) => ({
+                                              ...acc,
+                                              [column.getName()]: {
+                                                  type: mapFieldType(
+                                                      column
+                                                          .getType()
+                                                          .toUpperCase(),
+                                                  ),
+                                              },
+                                          }),
+                                          {},
+                                      )
+                                    : {};
+
+                                resolve({ fields, rows });
+                            }
+                        },
+                    );
+                },
+            });
+        });
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -225,10 +287,6 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
                 },
             });
         });
-    }
-
-    async test(): Promise<void> {
-        await this.runQuery('SELECT 1');
     }
 
     private async runTableCatalogQuery(
@@ -321,6 +379,10 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
         return '\\';
     }
 
+    getAdapterType(): SupportedDbtAdapter {
+        return SupportedDbtAdapter.SNOWFLAKE;
+    }
+
     getMetricSql(sql: string, metric: Metric) {
         switch (metric.type) {
             case MetricType.PERCENTILE:
@@ -330,7 +392,7 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
             case MetricType.MEDIAN:
                 return `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${sql})`;
             default:
-                return getDefaultMetricSql(sql, metric.type);
+                return super.getMetricSql(sql, metric);
         }
     }
 }

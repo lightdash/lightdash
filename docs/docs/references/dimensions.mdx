@@ -1,6 +1,6 @@
 import ClickableDimension from './assets/clickable-dimension-link.jpg';
 
-# Dimensions reference sheet
+# Dimensions reference doc
 
 Dimensions are the columns in your table. They are the "attributes" of your data. For example, `user_id` in your users table is a dimension.
 
@@ -77,6 +77,8 @@ models:
                 url: "https://finance.com/forceasts/weeks/${ value.raw }"
               - label: Open in Google Calendar
                 url: 'https://calendar.google.com/calendar/u/0/r/day/${ value.formatted |split: "-" |join: "/"}'
+            required_attributes:
+              is_admin: "true"
 ```
 
 All the properties you can customize:
@@ -94,6 +96,7 @@ All the properties you can customize:
 | [compact](#compact-values)        | No       | string                                                                                                                                            | This option will compact the number value (e.g. 1,500 to 1.50K). Currently supports one of the following: `['thousands', 'millions', 'billions', 'trillions']`                                                                                             |
 | group_label                       | No       | string                                                                                                                                            | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                                                                                                                    |
 | [urls](#urls)                     | No       | Array of { url, label }                                                                                                                           | Adding urls to a dimension allows your users to click dimension values in the UI and take actions, like opening an external tool with a url, or open at a website. You can use liquid templates to customise the link based on the value of the dimension. |
+| required_attributes               | No       | Object with { user_attribute, value }                                                                                                                           | Adding urls to a dimension allows your users to click dimension values in the UI and take actions, like opening an external tool with a url, or open at a website. You can use liquid templates to customise the link based on the value of the dimension. |
 
 ## Compact values
 
@@ -232,6 +235,42 @@ columns:
 ```
 
 This URL will only work if I have `customer_id` included in my results table.
+
+## Required attributes 
+
+Lightdash can use `user attributes` to limit some dimensions to some users. 
+
+In the example below, only users with `is_admin` attribute `true` can use the `salary` dimension on `user` table
+
+```
+columns: 
+  - name: 
+    description: User name
+  - salary: 
+    description: User salary 
+    meta: 
+      dimension: 
+        required_attributes: 
+          is_admin: true 
+```
+
+Users without access to this dimension will not see it on the `explore page`. 
+
+If a user without access to this dimension runs a query that contains this dimension, they will get a `Forbidden` error. 
+
+### Current limitations 
+
+Lightdash dimensions and custom metrics are protected by this feature, however, 
+it is possible to write custom SQL to bypass this filter, for example: 
+
+- Developers and admins running SQL queries on SQL runner. 
+- Custom SQL or subqueries on `table calculations`
+
+:::info
+
+Scheduler deliveries will run against the user who created the scheduled delivery, be careful when sharing required attributes with other users. 
+
+:::
 
 ### Liquid Templating
 

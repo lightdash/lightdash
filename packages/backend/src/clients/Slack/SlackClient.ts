@@ -1,8 +1,9 @@
-import { App, Block, LogLevel } from '@slack/bolt';
-
 import { SlackChannel } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
+import { App, Block, LogLevel } from '@slack/bolt';
+import { ConversationsListResponse, UsersListResponse } from '@slack/web-api';
 import { LightdashConfig } from '../../config/parseConfig';
-import Logger from '../../logger';
+import Logger from '../../logging/logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { slackOptions } from './SlackOptions';
 
@@ -10,6 +11,12 @@ type SlackClientDependencies = {
     slackAuthenticationModel: SlackAuthenticationModel;
     lightdashConfig: LightdashConfig;
 };
+
+const CACHE_TIME = 1000 * 60 * 10; // 10 minutes
+const cachedChannels: Record<
+    string,
+    { lastCached: Date; channels: SlackChannel[] }
+> = {};
 
 export class SlackClient {
     slackAuthenticationModel: SlackAuthenticationModel;
@@ -57,6 +64,17 @@ export class SlackClient {
     }
 
     async getChannels(organizationUuid: string): Promise<SlackChannel[]> {
+        if (
+            cachedChannels[organizationUuid] &&
+            new Date().getTime() -
+                cachedChannels[organizationUuid].lastCached.getTime() <
+                CACHE_TIME
+        ) {
+            return cachedChannels[organizationUuid].channels;
+        }
+
+        Logger.debug('Fetching channels from Slack API');
+
         if (this.slackApp === undefined) {
             throw new Error('Slack app is not configured');
         }
@@ -66,24 +84,85 @@ export class SlackClient {
                 organizationUuid,
             );
 
-        const channels = await this.slackApp.client.conversations.list({
-            token: installation?.token,
-            types: 'public_channel',
-            limit: 500,
-        });
+        let nextCursor: string | undefined;
+        let allChannels: ConversationsListResponse['channels'] = [];
 
-        const users = await this.slackApp.client.users.list({
-            token: installation?.token,
-        });
-        return [...(channels.channels || []), ...(users.members || [])].reduce<
-            SlackChannel[]
-        >(
-            (acc, { id, name }) => (id && name ? [...acc, { id, name }] : acc),
-            [],
-        );
+        do {
+            try {
+                Logger.debug(
+                    `Fetching slack channels with cursor ${nextCursor}`,
+                );
+
+                const conversations: ConversationsListResponse =
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.slackApp.client.conversations.list({
+                        token: installation?.token,
+                        types: 'public_channel',
+                        limit: 900,
+                        cursor: nextCursor,
+                    });
+
+                nextCursor = conversations.response_metadata?.next_cursor;
+                allChannels = conversations.channels
+                    ? [...allChannels, ...conversations.channels]
+                    : allChannels;
+            } catch (e) {
+                Logger.error(`Unable to fetch slack channels ${e}`);
+                Sentry.captureException(e);
+                break;
+            }
+        } while (nextCursor);
+        Logger.debug(`Total slack channels ${allChannels.length}`);
+
+        nextCursor = undefined;
+        let allUsers: UsersListResponse['members'] = [];
+        do {
+            try {
+                Logger.debug(`Fetching slack users with cursor ${nextCursor}`);
+
+                const users: UsersListResponse =
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.slackApp.client.users.list({
+                        token: installation?.token,
+                        limit: 900,
+                        cursor: nextCursor,
+                    });
+                nextCursor = users.response_metadata?.next_cursor;
+                allUsers = users.members
+                    ? [...allUsers, ...users.members]
+                    : allUsers;
+            } catch (e) {
+                Logger.error(`Unable to fetch slack users ${e}`);
+                Sentry.captureException(e);
+
+                break;
+            }
+        } while (nextCursor);
+        Logger.debug(`Total slack users ${allUsers.length}`);
+
+        const sortedChannels = allChannels
+            .reduce<SlackChannel[]>(
+                (acc, { id, name }) =>
+                    id && name ? [...acc, { id, name: `#${name}` }] : acc,
+                [],
+            )
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        const sortedUsers = allUsers
+            .reduce<SlackChannel[]>(
+                (acc, { id, name }) =>
+                    id && name ? [...acc, { id, name: `@${name}` }] : acc,
+                [],
+            )
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        const channels = [...sortedChannels, ...sortedUsers];
+        cachedChannels[organizationUuid] = { lastCached: new Date(), channels };
+        return channels;
     }
 
     async joinChannels(organizationUuid: string, channels: string[]) {
+        if (channels.length === 0) return;
         try {
             if (this.slackApp === undefined) {
                 throw new Error('Slack app is not configured');
@@ -126,7 +205,7 @@ export class SlackClient {
                 organizationUuid,
             );
 
-        this.slackApp.client.chat
+        await this.slackApp.client.chat
             .postMessage({
                 token: installation?.token,
                 channel,
@@ -137,6 +216,7 @@ export class SlackClient {
                 Logger.error(
                     `Unable to postmessage on slack : ${JSON.stringify(e)}`,
                 );
+                throw e;
             });
     }
 }

@@ -38,6 +38,8 @@ export enum PageName {
     SPACES = 'spaces',
     SHARE = 'share',
     USER_ACTIVITY = 'user_activity',
+    VERIFY_EMAIL = 'verify_email',
+    JOIN_ORGANIZATION = 'join_organization',
 }
 
 export enum CategoryName {
@@ -71,6 +73,7 @@ export enum EventName {
     UPDATE_DASHBOARD_NAME_CLICKED = 'update_dashboard_name.click',
     DOCUMENTATION_BUTTON_CLICKED = 'documentation_button.click',
     TRY_DEMO_CLICKED = 'try_demo.clicked',
+    CREATE_PROJECT_CLI_BUTTON_CLICKED = 'create_project_cli_button.click',
     CREATE_PROJECT_MANUALLY_BUTTON_CLICKED = 'create_project_manually_click.click',
     COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED = 'copy_create_project_code_click.click',
     ONBOARDING_STEP_CLICKED = 'onboarding_step.click',
@@ -90,4 +93,6 @@ export enum EventName {
     GLOBAL_SEARCH_CLOSED = 'global_search.closed',
     CROSS_FILTER_DASHBOARD_APPLIED = 'cross_filtering_apply.click',
     USAGE_ANALYTICS_CLICKED = 'usage_analytics_clicked',
+    VIEW_UNDERLYING_DATA_CLICKED = 'view_underlying_data.clicked',
+    DRILL_BY_CLICKED = 'drill_by.clicked',
 }

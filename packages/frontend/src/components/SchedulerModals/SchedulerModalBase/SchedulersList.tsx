@@ -25,7 +25,7 @@ const SchedulersList: FC<Props> = ({ schedulersQuery, onEdit }) => {
         return (
             <NonIdealState
                 title="There are no existing scheduled deliveries"
-                description='Add one by clicking on "Create new" bellow'
+                description='Add one by clicking on "Create new" below'
                 icon={'blank'}
             />
         );

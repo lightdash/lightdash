@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    ChartKind,
     CreateDashboard,
     CreateDashboardChartTile,
     Dashboard,
@@ -33,7 +34,6 @@ const tileWithoutId: CreateDashboardChartTile = {
     w: 200,
     properties: {
         savedChartUuid: '123',
-        title: 'title 123',
     },
 };
 const tileWithId: DashboardChartTile = {
@@ -96,7 +96,6 @@ export const addDashboardVersionWithoutChart: DashboardVersionedFields = {
             ...tileWithoutId,
             properties: {
                 savedChartUuid: null,
-                title: null,
             },
         },
     ],
@@ -132,6 +131,10 @@ export const savedChartEntry: SavedChartTable['base'] = {
     name: 'chart name',
     description: 'My description',
     created_at: new Date(),
+    last_version_chart_kind: ChartKind.VERTICAL_BAR,
+    last_version_updated_at: new Date(),
+    last_version_updated_by_user_uuid: undefined,
+    dashboard_uuid: null,
 };
 
 export const dashboardEntry: DashboardTable['base'] = {
@@ -174,7 +177,9 @@ export const dashboardWithVersionEntry: GetDashboardQuery = {
     first_name: 'firstName',
     last_name: 'lastName',
     pinned_list_uuid: 'pinnedUuid',
+    order: 0,
     views: '1',
+    first_viewed_at: new Date(1),
 };
 
 export const dashboardTileEntry: DashboardTileTable['base'] = {
@@ -273,7 +278,9 @@ export const expectedDashboard: Dashboard = {
         userUuid: 'userUuid',
     },
     pinnedListUuid: 'pinnedUuid',
+    pinnedListOrder: 0,
     views: 1,
+    firstViewedAt: new Date(1),
 };
 
 export const expectedAllDashboards: DashboardBasicDetails[] = [
@@ -291,7 +298,10 @@ export const expectedAllDashboards: DashboardBasicDetails[] = [
         },
         spaceUuid: 'spaceUuid',
         pinnedListUuid: 'pinnedUuid',
+        pinnedListOrder: 0,
         views: 1,
+        firstViewedAt: new Date(1),
+        validationErrors: [],
     },
 ];
 

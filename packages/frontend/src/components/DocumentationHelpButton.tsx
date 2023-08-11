@@ -1,43 +1,41 @@
-import { Colors, Icon } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
-import React, { ComponentProps, FC } from 'react';
-import './DocumentationHelpButton.css';
+import { Anchor, AnchorProps, Tooltip, TooltipProps } from '@mantine/core';
+import { IconHelpCircle } from '@tabler/icons-react';
+import { FC } from 'react';
+import MantineIcon, { MantineIconProps } from './common/MantineIcon';
 
-type Props = {
-    url: string;
-    iconProps?: Partial<ComponentProps<typeof Icon>>;
-    tooltipProps?: Partial<ComponentProps<typeof Tooltip2>>;
-    anchorProps?: Partial<
-        React.DetailedHTMLProps<
-            React.AnchorHTMLAttributes<HTMLAnchorElement>,
-            HTMLAnchorElement
-        >
-    >;
-};
+type Props = React.AnchorHTMLAttributes<HTMLAnchorElement> &
+    Partial<AnchorProps> & {
+        iconProps?: Partial<MantineIconProps>;
+        tooltipProps?: Partial<TooltipProps>;
+    };
 
 const DocumentationHelpButton: FC<Props> = ({
-    url,
     iconProps,
     tooltipProps,
-    anchorProps,
+    ...anchorProps
 }) => (
-    <Tooltip2
-        content="Open documentation"
-        className="documentation-help-button"
+    <Tooltip
+        withinPortal
+        label="Open documentation"
         position="top"
+        maw={350}
         {...tooltipProps}
     >
-        <a
+        <Anchor
             role="button"
-            href={url}
             target="_blank"
             rel="noreferrer"
-            style={{ color: Colors.GRAY5 }}
+            color="dimmed"
             {...anchorProps}
         >
-            <Icon icon="help" intent="none" iconSize={15} {...iconProps} />
-        </a>
-    </Tooltip2>
+            <MantineIcon
+                icon={IconHelpCircle}
+                size="md"
+                display="inline"
+                {...iconProps}
+            />
+        </Anchor>
+    </Tooltip>
 );
 
 export default DocumentationHelpButton;

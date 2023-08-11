@@ -23,10 +23,7 @@ const deleteUserQuery = async (id: string) =>
         body: undefined,
     });
 
-export const updateUser = async (
-    id: string,
-    data: OrganizationMemberProfileUpdate,
-) =>
+const updateUser = async (id: string, data: OrganizationMemberProfileUpdate) =>
     lightdashApi<undefined>({
         url: `/org/users/${id}`,
         method: 'PATCH',
@@ -42,7 +39,7 @@ export const useOrganizationUsers = () => {
     });
 };
 
-export const useDeleteUserMutation = () => {
+export const useDeleteOrganizationUserMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<undefined, ApiError, string>(deleteUserQuery, {

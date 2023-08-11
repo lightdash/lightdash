@@ -1,5 +1,6 @@
 import {
     DbtError,
+    DbtManifestVersion,
     DbtRpcDocsGenerateResults,
     DbtRpcGetManifestResults,
     isDbtRpcDocsGenerateResults,

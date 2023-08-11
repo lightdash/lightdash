@@ -1,0 +1,35 @@
+### Login
+POST http://localhost:8080/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+### Get allowed email domains
+GET http://localhost:8080/api/v1/org/allowedEmailDomains
+
+### Update allowed email domains
+PATCH http://localhost:8080/api/v1/org/allowedEmailDomains
+Content-Type: application/json
+
+{
+  "emailDomains": ["lightdash.com"],
+  "role": "viewer",
+  "projectUuids": []
+}
+
+### Update allowed email domains - Member with access to project
+PATCH http://localhost:8080/api/v1/org/allowedEmailDomains
+Content-Type: application/json
+
+{
+  "emailDomains": ["lightdash.com"],
+  "role": "member",
+  "projectUuids": ["3675b69e-8324-4110-bdca-059031aa8da3"]
+}
+
+### Get allowed organizations
+GET http://localhost:8080/api/v1/user/me/allowedOrganizations
+

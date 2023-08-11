@@ -66,7 +66,7 @@ const InputWrapper: FC<InputWrapperProps> = ({
                 <>
                     <span style={{ flex: 1 }}>{requiredLabel}</span>
                     {documentationUrl && !labelHelp && (
-                        <DocumentationHelpButton url={documentationUrl} />
+                        <DocumentationHelpButton href={documentationUrl} />
                     )}
                     {labelHelp && (
                         <LabelInfoToggleButton

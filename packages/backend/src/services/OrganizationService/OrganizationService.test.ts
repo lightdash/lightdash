@@ -1,22 +1,26 @@
 import { LightdashInstallType } from '@lightdash/common';
 import {
+    groupsModel,
     inviteLinkModel,
     onboardingModel,
+    organizationAllowedEmailDomainsModel,
     organizationMemberProfileModel,
     organizationModel,
     projectModel,
     userModel,
 } from '../../models/models';
 import { OrganizationService } from './OrganizationService';
-import { organisation, user } from './OrganizationService.mock';
+import { organization, user } from './OrganizationService.mock';
 
 jest.mock('../../models/models', () => ({
     projectModel: {
         hasProjects: jest.fn(async () => true),
     },
     organizationModel: {
-        get: jest.fn(async () => organisation),
+        get: jest.fn(async () => organization),
     },
+    organizationAllowedEmailDomainsModel: {},
+    groupsModel: {},
 }));
 describe('organization service', () => {
     const organizationService = new OrganizationService({
@@ -26,6 +30,8 @@ describe('organization service', () => {
         inviteLinkModel,
         organizationMemberProfileModel,
         userModel,
+        organizationAllowedEmailDomainsModel,
+        groupsModel,
     });
 
     afterEach(() => {
@@ -40,7 +46,7 @@ describe('organization service', () => {
 
     it('Should return needsProject false if there are projects in DB', async () => {
         expect(await organizationService.get(user)).toEqual({
-            ...organisation,
+            ...organization,
             needsProject: false,
         });
     });
@@ -49,7 +55,7 @@ describe('organization service', () => {
             async () => false,
         );
         expect(await organizationService.get(user)).toEqual({
-            ...organisation,
+            ...organization,
             needsProject: true,
         });
     });

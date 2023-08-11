@@ -1,10 +1,10 @@
 {
     "name": "e2e",
-    "version": "0.407.1",
+    "version": "0.732.3",
     "main": "index.js",
     "license": "MIT",
     "scripts": {
-        "cypress:open": "cypress open",
+        "cypress:open": "cypress open --e2e",
         "cypress:run": "cypress run",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
@@ -15,10 +15,11 @@
     },
     "devDependencies": {},
     "dependencies": {
-        "@testing-library/cypress": "^8.0.3",
-        "cypress": "^10.1.0",
+        "@testing-library/cypress": "^9.0.0",
+        "cypress": "^12.12.0",
         "cypress-file-upload": "^5.0.8",
+        "cypress-split": "^1.3.13",
         "node-fetch": "^2.6.1",
-        "@lightdash/common": "^0.407.1"
+        "@lightdash/common": "^0.732.3"
     }
 }

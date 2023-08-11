@@ -1,5 +1,6 @@
 import { AbilityBuilder } from '@casl/ability';
 import { MemberAbility } from '../authorization/types';
+import { OpenIdIdentityIssuerType } from './openIdIdentity';
 import { OrganizationMemberRole } from './organizationMemberProfile';
 
 export interface LightdashUser {
@@ -7,15 +8,25 @@ export interface LightdashUser {
     email: string | undefined;
     firstName: string;
     lastName: string;
-    organizationUuid: string;
-    organizationName: string;
-    organizationCreatedAt: Date;
+    organizationUuid?: string;
+    organizationName?: string;
+    organizationCreatedAt?: Date;
     isTrackingAnonymized: boolean;
     isMarketingOptedIn: boolean;
     isSetupComplete: boolean;
-    role: OrganizationMemberRole;
+    role?: OrganizationMemberRole;
     isActive: boolean;
 }
+
+export type LightdashUserWithOrg = Required<LightdashUser>;
+
+export const isUserWithOrg = (
+    user: LightdashUser,
+): user is LightdashUserWithOrg =>
+    typeof user.organizationUuid === 'string' &&
+    typeof user.organizationName === 'string' &&
+    user.organizationCreatedAt instanceof Date &&
+    typeof user.role === 'string';
 
 export interface LightdashUserWithAbilityRules extends LightdashUser {
     abilityRules: AbilityBuilder<MemberAbility>['rules'];
@@ -42,7 +53,7 @@ export interface OpenIdUser {
     openId: {
         subject: string;
         issuer: string;
-        issuerType: 'google' | 'okta' | 'oneLogin';
+        issuerType: OpenIdIdentityIssuerType;
         email: string;
         firstName: string | undefined;
         lastName: string | undefined;
@@ -60,3 +71,14 @@ export const isOpenIdUser = (user: any): user is OpenIdUser =>
     typeof user.openId.issuer === 'string' &&
     typeof user.openId.email === 'string' &&
     typeof user.openId.issuerType === 'string';
+
+export type UserAllowedOrganization = {
+    organizationUuid: string;
+    name: string;
+    membersCount: number;
+};
+
+export type ApiUserAllowedOrganizationsResponse = {
+    status: 'ok';
+    results: UserAllowedOrganization[];
+};

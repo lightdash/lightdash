@@ -1,5 +1,9 @@
-import { UserActivity } from './types/analytics';
-import { Dashboard, DashboardBasicDetails } from './types/dashboard';
+import { UserActivity, ViewStatistics } from './types/analytics';
+import {
+    Dashboard,
+    DashboardAvailableFilters,
+    DashboardBasicDetails,
+} from './types/dashboard';
 import { convertAdditionalMetric } from './types/dbt';
 import {
     DbtCloudIntegration,
@@ -35,26 +39,55 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
 } from './types/projectMemberProfile';
-import { ResultRow } from './types/results';
 import { SavedChart, Series } from './types/savedCharts';
 import { SearchResults } from './types/search';
 import { ShareUrl } from './types/share';
 import { SlackSettings } from './types/slackSettings';
 
-import { SchedulerAndTargets } from './types/scheduler';
+import { EmailStatusExpiring } from './types/email';
+import { FieldValueSearchResult } from './types/fieldMatch';
+import {
+    DeleteOpenIdentity,
+    OpenIdIdentitySummary,
+} from './types/openIdIdentity';
+import {
+    AllowedEmailDomains,
+    OnboardingStatus,
+    Organization,
+    OrganizationProject,
+    UpdateAllowedEmailDomains,
+} from './types/organization';
+import { PinnedItems } from './types/pinning';
+import {
+    CreateWarehouseCredentials,
+    DbtProjectConfig,
+    DbtProjectType,
+    Project,
+    ProjectType,
+    WarehouseCredentials,
+} from './types/projects';
+import { ResultRow } from './types/results';
+import {
+    ApiJobScheduledResponse,
+    ApiJobStatusResponse,
+    SchedulerAndTargets,
+    SchedulerWithLogs,
+} from './types/scheduler';
 import { SlackChannel } from './types/slack';
 import { Space } from './types/space';
+import { ApiSshKeyPairResponse } from './types/SshKeyPair';
 import { TableBase } from './types/table';
-import { LightdashUser } from './types/user';
+import { LightdashUser, UserAllowedOrganization } from './types/user';
+import { ValidationResponse } from './types/validation';
 import { formatItemValue } from './utils/formatting';
-import { getItemId, getItemLabel } from './utils/item';
-import { WeekDay } from './utils/timeFrames';
+import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 
 export * from './authorization/index';
 export * from './authorization/types';
 export * from './compiler/exploreCompiler';
 export * from './compiler/filtersCompiler';
 export * from './compiler/translator';
+export * from './dbt/validation';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export * from './templating/template';
 export * from './types/analytics';
@@ -62,22 +95,32 @@ export * from './types/api';
 export * from './types/api/errors';
 export * from './types/api/integrations';
 export * from './types/api/share';
+export * from './types/api/success';
+export * from './types/api/uuid';
 export * from './types/conditionalFormatting';
 export * from './types/conditionalRule';
+export * from './types/csv';
 export * from './types/dashboard';
 export * from './types/dbt';
 export * from './types/dbtCloud';
+export * from './types/email';
 export * from './types/errors';
 export * from './types/explore';
 export * from './types/field';
+export * from './types/fieldMatch';
 export * from './types/filter';
+export * from './types/groups';
 export * from './types/job';
 export * from './types/metricQuery';
+export * from './types/openIdIdentity';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';
 export * from './types/personalAccessToken';
 export * from './types/pinning';
+export * from './types/pivot';
 export * from './types/projectMemberProfile';
+export * from './types/projects';
+export * from './types/resourceViewItem';
 export * from './types/results';
 export * from './types/savedCharts';
 export * from './types/scheduler';
@@ -86,17 +129,22 @@ export * from './types/share';
 export * from './types/slack';
 export * from './types/slackSettings';
 export * from './types/space';
+export * from './types/SshKeyPair';
 export * from './types/table';
 export * from './types/timeFrames';
 export * from './types/user';
+export * from './types/userAttributes';
+export * from './types/validation';
 export * from './types/warehouse';
 export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/conditionalFormatting';
+export * from './utils/email';
 export * from './utils/filters';
 export * from './utils/formatting';
 export * from './utils/github';
 export * from './utils/item';
+export * from './utils/scheduler';
 export * from './utils/time';
 export * from './utils/timeFrames';
 
@@ -132,7 +180,7 @@ export const replaceStringInArray = (
 ) =>
     arrayToUpdate.map((value) => (value === valueToReplace ? newValue : value));
 
-export type SqlResultsRow = { [columnName: string]: any };
+export type SqlResultsRow = { [columnName: string]: unknown };
 export type SqlResultsField = { name: string; type: string }; // TODO: standardise column types
 export type SqlQueryResults = {
     fields: SqlResultsField[]; // TODO: standard column types
@@ -150,27 +198,13 @@ export function hexToRGB(hex: string, alpha: number | undefined): string {
     return `rgb(${r}, ${g}, ${b})`;
 }
 
-export enum ProjectType {
-    DEFAULT = 'DEFAULT',
-    PREVIEW = 'PREVIEW',
-}
-
-export enum DbtProjectType {
-    DBT = 'dbt',
-    DBT_CLOUD_IDE = 'dbt_cloud_ide',
-    GITHUB = 'github',
-    GITLAB = 'gitlab',
-    BITBUCKET = 'bitbucket',
-    AZURE_DEVOPS = 'azure_devops',
-    NONE = 'none',
-}
-
 // Seeds
 
 export const SEED_ORG_1 = {
     organization_uuid: '172a2270-000f-42be-9c68-c4752c23ae51',
     organization_name: 'Jaffle Shop',
 };
+
 export const SEED_ORG_1_ADMIN = {
     user_uuid: 'b264d83a-9000-426a-85ec-3f9c20f368ce',
     first_name: 'David',
@@ -215,9 +249,15 @@ export const SEED_PROJECT = {
     project_type: ProjectType.DEFAULT,
     dbt_connection_type: DbtProjectType.DBT,
     dbt_connection: null,
+    copied_from_project_uuid: null,
 };
 export const SEED_SPACE = {
     name: SEED_PROJECT.name,
+};
+
+export const SEED_GROUP = {
+    groupUuid: '9d615ede-5758-4954-9fb9-2a07fc415ba5',
+    name: 'Org 1 Group',
 };
 
 export type ArgumentsOf<F extends Function> = F extends (
@@ -264,12 +304,16 @@ export type ApiQueryResults = {
 
 export type ApiSqlQueryResults = {
     fields: Record<string, { type: DimensionType }>;
-    rows: { [col: string]: any }[];
+    rows: Record<string, unknown>[];
 };
 
+export type ApiScheduledDownloadCsv = {
+    jobId: string;
+};
 export type ApiDownloadCsv = {
     url: string;
 };
+
 export type ProjectCatalog = {
     [database: string]: {
         [schema: string]: {
@@ -352,6 +396,7 @@ export type CompleteUserArgs = {
     jobTitle: string;
     isMarketingOptedIn: boolean;
     isTrackingAnonymized: boolean;
+    enableEmailDomainAccess: boolean;
 };
 
 export type UpdateUserArgs = {
@@ -362,33 +407,6 @@ export type UpdateUserArgs = {
     isTrackingAnonymized: boolean;
     isSetupComplete: boolean;
 };
-
-export type CreateOpenIdIdentity = {
-    subject: string;
-    issuer: string;
-    issuerType: 'google' | 'okta' | 'oneLogin';
-    userId: number;
-    email: string;
-};
-
-export type UpdateOpenIdentity = Pick<
-    CreateOpenIdIdentity,
-    'subject' | 'issuer' | 'email' | 'issuerType'
->;
-
-export type OpenIdIdentity = CreateOpenIdIdentity & {
-    createdAt: Date;
-};
-
-export type OpenIdIdentitySummary = Pick<
-    OpenIdIdentity,
-    'issuer' | 'email' | 'createdAt' | 'issuerType'
->;
-
-export type DeleteOpenIdentity = Pick<
-    OpenIdIdentitySummary,
-    'issuer' | 'email'
->;
 
 export type PasswordResetLink = {
     expiresAt: Date;
@@ -410,7 +428,7 @@ export type InviteLink = {
     expiresAt: Date;
     inviteCode: string;
     inviteUrl: string;
-    organisationUuid: string;
+    organizationUuid: string;
     userUuid: string;
     email: string;
 };
@@ -419,28 +437,9 @@ export type CreateInviteLink = Pick<InviteLink, 'expiresAt' | 'email'> & {
     role?: OrganizationMemberRole;
 };
 
-export type OnbordingRecord = {
-    ranQueryAt: Date | null;
-    shownSuccessAt: Date | null;
-};
-
-export type OnboardingStatus = {
-    ranQuery: boolean;
-};
-
 export type ProjectSavedChartStatus = boolean;
 
 export type ApiFlashResults = Record<string, string[]>;
-
-export type Organisation = {
-    organizationUuid: string;
-    name: string;
-    allowedEmailDomains: string[];
-    chartColors?: string[];
-    needsProject?: boolean;
-};
-
-export type UpdateOrganisation = Partial<Organisation>;
 
 type ApiResults =
     | ApiQueryResults
@@ -451,7 +450,7 @@ type ApiResults =
     | ApiStatusResults
     | ApiRefreshResults
     | ApiHealthResults
-    | Organisation
+    | Organization
     | LightdashUser
     | SavedChart
     | SavedChart[]
@@ -469,8 +468,9 @@ type ApiResults =
     | Dashboard[]
     | DeleteOpenIdentity
     | ApiFlashResults
-    | OpenIdIdentitySummary[]
+    | Record<OpenIdIdentitySummary['issuerType'], OpenIdIdentitySummary[]>
     | FilterableField[]
+    | DashboardAvailableFilters
     | ProjectSavedChartStatus
     | undefined
     | Array<unknown>
@@ -489,7 +489,20 @@ type ApiResults =
     | SlackChannel[]
     | SchedulerAndTargets
     | SchedulerAndTargets[]
-    | ApiDownloadCsv;
+    | FieldValueSearchResult
+    | ApiDownloadCsv
+    | AllowedEmailDomains
+    | UpdateAllowedEmailDomains
+    | UserAllowedOrganization[]
+    | EmailStatusExpiring
+    | ApiScheduledDownloadCsv
+    | PinnedItems
+    | ViewStatistics
+    | SchedulerWithLogs
+    | ValidationResponse[]
+    | ApiJobStatusResponse['results']
+    | ApiJobScheduledResponse['results']
+    | ApiSshKeyPairResponse['results'];
 
 export type ApiResponse = {
     status: 'ok';
@@ -512,6 +525,7 @@ export enum LightdashMode {
     DEMO = 'demo',
     PR = 'pr',
     CLOUD_BETA = 'cloud_beta',
+    DEV = 'development',
 }
 
 export const isLightdashMode = (x: string): x is LightdashMode =>
@@ -549,6 +563,11 @@ export type HealthState = {
         appId: string;
         apiBase: string;
     };
+
+    fullstory: {
+        orgId: string;
+        devMode: boolean;
+    };
     auth: {
         disablePasswordAuthentication: boolean;
         google: {
@@ -563,6 +582,10 @@ export type HealthState = {
             enabled: boolean;
             loginPath: string;
         };
+        azuread: {
+            enabled: boolean;
+            loginPath: string;
+        };
     };
     cohere: {
         token: string;
@@ -571,8 +594,10 @@ export type HealthState = {
     staticIp: string;
     query: {
         maxLimit: number;
+        csvCellsLimit: number;
     };
     hasSlack: boolean;
+    hasHeadlessBrowser: boolean;
 };
 
 export enum DBFieldTypes {
@@ -580,163 +605,10 @@ export enum DBFieldTypes {
     METRIC = 'metric',
 }
 
-export enum WarehouseTypes {
-    BIGQUERY = 'bigquery',
-    POSTGRES = 'postgres',
-    REDSHIFT = 'redshift',
-    SNOWFLAKE = 'snowflake',
-    DATABRICKS = 'databricks',
-    TRINO = 'trino',
-}
-
-export type CreateBigqueryCredentials = {
-    type: WarehouseTypes.BIGQUERY;
-    project: string;
-    dataset: string;
-    threads?: number;
-    timeoutSeconds: number | undefined;
-    priority: 'interactive' | 'batch' | undefined;
-    keyfileContents: Record<string, string>;
-    retries: number | undefined;
-    location: string | undefined;
-    maximumBytesBilled: number | undefined;
-    startOfWeek?: WeekDay | null;
-};
-
-export const sensitiveCredentialsFieldNames = [
-    'user',
-    'password',
-    'keyfileContents',
-    'personalAccessToken',
-    'privateKey',
-    'privateKeyPass',
-] as const;
-
 export const sensitiveDbtCredentialsFieldNames = [
     'personal_access_token',
     'api_key',
 ] as const;
-
-export type SensitiveCredentialsFieldNames =
-    typeof sensitiveCredentialsFieldNames[number];
-
-export type BigqueryCredentials = Omit<
-    CreateBigqueryCredentials,
-    SensitiveCredentialsFieldNames
->;
-
-export type CreateDatabricksCredentials = {
-    type: WarehouseTypes.DATABRICKS;
-    catalog?: string;
-    // this supposed to be a `schema` but changing it will break for existing customers
-    database: string;
-    serverHostName: string;
-    httpPath: string;
-    personalAccessToken: string;
-    startOfWeek?: WeekDay | null;
-};
-
-export type DatabricksCredentials = Omit<
-    CreateDatabricksCredentials,
-    SensitiveCredentialsFieldNames
->;
-
-export type CreatePostgresCredentials = {
-    type: WarehouseTypes.POSTGRES;
-    host: string;
-    user: string;
-    password: string;
-    port: number;
-    dbname: string;
-    schema: string;
-    threads?: number;
-    keepalivesIdle?: number;
-    searchPath?: string;
-    role?: string;
-    sslmode?: string;
-    startOfWeek?: WeekDay | null;
-};
-
-export type PostgresCredentials = Omit<
-    CreatePostgresCredentials,
-    SensitiveCredentialsFieldNames
->;
-
-export type CreateTrinoCredentials = {
-    type: WarehouseTypes.TRINO;
-    host: string;
-    user: string;
-    password: string;
-    port: number;
-    dbname: string;
-    schema: string;
-    http_scheme: string;
-    startOfWeek?: WeekDay | null;
-};
-
-export type TrinoCredentials = Omit<
-    CreateTrinoCredentials,
-    SensitiveCredentialsFieldNames
->;
-
-export type CreateRedshiftCredentials = {
-    type: WarehouseTypes.REDSHIFT;
-    host: string;
-    user: string;
-    password: string;
-    port: number;
-    dbname: string;
-    schema: string;
-    threads?: number;
-    keepalivesIdle?: number;
-    sslmode?: string;
-    ra3Node?: boolean;
-    startOfWeek?: WeekDay | null;
-};
-
-export type RedshiftCredentials = Omit<
-    CreateRedshiftCredentials,
-    SensitiveCredentialsFieldNames
->;
-
-export type CreateSnowflakeCredentials = {
-    type: WarehouseTypes.SNOWFLAKE;
-    account: string;
-    user: string;
-    password?: string;
-    privateKey?: string;
-    privateKeyPass?: string;
-    role?: string;
-    database: string;
-    warehouse: string;
-    schema: string;
-    threads?: number;
-    clientSessionKeepAlive?: boolean;
-    queryTag?: string;
-    accessUrl?: string;
-    startOfWeek?: WeekDay | null;
-};
-
-export type SnowflakeCredentials = Omit<
-    CreateSnowflakeCredentials,
-    SensitiveCredentialsFieldNames
->;
-
-export type CreateWarehouseCredentials =
-    | CreateRedshiftCredentials
-    | CreateBigqueryCredentials
-    | CreatePostgresCredentials
-    | CreateSnowflakeCredentials
-    | CreateDatabricksCredentials
-    | CreateTrinoCredentials;
-
-export type WarehouseCredentials =
-    | SnowflakeCredentials
-    | RedshiftCredentials
-    | PostgresCredentials
-    | BigqueryCredentials
-    | DatabricksCredentials
-    | TrinoCredentials;
 
 export const DbtProjectTypeLabels: Record<DbtProjectType, string> = {
     [DbtProjectType.DBT]: 'dbt local server',
@@ -746,102 +618,6 @@ export const DbtProjectTypeLabels: Record<DbtProjectType, string> = {
     [DbtProjectType.BITBUCKET]: 'BitBucket',
     [DbtProjectType.AZURE_DEVOPS]: 'Azure DevOps',
     [DbtProjectType.NONE]: 'CLI',
-};
-
-export interface DbtProjectConfigBase {
-    type: DbtProjectType;
-}
-
-export type DbtProjectEnvironmentVariable = {
-    key: string;
-    value: string;
-};
-
-export interface DbtProjectCompilerBase extends DbtProjectConfigBase {
-    target?: string;
-    environment?: DbtProjectEnvironmentVariable[];
-}
-
-export interface DbtNoneProjectConfig extends DbtProjectCompilerBase {
-    type: DbtProjectType.NONE;
-
-    hideRefreshButton?: boolean;
-}
-
-export interface DbtLocalProjectConfig extends DbtProjectCompilerBase {
-    type: DbtProjectType.DBT;
-    profiles_dir?: string;
-    project_dir?: string;
-}
-
-export interface DbtCloudIDEProjectConfig extends DbtProjectConfigBase {
-    type: DbtProjectType.DBT_CLOUD_IDE;
-    api_key: string;
-    account_id: string | number;
-    environment_id: string | number;
-    project_id: string | number;
-}
-
-export interface DbtGithubProjectConfig extends DbtProjectCompilerBase {
-    type: DbtProjectType.GITHUB;
-    personal_access_token: string;
-    repository: string;
-    branch: string;
-    project_sub_path: string;
-    host_domain?: string;
-}
-
-export interface DbtGitlabProjectConfig extends DbtProjectCompilerBase {
-    type: DbtProjectType.GITLAB;
-    personal_access_token: string;
-    repository: string;
-    branch: string;
-    project_sub_path: string;
-    host_domain?: string;
-}
-
-export interface DbtBitBucketProjectConfig extends DbtProjectCompilerBase {
-    type: DbtProjectType.BITBUCKET;
-    username: string;
-    personal_access_token: string;
-    repository: string;
-    branch: string;
-    project_sub_path: string;
-    host_domain?: string;
-}
-
-export interface DbtAzureDevOpsProjectConfig extends DbtProjectCompilerBase {
-    type: DbtProjectType.AZURE_DEVOPS;
-    personal_access_token: string;
-    organization: string;
-    project: string;
-    repository: string;
-    branch: string;
-    project_sub_path: string;
-}
-
-export type DbtProjectConfig =
-    | DbtLocalProjectConfig
-    | DbtCloudIDEProjectConfig
-    | DbtGithubProjectConfig
-    | DbtBitBucketProjectConfig
-    | DbtGitlabProjectConfig
-    | DbtAzureDevOpsProjectConfig
-    | DbtNoneProjectConfig;
-
-export type OrganizationProject = {
-    projectUuid: string;
-    name: string;
-    type: ProjectType;
-};
-
-export type Project = {
-    organizationUuid: string;
-    projectUuid: string;
-    name: string;
-    type: ProjectType;
-    dbtConnection: DbtProjectConfig;
-    warehouseConnection?: WarehouseCredentials;
 };
 
 export type CreateProject = Omit<
@@ -858,15 +634,15 @@ export type UpdateProject = Omit<
     warehouseConnection: CreateWarehouseCredentials;
 };
 
-export const getResultValues = (
+export const getResultValueArray = (
     rows: ResultRow[],
     onlyRaw: boolean = false,
-): { [col: string]: any }[] =>
-    rows.map((row: ResultRow) =>
-        Object.keys(row).reduce((acc, key) => {
-            const value: string = onlyRaw
-                ? row[key]?.value?.raw
-                : row[key]?.value?.formatted || row[key]?.value?.raw;
+): Record<string, unknown>[] =>
+    rows.map((row) =>
+        Object.keys(row).reduce<Record<string, unknown>>((acc, key) => {
+            const value = onlyRaw
+                ? row[key]?.value.raw
+                : row[key]?.value.formatted || row[key]?.value.raw;
 
             return { ...acc, [key]: value };
         }, {}),
@@ -895,7 +671,8 @@ export const getAxisName = ({
     );
     const fallbackSeriesName: string | undefined =
         series && series.length === 1
-            ? series[0].name || (defaultItem && getItemLabel(defaultItem))
+            ? series[0].name ||
+              (defaultItem && getItemLabelWithoutTableName(defaultItem))
             : undefined;
     return !isAxisTheSameForAllSeries || selectedAxisIndex === axisIndex
         ? axisName || fallbackSeriesName
@@ -960,14 +737,10 @@ export function itemsInMetricQuery(
 
 export function formatRows(
     rows: { [col: string]: any }[],
-    explore: Explore,
-    additionalMetrics: AdditionalMetric[] = [],
-    tableCalculations: TableCalculation[] = [],
+    itemMap: Record<string, Field | TableCalculation>,
 ): ResultRow[] {
-    const itemMap = getItemMap(explore, additionalMetrics, tableCalculations);
-
     return rows.map((row) =>
-        Object.keys(row).reduce((acc, columnName) => {
+        Object.keys(row).reduce<ResultRow>((acc, columnName) => {
             const col = row[columnName];
 
             const item = itemMap[columnName];

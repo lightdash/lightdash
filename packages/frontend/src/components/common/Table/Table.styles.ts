@@ -1,5 +1,13 @@
 import { Colors, HTMLTable } from '@blueprintjs/core';
+import { getDefaultZIndex } from '@mantine/core';
+import { transparentize } from 'polished';
 import styled, { css } from 'styled-components';
+
+// This color is is the default Mantine gray[0]
+export const TABLE_HEADER_BG = '#f8f9fa';
+
+// Needed for virtualization. Matches value from Pivot table.
+export const ROW_HEIGHT_PX = 34;
 
 export const TableScrollableWrapper = styled.div`
     display: flex;
@@ -18,14 +26,14 @@ interface TableContainerProps {
 export const TableContainer = styled.div<TableContainerProps>`
     display: flex;
     flex-direction: column;
-    padding: ${({ $padding = 10 }) => `${$padding}px`};
     min-width: 100%;
     overflow: hidden;
+    padding: ${({ $padding = 0 }) => `${$padding}px`};
 
     ${({ $shouldExpand }) =>
         $shouldExpand
             ? `
-                height: 100%;
+                height: inherit;
             `
             : `
                 max-height: 800px;
@@ -33,6 +41,7 @@ export const TableContainer = styled.div<TableContainerProps>`
 `;
 
 export const Table = styled(HTMLTable)<{ $showFooter: boolean }>`
+    background-color: white;
     width: 100%;
     border-left: 1px solid #dcdcdd;
     border-right: 1px solid #dcdcdd;
@@ -45,22 +54,15 @@ export const Table = styled(HTMLTable)<{ $showFooter: boolean }>`
         position: sticky;
         top: 0;
         inset-block-start: 0; /* "top" */
-        background: ${Colors.GRAY5};
 
         th:first-child {
-            border-top: none !important;
+            border-top: 1px solid #dcdcdd;
             border-bottom: none !important;
         }
 
         th {
-            border-top: none !important;
+            border-top: 1px solid #dcdcdd;
             border-bottom: none !important;
-        }
-    }
-
-    tbody tr {
-        :hover {
-            background: ${Colors.LIGHT_GRAY3};
         }
     }
 
@@ -90,13 +92,16 @@ export const Table = styled(HTMLTable)<{ $showFooter: boolean }>`
         background-color: white;
         word-break: break-word;
     }
-    .first-sticky-column {
-        box-shadow: lightgray -1px 0px 0px 0px, lightgray 0px 1px 0px 0px inset !important;
-    }
     .last-sticky-column {
         border-right: 2px solid darkgray;
     }
 `;
+
+Table.defaultProps = {
+    compact: true,
+    bordered: true,
+    striped: false,
+};
 
 export const TableFooter = styled.div`
     display: flex;
@@ -106,20 +111,36 @@ export const TableFooter = styled.div`
     margin-top: 10px;
 `;
 
+const FontSyles = `
+    font-size: 13px;
+    font-family: Inter, sans-serif;
+`;
+
 const CellStyles = css<{ $isNaN: boolean }>`
     text-align: ${({ $isNaN }) => ($isNaN ? 'left' : 'right')} !important;
+    padding: 8.5px !important;
+    ${FontSyles}
 `;
 
 export const Tr = styled.tr<{
     $index?: number;
 }>`
     ${({ $index = 0 }) =>
-        $index % 2 === 0
+        $index % 2 === 1
             ? `
-                background-color: ${Colors.LIGHT_GRAY5};
+                background-color: ${transparentize(0.7, Colors.LIGHT_GRAY5)};
             `
             : ''}
+
+    :hover {
+        background-color: ${Colors.LIGHT_GRAY3} !important;
+    }
+
+    :hover td {
+        filter: saturate(1) brightness(0.9);
+    }
 `;
+
 export const Td = styled.td<{
     $isNaN: boolean;
     $rowIndex: number;
@@ -129,7 +150,26 @@ export const Td = styled.td<{
     $backgroundColor?: string;
     $fontColor?: string;
     $hasData: boolean;
+    $isLargeText: boolean;
+    $isMinimal: boolean;
 }>`
+    max-width: 300px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    height: ${ROW_HEIGHT_PX}px;
+
+    ${({ $isLargeText, $isSelected, $isMinimal }) =>
+        $isLargeText
+            ? `
+                min-width: 300px;
+                white-space: ${$isSelected || $isMinimal ? 'normal' : 'nowrap'};
+                :hover {
+                    white-space: normal;
+                }
+            `
+            : ''}
+
     ${CellStyles}
 
     ${({ $isInteractive, $hasData }) =>
@@ -143,7 +183,7 @@ export const Td = styled.td<{
         $isSelected
             ? `
                 position: relative;
-                z-index: 21;
+                z-index: ${getDefaultZIndex('popover') + 1} !important;
             `
             : ''}
 
@@ -161,24 +201,25 @@ export const Td = styled.td<{
             `
             : ''}
 
-    ${({ $isInteractive, $isSelected, $hasData }) =>
+    filter: saturate(1) brightness(1);
+    transition: filter 0.15s linear;
+
+    ${({ $isInteractive, $isSelected, $hasData, $backgroundColor }) =>
         $isInteractive && $isSelected && $hasData
             ? `
                     box-shadow: inset 0 0 0 1px #4170CB !important;
-                    background-color: #ECF6FE !important;
+                    ${
+                        $backgroundColor
+                            ? 'filter: saturate(1) brightness(0.8) !important;'
+                            : `background-color: #ECF6FE !important;`
+                    }
                 `
             : ''}
 
-    transition: filter 0.15s linear;
-
     ${({ $isCopying }) =>
         $isCopying
-            ? `
-                filter: saturate(3);
-            `
-            : `
-                filter: saturate(1);
-            `}
+            ? `filter: saturate(2) brightness(1) !important`
+            : 'filter: initial'}
 `;
 
 export const FooterCell = styled.th<{ $isNaN: boolean }>`
@@ -224,7 +265,9 @@ export const ThActionsContainer = styled.div`
     }
 `;
 
-export const TableHeaderLabelContainer = styled.div``;
+export const TableHeaderLabelContainer = styled.div`
+    ${FontSyles}
+`;
 
 export const TableHeaderRegularLabel = styled.span`
     font-weight: 400;

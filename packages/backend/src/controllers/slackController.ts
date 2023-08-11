@@ -13,12 +13,14 @@ import {
     Response,
     Route,
     SuccessResponse,
+    Tags,
 } from 'tsoa';
 import { slackClient } from '../clients/clients';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
 @Route('/api/v1/slack')
 @Response<ApiErrorPayload>('default', 'Error')
+@Tags('Integrations')
 export class SlackController extends Controller {
     /**
      * Get slack channels

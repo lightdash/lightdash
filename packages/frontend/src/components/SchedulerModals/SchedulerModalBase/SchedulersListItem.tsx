@@ -74,7 +74,7 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                 <SeparatorDot icon="dot" size={6} />
 
                 <InfoContainer>
-                    {scheduler.targets.length} slack recipients
+                    {scheduler.targets.length} recipients
                 </InfoContainer>
             </PageDetailsContainer>
         </SchedulerContainer>

@@ -15,19 +15,21 @@ jobs:
     runs-on: ubuntu-20.04
     concurrency: ${{ github.ref }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+      - uses: actions/setup-node@v3
         with:
           node-version: '16'
       - name: Install dependencies
-        run: yarn install
+        run: yarn install --frozen-lockfile
       - name: Build
         run: yarn build-published-packages
       - name: Semantic Release
         id: semantic
-        uses: cycjimmy/semantic-release-action@v2
+        uses: cycjimmy/semantic-release-action@v3
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         with:
           semantic_version: 19
@@ -36,14 +38,14 @@ jobs:
             @semantic-release/git@10
             @semantic-release/github@8
             @amanda-mitchell/semantic-release-npm-multiple@2.17.0
-            @google/semantic-release-replace-plugin@1
+            @google/semantic-release-replace-plugin@1.2.0
       - name: Reset alpha branch upon release
         if: |
           steps.semantic.outputs.new_release_published == 'true' &&
           steps.semantic.outputs.new_release_channel == null
         run: "git push --force https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git HEAD:refs/heads/alpha"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
       - name: Trigger helm chart update on release
         if: |
           steps.semantic.outputs.new_release_published == 'true' &&

@@ -1,3 +1,4 @@
+export * from './ssh/sshTunnel';
 export * from './types';
 export * from './warehouseClientFromCredentials';
 export * from './warehouseClients/BigqueryWarehouseClient';

@@ -1,12 +1,8 @@
 import { SEED_PROJECT } from '@lightdash/common';
 
 describe('Explore', () => {
-    before(() => {
-        cy.login();
-    });
-
     beforeEach(() => {
-        Cypress.Cookies.preserveOnce('connect.sid');
+        cy.login();
     });
 
     it('Should query in explore with formats and rounds', () => {

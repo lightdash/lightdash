@@ -1,22 +1,10 @@
-import { Intent } from '@blueprintjs/core';
+import { Card, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import React, { FC } from 'react';
-import { useTracking } from '../../../providers/TrackingProvider';
 import Step1 from '../../../svgs/onboarding1.svg';
 import Step2 from '../../../svgs/onboarding2.svg';
 import Step3 from '../../../svgs/onboarding3.svg';
 import { EventName } from '../../../types/Events';
-import {
-    ButtonWrapper,
-    CardWrapper,
-    CTA,
-    Intro,
-    OnboardingPanelWrapper,
-    StepContainer,
-    StepDescription,
-    StepsWrapper,
-    StepTitle,
-    Title,
-} from './OnboardingSteps.styles';
+import MantineLinkButton from '../../common/MantineLinkButton';
 
 interface Props {
     projectUuid: string;
@@ -42,45 +30,45 @@ const onboardingSteps = [
 ];
 
 const OnboardingPanel: FC<Props> = ({ projectUuid, userName }) => {
-    const { track } = useTracking();
     return (
-        <OnboardingPanelWrapper>
-            <Title>
+        <Stack justify="flex-start" spacing="xs" mt="4xl">
+            <Title order={3}>
                 {`Welcome${userName ? ', ' + userName : ' to Lightdash'}! 👋`}
             </Title>
-            <Intro>
+            <Text color="gray.7">
                 You&apos;re ready to start exploring. Here&apos;s what you can
                 do with Lightdash:
-            </Intro>
-            <CardWrapper>
-                <StepsWrapper>
-                    {onboardingSteps.map((step, item) => (
-                        <StepContainer key={step.title}>
-                            {step.image}
-                            <StepTitle>{step.title}</StepTitle>
-                            <StepDescription>
+            </Text>
+            <Paper withBorder p="xl" mt="lg">
+                <Group position="center">
+                    {onboardingSteps.map((step) => (
+                        <Card key={step.title} mx="xl">
+                            <Card.Section mx="lg" p="md">
+                                {step.image}
+                            </Card.Section>
+                            <Title order={5} fw={500} ta="center">
+                                {step.title}
+                            </Title>
+                            <Text size="sm" color="gray.6" ta="center">
                                 {step.description}
-                            </StepDescription>
-                        </StepContainer>
+                            </Text>
+                        </Card>
                     ))}
-                </StepsWrapper>
-                <ButtonWrapper>
-                    <CTA
-                        text="Run your first query!"
-                        intent={Intent.PRIMARY}
+                    <MantineLinkButton
                         href={`/projects/${projectUuid}/tables`}
-                        onClick={() => {
-                            track({
-                                name: EventName.ONBOARDING_STEP_CLICKED,
-                                properties: {
-                                    action: 'run_query',
-                                },
-                            });
+                        trackingEvent={{
+                            name: EventName.ONBOARDING_STEP_CLICKED,
+                            properties: {
+                                action: 'run_query',
+                            },
                         }}
-                    />
-                </ButtonWrapper>
-            </CardWrapper>
-        </OnboardingPanelWrapper>
+                        my="xl"
+                    >
+                        Run your first query!
+                    </MantineLinkButton>
+                </Group>
+            </Paper>
+        </Stack>
     );
 };
 

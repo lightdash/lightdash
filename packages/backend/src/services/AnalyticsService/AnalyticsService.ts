@@ -1,4 +1,4 @@
-import { ForbiddenError, SessionUser } from '@lightdash/common';
+import { ForbiddenError, isUserWithOrg, SessionUser } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 
@@ -13,10 +13,6 @@ export class AnalyticsService {
         this.analyticsModel = dependencies.analyticsModel;
     }
 
-    async getChartViews(chartUuid: string): Promise<number> {
-        return this.analyticsModel.countChartViews(chartUuid);
-    }
-
     async getDashboardViews(dashboardUuid: string): Promise<number> {
         return this.analyticsModel.countDashboardViews(dashboardUuid);
     }
@@ -25,6 +21,9 @@ export class AnalyticsService {
         projectUuid: string,
         user: SessionUser,
     ): Promise<any> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         if (user.ability.cannot('view', 'Analytics')) {
             throw new ForbiddenError();
         }

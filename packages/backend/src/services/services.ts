@@ -1,45 +1,55 @@
 import { S3Service } from '../clients/Aws/s3';
-import EmailClient from '../clients/EmailClient/EmailClient';
+import { emailClient } from '../clients/clients';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     analyticsModel,
     dashboardModel,
     emailModel,
+    groupsModel,
     inviteLinkModel,
     jobModel,
     onboardingModel,
     openIdIdentityModel,
+    organizationAllowedEmailDomainsModel,
     organizationMemberProfileModel,
     organizationModel,
     passwordResetLinkModel,
     personalAccessTokenModel,
     pinnedListModel,
     projectModel,
+    resourceViewItemModel,
     savedChartModel,
     schedulerModel,
     searchModel,
     sessionModel,
     shareModel,
-    slackAuthenticationModel,
     spaceModel,
+    sshKeyPairModel,
+    userAttributesModel,
     userModel,
+    validationModel,
 } from '../models/models';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
+import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { EncryptionService } from './EncryptionService/EncryptionService';
+import { GroupsService } from './GroupService';
 import { HealthService } from './HealthService/HealthService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
+import { PinningService } from './PinningService/PinningService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { SchedulerService } from './SchedulerService/SchedulerService';
 import { SearchService } from './SearchService/SearchService';
 import { ShareService } from './ShareService/ShareService';
 import { SpaceService } from './SpaceService/SpaceService';
+import { SshKeyPairService } from './SshKeyPairService';
 import { UnfurlService } from './UnfurlService/UnfurlService';
+import { UserAttributesService } from './UserAttributesService/UserAttributesService';
 import { UserService } from './UserService';
+import { ValidationService } from './ValidationService/ValidationService';
 
-const emailClient = new EmailClient({ lightdashConfig });
 const encryptionService = new EncryptionService({ lightdashConfig });
 
 export const userService = new UserService({
@@ -53,6 +63,7 @@ export const userService = new UserService({
     organizationMemberProfileModel,
     organizationModel,
     personalAccessTokenModel,
+    organizationAllowedEmailDomainsModel,
 });
 export const organizationService = new OrganizationService({
     organizationModel,
@@ -61,6 +72,8 @@ export const organizationService = new OrganizationService({
     inviteLinkModel,
     organizationMemberProfileModel,
     userModel,
+    organizationAllowedEmailDomainsModel,
+    groupsModel,
 });
 
 export const projectService = new ProjectService({
@@ -70,6 +83,8 @@ export const projectService = new ProjectService({
     jobModel,
     emailClient,
     spaceModel,
+    sshKeyPairModel,
+    userAttributesModel,
 });
 
 export const shareService = new ShareService({
@@ -88,6 +103,7 @@ export const dashboardService = new DashboardService({
     analyticsModel,
     pinnedListModel,
     schedulerModel,
+    savedChartModel,
 });
 
 export const savedChartsService = new SavedChartService({
@@ -106,12 +122,14 @@ export const personalAccessTokenService = new PersonalAccessTokenService({
 export const spaceService = new SpaceService({
     projectModel,
     spaceModel,
+    pinnedListModel,
 });
 
 export const searchService = new SearchService({
     projectModel,
     searchModel,
     spaceModel,
+    userAttributesModel,
 });
 
 export const s3Service = new S3Service({
@@ -126,6 +144,7 @@ export const unfurlService = new UnfurlService({
     shareModel,
     encryptionService,
     s3Service,
+    projectModel,
 });
 
 export const analyticsService = new AnalyticsService({
@@ -137,4 +156,43 @@ export const schedulerService = new SchedulerService({
     schedulerModel,
     savedChartModel,
     dashboardModel,
+});
+
+export const csvService = new CsvService({
+    lightdashConfig,
+    userModel,
+    s3Service,
+    projectService,
+    dashboardModel,
+    savedChartModel,
+});
+
+export const pinningService = new PinningService({
+    dashboardModel,
+    savedChartModel,
+    spaceModel,
+    pinnedListModel,
+    resourceViewItemModel,
+    projectModel,
+});
+
+export const validationService = new ValidationService({
+    lightdashConfig,
+    projectModel,
+    savedChartModel,
+    validationModel,
+    dashboardModel,
+    spaceModel,
+});
+
+export const groupService = new GroupsService({
+    groupsModel,
+});
+
+export const sshKeyPairService = new SshKeyPairService({
+    sshKeyPairModel,
+});
+
+export const userAttributesService = new UserAttributesService({
+    userAttributesModel,
 });

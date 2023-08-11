@@ -1,6 +1,6 @@
 import { FormGroup, Icon } from '@blueprintjs/core';
-import React, { useState } from 'react';
-import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
+import { useState } from 'react';
+import { useFieldArray, useFormContext } from 'react-hook-form';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import { LabelInfoToggleButton } from './FromGroup.styles';
 
@@ -41,7 +41,7 @@ export const ArrayInput = ({
                 <>
                     <span style={{ flex: 1 }}></span>
                     {documentationUrl && !labelHelp && (
-                        <DocumentationHelpButton url={documentationUrl} />
+                        <DocumentationHelpButton href={documentationUrl} />
                     )}
                     {labelHelp && (
                         <LabelInfoToggleButton

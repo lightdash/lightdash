@@ -2,14 +2,17 @@ previewsEnabled: true
 
 databases:
   - name: jaffle_db
+    region: frankfurt
     ipAllowList: []
 
 services:
   - type: pserv
+    region: frankfurt
     env: docker
     name: headless-browser
     dockerfilePath: docker/Dockerfile.headless-browser
   - type: web
+    region: frankfurt
     env: docker
     name: lightdash
     plan: standard
@@ -17,6 +20,7 @@ services:
     dockerfilePath: dockerfile-prs
     initialDeployHook: /usr/bin/renderDeployHook.sh
     envVars:
+      - fromGroup: pr-settings
       - key: PGHOST
         fromDatabase:
           name: jaffle_db
@@ -37,7 +41,6 @@ services:
         fromDatabase:
           name: jaffle_db
           property: password
-      - fromGroup: rudder-settings
       - key: LIGHTDASH_SECRET
         generateValue: true
       - key: SECURE_COOKIES
@@ -54,13 +57,3 @@ services:
           type: pserv
           name: headless-browser
           property: host
-      - key: SCHEDULER_ENABLED
-        value: true 
-
-envVarGroups:
-  - name: rudder-settings
-    envVars:
-      - key: RUDDERSTACK_WRITE_KEY
-        value: 1vikeGadtB0Y0oRDFNL2Prdhkbp
-      - key: RUDDERSTACK_DATA_PLANE_URL
-        value: https://analytics.lightdash.com

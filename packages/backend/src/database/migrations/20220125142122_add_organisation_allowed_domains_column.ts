@@ -1,10 +1,10 @@
 import { Knex } from 'knex';
 
-const OrganisationTableName = 'organizations';
+const OrganizationTableName = 'organizations';
 const AllowedEmailDomainsColumnName = 'allowed_email_domains';
 
 export async function up(knex: Knex): Promise<void> {
-    await knex.schema.table(OrganisationTableName, (table) => {
+    await knex.schema.table(OrganizationTableName, (table) => {
         table
             .jsonb(AllowedEmailDomainsColumnName)
             .notNullable()
@@ -15,11 +15,11 @@ export async function up(knex: Knex): Promise<void> {
 export async function down(knex: Knex): Promise<void> {
     if (
         await knex.schema.hasColumn(
-            OrganisationTableName,
+            OrganizationTableName,
             AllowedEmailDomainsColumnName,
         )
     ) {
-        await knex.schema.table(OrganisationTableName, (table) => {
+        await knex.schema.table(OrganizationTableName, (table) => {
             table.dropColumn(AllowedEmailDomainsColumnName);
         });
     }

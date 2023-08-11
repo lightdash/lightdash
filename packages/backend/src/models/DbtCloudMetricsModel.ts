@@ -12,6 +12,7 @@ export class DbtCloudMetricsModel {
                 {
                     headers: {
                         Authorization: `Bearer ${serviceToken}`,
+                        'X-dbt-partner-source': 'lightdash',
                     },
                 },
             );

@@ -2,11 +2,14 @@ import { Select2 } from '@blueprintjs/select';
 import {
     LightdashUser,
     OrganizationMemberProfile,
+    OrganizationMemberRole,
+    ProjectMemberRole,
     Space,
     SpaceShare,
 } from '@lightdash/common';
-import { upperFirst } from 'lodash-es';
-import { FC } from 'react';
+import upperFirst from 'lodash-es/upperFirst';
+import { FC, useMemo } from 'react';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useDeleteSpaceShareMutation } from '../../../hooks/useSpaces';
 import {
     ChangeAccessButton,
@@ -55,12 +58,48 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
         space.uuid,
     );
 
+    const { data: projectAccess } = useProjectAccess(projectUuid);
+
+    const adminUsers = useMemo(() => {
+        const projectUserUuids =
+            projectAccess
+                ?.filter((access) => access.role === ProjectMemberRole.ADMIN)
+                .map((access) => access.userUuid) || [];
+        const organizationUserUuids =
+            organizationUsers
+                ?.filter(
+                    (access) => access.role === OrganizationMemberRole.ADMIN,
+                )
+                .map((access) => access.userUuid) || [];
+
+        const userUuids = [
+            ...new Set([...projectUserUuids, ...organizationUserUuids]),
+        ];
+        return userUuids.reduce<SpaceShare[]>((acc, userUuid) => {
+            if (space.access.find((access) => access.userUuid === userUuid))
+                return acc;
+            const user = organizationUsers?.find(
+                (orgUser) => orgUser.userUuid === userUuid,
+            );
+            if (user) {
+                return [
+                    ...acc,
+                    {
+                        ...user,
+                        firstName: user.firstName || user.email,
+                        role: ProjectMemberRole.ADMIN,
+                    },
+                ];
+            } else return acc;
+        }, []);
+    }, [organizationUsers, projectAccess, space.access]);
+
     const userIsYou = (spaceShare: SpaceShare) =>
         spaceShare.userUuid === sessionUser?.userUuid;
 
     return (
         <>
-            {space.access
+            {[...space.access, ...adminUsers]
                 .sort((a, b) => {
                     if (userIsYou(a) && !userIsYou(b)) return -1;
                     if (!userIsYou(a) && userIsYou(b)) return 1;
@@ -98,8 +137,8 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                 )}
                                 {isYou ? <YouLabel> (you)</YouLabel> : ''}
                             </PrimaryText>
-
-                            {isYou ? (
+                            {isYou ||
+                            role === upperFirst(ProjectMemberRole.ADMIN) ? (
                                 <UserRole>{role}</UserRole>
                             ) : (
                                 <Select2<AccessOption>

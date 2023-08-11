@@ -29,7 +29,7 @@ export class InviteLinkModel {
             inviteCode,
             expiresAt: data.expires_at,
             inviteUrl: InviteLinkModel.transformInviteCodeToUrl(inviteCode),
-            organisationUuid: data.organization_uuid,
+            organizationUuid: data.organization_uuid,
             userUuid: data.user_uuid,
             email: data.email,
         };

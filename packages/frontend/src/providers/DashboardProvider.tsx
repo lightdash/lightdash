@@ -1,9 +1,16 @@
 import {
+    ApiError,
+    compressDashboardFiltersToParam,
+    convertDashboardFiltersParamToDashboardFilters,
     Dashboard,
+    DashboardAvailableFilters,
     DashboardFilterRule,
     DashboardFilters,
     fieldId,
+    FilterableField,
+    isDashboardChartTileType,
 } from '@lightdash/common';
+import uniqBy from 'lodash-es/uniqBy';
 import React, {
     createContext,
     Dispatch,
@@ -11,14 +18,15 @@ import React, {
     useCallback,
     useContext,
     useEffect,
+    useMemo,
     useState,
 } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 import { FieldsWithSuggestions } from '../components/common/Filters/FiltersProvider';
 import {
-    useAvailableDashboardFilterTargets,
     useDashboardQuery,
+    useDashboardsAvailableFilters,
 } from '../hooks/dashboard/useDashboard';
 
 const emptyFilters: DashboardFilters = {
@@ -28,11 +36,15 @@ const emptyFilters: DashboardFilters = {
 
 type DashboardContext = {
     dashboard: Dashboard | undefined;
+    dashboardError: ApiError | null;
     fieldsWithSuggestions: FieldsWithSuggestions;
     dashboardTiles: Dashboard['tiles'] | [];
     setDashboardTiles: Dispatch<SetStateAction<Dashboard['tiles'] | []>>;
+    haveTilesChanged: boolean;
+    setHaveTilesChanged: Dispatch<SetStateAction<boolean>>;
     dashboardFilters: DashboardFilters;
     dashboardTemporaryFilters: DashboardFilters;
+    allFilters: DashboardFilters;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     setDashboardTemporaryFilters: Dispatch<SetStateAction<DashboardFilters>>;
     addDimensionDashboardFilter: (
@@ -55,6 +67,9 @@ type DashboardContext = {
     haveFiltersChanged: boolean;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
     addSuggestions: (newSuggestionsMap: Record<string, string[]>) => void;
+    allFilterableFields: FilterableField[] | undefined;
+    filterableFieldsBySavedQueryUuid: DashboardAvailableFilters | undefined;
+    filterableFieldsByTileUuid: DashboardAvailableFilters | undefined;
 };
 
 const Context = createContext<DashboardContext | undefined>(undefined);
@@ -64,12 +79,51 @@ export const DashboardProvider: React.FC = ({ children }) => {
         dashboardUuid: string;
     }>();
 
-    const { data: dashboard } = useDashboardQuery(dashboardUuid);
+    const { data: dashboard, error: dashboardError } =
+        useDashboardQuery(dashboardUuid);
     const [dashboardTiles, setDashboardTiles] = useState<Dashboard['tiles']>(
         [],
     );
-    const { data: filterableFields } =
-        useAvailableDashboardFilterTargets(dashboardTiles);
+    const [haveTilesChanged, setHaveTilesChanged] = useState<boolean>(false);
+
+    const tileSavedChartUuids = useMemo(() => {
+        return dashboardTiles
+            .filter(isDashboardChartTileType)
+            .map((tile) => tile.properties.savedChartUuid)
+            .filter((uuid): uuid is string => !!uuid);
+    }, [dashboardTiles]);
+
+    const { isLoading, data: filterableFieldsBySavedQueryUuid } =
+        useDashboardsAvailableFilters(tileSavedChartUuids);
+
+    const filterableFieldsByTileUuid = useMemo(() => {
+        if (!dashboard || !dashboardTiles || !filterableFieldsBySavedQueryUuid)
+            return;
+
+        return dashboardTiles
+            .filter(isDashboardChartTileType)
+            .reduce<DashboardAvailableFilters>((acc, tile) => {
+                const savedChartUuid = tile.properties.savedChartUuid;
+                if (!savedChartUuid) return acc;
+
+                return {
+                    ...acc,
+                    [tile.uuid]:
+                        filterableFieldsBySavedQueryUuid[savedChartUuid],
+                };
+            }, {});
+    }, [dashboard, dashboardTiles, filterableFieldsBySavedQueryUuid]);
+
+    const allFilterableFields = useMemo(() => {
+        if (isLoading || !filterableFieldsBySavedQueryUuid) return;
+
+        const allFilters = Object.values(
+            filterableFieldsBySavedQueryUuid,
+        ).flat();
+        if (allFilters.length === 0) return;
+
+        return uniqBy(allFilters, (f) => fieldId(f));
+    }, [isLoading, filterableFieldsBySavedQueryUuid]);
 
     const [fieldsWithSuggestions, setFieldsWithSuggestions] =
         useState<FieldsWithSuggestions>({});
@@ -81,11 +135,11 @@ export const DashboardProvider: React.FC = ({ children }) => {
         useState<boolean>(false);
 
     useEffect(() => {
-        if (dashboard) {
+        if (dashboard && dashboardFilters === emptyFilters) {
             setDashboardFilters(dashboard.filters);
             setHaveFiltersChanged(false);
         }
-    }, [dashboard]);
+    }, [dashboardFilters, dashboard]);
 
     const addDimensionDashboardFilter = useCallback(
         (filter: DashboardFilterRule, isTemporary: boolean) => {
@@ -149,9 +203,9 @@ export const DashboardProvider: React.FC = ({ children }) => {
     );
 
     useEffect(() => {
-        if (filterableFields && filterableFields.length > 0) {
+        if (allFilterableFields && allFilterableFields.length > 0) {
             setFieldsWithSuggestions((prev) =>
-                filterableFields.reduce<FieldsWithSuggestions>(
+                allFilterableFields.reduce<FieldsWithSuggestions>(
                     (sum, field) => ({
                         ...sum,
                         [fieldId(field)]: {
@@ -164,7 +218,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
                 ),
             );
         }
-    }, [filterableFields]);
+    }, [allFilterableFields]);
 
     const addSuggestions = useCallback(
         (newSuggestionsMap: Record<string, string[]>) => {
@@ -190,34 +244,97 @@ export const DashboardProvider: React.FC = ({ children }) => {
 
     useMount(() => {
         const searchParams = new URLSearchParams(search);
-        const filterSearchParam = searchParams.get('filters');
-        if (filterSearchParam) {
-            setDashboardTemporaryFilters(JSON.parse(filterSearchParam));
+        const tempFilterSearchParam = searchParams.get('tempFilters');
+        const filtersSearchParam = searchParams.get('filters');
+        const unsavedDashboardFiltersRaw = sessionStorage.getItem(
+            'unsavedDashboardFilters',
+        );
+        sessionStorage.removeItem('unsavedDashboardFilters');
+        if (unsavedDashboardFiltersRaw) {
+            const unsavedDashboardFilters = JSON.parse(
+                unsavedDashboardFiltersRaw,
+            );
+            setDashboardFilters(unsavedDashboardFilters);
+        }
+        if (tempFilterSearchParam) {
+            setDashboardTemporaryFilters(
+                convertDashboardFiltersParamToDashboardFilters(
+                    JSON.parse(tempFilterSearchParam),
+                ),
+            );
+        }
+        if (filtersSearchParam) {
+            setDashboardFilters(
+                convertDashboardFiltersParamToDashboardFilters(
+                    JSON.parse(filtersSearchParam),
+                ),
+            );
         }
     });
 
     useEffect(() => {
-        const newParams = new URLSearchParams();
+        const newParams = new URLSearchParams(search);
         if (
-            dashboardTemporaryFilters.dimensions.length === 0 &&
-            dashboardTemporaryFilters.metrics.length === 0
+            dashboardTemporaryFilters?.dimensions?.length === 0 &&
+            dashboardTemporaryFilters?.metrics?.length === 0
+        ) {
+            newParams.delete('tempFilters');
+        } else {
+            newParams.set(
+                'tempFilters',
+                JSON.stringify(
+                    compressDashboardFiltersToParam(dashboardTemporaryFilters),
+                ),
+            );
+        }
+
+        if (
+            dashboardFilters?.dimensions?.length === 0 &&
+            dashboardFilters?.metrics?.length === 0
         ) {
             newParams.delete('filters');
         } else {
-            newParams.set('filters', JSON.stringify(dashboardTemporaryFilters));
+            newParams.set(
+                'filters',
+                JSON.stringify(
+                    compressDashboardFiltersToParam(dashboardFilters),
+                ),
+            );
         }
 
         history.replace({
             pathname,
             search: newParams.toString(),
         });
-    }, [dashboardTemporaryFilters, history, pathname]);
+    }, [
+        dashboardTemporaryFilters,
+        dashboardFilters,
+        history,
+        pathname,
+        search,
+    ]);
+
+    const allFilters = useMemo(() => {
+        return {
+            dimensions: [
+                ...dashboardFilters.dimensions,
+                ...dashboardTemporaryFilters?.dimensions,
+            ],
+            metrics: [
+                ...dashboardFilters.metrics,
+                ...dashboardTemporaryFilters?.metrics,
+            ],
+        };
+    }, [dashboardFilters, dashboardTemporaryFilters]);
 
     const value = {
         dashboard,
+        dashboardError,
         fieldsWithSuggestions,
         dashboardTiles,
         setDashboardTiles,
+        haveTilesChanged,
+        setHaveTilesChanged,
         setDashboardTemporaryFilters,
         dashboardFilters,
         dashboardTemporaryFilters,
@@ -229,6 +346,10 @@ export const DashboardProvider: React.FC = ({ children }) => {
         haveFiltersChanged,
         setHaveFiltersChanged,
         addSuggestions,
+        allFilterableFields,
+        filterableFieldsBySavedQueryUuid,
+        filterableFieldsByTileUuid,
+        allFilters,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };

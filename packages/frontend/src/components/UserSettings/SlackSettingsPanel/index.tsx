@@ -1,19 +1,23 @@
-import { AnchorButton, Button, Spinner } from '@blueprintjs/core';
 import { slackRequiredScopes, SlackSettings } from '@lightdash/common';
+import {
+    Alert,
+    Anchor,
+    Avatar,
+    Button,
+    Flex,
+    Group,
+    Loader,
+    Stack,
+    Text,
+    Title,
+} from '@mantine/core';
+import { IconAlertCircle, IconTrash } from '@tabler/icons-react';
 import intersection from 'lodash-es/intersection';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useDeleteSlack, useGetSlack } from '../../../hooks/useSlack';
 import slackSvg from '../../../svgs/slack.svg';
-import {
-    Actions,
-    AppearancePanelWrapper,
-    Description,
-    ScopesCallout,
-    SlackIcon,
-    SlackName,
-    SlackSettingsWrapper,
-    Title,
-} from './SlackSettingsPanel.styles';
+import MantineIcon from '../../common/MantineIcon';
+import { SettingsGridCard } from '../../common/Settings/SettingsCard';
 
 export const hasRequiredScopes = (slackSettings: SlackSettings) => {
     return (
@@ -28,68 +32,87 @@ const SlackSettingsPanel: FC = () => {
     const installUrl = `/api/v1/slack/install/`;
 
     if (isLoading) {
-        return <Spinner />;
+        return <Loader />;
     }
 
     const isValidSlack = data?.slackTeamName !== undefined && !isError;
     return (
-        <SlackSettingsWrapper>
-            <SlackIcon src={slackSvg} />
-            <AppearancePanelWrapper>
-                <Title> Slack integration</Title>
+        <SettingsGridCard>
+            <div>
+                <Stack spacing="lg">
+                    <Group spacing="sm">
+                        <Avatar src={slackSvg} size="sm" />
+                        <Title order={4}>Slack integration</Title>
+                    </Group>
 
-                {isValidSlack && (
-                    <Description>
-                        Added to the <SlackName>{data.slackTeamName}</SlackName>{' '}
-                        slack workspace.
-                    </Description>
-                )}
+                    <Stack spacing="xs">
+                        {isValidSlack && (
+                            <Text color="dimmed">
+                                Added to the{' '}
+                                <Text span fw={500} color="black">
+                                    {data.slackTeamName}
+                                </Text>{' '}
+                                Slack workspace.
+                            </Text>
+                        )}
 
-                <Description>
-                    Sharing in Slack allows you to unfurl Lightdash URLs in your
-                    workspace.{' '}
-                    <a href="https://docs.lightdash.com/guides/sharing-in-slack">
-                        View docs
-                    </a>
-                </Description>
-            </AppearancePanelWrapper>
-            {isValidSlack ? (
-                <div>
-                    <Actions>
-                        <AnchorButton
+                        <Text color="dimmed">
+                            Sharing in Slack allows you to unfurl Lightdash URLs
+                            in your workspace.{' '}
+                            <Anchor href="https://docs.lightdash.com/guides/sharing-in-slack">
+                                View docs
+                            </Anchor>
+                        </Text>
+                    </Stack>
+                </Stack>
+            </div>
+
+            <div>
+                {isValidSlack ? (
+                    <Stack align="end">
+                        <Group>
+                            <Button
+                                component="a"
+                                target="_blank"
+                                color="blue"
+                                href={installUrl}
+                            >
+                                Reinstall
+                            </Button>
+                            <Button
+                                leftIcon={<MantineIcon icon={IconTrash} />}
+                                color="red"
+                                onClick={() => deleteSlack(undefined)}
+                            >
+                                Remove
+                            </Button>
+                        </Group>
+
+                        {data && !hasRequiredScopes(data) && (
+                            <Alert
+                                color="blue"
+                                icon={<MantineIcon icon={IconAlertCircle} />}
+                            >
+                                Your Slack integration is not up to date, you
+                                should reinstall the Slack integration to
+                                guarantee the best user experience.
+                            </Alert>
+                        )}
+                    </Stack>
+                ) : (
+                    <Flex justify="end">
+                        <Button
+                            component="a"
                             target="_blank"
-                            intent="primary"
+                            color="blue"
                             href={installUrl}
                         >
-                            Reinstall
-                        </AnchorButton>
-                        <Button
-                            icon="delete"
-                            intent="danger"
-                            onClick={() => deleteSlack(undefined)}
-                            text="Remove"
-                        />
-                    </Actions>
-                    {data && !hasRequiredScopes(data) && (
-                        <ScopesCallout intent="primary">
-                            Your Slack integration is not up to date, you should
-                            reinstall the Slack integration to guaranty the best
-                            user experience.
-                        </ScopesCallout>
-                    )}
-                </div>
-            ) : (
-                <Actions>
-                    <AnchorButton
-                        intent="primary"
-                        target="_blank"
-                        href={installUrl}
-                    >
-                        Add to Slack
-                    </AnchorButton>
-                </Actions>
-            )}
-        </SlackSettingsWrapper>
+                            Add to Slack
+                        </Button>
+                    </Flex>
+                )}
+            </div>
+        </SettingsGridCard>
     );
 };
 

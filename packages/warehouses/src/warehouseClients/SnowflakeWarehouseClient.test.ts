@@ -1,5 +1,6 @@
 import { DimensionType } from '@lightdash/common';
 import { createConnection } from 'snowflake-sdk';
+import { Readable } from 'stream';
 import {
     mapFieldType,
     SnowflakeWarehouseClient,
@@ -14,14 +15,28 @@ import {
 } from './SnowflakeWarehouseClient.mock';
 import { config } from './WarehouseClient.mock';
 
+const mockStreamRows = () =>
+    new Readable({
+        objectMode: true,
+        read() {
+            this.push(expectedRow);
+            this.push(null);
+        },
+    });
+
 jest.mock('snowflake-sdk', () => ({
     ...jest.requireActual('snowflake-sdk'),
     createConnection: jest.fn(() => ({
         connect: jest.fn((callback) => callback(null, {})),
         execute: jest.fn(({ sqlText, complete }) => {
-            complete(undefined, { getColumns: () => queryColumnsMock }, [
-                expectedRow,
-            ]);
+            complete(
+                undefined,
+                {
+                    streamRows: mockStreamRows,
+                    getColumns: () => queryColumnsMock,
+                },
+                [],
+            );
         }),
         destroy: jest.fn((callback) => callback(null, {})),
     })),
@@ -31,6 +46,7 @@ describe('SnowflakeWarehouseClient', () => {
     it('expect query rows', async () => {
         const warehouse = new SnowflakeWarehouseClient(credentials);
         const results = await warehouse.runQuery('fake sql');
+
         expect(results.fields).toEqual(expectedFields);
         expect(results.rows[0]).toEqual(expectedRow);
     });

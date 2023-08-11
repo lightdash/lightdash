@@ -8,7 +8,7 @@ import {
     OrderFieldsByStrategy,
 } from '@lightdash/common';
 import Fuse from 'fuse.js';
-import React, { createContext, FC, useContext } from 'react';
+import { createContext, FC, useContext } from 'react';
 
 export const getSearchResults = (
     itemsMap: Record<string, Item>,
@@ -17,7 +17,7 @@ export const getSearchResults = (
     const results = new Set<string>();
     if (searchQuery && searchQuery !== '') {
         new Fuse(Object.entries(itemsMap), {
-            keys: ['1.label'],
+            keys: ['1.label', '1.groupLabel'],
             ignoreLocation: true,
             threshold: 0.3,
         })
@@ -26,6 +26,7 @@ export const getSearchResults = (
     }
     return results;
 };
+
 const getNodeMapFromItemsMap = (
     itemsMap: Record<string, Item>,
     selectedItems: Set<string>,

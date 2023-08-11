@@ -36,7 +36,7 @@ describe('TimeFrames', () => {
                     DimensionType.TIMESTAMP,
                     WeekDay.WEDNESDAY,
                 ),
-            ).toEqual('DATETIME_TRUNC(${TABLE}.created, WEEK(WEDNESDAY))');
+            ).toEqual('TIMESTAMP_TRUNC(${TABLE}.created, WEEK(WEDNESDAY))');
             expect(
                 timeFrameConfigs[TimeFrames.WEEK].getSql(
                     SupportedDbtAdapter.DATABRICKS,

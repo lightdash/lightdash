@@ -1,11 +1,27 @@
-import { Button, IconName, Menu } from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import {
+    assertUnreachable,
     CartesianSeriesType,
     ChartType,
     isSeriesWithMixedChartTypes,
 } from '@lightdash/common';
-import { FC, memo, useMemo, useState } from 'react';
+import { Button, Menu } from '@mantine/core';
+import {
+    IconChartArea,
+    IconChartAreaLine,
+    IconChartBar,
+    IconChartDots,
+    IconChartLine,
+    IconChartPie,
+    IconChevronDown,
+    IconSquareNumber1,
+    IconTable,
+} from '@tabler/icons-react';
+import { FC, memo, useMemo } from 'react';
+import {
+    COLLAPSABLE_CARD_BUTTON_PROPS,
+    COLLAPSABLE_CARD_POPOVER_PROPS,
+} from '../../common/CollapsableCard';
+import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const VisualizationCardOptions: FC = memo(() => {
@@ -21,19 +37,26 @@ const VisualizationCardOptions: FC = memo(() => {
     const disabled = isLoading || !resultsData || resultsData.rows.length <= 0;
     const cartesianType = cartesianConfig.dirtyChartType;
     const cartesianFlipAxis = cartesianConfig.dirtyLayout?.flipAxes;
-    const [isOpen, setIsOpen] = useState<boolean>(false);
     const isChartTypeTheSameForAllSeries: boolean =
         !isSeriesWithMixedChartTypes(
             cartesianConfig.dirtyEchartsConfig?.series,
         );
 
-    const selectedChartType = useMemo<{ text: string; icon: IconName }>(() => {
+    const selectedChartType = useMemo<{
+        text: string;
+        icon: JSX.Element;
+    }>(() => {
         switch (chartType) {
             case ChartType.CARTESIAN: {
                 if (!isChartTypeTheSameForAllSeries) {
                     return {
                         text: 'Mixed',
-                        icon: 'chart',
+                        icon: (
+                            <MantineIcon
+                                icon={IconChartAreaLine}
+                                color="gray"
+                            />
+                        ),
                     };
                 }
                 switch (cartesianType) {
@@ -42,47 +65,85 @@ const VisualizationCardOptions: FC = memo(() => {
 
                         return {
                             text: 'Area chart',
-                            icon: 'timeline-area-chart',
+                            icon: (
+                                <MantineIcon
+                                    icon={IconChartArea}
+                                    color="gray"
+                                />
+                            ),
                         };
                     case CartesianSeriesType.LINE:
                         setStacking(false);
                         return {
                             text: 'Line chart',
-                            icon: 'timeline-line-chart',
+                            icon: (
+                                <MantineIcon
+                                    icon={IconChartLine}
+                                    color="gray"
+                                />
+                            ),
                         };
 
                     case CartesianSeriesType.BAR:
                         return cartesianFlipAxis
                             ? {
                                   text: 'Horizontal bar chart',
-                                  icon: 'horizontal-bar-chart',
+                                  icon: (
+                                      <MantineIcon
+                                          icon={IconChartBar}
+                                          style={{ rotate: '90deg' }}
+                                          color="gray"
+                                      />
+                                  ),
                               }
                             : {
                                   text: 'Bar chart',
-                                  icon: 'timeline-bar-chart',
+                                  icon: (
+                                      <MantineIcon
+                                          icon={IconChartBar}
+                                          color="gray"
+                                      />
+                                  ),
                               };
                     case CartesianSeriesType.SCATTER:
                         setStacking(false);
 
-                        return { text: 'Scatter chart', icon: 'scatter-plot' };
+                        return {
+                            text: 'Scatter chart',
+                            icon: (
+                                <MantineIcon
+                                    icon={IconChartDots}
+                                    color="gray"
+                                />
+                            ),
+                        };
                     default:
-                        const never: never = cartesianType;
-                        throw new Error('Cartesian type not supported');
+                        return assertUnreachable(
+                            cartesianType,
+                            `Unknown cartesian type ${cartesianType}`,
+                        );
                 }
             }
             case ChartType.TABLE:
                 return {
                     text: 'Table',
-                    icon: 'panel-table',
+                    icon: <MantineIcon icon={IconTable} color="gray" />,
                 };
             case ChartType.BIG_NUMBER:
                 return {
                     text: 'Big value',
-                    icon: 'numerical',
+                    icon: <MantineIcon icon={IconSquareNumber1} color="gray" />,
+                };
+            case ChartType.PIE:
+                return {
+                    text: 'Pie chart',
+                    icon: <MantineIcon icon={IconChartPie} color="gray" />,
                 };
             default: {
-                const never: never = chartType;
-                throw new Error('Chart type not supported');
+                return assertUnreachable(
+                    chartType,
+                    `Unknown chart type ${chartType}`,
+                );
             }
         }
     }, [
@@ -94,150 +155,181 @@ const VisualizationCardOptions: FC = memo(() => {
     ]);
 
     return (
-        <Popover2
-            content={
-                <Menu>
-                    <MenuItem2
-                        active={
-                            isChartTypeTheSameForAllSeries &&
-                            chartType === ChartType.CARTESIAN &&
-                            cartesianType === CartesianSeriesType.BAR &&
-                            !cartesianFlipAxis
-                        }
-                        icon="timeline-bar-chart"
-                        onClick={() => {
-                            setChartType(ChartType.CARTESIAN);
-                            cartesianConfig.setType(
-                                CartesianSeriesType.BAR,
-                                false,
-                                false,
-                            );
-                            setIsOpen(false);
-                        }}
-                        disabled={disabled}
-                        text="Bar chart"
-                    />
-
-                    <MenuItem2
-                        active={
-                            isChartTypeTheSameForAllSeries &&
-                            chartType === ChartType.CARTESIAN &&
-                            cartesianType === CartesianSeriesType.BAR &&
-                            cartesianFlipAxis
-                        }
-                        icon="horizontal-bar-chart"
-                        onClick={() => {
-                            setChartType(ChartType.CARTESIAN);
-                            cartesianConfig.setType(
-                                CartesianSeriesType.BAR,
-                                true,
-                                false,
-                            );
-                            setIsOpen(false);
-                        }}
-                        disabled={disabled}
-                        text="Horizontal bar chart"
-                    />
-
-                    <MenuItem2
-                        active={
-                            isChartTypeTheSameForAllSeries &&
-                            chartType === ChartType.CARTESIAN &&
-                            cartesianType === CartesianSeriesType.LINE
-                        }
-                        icon="timeline-line-chart"
-                        onClick={() => {
-                            setChartType(ChartType.CARTESIAN);
-                            cartesianConfig.setType(
-                                CartesianSeriesType.LINE,
-                                false,
-                                false,
-                            );
-                            setIsOpen(false);
-                        }}
-                        disabled={disabled}
-                        text="Line chart"
-                    />
-
-                    <MenuItem2
-                        active={
-                            isChartTypeTheSameForAllSeries &&
-                            chartType === ChartType.CARTESIAN &&
-                            cartesianType === CartesianSeriesType.AREA
-                        }
-                        icon="timeline-area-chart"
-                        onClick={() => {
-                            setChartType(ChartType.CARTESIAN);
-                            cartesianConfig.setType(
-                                CartesianSeriesType.LINE,
-                                false,
-                                true,
-                            );
-                            setIsOpen(false);
-                        }}
-                        disabled={disabled}
-                        text="Area chart"
-                    />
-
-                    <MenuItem2
-                        active={
-                            isChartTypeTheSameForAllSeries &&
-                            chartType === ChartType.CARTESIAN &&
-                            cartesianType === CartesianSeriesType.SCATTER
-                        }
-                        icon="scatter-plot"
-                        onClick={() => {
-                            setChartType(ChartType.CARTESIAN);
-                            cartesianConfig.setType(
-                                CartesianSeriesType.SCATTER,
-                                false,
-                                false,
-                            );
-                            setIsOpen(false);
-                        }}
-                        disabled={disabled}
-                        text="Scatter chart"
-                    />
-
-                    <MenuItem2
-                        active={chartType === ChartType.TABLE}
-                        icon="panel-table"
-                        onClick={() => {
-                            setChartType(ChartType.TABLE);
-                            setPivotDimensions(undefined);
-                            setIsOpen(false);
-                        }}
-                        disabled={disabled}
-                        text="Table"
-                    />
-
-                    <MenuItem2
-                        active={chartType === ChartType.BIG_NUMBER}
-                        icon="numerical"
-                        onClick={() => {
-                            setChartType(ChartType.BIG_NUMBER);
-                            setPivotDimensions(undefined);
-                            setIsOpen(false);
-                        }}
-                        disabled={disabled}
-                        text="Big value"
-                    />
-                </Menu>
-            }
-            interactionKind="click"
-            isOpen={isOpen}
-            onInteraction={setIsOpen}
-            position="bottom"
+        <Menu
+            {...COLLAPSABLE_CARD_POPOVER_PROPS}
+            closeOnItemClick
             disabled={disabled}
         >
-            <Button
-                minimal
-                icon={selectedChartType.icon}
-                rightIcon="caret-down"
-                text={selectedChartType.text}
-                disabled={disabled}
-            />
-        </Popover2>
+            <Menu.Target>
+                <Button
+                    {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                    disabled={disabled}
+                    leftIcon={selectedChartType.icon}
+                    rightIcon={
+                        <MantineIcon icon={IconChevronDown} color="gray" />
+                    }
+                >
+                    {selectedChartType.text}
+                </Button>
+            </Menu.Target>
+
+            <Menu.Dropdown>
+                <Menu.Item
+                    disabled={disabled}
+                    color={
+                        isChartTypeTheSameForAllSeries &&
+                        chartType === ChartType.CARTESIAN &&
+                        cartesianType === CartesianSeriesType.BAR &&
+                        !cartesianFlipAxis
+                            ? 'blue'
+                            : undefined
+                    }
+                    icon={<MantineIcon icon={IconChartBar} />}
+                    onClick={() => {
+                        setChartType(ChartType.CARTESIAN);
+                        cartesianConfig.setType(
+                            CartesianSeriesType.BAR,
+                            false,
+                            false,
+                        );
+                    }}
+                >
+                    Bar chart
+                </Menu.Item>
+
+                <Menu.Item
+                    disabled={disabled}
+                    color={
+                        isChartTypeTheSameForAllSeries &&
+                        chartType === ChartType.CARTESIAN &&
+                        cartesianType === CartesianSeriesType.BAR &&
+                        cartesianFlipAxis
+                            ? 'blue'
+                            : undefined
+                    }
+                    icon={
+                        <MantineIcon
+                            icon={IconChartBar}
+                            style={{ rotate: '90deg' }}
+                        />
+                    }
+                    onClick={() => {
+                        setChartType(ChartType.CARTESIAN);
+                        cartesianConfig.setType(
+                            CartesianSeriesType.BAR,
+                            true,
+                            false,
+                        );
+                    }}
+                >
+                    Horizontal bar chart
+                </Menu.Item>
+
+                <Menu.Item
+                    disabled={disabled}
+                    color={
+                        isChartTypeTheSameForAllSeries &&
+                        chartType === ChartType.CARTESIAN &&
+                        cartesianType === CartesianSeriesType.LINE
+                            ? 'blue'
+                            : undefined
+                    }
+                    icon={<MantineIcon icon={IconChartLine} />}
+                    onClick={() => {
+                        setChartType(ChartType.CARTESIAN);
+                        cartesianConfig.setType(
+                            CartesianSeriesType.LINE,
+                            false,
+                            false,
+                        );
+                    }}
+                >
+                    Line chart
+                </Menu.Item>
+
+                <Menu.Item
+                    disabled={disabled}
+                    color={
+                        isChartTypeTheSameForAllSeries &&
+                        chartType === ChartType.CARTESIAN &&
+                        cartesianType === CartesianSeriesType.AREA
+                            ? 'blue'
+                            : undefined
+                    }
+                    icon={<MantineIcon icon={IconChartArea} />}
+                    onClick={() => {
+                        setChartType(ChartType.CARTESIAN);
+                        cartesianConfig.setType(
+                            CartesianSeriesType.LINE,
+                            false,
+                            true,
+                        );
+                    }}
+                >
+                    Area chart
+                </Menu.Item>
+
+                <Menu.Item
+                    disabled={disabled}
+                    color={
+                        isChartTypeTheSameForAllSeries &&
+                        chartType === ChartType.CARTESIAN &&
+                        cartesianType === CartesianSeriesType.SCATTER
+                            ? 'blue'
+                            : undefined
+                    }
+                    icon={<MantineIcon icon={IconChartDots} />}
+                    onClick={() => {
+                        setChartType(ChartType.CARTESIAN);
+                        cartesianConfig.setType(
+                            CartesianSeriesType.SCATTER,
+                            false,
+                            false,
+                        );
+                    }}
+                >
+                    Scatter chart
+                </Menu.Item>
+
+                <Menu.Item
+                    disabled={disabled}
+                    color={chartType === ChartType.PIE ? 'blue' : undefined}
+                    icon={<MantineIcon icon={IconChartPie} />}
+                    onClick={() => {
+                        setChartType(ChartType.PIE);
+                        setPivotDimensions(undefined);
+                    }}
+                >
+                    Pie chart
+                </Menu.Item>
+
+                <Menu.Item
+                    disabled={disabled}
+                    color={chartType === ChartType.TABLE ? 'blue' : undefined}
+                    icon={<MantineIcon icon={IconTable} />}
+                    onClick={() => {
+                        setChartType(ChartType.TABLE);
+                        setPivotDimensions(undefined);
+                    }}
+                >
+                    Table
+                </Menu.Item>
+
+                <Menu.Item
+                    disabled={disabled}
+                    color={
+                        chartType === ChartType.BIG_NUMBER ? 'blue' : undefined
+                    }
+                    icon={<MantineIcon icon={IconSquareNumber1} />}
+                    onClick={() => {
+                        setChartType(ChartType.BIG_NUMBER);
+                        setPivotDimensions(undefined);
+                    }}
+                >
+                    Big value
+                </Menu.Item>
+            </Menu.Dropdown>
+        </Menu>
     );
 });
 

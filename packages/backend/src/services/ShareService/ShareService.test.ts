@@ -1,3 +1,4 @@
+import { ForbiddenError } from '@lightdash/common';
 import { shareModel } from '../../models/models';
 import { ShareService } from './ShareService';
 import {
@@ -7,6 +8,7 @@ import {
     SampleShareUrl,
     ShareUrlWithoutParams,
     User,
+    UserFromAnotherOrg,
 } from './ShareService.mock';
 
 jest.mock('../../models/models', () => ({
@@ -49,5 +51,11 @@ describe('share', () => {
         expect(
             await shareService.getShareUrl(User, ShareUrlWithoutParams.nanoid),
         ).toEqual(FullShareUrlWithoutParams);
+    });
+
+    it('Should throw error if user does not have access to the organization', async () => {
+        await expect(
+            shareService.getShareUrl(UserFromAnotherOrg, SampleShareUrl.nanoid),
+        ).rejects.toThrowError(ForbiddenError);
     });
 });

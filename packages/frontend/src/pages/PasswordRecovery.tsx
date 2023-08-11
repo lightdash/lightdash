@@ -1,15 +1,11 @@
-import React, { FC } from 'react';
+import { Card, Image, Stack } from '@mantine/core';
+import { FC } from 'react';
 import { Redirect } from 'react-router-dom';
+
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { useApp } from '../providers/AppProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
-import {
-    CardWrapper,
-    FormWrapper,
-    Logo,
-    LogoWrapper,
-} from './PasswordRecovery.styles';
 import { PasswordRecoveryForm } from './PasswordRecoveryForm';
 
 const PasswordRecovery: FC = () => {
@@ -24,15 +20,20 @@ const PasswordRecovery: FC = () => {
     }
 
     return (
-        <Page isFullHeight>
-            <FormWrapper>
-                <LogoWrapper>
-                    <Logo src={LightdashLogo} alt="lightdash logo" />
-                </LogoWrapper>
-                <CardWrapper elevation={2}>
+        <Page title="Recover password" withCenteredContent withNavbar={false}>
+            {/* FIXME: use Mantine sizes for width */}
+            <Stack w={400} mt="4xl">
+                <Image
+                    src={LightdashLogo}
+                    alt="lightdash logo"
+                    width={130}
+                    mx="auto"
+                    my="lg"
+                />
+                <Card p="xl" radius="xs" withBorder shadow="xs">
                     <PasswordRecoveryForm />
-                </CardWrapper>
-            </FormWrapper>
+                </Card>
+            </Stack>
         </Page>
     );
 };

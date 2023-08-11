@@ -1,6 +1,7 @@
 import { Callout } from '@blueprintjs/core';
 import { DbtProjectType } from '@lightdash/common';
-import React, { FC } from 'react';
+import { Anchor } from '@mantine/core';
+import { FC } from 'react';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import Input from '../../ReactHookForm/Input';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
@@ -14,13 +15,13 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
         <>
             <Callout intent="primary" style={{ marginBottom: 20 }}>
                 You will need to spin up the IDE for your project. Read the{' '}
-                <a
+                <Anchor
                     href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#spin-up-the-ide"
                     target="_blank"
                     rel="noreferrer"
                 >
                     docs
-                </a>{' '}
+                </Anchor>{' '}
                 to know more.
             </Callout>
             <PasswordInput

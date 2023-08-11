@@ -2,9 +2,10 @@ import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
     DbtProjectType,
+    SupportedDbtVersions,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
-import Logger from '../logger';
+import Logger from '../logging/logger';
 import { CachedWarehouse, ProjectAdapter } from '../types';
 import { DbtAzureDevOpsProjectAdapter } from './dbtAzureDevOpsProjectAdapter';
 import { DbtBitBucketProjectAdapter } from './dbtBitBucketProjectAdapter';
@@ -18,6 +19,7 @@ export const projectAdapterFromConfig = async (
     config: DbtProjectConfig,
     warehouseCredentials: CreateWarehouseCredentials,
     cachedWarehouse: CachedWarehouse,
+    dbtVersion: SupportedDbtVersions,
 ): Promise<ProjectAdapter> => {
     Logger.debug(
         `Initialize warehouse client of type ${warehouseCredentials.type}`,
@@ -36,15 +38,11 @@ export const projectAdapterFromConfig = async (
                 targetName: config.target,
                 environment: config.environment,
                 cachedWarehouse,
+                dbtVersion,
             });
         case DbtProjectType.NONE:
             return new DbtNoneCredentialsProjectAdapter({
                 warehouseClient,
-                projectDir: '/usr/app/dbt',
-                warehouseCredentials,
-                targetName: config.target,
-                environment: config.environment,
-                cachedWarehouse,
             });
 
         case DbtProjectType.DBT_CLOUD_IDE:
@@ -55,6 +53,7 @@ export const projectAdapterFromConfig = async (
                 projectId: `${config.project_id}`,
                 apiKey: config.api_key,
                 cachedWarehouse,
+                dbtVersion,
             });
         case DbtProjectType.GITHUB:
             return new DbtGithubProjectAdapter({
@@ -68,6 +67,7 @@ export const projectAdapterFromConfig = async (
                 targetName: config.target,
                 environment: config.environment,
                 cachedWarehouse,
+                dbtVersion,
             });
         case DbtProjectType.GITLAB:
             return new DbtGitlabProjectAdapter({
@@ -81,6 +81,7 @@ export const projectAdapterFromConfig = async (
                 targetName: config.target,
                 environment: config.environment,
                 cachedWarehouse,
+                dbtVersion,
             });
         case DbtProjectType.BITBUCKET:
             return new DbtBitBucketProjectAdapter({
@@ -95,6 +96,7 @@ export const projectAdapterFromConfig = async (
                 targetName: config.target,
                 environment: config.environment,
                 cachedWarehouse,
+                dbtVersion,
             });
         case DbtProjectType.AZURE_DEVOPS:
             return new DbtAzureDevOpsProjectAdapter({
@@ -109,6 +111,7 @@ export const projectAdapterFromConfig = async (
                 targetName: config.target,
                 environment: config.environment,
                 cachedWarehouse,
+                dbtVersion,
             });
         default:
             const never: never = config;

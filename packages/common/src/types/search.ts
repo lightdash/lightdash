@@ -1,18 +1,33 @@
 import { Dashboard } from './dashboard';
 import { Table } from './explore';
 import { Dimension, Metric } from './field';
-import { SavedChart } from './savedCharts';
+import { ChartKind, SavedChart } from './savedCharts';
 import { Space } from './space';
+import {
+    ValidationErrorChartResponse,
+    ValidationErrorDashboardResponse,
+    ValidationErrorTableResponse,
+} from './validation';
 
 export type SpaceSearchResult = Pick<Space, 'uuid' | 'name' | 'uuid'>;
 export type DashboardSearchResult = Pick<
     Dashboard,
     'uuid' | 'name' | 'description' | 'spaceUuid'
->;
+> & {
+    validationErrors: {
+        validationId: ValidationErrorDashboardResponse['validationId'];
+    }[];
+};
+
 export type SavedChartSearchResult = Pick<
     SavedChart,
     'uuid' | 'name' | 'description' | 'spaceUuid'
->;
+> & {
+    chartType: ChartKind;
+    validationErrors: {
+        validationId: ValidationErrorChartResponse['validationId'];
+    }[];
+};
 export type TableSearchResult = Pick<
     Table,
     'name' | 'label' | 'description'
@@ -20,6 +35,16 @@ export type TableSearchResult = Pick<
     explore: string;
     exploreLabel: string;
 };
+
+export type TableErrorSearchResult = Pick<
+    TableSearchResult,
+    'explore' | 'exploreLabel'
+> & {
+    validationErrors: {
+        validationId: ValidationErrorTableResponse['validationId'];
+    }[];
+};
+
 export type FieldSearchResult = Pick<
     Dimension | Metric,
     | 'name'
@@ -30,6 +55,7 @@ export type FieldSearchResult = Pick<
     | 'table'
     | 'tableLabel'
 > & {
+    requiredAttributes?: Record<string, string>;
     explore: string;
     exploreLabel: string;
 };
@@ -44,6 +70,7 @@ export type SearchResult =
     | SpaceSearchResult
     | DashboardSearchResult
     | SavedChartSearchResult
+    | TableErrorSearchResult
     | TableSearchResult
     | FieldSearchResult
     | PageResult;
@@ -56,17 +83,22 @@ export const isFieldSearchResult = (
     value: SearchResult,
 ): value is FieldSearchResult => 'table' in value;
 
+export const isTableErrorSearchResult = (
+    value: SearchResult,
+): value is TableErrorSearchResult =>
+    'explore' in value && 'validationErrors' in value;
+
 export type SearchResults = {
     spaces: SpaceSearchResult[];
     dashboards: DashboardSearchResult[];
     savedCharts: SavedChartSearchResult[];
-    tables: TableSearchResult[];
+    tables: (TableSearchResult | TableErrorSearchResult)[];
     fields: FieldSearchResult[];
     pages: PageResult[];
 };
 
 export const getSearchResultId = (meta: SearchResult | undefined) => {
-    if (!meta) {
+    if (!meta || isTableErrorSearchResult(meta)) {
         return '';
     }
     if (isExploreSearchResult(meta)) {

@@ -1,7 +1,7 @@
 import { Classes, Collapse, H5, Intent, Radio, Text } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { hasIntersection, TableSelectionType } from '@lightdash/common';
-import React, { FC, useEffect, useMemo } from 'react';
+import { FC, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import { useExplores } from '../../hooks/useExplores';
@@ -13,16 +13,14 @@ import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { useAbilityContext } from '../common/Authorization';
+import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import Form from '../ReactHookForm/Form';
 import MultiSelect from '../ReactHookForm/MultiSelect';
 import RadioGroup from '../ReactHookForm/RadioGroup';
 import {
-    CardWrapper,
-    LeftPanel,
     ListTrigger,
     ListWrapper,
-    RightPanel,
     SaveButton,
     TextP,
 } from './ProjectTablesConfiguration.styles';
@@ -167,8 +165,8 @@ const ProjectTablesConfiguration: FC<{
             onSubmit={onSubmit}
             disableSubmitOnEnter
         >
-            <CardWrapper elevation={1}>
-                <LeftPanel>
+            <SettingsGridCard>
+                <div>
                     <H5>Table selection</H5>
                     <TextP>
                         You have selected <b>{modelsIncluded.length}</b> models{' '}
@@ -191,8 +189,9 @@ const ProjectTablesConfiguration: FC<{
                             ))}
                         </ListWrapper>
                     </Collapse>
-                </LeftPanel>
-                <RightPanel>
+                </div>
+
+                <div>
                     <RadioGroup
                         name="type"
                         label="Table selection"
@@ -214,7 +213,7 @@ const ProjectTablesConfiguration: FC<{
                             labelElement={
                                 <>
                                     Show models with any of these tags{' '}
-                                    <DocumentationHelpButton url="https://docs.getdbt.com/reference/resource-configs/tags#examples" />
+                                    <DocumentationHelpButton href="https://docs.getdbt.com/reference/resource-configs/tags#examples" />
                                 </>
                             }
                             value={TableSelectionType.WITH_TAGS}
@@ -257,18 +256,18 @@ const ProjectTablesConfiguration: FC<{
                             />
                         )}
                     </RadioGroup>
-                </RightPanel>
-            </CardWrapper>
 
-            {canUpdateTableConfiguration && (
-                <SaveButton
-                    type="submit"
-                    intent={Intent.PRIMARY}
-                    text="Save changes"
-                    loading={isSaving}
-                    disabled={disabled}
-                />
-            )}
+                    {canUpdateTableConfiguration && (
+                        <SaveButton
+                            type="submit"
+                            intent={Intent.PRIMARY}
+                            text="Save changes"
+                            loading={isSaving}
+                            disabled={disabled}
+                        />
+                    )}
+                </div>
+            </SettingsGridCard>
         </Form>
     );
 };

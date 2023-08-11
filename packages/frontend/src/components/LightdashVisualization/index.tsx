@@ -1,26 +1,36 @@
-import { ChartType } from '@lightdash/common';
+import { assertUnreachable, ChartType } from '@lightdash/common';
 import { FC, memo } from 'react';
 import SimpleChart from '../SimpleChart';
+import SimplePieChart from '../SimplePieChart';
 import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
 import { useVisualizationContext } from './VisualizationProvider';
 
 interface LightdashVisualizationProps {
-    isDashboard?: boolean;
     tileUuid?: string;
+    isDashboard?: boolean;
+    isTitleHidden?: boolean;
     className?: string;
-    $padding?: number;
     'data-testid'?: string;
 }
 
 const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
-    ({ isDashboard, tileUuid, className, ...props }) => {
-        const { chartType } = useVisualizationContext();
+    ({
+        isDashboard = false,
+        isTitleHidden = false,
+        tileUuid,
+        className,
+        ...props
+    }) => {
+        const { chartType, minimal } = useVisualizationContext();
 
         switch (chartType) {
             case ChartType.BIG_NUMBER:
                 return (
                     <SimpleStatistic
+                        minimal={minimal}
+                        isDashboard={isDashboard}
+                        isTitleHidden={isTitleHidden}
                         className={className}
                         data-testid={props['data-testid']}
                         {...props}
@@ -29,11 +39,11 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
             case ChartType.TABLE:
                 return (
                     <SimpleTable
+                        minimal={minimal}
                         tileUuid={tileUuid}
                         isDashboard={!!isDashboard}
                         className={className}
                         $shouldExpand
-                        $padding={props.$padding}
                         data-testid={props['data-testid']}
                         {...props}
                     />
@@ -47,8 +57,21 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                         {...props}
                     />
                 );
+            case ChartType.PIE:
+                return (
+                    <SimplePieChart
+                        className={className}
+                        tileUuid={tileUuid}
+                        $shouldExpand
+                        data-testid={props['data-testid']}
+                        {...props}
+                    />
+                );
             default:
-                return null;
+                return assertUnreachable(
+                    chartType,
+                    `Chart type ${chartType} not implemented`,
+                );
         }
     },
 );

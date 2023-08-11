@@ -1,12 +1,14 @@
-import { HotkeyConfig, IconName, useHotkeys } from '@blueprintjs/core';
-import { ChartType, fieldId, FieldType, SearchResult } from '@lightdash/common';
+import {
+    ChartType,
+    fieldId,
+    FieldType,
+    isTableErrorSearchResult,
+    SearchResult,
+} from '@lightdash/common';
 import { useMemo, useState } from 'react';
 import { useDebounce } from 'react-use';
 import useGlobalSearch from '../../../hooks/globalSearch/useGlobalSearch';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
-import { useTracking } from '../../../providers/TrackingProvider';
-import { EventName } from '../../../types/Events';
-import { getItemIconName } from '../../Explorer/ExploreTree/TableTree/Tree/TreeSingleNode';
 
 export type SearchItem = {
     type: 'space' | 'dashboard' | 'saved_chart' | 'table' | 'field' | 'page';
@@ -19,40 +21,11 @@ export type SearchItem = {
         | 'Dimension'
         | 'Metric'
         | 'Page';
-    icon: IconName;
-    name: string;
+    title: string;
     prefix?: string;
     description?: string;
     location: { pathname: string; search?: string };
-    meta?: SearchResult;
-};
-
-export const useGlobalSearchHotKeys = (
-    toggleSearchOpen: (val: boolean) => void,
-) => {
-    const { track } = useTracking();
-    const hotkeys = useMemo<HotkeyConfig[]>(() => {
-        return [
-            {
-                combo: 'mod+k',
-                label: 'Show search',
-                onKeyDown: () => {
-                    track({
-                        name: EventName.GLOBAL_SEARCH_OPEN,
-                        properties: {
-                            action: 'hotkeys',
-                        },
-                    });
-                    toggleSearchOpen(true);
-                },
-                global: true,
-                preventDefault: true,
-                stopPropagation: true,
-                allowInInput: true,
-            },
-        ];
-    }, [toggleSearchOpen, track]);
-    useHotkeys(hotkeys);
+    item?: SearchResult;
 };
 
 export const useDebouncedSearch = (
@@ -77,9 +50,8 @@ export const useDebouncedSearch = (
             data?.spaces.map<SearchItem>((item) => ({
                 type: 'space',
                 typeLabel: 'Space',
-                icon: 'folder-close',
-                name: item.name,
-                meta: item,
+                title: item.name,
+                item: item,
                 location: {
                     pathname: `/projects/${projectUuid}/spaces/${item.uuid}`,
                 },
@@ -89,10 +61,9 @@ export const useDebouncedSearch = (
             data?.dashboards.map<SearchItem>((item) => ({
                 type: 'dashboard',
                 typeLabel: 'Dashboard',
-                icon: 'control',
-                name: item.name,
+                title: item.name,
                 description: item.description,
-                meta: item,
+                item: item,
                 location: {
                     pathname: `/projects/${projectUuid}/dashboards/${item.uuid}`,
                 },
@@ -103,31 +74,44 @@ export const useDebouncedSearch = (
                 type: 'saved_chart',
                 typeLabel: 'Chart',
                 icon: 'chart',
-                name: item.name,
+                title: item.name,
                 description: item.description,
-                meta: item,
+                item: item,
                 location: {
                     pathname: `/projects/${projectUuid}/saved/${item.uuid}`,
                 },
             })) || [];
 
         const tables =
-            data?.tables.map<SearchItem>((item) => ({
-                type: 'table',
-                typeLabel:
-                    item.name === item.explore ? 'Table' : 'Joined table',
-                icon: 'th',
-                prefix:
-                    item.name === item.explore
-                        ? undefined
-                        : `${item.exploreLabel} - `,
-                name: item.label,
-                description: item.description,
-                meta: item,
-                location: {
-                    pathname: `/projects/${projectUuid}/tables/${item.explore}`,
-                },
-            })) || [];
+            data?.tables.map<SearchItem>((item) => {
+                if (isTableErrorSearchResult(item)) {
+                    return {
+                        type: 'table',
+                        typeLabel: 'Table',
+                        title: item.exploreLabel,
+                        item: item,
+                        location: {
+                            pathname: `/projects/${projectUuid}/tables`,
+                        },
+                    };
+                }
+
+                return {
+                    type: 'table',
+                    typeLabel:
+                        item.name === item.explore ? 'Table' : 'Joined table',
+                    prefix:
+                        item.name === item.explore
+                            ? undefined
+                            : `${item.exploreLabel} - `,
+                    title: item.label,
+                    description: item.description,
+                    item: item,
+                    location: {
+                        pathname: `/projects/${projectUuid}/tables/${item.explore}`,
+                    },
+                };
+            }) || [];
 
         const fields =
             data?.fields.map<SearchItem>((item) => {
@@ -167,12 +151,11 @@ export const useDebouncedSearch = (
                         item.fieldType === FieldType.DIMENSION
                             ? 'Dimension'
                             : 'Metric',
-                    icon: getItemIconName(item.type),
                     prefix:
                         item.table === item.explore
                             ? `${item.tableLabel} - `
                             : `${item.exploreLabel} - ${item.tableLabel} - `,
-                    name: item.label,
+                    title: item.label,
                     description: item.description,
                     meta: item,
                     location: explorePath,
@@ -183,12 +166,9 @@ export const useDebouncedSearch = (
             data?.pages.map<SearchItem>((item) => ({
                 type: 'page',
                 typeLabel: 'Page',
-                icon: 'application',
-                name: item.name,
+                title: item.name,
                 meta: item,
-                location: {
-                    pathname: item.url,
-                },
+                location: { pathname: item.url },
             })) || [];
         return [
             ...spaces,

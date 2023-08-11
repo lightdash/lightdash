@@ -1,11 +1,10 @@
+import { subject } from '@casl/ability';
+import { Group, Stack, Text, Title } from '@mantine/core';
 import { FC } from 'react';
-import {
-    Intro,
-    LandingHeaderWrapper,
-    StyledLinkButton,
-    Title,
-    WelcomeText,
-} from './LandingPanel.styles';
+
+import { useApp } from '../../../providers/AppProvider';
+import { Can } from '../../common/Authorization';
+import MantineLinkButton from '../../common/MantineLinkButton';
 
 interface Props {
     userName: string | undefined;
@@ -13,30 +12,31 @@ interface Props {
 }
 
 const LandingPanel: FC<Props> = ({ userName, projectUuid }) => {
+    const { user } = useApp();
     return (
-        <LandingHeaderWrapper>
-            <WelcomeText>
-                <Title>
-                    {`Welcome${
-                        userName ? ', ' + userName : ' to Lightdash'
-                    }! ⚡`}
+        <Group position="apart" my="xl">
+            <Stack justify="flex-start" spacing="xs">
+                <Title order={3}>
+                    {`Welcome${userName ? ', ' + userName : ' to Lightdash'}!`}{' '}
+                    ⚡️
                 </Title>
-
-                <Intro>
+                <Text color="gray.7">
                     Run a query to ask a business question or browse your data
                     below:
-                </Intro>
-            </WelcomeText>
-
-            <StyledLinkButton
-                large
-                href={`/projects/${projectUuid}/tables`}
-                intent="primary"
-                icon="series-search"
+                </Text>
+            </Stack>
+            <Can
+                I="manage"
+                this={subject('Explore', {
+                    organizationUuid: user.data?.organizationUuid,
+                    projectUuid: projectUuid,
+                })}
             >
-                Run a query
-            </StyledLinkButton>
-        </LandingHeaderWrapper>
+                <MantineLinkButton href={`/projects/${projectUuid}/tables`}>
+                    Run a query
+                </MantineLinkButton>
+            </Can>
+        </Group>
     );
 };
 

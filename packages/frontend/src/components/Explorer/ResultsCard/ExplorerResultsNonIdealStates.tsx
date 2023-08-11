@@ -1,178 +1,216 @@
-import { Colors, NonIdealState, Spinner } from '@blueprintjs/core';
-import React, { FC } from 'react';
-import styled from 'styled-components';
+import { createStyles, keyframes, Loader, Text } from '@mantine/core';
+import { FC } from 'react';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { ReactComponent as NoTableIcon } from '../../../svgs/emptystate-no-table.svg';
 import { SectionName } from '../../../types/Events';
+import { EmptyState } from '../../common/EmptyState';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { RefreshButton } from '../../RefreshButton';
 
-const Questions = styled('p')`
-    color: ${Colors.GRAY1};
-    position: relative;
-    height: 18px;
-
-    & > span {
-        animation: topToBottom 16s linear infinite 0s;
+const animationKeyframes = keyframes`
+    0% {
         opacity: 0;
-        overflow: hidden;
-        position: absolute;
-        width: 100%;
-        left: 0;
     }
-
-    & span:nth-child(2) {
-        animation-delay: 4s;
+    5% {
+        opacity: 0;
+        transform: translateY(-10px);
     }
-
-    & span:nth-child(3) {
-        animation-delay: 8s;
+    10% {
+        opacity: 1;
+        transform: translateY(0px);
     }
-
-    & span:nth-child(4) {
-        animation-delay: 12s;
+    25% {
+        opacity: 1;
+        transform: translateY(0px);
     }
-
-    @keyframes topToBottom {
-        0% {
-            opacity: 0;
-        }
-        5% {
-            opacity: 0;
-            transform: translateY(-10px);
-        }
-        10% {
-            opacity: 1;
-            transform: translateY(0px);
-        }
-        25% {
-            opacity: 1;
-            transform: translateY(0px);
-        }
-        30% {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-        80% {
-            opacity: 0;
-        }
-        100% {
-            opacity: 0;
-        }
+    30% {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    80% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 0;
     }
 `;
 
-const ExploreNonIdealState = styled(NonIdealState)`
-    padding: 50px 0;
-    flex: 1;
+const useAnimatedTextStyles = createStyles((theme) => ({
+    root: {
+        position: 'relative',
+        height: theme.spacing.lg,
+        textAlign: 'center',
+        width: '100%',
 
-    & > * {
-        max-width: 456px;
-    }
-`;
+        '& > span': {
+            animation: `${animationKeyframes} 16s linear infinite 0s`,
+            opacity: 0,
+            overflow: 'hidden',
+            position: 'absolute',
+            width: '100%',
+            left: 0,
+        },
+
+        '& span:nth-child(2)': {
+            animationDelay: '4s',
+        },
+
+        '& span:nth-child(3)': {
+            animationDelay: '8s',
+        },
+
+        '& span:nth-child(4)': {
+            animationDelay: '12s',
+        },
+    },
+}));
 
 const ExploreDocumentationUrl =
     'https://docs.lightdash.com/get-started/exploring-data/using-explores/';
 
-export const EmptyStateNoColumns = () => (
-    <ExploreNonIdealState
-        title={
-            <>
-                Pick a metric & select its dimensions{' '}
-                <DocumentationHelpButton
-                    url={ExploreDocumentationUrl}
-                    iconProps={{
-                        iconSize: 18,
-                        style: { height: 21, width: 18, paddingTop: 1 },
-                    }}
-                />
-            </>
-        }
-        description={
-            <>
-                <p style={{ color: Colors.GRAY3, marginBottom: 18 }}>
+export const EmptyStateNoColumns = () => {
+    const { classes } = useAnimatedTextStyles();
+
+    return (
+        <EmptyState
+            title={
+                <>
+                    Pick a metric & select its dimensions{' '}
+                    <DocumentationHelpButton
+                        href={ExploreDocumentationUrl}
+                        pos="relative"
+                        top={2}
+                        iconProps={{ size: 'lg' }}
+                    />
+                </>
+            }
+            description={
+                <>
                     What’s your data question? Select the{' '}
-                    <span style={{ color: Colors.ORANGE1 }}>metric</span> you
-                    want to calculate and the{' '}
-                    <span style={{ color: Colors.BLUE1 }}>dimension(s)</span>{' '}
+                    <Text span color="yellow.9">
+                        metric
+                    </Text>{' '}
+                    you want to calculate and the{' '}
+                    <Text span color="blue.9">
+                        dimension(s)
+                    </Text>{' '}
                     you want to split it by.
-                </p>
-                <Questions>
-                    <span>
-                        eg. How many{' '}
-                        <span style={{ color: Colors.ORANGE1 }}>
-                            total signups
-                        </span>{' '}
-                        per <span style={{ color: Colors.BLUE1 }}>day</span> ?
-                    </span>
-                    <span>
-                        eg. What is the{' '}
-                        <span style={{ color: Colors.ORANGE1 }}>
-                            total order count
-                        </span>{' '}
-                        by <span style={{ color: Colors.BLUE1 }}>location</span>{' '}
-                        ?
-                    </span>
-                    <span>
-                        eg. How many{' '}
-                        <span style={{ color: Colors.ORANGE1 }}>
-                            new followers
-                        </span>{' '}
-                        every <span style={{ color: Colors.BLUE1 }}>week</span>{' '}
-                        ?
-                    </span>
-                    <span>
-                        eg. What is the{' '}
-                        <span style={{ color: Colors.ORANGE1 }}>
-                            total order count
-                        </span>{' '}
-                        split by{' '}
-                        <span style={{ color: Colors.BLUE1 }}>status</span> ?
-                    </span>
-                    <span>
-                        eg. How many{' '}
-                        <span style={{ color: Colors.ORANGE1 }}>
-                            total signups
-                        </span>{' '}
-                        per <span style={{ color: Colors.BLUE1 }}>day</span> ?
-                    </span>
-                </Questions>
-            </>
-        }
-    />
-);
+                </>
+            }
+        >
+            <Text className={classes.root} color="dimmed">
+                <Text span>
+                    eg. How many{' '}
+                    <Text span color="yellow.9">
+                        total signups
+                    </Text>{' '}
+                    per{' '}
+                    <Text span color="blue.9">
+                        day
+                    </Text>
+                    ?
+                </Text>
+
+                <Text span>
+                    eg. What is the{' '}
+                    <Text span color="yellow.9">
+                        total order count
+                    </Text>{' '}
+                    by{' '}
+                    <Text span color="blue.9">
+                        location
+                    </Text>
+                    ?
+                </Text>
+
+                <Text span>
+                    eg. How many{' '}
+                    <Text span color="yellow.9">
+                        new followers
+                    </Text>{' '}
+                    every{' '}
+                    <Text span color="blue.9">
+                        week
+                    </Text>
+                    ?
+                </Text>
+
+                <Text span>
+                    eg. What is the{' '}
+                    <Text span color="yellow.9">
+                        total order count
+                    </Text>{' '}
+                    split by{' '}
+                    <Text span color="blue.9">
+                        status
+                    </Text>
+                    ?
+                </Text>
+            </Text>
+        </EmptyState>
+    );
+};
 
 export const EmptyStateNoTableData: FC<{ description: React.ReactNode }> = ({
     description,
 }) => (
     <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
-        <ExploreNonIdealState
+        <EmptyState
+            maw={500}
             description={
-                <p style={{ color: Colors.GRAY3, marginTop: 40 }}>
-                    {description}
-                    {'  '}
-                    <DocumentationHelpButton url={ExploreDocumentationUrl} />
-                </p>
+                <>
+                    {description}{' '}
+                    <DocumentationHelpButton
+                        href={ExploreDocumentationUrl}
+                        pos="relative"
+                        top={2}
+                    />
+                </>
             }
-            action={<RefreshButton />}
-        />
+        >
+            <RefreshButton />
+        </EmptyState>
     </TrackSection>
 );
 
 export const NoTableSelected = () => (
-    <ExploreNonIdealState
+    <EmptyState
+        maw={500}
         icon={<NoTableIcon />}
         title="Select a table"
         description={
-            <p style={{ color: Colors.GRAY3 }}>
+            <>
                 To run a query, first select the table that you would like to
                 explore.{' '}
-                <DocumentationHelpButton url={ExploreDocumentationUrl} />
-            </p>
+                <DocumentationHelpButton
+                    href={ExploreDocumentationUrl}
+                    pos="relative"
+                    top={2}
+                />
+            </>
         }
     />
 );
 
 export const EmptyStateExploreLoading = () => (
-    <ExploreNonIdealState title="Loading tables" icon={<Spinner />} />
+    <EmptyState title="Loading tables...">
+        <Loader color="gray" />
+    </EmptyState>
+);
+
+export const ExploreIdleState = () => (
+    <EmptyState title="Run query to see your results" />
+);
+
+export const ExploreEmptyQueryState = () => (
+    <EmptyState
+        title="Query returned no results"
+        description="This query ran successfully but returned no results"
+    />
+);
+
+export const ExploreLoadingState = () => (
+    <EmptyState title="Loading results">
+        <Loader color="gray" />
+    </EmptyState>
 );

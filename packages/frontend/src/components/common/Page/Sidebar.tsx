@@ -1,59 +1,125 @@
-import { Card, Divider, H3 } from '@blueprintjs/core';
-import React, { FC } from 'react';
-import styled from 'styled-components';
+import {
+    Box,
+    Card,
+    CardProps,
+    Flex,
+    FlexProps,
+    MantineTransition,
+    Stack,
+    Transition,
+} from '@mantine/core';
+import { FC } from 'react';
+
+import useSidebarResize from '../../../hooks/useSidebarResize';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
-import AboutFooter from '../../AboutFooter';
 
-export const SIDEBAR_WIDTH = 400;
-export const SIDEBAR_Z_INDEX = 1;
+const SIDEBAR_DEFAULT_WIDTH = 400;
+const SIDEBAR_MIN_WIDTH = 300;
+const SIDEBAR_MAX_WIDTH = 600;
 
-const SidebarWrapper = styled(Card)`
-    height: calc(100vh - 50px);
-    flex-basis: ${SIDEBAR_WIDTH}px;
-    z-index: ${SIDEBAR_Z_INDEX};
-    flex-shrink: 0;
-    flex-grow: 0;
-    overflow: hidden;
-    position: sticky;
-    top: 50px;
-    padding-bottom: 0;
-`;
+const SIDEBAR_RESIZE_HANDLE_WIDTH = 6;
 
-const SidebarColumn = styled('div')`
-    height: 100%;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-`;
+type Props = {
+    isOpen?: boolean;
+    containerProps?: FlexProps;
+    cardProps?: CardProps;
+};
 
-const SidebarContent = styled('div')`
-    flex: 1;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-`;
+const Sidebar: FC<Props> = ({
+    isOpen = true,
+    containerProps,
+    cardProps,
+    children,
+}) => {
+    const { sidebarRef, sidebarWidth, isResizing, startResizing } =
+        useSidebarResize({
+            defaultWidth: SIDEBAR_DEFAULT_WIDTH,
+            minWidth: SIDEBAR_MIN_WIDTH,
+            maxWidth: SIDEBAR_MAX_WIDTH,
+        });
 
-interface SidebarProps {
-    title?: string | React.ReactNode;
-}
+    const transition: MantineTransition = {
+        in: {
+            opacity: 1,
+            marginLeft: 0,
+        },
+        out: {
+            opacity: 0,
+            marginLeft: -sidebarWidth,
+        },
+        transitionProperty: 'opacity, margin',
+    };
 
-export const SidebarDivider = styled(Divider)`
-    margin: 12px 0 18px 0;
-`;
-
-const Sidebar: FC<SidebarProps> = ({ title, children }) => (
-    <SidebarWrapper elevation={1}>
+    return (
         <TrackSection name={SectionName.SIDEBAR}>
-            <SidebarColumn>
-                <SidebarContent>
-                    {typeof title === 'string' ? <H3>{title}</H3> : title}
-                    {children}
-                </SidebarContent>
-                <AboutFooter minimal />
-            </SidebarColumn>
+            <Flex
+                ref={sidebarRef}
+                direction="column"
+                pos="relative"
+                h="100%"
+                mah="100%"
+                {...containerProps}
+            >
+                <Transition
+                    mounted={isOpen}
+                    duration={500}
+                    transition={transition}
+                >
+                    {(style) => (
+                        <>
+                            <Card
+                                component={Stack}
+                                display="flex"
+                                radius="unset"
+                                shadow="lg"
+                                padding="lg"
+                                pb={0}
+                                w={sidebarWidth}
+                                style={style}
+                                sx={{ flexGrow: 1 }}
+                            >
+                                {children}
+                            </Card>
+
+                            <Box
+                                h="100%"
+                                w={SIDEBAR_RESIZE_HANDLE_WIDTH}
+                                pos="absolute"
+                                top={0}
+                                right={-SIDEBAR_RESIZE_HANDLE_WIDTH}
+                                onMouseDown={startResizing}
+                                {...cardProps}
+                                sx={(theme) => ({
+                                    cursor: 'col-resize',
+
+                                    ...(isResizing
+                                        ? {
+                                              background:
+                                                  theme.fn.linearGradient(
+                                                      90,
+                                                      theme.colors.blue[3],
+                                                      'transparent',
+                                                  ),
+                                          }
+                                        : {
+                                              ...theme.fn.hover({
+                                                  background:
+                                                      theme.fn.linearGradient(
+                                                          90,
+                                                          theme.colors.blue[1],
+                                                          'transparent',
+                                                      ),
+                                              }),
+                                          }),
+                                })}
+                            />
+                        </>
+                    )}
+                </Transition>
+            </Flex>
         </TrackSection>
-    </SidebarWrapper>
-);
+    );
+};
 
 export default Sidebar;

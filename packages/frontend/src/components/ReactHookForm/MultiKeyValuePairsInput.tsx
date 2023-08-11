@@ -34,7 +34,7 @@ export const MultiKeyValuePairsInput = ({
                 <>
                     <span style={{ flex: 1 }}></span>
                     {documentationUrl && !labelHelp && (
-                        <DocumentationHelpButton url={documentationUrl} />
+                        <DocumentationHelpButton href={documentationUrl} />
                     )}
                     {labelHelp && (
                         <LabelInfoToggleButton

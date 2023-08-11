@@ -1,52 +1,47 @@
-import {
-    Button,
-    InputGroup,
-    Menu,
-    MenuDivider,
-    NonIdealState,
-} from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
+import { NonIdealState } from '@blueprintjs/core';
+import { ActionIcon, Skeleton, Stack, TextInput } from '@mantine/core';
+import { IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
-import React, { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
+
+import { SummaryExplore } from '@lightdash/common';
 import { useExplores } from '../../../hooks/useExplores';
-import { useErrorLogs } from '../../../providers/ErrorLogsProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
-import { SidebarDivider } from '../../common/Page/Sidebar';
-import { ExploreMenuItem } from '../../ExploreMenuItem';
-import { ShowErrorsButton } from '../../ShowErrorsButton';
+import MantineIcon from '../../common/MantineIcon';
+import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import ExplorePanel from '../ExplorePanel';
-import {
-    FooterWrapper,
-    FormField,
-    MenuWrapper,
-    StyledBreadcrumb,
-} from './ExploreSideBar.styles';
+import ExploreGroup from './ExploreGroup';
+import ExploreNavLink from './ExploreNavLink';
 
-const SideBarLoadingState = () => (
-    <Menu large style={{ flex: 1 }}>
-        {[0, 1, 2, 3, 4].map((idx) => (
-            <React.Fragment key={idx}>
-                <MenuItem2 className="bp4-skeleton" />
-                <MenuDivider />
-            </React.Fragment>
-        ))}
-    </Menu>
+const LoadingSkeleton = () => (
+    <Stack>
+        <Skeleton h="md" />
+
+        <Skeleton h="xxl" />
+
+        <Stack spacing="xxs">
+            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((index) => (
+                <Skeleton key={index} h="xxl" />
+            ))}
+        </Stack>
+    </Stack>
 );
+
 const BasePanel = () => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const errorLogs = useErrorLogs();
     const [search, setSearch] = useState<string>('');
     const exploresResult = useExplores(projectUuid, true);
 
-    const filteredTables = useMemo(() => {
+    const [exploreGroupMap, ungroupedExplores] = useMemo(() => {
         const validSearch = search ? search.toLowerCase() : '';
         if (exploresResult.data) {
+            let explores = Object.values(exploresResult.data);
             if (validSearch !== '') {
-                return new Fuse(Object.values(exploresResult.data), {
+                explores = new Fuse(Object.values(exploresResult.data), {
                     keys: ['label'],
                     ignoreLocation: true,
                     threshold: 0.3,
@@ -54,75 +49,102 @@ const BasePanel = () => {
                     .search(validSearch)
                     .map((res) => res.item);
             }
-            return Object.values(exploresResult.data);
+
+            return explores.reduce<
+                [Record<string, SummaryExplore[]>, SummaryExplore[]]
+            >(
+                (acc, explore) => {
+                    if (explore.groupLabel) {
+                        return [
+                            {
+                                ...acc[0],
+                                [explore.groupLabel]: acc[0][explore.groupLabel]
+                                    ? [...acc[0][explore.groupLabel], explore]
+                                    : [explore],
+                            },
+                            acc[1],
+                        ];
+                    }
+                    return [acc[0], [...acc[1], explore]];
+                },
+                [{}, []],
+            );
         }
-        return [];
+        return [{}, []];
     }, [exploresResult.data, search]);
+
+    if (exploresResult.status === 'loading') {
+        return <LoadingSkeleton />;
+    }
+
+    if (exploresResult.status === 'error') {
+        return <NonIdealState icon="error" title="Could not load explores" />;
+    }
 
     if (exploresResult.data) {
         return (
             <>
-                <StyledBreadcrumb items={[{ text: 'Tables' }]} />
+                <PageBreadcrumbs
+                    size="md"
+                    items={[{ title: 'Tables', active: true }]}
+                />
 
-                <SidebarDivider />
+                <TextInput
+                    icon={<MantineIcon icon={IconSearch} />}
+                    rightSection={
+                        search ? (
+                            <ActionIcon onClick={() => setSearch('')}>
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        ) : null
+                    }
+                    placeholder="Search tables"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                />
 
-                <FormField>
-                    <InputGroup
-                        leftIcon="search"
-                        rightElement={
-                            <Button
-                                minimal
-                                icon="cross"
-                                onClick={() => setSearch('')}
-                            />
-                        }
-                        placeholder="Search tables"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
-                </FormField>
-
-                <MenuWrapper>
-                    <MenuDivider />
-
-                    {filteredTables
+                <Stack spacing="xxs" sx={{ flexGrow: 1, overflowY: 'auto' }}>
+                    {Object.keys(exploreGroupMap)
+                        .sort((a, b) => a.localeCompare(b))
+                        .map((groupLabel) => (
+                            <ExploreGroup label={groupLabel} key={groupLabel}>
+                                {exploreGroupMap[groupLabel]
+                                    .sort((a, b) =>
+                                        a.label.localeCompare(b.label),
+                                    )
+                                    .map((explore) => (
+                                        <ExploreNavLink
+                                            key={explore.name}
+                                            explore={explore}
+                                            query={search}
+                                            onClick={() => {
+                                                history.push(
+                                                    `/projects/${projectUuid}/tables/${explore.name}`,
+                                                );
+                                            }}
+                                        />
+                                    ))}
+                            </ExploreGroup>
+                        ))}
+                    {ungroupedExplores
                         .sort((a, b) => a.label.localeCompare(b.label))
                         .map((explore) => (
-                            <React.Fragment key={explore.name}>
-                                <ExploreMenuItem
-                                    explore={explore}
-                                    onClick={() => {
-                                        history.push(
-                                            `/projects/${projectUuid}/tables/${explore.name}`,
-                                        );
-                                    }}
-                                />
-
-                                <MenuDivider />
-                            </React.Fragment>
+                            <ExploreNavLink
+                                key={explore.name}
+                                explore={explore}
+                                query={search}
+                                onClick={() => {
+                                    history.push(
+                                        `/projects/${projectUuid}/tables/${explore.name}`,
+                                    );
+                                }}
+                            />
                         ))}
-                </MenuWrapper>
+                </Stack>
             </>
         );
     }
-    if (exploresResult.status === 'loading') {
-        return <SideBarLoadingState />;
-    }
-    if (exploresResult.status === 'error') {
-        return (
-            <NonIdealState
-                icon="error"
-                title="Could not load explores"
-                description="Check error logs for more details"
-                action={
-                    <ShowErrorsButton
-                        errorLogs={errorLogs.errorLogs}
-                        setErrorLogsVisible={errorLogs.setErrorLogsVisible}
-                    />
-                }
-            />
-        );
-    }
+
     return (
         <NonIdealState icon="warning-sign" title="Could not load explores" />
     );
@@ -133,19 +155,26 @@ const ExploreSideBar = memo(() => {
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
-    const clear = useExplorerContext((context) => context.actions.clear);
+
+    const clearExplore = useExplorerContext(
+        (context) => context.actions.clearExplore,
+    );
     const history = useHistory();
 
-    const onBack = useCallback(() => {
-        clear();
+    const handleBack = useCallback(() => {
+        clearExplore();
         history.push(`/projects/${projectUuid}/tables`);
-    }, [clear, history, projectUuid]);
+    }, [clearExplore, history, projectUuid]);
 
     return (
         <TrackSection name={SectionName.SIDEBAR}>
-            <FooterWrapper>
-                {!tableName ? <BasePanel /> : <ExplorePanel onBack={onBack} />}
-            </FooterWrapper>
+            <Stack h="100%" sx={{ flexGrow: 1 }}>
+                {!tableName ? (
+                    <BasePanel />
+                ) : (
+                    <ExplorePanel onBack={handleBack} />
+                )}
+            </Stack>
         </TrackSection>
     );
 });

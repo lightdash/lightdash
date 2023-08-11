@@ -1,13 +1,14 @@
-import React, { ComponentProps, FC } from 'react';
+import { ComponentProps, FC } from 'react';
 import { Redirect, Route } from 'react-router-dom';
-import { useOrganisation } from '../hooks/organisation/useOrganisation';
+import { useOrganization } from '../hooks/organization/useOrganization';
 import { useApp } from '../providers/AppProvider';
 import ErrorState from './common/ErrorState';
 import PageSpinner from './PageSpinner';
 
 const AppRoute: FC<ComponentProps<typeof Route>> = ({ children, ...rest }) => {
     const { health } = useApp();
-    const orgRequest = useOrganisation();
+
+    const orgRequest = useOrganization();
 
     return (
         <Route
@@ -27,7 +28,7 @@ const AppRoute: FC<ComponentProps<typeof Route>> = ({ children, ...rest }) => {
                     );
                 }
 
-                if (orgRequest.data?.needsProject) {
+                if (orgRequest?.data?.needsProject) {
                     return (
                         <Redirect
                             to={{

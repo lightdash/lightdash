@@ -7,13 +7,23 @@ import {
     HTMLSelect,
     InputGroup,
 } from '@blueprintjs/core';
-import { CreateSavedChartVersion } from '@lightdash/common';
-import { FC, useCallback, useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import {
+    CreateChartInDashboard,
+    CreateDashboardChartTile,
+    CreateSavedChartVersion,
+    DashboardTileTypes,
+    getDefaultChartTileSize,
+} from '@lightdash/common';
+import { Text } from '@mantine/core';
+import { uuid4 } from '@sentry/utils';
+import { FC, useCallback, useState } from 'react';
+import { useHistory, useParams } from 'react-router-dom';
+import { appendNewTilesToBottom } from '../../../hooks/dashboard/useDashboard';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateMutation } from '../../../hooks/useSavedQuery';
 import {
     useCreateMutation as useSpaceCreateMutation,
-    useSpaces,
+    useSpaceSummaries,
 } from '../../../hooks/useSpaces';
 import {
     CreateNewText,
@@ -23,18 +33,26 @@ import {
 interface ChartCreateModalProps extends DialogProps {
     savedData: CreateSavedChartVersion;
     onClose?: () => void;
+    defaultSpaceUuid?: string;
     onConfirm: (savedData: CreateSavedChartVersion) => void;
 }
 
 const ChartCreateModal: FC<ChartCreateModalProps> = ({
     savedData,
     onClose,
+    defaultSpaceUuid,
     onConfirm,
     ...modalProps
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const fromDashboard = sessionStorage.getItem('fromDashboard');
+    const dashboardUuid = sessionStorage.getItem('dashboardUuid');
+    const unsavedDashboardTiles = JSON.parse(
+        sessionStorage.getItem('unsavedDashboardTiles') ?? '[]',
+    );
+    const { showToastSuccess } = useToaster();
+    const history = useHistory();
 
-    const { data: spaces } = useSpaces(projectUuid);
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const { mutateAsync, isLoading: isCreating } = useCreateMutation();
     const { mutateAsync: createSpaceAsync, isLoading: isCreatingSpace } =
         useSpaceCreateMutation(projectUuid);
@@ -45,13 +63,23 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     const [newSpaceName, setNewSpaceName] = useState('');
     const [shouldCreateNewSpace, setShouldCreateNewSpace] = useState(false);
 
+    const { data: spaces, isLoading: isLoadingSpaces } = useSpaceSummaries(
+        projectUuid,
+        true,
+        {
+            onSuccess: (data) => {
+                if (data.length > 0) {
+                    const currentSpace = defaultSpaceUuid
+                        ? data.find((space) => space.uuid === defaultSpaceUuid)
+                        : data[0];
+                    setSpaceUuid(currentSpace?.uuid);
+                } else {
+                    setShouldCreateNewSpace(true);
+                }
+            },
+        },
+    );
     const showSpaceInput = shouldCreateNewSpace || spaces?.length === 0;
-
-    useEffect(() => {
-        if (spaceUuid === undefined && spaces && spaces.length > 0) {
-            setSpaceUuid(spaces[0].uuid);
-        }
-    }, [spaces, spaceUuid]);
 
     const handleClose = useCallback(() => {
         setName('');
@@ -59,7 +87,6 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         setNewSpaceName('');
         setSpaceUuid(undefined);
         setShouldCreateNewSpace(false);
-
         onClose?.();
     }, [onClose]);
 
@@ -72,7 +99,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
               })
             : undefined;
 
-        const savedQuery = mutateAsync({
+        const savedQuery = await mutateAsync({
             ...savedData,
             name,
             description,
@@ -84,7 +111,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         setNewSpaceName('');
         setSpaceUuid(undefined);
         setShouldCreateNewSpace(false);
-
+        onConfirm(savedQuery);
         return savedQuery;
     }, [
         name,
@@ -95,12 +122,63 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         createSpaceAsync,
         mutateAsync,
         showSpaceInput,
+        onConfirm,
     ]);
+
+    const handleSaveChartInDashboard = useCallback(async () => {
+        if (!fromDashboard || !unsavedDashboardTiles || !dashboardUuid) return;
+        const newChartInDashboard: CreateChartInDashboard = {
+            ...savedData,
+            name,
+            description,
+            dashboardUuid,
+        };
+        const newTile: CreateDashboardChartTile = {
+            uuid: uuid4(),
+            type: DashboardTileTypes.SAVED_CHART,
+            properties: {
+                belongsToDashboard: true,
+                savedChartUuid: (await mutateAsync(newChartInDashboard)).uuid,
+            },
+            ...getDefaultChartTileSize(savedData.chartConfig?.type),
+        };
+        sessionStorage.setItem(
+            'unsavedDashboardTiles',
+            JSON.stringify(
+                appendNewTilesToBottom(unsavedDashboardTiles ?? [], [newTile]),
+            ),
+        );
+        sessionStorage.removeItem('fromDashboard');
+        sessionStorage.removeItem('dashboardUuid');
+        handleClose();
+        history.push(
+            `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+        );
+        showToastSuccess({
+            title: `Success! ${name} was added to ${fromDashboard}`,
+        });
+    }, [
+        fromDashboard,
+        unsavedDashboardTiles,
+        dashboardUuid,
+        mutateAsync,
+        savedData,
+        name,
+        description,
+        handleClose,
+        history,
+        projectUuid,
+        showToastSuccess,
+    ]);
+
+    if (isLoadingSpaces || !spaces) return null;
 
     return (
         <Dialog
             lazy
-            title="Save chart"
+            title={
+                fromDashboard ? `Save chart to ${fromDashboard}` : 'Save chart'
+            }
             icon="chart"
             {...modalProps}
             onClose={handleClose}
@@ -130,8 +208,18 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                         placeholder="A few words to give your team some context"
                     />
                 </FormGroupWrapper>
-
-                {!showSpaceInput && (
+                {fromDashboard && fromDashboard.length > 0 && (
+                    <FormGroupWrapper
+                        label={<span>Save to {fromDashboard}</span>}
+                    >
+                        <Text fw={400} color="gray.6">
+                            This chart will be saved exclusively to the
+                            dashboard "{fromDashboard}", keeping your space
+                            clutter-free.
+                        </Text>
+                    </FormGroupWrapper>
+                )}
+                {!showSpaceInput && !fromDashboard && (
                     <>
                         <FormGroupWrapper
                             label="Select space"
@@ -144,14 +232,10 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                                 onChange={(e) =>
                                     setSpaceUuid(e.currentTarget.value)
                                 }
-                                options={
-                                    spaces
-                                        ? spaces?.map((space) => ({
-                                              value: space.uuid,
-                                              label: space.name,
-                                          }))
-                                        : []
-                                }
+                                options={spaces?.map((space) => ({
+                                    value: space.uuid,
+                                    label: space.name,
+                                }))}
                             />
                         </FormGroupWrapper>
 
@@ -181,15 +265,20 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                         <Button onClick={handleClose}>Cancel</Button>
 
                         <Button
-                            data-cy="submit-base-modal"
                             intent="primary"
                             text="Save"
-                            onClick={handleConfirm}
+                            onClick={
+                                fromDashboard && dashboardUuid
+                                    ? handleSaveChartInDashboard
+                                    : handleConfirm
+                            }
                             disabled={
                                 isCreating ||
                                 isCreatingSpace ||
                                 !name ||
-                                (showSpaceInput && !newSpaceName)
+                                (!fromDashboard &&
+                                    showSpaceInput &&
+                                    !newSpaceName)
                             }
                         />
                     </>

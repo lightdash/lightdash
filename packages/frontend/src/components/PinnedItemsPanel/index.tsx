@@ -1,39 +1,89 @@
-import { FC, ReactNode, useMemo } from 'react';
-import { useDashboards } from '../../hooks/dashboard/useDashboards';
-import { useSavedCharts } from '../../hooks/useSpaces';
-import ResourceList from '../common/ResourceList';
-import { SortDirection } from '../common/ResourceList/ResourceTable';
 import {
-    ResourceListType,
-    wrapResourceList,
-} from '../common/ResourceList/ResourceTypeUtils';
+    DashboardBasicDetails,
+    PinnedItems,
+    ResourceViewItemType,
+    SpaceQuery,
+} from '@lightdash/common';
+import { Card, Group, Text } from '@mantine/core';
+import { IconPin } from '@tabler/icons-react';
+import { FC } from 'react';
+import { usePinnedItemsContext } from '../../providers/PinnedItemsProvider';
+import MantineIcon from '../common/MantineIcon';
+import MantineLinkButton from '../common/MantineLinkButton';
+import ResourceView, { ResourceViewType } from '../common/ResourceView';
 
 interface Props {
-    projectUuid: string;
+    pinnedItems: PinnedItems;
+    dashboards: DashboardBasicDetails[];
+    savedCharts: SpaceQuery[];
 }
 
-const PinnedItemsPanel: FC<Props> = ({ projectUuid }) => {
-    const { data: dashboards = [] } = useDashboards(projectUuid);
-    const { data: savedCharts = [] } = useSavedCharts(projectUuid);
+const PinnedItemsPanel: FC<Props> = ({
+    pinnedItems,
+    dashboards,
+    savedCharts,
+}) => {
+    const { userCanManage } = usePinnedItemsContext();
 
-    const pinnedItems = useMemo(() => {
-        return [
-            ...wrapResourceList(dashboards, ResourceListType.DASHBOARD),
-            ...wrapResourceList(savedCharts, ResourceListType.CHART),
-        ].filter((item) => {
-            return !!item.data.pinnedListUuid;
-        });
-    }, [dashboards, savedCharts]);
+    const enablePinnedPanel = dashboards.length + savedCharts.length > 0;
 
-    return pinnedItems.length > 0 ? (
-        <ResourceList
+    return pinnedItems && pinnedItems.length > 0 ? (
+        <ResourceView
             items={pinnedItems}
-            enableSorting={false}
-            defaultSort={{ updatedAt: SortDirection.DESC }}
-            defaultColumnVisibility={{ space: false }}
-            showCount={false}
-            headerTitle="Pinned items"
+            view={ResourceViewType.GRID}
+            hasReorder={userCanManage}
+            gridProps={{
+                groups: [
+                    [ResourceViewItemType.SPACE],
+                    [
+                        ResourceViewItemType.DASHBOARD,
+                        ResourceViewItemType.CHART,
+                    ],
+                ],
+            }}
+            headerProps={{
+                title: userCanManage ? 'Pinned items' : 'Pinned for you',
+                description: userCanManage
+                    ? 'Pin Spaces, Dashboards and Charts to the top of the homepage to guide your business users to the right content.'
+                    : 'Your data team have pinned these items to help guide you towards the most relevant content!',
+            }}
         />
+    ) : ((userCanManage && pinnedItems.length <= 0) || !pinnedItems) &&
+      enablePinnedPanel ? (
+        // FIXME: update width with Mantine widths
+        <Card
+            withBorder
+            sx={(theme) => ({
+                backgroundColor: theme.colors.gray[1],
+            })}
+        >
+            <Group position="apart">
+                <Group position="center" spacing="xxs" my="xs" ml="xs">
+                    <MantineIcon
+                        icon={IconPin}
+                        size="lg"
+                        color="gray.7"
+                        fill="gray.1"
+                    />
+                    <Text fw={600} color="gray.7">
+                        No Pinned items.
+                    </Text>
+                    <Text color="gray.7">
+                        Pin items to the top of the homepage to guide users to
+                        relevant content!
+                    </Text>
+                </Group>
+                <MantineLinkButton
+                    href="https://docs.lightdash.com/guides/pinning/"
+                    target="_blank"
+                    variant="subtle"
+                    compact
+                    color="gray.6"
+                >
+                    View docs
+                </MantineLinkButton>
+            </Group>
+        </Card>
     ) : null;
 };
 

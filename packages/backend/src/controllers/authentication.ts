@@ -7,6 +7,7 @@ import {
     isSessionUser,
     LightdashError,
     LightdashMode,
+    OpenIdIdentityIssuerType,
     OpenIdUser,
     SessionUser,
 } from '@lightdash/common';
@@ -22,7 +23,7 @@ import {
 import path from 'path';
 import { URL } from 'url';
 import { lightdashConfig } from '../config/lightdashConfig';
-import Logger from '../logger';
+import Logger from '../logging/logger';
 import { userService } from '../services/services';
 
 // How a user makes authenticated requests
@@ -183,7 +184,7 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                           subject,
                           firstName: profile.name?.givenName,
                           lastName: profile.name?.familyName,
-                          issuerType: 'google',
+                          issuerType: OpenIdIdentityIssuerType.GOOGLE,
                       },
                   };
                   const user = await userService.loginWithOpenId(
@@ -269,7 +270,30 @@ export const oktaPassportStrategy = !(
               userInfoURL: generateOktaUrl('/userinfo'),
               passReqToCallback: true,
           },
-          genericOidcHandler('okta'),
+          genericOidcHandler(OpenIdIdentityIssuerType.OKTA),
+      );
+
+export const azureAdPassportStrategy = !(
+    lightdashConfig.auth.azuread.oauth2ClientId &&
+    lightdashConfig.auth.azuread.oauth2ClientSecret &&
+    lightdashConfig.auth.azuread.oauth2TenantId
+)
+    ? undefined
+    : new OpenIDConnectStrategy(
+          {
+              issuer: `https://login.microsoftonline.com/${lightdashConfig.auth.azuread.oauth2TenantId}/v2.0`,
+              authorizationURL: `https://login.microsoftonline.com/${lightdashConfig.auth.azuread.oauth2TenantId}/oauth2/v2.0/authorize`,
+              tokenURL: `https://login.microsoftonline.com/${lightdashConfig.auth.azuread.oauth2TenantId}/oauth2/v2.0/token`,
+              userInfoURL: 'https://graph.microsoft.com/oidc/userinfo',
+              clientID: lightdashConfig.auth.azuread.oauth2ClientId,
+              clientSecret: lightdashConfig.auth.azuread.oauth2ClientSecret,
+              callbackURL: new URL(
+                  `/api/v1${lightdashConfig.auth.azuread.callbackPath}`,
+                  lightdashConfig.siteUrl,
+              ).href,
+              passReqToCallback: true,
+          },
+          genericOidcHandler(OpenIdIdentityIssuerType.AZUREAD),
       );
 
 export const oneLoginPassportStrategy = !(
@@ -304,7 +328,7 @@ export const oneLoginPassportStrategy = !(
               ).href,
               passReqToCallback: true,
           },
-          genericOidcHandler('oneLogin'),
+          genericOidcHandler(OpenIdIdentityIssuerType.ONELOGIN),
       );
 export const isAuthenticated: RequestHandler = (req, res, next) => {
     if (req.user?.userUuid) {

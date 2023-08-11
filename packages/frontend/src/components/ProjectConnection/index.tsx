@@ -6,8 +6,10 @@ import {
     DbtProjectType,
     friendlyName,
     ProjectType,
+    SupportedDbtVersions,
     WarehouseTypes,
 } from '@lightdash/common';
+import { Anchor, Avatar, Card, Flex, Stack, Title } from '@mantine/core';
 import { FC, useEffect, useMemo, useState } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
@@ -23,22 +25,16 @@ import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { useAbilityContext } from '../common/Authorization';
+import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
-import { WarehouseIcon } from './ProjectConnectFlow/ProjectConnectFlow.styles';
-import { getWarehouseLabel } from './ProjectConnectFlow/SelectWarehouse';
+import { getWarehouseIcon } from './ProjectConnectFlow/SelectWarehouse';
 import {
     CompileProjectButton,
-    FloatingFixedCard,
-    FloatingFixedWidth,
     FormContainer,
-    LeftPanel,
     LeftPanelMessage,
-    LeftPanelTitle,
-    ProjectConnectionCard,
-    RightPanel,
 } from './ProjectConnection.styles';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
@@ -46,8 +42,11 @@ import WarehouseSettingsForm from './WarehouseSettingsForm';
 
 type ProjectConnectionForm = {
     name: string;
+
     dbt: DbtProjectConfig;
+
     warehouse?: CreateWarehouseCredentials;
+    dbtVersion: SupportedDbtVersions;
 };
 
 interface Props {
@@ -66,16 +65,17 @@ const ProjectForm: FC<Props> = ({
     isProjectUpdate,
 }) => {
     const { health } = useApp();
-    const [hasWarehouse, setHasWarehouse] = useState(selectedWarehouse);
+    const [warehouse, setWarehouse] = useState(selectedWarehouse);
 
     return (
-        <>
+        <Stack spacing="xl">
             {showGeneralSettings && (
-                <ProjectConnectionCard elevation={1}>
-                    <LeftPanel>
+                <SettingsGridCard>
+                    <div>
                         <H5>General settings</H5>
-                    </LeftPanel>
-                    <RightPanel>
+                    </div>
+
+                    <div>
                         <Input
                             name="name"
                             label="Project name"
@@ -84,16 +84,21 @@ const ProjectForm: FC<Props> = ({
                             }}
                             disabled={disabled}
                         />
-                    </RightPanel>
-                </ProjectConnectionCard>
+                    </div>
+                </SettingsGridCard>
             )}
-            <ProjectConnectionCard elevation={1}>
-                <LeftPanel>
-                    {hasWarehouse && getWarehouseLabel(hasWarehouse).icon}
-                    <LeftPanelTitle>
-                        <H5>Warehouse connection</H5>
-                        <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
-                    </LeftPanelTitle>
+
+            <SettingsGridCard>
+                <div>
+                    {warehouse && getWarehouseIcon(warehouse)}
+                    <Flex align="center" gap={2}>
+                        <Title order={5}>Warehouse connection</Title>
+                        <DocumentationHelpButton
+                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection"
+                            pos="relative"
+                            top="2px"
+                        />
+                    </Flex>
 
                     {health.data?.staticIp && (
                         <LeftPanelMessage>
@@ -101,44 +106,41 @@ const ProjectForm: FC<Props> = ({
                             allow-list, use <b>{health.data?.staticIp}</b>
                         </LeftPanelMessage>
                     )}
-                </LeftPanel>
-                <RightPanel>
+                </div>
+
+                <div>
                     <WarehouseSettingsForm
                         disabled={disabled}
-                        setSelectedWarehouse={setHasWarehouse}
-                        selectedWarehouse={hasWarehouse}
+                        setSelectedWarehouse={setWarehouse}
+                        selectedWarehouse={warehouse}
                         isProjectUpdate={isProjectUpdate}
                     />
-                </RightPanel>
-            </ProjectConnectionCard>
-            <ProjectConnectionCard elevation={1}>
-                <LeftPanel>
-                    <WarehouseIcon src={DbtLogo} alt="dbt icon" />
-                    <LeftPanelTitle>
-                        <H5>dbt connection</H5>
-                        <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
-                    </LeftPanelTitle>
+                </div>
+            </SettingsGridCard>
 
-                    <LeftPanelMessage>
-                        Your dbt project must be compatible with{' '}
-                        <a
-                            href="https://docs.getdbt.com/docs/guides/migration-guide/upgrading-to-1-0-0"
-                            target="_blank"
-                            rel="noreferrer"
-                        >
-                            dbt version <b>1.3.0</b>
-                        </a>
-                    </LeftPanelMessage>
-                </LeftPanel>
-                <RightPanel>
+            <SettingsGridCard>
+                <div>
+                    <Avatar size="md" src={DbtLogo} alt="dbt icon" />
+
+                    <Flex align="center" gap={2}>
+                        <Title order={5}>dbt connection</Title>
+                        <DocumentationHelpButton
+                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project"
+                            pos="relative"
+                            top="2px"
+                        />
+                    </Flex>
+                </div>
+
+                <div>
                     <DbtSettingsForm
                         disabled={disabled}
                         defaultType={defaultType}
-                        selectedWarehouse={hasWarehouse}
+                        selectedWarehouse={warehouse}
                     />
-                </RightPanel>
-            </ProjectConnectionCard>
-        </>
+                </div>
+            </SettingsGridCard>
+        </Stack>
     );
 };
 
@@ -195,6 +197,7 @@ export const UpdateProjectConnection: FC<{
             warehouse: {
                 ...data?.warehouseConnection,
             },
+            dbtVersion: data?.dbtVersion,
         },
     });
     const { reset } = methods;
@@ -204,6 +207,7 @@ export const UpdateProjectConnection: FC<{
                 name: data.name,
                 dbt: data.dbtConnection,
                 warehouse: data.warehouseConnection,
+                dbtVersion: data.dbtVersion,
             });
         }
     }, [reset, data]);
@@ -213,6 +217,7 @@ export const UpdateProjectConnection: FC<{
         name,
         dbt: dbtConnection,
         warehouse: warehouseConnection,
+        dbtVersion,
     }: Required<ProjectConnectionForm>) => {
         if (user.data) {
             track({
@@ -222,6 +227,7 @@ export const UpdateProjectConnection: FC<{
                 name,
                 dbtConnection,
                 warehouseConnection,
+                dbtVersion: dbtVersion,
             });
         }
     };
@@ -234,57 +240,65 @@ export const UpdateProjectConnection: FC<{
                     settings cannot be changed.
                 </p>
                 Read docs{' '}
-                <a
+                <Anchor
                     href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-preview"
                     target="_blank"
                     rel="noreferrer"
                 >
                     here
-                </a>{' '}
+                </Anchor>{' '}
                 to know more.
             </Callout>
         );
     }
 
     return (
-        <>
-            <FormContainer
-                name="update_project"
-                methods={methods}
-                onSubmit={onSubmit}
-                onError={onError}
-                hasPaddingBottom
+        <FormContainer
+            name="update_project"
+            methods={methods}
+            onSubmit={onSubmit}
+            onError={onError}
+        >
+            <ProjectFormProvider savedProject={data}>
+                <ProjectForm
+                    showGeneralSettings
+                    isProjectUpdate
+                    disabled={isDisabled}
+                    defaultType={health.data?.defaultProject?.type}
+                />
+            </ProjectFormProvider>
+
+            {!isIdle && (
+                <ProjectStatusCallout
+                    style={{ marginBottom: '20px' }}
+                    mutation={updateMutation}
+                />
+            )}
+
+            <Card
+                component={Flex}
+                justify="flex-end"
+                pos="sticky"
+                withBorder
+                shadow="sm"
+                sx={(theme) => ({
+                    zIndex: 1,
+                    bottom: `-${theme.spacing.xl}`,
+                })}
             >
-                <ProjectFormProvider savedProject={data}>
-                    <ProjectForm
-                        showGeneralSettings
-                        isProjectUpdate
-                        disabled={isDisabled}
-                        defaultType={health.data?.defaultProject?.type}
-                    />
-                </ProjectFormProvider>
-
-                {!isIdle && (
-                    <ProjectStatusCallout
-                        style={{ marginBottom: '20px' }}
-                        mutation={updateMutation}
-                    />
-                )}
-
-                <FloatingFixedCard>
-                    <FloatingFixedWidth>
-                        <CompileProjectButton
-                            large
-                            type="submit"
-                            intent={Intent.PRIMARY}
-                            text="Test &amp; compile project"
-                            loading={isSaving}
-                            disabled={isDisabled}
-                        />
-                    </FloatingFixedWidth>
-                </FloatingFixedCard>
-            </FormContainer>
-        </>
+                <CompileProjectButton
+                    large
+                    type="submit"
+                    intent={Intent.PRIMARY}
+                    loading={isSaving}
+                    disabled={isDisabled}
+                >
+                    {data?.dbtConnection?.type === DbtProjectType.NONE
+                        ? 'Save and test'
+                        : 'Test & compile project'}
+                </CompileProjectButton>
+            </Card>
+        </FormContainer>
     );
 };
 
@@ -325,6 +339,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         if (selectedWarehouse) {
             const data = await mutateAsync({
                 name: name || user.data?.organizationName || 'My project',
+                type: ProjectType.DEFAULT,
                 dbtConnection,
                 //@ts-ignore
                 warehouseConnection: {
@@ -374,7 +389,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                     large
                     type="submit"
                     intent={Intent.PRIMARY}
-                    text="Test &amp; compile project"
+                    text="Test & compile project"
                     loading={isSavingProject}
                 />
             </ProjectFormProvider>
