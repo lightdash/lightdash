@@ -1,3 +1,10 @@
+# [0.736.0](https://github.com/lightdash/lightdash/compare/0.735.0...0.736.0) (2023-08-11)
+
+
+### Features
+
+* add dashed border to tiles on edit mode ([#6706](https://github.com/lightdash/lightdash/issues/6706)) ([1e8ea89](https://github.com/lightdash/lightdash/commit/1e8ea89bfc96889cd7548d0498c15efb0632e948))
+
 # [0.735.0](https://github.com/lightdash/lightdash/compare/0.734.0...0.735.0) (2023-08-11)
 
 
