@@ -111,7 +111,7 @@ const Login: FC = () => {
     }
 
     const ssoAvailable =
-        !!health.data?.auth.google.oauth2ClientId ||
+        health.data?.auth.google.enabled ||
         health.data?.auth.okta.enabled ||
         health.data?.auth.oneLogin.enabled ||
         health.data?.auth.azuread.enabled;

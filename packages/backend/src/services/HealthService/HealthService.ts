@@ -35,6 +35,14 @@ export class HealthService {
         );
     }
 
+    private isGoogleSSOEnabled(): boolean {
+        return (
+            this.lightdashConfig.auth.google.oauth2ClientId !== undefined &&
+            this.lightdashConfig.auth.google.oauth2ClientSecret !== undefined &&
+            this.lightdashConfig.auth.google.enabled
+        );
+    }
+
     async getHealthState(isAuthenticated: boolean): Promise<HealthState> {
         const { isComplete, currentVersion } = await getMigrationStatus();
 
@@ -79,6 +87,7 @@ export class HealthService {
                         this.lightdashConfig.auth.google.oauth2ClientId,
                     googleDriveApiKey:
                         this.lightdashConfig.auth.google.googleDriveApiKey,
+                    enabled: this.isGoogleSSOEnabled(),
                 },
                 okta: {
                     loginPath: this.lightdashConfig.auth.okta.loginPath,

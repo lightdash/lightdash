@@ -61,7 +61,7 @@ export class GoogleDriveClient {
 
         const sheets = google.sheets({ version: 'v4', auth: authClient });
 
-        const tabTitle = new Date().toLocaleString().replaceAll(':', '.');
+        const tabTitle = new Date().toLocaleString().replaceAll(':', '.'); // we can't use ranges with colons in their tab ids
 
         const sheetRows = csvContent.split('\n').map((row) => row.split(','));
 

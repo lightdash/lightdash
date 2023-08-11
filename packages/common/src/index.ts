@@ -575,6 +575,7 @@ export type HealthState = {
             oauth2ClientId: string | undefined;
             loginPath: string;
             googleDriveApiKey: string | undefined;
+            enabled: boolean;
         };
         okta: {
             enabled: boolean;
