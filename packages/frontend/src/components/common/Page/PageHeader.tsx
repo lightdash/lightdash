@@ -13,6 +13,10 @@ const PageHeader: FC = ({ children }) => (
         px="lg"
         py="md"
         bg="white"
+        /**
+         * FIXME: This shadow should be sourced from Mantine's theme config;
+         * Once migration from Blueprint is complete, address default shadow
+         */
         shadow="0 0 0 1px #bec1c426"
         radius="unset"
         sx={{ zIndex: 1 }}
