@@ -60,11 +60,10 @@ export class GoogleDriveClient {
         const authClient = await GoogleDriveClient.getCredentials(refreshToken);
 
         const sheets = google.sheets({ version: 'v4', auth: authClient });
-
-        const tabTitle = new Date().toLocaleString().replaceAll(':', '.'); // we can't use ranges with colons in their tab ids
-
         const sheetRows = csvContent.split('\n').map((row) => row.split(','));
-
+        /*
+        // Creates a new tab in the sheet
+        const tabTitle = new Date().toLocaleString().replaceAll(':', '.'); // we can't use ranges with colons in their tab ids
         await sheets.spreadsheets.batchUpdate({
             spreadsheetId: fileId,
             resource: {
@@ -79,10 +78,10 @@ export class GoogleDriveClient {
                 ],
             },
         });
-
+        */
         await sheets.spreadsheets.values.append({
             spreadsheetId: fileId,
-            range: `'${tabTitle}'!A:B`,
+            range: 'A:A', // `'${tabTitle}'!A:B`,
             valueInputOption: 'USER_ENTERED',
             insertDataOption: 'OVERWRITE',
             resource: {
