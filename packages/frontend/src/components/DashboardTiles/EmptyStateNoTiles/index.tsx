@@ -43,7 +43,6 @@ const SavedChartsAvailable: FC<SavedChartsAvailableProps> = ({
             {userCanManageDashboard && isEditMode ? (
                 <AddTileButton
                     onAddTiles={onAddTiles}
-                    intent={Intent.PRIMARY}
                     popoverPosition={PopoverPosition.BOTTOM}
                 />
             ) : null}
