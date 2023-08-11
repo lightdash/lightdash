@@ -1,4 +1,4 @@
-import { Callout, H5, Intent } from '@blueprintjs/core';
+import { Callout, Intent } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import {
     CreateWarehouseCredentials,
@@ -9,7 +9,15 @@ import {
     SupportedDbtVersions,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Anchor, Avatar, Card, Flex, Stack, Title } from '@mantine/core';
+import {
+    Anchor,
+    Avatar,
+    Card,
+    Flex,
+    Stack,
+    TextInput,
+    Title,
+} from '@mantine/core';
 import { FC, useEffect, useMemo, useState } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
@@ -27,7 +35,6 @@ import { EventName } from '../../types/Events';
 import { useAbilityContext } from '../common/Authorization';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
-import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
 import { getWarehouseIcon } from './ProjectConnectFlow/SelectWarehouse';
@@ -72,17 +79,16 @@ const ProjectForm: FC<Props> = ({
             {showGeneralSettings && (
                 <SettingsGridCard>
                     <div>
-                        <H5>General settings</H5>
+                        <Title order={5}>General settings</Title>
                     </div>
 
                     <div>
-                        <Input
+                        <TextInput
                             name="name"
                             label="Project name"
-                            rules={{
-                                required: 'Required field',
-                            }}
+                            required
                             disabled={disabled}
+                            defaultValue="Jaffle shop"
                         />
                     </div>
                 </SettingsGridCard>
