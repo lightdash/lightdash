@@ -63,6 +63,7 @@ export class GoogleDriveClient {
         const sheetRows = csvContent.split('\n').map((row) => row.split(','));
         /*
         // Creates a new tab in the sheet
+        // use `'${tabTitle}'!A:B` as range to write to the new tab
         const tabTitle = new Date().toLocaleString().replaceAll(':', '.'); // we can't use ranges with colons in their tab ids
         await sheets.spreadsheets.batchUpdate({
             spreadsheetId: fileId,
@@ -79,13 +80,17 @@ export class GoogleDriveClient {
             },
         });
         */
-        await sheets.spreadsheets.values.append({
+
+        // Clear sheet before writting
+        await sheets.spreadsheets.values.clear({
             spreadsheetId: fileId,
-            range: 'A:A', // `'${tabTitle}'!A:B`,
+            range: 'A1',
+        });
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: fileId,
+            range: 'A1',
             valueInputOption: 'USER_ENTERED',
-            insertDataOption: 'OVERWRITE',
             resource: {
-                majorDimension: 'ROWS',
                 values: sheetRows,
             },
         });
