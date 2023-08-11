@@ -24,6 +24,7 @@ import {
     Tabs,
     Text,
     Tooltip,
+    useMantineTheme,
 } from '@mantine/core';
 import { IconRotate2 } from '@tabler/icons-react';
 import produce from 'immer';
@@ -81,6 +82,7 @@ const FilterConfiguration: FC<Props> = ({
     popoverProps,
     onSave,
 }) => {
+    const theme = useMantineTheme();
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>(DEFAULT_TAB);
 
     const [internalFilterRule, setInternalFilterRule] = useState<
@@ -185,7 +187,7 @@ const FilterConfiguration: FC<Props> = ({
                             position="top-start"
                         >
                             <Tabs.Tab value={FilterTabs.SETTINGS}>
-                                Settings
+                                Filter Settings
                             </Tabs.Tab>
                         </Tooltip>
 
@@ -197,19 +199,19 @@ const FilterConfiguration: FC<Props> = ({
                                 value={FilterTabs.TILES}
                                 disabled={!field}
                             >
-                                Tiles
+                                Chart tiles
                             </Tabs.Tab>
                         </Tooltip>
                     </Tabs.List>
                 ) : null}
 
                 <Tabs.Panel value={FilterTabs.SETTINGS} w={350}>
-                    <Stack>
+                    <Stack spacing="sm">
                         {!!fields && isCreatingNew ? (
                             <FormGroup
                                 style={{ marginBottom: '5px' }}
                                 label={
-                                    <Text fw={500}>
+                                    <Text size="xs" fw={500}>
                                         Select a dimension to filter{' '}
                                         <Text color="red" span>
                                             *
@@ -224,6 +226,14 @@ const FilterConfiguration: FC<Props> = ({
                                     fields={fields}
                                     activeField={field}
                                     onChange={handleChangeField}
+                                    inputProps={{
+                                        // TODO: Remove once this component is migrated to Mantine
+                                        style: {
+                                            borderRadius: '3px',
+                                            boxShadow: 'none',
+                                            fontSize: theme.fontSizes.xs,
+                                        },
+                                    }}
                                     popoverProps={{
                                         lazy: true,
                                         matchTargetWidth: true,
