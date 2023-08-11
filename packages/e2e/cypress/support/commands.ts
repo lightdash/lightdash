@@ -144,7 +144,7 @@ Cypress.Commands.add(
                 email,
                 firstName: 'test',
                 lastName: 'test',
-                password: 'test',
+                password: 'test1234',
             },
         }).then((resp) => {
             cy.log(JSON.stringify(resp.body));
@@ -245,7 +245,7 @@ Cypress.Commands.add('loginWithEmail', (email: string) => {
                 method: 'POST',
                 body: {
                     email,
-                    password: 'test',
+                    password: 'test1234',
                 },
             })
                 .its('status')

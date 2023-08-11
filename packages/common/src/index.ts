@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { UserActivity, ViewStatistics } from './types/analytics';
 import {
     Dashboard,
@@ -153,6 +154,21 @@ export const validateEmail = (email: string): boolean => {
         /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(String(email).toLowerCase());
 };
+
+export const getEmailSchema = () =>
+    z.string().refine((email) => validateEmail(email), {
+        message: 'must be a valid email',
+    });
+
+export const getPasswordSchema = () =>
+    z
+        .string()
+        .min(8, { message: 'must be at least 8 characters long' })
+        .regex(/[a-zA-Z]/, { message: 'must contain a letter' })
+        .regex(/[\d\W_]/, { message: 'must contain a number or symbol' });
+
+export const validatePassword = (password: string): boolean =>
+    getPasswordSchema().safeParse(password).success;
 
 export const hasIntersection = (tags: string[], tags2: string[]): boolean => {
     const intersection = tags.filter((value) => tags2.includes(value));
