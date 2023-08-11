@@ -20,7 +20,7 @@ export const TileBaseWrapper = styled.div<HeaderContainerProps>`
     ${(props) =>
         props.$isEditMode
             ? `border: 1px dashed #7ea5ff;`
-            : `box-shadow: 0 0 0 1px #11141826;`}
+            : `box-shadow: 0 0 0 1px #bec1c426;`}
 `;
 
 export const TILE_HEADER_HEIGHT = 24;
