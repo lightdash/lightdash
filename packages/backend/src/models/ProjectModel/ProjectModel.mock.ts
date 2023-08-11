@@ -49,6 +49,7 @@ export const lightdashConfigMock: LightdashConfig = {
             oauth2ClientSecret: undefined,
             loginPath: '',
             callbackPath: '',
+            googleDriveApiKey: undefined,
         },
         okta: {
             loginPath: '',
