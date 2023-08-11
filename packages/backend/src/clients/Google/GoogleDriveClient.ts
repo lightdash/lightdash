@@ -59,21 +59,35 @@ export class GoogleDriveClient {
         }
         const authClient = await GoogleDriveClient.getCredentials(refreshToken);
 
-        const sheets = google.sheets('v4');
+        const sheets = google.sheets({ version: 'v4', auth: authClient });
 
-        sheets.spreadsheets.batchUpdate({
-            auth: authClient,
+        const tabTitle = new Date().toLocaleString().replaceAll(':', '.');
+
+        const sheetRows = csvContent.split('\n').map((row) => row.split(','));
+
+        await sheets.spreadsheets.batchUpdate({
             spreadsheetId: fileId,
             resource: {
                 requests: [
                     {
                         addSheet: {
                             properties: {
-                                title: new Date().toLocaleString(),
+                                title: tabTitle,
                             },
                         },
                     },
                 ],
+            },
+        });
+
+        await sheets.spreadsheets.values.append({
+            spreadsheetId: fileId,
+            range: `'${tabTitle}'!A:B`,
+            valueInputOption: 'USER_ENTERED',
+            insertDataOption: 'OVERWRITE',
+            resource: {
+                majorDimension: 'ROWS',
+                values: sheetRows,
             },
         });
     }
