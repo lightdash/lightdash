@@ -188,7 +188,7 @@ const SavedChartsHeader: FC = () => {
                 </p>
             </Alert>
 
-            <PageHeader>
+            <PageHeader withShadow>
                 <PageTitleAndDetailsContainer>
                     {savedChart && (
                         <>
