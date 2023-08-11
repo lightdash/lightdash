@@ -1,3 +1,10 @@
+## [0.737.1](https://github.com/lightdash/lightdash/compare/0.737.0...0.737.1) (2023-08-11)
+
+
+### Bug Fixes
+
+* dashboard filters keep state when not applied ([#6717](https://github.com/lightdash/lightdash/issues/6717)) ([d7d2128](https://github.com/lightdash/lightdash/commit/d7d21289cd0b6dd03d21e0f662200662c518386a))
+
 # [0.737.0](https://github.com/lightdash/lightdash/compare/0.736.0...0.737.0) (2023-08-11)
 
 
