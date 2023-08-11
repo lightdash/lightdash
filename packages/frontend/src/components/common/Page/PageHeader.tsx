@@ -1,26 +1,26 @@
 import { Card, Flex } from '@mantine/core';
-import { FC } from 'react';
+import { FC, ReactNode } from 'react';
 
 export const PAGE_HEADER_HEIGHT = 80;
 
-const PageHeader: FC = ({ children }) => {
-    return (
-        <Card
-            component={Flex}
-            justify="flex-end"
-            align="center"
-            pos="relative"
-            h={PAGE_HEADER_HEIGHT}
-            px="lg"
-            py="md"
-            bg="white"
-            shadow="xs"
-            radius="unset"
-            sx={{ zIndex: 1 }}
-        >
-            {children}
-        </Card>
-    );
-};
+type Props = { withShadow?: boolean; children: ReactNode };
+
+const PageHeader: FC<Props> = ({ withShadow, children }) => (
+    <Card
+        component={Flex}
+        justify="flex-end"
+        align="center"
+        pos="relative"
+        h={PAGE_HEADER_HEIGHT}
+        px="lg"
+        py="md"
+        bg="white"
+        shadow={withShadow ? 'xs' : 'none'}
+        radius="unset"
+        sx={{ zIndex: 1 }}
+    >
+        {children}
+    </Card>
+);
 
 export default PageHeader;
