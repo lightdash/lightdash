@@ -1,3 +1,10 @@
+# [0.734.0](https://github.com/lightdash/lightdash/compare/0.733.0...0.734.0) (2023-08-11)
+
+
+### Features
+
+* update dashboard filters tiles tab ([#6697](https://github.com/lightdash/lightdash/issues/6697)) ([e0ebc25](https://github.com/lightdash/lightdash/commit/e0ebc2572689086e1307ac60e6370067a5549709))
+
 # [0.733.0](https://github.com/lightdash/lightdash/compare/0.732.3...0.733.0) (2023-08-11)
 
 
