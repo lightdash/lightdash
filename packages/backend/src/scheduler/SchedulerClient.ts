@@ -181,7 +181,8 @@ export class SchedulerClient {
                         jobGroup,
                         scheduledTime: date,
                         page,
-                        schedulerGdriveTargetUuid: '', // TODO
+                        schedulerGdriveTargetUuid:
+                            target.schedulerGdriveTargetUuid,
                     },
                 };
             }

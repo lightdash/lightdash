@@ -260,10 +260,12 @@ export type NotificationPayloadBase = {
         csvUrl?: {
             path: string;
             filename: string;
+            localPath: string;
         };
         csvUrls?: {
             path: string;
             filename: string;
+            localPath: string;
         }[];
     };
 };
@@ -274,6 +276,10 @@ export type SlackNotificationPayload = NotificationPayloadBase & {
 
 export type EmailNotificationPayload = NotificationPayloadBase & {
     schedulerEmailTargetUuid: string;
+};
+
+export type GdriveNotificationPayload = NotificationPayloadBase & {
+    schedulerGdriveTargetUuid: string;
 };
 
 export type DownloadCsvPayload = {

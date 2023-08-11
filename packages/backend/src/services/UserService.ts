@@ -868,6 +868,11 @@ export class UserService {
         });
     }
 
+    /**
+     * This method is used on the gdrive API to get the accessToken for listing files on the user's drive
+     * @param user
+     * @returns accessToken
+     */
     async getAccessToken(user: SessionUser): Promise<string> {
         const refreshToken = await this.userModel.getRefreshToken(
             user.userUuid,
@@ -876,5 +881,14 @@ export class UserService {
             refreshToken,
         );
         return accessToken;
+    }
+
+    /**
+     * This method is used on the scheduler to perform the actions on Google Drive for that user
+     * @param user
+     * @returns accessToken
+     */
+    async getRefreshToken(userUuid: string): Promise<string> {
+        return this.userModel.getRefreshToken(userUuid);
     }
 }

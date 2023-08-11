@@ -22,6 +22,7 @@ import {
     downloadCsv,
     handleScheduledDelivery,
     sendEmailNotification,
+    sendGdriveNotification,
     sendSlackNotification,
     testAndCompileProject,
     validateProject,
@@ -239,6 +240,28 @@ export class SchedulerWorker {
                                 scheduledTime: job.run_at,
                                 jobGroup: payload.jobGroup,
                                 targetType: 'email',
+                                status: SchedulerJobStatus.ERROR,
+                                details: { error: e.message },
+                            });
+                        },
+                    );
+                },
+                sendGdriveNotification: async (
+                    payload: any,
+                    helpers: JobHelpers,
+                ) => {
+                    await tryJobOrTimeout(
+                        sendGdriveNotification(helpers.job.id, payload),
+                        helpers.job,
+                        this.lightdashConfig.scheduler.jobTimeout,
+                        async (job, e) => {
+                            await schedulerService.logSchedulerJob({
+                                task: 'sendGdriveNotification',
+                                schedulerUuid: payload.schedulerUuid,
+                                jobId: job.id,
+                                scheduledTime: job.run_at,
+                                jobGroup: payload.jobGroup,
+                                targetType: 'gdrive',
                                 status: SchedulerJobStatus.ERROR,
                                 details: { error: e.message },
                             });

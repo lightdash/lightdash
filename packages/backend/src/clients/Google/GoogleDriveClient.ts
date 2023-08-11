@@ -1,18 +1,14 @@
 import { lightdashConfig } from '../../config/lightdashConfig';
-import { OpenIdIdentityModel } from '../../models/OpenIdIdentitiesModel';
 
 const { google } = require('googleapis');
-// TODO WIP
+
 export class GoogleDriveClient {
     public isEnabled: boolean = false;
 
-    // private openIdIdentityModel: OpenIdIdentityModel;
-    constructor(/* openIdIdentityModel: OpenIdIdentityModel) */) {
+    constructor() {
         this.isEnabled =
             lightdashConfig.auth.google.oauth2ClientId !== undefined &&
             lightdashConfig.auth.google.oauth2ClientSecret !== undefined;
-
-        // this.openIdIdentityModel = openIdIdentityModel
     }
 
     static async getCredentials(refreshToken: string) {
@@ -50,6 +46,35 @@ export class GoogleDriveClient {
         console.debug('Files:');
         files.forEach((file: any) => {
             console.debug(`${file.name} (${file.id})`);
+        });
+    }
+
+    async appendToSheet(
+        refreshToken: string,
+        fileId: string,
+        csvContent: string,
+    ) {
+        if (!this.isEnabled) {
+            throw new Error('Google Drive is not enabled');
+        }
+        const authClient = await GoogleDriveClient.getCredentials(refreshToken);
+
+        const sheets = google.sheets('v4');
+
+        sheets.spreadsheets.batchUpdate({
+            auth: authClient,
+            spreadsheetId: fileId,
+            resource: {
+                requests: [
+                    {
+                        addSheet: {
+                            properties: {
+                                title: new Date().toLocaleString(),
+                            },
+                        },
+                    },
+                ],
+            },
         });
     }
 }

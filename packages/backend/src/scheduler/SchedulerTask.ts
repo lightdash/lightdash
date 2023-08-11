@@ -4,6 +4,7 @@ import {
     CreateSchedulerLog,
     DownloadCsvPayload,
     EmailNotificationPayload,
+    GdriveNotificationPayload,
     getHumanReadableCronExpression,
     getRequestMethod,
     isChartValidationError,
@@ -25,6 +26,7 @@ import {
     SlackNotificationPayload,
     ValidateProjectPayload,
 } from '@lightdash/common';
+import * as fsPromise from 'fs/promises';
 import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
 import {
@@ -32,7 +34,12 @@ import {
     LightdashAnalytics,
     parseAnalyticsLimit,
 } from '../analytics/LightdashAnalytics';
-import { emailClient, schedulerClient, slackClient } from '../clients/clients';
+import {
+    emailClient,
+    googleDriveClient,
+    schedulerClient,
+    slackClient,
+} from '../clients/clients';
 import {
     getChartAndDashboardBlocks,
     getChartCsvResultsBlocks,
@@ -743,6 +750,136 @@ export const sendEmailNotification = async (
             jobGroup: notification.jobGroup,
             scheduledTime,
             targetType: 'email',
+            status: SchedulerJobStatus.ERROR,
+            details: { error: e.message },
+        });
+
+        throw e; // Cascade error to it can be retried by graphile
+    }
+};
+
+export const sendGdriveNotification = async (
+    jobId: string,
+    notification: GdriveNotificationPayload,
+) => {
+    const { schedulerUuid, schedulerGdriveTargetUuid, scheduledTime } =
+        notification;
+
+    analytics.track({
+        event: 'scheduler_notification_job.started',
+        anonymousId: LightdashAnalytics.anonymousId,
+        properties: {
+            jobId,
+            schedulerId: schedulerUuid,
+            schedulerTargetId: schedulerGdriveTargetUuid,
+            type: 'gdrive',
+        },
+    });
+
+    try {
+        const scheduler =
+            await schedulerService.schedulerModel.getSchedulerAndTargets(
+                schedulerUuid,
+            );
+        const { format, savedChartUuid, dashboardUuid, name, targets } =
+            scheduler;
+
+        const target = targets
+            .filter(isGdriveTarget)
+            .find(
+                (t) =>
+                    t.schedulerGdriveTargetUuid === schedulerGdriveTargetUuid,
+            );
+
+        if (!target) {
+            throw new Error('Gdrive destination not found');
+        }
+        const { gdriveId } = target;
+        schedulerService.logSchedulerJob({
+            task: 'sendGdriveNotification',
+            schedulerUuid,
+            jobId,
+            jobGroup: notification.jobGroup,
+            scheduledTime,
+            target: gdriveId,
+            targetType: 'gdrive',
+            status: SchedulerJobStatus.STARTED,
+        });
+
+        // Backwards compatibility for old scheduled deliveries
+        const { url, details, pageType, imageUrl, csvUrl, csvUrls } =
+            notification.page ??
+            (await getNotificationPageData(scheduler, jobId));
+        const schedulerUrl = `${url}?scheduler_uuid=${schedulerUuid}`;
+
+        if (format === SchedulerFormat.IMAGE) {
+            throw new Error('Not implemented');
+        } else if (savedChartUuid) {
+            if (csvUrl === undefined) {
+                throw new Error('Missing CSV URL');
+            }
+
+            const csvContent = await fsPromise.readFile(csvUrl.localPath, {
+                encoding: 'utf-8',
+            });
+
+            const refreshToken = await userService.getRefreshToken(
+                scheduler.createdBy,
+            );
+            await googleDriveClient.appendToSheet(
+                refreshToken,
+                gdriveId,
+                csvContent,
+            );
+        } else if (dashboardUuid) {
+            throw new Error('Not implemented');
+        } else {
+            throw new Error('Not implemented');
+        }
+
+        analytics.track({
+            event: 'scheduler_notification_job.completed',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId,
+                schedulerId: schedulerUuid,
+                schedulerTargetId: schedulerGdriveTargetUuid,
+                type: 'gdrive',
+                format,
+                resourceType:
+                    pageType === LightdashPage.CHART ? 'chart' : 'dashboard',
+            },
+        });
+        schedulerService.logSchedulerJob({
+            task: 'sendGdriveNotification',
+            schedulerUuid,
+            jobId,
+            jobGroup: notification.jobGroup,
+
+            scheduledTime,
+            target: gdriveId,
+            targetType: 'gdrive',
+            status: SchedulerJobStatus.COMPLETED,
+        });
+    } catch (e) {
+        analytics.track({
+            event: 'scheduler_notification_job.failed',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                error: `${e}`,
+                jobId,
+                schedulerId: schedulerUuid,
+                schedulerTargetId: schedulerGdriveTargetUuid,
+                type: 'gdrive',
+            },
+        });
+        schedulerService.logSchedulerJob({
+            task: 'sendGdriveNotification',
+            schedulerUuid,
+            jobId,
+            jobGroup: notification.jobGroup,
+            scheduledTime,
+            targetType: 'gdrive',
             status: SchedulerJobStatus.ERROR,
             details: { error: e.message },
         });

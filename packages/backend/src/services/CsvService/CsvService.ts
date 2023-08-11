@@ -340,7 +340,11 @@ export class CsvService {
         const numberRows = rows.length;
 
         if (numberRows === 0)
-            return { path: '#no-results', filename: `${chart.name} (empty)` };
+            return {
+                path: '#no-results',
+                filename: `${chart.name} (empty)`,
+                localPath: '',
+            };
 
         const explore = await this.projectService.getExplore(
             user,
@@ -377,13 +381,23 @@ export class CsvService {
             });
             const s3Url = await this.s3Service.uploadCsv(csvContent, fileId);
 
-            await fsPromise.unlink(`/tmp/${fileId}`);
-
-            return { filename: `${chart.name}`, path: s3Url };
+            // Delete local file in 10 minutes, we could still read from the local file to upload to google sheets
+            setTimeout(async () => {
+                await fsPromise.unlink(`/tmp/${fileId}`);
+            }, 60 * 10 * 1000);
+            return {
+                filename: `${chart.name}`,
+                path: s3Url,
+                localPath: `/tmp/${fileId}`,
+            };
         }
         // storing locally
         const localUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${chart.projectUuid}/csv/${fileId}`;
-        return { filename: `${chart.name}`, path: localUrl };
+        return {
+            filename: `${chart.name}`,
+            path: localUrl,
+            localPath: `/tmp/${fileId}`,
+        };
     }
 
     async getCsvsForDashboard(
