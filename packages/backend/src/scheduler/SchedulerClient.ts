@@ -65,7 +65,7 @@ export class SchedulerClient {
         this.schedulerModel = schedulerModel;
         this.graphileUtils = makeWorkerUtils({
             connectionString: lightdashConfig.database.connectionUri,
-        })
+        });
     }
 
     async getScheduledJobs(schedulerUuid: string): Promise<ScheduledJobs[]> {
