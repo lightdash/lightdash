@@ -168,6 +168,7 @@ apiV1Router.get(
         failureRedirect: '/api/v1/oauth/failure',
         successRedirect: '/api/v1/oauth/success',
         failureFlash: true,
+        includeGrantedScopes: true,
     }),
 );
 apiV1Router.get('/oauth/failure', redirectOIDCFailure);

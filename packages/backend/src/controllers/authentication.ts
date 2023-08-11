@@ -188,7 +188,6 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                       });
                   }
 
-                  const { scope } = params;
                   const normalisedIssuer = new URL('/', issuer).origin; // normalise issuer
                   const openIdUser: OpenIdUser = {
                       openId: {
@@ -206,7 +205,6 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                       req.user,
                       inviteCode,
                       refreshToken,
-                      refreshToken ? scope : undefined, // Only send scope if we have a refresh token from gdrive
                   );
 
                   return done(null, user);

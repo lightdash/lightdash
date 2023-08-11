@@ -58,10 +58,9 @@ export class OpenIdIdentityModel {
         subject,
         issuer,
         refreshToken,
-        scope,
     }: UpdateOpenIdentity): Promise<OpenIdIdentity> {
         const [identity] = await this.database('openid_identities')
-            .update({ email, refresh_token: refreshToken, scope })
+            .update({ email, refresh_token: refreshToken })
             .where('issuer', issuer)
             .andWhere('subject', subject)
             .returning('*');
@@ -117,7 +116,6 @@ export class OpenIdIdentityModel {
                 user_id: createIdentity.userId,
                 email: createIdentity.email,
                 refresh_token: createIdentity.refreshToken,
-                scope: createIdentity.scope,
             })
             .returning('*');
         return OpenIdIdentityModel._parseDbIdentity(identity);
