@@ -1,10 +1,20 @@
+import { getPasswordSchema } from '@lightdash/common';
 import { Button, PasswordInput, Stack } from '@mantine/core';
-import { useForm } from '@mantine/form';
+import { useForm, zodResolver } from '@mantine/form';
 import { FC } from 'react';
+import { z } from 'zod';
 import {
     useUserHasPassword,
     useUserUpdatePasswordMutation,
 } from '../../../hooks/user/usePassword';
+import PasswordTextInput from '../../PasswordTextInput';
+
+const passwordSchema = getPasswordSchema();
+
+const validationSchema = z.object({
+    currentPassword: passwordSchema,
+    newPassword: passwordSchema,
+});
 
 const PasswordPanel: FC = () => {
     const { data: hasPassword } = useUserHasPassword();
@@ -14,6 +24,7 @@ const PasswordPanel: FC = () => {
             currentPassword: '',
             newPassword: '',
         },
+        validate: zodResolver(validationSchema),
     });
 
     const { isLoading, mutate: updateUserPassword } =
@@ -33,24 +44,24 @@ const PasswordPanel: FC = () => {
                     <PasswordInput
                         label="Current password"
                         placeholder="Enter your password..."
-                        required
                         disabled={isLoading}
                         {...form.getInputProps('currentPassword')}
                     />
                 )}
-                <PasswordInput
-                    label="New password"
-                    placeholder="Enter your new password..."
-                    required
-                    disabled={isLoading}
-                    {...form.getInputProps('newPassword')}
-                />
-
+                <PasswordTextInput passwordValue={form.values.newPassword}>
+                    <PasswordInput
+                        label="New password"
+                        placeholder="Enter your new password..."
+                        disabled={isLoading}
+                        {...form.getInputProps('newPassword')}
+                    />
+                </PasswordTextInput>
                 <Button
                     type="submit"
                     ml="auto"
                     display="block"
                     loading={isLoading}
+                    disabled={isLoading}
                 >
                     Update
                 </Button>

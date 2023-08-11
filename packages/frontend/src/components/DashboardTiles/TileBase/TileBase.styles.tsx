@@ -14,14 +14,13 @@ export const TileBaseWrapper = styled.div<HeaderContainerProps>`
     padding: 16px;
     background: ${Colors.WHITE};
     border-radius: 2px;
-    box-shadow: 0 0 0 1px #11141826;
+    box-sizing: border-box;
+    border: 1px solid transparent;
 
     ${(props) =>
-        props.$isEditMode && props.$isHovering
-            ? `
-                box-shadow: 0 0 0 1px ${Colors.GRAY4};
-            `
-            : ''}
+        props.$isEditMode
+            ? `border: 1px dashed #7ea5ff;`
+            : `box-shadow: 0 0 0 1px #bec1c426;`}
 `;
 
 export const TILE_HEADER_HEIGHT = 24;

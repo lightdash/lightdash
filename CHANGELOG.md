@@ -1,3 +1,36 @@
+# [0.736.0](https://github.com/lightdash/lightdash/compare/0.735.0...0.736.0) (2023-08-11)
+
+
+### Features
+
+* add dashed border to tiles on edit mode ([#6706](https://github.com/lightdash/lightdash/issues/6706)) ([1e8ea89](https://github.com/lightdash/lightdash/commit/1e8ea89bfc96889cd7548d0498c15efb0632e948))
+
+# [0.735.0](https://github.com/lightdash/lightdash/compare/0.734.0...0.735.0) (2023-08-11)
+
+
+### Features
+
+* improve dashboard filter layout ([#6695](https://github.com/lightdash/lightdash/issues/6695)) ([d71d96a](https://github.com/lightdash/lightdash/commit/d71d96acc43c9c24d34dfefb62dbec6df5a8c837))
+
+# [0.734.0](https://github.com/lightdash/lightdash/compare/0.733.0...0.734.0) (2023-08-11)
+
+
+### Features
+
+* update dashboard filters tiles tab ([#6697](https://github.com/lightdash/lightdash/issues/6697)) ([e0ebc25](https://github.com/lightdash/lightdash/commit/e0ebc2572689086e1307ac60e6370067a5549709))
+
+# [0.733.0](https://github.com/lightdash/lightdash/compare/0.732.3...0.733.0) (2023-08-11)
+
+
+### Bug Fixes
+
+* big number dashboard filters + underlying data ([#6659](https://github.com/lightdash/lightdash/issues/6659)) ([f9e79ef](https://github.com/lightdash/lightdash/commit/f9e79eff232384521a9c802cb0d75bb04afea7c6))
+
+
+### Features
+
+* add password requirements ([#6632](https://github.com/lightdash/lightdash/issues/6632)) ([624677b](https://github.com/lightdash/lightdash/commit/624677bdd223875b0125c34cf4f7cbc9cddc2b85))
+
 ## [0.732.3](https://github.com/lightdash/lightdash/compare/0.732.2...0.732.3) (2023-08-10)
 
 

@@ -3,6 +3,7 @@ import {
     CreateUserArgs,
     CreateUserWithRole,
     ForbiddenError,
+    getPasswordSchema,
     getUserAbilityBuilder,
     isOpenIdUser,
     LightdashMode,
@@ -18,6 +19,7 @@ import {
     ProjectMemberRole,
     SessionUser,
     UpdateUserArgs,
+    validatePassword,
 } from '@lightdash/common';
 import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
@@ -164,6 +166,11 @@ export class UserModel {
                 is_primary: true,
             });
             if (createUser.password) {
+                if (!validatePassword(createUser.password)) {
+                    throw new ParameterError(
+                        "Password doesn't meet requirements",
+                    );
+                }
                 await UserModel.createPasswordLogin(trx, {
                     user_id: newUser.user_id,
                     password_hash: await bcrypt.hash(
@@ -384,6 +391,10 @@ export class UserModel {
             throw new ParameterError('Email already in use');
         }
 
+        if (createUser.password && !validatePassword(createUser.password)) {
+            throw new ParameterError("Password doesn't meet requirements");
+        }
+
         const user = await this.database.transaction(async (trx) => {
             const newUser = await UserModel.createUserTransaction(trx, {
                 ...createUser,
@@ -403,6 +414,12 @@ export class UserModel {
         userUuid: string,
         activateUser: ActivateUser | OpenIdUser,
     ): Promise<LightdashUser> {
+        if (
+            !isOpenIdUser(activateUser) &&
+            !validatePassword(activateUser.password)
+        ) {
+            throw new ParameterError("Password doesn't meet requirements");
+        }
         await this.database.transaction(async (trx) => {
             const [user] = await trx(UserTableName)
                 .where('user_uuid', userUuid)
@@ -444,6 +461,13 @@ export class UserModel {
         createUser: CreateUserArgs | OpenIdUser,
     ): Promise<LightdashUser> {
         const user = await this.database.transaction(async (trx) => {
+            if (
+                !isOpenIdUser(createUser) &&
+                createUser.password &&
+                !validatePassword(createUser.password)
+            ) {
+                throw new ParameterError("Password doesn't meet requirements");
+            }
             const duplicatedEmails = await trx(EmailTableName).where(
                 'email',
                 isOpenIdUser(createUser)
@@ -521,6 +545,9 @@ export class UserModel {
     }
 
     async upsertPassword(userUuid: string, password: string): Promise<void> {
+        if (!validatePassword(password)) {
+            throw new ParameterError("Password doesn't meet requirements");
+        }
         const user = await this.findSessionUserByUUID(userUuid);
         await this.database(PasswordLoginTableName)
             .insert({
@@ -574,6 +601,9 @@ export class UserModel {
     }
 
     async createPassword(userId: number, newPassword: string): Promise<void> {
+        if (!validatePassword(newPassword)) {
+            throw new ParameterError("Password doesn't meet requirements");
+        }
         return UserModel.createPasswordLogin(this.database, {
             user_id: userId,
             password_hash: await bcrypt.hash(
@@ -584,6 +614,9 @@ export class UserModel {
     }
 
     async updatePassword(userId: number, newPassword: string): Promise<void> {
+        if (!validatePassword(newPassword)) {
+            throw new ParameterError("Password doesn't meet requirements");
+        }
         return this.database(PasswordLoginTableName)
             .where({
                 user_id: userId,

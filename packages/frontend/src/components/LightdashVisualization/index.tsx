@@ -29,8 +29,9 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                 return (
                     <SimpleStatistic
                         minimal={minimal}
-                        isDashboard={isDashboard}
                         isTitleHidden={isTitleHidden}
+                        isDashboard={isDashboard}
+                        tileUuid={tileUuid}
                         className={className}
                         data-testid={props['data-testid']}
                         {...props}

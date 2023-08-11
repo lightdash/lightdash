@@ -1,13 +1,24 @@
-import { CreateUserArgs, validateEmail } from '@lightdash/common';
+import {
+    CreateUserArgs,
+    getEmailSchema,
+    getPasswordSchema,
+} from '@lightdash/common';
 import { Button, Flex, PasswordInput, Stack, TextInput } from '@mantine/core';
-import { useForm } from '@mantine/form';
-import React, { FC } from 'react';
+import { useForm, zodResolver } from '@mantine/form';
+import { FC } from 'react';
+import { z } from 'zod';
+import PasswordTextInput from '../PasswordTextInput';
 
 type Props = {
     isLoading: boolean;
     readOnlyEmail?: string;
     onSubmit: (data: CreateUserArgs) => void;
 };
+
+const validationSchema = z.object({
+    email: getEmailSchema(),
+    password: getPasswordSchema(),
+});
 
 const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
     const form = useForm<CreateUserArgs>({
@@ -17,12 +28,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
             email: readOnlyEmail || '',
             password: '',
         },
-        validate: {
-            email: (value) =>
-                readOnlyEmail || validateEmail(value)
-                    ? null
-                    : 'Your email address is not valid',
-        },
+        validate: zodResolver(validationSchema),
     });
 
     return (
@@ -55,17 +61,23 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                     disabled={isLoading || !!readOnlyEmail}
                     data-cy="email-address-input"
                 />
-                <PasswordInput
-                    label="Password"
-                    name="password"
-                    placeholder="Your password"
-                    required
-                    {...form.getInputProps('password')}
-                    disabled={isLoading}
-                />
+                <PasswordTextInput
+                    passwordValue={form.values.password as string}
+                >
+                    <PasswordInput
+                        label="Password"
+                        name="password"
+                        placeholder="Your password"
+                        required
+                        {...form.getInputProps('password')}
+                        data-cy="password-input"
+                        disabled={isLoading}
+                    />
+                </PasswordTextInput>
                 <Button
                     type="submit"
                     loading={isLoading}
+                    disabled={isLoading}
                     data-cy="signup-button"
                 >
                     Sign up

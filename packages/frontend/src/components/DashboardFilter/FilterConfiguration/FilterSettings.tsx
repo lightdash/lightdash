@@ -17,7 +17,6 @@ interface FilterSettingsProps {
     field: FilterableField;
     filterRule: DashboardFilterRule;
     popoverProps?: Popover2Props;
-    onChangeFilterOperator: (value: DashboardFilterRule['operator']) => void;
     onChangeFilterRule: (value: DashboardFilterRule) => void;
 }
 
@@ -26,7 +25,6 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     field,
     filterRule,
     popoverProps,
-    onChangeFilterOperator,
     onChangeFilterRule,
 }) => {
     const [filterLabel, setFilterLabel] = useState<string>();
@@ -55,9 +53,33 @@ const FilterSettings: FC<FilterSettingsProps> = ({
         }
     }, [filterLabel, filterRule.label, field.label]);
 
+    const handleChangeFilterOperator = (operator: FilterRule['operator']) => {
+        onChangeFilterRule(
+            getFilterRuleWithDefaultValue(field, {
+                ...filterRule,
+                operator,
+            }),
+        );
+    };
+
     return (
         <Stack>
             <Stack spacing="xs">
+                {isEditMode && (
+                    <TextInput
+                        label="Filter label"
+                        mb="sm"
+                        onChange={(e) => {
+                            setFilterLabel(e.target.value);
+                            onChangeFilterRule({
+                                ...filterRule,
+                                label: e.target.value || undefined,
+                            });
+                        }}
+                        placeholder={`Label for ${field.label}`}
+                        value={filterLabel}
+                    />
+                )}
                 {isEditMode && (
                     <Tooltip
                         withinPortal
@@ -97,9 +119,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                 <Select
                     size="xs"
                     data={filterConfig.operatorOptions}
-                    onChange={(operator: FilterRule['operator']) =>
-                        onChangeFilterOperator(operator)
-                    }
+                    onChange={handleChangeFilterOperator}
                     value={filterRule.operator}
                 />
                 {filterRule.disabled ? (
@@ -126,21 +146,6 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     />
                 )}
             </Stack>
-
-            {isEditMode && (
-                <TextInput
-                    label="Filter label"
-                    onChange={(e) => {
-                        setFilterLabel(e.target.value);
-                        onChangeFilterRule({
-                            ...filterRule,
-                            label: e.target.value || undefined,
-                        });
-                    }}
-                    placeholder={`Label for ${field.label}`}
-                    value={filterLabel}
-                />
-            )}
         </Stack>
     );
 };

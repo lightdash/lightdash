@@ -11,11 +11,12 @@ export type CreateOpenIdIdentity = {
     issuerType: OpenIdIdentityIssuerType;
     userId: number;
     email: string;
+    refreshToken?: string; // Used in google to access google drive files
 };
 
 export type UpdateOpenIdentity = Pick<
     CreateOpenIdIdentity,
-    'subject' | 'issuer' | 'email' | 'issuerType'
+    'subject' | 'issuer' | 'email' | 'issuerType' | 'refreshToken'
 >;
 
 export type OpenIdIdentity = CreateOpenIdIdentity & {

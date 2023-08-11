@@ -12,7 +12,8 @@ import {
 } from '../DashboardTiles/TileBase/TileBase.styles';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { EmptyChart, LoadingChart } from '../SimpleChart';
-import { BigNumberContextMenu } from './BigNumberContextMenu';
+import BigNumberContextMenu from './BigNumberContextMenu';
+import BigNumberDashboardContextMenu from './BigNumberDashboardContextMenu';
 import {
     BigNumber,
     BigNumberContainer,
@@ -22,8 +23,9 @@ import {
 
 interface SimpleStatisticsProps extends HTMLAttributes<HTMLDivElement> {
     minimal?: boolean;
-    isDashboard?: boolean;
     isTitleHidden?: boolean;
+    isDashboard?: boolean;
+    tileUuid?: string;
 }
 
 const BOX_MIN_WIDTH = 150;
@@ -51,8 +53,9 @@ const calculateFontSize = (
 
 const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     minimal = false,
-    isDashboard = false,
     isTitleHidden = false,
+    isDashboard = false,
+    tileUuid,
     ...wrapperProps
 }) => {
     const {
@@ -138,19 +141,18 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             <BigNumberHalf>
                 {minimal || isSqlRunner ? (
                     <BigNumber $fontSize={valueFontSize}>{bigNumber}</BigNumber>
+                ) : isDashboard && tileUuid ? (
+                    <BigNumberDashboardContextMenu tileUuid={tileUuid}>
+                        <BigNumber $interactive $fontSize={valueFontSize}>
+                            {bigNumber}
+                        </BigNumber>
+                    </BigNumberDashboardContextMenu>
                 ) : (
-                    <BigNumberContextMenu
-                        renderTarget={({ ref, onClick }) => (
-                            <BigNumber
-                                $interactive
-                                ref={ref}
-                                onClick={onClick}
-                                $fontSize={valueFontSize}
-                            >
-                                {bigNumber}
-                            </BigNumber>
-                        )}
-                    />
+                    <BigNumberContextMenu>
+                        <BigNumber $interactive $fontSize={valueFontSize}>
+                            {bigNumber}
+                        </BigNumber>
+                    </BigNumberContextMenu>
                 )}
             </BigNumberHalf>
 

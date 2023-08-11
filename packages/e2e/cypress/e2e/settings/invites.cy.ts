@@ -28,7 +28,7 @@ describe('Settings - Invites', () => {
         cy.get('[data-cy="email-address-input"]')
             .should('be.disabled')
             .should('have.value', 'demo+marygreen@lightdash.com');
-        cy.findByPlaceholderText('Your password').type('PasswordMary1');
+        cy.findByPlaceholderText('Your password').type('PasswordMary1').blur();
         cy.get('[data-cy="signup-button"]').click();
         cy.findByTestId('pin-input')
             .get('*[class^="mantine-PinInput-input"]')
