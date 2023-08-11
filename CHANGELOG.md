@@ -1,3 +1,10 @@
+# [0.735.0](https://github.com/lightdash/lightdash/compare/0.734.0...0.735.0) (2023-08-11)
+
+
+### Features
+
+* improve dashboard filter layout ([#6695](https://github.com/lightdash/lightdash/issues/6695)) ([d71d96a](https://github.com/lightdash/lightdash/commit/d71d96acc43c9c24d34dfefb62dbec6df5a8c837))
+
 # [0.734.0](https://github.com/lightdash/lightdash/compare/0.733.0...0.734.0) (2023-08-11)
 
 
