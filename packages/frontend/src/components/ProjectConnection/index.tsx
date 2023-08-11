@@ -73,6 +73,7 @@ const ProjectForm: FC<Props> = ({
 }) => {
     const { health } = useApp();
     const [warehouse, setWarehouse] = useState(selectedWarehouse);
+    const { register } = useFormContext();
 
     return (
         <Stack spacing="xl">
@@ -84,11 +85,10 @@ const ProjectForm: FC<Props> = ({
 
                     <div>
                         <TextInput
-                            name="name"
                             label="Project name"
                             required
                             disabled={disabled}
-                            defaultValue="Jaffle shop"
+                            {...register('name')} 
                         />
                     </div>
                 </SettingsGridCard>
