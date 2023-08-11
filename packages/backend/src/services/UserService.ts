@@ -312,7 +312,6 @@ export class UserService {
         sessionUser: SessionUser | undefined,
         inviteCode: string | undefined,
         refreshToken?: string,
-        scope?: string,
     ): Promise<SessionUser> {
         const loginUser = await this.userModel.findSessionUserByOpenId(
             openIdUser.openId.issuer,
@@ -324,7 +323,6 @@ export class UserService {
             await this.openIdIdentityModel.updateIdentityByOpenId({
                 ...openIdUser.openId,
                 refreshToken,
-                scope,
             });
             await this.tryVerifyUserEmail(loginUser, openIdUser.openId.email);
             identifyUser(loginUser);
@@ -347,7 +345,6 @@ export class UserService {
                 email: openIdUser.openId.email,
                 issuerType: openIdUser.openId.issuerType,
                 refreshToken,
-                scope,
             });
             await this.tryVerifyUserEmail(sessionUser, openIdUser.openId.email);
             analytics.track({
