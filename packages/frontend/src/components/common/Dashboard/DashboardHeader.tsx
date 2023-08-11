@@ -121,9 +121,7 @@ const DashboardHeader = ({
 
                     {dashboardDescription && (
                         <Tooltip label={dashboardDescription} position="bottom">
-                            <ActionIcon color="dark">
-                                <MantineIcon icon={IconInfoCircle} />
-                            </ActionIcon>
+                            <MantineIcon icon={IconInfoCircle} />
                         </Tooltip>
                     )}
 
