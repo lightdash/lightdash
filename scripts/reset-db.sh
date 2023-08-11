@@ -7,7 +7,8 @@ if [ -z ${PGPASSWORD+x} ]; then
 fi
 
 # delete public schema on db
-PGPASSWORD=$PGPASSWORD psql -p $PGPORT -h $PGHOST -d $PGDATABASE -U $PGUSER -c 'drop schema public cascade; create schema public;'
+reset_sql="drop schema IF EXISTS public cascade; drop schema IF EXISTS graphile_worker cascade; create schema public;"
+PGPASSWORD=$PGPASSWORD psql -p $PGPORT -h $PGHOST -d $PGDATABASE -U $PGUSER -c "$reset_sql"
 
 # migrate
 yarn workspace backend migrate

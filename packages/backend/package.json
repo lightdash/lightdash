@@ -93,7 +93,7 @@
         "format": "yarn run formatter ./src --check",
         "fix-format": "yarn run formatter ./src --write",
         "create-migration": "knex migrate:make --knexfile src/database/knexfile.ts",
-        "migrate": "knex migrate:latest --knexfile src/database/knexfile.ts",
+        "migrate": "knex migrate:latest --knexfile src/database/knexfile.ts && yarn graphile-worker --schema-only",
         "migrate-production": "knex migrate:latest --knexfile dist/database/knexfile.js",
         "seed": "knex seed:run --knexfile src/database/knexfile.ts",
         "seed-production": "knex seed:run --knexfile dist/database/knexfile.js",
