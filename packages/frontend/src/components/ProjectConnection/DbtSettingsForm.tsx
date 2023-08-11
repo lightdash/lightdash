@@ -177,16 +177,6 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 defaultValue={DefaultSupportedDbtVersion}
                 labelProps={{ style: { marginTop: '8px' } }}
             />
-            <SelectField
-                name="dbtVersion"
-                label="dbt version"
-                options={Object.values(SupportedDbtVersions).map((version) => ({
-                    value: version,
-                    label: version,
-                }))}
-                disabled={disabled}
-                defaultValue={DefaultSupportedDbtVersion}
-            />
             {form}
             {type !== DbtProjectType.NONE && (
                 <>
