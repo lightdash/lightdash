@@ -1,3 +1,15 @@
+# [0.733.0](https://github.com/lightdash/lightdash/compare/0.732.3...0.733.0) (2023-08-11)
+
+
+### Bug Fixes
+
+* big number dashboard filters + underlying data ([#6659](https://github.com/lightdash/lightdash/issues/6659)) ([f9e79ef](https://github.com/lightdash/lightdash/commit/f9e79eff232384521a9c802cb0d75bb04afea7c6))
+
+
+### Features
+
+* add password requirements ([#6632](https://github.com/lightdash/lightdash/issues/6632)) ([624677b](https://github.com/lightdash/lightdash/commit/624677bdd223875b0125c34cf4f7cbc9cddc2b85))
+
 ## [0.732.3](https://github.com/lightdash/lightdash/compare/0.732.2...0.732.3) (2023-08-10)
 
 
