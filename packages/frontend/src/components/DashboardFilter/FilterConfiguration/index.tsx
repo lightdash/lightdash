@@ -283,22 +283,31 @@ const FilterConfiguration: FC<Props> = ({
                         </Tooltip>
                     )}
 
-                <Button
-                    size="xs"
-                    variant="filled"
-                    className={Classes.POPOVER2_DISMISS}
-                    disabled={
-                        !isFilterConfigurationApplyButtonEnabled(
-                            draftFilterRule,
-                        )
-                    }
-                    onClick={() => {
-                        setSelectedTabId(FilterTabs.SETTINGS);
-                        if (!!draftFilterRule) onSave(draftFilterRule);
-                    }}
+                <Tooltip
+                    label="Filter field and value required"
+                    disabled={isFilterConfigurationApplyButtonEnabled(
+                        draftFilterRule,
+                    )}
                 >
-                    Apply
-                </Button>
+                    <Box>
+                        <Button
+                            size="xs"
+                            variant="filled"
+                            className={Classes.POPOVER2_DISMISS}
+                            disabled={
+                                !isFilterConfigurationApplyButtonEnabled(
+                                    draftFilterRule,
+                                )
+                            }
+                            onClick={() => {
+                                setSelectedTabId(FilterTabs.SETTINGS);
+                                if (!!draftFilterRule) onSave(draftFilterRule);
+                            }}
+                        >
+                            Apply
+                        </Button>
+                    </Box>
+                </Tooltip>
             </Flex>
         </Stack>
     );
