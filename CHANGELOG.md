@@ -1,3 +1,10 @@
+# [0.737.0](https://github.com/lightdash/lightdash/compare/0.736.0...0.737.0) (2023-08-11)
+
+
+### Features
+
+* lighten dashboard-header's shadow ([#6710](https://github.com/lightdash/lightdash/issues/6710)) ([37e75b1](https://github.com/lightdash/lightdash/commit/37e75b103635f6e56b1ebe71446e758b7b768ce1))
+
 # [0.736.0](https://github.com/lightdash/lightdash/compare/0.735.0...0.736.0) (2023-08-11)
 
 
