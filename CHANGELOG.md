@@ -1,3 +1,10 @@
+# [0.738.0](https://github.com/lightdash/lightdash/compare/0.737.1...0.738.0) (2023-08-11)
+
+
+### Features
+
+* migrate dashboard buttons to mantine ([#6715](https://github.com/lightdash/lightdash/issues/6715)) ([19bea16](https://github.com/lightdash/lightdash/commit/19bea162c88c92bb8f57dcb419e1ee8f110b76c0))
+
 ## [0.737.1](https://github.com/lightdash/lightdash/compare/0.737.0...0.737.1) (2023-08-11)
 
 
