@@ -12,6 +12,7 @@ import {
 import {
     Anchor,
     Avatar,
+    Button,
     Card,
     Flex,
     Stack,
@@ -88,7 +89,7 @@ const ProjectForm: FC<Props> = ({
                             label="Project name"
                             required
                             disabled={disabled}
-                            {...register('name')} 
+                            {...register('name')}
                         />
                     </div>
                 </SettingsGridCard>
@@ -292,17 +293,11 @@ export const UpdateProjectConnection: FC<{
                     bottom: `-${theme.spacing.xl}`,
                 })}
             >
-                <CompileProjectButton
-                    large
-                    type="submit"
-                    intent={Intent.PRIMARY}
-                    loading={isSaving}
-                    disabled={isDisabled}
-                >
+                <Button type="submit" loading={isSaving} disabled={isDisabled}>
                     {data?.dbtConnection?.type === DbtProjectType.NONE
                         ? 'Save and test'
                         : 'Test & compile project'}
-                </CompileProjectButton>
+                </Button>
             </Card>
         </FormContainer>
     );
