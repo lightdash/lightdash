@@ -7,8 +7,10 @@ import produce from 'immer';
 import isEqual from 'lodash-es/isEqual';
 
 export const isFilterConfigurationApplyButtonEnabled = (
-    filterRule: DashboardFilterRule,
+    filterRule?: DashboardFilterRule,
 ) => {
+    if (!filterRule) return false;
+
     const isFilterRuleDisabled = filterRule.disabled;
     if (isFilterRuleDisabled) {
         return true;
