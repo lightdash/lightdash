@@ -2,15 +2,14 @@ import { DashboardFilterRule, FilterableField } from '@lightdash/common';
 import { ActionIcon, Button, Popover, Text, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
-import { FC, useCallback, useState } from 'react';
+import { FC, useCallback } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import {
     getConditionalRuleLabel,
     getFilterRuleTables,
 } from '../../common/Filters/configs';
 import MantineIcon from '../../common/MantineIcon';
-import FilterConfiguration, { FilterTabs } from '../FilterConfiguration';
-import { FilterModalContainer } from '../FilterSearch/FilterSearch.styles';
+import FilterConfiguration from '../FilterConfiguration';
 
 type Props = {
     isEditMode: boolean;
@@ -49,8 +48,6 @@ const ActiveFilter: FC<Props> = ({
         closeSubPopover();
         closePopover();
     }, [closeSubPopover, closePopover]);
-
-    const [selectedTabId, setSelectedTabId] = useState<FilterTabs>();
 
     if (!filterableFieldsByTileUuid || !allFilterableFields) {
         return null;
@@ -134,32 +131,27 @@ const ActiveFilter: FC<Props> = ({
                 </Tooltip>
             </Popover.Target>
 
-            {/* FIXME: remove p={0} once we remove Blueprint popover from FilterSearch */}
-            <Popover.Dropdown p={0}>
-                <FilterModalContainer $wide={selectedTabId === 'tiles'}>
-                    <FilterConfiguration
-                        isEditMode={isEditMode}
-                        isTemporary={isTemporary}
-                        tiles={dashboardTiles}
-                        selectedTabId={selectedTabId}
-                        field={field}
-                        availableTileFilters={filterableFieldsByTileUuid}
-                        originalFilterRule={originalFilterRule}
-                        filterRule={filterRule}
-                        onTabChange={setSelectedTabId}
-                        onSave={(dashboardFilterRule) => {
-                            onUpdate(dashboardFilterRule);
-                            handleClose();
-                        }}
-                        // FIXME: remove this once we migrate off of Blueprint
-                        popoverProps={{
-                            onOpened: () => openSubPopover(),
-                            onOpening: () => openSubPopover(),
-                            onClose: () => closeSubPopover(),
-                            onClosing: () => closeSubPopover(),
-                        }}
-                    />
-                </FilterModalContainer>
+            <Popover.Dropdown>
+                <FilterConfiguration
+                    isEditMode={isEditMode}
+                    isTemporary={isTemporary}
+                    tiles={dashboardTiles}
+                    field={field}
+                    availableTileFilters={filterableFieldsByTileUuid}
+                    originalFilterRule={originalFilterRule}
+                    filterRule={filterRule}
+                    onSave={(dashboardFilterRule) => {
+                        onUpdate(dashboardFilterRule);
+                        handleClose();
+                    }}
+                    // FIXME: remove this once we migrate off of Blueprint
+                    popoverProps={{
+                        onOpened: () => openSubPopover(),
+                        onOpening: () => openSubPopover(),
+                        onClose: () => closeSubPopover(),
+                        onClosing: () => closeSubPopover(),
+                    }}
+                />
             </Popover.Dropdown>
         </Popover>
     );

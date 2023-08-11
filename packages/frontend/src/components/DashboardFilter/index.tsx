@@ -1,22 +1,36 @@
-import { DashboardTileTypes } from '@lightdash/common';
+import {
+    DashboardFieldTarget,
+    DashboardFilterRule,
+    DashboardTileTypes,
+    FilterableField,
+    FilterOperator,
+} from '@lightdash/common';
 import { Button, Flex, Popover, Text, Tooltip } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconFilter } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { FC, useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProject } from '../../hooks/useProject';
 import { useDashboardContext } from '../../providers/DashboardProvider';
+import { useTracking } from '../../providers/TrackingProvider';
+import { EventName } from '../../types/Events';
 import { FiltersProvider } from '../common/Filters/FiltersProvider';
 import MantineIcon from '../common/MantineIcon';
 import ActiveFilters from './ActiveFilters';
-import FilterSearch from './FilterSearch';
+import FilterConfiguration from './FilterConfiguration';
 
 interface Props {
     isEditMode: boolean;
 }
 
 const DashboardFilter: FC<Props> = ({ isEditMode }) => {
+    const { track } = useTracking();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
+    const [selectedField, setSelectedField] = useState<FilterableField>();
+    const [isPopoverOpen, { close: closePopover, toggle: togglePopover }] =
+        useDisclosure();
+    const [isSubPopoverOpen, { close: closeSubPopover, open: openSubPopover }] =
+        useDisclosure();
 
     const project = useProject(projectUuid);
     const {
@@ -24,7 +38,34 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
         fieldsWithSuggestions,
         dashboardTiles,
         allFilterableFields,
+        filterableFieldsByTileUuid,
+        addDimensionDashboardFilter,
     } = useDashboardContext();
+
+    const handleClose = useCallback(() => {
+        setSelectedField(undefined);
+
+        closeSubPopover();
+        closePopover();
+    }, [closeSubPopover, closePopover]);
+
+    const handleSave = (
+        value: DashboardFilterRule<
+            FilterOperator,
+            DashboardFieldTarget,
+            any,
+            any
+        >,
+    ) => {
+        track({
+            name: EventName.ADD_FILTER_CLICKED,
+            properties: {
+                mode: isEditMode ? 'edit' : 'viewer',
+            },
+        });
+        addDimensionDashboardFilter(value, !isEditMode);
+        handleClose();
+    };
 
     const hasChartTiles =
         dashboardTiles.filter(
@@ -42,9 +83,11 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                 <Popover
                     position="bottom-start"
                     trapFocus
-                    opened={isFilterPopoverOpen}
+                    opened={isPopoverOpen}
+                    closeOnEscape={!isSubPopoverOpen}
+                    closeOnClickOutside={!isSubPopoverOpen}
+                    onClose={handleClose}
                     disabled={!hasChartTiles}
-                    onClose={() => setIsFilterPopoverOpen(false)}
                     transitionProps={{
                         transition: 'pop',
                     }}
@@ -55,7 +98,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                 >
                     <Popover.Target>
                         <Tooltip
-                            disabled={isFilterPopoverOpen || isEditMode}
+                            disabled={isPopoverOpen || isEditMode}
                             position="bottom"
                             openDelay={500}
                             label={
@@ -75,26 +118,35 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                                     />
                                 }
                                 disabled={!hasChartTiles}
-                                onClick={() =>
-                                    setIsFilterPopoverOpen(
-                                        (prevIsOpen) => !prevIsOpen,
-                                    )
-                                }
+                                onClick={togglePopover}
                             >
                                 Add filter
                             </Button>
                         </Tooltip>
                     </Popover.Target>
 
-                    <Popover.Dropdown ml={5} p={0}>
-                        <FilterSearch
-                            isEditMode={isEditMode}
-                            fields={allFilterableFields || []}
-                            popoverProps={{
-                                usePortal: false,
-                            }}
-                            onClose={() => setIsFilterPopoverOpen(false)}
-                        />
+                    <Popover.Dropdown ml={5}>
+                        {filterableFieldsByTileUuid ? (
+                            <FilterConfiguration
+                                isCreatingNew
+                                isEditMode={isEditMode}
+                                field={selectedField}
+                                fields={allFilterableFields || []}
+                                onFieldChange={setSelectedField}
+                                tiles={dashboardTiles}
+                                availableTileFilters={
+                                    filterableFieldsByTileUuid
+                                }
+                                onSave={handleSave}
+                                // FIXME: remove this once we migrate off of Blueprint
+                                popoverProps={{
+                                    onOpened: () => openSubPopover(),
+                                    onOpening: () => openSubPopover(),
+                                    onClose: () => closeSubPopover(),
+                                    onClosing: () => closeSubPopover(),
+                                }}
+                            />
+                        ) : null}
                     </Popover.Dropdown>
                 </Popover>
 
