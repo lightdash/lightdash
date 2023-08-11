@@ -6,7 +6,7 @@ describe('User attributes sql_filter', () => {
     beforeEach(() => {
         cy.login();
     });
-    it('Create customer_id attribute', () => {
+    it('Delete customer_id attribute', () => {
         cy.request(`${apiUrl}/org/attributes`).then((resp) => {
             expect(resp.status).to.eq(200);
             const customerIdAttr = resp.body.results.find(
