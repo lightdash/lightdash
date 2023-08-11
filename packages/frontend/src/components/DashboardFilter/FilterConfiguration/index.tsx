@@ -256,6 +256,7 @@ const FilterConfiguration: FC<Props> = ({
                         {!!field && internalFilterRule && (
                             <FilterSettings
                                 isEditMode={isEditMode}
+                                isCreatingNew={isCreatingNew}
                                 field={field}
                                 filterRule={internalFilterRule}
                                 onChangeFilterRule={handleChangeFilterRule}

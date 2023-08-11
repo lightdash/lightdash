@@ -14,6 +14,7 @@ import { getPlaceholderByFilterTypeAndOperator } from '../../common/Filters/util
 
 interface FilterSettingsProps {
     isEditMode: boolean;
+    isCreatingNew: boolean;
     field: FilterableField;
     filterRule: DashboardFilterRule;
     popoverProps?: Popover2Props;
@@ -22,6 +23,7 @@ interface FilterSettingsProps {
 
 const FilterSettings: FC<FilterSettingsProps> = ({
     isEditMode,
+    isCreatingNew,
     field,
     filterRule,
     popoverProps,
@@ -121,7 +123,11 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     </Tooltip>
                 )}
 
-                {!isEditMode && <Text fw={500}>Value</Text>}
+                {isCreatingNew && !isEditMode && (
+                    <Text size="xs" fw={500}>
+                        Value
+                    </Text>
+                )}
                 <Select
                     size="xs"
                     data={filterConfig.operatorOptions}
