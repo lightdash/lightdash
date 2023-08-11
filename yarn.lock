@@ -2393,16 +2393,6 @@
     retry-request "^4.2.2"
     teeny-request "^7.0.0"
 
-"@google-cloud/local-auth@2.1.0":
-  version "2.1.0"
-  resolved "https://registry.npmjs.org/@google-cloud/local-auth/-/local-auth-2.1.0.tgz"
-  integrity sha512-ymZ1XuyKcRcro0aiMYz3hVGbZ+QZmN5V1Eyjvw2k1xqq76PwmDer0DIPxdxkLzfW9Inr8+g+MS9t9fZ7dOlTOQ==
-  dependencies:
-    arrify "^2.0.1"
-    google-auth-library "^8.0.2"
-    open "^7.0.3"
-    server-destroy "^1.0.1"
-
 "@google-cloud/paginator@^3.0.0":
   version "3.0.6"
   resolved "https://registry.npmjs.org/@google-cloud/paginator/-/paginator-3.0.6.tgz"
@@ -14480,7 +14470,7 @@ onetime@^5.1.0, onetime@^5.1.2:
   dependencies:
     mimic-fn "^2.1.0"
 
-open@^7.0.3, open@^7.3.1, open@^7.4.2:
+open@^7.3.1, open@^7.4.2:
   version "7.4.2"
   resolved "https://registry.npmjs.org/open/-/open-7.4.2.tgz"
   integrity sha512-MVHddDVweXZF3awtlAS+6pgKLlm/JgxZ90+/NBurBoQctVOOB/zDdVjcyPzQ+0laDGbsWgrRkflI65sQeOgT9Q==
@@ -16949,11 +16939,6 @@ serve-static@1.15.0:
     escape-html "~1.0.3"
     parseurl "~1.3.3"
     send "0.18.0"
-
-server-destroy@^1.0.1:
-  version "1.0.1"
-  resolved "https://registry.npmjs.org/server-destroy/-/server-destroy-1.0.1.tgz"
-  integrity sha512-rb+9B5YBIEzYcD6x2VKidaa+cqYBJQKnU4oe4E3ANwRRN56yk/ua1YCJT1n21NTS8w6CcOclAKNP3PhdCXKYtQ==
 
 set-blocking@^2.0.0, set-blocking@~2.0.0:
   version "2.0.0"

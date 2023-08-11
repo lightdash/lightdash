@@ -1,7 +1,7 @@
 import { WarehouseTypes } from '@lightdash/common';
+import { Select } from '@mantine/core';
 import React, { FC, useEffect } from 'react';
 import { useWatch } from 'react-hook-form';
-import SelectField from '../ReactHookForm/Select';
 import BigQueryForm from './WarehouseForms/BigQueryForm';
 import DatabricksForm from './WarehouseForms/DatabricksForm';
 import PostgresForm from './WarehouseForms/PostgresForm';
@@ -42,7 +42,7 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
 }) => {
     const warehouseType: WarehouseTypes = useWatch({
         name: 'warehouse.type',
-        defaultValue: WarehouseTypes.BIGQUERY,
+        defaultValue: WarehouseTypes.POSTGRES,
     });
 
     const WarehouseForm =
@@ -56,25 +56,30 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
         }
     }, [warehouseType, setSelectedWarehouse, isProjectUpdate]);
 
+    const handleChangeWarehouse = (value: WarehouseTypes) => {
+        if (setSelectedWarehouse) {
+            setSelectedWarehouse(value);
+        }
+    };
+
     return (
         <div
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
         >
             {isProjectUpdate && (
-                <SelectField
+                <Select
                     name="warehouse.type"
                     label="Type"
-                    options={Object.entries(WarehouseTypeLabels).map(
+                    data={Object.entries(WarehouseTypeLabels).map(
                         ([value, label]) => ({
                             value,
                             label,
                         }),
                     )}
-                    rules={{
-                        required: 'Required field',
-                    }}
+                    required
                     disabled={disabled}
-                    defaultValue={WarehouseTypes.BIGQUERY}
+                    defaultValue={WarehouseTypes.POSTGRES}
+                    onChange={handleChangeWarehouse}
                 />
             )}
             <WarehouseForm disabled={disabled} />

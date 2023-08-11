@@ -4,11 +4,6 @@ type FieldValidator<T> = (
     fieldName: string,
 ) => (value: T | undefined) => string | undefined;
 
-export const isUppercase: FieldValidator<string> = (fieldName) => (value) =>
-    !value || value === value.toUpperCase()
-        ? undefined
-        : `${fieldName} should be uppercase`;
-
 export const hasNoWhiteSpaces: FieldValidator<string> =
     (fieldName) => (value) =>
         !value || value.indexOf(' ') <= 0
@@ -24,12 +19,6 @@ export const startWithSlash: FieldValidator<string> = (fieldName) => (value) =>
     !value || value.match(/^\/.*/)
         ? undefined
         : `${fieldName} should start with a "/"`;
-
-export const startWithHTTPSProtocol: FieldValidator<string> =
-    (fieldName) => (value) =>
-        !value || value.match(/^https:\/\/.*/)
-            ? undefined
-            : `${fieldName} should start with a "https://"`;
 
 export const isValidGithubToken: FieldValidator<string> =
     (_fieldName) => (value) => {

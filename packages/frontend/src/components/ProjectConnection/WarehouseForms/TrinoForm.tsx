@@ -1,17 +1,16 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { Anchor } from '@mantine/core';
+import {
+    Accordion,
+    Anchor,
+    NumberInput,
+    PasswordInput,
+    Select,
+    Stack,
+    TextInput,
+} from '@mantine/core';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
-import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import FormSection from '../../ReactHookForm/FormSection';
-import Input from '../../ReactHookForm/Input';
-import NumericInput from '../../ReactHookForm/NumericInput';
-import PasswordInput from '../../ReactHookForm/PasswordInput';
-import Select from '../../ReactHookForm/Select';
-import {
-    AdvancedButton,
-    AdvancedButtonWrapper,
-} from '../ProjectConnection.styles';
 import { useProjectFormContext } from '../ProjectFormProvider';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 
@@ -19,16 +18,11 @@ export const TrinoSchemaInput: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
     return (
-        <Input
+        <TextInput
             name="warehouse.schema"
             label="Schema"
-            labelHelp="This is the schema name."
-            rules={{
-                required: 'Required field',
-                validate: {
-                    hasNoWhiteSpaces: hasNoWhiteSpaces('Schema'),
-                },
-            }}
+            description="This is the schema name."
+            required
             disabled={disabled}
         />
     );
@@ -43,102 +37,106 @@ const TrinoForm: FC<{
         savedProject?.warehouseConnection?.type !== WarehouseTypes.TRINO;
     return (
         <>
-            <Input
-                name="warehouse.host"
-                label="Host"
-                labelHelp="This is the host where the database is running."
-                rules={{
-                    required: 'Required field',
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Host'),
-                    },
-                }}
-                disabled={disabled}
-            />
-            <Input
-                name="warehouse.user"
-                label="User"
-                labelHelp="This is the database user name."
-                rules={{
-                    required: requireSecrets ? 'Required field' : undefined,
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('User'),
-                    },
-                }}
-                placeholder={
-                    disabled || !requireSecrets ? '**************' : undefined
-                }
-                disabled={disabled}
-            />
-            <PasswordInput
-                name="warehouse.password"
-                label="Password"
-                labelHelp="This is the database user password."
-                rules={{
-                    required: requireSecrets ? 'Required field' : undefined,
-                }}
-                placeholder={
-                    disabled || !requireSecrets ? '**************' : undefined
-                }
-                disabled={disabled}
-            />
-            <Input
-                name="warehouse.dbname"
-                label="DB name"
-                labelHelp="This is the database name."
-                rules={{
-                    required: 'Required field',
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('DB name'),
-                    },
-                }}
-                disabled={disabled}
-            />
-
-            <FormSection isOpen={isOpen} name="advanced">
-                <NumericInput
-                    name="warehouse.port"
-                    label="Port"
-                    labelHelp="This is the database name."
-                    rules={{
-                        required: 'Required field',
-                    }}
+            <Stack style={{ marginTop: '8px' }}>
+                <TextInput
+                    name="warehouse.host"
+                    label="Host"
+                    description="This is the host where the database is running"
+                    required
                     disabled={disabled}
-                    defaultValue={443}
+                    defaultValue="localhost"
+                    labelProps={{ style: { marginTop: '8px' } }}
                 />
-                <Select
-                    name="warehouse.http_scheme"
-                    label="SSL mode"
-                    labelHelp={
-                        <p>
-                            This controls how dbt connects to Trino database
-                            using SSL. You can see more details in
-                            <Anchor
-                                target="_blank"
-                                href="https://docs.getdbt.com/reference/warehouse-setups/trino-setup#configuration"
-                                rel="noreferrer"
-                            >
-                                dbt documentation
-                            </Anchor>
-                            .
-                        </p>
+                <TextInput
+                    name="warehouse.user"
+                    label="User"
+                    description="This is the database user name."
+                    placeholder={
+                        disabled || !requireSecrets
+                            ? '**************'
+                            : undefined
                     }
-                    options={['http', 'https'].map((x) => ({
-                        value: x,
-                        label: x,
-                    }))}
-                    defaultValue="https"
                     disabled={disabled}
                 />
-                <StartOfWeekSelect disabled={disabled} />
-            </FormSection>
-            <AdvancedButtonWrapper>
-                <AdvancedButton
-                    icon={isOpen ? 'chevron-up' : 'chevron-down'}
-                    text={`Advanced configuration options`}
-                    onClick={toggleOpen}
+                <PasswordInput
+                    label="Password"
+                    description="This is the database user password."
+                    placeholder={
+                        disabled || !requireSecrets
+                            ? '**************'
+                            : undefined
+                    }
+                    disabled={disabled}
+                    name={''}
                 />
-            </AdvancedButtonWrapper>
+                <TextInput
+                    name="warehouse.dbname"
+                    label="DB name"
+                    description="This is the database name."
+                    required
+                    disabled={disabled}
+                    defaultValue="postgres"
+                />
+
+                <FormSection isOpen={isOpen} name="advanced">
+                    <Stack style={{ marginTop: '8px' }}>
+                        <NumberInput
+                            name="warehouse.port"
+                            label="Port"
+                            description="This is the port where the database is running."
+                            required
+                            disabled={disabled}
+                            defaultValue={5432}
+                        />
+                        <Select
+                            name="warehouse.http_scheme"
+                            label="SSL mode"
+                            description={
+                                <p>
+                                    This controls how dbt connects to Trino
+                                    database using SSL. You can see more details
+                                    in{' '}
+                                    <Anchor
+                                        target="_blank"
+                                        href="https://docs.getdbt.com/reference/warehouse-setups/trino-setup#configuration"
+                                        rel="noreferrer"
+                                    >
+                                        dbt documentation
+                                    </Anchor>
+                                    .
+                                </p>
+                            }
+                            data={['http', 'https'].map((x) => ({
+                                value: x,
+                                label: x,
+                            }))}
+                            defaultValue="https"
+                            disabled={disabled}
+                        />
+                        <StartOfWeekSelect disabled={disabled} />
+                    </Stack>
+                </FormSection>
+                <Accordion
+                    chevronPosition="left"
+                    variant="filled"
+                    style={{
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                    }}
+                >
+                    <Accordion.Item value="advanced configuration options">
+                        <Accordion.Control
+                            onClick={toggleOpen}
+                            style={{
+                                fontSize: '14px',
+                                paddingRight: '2px',
+                            }}
+                        >
+                            Advanced configuration options
+                        </Accordion.Control>
+                    </Accordion.Item>
+                </Accordion>
+            </Stack>
         </>
     );
 };
