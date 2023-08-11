@@ -57,9 +57,10 @@ export class OpenIdIdentityModel {
         email,
         subject,
         issuer,
+        refreshToken,
     }: UpdateOpenIdentity): Promise<OpenIdIdentity> {
         const [identity] = await this.database('openid_identities')
-            .update({ email })
+            .update({ email, refresh_token: refreshToken })
             .where('issuer', issuer)
             .andWhere('subject', subject)
             .returning('*');
@@ -114,6 +115,7 @@ export class OpenIdIdentityModel {
                 subject: createIdentity.subject,
                 user_id: createIdentity.userId,
                 email: createIdentity.email,
+                refresh_token: createIdentity.refreshToken,
             })
             .returning('*');
         return OpenIdIdentityModel._parseDbIdentity(identity);
@@ -143,5 +145,16 @@ export class OpenIdIdentityModel {
                 .andWhere('user_id', userId)
                 .delete();
         });
+    }
+
+    async getRefreshToken(userId: number) {
+        const [row] = await this.database(OpenIdIdentitiesTableName)
+            .where('user_id', userId)
+            .select('refresh_token');
+
+        if (!row) {
+            throw new NotFoundError('No user found');
+        }
+        return row.refresh_token;
     }
 }
