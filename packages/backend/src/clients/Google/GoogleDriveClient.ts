@@ -1,4 +1,5 @@
 import { lightdashConfig } from '../../config/lightdashConfig';
+import Logger from '../../logging/logger';
 
 const { google } = require('googleapis');
 
@@ -61,31 +62,24 @@ export class GoogleDriveClient {
 
         const sheets = google.sheets({ version: 'v4', auth: authClient });
         const sheetRows = csvContent.split('\n').map((row) => row.split(','));
-        /*
-        // Creates a new tab in the sheet
-        // use `'${tabTitle}'!A:B` as range to write to the new tab
-        const tabTitle = new Date().toLocaleString().replaceAll(':', '.'); // we can't use ranges with colons in their tab ids
-        await sheets.spreadsheets.batchUpdate({
-            spreadsheetId: fileId,
-            resource: {
-                requests: [
-                    {
-                        addSheet: {
-                            properties: {
-                                title: tabTitle,
-                            },
-                        },
-                    },
-                ],
-            },
-        });
-        */
 
-        // Clear sheet before writting
-        await sheets.spreadsheets.values.clear({
-            spreadsheetId: fileId,
-            range: 'A1',
-        });
+        // Clear first sheet before writting
+        // The method "SheetId: 0" only works if the first default sheet tab still exists (it's not deleted by the user)
+        // So instead we select all the cells in the first tab by its name
+        try {
+            const spreadsheet = await sheets.spreadsheets.get({
+                spreadsheetId: fileId,
+            });
+            const firstSheetName = spreadsheet.data.sheets[0].properties.title;
+            Logger.debug(`Clearing sheet name ${firstSheetName}}`);
+            await sheets.spreadsheets.values.clear({
+                spreadsheetId: fileId,
+                range: firstSheetName,
+            });
+        } catch (error) {
+            Logger.error('Unable to clear the sheet', error);
+        }
+
         await sheets.spreadsheets.values.update({
             spreadsheetId: fileId,
             range: 'A1',
