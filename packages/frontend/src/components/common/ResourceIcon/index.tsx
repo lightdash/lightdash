@@ -64,7 +64,7 @@ export const IconBox: FC<IconBoxProps> = ({
     </Paper>
 );
 
-const getChartIcon = (chartType: ChartKind | undefined) => {
+export const getChartIcon = (chartType: ChartKind | undefined) => {
     switch (chartType) {
         case undefined:
         case ChartKind.VERTICAL_BAR:

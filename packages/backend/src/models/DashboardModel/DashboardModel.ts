@@ -474,6 +474,7 @@ export class DashboardModel {
                     first_viewed_at: Date | null;
                     belongs_to_dashboard: boolean;
                     name: string | null;
+                    last_version_chart_kind: string | null;
                 }[]
             >(
                 `${DashboardTilesTableName}.x_offset`,
@@ -484,6 +485,7 @@ export class DashboardModel {
                 `${DashboardTilesTableName}.dashboard_tile_uuid`,
                 `${SavedChartsTableName}.saved_query_uuid`,
                 `${SavedChartsTableName}.name`,
+                `${SavedChartsTableName}.last_version_chart_kind`,
                 this.database.raw(
                     `${SavedChartsTableName}.dashboard_uuid IS NOT NULL AS belongs_to_dashboard`,
                 ),
@@ -573,6 +575,7 @@ export class DashboardModel {
                     content,
                     belongs_to_dashboard,
                     name,
+                    last_version_chart_kind,
                 }) => {
                     const base: Omit<
                         Dashboard['tiles'][number],
@@ -600,6 +603,8 @@ export class DashboardModel {
                                     savedChartUuid: saved_query_uuid,
                                     belongsToDashboard: belongs_to_dashboard,
                                     chartName: name,
+                                    lastVersionChartKind:
+                                        last_version_chart_kind,
                                 },
                             };
                         case DashboardTileTypes.MARKDOWN:
