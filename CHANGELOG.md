@@ -1,3 +1,10 @@
+## [0.739.3](https://github.com/lightdash/lightdash/compare/0.739.2...0.739.3) (2023-08-14)
+
+
+### Bug Fixes
+
+* pivot table dashboard filters ([#6733](https://github.com/lightdash/lightdash/issues/6733)) ([38f254c](https://github.com/lightdash/lightdash/commit/38f254ccc098e54df7a62dc47d7c5ab02a3badbf))
+
 ## [0.739.2](https://github.com/lightdash/lightdash/compare/0.739.1...0.739.2) (2023-08-14)
 
 
