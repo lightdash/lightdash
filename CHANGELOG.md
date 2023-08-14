@@ -1,3 +1,10 @@
+# [0.741.0](https://github.com/lightdash/lightdash/compare/0.740.0...0.741.0) (2023-08-14)
+
+
+### Features
+
+* hide any value input when null/not null ([#6743](https://github.com/lightdash/lightdash/issues/6743)) ([d9affa4](https://github.com/lightdash/lightdash/commit/d9affa480be2e3d22b6e467e9b98a1a59351a273))
+
 # [0.740.0](https://github.com/lightdash/lightdash/compare/0.739.4...0.740.0) (2023-08-14)
 
 
