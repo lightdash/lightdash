@@ -1,3 +1,10 @@
+# [0.740.0](https://github.com/lightdash/lightdash/compare/0.739.4...0.740.0) (2023-08-14)
+
+
+### Features
+
+* add chart icon next to tile target checkbox ([#6739](https://github.com/lightdash/lightdash/issues/6739)) ([24faf62](https://github.com/lightdash/lightdash/commit/24faf62bc54b775be919ff1b6938c47d14d8ec48))
+
 ## [0.739.4](https://github.com/lightdash/lightdash/compare/0.739.3...0.739.4) (2023-08-14)
 
 
