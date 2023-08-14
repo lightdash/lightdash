@@ -41,6 +41,8 @@ type PivotTableProps = TableProps &
         hideRowNumbers: boolean;
         getFieldLabel: (fieldId: string) => string | undefined;
         getField: (fieldId: string) => Field | TableCalculation;
+        isDashboard: boolean;
+        tileUuid?: string;
     };
 
 const PivotTable: FC<PivotTableProps> = ({
@@ -51,6 +53,8 @@ const PivotTable: FC<PivotTableProps> = ({
     getFieldLabel,
     getField,
     className,
+    isDashboard,
+    tileUuid,
     ...tableProps
 }) => {
     const { cx, classes } = usePivotTableStyles();
@@ -411,6 +415,8 @@ const PivotTable: FC<PivotTableProps> = ({
                                         conditionalFormattings={
                                             conditionalFormattings
                                         }
+                                        isDashboard={isDashboard}
+                                        tileUuid={tileUuid}
                                     />
                                 );
                             })}
