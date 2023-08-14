@@ -9,13 +9,22 @@ import {
     matchFieldByTypeAndName,
     matchFieldExact,
 } from '@lightdash/common';
-import { Box, Checkbox, Stack, Text, useMantineTheme } from '@mantine/core';
+import {
+    Box,
+    Checkbox,
+    Flex,
+    Stack,
+    Text,
+    useMantineTheme,
+} from '@mantine/core';
 import { useListState } from '@mantine/hooks';
 import { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { FilterActions } from '.';
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
+import MantineIcon from '../../common/MantineIcon';
+import { getChartIcon } from '../../common/ResourceIcon';
 
 type Props = {
     tiles: DashboardTile[];
@@ -124,6 +133,11 @@ const TileFilterConfiguration: FC<Props> = ({
                 label: tileLabel,
                 checked: Boolean(isFilterAvailable && tileConfig),
                 tileUuid,
+                ...(tile &&
+                    isDashboardChartTileType(tile) && {
+                        tileChartKind:
+                            tile.properties.lastVersionChartKind ?? undefined,
+                    }),
                 sortedFilters,
                 selectedFilter,
             };
@@ -143,7 +157,15 @@ const TileFilterConfiguration: FC<Props> = ({
             <Checkbox
                 size="xs"
                 fw={500}
-                label={value.label}
+                label={
+                    <Flex align="center" gap="xxs">
+                        <MantineIcon
+                            color="blue.8"
+                            icon={getChartIcon(value.tileChartKind)}
+                        />
+                        {value.label}
+                    </Flex>
+                }
                 styles={{
                     label: {
                         paddingLeft: theme.spacing.xs,
