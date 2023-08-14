@@ -47,7 +47,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
         return null;
     }
 
-    const { openUnderlyingDataModal /*, openDrillDownModel */ } =
+    const { openUnderlyingDataModal /*, openDrillDownModal */ } =
         metricQueryData;
     const { track } = tracking;
 
@@ -112,7 +112,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
 
     const handleOpenDrillIntoModal = () => {
         // TODO: implement this
-        // openDrillDownModel({
+        // openDrillDownModal({
         //     item,
         //     fieldValues: underlyingFieldValues,
         // });
