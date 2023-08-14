@@ -50,6 +50,34 @@ export class GoogleDriveClient {
         });
     }
 
+    private static async changeTabTitle(
+        sheets: any,
+        fileId: string,
+        title: string,
+    ) {
+        const spreadsheet = await sheets.spreadsheets.get({
+            spreadsheetId: fileId,
+        });
+        await sheets.spreadsheets.batchUpdate({
+            spreadsheetId: fileId,
+            resource: {
+                requests: [
+                    {
+                        updateSheetProperties: {
+                            properties: {
+                                sheetId:
+                                    spreadsheet.data.sheets[0].properties
+                                        .sheetId,
+                                title,
+                            },
+                            fields: 'title',
+                        },
+                    },
+                ],
+            },
+        });
+    }
+
     async appendToSheet(
         refreshToken: string,
         fileId: string,
@@ -88,5 +116,14 @@ export class GoogleDriveClient {
                 values: sheetRows,
             },
         });
+
+        const updatedTimestamp = new Date()
+            .toLocaleString()
+            .replaceAll(':', '.');
+        await GoogleDriveClient.changeTabTitle(
+            sheets,
+            fileId,
+            updatedTimestamp,
+        );
     }
 }
