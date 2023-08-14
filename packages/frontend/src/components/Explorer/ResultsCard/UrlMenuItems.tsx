@@ -1,5 +1,5 @@
 import { Icon } from '@blueprintjs/core';
-import { MenuItem2, Tooltip2 } from '@blueprintjs/popover2';
+import { MenuItem2 } from '@blueprintjs/popover2';
 import {
     Field,
     FieldUrl,
@@ -13,6 +13,7 @@ import {
     ResultValue,
     TableCalculation,
 } from '@lightdash/common';
+import { Box, Tooltip } from '@mantine/core';
 import { Cell } from '@tanstack/react-table';
 import { FC, useMemo } from 'react';
 import { useTracking } from '../../../providers/TrackingProvider';
@@ -81,9 +82,11 @@ const UrlMenuItem: FC<{
             text={urlConfig.label}
             labelElement={
                 error && (
-                    <Tooltip2 content={error}>
-                        <Icon icon="issue" />
-                    </Tooltip2>
+                    <Tooltip label={error} position="right">
+                        <Box>
+                            <Icon icon="issue" />
+                        </Box>
+                    </Tooltip>
                 )
             }
             disabled={!url}
