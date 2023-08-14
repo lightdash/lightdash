@@ -1,3 +1,10 @@
+## [0.739.1](https://github.com/lightdash/lightdash/compare/0.739.0...0.739.1) (2023-08-14)
+
+
+### Bug Fixes
+
+* stringify additional metrics filters on copy ([#6703](https://github.com/lightdash/lightdash/issues/6703)) ([94dbca7](https://github.com/lightdash/lightdash/commit/94dbca7b1b73a622c871edaf205f0066fe4daa31)), closes [#6536](https://github.com/lightdash/lightdash/issues/6536)
+
 # [0.739.0](https://github.com/lightdash/lightdash/compare/0.738.0...0.739.0) (2023-08-14)
 
 
