@@ -317,12 +317,15 @@ export const getCompiledModelsFromManifest = async ({
         }
 
         try {
-            const { stdout } = await execa('dbt', ['ls', ...args]);
+            const { stdout } = await execa('dbt', [
+                'ls',
+                ...args,
+                '--output=json',
+            ]);
 
-            const filteredModelIds = stdout
-                .split('\n')
-                .filter((line) => line !== '')
-                .map((line) => `model.${line}`);
+            const filteredModelIds = JSON.parse(stdout)
+                .filter((model: any) => model.resource_type === 'model')
+                .map((model: any) => model.unique_id);
 
             allModelIds = allModelIds.filter((modelId) =>
                 filteredModelIds.includes(modelId),
