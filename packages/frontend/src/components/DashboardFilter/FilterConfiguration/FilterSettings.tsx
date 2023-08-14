@@ -7,13 +7,14 @@ import {
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
 } from '@lightdash/common';
-import { Select, Stack, Switch, TextInput, Tooltip } from '@mantine/core';
+import { Select, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
 import { FC, useEffect, useMemo, useState } from 'react';
 import { FilterTypeConfig } from '../../common/Filters/configs';
 import { getPlaceholderByFilterTypeAndOperator } from '../../common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 
 interface FilterSettingsProps {
     isEditMode: boolean;
+    isCreatingNew: boolean;
     field: FilterableField;
     filterRule: DashboardFilterRule;
     popoverProps?: Popover2Props;
@@ -22,6 +23,7 @@ interface FilterSettingsProps {
 
 const FilterSettings: FC<FilterSettingsProps> = ({
     isEditMode,
+    isCreatingNew,
     field,
     filterRule,
     popoverProps,
@@ -69,6 +71,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     <TextInput
                         label="Filter label"
                         mb="sm"
+                        size="xs"
                         onChange={(e) => {
                             setFilterLabel(e.target.value);
                             onChangeFilterRule({
@@ -93,7 +96,11 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     >
                         <div style={{ width: 'max-content' }}>
                             <Switch
-                                label="Default value"
+                                label={
+                                    <Text size="xs" mt="two" fw={500}>
+                                        Default value
+                                    </Text>
+                                }
                                 labelPosition="left"
                                 checked={!filterRule.disabled}
                                 onChange={(e) => {
@@ -116,6 +123,11 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     </Tooltip>
                 )}
 
+                {isCreatingNew && !isEditMode && (
+                    <Text size="xs" fw={500}>
+                        Value
+                    </Text>
+                )}
                 <Select
                     size="xs"
                     data={filterConfig.operatorOptions}
