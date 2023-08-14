@@ -1,3 +1,11 @@
+## [0.739.2](https://github.com/lightdash/lightdash/compare/0.739.1...0.739.2) (2023-08-14)
+
+
+### Bug Fixes
+
+* add a tooltip when apply button is disabled ([#6720](https://github.com/lightdash/lightdash/issues/6720)) ([1b8f469](https://github.com/lightdash/lightdash/commit/1b8f469c099f27080474c1a8046506445e8a2a75))
+* fitler button spacing ([#6724](https://github.com/lightdash/lightdash/issues/6724)) ([aca6e2d](https://github.com/lightdash/lightdash/commit/aca6e2d12649c15f0c4f146d3bd7b2c7f8b1b841))
+
 ## [0.739.1](https://github.com/lightdash/lightdash/compare/0.739.0...0.739.1) (2023-08-14)
 
 
