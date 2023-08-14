@@ -27,7 +27,7 @@ import { useLocation } from 'react-router-dom';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useDeleteValidation } from '../../../hooks/validation/useValidation';
 import MantineIcon from '../../common/MantineIcon';
-import { getChartIcon, IconBox } from '../../common/ResourceIcon';
+import { ChartIcon, IconBox } from '../../common/ResourceIcon';
 import { ErrorMessage } from './ErrorMessage';
 import { useScrollAndHighlight } from './hooks/useScrollAndHighlight';
 
@@ -54,7 +54,7 @@ const isDeleted = (validationError: ValidationResponse) =>
 
 const Icon = ({ validationError }: { validationError: ValidationResponse }) => {
     if (isChartValidationError(validationError))
-        return getChartIcon(validationError.chartType);
+        return <ChartIcon chartType={validationError.chartType} />;
     if (isDashboardValidationError(validationError))
         return <IconBox icon={IconLayoutDashboard} color="green.8" />;
     return <IconBox icon={IconTable} color="indigo.6" />;
