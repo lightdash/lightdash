@@ -1,3 +1,10 @@
+## [0.739.4](https://github.com/lightdash/lightdash/compare/0.739.3...0.739.4) (2023-08-14)
+
+
+### Bug Fixes
+
+* error for broken urls in tables is covered up ([#6736](https://github.com/lightdash/lightdash/issues/6736)) ([331e28f](https://github.com/lightdash/lightdash/commit/331e28f0ee708bab37d014e2407e41951bae282f))
+
 ## [0.739.3](https://github.com/lightdash/lightdash/compare/0.739.2...0.739.3) (2023-08-14)
 
 
