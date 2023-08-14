@@ -50,10 +50,80 @@ export class GoogleDriveClient {
         });
     }
 
+    async createNewTab(refreshToken: string, fileId: string, tabName: string) {
+        if (!this.isEnabled) {
+            throw new Error('Google Drive is not enabled');
+        }
+        const authClient = await GoogleDriveClient.getCredentials(refreshToken);
+
+        const sheets = google.sheets({ version: 'v4', auth: authClient });
+
+        // Creates a new tab in the sheet
+        const tabTitle = tabName.replaceAll(':', '.'); // we can't use ranges with colons in their tab ids
+        await sheets.spreadsheets
+            .batchUpdate({
+                spreadsheetId: fileId,
+                resource: {
+                    requests: [
+                        {
+                            addSheet: {
+                                properties: {
+                                    title: tabTitle,
+                                },
+                            },
+                        },
+                    ],
+                },
+            })
+            .catch((error: any) => {
+                if (
+                    error.code === 400 &&
+                    error.errors[0]?.message.includes('already exists.')
+                ) {
+                    console.debug('tab already exist, we will overwrite it');
+                } else {
+                    throw new Error(error);
+                }
+            });
+
+        return tabTitle;
+    }
+
+    private static async clearTabName(
+        sheets: any,
+        fileId: string,
+        tabName?: string,
+    ) {
+        // The method "SheetId: 0" only works if the first default sheet tab still exists (it's not deleted by the user)
+        // So instead we select all the cells in the first tab by its name
+        try {
+            if (tabName !== undefined) {
+                const spreadsheet = await sheets.spreadsheets.get({
+                    spreadsheetId: fileId,
+                });
+                const firstSheetName =
+                    spreadsheet.data.sheets[0].properties.title;
+                Logger.debug(`Clearing sheet name ${firstSheetName}`);
+                await sheets.spreadsheets.values.clear({
+                    spreadsheetId: fileId,
+                    range: firstSheetName,
+                });
+            } else {
+                await sheets.spreadsheets.values.clear({
+                    spreadsheetId: fileId,
+                    range: tabName,
+                });
+            }
+        } catch (error) {
+            Logger.error('Unable to clear the sheet', error);
+        }
+    }
+
     async appendToSheet(
         refreshToken: string,
         fileId: string,
         csvContent: string,
+        tabName?: string,
     ) {
         if (!this.isEnabled) {
             throw new Error('Google Drive is not enabled');
@@ -64,25 +134,11 @@ export class GoogleDriveClient {
         const sheetRows = csvContent.split('\n').map((row) => row.split(','));
 
         // Clear first sheet before writting
-        // The method "SheetId: 0" only works if the first default sheet tab still exists (it's not deleted by the user)
-        // So instead we select all the cells in the first tab by its name
-        try {
-            const spreadsheet = await sheets.spreadsheets.get({
-                spreadsheetId: fileId,
-            });
-            const firstSheetName = spreadsheet.data.sheets[0].properties.title;
-            Logger.debug(`Clearing sheet name ${firstSheetName}}`);
-            await sheets.spreadsheets.values.clear({
-                spreadsheetId: fileId,
-                range: firstSheetName,
-            });
-        } catch (error) {
-            Logger.error('Unable to clear the sheet', error);
-        }
+        GoogleDriveClient.clearTabName(sheets, fileId, tabName);
 
         await sheets.spreadsheets.values.update({
             spreadsheetId: fileId,
-            range: 'A1',
+            range: tabName ? `${tabName}!A1` : 'A1',
             valueInputOption: 'USER_ENTERED',
             resource: {
                 values: sheetRows,
