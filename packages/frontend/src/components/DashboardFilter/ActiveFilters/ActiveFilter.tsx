@@ -109,6 +109,7 @@ const ActiveFilter: FC<Props> = ({
                         size="xs"
                         variant={isTemporary ? 'outline' : 'default'}
                         bg="white"
+                        mr="xxs"
                         rightIcon={
                             (isEditMode || isTemporary) && (
                                 <ActionIcon
