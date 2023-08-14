@@ -2,6 +2,7 @@ import { Popover2Props } from '@blueprintjs/popover2';
 import {
     DashboardFilterRule,
     FilterableField,
+    FilterOperator,
     FilterRule,
     FilterType,
     getFilterRuleWithDefaultValue,
@@ -31,6 +32,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 }) => {
     const [filterLabel, setFilterLabel] = useState<string>();
     const filterType = field ? getFilterTypeFromItem(field) : FilterType.STRING;
+    const isFilterDisabled = !!filterRule.disabled;
 
     const filterConfig = useMemo(
         () => FilterTypeConfig[filterType],
@@ -38,7 +40,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     );
 
     useEffect(() => {
-        if (!isEditMode && filterRule.disabled) {
+        if (!isEditMode && isFilterDisabled) {
             onChangeFilterRule({
                 ...filterRule,
                 disabled: false,
@@ -46,7 +48,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                 settings: undefined,
             });
         }
-    }, [isEditMode, onChangeFilterRule, filterRule]);
+    }, [isEditMode, isFilterDisabled, onChangeFilterRule, filterRule]);
 
     // Set default label when using revert (undo) button
     useEffect(() => {
@@ -63,6 +65,16 @@ const FilterSettings: FC<FilterSettingsProps> = ({
             }),
         );
     };
+
+    const showAnyValueDisabledInput = useMemo(
+        () =>
+            isFilterDisabled &&
+            ![FilterOperator.NULL, FilterOperator.NOT_NULL].includes(
+                filterRule.operator,
+            ),
+
+        [filterRule.operator, isFilterDisabled],
+    );
 
     return (
         <Stack>
@@ -88,7 +100,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         withinPortal
                         position="right"
                         label={
-                            filterRule.disabled
+                            isFilterDisabled
                                 ? 'Toggle on to set a default filter value'
                                 : 'Toggle off to leave the filter value empty, allowing users to populate it in view mode'
                         }
@@ -102,7 +114,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                     </Text>
                                 }
                                 labelPosition="left"
-                                checked={!filterRule.disabled}
+                                checked={!isFilterDisabled}
                                 onChange={(e) => {
                                     const newFilter: DashboardFilterRule = {
                                         ...filterRule,
@@ -134,7 +146,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     onChange={handleChangeFilterOperator}
                     value={filterRule.operator}
                 />
-                {filterRule.disabled ? (
+                {showAnyValueDisabledInput && (
                     <TextInput
                         disabled
                         size="xs"
@@ -144,7 +156,8 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                             disabled: true,
                         })}
                     />
-                ) : (
+                )}
+                {!isFilterDisabled && (
                     <filterConfig.inputs
                         popoverProps={popoverProps}
                         filterType={filterType}
