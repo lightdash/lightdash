@@ -292,44 +292,50 @@ export const getModelsFromManifest = (
         .map((model) => normaliseModelDatabase(model, adapterType));
 };
 
-type GetCompiledModelsFromManifestArgs = {
-    manifest: DbtManifest;
-    select: string[] | undefined;
-    exclude: string[] | undefined;
-};
-export const getCompiledModelsFromManifest = async ({
-    manifest,
-    select,
-    exclude,
-}: GetCompiledModelsFromManifestArgs): Promise<CompiledModel[]> => {
-    const models = getModelsFromManifest(manifest);
+export const getCompiledModels = async (
+    models: DbtModelNode[],
+    args: {
+        select: string[] | undefined;
+        exclude: string[] | undefined;
+    },
+): Promise<CompiledModel[]> => {
     let allModelIds = models.map((model) => model.unique_id);
 
-    if (select !== undefined || exclude !== undefined) {
-        const args: string[] = [];
+    if (args.select !== undefined || args.exclude !== undefined) {
+        const cliArgs: string[] = [];
 
-        if (select && select.length > 0) {
-            args.push('--select', select.join(' '));
+        if (args.select && args.select.length > 0) {
+            cliArgs.push('--select', args.select.join(' '));
         }
 
-        if (exclude && exclude.length > 0) {
-            args.push('--exclude', exclude.join(' '));
+        if (args.exclude && args.exclude.length > 0) {
+            cliArgs.push('--exclude', args.exclude.join(' '));
         }
 
-        const spinner = GlobalState.startSpinner(`Selecting models`);
+        const spinner = GlobalState.startSpinner(`Filtering models`);
         try {
             const { stdout } = await execa('dbt', [
                 'ls',
-                ...args,
+                ...cliArgs,
                 '--resource-type=model',
                 '--output=json',
             ]);
 
             const filteredModelIds = stdout
                 .split('\n')
-                .map((line) => line.trim())
-                .filter((line) => line.length > 0)
-                .map((line) => JSON.parse(line))
+                .map((l) => l.trim())
+                .filter((l) => l.length > 0)
+                .map((l) => {
+                    try {
+                        return JSON.parse(l);
+                    } catch (e) {
+                        return null;
+                    }
+                })
+                .filter(
+                    (l): l is { resource_type: string; unique_id: string } =>
+                        l !== null,
+                )
                 .filter((model: any) => model.resource_type === 'model')
                 .map((model: any) => model.unique_id);
 

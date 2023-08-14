@@ -9,7 +9,8 @@ import { getDbtContext } from '../dbt/context';
 import { loadManifest } from '../dbt/manifest';
 import {
     findAndUpdateModelYaml,
-    getCompiledModelsFromManifest,
+    getCompiledModels,
+    getModelsFromManifest,
     getWarehouseTableForModel,
 } from '../dbt/models';
 import {
@@ -83,11 +84,9 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
     const credentials = await warehouseCredentialsFromDbtTarget(target);
     const warehouseClient = warehouseClientFromCredentials(credentials);
     const manifest = await loadManifest({ targetDir: context.targetDir });
-    const compiledModels = await getCompiledModelsFromManifest({
-        manifest,
-        select,
-        exclude,
-    });
+    const models = getModelsFromManifest(manifest);
+
+    const compiledModels = await getCompiledModels(models, { select, exclude });
 
     GlobalState.debug(`> Compiled models: ${compiledModels.length}`);
 
