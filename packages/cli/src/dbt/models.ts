@@ -316,14 +316,20 @@ export const getCompiledModelsFromManifest = async ({
             args.push('--exclude', exclude.join(' '));
         }
 
+        const spinner = GlobalState.startSpinner(`Selecting models`);
         try {
             const { stdout } = await execa('dbt', [
                 'ls',
                 ...args,
+                '--resource-type=model',
                 '--output=json',
             ]);
 
-            const filteredModelIds = JSON.parse(stdout)
+            const filteredModelIds = stdout
+                .split('\n')
+                .map((line) => line.trim())
+                .filter((line) => line.length > 0)
+                .map((line) => JSON.parse(line))
                 .filter((model: any) => model.resource_type === 'model')
                 .map((model: any) => model.unique_id);
 
@@ -332,6 +338,8 @@ export const getCompiledModelsFromManifest = async ({
             );
         } catch (e) {
             console.error(styles.error(`Failed to filter models: ${e}`));
+        } finally {
+            spinner.stop();
         }
     }
 
