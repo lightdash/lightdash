@@ -27,7 +27,7 @@ const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
     const clipboard = useClipboard({ timeout: 200 });
     const { showToastSuccess } = useToaster();
     const { resultsData, bigNumberConfig } = useVisualizationContext();
-    const { openUnderlyingDataModal, openDrillDownModel, tableName } =
+    const { openUnderlyingDataModal, openDrillDownModal, tableName } =
         useMetricQueryDataContext();
     const { data: explore } = useExplore(tableName);
 
@@ -94,7 +94,7 @@ const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
     const handleOpenDrillIntoModal = useCallback(() => {
         if (!item) return;
 
-        openDrillDownModel({ item, fieldValues, dashboardFilters });
+        openDrillDownModal({ item, fieldValues, dashboardFilters });
         track({
             name: EventName.DRILL_BY_CLICKED,
             properties: {
@@ -107,7 +107,7 @@ const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
         item,
         fieldValues,
         dashboardFilters,
-        openDrillDownModel,
+        openDrillDownModal,
         projectUuid,
         track,
         user?.data?.organizationUuid,

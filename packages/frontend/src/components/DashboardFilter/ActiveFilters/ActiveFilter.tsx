@@ -1,8 +1,12 @@
-import { DashboardFilterRule, FilterableField } from '@lightdash/common';
+import {
+    applyDefaultTileTargets,
+    DashboardFilterRule,
+    FilterableField,
+} from '@lightdash/common';
 import { ActionIcon, Button, Popover, Text, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
-import { FC, useCallback } from 'react';
+import { FC, useCallback, useState } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import {
     getConditionalRuleLabel,
@@ -39,15 +43,27 @@ const ActiveFilter: FC<Props> = ({
         (item) => item.id === filterRule.id,
     );
 
+    const defaultFilterRule = filterableFieldsByTileUuid
+        ? applyDefaultTileTargets(filterRule, field, filterableFieldsByTileUuid)
+        : undefined;
+
     const [isPopoverOpen, { close: closePopover, toggle: togglePopover }] =
         useDisclosure();
     const [isSubPopoverOpen, { close: closeSubPopover, open: openSubPopover }] =
         useDisclosure();
 
+    const [draftFilterRule, setDraftFilterRule] = useState<
+        DashboardFilterRule | undefined
+    >(defaultFilterRule);
+
+    const handleSetDraftFilterRule = (newRule?: DashboardFilterRule) =>
+        setDraftFilterRule(newRule);
+
     const handleClose = useCallback(() => {
         closeSubPopover();
         closePopover();
-    }, [closeSubPopover, closePopover]);
+        setDraftFilterRule(defaultFilterRule);
+    }, [closeSubPopover, closePopover, defaultFilterRule, setDraftFilterRule]);
 
     if (!filterableFieldsByTileUuid || !allFilterableFields) {
         return null;
@@ -68,9 +84,14 @@ const ActiveFilter: FC<Props> = ({
             opened={isPopoverOpen}
             closeOnEscape={!isSubPopoverOpen}
             closeOnClickOutside={!isSubPopoverOpen}
-            onClose={handleClose}
+            onClose={() => {
+                handleClose();
+            }}
             offset={-1}
             keepMounted
+            transitionProps={{
+                duration: 0,
+            }}
         >
             <Popover.Target>
                 <Tooltip
@@ -88,6 +109,7 @@ const ActiveFilter: FC<Props> = ({
                         size="xs"
                         variant={isTemporary ? 'outline' : 'default'}
                         bg="white"
+                        mr="xxs"
                         rightIcon={
                             (isEditMode || isTemporary) && (
                                 <ActionIcon
@@ -139,10 +161,12 @@ const ActiveFilter: FC<Props> = ({
                     field={field}
                     availableTileFilters={filterableFieldsByTileUuid}
                     originalFilterRule={originalFilterRule}
-                    filterRule={filterRule}
+                    draftFilterRule={draftFilterRule}
+                    onChangeDraftFilterRule={handleSetDraftFilterRule}
                     onSave={(dashboardFilterRule) => {
+                        closeSubPopover();
+                        closePopover();
                         onUpdate(dashboardFilterRule);
-                        handleClose();
                     }}
                     // FIXME: remove this once we migrate off of Blueprint
                     popoverProps={{

@@ -1,12 +1,13 @@
-import { Button, Classes, Divider, Intent, Menu } from '@blueprintjs/core';
-import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import { Classes, Divider, Menu } from '@blueprintjs/core';
+import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { Dashboard, SpaceSummary, UpdatedByUser } from '@lightdash/common';
-import { Box, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Button, Tooltip } from '@mantine/core';
 import {
     IconCheck,
     IconCopy,
     IconDots,
     IconFolders,
+    IconInfoCircle,
     IconPencil,
     IconPlus,
     IconSend,
@@ -23,6 +24,7 @@ import AddTileButton from '../../DashboardTiles/AddTileButton';
 import DashboardSchedulersModal from '../../SchedulerModals/DashboardSchedulersModal';
 import { getSchedulerUuidFromUrlParams } from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
 import ShareLinkButton from '../../ShareLinkButton';
+import MantineIcon from '../MantineIcon';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import PageHeader from '../Page/PageHeader';
 import {
@@ -118,21 +120,19 @@ const DashboardHeader = ({
                     <PageTitle>{dashboardName}</PageTitle>
 
                     {dashboardDescription && (
-                        <Tooltip2
-                            content={dashboardDescription}
-                            position="bottom"
-                        >
-                            <Button icon="info-sign" minimal />
-                        </Tooltip2>
+                        <Tooltip label={dashboardDescription} position="bottom">
+                            <MantineIcon icon={IconInfoCircle} />
+                        </Tooltip>
                     )}
 
                     {isEditMode && userCanManageDashboard && (
-                        <Button
-                            icon={<IconPencil size={16} />}
+                        <ActionIcon
+                            color="dark"
                             disabled={isSaving}
                             onClick={handleEditClick}
-                            minimal
-                        />
+                        >
+                            <MantineIcon icon={IconPencil} />
+                        </ActionIcon>
                     )}
 
                     {isUpdating && (
@@ -176,6 +176,7 @@ const DashboardHeader = ({
                 <PageActionsContainer>
                     <AddTileButton onAddTiles={onAddTiles} />
                     <Tooltip
+                        fs="x"
                         withinPortal
                         position="bottom"
                         label="No changes to save"
@@ -183,30 +184,36 @@ const DashboardHeader = ({
                     >
                         <Box>
                             <Button
-                                text="Save"
+                                size="xs"
                                 disabled={!hasDashboardChanged || isSaving}
-                                intent={Intent.PRIMARY}
                                 onClick={onSaveDashboard}
-                            />
+                            >
+                                Save
+                            </Button>
                         </Box>
                     </Tooltip>
                     <Button
-                        text="Cancel"
+                        variant="default"
+                        size="xs"
                         disabled={isSaving}
                         onClick={onCancel}
-                    />
+                    >
+                        Cancel
+                    </Button>
                 </PageActionsContainer>
             ) : userCanManageDashboard ? (
                 <PageActionsContainer>
                     <Button
-                        icon={<IconPencil size={16} />}
-                        text="Edit dashboard"
+                        size="xs"
+                        leftIcon={<MantineIcon icon={IconPencil} />}
                         onClick={() => {
                             history.replace(
                                 `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
                             );
                         }}
-                    />
+                    >
+                        Edit dashboard
+                    </Button>
 
                     <ShareLinkButton url={`${window.location.href}`} />
 
@@ -294,10 +301,9 @@ const DashboardHeader = ({
                             </Menu>
                         }
                     >
-                        <Button
-                            style={{ padding: '5px 7px' }}
-                            icon={<IconDots size={16} />}
-                        />
+                        <ActionIcon variant="default">
+                            <MantineIcon icon={IconDots} />
+                        </ActionIcon>
                     </Popover2>
 
                     {isCreatingNewSpace && (

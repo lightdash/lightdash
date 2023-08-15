@@ -1,14 +1,8 @@
-import {
-    Button,
-    Intent,
-    Menu,
-    MenuDivider,
-    PopoverPosition,
-} from '@blueprintjs/core';
+import { Menu, MenuDivider, PopoverPosition } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { Dashboard, DashboardTileTypes } from '@lightdash/common';
-import { Group, Text, Tooltip } from '@mantine/core';
-import { IconInfoCircle } from '@tabler/icons-react';
+import { Button, Group, Text, Tooltip } from '@mantine/core';
+import { IconInfoCircle, IconPlus } from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useDashboardContext } from '../../providers/DashboardProvider';
@@ -18,11 +12,10 @@ import { TileAddModal } from './TileForms/TileAddModal';
 
 type Props = {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
-    intent?: Intent;
     popoverPosition?: PopoverPosition;
 };
 
-const AddTileButton: FC<Props> = ({ onAddTiles, intent, popoverPosition }) => {
+const AddTileButton: FC<Props> = ({ onAddTiles, popoverPosition }) => {
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
@@ -131,10 +124,12 @@ const AddTileButton: FC<Props> = ({ onAddTiles, intent, popoverPosition }) => {
                 lazy
             >
                 <Button
-                    icon="plus"
-                    text="Add tile"
-                    intent={intent ? intent : 'none'}
-                />
+                    size="xs"
+                    variant="default"
+                    leftIcon={<MantineIcon icon={IconPlus} />}
+                >
+                    Add tile
+                </Button>
             </Popover2>
 
             {isAddChartTilesModalOpen && (
