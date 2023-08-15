@@ -28,7 +28,7 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
     pivotReference,
     trackingData,
 }) => {
-    const { explore, metricQuery, openDrillDownModel } =
+    const { explore, metricQuery, openDrillDownModal } =
         useMetricQueryDataContext();
     const { track } = useTracking();
 
@@ -51,7 +51,7 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
                 text={`Drill into "${value}"`}
                 icon="path"
                 onClick={() => {
-                    openDrillDownModel({
+                    openDrillDownModal({
                         item,
                         fieldValues,
                         dashboardFilters,

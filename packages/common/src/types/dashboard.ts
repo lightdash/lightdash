@@ -1,6 +1,6 @@
 import { FilterableField } from './field';
 import { DashboardFilters } from './filter';
-import { SavedChartType } from './savedCharts';
+import { ChartKind, SavedChartType } from './savedCharts';
 import { UpdatedByUser } from './user';
 import { ValidationSummary } from './validation';
 
@@ -46,6 +46,7 @@ export type DashboardChartTileProperties = {
         savedChartUuid: string | null;
         belongsToDashboard?: boolean; // this should be required and not part of the "create" types, but we need to fix tech debt first. Open ticket https://github.com/lightdash/lightdash/issues/6450
         chartName?: string | null;
+        lastVersionChartKind?: ChartKind | null;
     };
 };
 

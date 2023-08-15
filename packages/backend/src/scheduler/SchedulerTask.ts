@@ -830,9 +830,7 @@ export const sendGsheetsNotification = async (
                 scheduler.createdBy,
             );
             const googleUploadPromises = csvUrls.map(async (cu) => {
-                const csvContent = await fsPromise.readFile(cu.localPath, {
-                    encoding: 'utf-8',
-                });
+                const csvContent = await csv().fromFile(cu.localPath);
 
                 const tabName = await googleDriveClient.createNewTab(
                     refreshToken,

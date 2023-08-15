@@ -44,7 +44,7 @@ type MetricQueryDataContext = {
 
     drillDownConfig: DrillDownConfig | undefined;
     isDrillDownModalOpen: boolean;
-    openDrillDownModel: (config: DrillDownConfig) => void;
+    openDrillDownModal: (config: DrillDownConfig) => void;
     closeDrillDownModal: () => void;
 };
 
@@ -117,7 +117,7 @@ const MetricQueryDataProvider: FC<Props> = ({
         useState<boolean>(false);
     const { data: explore } = useExplore(tableName);
 
-    const openDrillDownModel = useCallback(
+    const openDrillDownModal = useCallback(
         (config: DrillDownConfig) => {
             setDrillDownConfig(config);
             setIsDrillDownModalOpen(true);
@@ -150,7 +150,7 @@ const MetricQueryDataProvider: FC<Props> = ({
                 closeUnderlyingDataModal,
                 isDrillDownModalOpen,
                 drillDownConfig,
-                openDrillDownModel,
+                openDrillDownModal,
                 closeDrillDownModal,
                 explore,
             }}

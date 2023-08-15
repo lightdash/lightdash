@@ -1051,6 +1051,7 @@ export class ProjectModel {
             const copyChartVersionContent = async (
                 table: string,
                 excludedFields: string[],
+                fieldPreprocess: { [field: string]: (value: any) => any } = {},
             ) => {
                 const content = await trx(table)
                     .whereIn('saved_queries_version_id', chartVersionIds)
@@ -1071,6 +1072,11 @@ export class ProjectModel {
                             };
                             excludedFields.forEach((fieldId) => {
                                 delete createContent[fieldId];
+                            });
+                            Object.keys(fieldPreprocess).forEach((fieldId) => {
+                                createContent[fieldId] = fieldPreprocess[
+                                    fieldId
+                                ](createContent[fieldId]);
                             });
                             return createContent;
                         }),
@@ -1093,6 +1099,7 @@ export class ProjectModel {
             await copyChartVersionContent(
                 'saved_queries_version_additional_metrics',
                 ['saved_queries_version_additional_metric_id', 'uuid'],
+                { filters: (value: any) => JSON.stringify(value) },
             );
 
             const dashboards = await trx('dashboards')

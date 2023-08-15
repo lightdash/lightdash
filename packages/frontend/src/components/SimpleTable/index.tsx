@@ -81,6 +81,8 @@ const SimpleTable: FC<SimpleTableProps> = ({
                             getFieldLabel={getFieldLabel}
                             getField={getField}
                             hideRowNumbers={hideRowNumbers}
+                            isDashboard={isDashboard}
+                            tileUuid={tileUuid}
                         />
                     ) : (
                         <LoadingChart />

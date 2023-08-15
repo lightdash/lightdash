@@ -42,9 +42,16 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
         addDimensionDashboardFilter,
     } = useDashboardContext();
 
+    const [draftFilterRule, setDraftFilterRule] = useState<
+        DashboardFilterRule | undefined
+    >();
+
+    const handleSetDraftFilterRule = (newRule?: DashboardFilterRule) =>
+        setDraftFilterRule(newRule);
+
     const handleClose = useCallback(() => {
         setSelectedField(undefined);
-
+        setDraftFilterRule(undefined);
         closeSubPopover();
         closePopover();
     }, [closeSubPopover, closePopover]);
@@ -136,6 +143,10 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                                 tiles={dashboardTiles}
                                 availableTileFilters={
                                     filterableFieldsByTileUuid
+                                }
+                                draftFilterRule={draftFilterRule}
+                                onChangeDraftFilterRule={
+                                    handleSetDraftFilterRule
                                 }
                                 onSave={handleSave}
                                 // FIXME: remove this once we migrate off of Blueprint
