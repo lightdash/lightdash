@@ -1,3 +1,10 @@
+# [0.744.0](https://github.com/lightdash/lightdash/compare/0.743.0...0.744.0) (2023-08-15)
+
+
+### Features
+
+* update tab name with update timestamp ([#6740](https://github.com/lightdash/lightdash/issues/6740)) ([68e0b60](https://github.com/lightdash/lightdash/commit/68e0b6081af0519d98f973c640cd35c55acf816d)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
 # [0.743.0](https://github.com/lightdash/lightdash/compare/0.742.0...0.743.0) (2023-08-15)
 
 
