@@ -26,6 +26,7 @@ import {
     SlackNotificationPayload,
     ValidateProjectPayload,
 } from '@lightdash/common';
+import csv from 'csvtojson';
 import * as fsPromise from 'fs/promises';
 import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
@@ -819,10 +820,8 @@ export const sendGdriveNotification = async (
                 throw new Error('Missing CSV URL');
             }
 
-            const csvContent = await fsPromise.readFile(csvUrl.localPath, {
-                encoding: 'utf-8',
-            });
-
+            const csvContent = await csv().fromFile(csvUrl.localPath);
+            // TODO use csv().fromStream to do stream reading/writting on gsheets
             const refreshToken = await userService.getRefreshToken(
                 scheduler.createdBy,
             );
