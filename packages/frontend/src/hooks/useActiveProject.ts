@@ -6,6 +6,7 @@ import {
     useQueryClient,
 } from 'react-query';
 import { useParams } from 'react-router-dom';
+import { UseQueryFetchOptions } from '../types/UseQuery';
 import { useDefaultProject, useProjects } from './useProjects';
 
 const LAST_PROJECT_KEY = 'lastProject';
@@ -58,13 +59,17 @@ export const useDeleteActiveProjectMutation = () => {
     });
 };
 
-export const useActiveProjectUuid = () => {
+export const useActiveProjectUuid = (
+    useQueryFetchOptions?: UseQueryFetchOptions,
+) => {
     const params = useParams<{ projectUuid?: string }>();
-    const { data: projects, isLoading: isLoadingProjects } = useProjects();
+    const { data: projects, isLoading: isLoadingProjects } =
+        useProjects(useQueryFetchOptions);
     const { data: defaultProject, isLoading: isLoadingDefaultProject } =
-        useDefaultProject();
+        useDefaultProject(useQueryFetchOptions);
     const { data: lastProjectUuid, isLoading: isLoadingLastProject } =
         useActiveProject();
+        // Fetch options set internally
     const { mutate } = useUpdateActiveProjectMutation();
 
     const isLoading =

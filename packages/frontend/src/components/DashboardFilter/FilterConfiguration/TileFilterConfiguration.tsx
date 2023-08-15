@@ -50,7 +50,9 @@ const TileFilterConfiguration: FC<Props> = ({
     const theme = useMantineTheme();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const { data: savedCharts } = useChartSummaries(projectUuid);
+    const { data: savedCharts } = useChartSummaries(projectUuid, {
+        refetchOnMount: false,
+    });
 
     const sortTilesByFieldMatch = useCallback(
         (

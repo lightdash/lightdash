@@ -87,7 +87,6 @@ const ActiveFilter: FC<Props> = ({
                 handleClose();
             }}
             offset={-1}
-            keepMounted
         >
             <Popover.Target>
                 <Button
