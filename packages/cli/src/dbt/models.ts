@@ -345,6 +345,7 @@ export const getCompiledModels = async (
             );
         } catch (e) {
             console.error(styles.error(`Failed to filter models: ${e}`));
+            throw e;
         } finally {
             spinner.stop();
         }
