@@ -69,6 +69,7 @@ export const useActiveProjectUuid = (
         useDefaultProject(useQueryFetchOptions);
     const { data: lastProjectUuid, isLoading: isLoadingLastProject } =
         useActiveProject();
+        // Fetch options set internally
     const { mutate } = useUpdateActiveProjectMutation();
 
     const isLoading =
