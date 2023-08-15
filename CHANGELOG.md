@@ -1,3 +1,10 @@
+# [0.743.0](https://github.com/lightdash/lightdash/compare/0.742.0...0.743.0) (2023-08-15)
+
+
+### Features
+
+* google drive dashboards ([#6738](https://github.com/lightdash/lightdash/issues/6738)) ([724fd85](https://github.com/lightdash/lightdash/commit/724fd85bd5d75a555aeb0f3cd0d179db6d0cb316)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
 # [0.742.0](https://github.com/lightdash/lightdash/compare/0.741.0...0.742.0) (2023-08-15)
 
 
