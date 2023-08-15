@@ -1,3 +1,10 @@
+# [0.742.0](https://github.com/lightdash/lightdash/compare/0.741.0...0.742.0) (2023-08-15)
+
+
+### Features
+
+* export google drive ([#6696](https://github.com/lightdash/lightdash/issues/6696)) ([43d9dc3](https://github.com/lightdash/lightdash/commit/43d9dc33c85f7d19eb41a16864cfeab0cc73d2f3)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
 # [0.741.0](https://github.com/lightdash/lightdash/compare/0.740.0...0.741.0) (2023-08-14)
 
 
