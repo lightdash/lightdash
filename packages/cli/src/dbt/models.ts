@@ -297,26 +297,27 @@ export const getCompiledModels = async (
     args: {
         select: string[] | undefined;
         exclude: string[] | undefined;
+        projectDir: string;
+        profilesDir: string;
+        target: string | undefined;
+        profile: string | undefined;
     },
 ): Promise<CompiledModel[]> => {
     let allModelIds = models.map((model) => model.unique_id);
 
-    if (args.select !== undefined || args.exclude !== undefined) {
-        const cliArgs: string[] = [];
-
-        if (args.select && args.select.length > 0) {
-            cliArgs.push('--select', args.select.join(' '));
-        }
-
-        if (args.exclude && args.exclude.length > 0) {
-            cliArgs.push('--exclude', args.exclude.join(' '));
-        }
-
+    if (args.select || args.exclude) {
         const spinner = GlobalState.startSpinner(`Filtering models`);
         try {
             const { stdout } = await execa('dbt', [
                 'ls',
-                ...cliArgs,
+                '--profiles-dir',
+                args.profilesDir,
+                '--project-dir',
+                args.projectDir,
+                ...(args.target ? ['--target', args.target] : []),
+                ...(args.profile ? ['--profile', args.profile] : []),
+                ...(args.select ? ['--select', args.select.join(' ')] : []),
+                ...(args.exclude ? ['--exclude', args.exclude.join(' ')] : []),
                 '--resource-type=model',
                 '--output=json',
             ]);

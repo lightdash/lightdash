@@ -35,10 +35,11 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
 
-    const select = options.select || options.models;
-    const exclude = options.exclude || [];
-
-    if (select === undefined && !options.assumeYes) {
+    if (
+        options.select === undefined &&
+        options.exclude === undefined &&
+        !options.assumeYes
+    ) {
         const answers = await inquirer.prompt([
             {
                 type: 'confirm',
@@ -52,7 +53,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
         }
     }
 
-    const numModelsSelected = select ? select.length : undefined;
+    const numModelsSelected = (options.select || options.models)?.length;
     await LightdashAnalytics.track({
         event: 'generate.started',
         properties: {
@@ -86,7 +87,14 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
     const manifest = await loadManifest({ targetDir: context.targetDir });
     const models = getModelsFromManifest(manifest);
 
-    const compiledModels = await getCompiledModels(models, { select, exclude });
+    const compiledModels = await getCompiledModels(models, {
+        projectDir: absoluteProjectPath,
+        profilesDir: absoluteProfilesPath,
+        profile: profileName,
+        target: options.target,
+        select: options.select,
+        exclude: options.exclude,
+    });
 
     GlobalState.debug(`> Compiled models: ${compiledModels.length}`);
 
