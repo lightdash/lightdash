@@ -1,3 +1,10 @@
+## [0.744.1](https://github.com/lightdash/lightdash/compare/0.744.0...0.744.1) (2023-08-15)
+
+
+### Bug Fixes
+
+* filter close icon color ([#6750](https://github.com/lightdash/lightdash/issues/6750)) ([163b12e](https://github.com/lightdash/lightdash/commit/163b12e61093fb0e13d2a0ddd37abcd9fa820930))
+
 # [0.744.0](https://github.com/lightdash/lightdash/compare/0.743.0...0.744.0) (2023-08-15)
 
 
