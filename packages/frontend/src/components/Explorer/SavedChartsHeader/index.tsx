@@ -62,6 +62,7 @@ const SavedChartsHeader: FC = () => {
         projectUuid: string;
     }>();
     const dashboardUuid = useSearchParams('fromDashboard');
+    const isFromDashboard = !!dashboardUuid;
     const spaceUuid = useSearchParams('fromSpace');
 
     const history = useHistory();
@@ -166,6 +167,31 @@ const SavedChartsHeader: FC = () => {
             projectUuid,
         }),
     );
+
+    const handleGoBackClick = () => {
+        if (hasUnsavedChanges && isEditMode) {
+            history.block((prompt) => {
+                setBlockedNavigationLocation(prompt.pathname);
+                setIsSaveWarningModalOpen(true);
+                return false; //blocks history
+            });
+        }
+
+        history.push({
+            pathname: `/projects/${savedChart?.projectUuid}/dashboards/${dashboardUuid}`,
+        });
+        sessionStorage.removeItem('fromDashboard');
+        sessionStorage.removeItem('dashboardUuid');
+    };
+
+    const handleCancelClick = () => {
+        reset();
+
+        if (!isFromDashboard)
+            history.push({
+                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`,
+            });
+    };
 
     return (
         <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
@@ -289,26 +315,19 @@ const SavedChartsHeader: FC = () => {
                             <>
                                 <SaveChartButton />
                                 <Button
-                                    onClick={() => {
-                                        reset();
-                                        if (dashboardUuid) {
-                                            history.push({
-                                                pathname: `/projects/${savedChart?.projectUuid}/dashboards/${dashboardUuid}`,
-                                            });
-                                            sessionStorage.removeItem(
-                                                'fromDashboard',
-                                            );
-                                            sessionStorage.removeItem(
-                                                'dashboardUuid',
-                                            );
-                                        } else
-                                            history.push({
-                                                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`,
-                                            });
-                                    }}
+                                    disabled={
+                                        isFromDashboard && !hasUnsavedChanges
+                                    }
+                                    onClick={handleCancelClick}
                                 >
-                                    Cancel
+                                    Cancel {isFromDashboard ? 'changes' : ''}
                                 </Button>
+
+                                {isFromDashboard && (
+                                    <Button onClick={handleGoBackClick}>
+                                        Go back
+                                    </Button>
+                                )}
                             </>
                         )}
 
