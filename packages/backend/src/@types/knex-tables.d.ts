@@ -136,8 +136,6 @@ import {
 import {
     SchedulerEmailTargetTable,
     SchedulerEmailTargetTableName,
-    SchedulerGdriveTargetTable,
-    SchedulerGdriveTargetTableName,
     SchedulerLogTable,
     SchedulerLogTableName,
     SchedulerSlackTargetTable,
@@ -208,7 +206,6 @@ declare module 'knex/types/tables' {
         [SchedulerTableName]: SchedulerTable;
         [SchedulerSlackTargetTableName]: SchedulerSlackTargetTable;
         [SchedulerEmailTargetTableName]: SchedulerEmailTargetTable;
-        [SchedulerGdriveTargetTableName]: SchedulerGdriveTargetTable;
         [EmailOneTimePasscodesTableName]: EmailOneTimePasscodeTable;
         [SchedulerLogTableName]: SchedulerLogTable;
         [OrganizationAllowedEmailDomainsTableName]: OrganizationAllowedEmailDomainsTable;

@@ -10,6 +10,7 @@ import {
     ScheduledJobs,
     Scheduler,
     SchedulerAndTargets,
+    SchedulerFormat,
     SessionUser,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
@@ -135,7 +136,10 @@ export class SchedulerService {
                 resourceId: isChartScheduler(scheduler)
                     ? scheduler.savedChartUuid
                     : scheduler.dashboardUuid,
-                targets: scheduler.targets.map(getSchedulerTargetType),
+                targets:
+                    scheduler.format === SchedulerFormat.GSHEETS
+                        ? []
+                        : scheduler.targets.map(getSchedulerTargetType),
             },
         });
         await slackClient.joinChannels(

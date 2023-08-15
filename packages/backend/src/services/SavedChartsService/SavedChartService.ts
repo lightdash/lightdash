@@ -11,11 +11,10 @@ import {
     isChartScheduler,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
-    isGdriveTarget,
-    isSlackTarget,
     isUserWithOrg,
     SavedChart,
     SchedulerAndTargets,
+    SchedulerFormat,
     SessionUser,
     UpdatedByUser,
     UpdateMultipleSavedChart,
@@ -654,7 +653,10 @@ export class SavedChartService {
                 resourceId: isChartScheduler(scheduler)
                     ? scheduler.savedChartUuid
                     : scheduler.dashboardUuid,
-                targets: scheduler.targets.map(getSchedulerTargetType),
+                targets:
+                    scheduler.format === SchedulerFormat.GSHEETS
+                        ? []
+                        : scheduler.targets.map(getSchedulerTargetType),
             },
         });
 

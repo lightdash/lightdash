@@ -4,14 +4,14 @@ import {
     CreateSchedulerLog,
     DownloadCsvPayload,
     EmailNotificationPayload,
-    GdriveNotificationPayload,
     getHumanReadableCronExpression,
     getRequestMethod,
+    GsheetsNotificationPayload,
     isChartValidationError,
     isDashboardValidationError,
     isEmailTarget,
-    isGdriveTarget,
     isSchedulerCsvOptions,
+    isSchedulerGsheetsOptions,
     isSlackTarget,
     LightdashPage,
     NotificationPayloadBase,
@@ -19,14 +19,13 @@ import {
     Scheduler,
     SchedulerEmailTarget,
     SchedulerFormat,
-    SchedulerGdriveTarget,
     SchedulerJobStatus,
     SchedulerLog,
     SchedulerSlackTarget,
     SlackNotificationPayload,
     ValidateProjectPayload,
 } from '@lightdash/common';
-import * as fsPromise from 'fs/promises';
+import csv from 'csvtojson';
 import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
 import {
@@ -134,6 +133,7 @@ export const getNotificationPageData = async (
                 throw new Error('Unable to unfurl image');
             }
             break;
+        case SchedulerFormat.GSHEETS:
         case SchedulerFormat.CSV:
             const user = await userService.getSessionByUserUuid(userUuid);
             const csvOptions = isSchedulerCsvOptions(options)
@@ -758,12 +758,11 @@ export const sendEmailNotification = async (
     }
 };
 
-export const sendGdriveNotification = async (
+export const sendGsheetsNotification = async (
     jobId: string,
-    notification: GdriveNotificationPayload,
+    notification: GsheetsNotificationPayload,
 ) => {
-    const { schedulerUuid, schedulerGdriveTargetUuid, scheduledTime } =
-        notification;
+    const { schedulerUuid, scheduledTime } = notification;
 
     analytics.track({
         event: 'scheduler_notification_job.started',
@@ -771,8 +770,8 @@ export const sendGdriveNotification = async (
         properties: {
             jobId,
             schedulerId: schedulerUuid,
-            schedulerTargetId: schedulerGdriveTargetUuid,
-            type: 'gdrive',
+            schedulerTargetId: undefined,
+            type: 'gsheets',
         },
     });
 
@@ -781,48 +780,39 @@ export const sendGdriveNotification = async (
             await schedulerService.schedulerModel.getSchedulerAndTargets(
                 schedulerUuid,
             );
-        const { format, savedChartUuid, dashboardUuid, name, targets } =
-            scheduler;
+        const { format, savedChartUuid, dashboardUuid } = scheduler;
 
-        const target = targets
-            .filter(isGdriveTarget)
-            .find(
-                (t) =>
-                    t.schedulerGdriveTargetUuid === schedulerGdriveTargetUuid,
-            );
-
-        if (!target) {
-            throw new Error('Gdrive destination not found');
+        const gdriveId = isSchedulerGsheetsOptions(scheduler.options)
+            ? scheduler.options.gdriveId
+            : undefined;
+        if (gdriveId === undefined) {
+            throw new Error('Missing gdriveId');
         }
-        const { gdriveId } = target;
+
         schedulerService.logSchedulerJob({
-            task: 'sendGdriveNotification',
+            task: 'sendGsheetsNotification',
             schedulerUuid,
             jobId,
             jobGroup: notification.jobGroup,
             scheduledTime,
             target: gdriveId,
-            targetType: 'gdrive',
+            targetType: 'gsheets',
             status: SchedulerJobStatus.STARTED,
         });
 
-        // Backwards compatibility for old scheduled deliveries
-        const { url, details, pageType, imageUrl, csvUrl, csvUrls } =
-            notification.page ??
-            (await getNotificationPageData(scheduler, jobId));
-        const schedulerUrl = `${url}?scheduler_uuid=${schedulerUuid}`;
+        const { url, pageType, csvUrl, csvUrls } = notification.page;
 
-        if (format === SchedulerFormat.IMAGE) {
-            throw new Error('Not implemented');
+        if (format !== SchedulerFormat.GSHEETS) {
+            throw new Error(
+                `Unable to process format ${format} on sendGdriveNotification`,
+            );
         } else if (savedChartUuid) {
             if (csvUrl === undefined) {
                 throw new Error('Missing CSV URL');
             }
 
-            const csvContent = await fsPromise.readFile(csvUrl.localPath, {
-                encoding: 'utf-8',
-            });
-
+            const csvContent = await csv().fromFile(csvUrl.localPath);
+            // TODO use csv().fromStream to do stream reading/writting on gsheets
             const refreshToken = await userService.getRefreshToken(
                 scheduler.createdBy,
             );
@@ -868,22 +858,21 @@ export const sendGdriveNotification = async (
             properties: {
                 jobId,
                 schedulerId: schedulerUuid,
-                schedulerTargetId: schedulerGdriveTargetUuid,
-                type: 'gdrive',
+                schedulerTargetId: undefined,
+                type: 'gsheets',
                 format,
                 resourceType:
                     pageType === LightdashPage.CHART ? 'chart' : 'dashboard',
             },
         });
         schedulerService.logSchedulerJob({
-            task: 'sendGdriveNotification',
+            task: 'sendGsheetsNotification',
             schedulerUuid,
             jobId,
             jobGroup: notification.jobGroup,
-
             scheduledTime,
             target: gdriveId,
-            targetType: 'gdrive',
+            targetType: 'gsheets',
             status: SchedulerJobStatus.COMPLETED,
         });
     } catch (e) {
@@ -894,17 +883,17 @@ export const sendGdriveNotification = async (
                 error: `${e}`,
                 jobId,
                 schedulerId: schedulerUuid,
-                schedulerTargetId: schedulerGdriveTargetUuid,
-                type: 'gdrive',
+                schedulerTargetId: undefined,
+                type: 'gsheets',
             },
         });
         schedulerService.logSchedulerJob({
-            task: 'sendGdriveNotification',
+            task: 'sendGsheetsNotification',
             schedulerUuid,
             jobId,
             jobGroup: notification.jobGroup,
             scheduledTime,
-            targetType: 'gdrive',
+            targetType: 'gsheets',
             status: SchedulerJobStatus.ERROR,
             details: { error: e.message },
         });
@@ -914,12 +903,30 @@ export const sendGdriveNotification = async (
 };
 
 const logScheduledTarget = async (
-    target: SchedulerSlackTarget | SchedulerEmailTarget | SchedulerGdriveTarget,
+    format: SchedulerFormat,
+    target: SchedulerSlackTarget | SchedulerEmailTarget | undefined,
     targetJobId: string,
     schedulerUuid: string,
     jobId: string,
     scheduledTime: Date,
 ) => {
+    if (format === SchedulerFormat.GSHEETS) {
+        await schedulerService.logSchedulerJob({
+            task: 'sendGsheetsNotification',
+            target: undefined,
+            targetType: 'gsheets',
+            jobId: targetJobId,
+            schedulerUuid,
+            jobGroup: jobId,
+            scheduledTime,
+            status: SchedulerJobStatus.SCHEDULED,
+        });
+        return;
+    }
+    if (target === undefined) {
+        Logger.error(`Missing target for scheduler format ${format}`);
+        return;
+    }
     const getTargetDetails = (): Pick<
         CreateSchedulerLog,
         'task' | 'target' | 'targetType'
@@ -929,13 +936,6 @@ const logScheduledTarget = async (
                 task: 'sendSlackNotification',
                 target: target.channel,
                 targetType: 'slack',
-            };
-        }
-        if (isGdriveTarget(target)) {
-            return {
-                task: 'sendGdriveNotification',
-                target: target.gdriveId,
-                targetType: 'gdrive',
             };
         }
         return {
@@ -996,6 +996,7 @@ export const handleScheduledDelivery = async (
         // Create scheduled jobs for targets
         scheduledJobs.map(async ({ target, jobId: targetJobId }) => {
             logScheduledTarget(
+                scheduler.format,
                 target,
                 targetJobId,
                 schedulerUuid,

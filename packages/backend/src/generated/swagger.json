@@ -2539,7 +2539,7 @@
                 "type": "object"
             },
             "SchedulerFormat": {
-                "enum": ["csv", "image"],
+                "enum": ["csv", "image", "gsheets"],
                 "type": "string"
             },
             "SchedulerCsvOptions": {
@@ -2567,6 +2567,29 @@
                 "properties": {},
                 "type": "object"
             },
+            "SchedulerGsheetsOptions": {
+                "properties": {
+                    "url": {
+                        "type": "string"
+                    },
+                    "gdriveOrganizationName": {
+                        "type": "string"
+                    },
+                    "gdriveName": {
+                        "type": "string"
+                    },
+                    "gdriveId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "url",
+                    "gdriveOrganizationName",
+                    "gdriveName",
+                    "gdriveId"
+                ],
+                "type": "object"
+            },
             "SchedulerOptions": {
                 "anyOf": [
                     {
@@ -2574,6 +2597,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/SchedulerImageOptions"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SchedulerGsheetsOptions"
                     }
                 ]
             },
@@ -2738,47 +2764,6 @@
                 ],
                 "type": "object"
             },
-            "SchedulerGdriveTarget": {
-                "properties": {
-                    "url": {
-                        "type": "string"
-                    },
-                    "gdriveOrganizationName": {
-                        "type": "string"
-                    },
-                    "gdriveName": {
-                        "type": "string"
-                    },
-                    "gdriveId": {
-                        "type": "string"
-                    },
-                    "schedulerUuid": {
-                        "type": "string"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "schedulerGdriveTargetUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "url",
-                    "gdriveOrganizationName",
-                    "gdriveName",
-                    "gdriveId",
-                    "schedulerUuid",
-                    "updatedAt",
-                    "createdAt",
-                    "schedulerGdriveTargetUuid"
-                ],
-                "type": "object"
-            },
             "SchedulerAndTargets": {
                 "allOf": [
                     {
@@ -2794,9 +2779,6 @@
                                         },
                                         {
                                             "$ref": "#/components/schemas/SchedulerEmailTarget"
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/SchedulerGdriveTarget"
                                         }
                                     ]
                                 },
@@ -2824,7 +2806,7 @@
                     },
                     "targetType": {
                         "type": "string",
-                        "enum": ["email", "slack", "gdrive"]
+                        "enum": ["email", "slack"]
                     },
                     "target": {
                         "type": "string"
@@ -2855,7 +2837,6 @@
                             "handleScheduledDelivery",
                             "sendEmailNotification",
                             "sendSlackNotification",
-                            "sendGdriveNotification",
                             "downloadCsv",
                             "compileProject",
                             "testAndCompileProject",
@@ -3956,7 +3937,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.732.1",
+        "version": "0.737.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

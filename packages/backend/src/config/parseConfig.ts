@@ -308,7 +308,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 loginPath: '/login/google',
                 callbackPath: '/oauth/redirect/google',
                 googleDriveApiKey: process.env.GOOGLE_DRIVE_API_KEY,
-                enabled: process.env.AUTH_GOOGLE_ENABLED !== 'false',
+                enabled: process.env.AUTH_GOOGLE_ENABLED === 'true',
             },
             okta: {
                 oauth2Issuer: process.env.AUTH_OKTA_OAUTH_ISSUER,

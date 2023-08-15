@@ -2221,7 +2221,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SchedulerFormat: {
         dataType: 'refEnum',
-        enums: ['csv', 'image'],
+        enums: ['csv', 'image', 'gsheets'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SchedulerCsvOptions: {
@@ -2253,6 +2253,20 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SchedulerGsheetsOptions: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                url: { dataType: 'string', required: true },
+                gdriveOrganizationName: { dataType: 'string', required: true },
+                gdriveName: { dataType: 'string', required: true },
+                gdriveId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SchedulerOptions: {
         dataType: 'refAlias',
         type: {
@@ -2260,6 +2274,7 @@ const models: TsoaRoute.Models = {
             subSchemas: [
                 { ref: 'SchedulerCsvOptions' },
                 { ref: 'SchedulerImageOptions' },
+                { ref: 'SchedulerGsheetsOptions' },
             ],
             validators: {},
         },
@@ -2391,27 +2406,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SchedulerGdriveTarget: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                url: { dataType: 'string', required: true },
-                gdriveOrganizationName: { dataType: 'string', required: true },
-                gdriveName: { dataType: 'string', required: true },
-                gdriveId: { dataType: 'string', required: true },
-                schedulerUuid: { dataType: 'string', required: true },
-                updatedAt: { dataType: 'datetime', required: true },
-                createdAt: { dataType: 'datetime', required: true },
-                schedulerGdriveTargetUuid: {
-                    dataType: 'string',
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SchedulerAndTargets: {
         dataType: 'refAlias',
         type: {
@@ -2428,7 +2422,6 @@ const models: TsoaRoute.Models = {
                                 subSchemas: [
                                     { ref: 'SchedulerSlackTarget' },
                                     { ref: 'SchedulerEmailTarget' },
-                                    { ref: 'SchedulerGdriveTarget' },
                                 ],
                             },
                             required: true,
@@ -2465,7 +2458,6 @@ const models: TsoaRoute.Models = {
                     subSchemas: [
                         { dataType: 'enum', enums: ['email'] },
                         { dataType: 'enum', enums: ['slack'] },
-                        { dataType: 'enum', enums: ['gdrive'] },
                     ],
                 },
                 target: { dataType: 'string' },
@@ -2484,7 +2476,6 @@ const models: TsoaRoute.Models = {
                         },
                         { dataType: 'enum', enums: ['sendEmailNotification'] },
                         { dataType: 'enum', enums: ['sendSlackNotification'] },
-                        { dataType: 'enum', enums: ['sendGdriveNotification'] },
                         { dataType: 'enum', enums: ['downloadCsv'] },
                         { dataType: 'enum', enums: ['compileProject'] },
                         { dataType: 'enum', enums: ['testAndCompileProject'] },
