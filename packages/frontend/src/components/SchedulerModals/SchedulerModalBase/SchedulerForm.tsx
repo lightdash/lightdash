@@ -379,9 +379,9 @@ const SchedulerForm: FC<{
                     )}
                     <Title>4. Add destination(s)</Title>
 
-                    {(showDestinationLabel ||
-                        (format === SchedulerFormat.GSHEETS &&
-                            !googleDriveId)) && (
+                    {(format === SchedulerFormat.GSHEETS
+                        ? !googleDriveId
+                        : showDestinationLabel) && (
                         <InlinedLabel>No destination(s) selected</InlinedLabel>
                     )}
 
