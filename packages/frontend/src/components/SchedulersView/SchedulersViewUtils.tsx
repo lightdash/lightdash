@@ -49,6 +49,14 @@ export const getSchedulerIcon = (item: SchedulerItem, theme: MantineTheme) => {
                     style={{ color: theme.colors.indigo[6] }}
                 />
             );
+        case SchedulerFormat.GSHEETS:
+            return (
+                <IconBox
+                    icon={IconCsv} // TODO use gsheets
+                    color="indigo.6"
+                    style={{ color: theme.colors.indigo[6] }}
+                />
+            );
         default:
             return assertUnreachable(
                 item.format,

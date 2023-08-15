@@ -81,7 +81,7 @@ export class GoogleDriveClient {
     async appendToSheet(
         refreshToken: string,
         fileId: string,
-        csvContent: string,
+        csvContent: Record<string, string>[],
     ) {
         if (!this.isEnabled) {
             throw new Error('Google Drive is not enabled');
@@ -89,7 +89,6 @@ export class GoogleDriveClient {
         const authClient = await GoogleDriveClient.getCredentials(refreshToken);
 
         const sheets = google.sheets({ version: 'v4', auth: authClient });
-        const sheetRows = csvContent.split('\n').map((row) => row.split(','));
 
         // Clear first sheet before writting
         // The method "SheetId: 0" only works if the first default sheet tab still exists (it's not deleted by the user)
@@ -99,7 +98,7 @@ export class GoogleDriveClient {
                 spreadsheetId: fileId,
             });
             const firstSheetName = spreadsheet.data.sheets[0].properties.title;
-            Logger.debug(`Clearing sheet name ${firstSheetName}}`);
+            Logger.debug(`Clearing sheet name ${firstSheetName}`);
             await sheets.spreadsheets.values.clear({
                 spreadsheetId: fileId,
                 range: firstSheetName,
@@ -108,12 +107,19 @@ export class GoogleDriveClient {
             Logger.error('Unable to clear the sheet', error);
         }
 
+        if (csvContent.length === 0) {
+            Logger.info('No data to write to the sheet');
+            return;
+        }
+        const header = Object.keys(csvContent[0]);
+        const values = csvContent.map((row) => Object.values(row));
+
         await sheets.spreadsheets.values.update({
             spreadsheetId: fileId,
             range: 'A1',
             valueInputOption: 'USER_ENTERED',
             resource: {
-                values: sheetRows,
+                values: [header, ...values],
             },
         });
 

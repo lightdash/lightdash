@@ -2,7 +2,6 @@ import {
     CompileProjectPayload,
     DownloadCsvPayload,
     EmailNotificationPayload,
-    isGdriveTarget,
     isSlackTarget,
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
@@ -10,7 +9,7 @@ import {
     Scheduler,
     SchedulerAndTargets,
     SchedulerEmailTarget,
-    SchedulerGdriveTarget,
+    SchedulerFormat,
     SchedulerJobStatus,
     SchedulerSlackTarget,
     SlackNotificationPayload,
@@ -142,21 +141,31 @@ export class SchedulerClient {
         date: Date,
         jobGroup: string,
         scheduler: Scheduler,
-        target:
-            | SchedulerSlackTarget
-            | SchedulerEmailTarget
-            | SchedulerGdriveTarget,
+        target: SchedulerSlackTarget | SchedulerEmailTarget | undefined,
         page: NotificationPayloadBase['page'],
     ) {
         const graphileClient = await this.graphileUtils;
 
         const getIdentifierAndPayload = (): {
             identifier: string;
-            targetUuid: string;
-            type: 'slack' | 'email' | 'gdrive';
+            targetUuid?: string;
+            type: 'slack' | 'email' | 'gsheets';
             payload: any;
         } => {
-            if (isSlackTarget(target)) {
+            if (scheduler.format === SchedulerFormat.GSHEETS) {
+                return {
+                    identifier: 'sendGsheetsNotification',
+                    targetUuid: undefined,
+                    type: 'gsheets',
+                    payload: {
+                        schedulerUuid: scheduler.schedulerUuid,
+                        jobGroup,
+                        scheduledTime: date,
+                        page,
+                    },
+                };
+            }
+            if (target && isSlackTarget(target)) {
                 return {
                     identifier: 'sendSlackNotification',
                     targetUuid: target.schedulerSlackTargetUuid,
@@ -171,31 +180,17 @@ export class SchedulerClient {
                     },
                 };
             }
-            if (isGdriveTarget(target)) {
-                return {
-                    identifier: 'sendGdriveNotification',
-                    targetUuid: target.schedulerGdriveTargetUuid,
-                    type: 'gdrive',
-                    payload: {
-                        schedulerUuid: scheduler.schedulerUuid,
-                        jobGroup,
-                        scheduledTime: date,
-                        page,
-                        schedulerGdriveTargetUuid:
-                            target.schedulerGdriveTargetUuid,
-                    },
-                };
-            }
+
             return {
                 identifier: 'sendEmailNotification',
-                targetUuid: target.schedulerEmailTargetUuid,
+                targetUuid: target?.schedulerEmailTargetUuid,
                 type: 'email',
                 payload: {
                     schedulerUuid: scheduler.schedulerUuid,
                     scheduledTime: date,
                     jobGroup,
                     page,
-                    schedulerEmailTargetUuid: target.schedulerEmailTargetUuid,
+                    schedulerEmailTargetUuid: target?.schedulerEmailTargetUuid,
                 },
             };
         };
@@ -259,6 +254,19 @@ export class SchedulerClient {
         parentJobId: string,
     ) {
         try {
+            if (scheduler.format === SchedulerFormat.GSHEETS) {
+                Logger.info(
+                    `Creating gsheet notification jobs for scheduler ${scheduler.schedulerUuid}`,
+                );
+                const job = await this.addNotificationJob(
+                    scheduledTime,
+                    parentJobId,
+                    scheduler,
+                    undefined,
+                    page,
+                );
+                return [job];
+            }
             const promises = scheduler.targets.map((target) =>
                 this.addNotificationJob(
                     scheduledTime,
@@ -268,7 +276,6 @@ export class SchedulerClient {
                     page,
                 ),
             );
-
             Logger.info(
                 `Creating ${promises.length} notification jobs for scheduler ${scheduler.schedulerUuid}`,
             );

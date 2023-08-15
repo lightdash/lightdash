@@ -8,7 +8,16 @@ export type SchedulerCsvOptions = {
 
 export type SchedulerImageOptions = {};
 
-export type SchedulerOptions = SchedulerCsvOptions | SchedulerImageOptions;
+export type SchedulerGsheetsOptions = {
+    gdriveId: string;
+    gdriveName: string;
+    gdriveOrganizationName: string;
+    url: string;
+};
+export type SchedulerOptions =
+    | SchedulerCsvOptions
+    | SchedulerImageOptions
+    | SchedulerGsheetsOptions;
 
 export enum SchedulerJobStatus {
     SCHEDULED = 'scheduled',
@@ -20,6 +29,7 @@ export enum SchedulerJobStatus {
 export enum SchedulerFormat {
     CSV = 'csv',
     IMAGE = 'image',
+    GSHEETS = 'gsheets',
 }
 
 export type SchedulerLog = {
@@ -27,7 +37,7 @@ export type SchedulerLog = {
         | 'handleScheduledDelivery'
         | 'sendEmailNotification'
         | 'sendSlackNotification'
-        | 'sendGdriveNotification'
+        | 'sendGsheetsNotification'
         | 'downloadCsv'
         | 'compileProject'
         | 'testAndCompileProject'
@@ -39,7 +49,7 @@ export type SchedulerLog = {
     createdAt: Date;
     status: SchedulerJobStatus;
     target?: string;
-    targetType?: 'email' | 'slack' | 'gdrive';
+    targetType?: 'email' | 'slack' | 'gsheets';
     details?: Record<string, any>;
 };
 
@@ -70,11 +80,7 @@ export type DashboardScheduler = SchedulerBase & {
 export type Scheduler = ChartScheduler | DashboardScheduler;
 
 export type SchedulerAndTargets = Scheduler & {
-    targets: (
-        | SchedulerSlackTarget
-        | SchedulerEmailTarget
-        | SchedulerGdriveTarget
-    )[];
+    targets: (SchedulerSlackTarget | SchedulerEmailTarget)[];
 };
 
 export type SchedulerSlackTarget = {
@@ -93,25 +99,9 @@ export type SchedulerEmailTarget = {
     recipient: string;
 };
 
-export type SchedulerGdriveTarget = {
-    schedulerGdriveTargetUuid: string;
-    createdAt: Date;
-    updatedAt: Date;
-    schedulerUuid: string;
-    gdriveId: string;
-    gdriveName: string;
-    gdriveOrganizationName: string;
-    url: string;
-};
-
 export type CreateSchedulerTarget =
     | Pick<SchedulerSlackTarget, 'channel'>
-    | Pick<SchedulerEmailTarget, 'recipient'>
-    | Pick<
-          SchedulerGdriveTarget,
-          'gdriveId' | 'gdriveName' | 'gdriveOrganizationName' | 'url'
-      >;
-
+    | Pick<SchedulerEmailTarget, 'recipient'>;
 export type UpdateSchedulerSlackTarget = Pick<
     SchedulerSlackTarget,
     'schedulerSlackTargetUuid' | 'channel'
@@ -120,15 +110,6 @@ export type UpdateSchedulerSlackTarget = Pick<
 export type UpdateSchedulerEmailTarget = Pick<
     SchedulerEmailTarget,
     'schedulerEmailTargetUuid' | 'recipient'
->;
-
-export type UpdateSchedulerGdriveTarget = Pick<
-    SchedulerGdriveTarget,
-    | 'schedulerGdriveTargetUuid'
-    | 'gdriveId'
-    | 'gdriveName'
-    | 'gdriveOrganizationName'
-    | 'url'
 >;
 
 export type CreateSchedulerAndTargets = Omit<
@@ -169,43 +150,36 @@ export const isUpdateSchedulerEmailTarget = (
 ): data is UpdateSchedulerEmailTarget =>
     'schedulerEmailTargetUuid' in data && !!data.schedulerEmailTargetUuid;
 
-export const isUpdateSchedulerGdriveTarget = (
-    data: CreateSchedulerTarget | UpdateSchedulerEmailTarget,
-): data is UpdateSchedulerGdriveTarget =>
-    'schedulerEmailTargetUuid' in data && !!data.schedulerEmailTargetUuid;
-
 export const isChartScheduler = (data: Scheduler): data is ChartScheduler =>
     'savedChartUuid' in data && !!data.savedChartUuid;
 
 export const isSlackTarget = (
-    target: SchedulerSlackTarget | SchedulerEmailTarget | SchedulerGdriveTarget,
+    target: SchedulerSlackTarget | SchedulerEmailTarget,
 ): target is SchedulerSlackTarget => 'channel' in target;
 
 export const isEmailTarget = (
-    target: SchedulerSlackTarget | SchedulerEmailTarget | SchedulerGdriveTarget,
-): target is SchedulerEmailTarget => 'recipient' in target;
-
-export const isGdriveTarget = (
-    target: SchedulerSlackTarget | SchedulerEmailTarget | SchedulerGdriveTarget,
-): target is SchedulerGdriveTarget => 'gdriveId' in target;
+    target: SchedulerSlackTarget | SchedulerEmailTarget,
+): target is SchedulerEmailTarget => !isSlackTarget(target);
 
 export const isCreateSchedulerSlackTarget = (
     target:
         | Pick<SchedulerSlackTarget, 'channel'>
-        | Pick<SchedulerEmailTarget, 'recipient'>
-        | Pick<SchedulerGdriveTarget, 'gdriveId'>,
+        | Pick<SchedulerEmailTarget, 'recipient'>,
 ): target is Pick<SchedulerSlackTarget, 'channel'> => 'channel' in target;
 
-export const isCreateSchedulerGdriveTarget = (
-    target:
-        | Pick<SchedulerSlackTarget, 'channel'>
-        | Pick<SchedulerEmailTarget, 'recipient'>
-        | Pick<SchedulerGdriveTarget, 'gdriveId'>,
-): target is Pick<SchedulerGdriveTarget, 'gdriveId'> => 'gdriveId' in target;
-
 export const isSchedulerCsvOptions = (
-    options: SchedulerCsvOptions | SchedulerImageOptions,
+    options:
+        | SchedulerCsvOptions
+        | SchedulerImageOptions
+        | SchedulerGsheetsOptions,
 ): options is SchedulerCsvOptions => options && 'limit' in options;
+
+export const isSchedulerGsheetsOptions = (
+    options:
+        | SchedulerCsvOptions
+        | SchedulerImageOptions
+        | SchedulerGsheetsOptions,
+): options is SchedulerGsheetsOptions => options && 'gdriveId' in options;
 
 export type ApiSchedulerAndTargetsResponse = {
     status: 'ok';
@@ -278,8 +252,8 @@ export type EmailNotificationPayload = NotificationPayloadBase & {
     schedulerEmailTargetUuid: string;
 };
 
-export type GdriveNotificationPayload = NotificationPayloadBase & {
-    schedulerGdriveTargetUuid: string;
+export type GsheetsNotificationPayload = NotificationPayloadBase & {
+    schedulerUuid: string;
 };
 
 export type DownloadCsvPayload = {

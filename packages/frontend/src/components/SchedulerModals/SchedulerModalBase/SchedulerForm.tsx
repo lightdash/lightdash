@@ -277,6 +277,10 @@ const SchedulerForm: FC<{
         isImageDisabled ? SchedulerFormat.CSV : SchedulerFormat.IMAGE,
     );
 
+    const googleDriveId = methods.watch('options.gdriveId');
+    const googleDriveName = methods.watch('options.gdriveName');
+    const hasGoogleDriveId =
+        format === SchedulerFormat.GSHEETS && googleDriveId;
     const [showDestinationLabel, setShowDestinationLabel] =
         useState<boolean>(true);
 
@@ -312,6 +316,7 @@ const SchedulerForm: FC<{
                         <InlinedLabel>Format</InlinedLabel>
 
                         <StyledSelect
+                            value={format}
                             {...methods.register('format', {
                                 value: format,
 
@@ -335,6 +340,10 @@ const SchedulerForm: FC<{
                                     disabled: isImageDisabled,
                                 },
                                 { value: SchedulerFormat.CSV, label: 'CSV' },
+                                {
+                                    value: SchedulerFormat.GSHEETS,
+                                    label: 'Google sheets',
+                                },
                             ]}
                         />
                         {isImageDisabled && (
@@ -370,8 +379,27 @@ const SchedulerForm: FC<{
                     )}
                     <Title>4. Add destination(s)</Title>
 
-                    {showDestinationLabel && (
+                    {(format === SchedulerFormat.GSHEETS
+                        ? !googleDriveId
+                        : showDestinationLabel) && (
                         <InlinedLabel>No destination(s) selected</InlinedLabel>
+                    )}
+
+                    {hasGoogleDriveId && (
+                        <TargetRow key={'gsheets-file'}>
+                            <GsheetsIcon />
+                            <GsheetsName>{googleDriveName}</GsheetsName>
+
+                            <Button
+                                minimal={true}
+                                icon={'cross'}
+                                onClick={() => {
+                                    methods.setValue('options.gdriveId', '');
+                                    setShowDestinationLabel(true);
+                                }}
+                                disabled={disabled}
+                            />
+                        </TargetRow>
                     )}
                     <InlinedInputs>
                         <ArrayInput
@@ -487,30 +515,6 @@ const SchedulerForm: FC<{
                                             />
                                         </TargetRow>
                                     );
-                                } else if ('gdriveId' in target) {
-                                    //TODO replace with isGdrive
-                                    return (
-                                        <TargetRow key={key}>
-                                            <GsheetsIcon />
-                                            <GsheetsName>
-                                                {methods.getValues(
-                                                    `targets.${index}.gdriveName`,
-                                                )}
-                                            </GsheetsName>
-
-                                            <Button
-                                                minimal={true}
-                                                icon={'cross'}
-                                                onClick={() => {
-                                                    remove(index);
-                                                    setShowDestinationLabel(
-                                                        true,
-                                                    );
-                                                }}
-                                                disabled={disabled}
-                                            />
-                                        </TargetRow>
-                                    );
                                 } else {
                                     // Email
                                     return (
@@ -542,143 +546,175 @@ const SchedulerForm: FC<{
                                     );
                                 }
                             }}
-                            renderAppendRowButton={(append) => (
-                                <>
-                                    <Tooltip2
-                                        interactionKind="hover"
-                                        content={
-                                            <>
-                                                {SlackErrorContent({
-                                                    slackState,
-                                                })}
-                                            </>
-                                        }
-                                        position="bottom"
-                                        disabled={
-                                            slackState === SlackStates.SUCCESS
-                                        }
-                                    >
-                                        <Button
-                                            minimal
-                                            className={
-                                                isAddSlackDisabled
-                                                    ? Classes.DISABLED
-                                                    : undefined
+                            renderAppendRowButton={(append) => {
+                                if (format === SchedulerFormat.GSHEETS) {
+                                    if (hasGoogleDriveId) return <></>;
+                                    return (
+                                        <Tooltip2
+                                            interactionKind="hover"
+                                            content={
+                                                <>
+                                                    <p>
+                                                        No Google integration
+                                                        found
+                                                    </p>
+                                                    <p>
+                                                        To create a google
+                                                        sheets delivery, you
+                                                        need to add
+                                                        <Anchor href="https://docs.lightdash.com/self-host/customize-deployment/use-sso-login-for-self-hosted-lightdash#google">
+                                                            {' '}
+                                                            Google SSO{' '}
+                                                        </Anchor>
+                                                        and authenticate with
+                                                        your Google account
+                                                    </p>
+                                                </>
                                             }
-                                            onClick={
-                                                isAddSlackDisabled
-                                                    ? undefined
-                                                    : () =>
-                                                          append({
-                                                              channel: '',
-                                                          })
-                                            }
-                                            icon={'plus'}
-                                            text="Add slack"
-                                        />
-                                    </Tooltip2>
-                                    <Tooltip2
-                                        interactionKind="hover"
-                                        content={
-                                            <>
-                                                <p>
-                                                    No Email integration found
-                                                </p>
-                                                <p>
-                                                    To create an email scheduled
-                                                    delivery, you need to add
-                                                    <Anchor href="https://docs.lightdash.com/references/environmentVariables">
-                                                        {' '}
-                                                        SMTP environment
-                                                        variables{' '}
-                                                    </Anchor>
-                                                    for your Lightdash instance
-                                                </p>
-                                            </>
-                                        }
-                                        position="bottom"
-                                        disabled={health.data?.hasEmailClient}
-                                    >
-                                        <Button
-                                            minimal
-                                            onClick={
-                                                isAddEmailDisabled
-                                                    ? undefined
-                                                    : () =>
-                                                          append({
-                                                              recipients: '',
-                                                          })
-                                            }
-                                            icon={'plus'}
-                                            text="Add email"
-                                            className={
-                                                isAddEmailDisabled
-                                                    ? Classes.DISABLED
-                                                    : undefined
-                                            }
-                                        />
-                                    </Tooltip2>
-                                    <Tooltip2
-                                        interactionKind="hover"
-                                        content={
-                                            <>
-                                                <p>
-                                                    No Google integration found
-                                                </p>
-                                                <p>
-                                                    To create a google sheets
-                                                    delivery, you need to add
-                                                    <Anchor href="https://docs.lightdash.com/self-host/customize-deployment/use-sso-login-for-self-hosted-lightdash#google">
-                                                        {' '}
-                                                        Google SSO{' '}
-                                                    </Anchor>
-                                                    and authenticate with your
-                                                    Google account
-                                                </p>
-                                            </>
-                                        }
-                                        position="bottom"
-                                        disabled={hasGoogleDrive}
-                                    >
-                                        <Button
-                                            minimal
-                                            onClick={() => {
-                                                handleOpenPicker(
-                                                    (data: any) => {
-                                                        if (
-                                                            data.action ===
-                                                                'cancel' ||
-                                                            data.docs ===
-                                                                undefined ||
-                                                            data.docs.length ===
-                                                                0
-                                                        ) {
-                                                            return;
-                                                        }
-                                                        const doc =
-                                                            data.docs[0];
-                                                        append({
-                                                            gdriveId: doc.id,
-                                                            gdriveName:
+                                            position="bottom"
+                                            disabled={hasGoogleDrive}
+                                        >
+                                            <Button
+                                                minimal
+                                                onClick={() => {
+                                                    handleOpenPicker(
+                                                        (data: any) => {
+                                                            if (
+                                                                data.action ===
+                                                                    'cancel' ||
+                                                                data.docs ===
+                                                                    undefined ||
+                                                                data.docs
+                                                                    .length ===
+                                                                    0
+                                                            ) {
+                                                                return;
+                                                            }
+                                                            const doc =
+                                                                data.docs[0];
+
+                                                            methods.setValue(
+                                                                'options.gdriveId',
+                                                                doc.id,
+                                                            );
+                                                            methods.setValue(
+                                                                'options.gdriveName',
                                                                 doc.name,
-                                                            url: doc.url,
-                                                            gdriveOrganizationName:
+                                                            );
+                                                            methods.setValue(
+                                                                'options.url',
+                                                                doc.url,
+                                                            );
+                                                            methods.setValue(
+                                                                'options.gdriveOrganizationName',
                                                                 doc.organizationDisplayName,
-                                                        });
-                                                    },
-                                                );
-                                            }}
-                                            icon={'plus'}
-                                            text="Add Google sheets"
-                                            className={
-                                                !hasGoogleDrive
-                                                    ? Classes.DISABLED
-                                                    : undefined
-                                            }
-                                        />
-                                    </Tooltip2>
-                                </>
-                            )}
+                                                            );
+
+                                                            setShowDestinationLabel(
+                                                                false,
+                                                            );
+                                                        },
+                                                    );
+                                                }}
+                                                icon={'plus'}
+                                                text="Add Google sheets"
+                                                className={
+                                                    !hasGoogleDrive
+                                                        ? Classes.DISABLED
+                                                        : undefined
+                                                }
+                                            />
+                                        </Tooltip2>
+                                    );
+                                } else {
+                                    return (
+                                        <>
+                                            <Tooltip2
+                                                interactionKind="hover"
+                                                content={
+                                                    <>
+                                                        {SlackErrorContent({
+                                                            slackState,
+                                                        })}
+                                                    </>
+                                                }
+                                                position="bottom"
+                                                disabled={
+                                                    slackState ===
+                                                    SlackStates.SUCCESS
+                                                }
+                                            >
+                                                <Button
+                                                    minimal
+                                                    className={
+                                                        isAddSlackDisabled
+                                                            ? Classes.DISABLED
+                                                            : undefined
+                                                    }
+                                                    onClick={
+                                                        isAddSlackDisabled
+                                                            ? undefined
+                                                            : () =>
+                                                                  append({
+                                                                      channel:
+                                                                          '',
+                                                                  })
+                                                    }
+                                                    icon={'plus'}
+                                                    text="Add slack"
+                                                />
+                                            </Tooltip2>
+                                            <Tooltip2
+                                                interactionKind="hover"
+                                                content={
+                                                    <>
+                                                        <p>
+                                                            No Email integration
+                                                            found
+                                                        </p>
+                                                        <p>
+                                                            To create an email
+                                                            scheduled delivery,
+                                                            you need to add
+                                                            <Anchor href="https://docs.lightdash.com/references/environmentVariables">
+                                                                {' '}
+                                                                SMTP environment
+                                                                variables{' '}
+                                                            </Anchor>
+                                                            for your Lightdash
+                                                            instance
+                                                        </p>
+                                                    </>
+                                                }
+                                                position="bottom"
+                                                disabled={
+                                                    health.data?.hasEmailClient
+                                                }
+                                            >
+                                                <Button
+                                                    minimal
+                                                    onClick={
+                                                        isAddEmailDisabled
+                                                            ? undefined
+                                                            : () =>
+                                                                  append({
+                                                                      recipients:
+                                                                          '',
+                                                                  })
+                                                    }
+                                                    icon={'plus'}
+                                                    text="Add email"
+                                                    className={
+                                                        isAddEmailDisabled
+                                                            ? Classes.DISABLED
+                                                            : undefined
+                                                    }
+                                                />
+                                            </Tooltip2>{' '}
+                                        </>
+                                    );
+                                }
+                            }}
                         />
                     </InlinedInputs>
                 </InputGroupWrapper>
