@@ -1,6 +1,5 @@
 import {
     getHumanReadableCronExpression,
-    isGdriveTarget,
     isSlackTarget,
     SchedulerWithLogs,
 } from '@lightdash/common';
@@ -145,15 +144,11 @@ const Schedulers: FC<SchedulersProps> = ({
                     );
                     let emails: string[] = [];
                     let slackChannels: string[] = [];
-                    let gsheets: string[] = [];
                     currentTargets.map((t) => {
                         if (isSlackTarget(t)) {
                             return slackChannels.push(
                                 getSlackChannelName(t.channel),
                             );
-                        }
-                        if (isGdriveTarget(t)) {
-                            return gsheets.push(t.gdriveName);
                         } else {
                             return emails.push(t.recipient);
                         }

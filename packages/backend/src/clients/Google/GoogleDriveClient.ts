@@ -70,7 +70,7 @@ export class GoogleDriveClient {
                 spreadsheetId: fileId,
             });
             const firstSheetName = spreadsheet.data.sheets[0].properties.title;
-            Logger.debug(`Clearing sheet name ${firstSheetName}}`);
+            Logger.debug(`Clearing sheet name ${firstSheetName}`);
             await sheets.spreadsheets.values.clear({
                 spreadsheetId: fileId,
                 range: firstSheetName,

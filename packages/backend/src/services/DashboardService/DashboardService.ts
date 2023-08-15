@@ -11,10 +11,9 @@ import {
     isChartTile,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
-    isGdriveTarget,
-    isSlackTarget,
     isUserWithOrg,
     SchedulerAndTargets,
+    SchedulerFormat,
     SessionUser,
     SpaceSummary,
     UpdateDashboard,
@@ -633,7 +632,10 @@ export class DashboardService {
                 resourceId: isChartScheduler(scheduler)
                     ? scheduler.savedChartUuid
                     : scheduler.dashboardUuid,
-                targets: scheduler.targets.map(getSchedulerTargetType),
+                targets:
+                    scheduler.format === SchedulerFormat.GSHEETS
+                        ? []
+                        : scheduler.targets.map(getSchedulerTargetType),
             },
         });
 
