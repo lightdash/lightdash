@@ -50,6 +50,34 @@ export class GoogleDriveClient {
         });
     }
 
+    private static async changeTabTitle(
+        sheets: any,
+        fileId: string,
+        title: string,
+    ) {
+        const spreadsheet = await sheets.spreadsheets.get({
+            spreadsheetId: fileId,
+        });
+        await sheets.spreadsheets.batchUpdate({
+            spreadsheetId: fileId,
+            resource: {
+                requests: [
+                    {
+                        updateSheetProperties: {
+                            properties: {
+                                sheetId:
+                                    spreadsheet.data.sheets[0].properties
+                                        .sheetId,
+                                title,
+                            },
+                            fields: 'title',
+                        },
+                    },
+                ],
+            },
+        });
+    }
+
     async createNewTab(refreshToken: string, fileId: string, tabName: string) {
         if (!this.isEnabled) {
             throw new Error('Google Drive is not enabled');
@@ -150,5 +178,14 @@ export class GoogleDriveClient {
                 values: [header, ...values],
             },
         });
+
+        const updatedTimestamp = new Date()
+            .toLocaleString()
+            .replaceAll(':', '.');
+        await GoogleDriveClient.changeTabTitle(
+            sheets,
+            fileId,
+            updatedTimestamp,
+        );
     }
 }
