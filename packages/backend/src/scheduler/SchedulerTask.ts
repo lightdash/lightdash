@@ -822,7 +822,30 @@ export const sendGsheetsNotification = async (
                 csvContent,
             );
         } else if (dashboardUuid) {
-            throw new Error('Not implemented');
+            if (csvUrls === undefined) {
+                throw new Error('Missing CSV URL');
+            }
+
+            const refreshToken = await userService.getRefreshToken(
+                scheduler.createdBy,
+            );
+            const googleUploadPromises = csvUrls.map(async (cu) => {
+                const csvContent = await csv().fromFile(cu.localPath);
+
+                const tabName = await googleDriveClient.createNewTab(
+                    refreshToken,
+                    gdriveId,
+                    cu.filename,
+                );
+                return googleDriveClient.appendToSheet(
+                    refreshToken,
+                    gdriveId,
+                    csvContent,
+                    tabName,
+                );
+            });
+
+            Promise.all(googleUploadPromises);
         } else {
             throw new Error('Not implemented');
         }
