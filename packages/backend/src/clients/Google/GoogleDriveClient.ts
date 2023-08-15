@@ -122,8 +122,8 @@ export class GoogleDriveClient {
     async appendToSheet(
         refreshToken: string,
         fileId: string,
-        csvContent: string,
         tabName?: string,
+        csvContent: Record<string, string>[],
     ) {
         if (!this.isEnabled) {
             throw new Error('Google Drive is not enabled');
@@ -131,17 +131,23 @@ export class GoogleDriveClient {
         const authClient = await GoogleDriveClient.getCredentials(refreshToken);
 
         const sheets = google.sheets({ version: 'v4', auth: authClient });
-        const sheetRows = csvContent.split('\n').map((row) => row.split(','));
 
         // Clear first sheet before writting
         GoogleDriveClient.clearTabName(sheets, fileId, tabName);
+
+        if (csvContent.length === 0) {
+            Logger.info('No data to write to the sheet');
+            return;
+        }
+        const header = Object.keys(csvContent[0]);
+        const values = csvContent.map((row) => Object.values(row));
 
         await sheets.spreadsheets.values.update({
             spreadsheetId: fileId,
             range: tabName ? `${tabName}!A1` : 'A1',
             valueInputOption: 'USER_ENTERED',
             resource: {
-                values: sheetRows,
+                values: [header, ...values],
             },
         });
     }
