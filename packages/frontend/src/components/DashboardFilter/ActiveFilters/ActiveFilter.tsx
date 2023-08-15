@@ -3,16 +3,14 @@ import {
     DashboardFilterRule,
     FilterableField,
 } from '@lightdash/common';
-import { ActionIcon, Button, Popover, Text, Tooltip } from '@mantine/core';
+import { Button, CloseButton, Popover, Text, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconX } from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import {
     getConditionalRuleLabel,
     getFilterRuleTables,
 } from '../../common/Filters/configs';
-import MantineIcon from '../../common/MantineIcon';
 import FilterConfiguration from '../FilterConfiguration';
 
 type Props = {
@@ -112,13 +110,7 @@ const ActiveFilter: FC<Props> = ({
                         mr="xxs"
                         rightIcon={
                             (isEditMode || isTemporary) && (
-                                <ActionIcon
-                                    color="dark"
-                                    size="xs"
-                                    onClick={onRemove}
-                                >
-                                    <MantineIcon icon={IconX} />
-                                </ActionIcon>
+                                <CloseButton size="sm" onClick={onRemove} />
                             )
                         }
                         styles={{
