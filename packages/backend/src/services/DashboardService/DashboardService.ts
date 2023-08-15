@@ -11,9 +11,9 @@ import {
     isChartTile,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
-    isSlackTarget,
     isUserWithOrg,
     SchedulerAndTargets,
+    SchedulerFormat,
     SessionUser,
     SpaceSummary,
     UpdateDashboard,
@@ -26,6 +26,7 @@ import { analytics } from '../../analytics/client';
 import { CreateDashboardOrVersionEvent } from '../../analytics/LightdashAnalytics';
 import { schedulerClient, slackClient } from '../../clients/clients';
 import database from '../../database/database';
+import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { getFirstAccessibleSpace } from '../../database/entities/spaces';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -631,19 +632,10 @@ export class DashboardService {
                 resourceId: isChartScheduler(scheduler)
                     ? scheduler.savedChartUuid
                     : scheduler.dashboardUuid,
-                targets: scheduler.targets.map((target) =>
-                    isSlackTarget(target)
-                        ? {
-                              schedulerTargetId:
-                                  target.schedulerSlackTargetUuid,
-                              type: 'slack',
-                          }
-                        : {
-                              schedulerTargetId:
-                                  target.schedulerEmailTargetUuid,
-                              type: 'email',
-                          },
-                ),
+                targets:
+                    scheduler.format === SchedulerFormat.GSHEETS
+                        ? []
+                        : scheduler.targets.map(getSchedulerTargetType),
             },
         });
 

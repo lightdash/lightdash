@@ -22,6 +22,7 @@ import {
     downloadCsv,
     handleScheduledDelivery,
     sendEmailNotification,
+    sendGsheetsNotification,
     sendSlackNotification,
     testAndCompileProject,
     validateProject,
@@ -239,6 +240,28 @@ export class SchedulerWorker {
                                 scheduledTime: job.run_at,
                                 jobGroup: payload.jobGroup,
                                 targetType: 'email',
+                                status: SchedulerJobStatus.ERROR,
+                                details: { error: e.message },
+                            });
+                        },
+                    );
+                },
+                sendGsheetsNotification: async (
+                    payload: any,
+                    helpers: JobHelpers,
+                ) => {
+                    await tryJobOrTimeout(
+                        sendGsheetsNotification(helpers.job.id, payload),
+                        helpers.job,
+                        this.lightdashConfig.scheduler.jobTimeout,
+                        async (job, e) => {
+                            await schedulerService.logSchedulerJob({
+                                task: 'sendGsheetsNotification',
+                                schedulerUuid: payload.schedulerUuid,
+                                jobId: job.id,
+                                scheduledTime: job.run_at,
+                                jobGroup: payload.jobGroup,
+                                targetType: 'gsheets',
                                 status: SchedulerJobStatus.ERROR,
                                 details: { error: e.message },
                             });

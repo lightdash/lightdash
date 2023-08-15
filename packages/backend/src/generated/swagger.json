@@ -169,6 +169,20 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiGdriveAccessTokenResponse": {
+                "properties": {
+                    "results": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Group": {
                 "properties": {
                     "organizationUuid": {
@@ -1830,7 +1844,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid_": {
+            "Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -1856,6 +1870,14 @@
                     },
                     "spaceName": {
                         "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dashboardName": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -1865,7 +1887,9 @@
                     "projectUuid",
                     "spaceUuid",
                     "pinnedListUuid",
-                    "spaceName"
+                    "spaceName",
+                    "dashboardUuid",
+                    "dashboardName"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -1877,7 +1901,7 @@
             "ChartSummary": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid_"
+                        "$ref": "#/components/schemas/Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName_"
                     },
                     {
                         "properties": {
@@ -2515,7 +2539,7 @@
                 "type": "object"
             },
             "SchedulerFormat": {
-                "enum": ["csv", "image"],
+                "enum": ["csv", "image", "gsheets"],
                 "type": "string"
             },
             "SchedulerCsvOptions": {
@@ -2543,6 +2567,29 @@
                 "properties": {},
                 "type": "object"
             },
+            "SchedulerGsheetsOptions": {
+                "properties": {
+                    "url": {
+                        "type": "string"
+                    },
+                    "gdriveOrganizationName": {
+                        "type": "string"
+                    },
+                    "gdriveName": {
+                        "type": "string"
+                    },
+                    "gdriveId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "url",
+                    "gdriveOrganizationName",
+                    "gdriveName",
+                    "gdriveId"
+                ],
+                "type": "object"
+            },
             "SchedulerOptions": {
                 "anyOf": [
                     {
@@ -2550,6 +2597,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/SchedulerImageOptions"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SchedulerGsheetsOptions"
                     }
                 ]
             },
@@ -3887,7 +3937,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.714.0",
+        "version": "0.737.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -4097,6 +4147,37 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/gdrive/get-access-token": {
+            "get": {
+                "operationId": "getAccessToken",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGdriveAccessTokenResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get access token for google drive",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/groups/{groupUuid}": {

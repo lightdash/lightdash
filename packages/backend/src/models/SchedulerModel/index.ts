@@ -183,6 +183,7 @@ export class SchedulerModel {
                 `${SchedulerEmailTargetTableName}.scheduler_uuid`,
                 schedulerUuid,
             );
+
         const targets = [
             ...slackTargets.map(SchedulerModel.convertSlackTarget),
             ...emailTargets.map(SchedulerModel.convertEmailTarget),
@@ -218,6 +219,7 @@ export class SchedulerModel {
                         updated_at: new Date(),
                     });
                 }
+
                 return trx(SchedulerEmailTargetTableName).insert({
                     scheduler_uuid: scheduler.scheduler_uuid,
                     recipient: target.recipient,
@@ -281,7 +283,7 @@ export class SchedulerModel {
             const targetPromises = scheduler.targets.map(async (target) => {
                 // Update existing targets
                 if (isUpdateSchedulerSlackTarget(target)) {
-                    await trx(SchedulerSlackTargetTableName)
+                    return trx(SchedulerSlackTargetTableName)
                         .update({
                             channel: target.channel,
                             updated_at: new Date(),
@@ -291,8 +293,9 @@ export class SchedulerModel {
                             target.schedulerSlackTargetUuid,
                         )
                         .andWhere('scheduler_uuid', scheduler.schedulerUuid);
-                } else if (isUpdateSchedulerEmailTarget(target)) {
-                    await trx(SchedulerEmailTargetTableName)
+                }
+                if (isUpdateSchedulerEmailTarget(target)) {
+                    return trx(SchedulerEmailTargetTableName)
                         .update({
                             recipient: target.recipient,
                             updated_at: new Date(),
@@ -304,19 +307,19 @@ export class SchedulerModel {
                         .andWhere('scheduler_uuid', scheduler.schedulerUuid);
                 }
                 // Create new targets
-                else if (isCreateSchedulerSlackTarget(target)) {
-                    await trx(SchedulerSlackTargetTableName).insert({
+                if (isCreateSchedulerSlackTarget(target)) {
+                    return trx(SchedulerSlackTargetTableName).insert({
                         scheduler_uuid: scheduler.schedulerUuid,
                         channel: target.channel,
                         updated_at: new Date(),
                     });
-                } else {
-                    await trx(SchedulerEmailTargetTableName).insert({
-                        scheduler_uuid: scheduler.schedulerUuid,
-                        recipient: target.recipient,
-                        updated_at: new Date(),
-                    });
                 }
+
+                return trx(SchedulerEmailTargetTableName).insert({
+                    scheduler_uuid: scheduler.schedulerUuid,
+                    recipient: target.recipient,
+                    updated_at: new Date(),
+                });
             });
 
             await Promise.all(targetPromises);

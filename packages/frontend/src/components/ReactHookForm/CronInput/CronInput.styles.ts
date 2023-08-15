@@ -6,6 +6,12 @@ export const InlinedLabel = styled.label`
     color: ${Colors.GRAY1};
 `;
 
+export const GsheetsName = styled.label`
+    line-height: 30px;
+    width: 90%;
+    color: ${Colors.DARK_GRAY3};
+`;
+
 export const InlineIcon = styled(Icon)`
     margin-top: 7px;
     padding-bottom: 0px;

@@ -163,6 +163,7 @@ apiV1Router.get(
             'profile',
             'email',
             'https://www.googleapis.com/auth/drive.metadata.readonly',
+            'https://www.googleapis.com/auth/spreadsheets',
         ],
         accessType: 'offline',
         prompt: 'consent',

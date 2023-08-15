@@ -22,7 +22,7 @@ const isIssuerTypeAvailable = (
 ) => {
     switch (issuerType) {
         case OpenIdIdentityIssuerType.GOOGLE:
-            return !!health.auth.google.oauth2ClientId;
+            return health.auth.google.enabled;
         case OpenIdIdentityIssuerType.OKTA:
             return health.auth.okta.enabled;
         case OpenIdIdentityIssuerType.ONELOGIN:

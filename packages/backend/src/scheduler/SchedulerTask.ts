@@ -1,25 +1,31 @@
 import {
     assertUnreachable,
     CompileProjectPayload,
+    CreateSchedulerLog,
     DownloadCsvPayload,
     EmailNotificationPayload,
     getHumanReadableCronExpression,
     getRequestMethod,
+    GsheetsNotificationPayload,
     isChartValidationError,
     isDashboardValidationError,
     isEmailTarget,
     isSchedulerCsvOptions,
+    isSchedulerGsheetsOptions,
     isSlackTarget,
     LightdashPage,
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
     Scheduler,
+    SchedulerEmailTarget,
     SchedulerFormat,
     SchedulerJobStatus,
     SchedulerLog,
+    SchedulerSlackTarget,
     SlackNotificationPayload,
     ValidateProjectPayload,
 } from '@lightdash/common';
+import csv from 'csvtojson';
 import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
 import {
@@ -27,7 +33,12 @@ import {
     LightdashAnalytics,
     parseAnalyticsLimit,
 } from '../analytics/LightdashAnalytics';
-import { emailClient, schedulerClient, slackClient } from '../clients/clients';
+import {
+    emailClient,
+    googleDriveClient,
+    schedulerClient,
+    slackClient,
+} from '../clients/clients';
 import {
     getChartAndDashboardBlocks,
     getChartCsvResultsBlocks,
@@ -122,6 +133,7 @@ export const getNotificationPageData = async (
                 throw new Error('Unable to unfurl image');
             }
             break;
+        case SchedulerFormat.GSHEETS:
         case SchedulerFormat.CSV:
             const user = await userService.getSessionByUserUuid(userUuid);
             const csvOptions = isSchedulerCsvOptions(options)
@@ -746,6 +758,180 @@ export const sendEmailNotification = async (
     }
 };
 
+export const sendGsheetsNotification = async (
+    jobId: string,
+    notification: GsheetsNotificationPayload,
+) => {
+    const { schedulerUuid, scheduledTime } = notification;
+
+    analytics.track({
+        event: 'scheduler_notification_job.started',
+        anonymousId: LightdashAnalytics.anonymousId,
+        properties: {
+            jobId,
+            schedulerId: schedulerUuid,
+            schedulerTargetId: undefined,
+            type: 'gsheets',
+        },
+    });
+
+    try {
+        const scheduler =
+            await schedulerService.schedulerModel.getSchedulerAndTargets(
+                schedulerUuid,
+            );
+        const { format, savedChartUuid, dashboardUuid } = scheduler;
+
+        const gdriveId = isSchedulerGsheetsOptions(scheduler.options)
+            ? scheduler.options.gdriveId
+            : undefined;
+        if (gdriveId === undefined) {
+            throw new Error('Missing gdriveId');
+        }
+
+        schedulerService.logSchedulerJob({
+            task: 'sendGsheetsNotification',
+            schedulerUuid,
+            jobId,
+            jobGroup: notification.jobGroup,
+            scheduledTime,
+            target: gdriveId,
+            targetType: 'gsheets',
+            status: SchedulerJobStatus.STARTED,
+        });
+
+        const { url, pageType, csvUrl, csvUrls } = notification.page;
+
+        if (format !== SchedulerFormat.GSHEETS) {
+            throw new Error(
+                `Unable to process format ${format} on sendGdriveNotification`,
+            );
+        } else if (savedChartUuid) {
+            if (csvUrl === undefined) {
+                throw new Error('Missing CSV URL');
+            }
+
+            const csvContent = await csv().fromFile(csvUrl.localPath);
+            // TODO use csv().fromStream to do stream reading/writting on gsheets
+            const refreshToken = await userService.getRefreshToken(
+                scheduler.createdBy,
+            );
+            await googleDriveClient.appendToSheet(
+                refreshToken,
+                gdriveId,
+                csvContent,
+            );
+        } else if (dashboardUuid) {
+            throw new Error('Not implemented');
+        } else {
+            throw new Error('Not implemented');
+        }
+
+        analytics.track({
+            event: 'scheduler_notification_job.completed',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId,
+                schedulerId: schedulerUuid,
+                schedulerTargetId: undefined,
+                type: 'gsheets',
+                format,
+                resourceType:
+                    pageType === LightdashPage.CHART ? 'chart' : 'dashboard',
+            },
+        });
+        schedulerService.logSchedulerJob({
+            task: 'sendGsheetsNotification',
+            schedulerUuid,
+            jobId,
+            jobGroup: notification.jobGroup,
+            scheduledTime,
+            target: gdriveId,
+            targetType: 'gsheets',
+            status: SchedulerJobStatus.COMPLETED,
+        });
+    } catch (e) {
+        analytics.track({
+            event: 'scheduler_notification_job.failed',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                error: `${e}`,
+                jobId,
+                schedulerId: schedulerUuid,
+                schedulerTargetId: undefined,
+                type: 'gsheets',
+            },
+        });
+        schedulerService.logSchedulerJob({
+            task: 'sendGsheetsNotification',
+            schedulerUuid,
+            jobId,
+            jobGroup: notification.jobGroup,
+            scheduledTime,
+            targetType: 'gsheets',
+            status: SchedulerJobStatus.ERROR,
+            details: { error: e.message },
+        });
+
+        throw e; // Cascade error to it can be retried by graphile
+    }
+};
+
+const logScheduledTarget = async (
+    format: SchedulerFormat,
+    target: SchedulerSlackTarget | SchedulerEmailTarget | undefined,
+    targetJobId: string,
+    schedulerUuid: string,
+    jobId: string,
+    scheduledTime: Date,
+) => {
+    if (format === SchedulerFormat.GSHEETS) {
+        await schedulerService.logSchedulerJob({
+            task: 'sendGsheetsNotification',
+            target: undefined,
+            targetType: 'gsheets',
+            jobId: targetJobId,
+            schedulerUuid,
+            jobGroup: jobId,
+            scheduledTime,
+            status: SchedulerJobStatus.SCHEDULED,
+        });
+        return;
+    }
+    if (target === undefined) {
+        Logger.error(`Missing target for scheduler format ${format}`);
+        return;
+    }
+    const getTargetDetails = (): Pick<
+        CreateSchedulerLog,
+        'task' | 'target' | 'targetType'
+    > => {
+        if (isSlackTarget(target)) {
+            return {
+                task: 'sendSlackNotification',
+                target: target.channel,
+                targetType: 'slack',
+            };
+        }
+        return {
+            task: 'sendEmailNotification',
+            target: target.recipient,
+            targetType: 'email',
+        };
+    };
+    const { task, target: jobTarget, targetType } = getTargetDetails();
+
+    await schedulerService.logSchedulerJob({
+        task,
+        target: jobTarget,
+        targetType,
+        jobId: targetJobId,
+        schedulerUuid,
+        jobGroup: jobId,
+        scheduledTime,
+        status: SchedulerJobStatus.SCHEDULED,
+    });
+};
 export const handleScheduledDelivery = async (
     jobId: string,
     scheduledTime: Date,
@@ -784,20 +970,14 @@ export const handleScheduledDelivery = async (
 
         // Create scheduled jobs for targets
         scheduledJobs.map(async ({ target, jobId: targetJobId }) => {
-            await schedulerService.logSchedulerJob({
-                task: isSlackTarget(target)
-                    ? 'sendSlackNotification'
-                    : 'sendEmailNotification',
-                schedulerUuid: scheduler.schedulerUuid,
-                jobId: targetJobId,
-                jobGroup: jobId,
+            logScheduledTarget(
+                scheduler.format,
+                target,
+                targetJobId,
+                schedulerUuid,
+                jobId,
                 scheduledTime,
-                target: isSlackTarget(target)
-                    ? target.channel
-                    : target.recipient,
-                targetType: isSlackTarget(target) ? 'slack' : 'email',
-                status: SchedulerJobStatus.SCHEDULED,
-            });
+            );
         });
 
         schedulerService.logSchedulerJob({

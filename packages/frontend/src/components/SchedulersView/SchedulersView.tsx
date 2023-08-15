@@ -144,11 +144,15 @@ const Schedulers: FC<SchedulersProps> = ({
                     );
                     let emails: string[] = [];
                     let slackChannels: string[] = [];
-                    currentTargets.map((t) =>
-                        isSlackTarget(t)
-                            ? slackChannels.push(getSlackChannelName(t.channel))
-                            : emails.push(t.recipient),
-                    );
+                    currentTargets.map((t) => {
+                        if (isSlackTarget(t)) {
+                            return slackChannels.push(
+                                getSlackChannelName(t.channel),
+                            );
+                        } else {
+                            return emails.push(t.recipient);
+                        }
+                    });
                     return (
                         <Group spacing="xxs">
                             {emails.length > 0 && (

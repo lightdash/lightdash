@@ -8,7 +8,16 @@ export type SchedulerCsvOptions = {
 
 export type SchedulerImageOptions = {};
 
-export type SchedulerOptions = SchedulerCsvOptions | SchedulerImageOptions;
+export type SchedulerGsheetsOptions = {
+    gdriveId: string;
+    gdriveName: string;
+    gdriveOrganizationName: string;
+    url: string;
+};
+export type SchedulerOptions =
+    | SchedulerCsvOptions
+    | SchedulerImageOptions
+    | SchedulerGsheetsOptions;
 
 export enum SchedulerJobStatus {
     SCHEDULED = 'scheduled',
@@ -20,6 +29,7 @@ export enum SchedulerJobStatus {
 export enum SchedulerFormat {
     CSV = 'csv',
     IMAGE = 'image',
+    GSHEETS = 'gsheets',
 }
 
 export type SchedulerLog = {
@@ -27,6 +37,7 @@ export type SchedulerLog = {
         | 'handleScheduledDelivery'
         | 'sendEmailNotification'
         | 'sendSlackNotification'
+        | 'sendGsheetsNotification'
         | 'downloadCsv'
         | 'compileProject'
         | 'testAndCompileProject'
@@ -38,7 +49,7 @@ export type SchedulerLog = {
     createdAt: Date;
     status: SchedulerJobStatus;
     target?: string;
-    targetType?: 'email' | 'slack';
+    targetType?: 'email' | 'slack' | 'gsheets';
     details?: Record<string, any>;
 };
 
@@ -157,8 +168,18 @@ export const isCreateSchedulerSlackTarget = (
 ): target is Pick<SchedulerSlackTarget, 'channel'> => 'channel' in target;
 
 export const isSchedulerCsvOptions = (
-    options: SchedulerCsvOptions | SchedulerImageOptions,
+    options:
+        | SchedulerCsvOptions
+        | SchedulerImageOptions
+        | SchedulerGsheetsOptions,
 ): options is SchedulerCsvOptions => options && 'limit' in options;
+
+export const isSchedulerGsheetsOptions = (
+    options:
+        | SchedulerCsvOptions
+        | SchedulerImageOptions
+        | SchedulerGsheetsOptions,
+): options is SchedulerGsheetsOptions => options && 'gdriveId' in options;
 
 export type ApiSchedulerAndTargetsResponse = {
     status: 'ok';
@@ -213,10 +234,12 @@ export type NotificationPayloadBase = {
         csvUrl?: {
             path: string;
             filename: string;
+            localPath: string;
         };
         csvUrls?: {
             path: string;
             filename: string;
+            localPath: string;
         }[];
     };
 };
@@ -227,6 +250,10 @@ export type SlackNotificationPayload = NotificationPayloadBase & {
 
 export type EmailNotificationPayload = NotificationPayloadBase & {
     schedulerEmailTargetUuid: string;
+};
+
+export type GsheetsNotificationPayload = NotificationPayloadBase & {
+    schedulerUuid: string;
 };
 
 export type DownloadCsvPayload = {

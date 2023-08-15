@@ -102,7 +102,7 @@ const Settings: FC = () => {
         !health.auth.disablePasswordAuthentication;
 
     const hasSocialLogin =
-        health.auth.google.oauth2ClientId ||
+        health.auth.google.enabled ||
         health.auth.okta.enabled ||
         health.auth.oneLogin.enabled ||
         health.auth.azuread.enabled;

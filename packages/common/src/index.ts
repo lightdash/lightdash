@@ -110,6 +110,7 @@ export * from './types/explore';
 export * from './types/field';
 export * from './types/fieldMatch';
 export * from './types/filter';
+export * from './types/gdrive';
 export * from './types/groups';
 export * from './types/job';
 export * from './types/metricQuery';
@@ -589,6 +590,8 @@ export type HealthState = {
         google: {
             oauth2ClientId: string | undefined;
             loginPath: string;
+            googleDriveApiKey: string | undefined;
+            enabled: boolean;
         };
         okta: {
             enabled: boolean;

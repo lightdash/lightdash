@@ -1,18 +1,15 @@
 import { lightdashConfig } from '../../config/lightdashConfig';
-import { OpenIdIdentityModel } from '../../models/OpenIdIdentitiesModel';
+import Logger from '../../logging/logger';
 
 const { google } = require('googleapis');
-// TODO WIP
+
 export class GoogleDriveClient {
     public isEnabled: boolean = false;
 
-    // private openIdIdentityModel: OpenIdIdentityModel;
-    constructor(/* openIdIdentityModel: OpenIdIdentityModel) */) {
+    constructor() {
         this.isEnabled =
             lightdashConfig.auth.google.oauth2ClientId !== undefined &&
             lightdashConfig.auth.google.oauth2ClientSecret !== undefined;
-
-        // this.openIdIdentityModel = openIdIdentityModel
     }
 
     static async getCredentials(refreshToken: string) {
@@ -50,6 +47,52 @@ export class GoogleDriveClient {
         console.debug('Files:');
         files.forEach((file: any) => {
             console.debug(`${file.name} (${file.id})`);
+        });
+    }
+
+    async appendToSheet(
+        refreshToken: string,
+        fileId: string,
+        csvContent: Record<string, string>[],
+    ) {
+        if (!this.isEnabled) {
+            throw new Error('Google Drive is not enabled');
+        }
+        const authClient = await GoogleDriveClient.getCredentials(refreshToken);
+
+        const sheets = google.sheets({ version: 'v4', auth: authClient });
+
+        // Clear first sheet before writting
+        // The method "SheetId: 0" only works if the first default sheet tab still exists (it's not deleted by the user)
+        // So instead we select all the cells in the first tab by its name
+        try {
+            const spreadsheet = await sheets.spreadsheets.get({
+                spreadsheetId: fileId,
+            });
+            const firstSheetName = spreadsheet.data.sheets[0].properties.title;
+            Logger.debug(`Clearing sheet name ${firstSheetName}`);
+            await sheets.spreadsheets.values.clear({
+                spreadsheetId: fileId,
+                range: firstSheetName,
+            });
+        } catch (error) {
+            Logger.error('Unable to clear the sheet', error);
+        }
+
+        if (csvContent.length === 0) {
+            Logger.info('No data to write to the sheet');
+            return;
+        }
+        const header = Object.keys(csvContent[0]);
+        const values = csvContent.map((row) => Object.values(row));
+
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: fileId,
+            range: 'A1',
+            valueInputOption: 'USER_ENTERED',
+            resource: {
+                values: [header, ...values],
+            },
         });
     }
 }

@@ -652,9 +652,9 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
     properties: {
         jobId: string;
         schedulerId: string;
-        schedulerTargetId: string;
+        schedulerTargetId?: string;
         resourceType?: 'dashboard' | 'chart';
-        type: 'slack' | 'email';
+        type: 'slack' | 'email' | 'gsheets';
         format?: SchedulerFormat;
     };
 };

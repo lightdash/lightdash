@@ -17,6 +17,7 @@ import Logger from '../../logging/logger';
 export type AttachmentUrl = {
     path: string;
     filename: string;
+    localPath: string;
 };
 type Dependencies = {
     lightdashConfig: Pick<LightdashConfig, 'smtp' | 'siteUrl'>;

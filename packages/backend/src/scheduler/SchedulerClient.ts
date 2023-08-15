@@ -9,6 +9,7 @@ import {
     Scheduler,
     SchedulerAndTargets,
     SchedulerEmailTarget,
+    SchedulerFormat,
     SchedulerJobStatus,
     SchedulerSlackTarget,
     SlackNotificationPayload,
@@ -140,47 +141,74 @@ export class SchedulerClient {
         date: Date,
         jobGroup: string,
         scheduler: Scheduler,
-        target: SchedulerSlackTarget | SchedulerEmailTarget,
+        target: SchedulerSlackTarget | SchedulerEmailTarget | undefined,
         page: NotificationPayloadBase['page'],
     ) {
         const graphileClient = await this.graphileUtils;
 
-        const payload: SlackNotificationPayload | EmailNotificationPayload =
-            isSlackTarget(target)
-                ? {
-                      schedulerUuid: scheduler.schedulerUuid,
-                      jobGroup,
-                      scheduledTime: date,
-                      page,
-                      schedulerSlackTargetUuid: target.schedulerSlackTargetUuid,
-                  }
-                : {
-                      schedulerUuid: scheduler.schedulerUuid,
-                      scheduledTime: date,
-                      jobGroup,
-                      page,
-                      schedulerEmailTargetUuid: target.schedulerEmailTargetUuid,
-                  };
-        const { id } = await graphileClient.addJob(
-            isSlackTarget(target)
-                ? 'sendSlackNotification'
-                : 'sendEmailNotification',
-            payload,
-            {
-                runAt: date,
-                maxAttempts: 1,
-            },
-        );
+        const getIdentifierAndPayload = (): {
+            identifier: string;
+            targetUuid?: string;
+            type: 'slack' | 'email' | 'gsheets';
+            payload: any;
+        } => {
+            if (scheduler.format === SchedulerFormat.GSHEETS) {
+                return {
+                    identifier: 'sendGsheetsNotification',
+                    targetUuid: undefined,
+                    type: 'gsheets',
+                    payload: {
+                        schedulerUuid: scheduler.schedulerUuid,
+                        jobGroup,
+                        scheduledTime: date,
+                        page,
+                    },
+                };
+            }
+            if (target && isSlackTarget(target)) {
+                return {
+                    identifier: 'sendSlackNotification',
+                    targetUuid: target.schedulerSlackTargetUuid,
+                    type: 'slack',
+                    payload: {
+                        schedulerUuid: scheduler.schedulerUuid,
+                        jobGroup,
+                        scheduledTime: date,
+                        page,
+                        schedulerSlackTargetUuid:
+                            target.schedulerSlackTargetUuid,
+                    },
+                };
+            }
+
+            return {
+                identifier: 'sendEmailNotification',
+                targetUuid: target?.schedulerEmailTargetUuid,
+                type: 'email',
+                payload: {
+                    schedulerUuid: scheduler.schedulerUuid,
+                    scheduledTime: date,
+                    jobGroup,
+                    page,
+                    schedulerEmailTargetUuid: target?.schedulerEmailTargetUuid,
+                },
+            };
+        };
+
+        const { identifier, targetUuid, payload, type } =
+            getIdentifierAndPayload();
+        const { id } = await graphileClient.addJob(identifier, payload, {
+            runAt: date,
+            maxAttempts: 1,
+        });
         analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
             properties: {
                 jobId: id,
                 schedulerId: scheduler.schedulerUuid,
-                schedulerTargetId: isSlackTarget(target)
-                    ? target.schedulerSlackTargetUuid
-                    : target.schedulerEmailTargetUuid,
-                type: isSlackTarget(target) ? 'slack' : 'email',
+                schedulerTargetId: targetUuid,
+                type,
                 format: scheduler.format,
             },
         });
@@ -226,6 +254,19 @@ export class SchedulerClient {
         parentJobId: string,
     ) {
         try {
+            if (scheduler.format === SchedulerFormat.GSHEETS) {
+                Logger.info(
+                    `Creating gsheet notification jobs for scheduler ${scheduler.schedulerUuid}`,
+                );
+                const job = await this.addNotificationJob(
+                    scheduledTime,
+                    parentJobId,
+                    scheduler,
+                    undefined,
+                    page,
+                );
+                return [job];
+            }
             const promises = scheduler.targets.map((target) =>
                 this.addNotificationJob(
                     scheduledTime,
@@ -235,7 +276,6 @@ export class SchedulerClient {
                     page,
                 ),
             );
-
             Logger.info(
                 `Creating ${promises.length} notification jobs for scheduler ${scheduler.schedulerUuid}`,
             );

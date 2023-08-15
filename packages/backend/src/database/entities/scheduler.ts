@@ -1,8 +1,16 @@
+import {
+    assertUnreachable,
+    isEmailTarget,
+    isSlackTarget,
+    SchedulerEmailTarget,
+    SchedulerSlackTarget,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const SchedulerTableName = 'scheduler';
 export const SchedulerSlackTargetTableName = 'scheduler_slack_target';
 export const SchedulerEmailTargetTableName = 'scheduler_email_target';
+
 export const SchedulerLogTableName = 'scheduler_log';
 
 export type SchedulerDb = {
@@ -81,3 +89,24 @@ export type SchedulerLogTable = Knex.CompositeTableType<
     SchedulerLogDb,
     Omit<SchedulerLogDb, 'created_at'>
 >;
+
+export const getSchedulerTargetType = (
+    target: SchedulerSlackTarget | SchedulerEmailTarget,
+): {
+    schedulerTargetId: string;
+    type: 'slack' | 'email';
+} => {
+    if (isSlackTarget(target)) {
+        return {
+            schedulerTargetId: target.schedulerSlackTargetUuid,
+            type: 'slack',
+        };
+    }
+    if (isEmailTarget(target)) {
+        return {
+            schedulerTargetId: target.schedulerEmailTargetUuid,
+            type: 'email',
+        };
+    }
+    return assertUnreachable(target, 'Uknown target type');
+};
