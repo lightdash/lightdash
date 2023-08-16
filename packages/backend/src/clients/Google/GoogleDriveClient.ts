@@ -161,7 +161,7 @@ export class GoogleDriveClient {
         await sheets.spreadsheets.values.update({
             spreadsheetId: fileId,
             range: tabName ? `${tabName}!A1` : 'A1',
-            valueInputOption: 'USER_ENTERED',
+            valueInputOption: 'RAW',
             requestBody: {
                 values: [header, ...values],
             },

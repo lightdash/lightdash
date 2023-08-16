@@ -138,7 +138,7 @@ export class SchedulerClient {
         return { jobId: id, date };
     }
 
-    private async addGsheetsNotificationJob(
+    private async addGsheetsUploadJob(
         date: Date,
         jobGroup: string,
         scheduler: Scheduler,
@@ -151,14 +151,10 @@ export class SchedulerClient {
             scheduledTime: date,
         };
 
-        const { id } = await graphileClient.addJob(
-            'sendGsheetsNotification',
-            payload,
-            {
-                runAt: date,
-                maxAttempts: 1,
-            },
-        );
+        const { id } = await graphileClient.addJob('uploadGsheets', payload, {
+            runAt: date,
+            maxAttempts: 1,
+        });
         analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -293,7 +289,7 @@ export class SchedulerClient {
                 Logger.info(
                     `Creating gsheet notification jobs for scheduler ${scheduler.schedulerUuid}`,
                 );
-                const job = await this.addGsheetsNotificationJob(
+                const job = await this.addGsheetsUploadJob(
                     scheduledTime,
                     parentJobId,
                     scheduler,

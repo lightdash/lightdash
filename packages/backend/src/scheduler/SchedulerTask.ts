@@ -137,7 +137,7 @@ export const getNotificationPageData = async (
             break;
         case SchedulerFormat.GSHEETS:
             // We don't generate CSV files for Google sheets on handleNotification task,
-            // instead we directly upload the data from the row results in the sendGsheetsNotification task
+            // instead we directly upload the data from the row results in the uploadGsheets task
             throw new Error("Don't fetch csv for gsheets");
         case SchedulerFormat.CSV:
             const user = await userService.getSessionByUserUuid(userUuid);
@@ -263,7 +263,7 @@ export const sendSlackNotification = async (
             throw new Error('Slack destination not found');
         }
         const { channel } = target;
-        schedulerService.logSchedulerJob({
+        await schedulerService.logSchedulerJob({
             task: 'sendSlackNotification',
             schedulerUuid,
             jobId,
@@ -358,7 +358,7 @@ export const sendSlackNotification = async (
                     pageType === LightdashPage.CHART ? 'chart' : 'dashboard',
             },
         });
-        schedulerService.logSchedulerJob({
+        await schedulerService.logSchedulerJob({
             task: 'sendSlackNotification',
             schedulerUuid,
             jobId,
@@ -381,7 +381,7 @@ export const sendSlackNotification = async (
                 type: 'slack',
             },
         });
-        schedulerService.logSchedulerJob({
+        await schedulerService.logSchedulerJob({
             task: 'sendSlackNotification',
             schedulerUuid,
             jobId,
@@ -412,7 +412,7 @@ export const testAndCompileProject = async (
             payload.createdByUserUuid,
         );
 
-        schedulerService.logSchedulerJob({
+        await schedulerService.logSchedulerJob({
             ...baseLog,
             details: { createdByUserUuid: payload.createdByUserUuid },
             status: SchedulerJobStatus.STARTED,
@@ -425,7 +425,7 @@ export const testAndCompileProject = async (
             payload.jobUuid,
         );
 
-        schedulerService.logSchedulerJob({
+        await schedulerService.logSchedulerJob({
             ...baseLog,
             details: {},
             status: SchedulerJobStatus.COMPLETED,
@@ -438,7 +438,7 @@ export const testAndCompileProject = async (
             organizationUuid: user.organizationUuid,
         });
     } catch (e) {
-        schedulerService.logSchedulerJob({
+        await schedulerService.logSchedulerJob({
             ...baseLog,
             status: SchedulerJobStatus.ERROR,
             details: { createdByUserUuid: payload.createdByUserUuid, error: e },
@@ -462,7 +462,7 @@ export const compileProject = async (
             payload.createdByUserUuid,
         );
 
-        schedulerService.logSchedulerJob({
+        await schedulerService.logSchedulerJob({
             ...baseLog,
             details: { createdByUserUuid: payload.createdByUserUuid },
             status: SchedulerJobStatus.STARTED,
@@ -474,7 +474,7 @@ export const compileProject = async (
             getRequestMethod(payload.requestMethod),
             payload.jobUuid,
         );
-        schedulerService.logSchedulerJob({
+        await schedulerService.logSchedulerJob({
             ...baseLog,
             details: {},
             status: SchedulerJobStatus.COMPLETED,
@@ -487,7 +487,7 @@ export const compileProject = async (
             organizationUuid: user.organizationUuid,
         });
     } catch (e) {
-        schedulerService.logSchedulerJob({
+        await schedulerService.logSchedulerJob({
             ...baseLog,
             status: SchedulerJobStatus.ERROR,
             details: { createdByUserUuid: payload.createdByUserUuid, error: e },
@@ -501,7 +501,7 @@ export const validateProject = async (
     scheduledTime: Date,
     payload: ValidateProjectPayload,
 ) => {
-    schedulerService.logSchedulerJob({
+    await schedulerService.logSchedulerJob({
         task: 'validateProject',
         jobId,
         scheduledTime,
@@ -549,7 +549,7 @@ export const validateProject = async (
             },
         });
 
-        schedulerService.logSchedulerJob({
+        await schedulerService.logSchedulerJob({
             task: 'validateProject',
             jobId,
             scheduledTime,
@@ -567,7 +567,7 @@ export const validateProject = async (
             },
         });
 
-        schedulerService.logSchedulerJob({
+        await schedulerService.logSchedulerJob({
             task: 'validateProject',
             jobId,
             scheduledTime,
@@ -587,20 +587,20 @@ export const downloadCsv = async (
         scheduledTime,
     };
     try {
-        schedulerService.logSchedulerJob({
+        await schedulerService.logSchedulerJob({
             ...baseLog,
             details: { createdByUserUuid: payload.userUuid },
             status: SchedulerJobStatus.STARTED,
         });
 
         const fileUrl = await csvService.downloadCsv(jobId, payload);
-        schedulerService.logSchedulerJob({
+        await schedulerService.logSchedulerJob({
             ...baseLog,
             details: { fileUrl, createdByUserUuid: payload.userUuid },
             status: SchedulerJobStatus.COMPLETED,
         });
     } catch (e) {
-        schedulerService.logSchedulerJob({
+        await schedulerService.logSchedulerJob({
             ...baseLog,
             status: SchedulerJobStatus.ERROR,
             details: { createdByUserUuid: payload.userUuid, error: e },
@@ -645,7 +645,7 @@ export const sendEmailNotification = async (
             throw new Error('Email destination not found');
         }
         const { recipient } = target;
-        schedulerService.logSchedulerJob({
+        await schedulerService.logSchedulerJob({
             task: 'sendEmailNotification',
             schedulerUuid,
             jobId,
@@ -725,7 +725,7 @@ export const sendEmailNotification = async (
                     pageType === LightdashPage.CHART ? 'chart' : 'dashboard',
             },
         });
-        schedulerService.logSchedulerJob({
+        await schedulerService.logSchedulerJob({
             task: 'sendEmailNotification',
             schedulerUuid,
             jobId,
@@ -748,7 +748,7 @@ export const sendEmailNotification = async (
                 type: 'email',
             },
         });
-        schedulerService.logSchedulerJob({
+        await schedulerService.logSchedulerJob({
             task: 'sendEmailNotification',
             schedulerUuid,
             jobId,
@@ -763,7 +763,7 @@ export const sendEmailNotification = async (
     }
 };
 
-export const sendGsheetsNotification = async (
+export const uploadGsheets = async (
     jobId: string,
     notification: GsheetsNotificationPayload,
 ) => {
@@ -794,8 +794,8 @@ export const sendGsheetsNotification = async (
             throw new Error('Missing gdriveId');
         }
 
-        schedulerService.logSchedulerJob({
-            task: 'sendGsheetsNotification',
+        await schedulerService.logSchedulerJob({
+            task: 'uploadGsheets',
             schedulerUuid,
             jobId,
             jobGroup: notification.jobGroup,
@@ -888,8 +888,8 @@ export const sendGsheetsNotification = async (
                 resourceType: savedChartUuid ? 'chart' : 'dashboard',
             },
         });
-        schedulerService.logSchedulerJob({
-            task: 'sendGsheetsNotification',
+        await schedulerService.logSchedulerJob({
+            task: 'uploadGsheets',
             schedulerUuid,
             jobId,
             jobGroup: notification.jobGroup,
@@ -910,8 +910,8 @@ export const sendGsheetsNotification = async (
                 type: 'gsheets',
             },
         });
-        schedulerService.logSchedulerJob({
-            task: 'sendGsheetsNotification',
+        await schedulerService.logSchedulerJob({
+            task: 'uploadGsheets',
             schedulerUuid,
             jobId,
             jobGroup: notification.jobGroup,
@@ -935,7 +935,7 @@ const logScheduledTarget = async (
 ) => {
     if (format === SchedulerFormat.GSHEETS) {
         await schedulerService.logSchedulerJob({
-            task: 'sendGsheetsNotification',
+            task: 'uploadGsheets',
             target: undefined,
             targetType: 'gsheets',
             jobId: targetJobId,
@@ -994,7 +994,7 @@ export const handleScheduledDelivery = async (
                 schedulerId: schedulerUuid,
             },
         });
-        schedulerService.logSchedulerJob({
+        await schedulerService.logSchedulerJob({
             task: 'handleScheduledDelivery',
             schedulerUuid,
             jobId,
@@ -1032,7 +1032,7 @@ export const handleScheduledDelivery = async (
             );
         });
 
-        schedulerService.logSchedulerJob({
+        await schedulerService.logSchedulerJob({
             task: 'handleScheduledDelivery',
             schedulerUuid,
             jobId,
@@ -1058,7 +1058,7 @@ export const handleScheduledDelivery = async (
                 schedulerId: schedulerUuid,
             },
         });
-        schedulerService.logSchedulerJob({
+        await schedulerService.logSchedulerJob({
             task: 'handleScheduledDelivery',
             schedulerUuid,
             jobId,

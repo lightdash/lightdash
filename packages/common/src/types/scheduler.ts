@@ -37,7 +37,7 @@ export type SchedulerLog = {
         | 'handleScheduledDelivery'
         | 'sendEmailNotification'
         | 'sendSlackNotification'
-        | 'sendGsheetsNotification'
+        | 'uploadGsheets'
         | 'downloadCsv'
         | 'compileProject'
         | 'testAndCompileProject'
