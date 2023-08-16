@@ -25,6 +25,7 @@ import {
     sendGsheetsNotification,
     sendSlackNotification,
     testAndCompileProject,
+    uploadGsheetFromQuery,
     validateProject,
 } from './SchedulerTask';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
