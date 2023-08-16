@@ -8,6 +8,7 @@ import {
     getRequestMethod,
     GsheetsNotificationPayload,
     isChartValidationError,
+    isDashboardChartTileType,
     isDashboardValidationError,
     isEmailTarget,
     isSchedulerCsvOptions,
@@ -48,6 +49,7 @@ import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
 import {
     csvService,
+    dashboardService,
     projectService,
     s3Service,
     schedulerService,
@@ -134,6 +136,9 @@ export const getNotificationPageData = async (
             }
             break;
         case SchedulerFormat.GSHEETS:
+            // We don't generate CSV files for Google sheets on handleNotification task,
+            // instead we directly upload the data from the row results in the sendGsheetsNotification task
+            throw new Error("Don't fetch csv for gsheets");
         case SchedulerFormat.CSV:
             const user = await userService.getSessionByUserUuid(userUuid);
             const csvOptions = isSchedulerCsvOptions(options)
@@ -799,53 +804,74 @@ export const sendGsheetsNotification = async (
             targetType: 'gsheets',
             status: SchedulerJobStatus.STARTED,
         });
-
-        const { url, pageType, csvUrl, csvUrls } = notification.page;
+        const user = await userService.getSessionByUserUuid(
+            scheduler.createdBy,
+        );
 
         if (format !== SchedulerFormat.GSHEETS) {
             throw new Error(
                 `Unable to process format ${format} on sendGdriveNotification`,
             );
         } else if (savedChartUuid) {
-            if (csvUrl === undefined) {
-                throw new Error('Missing CSV URL');
-            }
+            const rows = await projectService.getResultsForChart(
+                user,
+                savedChartUuid,
+            );
 
-            const csvContent = await csv().fromFile(csvUrl.localPath);
             // TODO use csv().fromStream to do stream reading/writting on gsheets
             const refreshToken = await userService.getRefreshToken(
                 scheduler.createdBy,
             );
-            await googleDriveClient.appendToSheet(
-                refreshToken,
-                gdriveId,
-                csvContent,
-            );
+            await googleDriveClient.appendToSheet(refreshToken, gdriveId, rows);
         } else if (dashboardUuid) {
-            if (csvUrls === undefined) {
-                throw new Error('Missing CSV URL');
-            }
+            const dashboard = await dashboardService.getById(
+                user,
+                dashboardUuid,
+            );
+            const chartUuids = dashboard.tiles.reduce<string[]>((acc, tile) => {
+                if (
+                    isDashboardChartTileType(tile) &&
+                    tile.properties.savedChartUuid
+                ) {
+                    return [...acc, tile.properties.savedChartUuid];
+                }
+                return acc;
+            }, []);
 
             const refreshToken = await userService.getRefreshToken(
                 scheduler.createdBy,
             );
-            const googleUploadPromises = csvUrls.map(async (cu) => {
-                const csvContent = await csv().fromFile(cu.localPath);
 
+            // We want to process all charts in sequence, so we don't load all chart results in memory
+            chartUuids.reduce(async (promise, chartUuid) => {
+                await promise;
+                const rows = await projectService.getResultsForChart(
+                    user,
+                    chartUuid,
+                );
+
+                const tile = dashboard.tiles.find(
+                    (t) =>
+                        isDashboardChartTileType(t) &&
+                        t.properties.savedChartUuid === chartUuid,
+                );
+                const chartName =
+                    tile && isDashboardChartTileType(tile)
+                        ? tile.properties.chartName
+                        : undefined;
                 const tabName = await googleDriveClient.createNewTab(
                     refreshToken,
                     gdriveId,
-                    cu.filename,
+                    tile?.properties.title || chartName || chartUuid,
                 );
-                return googleDriveClient.appendToSheet(
+
+                await googleDriveClient.appendToSheet(
                     refreshToken,
                     gdriveId,
-                    csvContent,
+                    rows,
                     tabName,
                 );
-            });
-
-            Promise.all(googleUploadPromises);
+            }, Promise.resolve());
         } else {
             throw new Error('Not implemented');
         }
@@ -859,8 +885,7 @@ export const sendGsheetsNotification = async (
                 schedulerTargetId: undefined,
                 type: 'gsheets',
                 format,
-                resourceType:
-                    pageType === LightdashPage.CHART ? 'chart' : 'dashboard',
+                resourceType: savedChartUuid ? 'chart' : 'dashboard',
             },
         });
         schedulerService.logSchedulerJob({
@@ -982,7 +1007,11 @@ export const handleScheduledDelivery = async (
             await schedulerService.schedulerModel.getSchedulerAndTargets(
                 schedulerUuid,
             );
-        const page = await getNotificationPageData(scheduler, jobId);
+
+        const page =
+            scheduler.format === SchedulerFormat.GSHEETS
+                ? undefined
+                : await getNotificationPageData(scheduler, jobId);
         const scheduledJobs =
             await schedulerClient.generateJobsForSchedulerTargets(
                 scheduledTime,
