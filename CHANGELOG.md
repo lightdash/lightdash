@@ -1,3 +1,11 @@
+## [0.748.1](https://github.com/lightdash/lightdash/compare/0.748.0...0.748.1) (2023-08-16)
+
+
+### Bug Fixes
+
+* clear dashboard filter state when closed ([#6754](https://github.com/lightdash/lightdash/issues/6754)) ([b56dbfd](https://github.com/lightdash/lightdash/commit/b56dbfd92ae44a9e270b4321c91ddbcf2e339c25))
+* fix filter input border style ([#6783](https://github.com/lightdash/lightdash/issues/6783)) ([463bc6a](https://github.com/lightdash/lightdash/commit/463bc6a00a33f05d18c72329a5991fd0a9fbb528))
+
 # [0.748.0](https://github.com/lightdash/lightdash/compare/0.747.1...0.748.0) (2023-08-16)
 
 
