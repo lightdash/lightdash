@@ -26,7 +26,6 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
     const project = useProject(projectUuid);
     const { allFilters, fieldsWithSuggestions, addDimensionDashboardFilter } =
         useDashboardContext();
-
     // Load data on filter mount
     useExplores(projectUuid);
 
@@ -48,6 +47,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
     };
 
     return (
+        // TODO is this provider necessary?
         <FiltersProvider
             projectUuid={projectUuid}
             fieldsMap={fieldsWithSuggestions}

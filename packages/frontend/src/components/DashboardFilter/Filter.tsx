@@ -1,13 +1,12 @@
 import {
     applyDefaultTileTargets,
-    ConditionalRuleLabels,
     DashboardFilterRule,
     DashboardTileTypes,
     FilterableField,
 } from '@lightdash/common';
-import { ActionIcon, Box, Button, Popover, Text, Tooltip } from '@mantine/core';
+import { Button, CloseButton, Popover, Text, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconFilter, IconX } from '@tabler/icons-react';
+import { IconFilter } from '@tabler/icons-react';
 import { FC, useCallback } from 'react';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import {
@@ -16,80 +15,6 @@ import {
 } from '../common/Filters/configs';
 import MantineIcon from '../common/MantineIcon';
 import FilterConfiguration from './FilterConfiguration';
-
-const ActiveFilterButton = ({
-    isTemporary,
-    isEditMode,
-    filterRule,
-    filterRuleLabels,
-    filterRuleTables = [],
-    onRemove = () => {},
-    isPopoverOpen,
-    togglePopover,
-}: {
-    isTemporary?: boolean;
-    isEditMode: boolean;
-    filterRule?: DashboardFilterRule;
-    filterRuleLabels?: ConditionalRuleLabels;
-    filterRuleTables?: string[];
-    onRemove?: () => void;
-    isPopoverOpen?: boolean;
-    togglePopover: () => void;
-}) => (
-    <Tooltip
-        position="top-start"
-        disabled={isPopoverOpen}
-        label={
-            <Text fs="xs">
-                {filterRuleTables.length === 0
-                    ? `Table: ${filterRuleTables[0]}`
-                    : `Tables: ${filterRuleTables.join(', ')}`}
-            </Text>
-        }
-    >
-        <Button
-            size="xs"
-            variant={isTemporary ? 'outline' : 'default'}
-            bg="white"
-            mr="xxs"
-            rightIcon={
-                (isEditMode || isTemporary) && (
-                    <ActionIcon color="dark" size="xs" onClick={onRemove}>
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                )
-            }
-            styles={{
-                inner: {
-                    color: 'black',
-                },
-            }}
-            onClick={togglePopover}
-        >
-            <Text fz="xs">
-                <Text fw={600} span>
-                    {filterRule?.label || filterRuleLabels?.field}{' '}
-                </Text>
-                <Text fw={400} span>
-                    {filterRule?.disabled ? (
-                        <Text span color="gray.6">
-                            is any value
-                        </Text>
-                    ) : (
-                        <>
-                            <Text span color="gray.7">
-                                {filterRuleLabels?.operator}{' '}
-                            </Text>
-                            <Text fw={700} span>
-                                {filterRuleLabels?.value}
-                            </Text>
-                        </>
-                    )}
-                </Text>
-            </Text>
-        </Button>
-    </Tooltip>
-);
 
 type Props = {
     isEditMode: boolean;
@@ -112,7 +37,6 @@ const Filter: FC<Props> = ({
     onUpdate,
     onRemove,
 }) => {
-    // TODO should this be only at the root
     const {
         dashboard,
         dashboardTiles,
@@ -134,12 +58,12 @@ const Filter: FC<Props> = ({
               )
             : undefined;
 
-    // TODO: only used by active
+    // Only used by active filters
     const originalFilterRule = dashboard?.filters?.dimensions.find(
         (item) => filterRule && item.id === filterRule.id,
     );
 
-    //TODO only used by Add
+    //Only used by Add filters
     const hasChartTiles =
         dashboardTiles.filter(
             (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
@@ -195,12 +119,17 @@ const Filter: FC<Props> = ({
                 {isCreatingNew ? (
                     <Tooltip
                         disabled={isPopoverOpen || isEditMode}
-                        position="bottom"
-                        openDelay={500}
+                        position="top-start"
+                        withinPortal
+                        offset={0}
+                        arrowOffset={16}
                         label={
                             <Text fz="xs">
-                                Only filters added in <b>'edit'</b> mode will be
-                                saved
+                                Only filters added in{' '}
+                                <Text span fw={600}>
+                                    'edit'
+                                </Text>{' '}
+                                mode will be saved
                             </Text>
                         }
                     >
@@ -217,23 +146,79 @@ const Filter: FC<Props> = ({
                         </Button>
                     </Tooltip>
                 ) : (
-                    <Box>
-                        <ActiveFilterButton
-                            isTemporary={isTemporary}
-                            isEditMode={isEditMode}
-                            filterRule={filterRule}
-                            filterRuleLabels={filterRuleLabels}
-                            filterRuleTables={filterRuleTables}
-                            onRemove={onRemove}
-                            isPopoverOpen={isPopoverOpen}
-                            togglePopover={togglePopover}
-                        />
-                    </Box>
+                    <Button
+                        size="xs"
+                        variant={isTemporary ? 'outline' : 'default'}
+                        bg="white"
+                        mr="xxs"
+                        rightIcon={
+                            (isEditMode || isTemporary) && (
+                                <CloseButton size="sm" onClick={onRemove} />
+                            )
+                        }
+                        styles={{
+                            inner: {
+                                color: 'black',
+                            },
+                        }}
+                        onClick={togglePopover}
+                    >
+                        <Text fz="xs">
+                            {' '}
+                            <Tooltip
+                                withinPortal
+                                position="top-start"
+                                disabled={isPopoverOpen}
+                                offset={8}
+                                label={
+                                    <Text fz="xs">
+                                        {filterRuleTables?.length === 0 ? (
+                                            <>
+                                                Table:
+                                                <Text span fw={600}>
+                                                    {filterRuleTables[0]}
+                                                </Text>
+                                            </>
+                                        ) : (
+                                            <>
+                                                Tables:{' '}
+                                                <Text span fw={600}>
+                                                    {filterRuleTables?.join(
+                                                        ', ',
+                                                    )}
+                                                </Text>
+                                            </>
+                                        )}
+                                    </Text>
+                                }
+                            >
+                                <Text fw={600} span>
+                                    {filterRule?.label ||
+                                        filterRuleLabels?.field}{' '}
+                                </Text>
+                            </Tooltip>
+                            <Text fw={400} span>
+                                {filterRule?.disabled ? (
+                                    <Text span color="gray.6">
+                                        is any value
+                                    </Text>
+                                ) : (
+                                    <>
+                                        <Text span color="gray.7">
+                                            {filterRuleLabels?.operator}{' '}
+                                        </Text>
+                                        <Text fw={700} span>
+                                            {filterRuleLabels?.value}
+                                        </Text>
+                                    </>
+                                )}
+                            </Text>
+                        </Text>
+                    </Button>
                 )}
             </Popover.Target>
 
             <Popover.Dropdown ml={5}>
-                {/* {filterableFieldsByTileUuid ? ( // TODO: This isn't great anyway */}
                 <FilterConfiguration
                     isCreatingNew={isCreatingNew}
                     isEditMode={isEditMode}
@@ -253,7 +238,6 @@ const Filter: FC<Props> = ({
                         onClosing: () => closeSubPopover(),
                     }}
                 />
-                {/* ) : null} */}
             </Popover.Dropdown>
         </Popover>
     );
