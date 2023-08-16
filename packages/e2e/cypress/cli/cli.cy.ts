@@ -49,6 +49,31 @@ describe('CLI', () => {
             .should('contain', 'Completed successfully');
     });
 
+    it('Should lightdash generate with --models', () => {
+        cy.exec(
+            `${cliCommand} generate -y --project-dir ${projectDir} --profiles-dir ${profilesDir} --models orders customers`,
+            {
+                failOnNonZeroExit: false,
+                env: {
+                    CI: true,
+                    NODE_ENV: 'development',
+                    ...databaseEnvVars,
+                },
+            },
+        )
+            .its('stderr')
+            .should('not.contain', 'Filtering models')
+            .should('contain', 'customers')
+            .should('contain', 'orders')
+            .should('not.contain', 'events')
+            .should('not.contain', 'users')
+            .should('not.contain', 'payments')
+            .should('not.contain', 'stg_customers')
+            .should('not.contain', 'stg_orders')
+            .should('not.contain', 'stg_payments')
+            .should('contain', 'Done 🕶');
+    });
+
     it('Should lightdash generate with --select', () => {
         cy.exec(
             `${cliCommand} generate -y --project-dir ${projectDir} --profiles-dir ${profilesDir} --select orders customers`,
@@ -92,6 +117,7 @@ describe('CLI', () => {
             .should('contain', 'orders')
             .should('not.contain', 'events')
             .should('not.contain', 'users')
+            // it's filtered out but matches with stg_payments
             // .should('not.contain', 'payments')
             .should('not.contain', 'stg_customers')
             .should('contain', 'stg_orders')
@@ -151,7 +177,7 @@ describe('CLI', () => {
 
     it('Should lightdash generate with --select and --exclude', () => {
         cy.exec(
-            `${cliCommand} generate -y --project-dir ${projectDir} --profiles-dir ${profilesDir} --select +orders --exclude stg_orders`,
+            `${cliCommand} generate -y --project-dir ${projectDir} --profiles-dir ${profilesDir} --select +orders --exclude stg_orders stg_payments`,
             {
                 failOnNonZeroExit: false,
                 env: {
@@ -167,10 +193,11 @@ describe('CLI', () => {
             .should('contain', 'orders')
             .should('not.contain', 'events')
             .should('not.contain', 'users')
-            // .should('not.contain', 'payments')
+            // it's filtered out but matches with stg_payments
+            .should('not.contain', 'payments')
             .should('not.contain', 'stg_customers')
             .should('not.contain', 'stg_orders')
-            .should('contain', 'stg_payments')
+            .should('not.contain', 'stg_payments')
             .should('contain', 'Done 🕶');
     });
 

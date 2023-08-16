@@ -92,7 +92,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
         profilesDir: absoluteProfilesPath,
         profile: profileName,
         target: options.target,
-        select: options.select,
+        select: options.select || options.models,
         exclude: options.exclude,
     });
 
