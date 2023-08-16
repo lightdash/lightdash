@@ -16,7 +16,7 @@ import CollapsableCard, {
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from '../../common/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
-import ExportCSV from '../../ExportCSV';
+import ExportSelector from '../../ExportSelector';
 import LimitButton from '../../LimitButton';
 import SortButton from '../../SortButton';
 import { ExplorerResults } from './ExplorerResults';
@@ -137,7 +137,7 @@ const ResultsCard: FC = memo(() => {
                                 </Popover.Target>
 
                                 <Popover.Dropdown>
-                                    <ExportCSV
+                                    <ExportSelector
                                         rows={rows}
                                         getCsvLink={getCsvLink}
                                     />
