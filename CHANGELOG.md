@@ -1,3 +1,10 @@
+# [0.745.0](https://github.com/lightdash/lightdash/compare/0.744.2...0.745.0) (2023-08-16)
+
+
+### Features
+
+* dashboard filters tooltips consistency ([#6762](https://github.com/lightdash/lightdash/issues/6762)) ([53ec412](https://github.com/lightdash/lightdash/commit/53ec412ee5c1e1020e5acb18b6432747f0f37314))
+
 ## [0.744.2](https://github.com/lightdash/lightdash/compare/0.744.1...0.744.2) (2023-08-16)
 
 
