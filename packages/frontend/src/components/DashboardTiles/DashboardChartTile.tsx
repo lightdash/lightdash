@@ -37,6 +37,7 @@ import { IconFolders } from '@tabler/icons-react';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import useSavedQueryWithDashboardFilters from '../../hooks/dashboard/useSavedQueryWithDashboardFilters';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
+import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import useToaster from '../../hooks/toaster/useToaster';
 import { downloadCsv } from '../../hooks/useDownloadCsv';
 import { useExplore } from '../../hooks/useExplore';
@@ -52,6 +53,7 @@ import ErrorState from '../common/ErrorState';
 import { getConditionalRuleLabel } from '../common/Filters/configs';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
+import ExportGsheets from '../Explorer/ExportGsheets';
 import ExportCSVModal from '../ExportCSV/ExportCSVModal';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
@@ -126,6 +128,21 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
             onConfirm={onConfirm}
         />
     );
+};
+
+const ExportGoogleSheet: FC<{ savedChart: SavedChart }> = ({ savedChart }) => {
+    const getGsheetLink = async () => {
+        const gsheetResponse = await uploadGsheet({
+            projectUuid: savedChart.projectUuid,
+            exploreId: savedChart.tableName,
+            metricQuery: savedChart.metricQuery,
+            columnOrder: savedChart.tableConfig.columnOrder,
+            showTableNames: true,
+        });
+        return gsheetResponse;
+    };
+
+    return <ExportGsheets getGsheetLink={getGsheetLink} asMenuItem={true} />;
 };
 
 const ValidDashboardChartTile: FC<{
@@ -502,6 +519,16 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                         }
                                     />
                                 )}
+                            {savedQueryWithDashboardFilters &&
+                                savedQueryWithDashboardFilters.chartConfig
+                                    .type === ChartType.TABLE && (
+                                    <ExportGoogleSheet
+                                        savedChart={
+                                            savedQueryWithDashboardFilters
+                                        }
+                                    />
+                                )}
+
                             {savedQueryWithDashboardFilters?.dashboardUuid && (
                                 <MenuItem2
                                     icon={<IconFolders size={16} />}
