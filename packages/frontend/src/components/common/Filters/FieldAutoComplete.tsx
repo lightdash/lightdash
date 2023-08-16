@@ -54,8 +54,12 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
     inputProps,
     hasGrouping = false,
 }: FieldAutoCompleteProps<T>) => {
-    const { activeProjectUuid } = useActiveProjectUuid();
-    const { data: exploresData } = useExplores(activeProjectUuid ?? '');
+    const { activeProjectUuid } = useActiveProjectUuid({
+        refetchOnMount: false,
+    });
+    const { data: exploresData } = useExplores(activeProjectUuid ?? '', false, {
+        refetchOnMount: false,
+    });
 
     const sortedFields = useMemo(() => {
         return fields.sort((a, b) =>

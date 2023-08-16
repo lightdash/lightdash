@@ -10,6 +10,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconFilter } from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useExplores } from '../../hooks/useExplores';
 import { useProject } from '../../hooks/useProject';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
@@ -41,6 +42,9 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
         filterableFieldsByTileUuid,
         addDimensionDashboardFilter,
     } = useDashboardContext();
+
+    // Load data on filter mount
+    useExplores(projectUuid);
 
     const [draftFilterRule, setDraftFilterRule] = useState<
         DashboardFilterRule | undefined
@@ -99,7 +103,6 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                     withArrow
                     shadow="md"
                     offset={-1}
-                    keepMounted
                 >
                     <Popover.Target>
                         <Tooltip
