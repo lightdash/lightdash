@@ -1,7 +1,6 @@
+import { google, sheets_v4 } from 'googleapis';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import Logger from '../../logging/logger';
-
-const { google } = require('googleapis');
 
 export class GoogleDriveClient {
     public isEnabled: boolean = false;
@@ -20,38 +19,17 @@ export class GoogleDriveClient {
                 client_secret: lightdashConfig.auth.google.oauth2ClientSecret,
                 refresh_token: refreshToken,
             };
-            return google.auth.fromJSON(credentials);
+            const authClient = google.auth.fromJSON(credentials);
+            return new google.auth.GoogleAuth({
+                authClient,
+            });
         } catch (err) {
             throw new Error(`Failed to get credentials: ${err}`);
         }
     }
 
-    async listFiles(refreshToken: string) {
-        if (!this.isEnabled) {
-            throw new Error('Google Drive is not enabled');
-        }
-        const authClient = await GoogleDriveClient.getCredentials(refreshToken);
-
-        console.debug('listing files');
-        const drive = google.drive({ version: 'v3', auth: authClient });
-        const res = await drive.files.list({
-            pageSize: 10,
-            fields: 'nextPageToken, files(id, name)',
-        });
-        const { files } = res.data;
-        if (files.length === 0) {
-            console.debug('No files found.');
-            return;
-        }
-
-        console.debug('Files:');
-        files.forEach((file: any) => {
-            console.debug(`${file.name} (${file.id})`);
-        });
-    }
-
     private static async changeTabTitle(
-        sheets: any,
+        sheets: sheets_v4.Sheets,
         fileId: string,
         title: string,
     ) {
@@ -60,14 +38,14 @@ export class GoogleDriveClient {
         });
         await sheets.spreadsheets.batchUpdate({
             spreadsheetId: fileId,
-            resource: {
+            requestBody: {
                 requests: [
                     {
                         updateSheetProperties: {
                             properties: {
                                 sheetId:
-                                    spreadsheet.data.sheets[0].properties
-                                        .sheetId,
+                                    spreadsheet.data.sheets?.[0].properties
+                                        ?.sheetId,
                                 title,
                             },
                             fields: 'title',
@@ -82,16 +60,15 @@ export class GoogleDriveClient {
         if (!this.isEnabled) {
             throw new Error('Google Drive is not enabled');
         }
-        const authClient = await GoogleDriveClient.getCredentials(refreshToken);
-
-        const sheets = google.sheets({ version: 'v4', auth: authClient });
+        const auth = await GoogleDriveClient.getCredentials(refreshToken);
+        const sheets = google.sheets({ version: 'v4', auth });
 
         // Creates a new tab in the sheet
         const tabTitle = tabName.replaceAll(':', '.'); // we can't use ranges with colons in their tab ids
         await sheets.spreadsheets
             .batchUpdate({
                 spreadsheetId: fileId,
-                resource: {
+                requestBody: {
                     requests: [
                         {
                             addSheet: {
@@ -108,7 +85,7 @@ export class GoogleDriveClient {
                     error.code === 400 &&
                     error.errors[0]?.message.includes('already exists.')
                 ) {
-                    console.debug('tab already exist, we will overwrite it');
+                    Logger.debug('tab already exist, we will overwrite it');
                 } else {
                     throw new Error(error);
                 }
@@ -118,25 +95,32 @@ export class GoogleDriveClient {
     }
 
     private static async clearTabName(
-        sheets: any,
+        sheets: sheets_v4.Sheets,
         fileId: string,
         tabName?: string,
     ) {
         // The method "SheetId: 0" only works if the first default sheet tab still exists (it's not deleted by the user)
         // So instead we select all the cells in the first tab by its name
         try {
-            if (tabName !== undefined) {
+            if (tabName === undefined) {
                 const spreadsheet = await sheets.spreadsheets.get({
                     spreadsheetId: fileId,
                 });
                 const firstSheetName =
-                    spreadsheet.data.sheets[0].properties.title;
-                Logger.debug(`Clearing sheet name ${firstSheetName}`);
+                    spreadsheet.data.sheets?.[0].properties?.title;
+                if (!firstSheetName) {
+                    throw new Error(
+                        'Unable to find the first sheet name in the spreadsheet',
+                    );
+                }
+                Logger.debug(`Clearing first sheet name ${firstSheetName}`);
                 await sheets.spreadsheets.values.clear({
                     spreadsheetId: fileId,
                     range: firstSheetName,
                 });
             } else {
+                Logger.debug(`Clearing sheet name ${tabName}`);
+
                 await sheets.spreadsheets.values.clear({
                     spreadsheetId: fileId,
                     range: tabName,
@@ -156,9 +140,8 @@ export class GoogleDriveClient {
         if (!this.isEnabled) {
             throw new Error('Google Drive is not enabled');
         }
-        const authClient = await GoogleDriveClient.getCredentials(refreshToken);
-
-        const sheets = google.sheets({ version: 'v4', auth: authClient });
+        const auth = await GoogleDriveClient.getCredentials(refreshToken);
+        const sheets = google.sheets({ version: 'v4', auth });
 
         // Clear first sheet before writting
         GoogleDriveClient.clearTabName(sheets, fileId, tabName);
@@ -174,7 +157,7 @@ export class GoogleDriveClient {
             spreadsheetId: fileId,
             range: tabName ? `${tabName}!A1` : 'A1',
             valueInputOption: 'USER_ENTERED',
-            resource: {
+            requestBody: {
                 values: [header, ...values],
             },
         });
