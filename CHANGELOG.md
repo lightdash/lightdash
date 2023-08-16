@@ -1,3 +1,10 @@
+# [0.749.0](https://github.com/lightdash/lightdash/compare/0.748.1...0.749.0) (2023-08-16)
+
+
+### Features
+
+* generate with dbt compatible --select and --exclude ([#6684](https://github.com/lightdash/lightdash/issues/6684)) ([ff6a12e](https://github.com/lightdash/lightdash/commit/ff6a12e96720c79bb19978640df02b4554ccdb56))
+
 ## [0.748.1](https://github.com/lightdash/lightdash/compare/0.748.0...0.748.1) (2023-08-16)
 
 
