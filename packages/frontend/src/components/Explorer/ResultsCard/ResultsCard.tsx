@@ -3,6 +3,7 @@ import { Button, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { FC, memo, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
+import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { downloadCsv } from '../../../hooks/useDownloadCsv';
 import { useApp } from '../../../providers/AppProvider';
 import {
@@ -74,6 +75,17 @@ const ResultsCard: FC = memo(() => {
         return csvResponse;
     };
 
+    const getGsheetLink = async () => {
+        const gsheetResponse = await uploadGsheet({
+            projectUuid,
+            tableId: tableName,
+            query: metricQuery,
+            columnOrder,
+            showTableNames: true,
+        });
+        return gsheetResponse;
+    };
+
     const resultsIsOpen = useMemo(
         () => expandedSections.includes(ExplorerSection.RESULTS),
         [expandedSections],
@@ -140,6 +152,7 @@ const ResultsCard: FC = memo(() => {
                                     <ExportSelector
                                         rows={rows}
                                         getCsvLink={getCsvLink}
+                                        getGsheetLink={getGsheetLink}
                                     />
                                 </Popover.Dropdown>
                             </Popover>

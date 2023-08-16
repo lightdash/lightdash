@@ -23,6 +23,7 @@ import {
     SchedulerLog,
     SchedulerSlackTarget,
     SlackNotificationPayload,
+    UploadMetricGsheet,
     ValidateProjectPayload,
 } from '@lightdash/common';
 import csv from 'csvtojson';
@@ -32,6 +33,7 @@ import {
     DownloadCsv,
     LightdashAnalytics,
     parseAnalyticsLimit,
+    QueryExecutionContext,
 } from '../analytics/LightdashAnalytics';
 import {
     emailClient,
@@ -589,6 +591,57 @@ export const downloadCsv = async (
         });
 
         const fileUrl = await csvService.downloadCsv(jobId, payload);
+        schedulerService.logSchedulerJob({
+            ...baseLog,
+            details: { fileUrl, createdByUserUuid: payload.userUuid },
+            status: SchedulerJobStatus.COMPLETED,
+        });
+    } catch (e) {
+        schedulerService.logSchedulerJob({
+            ...baseLog,
+            status: SchedulerJobStatus.ERROR,
+            details: { createdByUserUuid: payload.userUuid, error: e },
+        });
+        throw e; // Cascade error to it can be retried by graphile
+    }
+};
+
+export const uploadGsheetFromQuery = async (
+    jobId: string,
+    scheduledTime: Date,
+    payload: UploadMetricGsheet,
+) => {
+    const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> = {
+        task: 'downloadCsv',
+        jobId,
+        scheduledTime,
+    };
+    try {
+        schedulerService.logSchedulerJob({
+            ...baseLog,
+            details: { createdByUserUuid: payload.userUuid },
+            status: SchedulerJobStatus.STARTED,
+        });
+        const user = await userService.getSessionByUserUuid(payload.userUuid);
+
+        const rows = await projectService.runMetricQuery(
+            user,
+            payload.metricQuery,
+            payload.projectUuid,
+            payload.exploreId,
+            payload.csvLimit,
+            QueryExecutionContext.CSV, // TODO chang eto gsheets
+        );
+
+        // TODO create new spreadsheet
+        const gdriveId = '';
+        const refreshToken = await userService.getRefreshToken(
+            payload.userUuid,
+        );
+        googleDriveClient.appendToSheet(refreshToken, gdriveId, rows);
+
+        const fileUrl = ''; // get url from gdriveId
+
         schedulerService.logSchedulerJob({
             ...baseLog,
             details: { fileUrl, createdByUserUuid: payload.userUuid },

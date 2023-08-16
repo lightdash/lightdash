@@ -291,6 +291,32 @@ export class SchedulerWorker {
                         },
                     );
                 },
+                uploadGsheetFromQuery: async (
+                    payload: any,
+                    helpers: JobHelpers,
+                ) => {
+                    await tryJobOrTimeout(
+                        uploadGsheetFromQuery(
+                            helpers.job.id,
+                            helpers.job.run_at,
+                            payload,
+                        ),
+                        helpers.job,
+                        this.lightdashConfig.scheduler.jobTimeout,
+                        async (job, e) => {
+                            await schedulerService.logSchedulerJob({
+                                task: 'uploadGsheetFromQuery',
+                                jobId: job.id,
+                                scheduledTime: job.run_at,
+                                status: SchedulerJobStatus.ERROR,
+                                details: {
+                                    createdByUserUuid: payload.userUuid,
+                                    error: e.message,
+                                },
+                            });
+                        },
+                    );
+                },
                 compileProject: async (payload: any, helpers: JobHelpers) => {
                     await compileProject(
                         helpers.job.id,

@@ -1,9 +1,13 @@
+import { ApiScheduledDownloadCsv } from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { FC, memo, useState } from 'react';
+import ExportGsheets from '../Explorer/ExportGsheets';
 import ExportCSV, { ExportCSVProps } from '../ExportCSV';
 
-const ExportSelector: FC<ExportCSVProps> = memo(({ rows, getCsvLink }) => {
+const ExportSelector: FC<
+    ExportCSVProps & { getGsheetLink: () => Promise<ApiScheduledDownloadCsv> }
+> = memo(({ rows, getCsvLink, getGsheetLink }) => {
     const [exportType, setExportType] = useState<string | undefined>();
     if (exportType === 'csv') {
         return (
@@ -27,9 +31,7 @@ const ExportSelector: FC<ExportCSVProps> = memo(({ rows, getCsvLink }) => {
             <Button variant="subtle" onClick={() => setExportType('csv')}>
                 Csv{' '}
             </Button>
-            <Button variant="subtle" onClick={() => setExportType('gsheets')}>
-                Google sheets{' '}
-            </Button>
+            <ExportGsheets rows={rows} getGsheetLink={getGsheetLink} />
         </Stack>
     );
 });
