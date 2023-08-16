@@ -1,3 +1,10 @@
+# [0.746.0](https://github.com/lightdash/lightdash/compare/0.745.0...0.746.0) (2023-08-16)
+
+
+### Features
+
+* hide intercom for non-cloud customers ([#6770](https://github.com/lightdash/lightdash/issues/6770)) ([3cebd4e](https://github.com/lightdash/lightdash/commit/3cebd4eabc6f01a25aeeda3419a4cb26f7d611e7))
+
 # [0.745.0](https://github.com/lightdash/lightdash/compare/0.744.2...0.745.0) (2023-08-16)
 
 
