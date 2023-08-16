@@ -26,7 +26,7 @@ import {
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from './common/CollapsableCard';
 import MantineIcon from './common/MantineIcon';
-import ExportCSV from './ExportCSV';
+import ExportSelector from './ExportSelector';
 import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
 
 const FILE_NAME = 'lightdash_chart';
@@ -213,10 +213,11 @@ interface ChartDownloadMenuProps {
         columnOrder: string[],
         customLabels?: Record<string, string>,
     ) => Promise<ApiScheduledDownloadCsv>;
+    getGsheetLink?: (columnOrder: string[]) => Promise<ApiScheduledDownloadCsv>;
 }
 
 export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
-    ({ getCsvLink, projectUuid }) => {
+    ({ getCsvLink, getGsheetLink, projectUuid }) => {
         const {
             chartRef,
             chartType,
@@ -259,7 +260,8 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                     </Popover.Target>
 
                     <Popover.Dropdown>
-                        <ExportCSV
+                        <ExportSelector
+                            rows={resultsData?.rows}
                             getCsvLink={async (
                                 limit: number | null,
                                 onlyRaw: boolean,
@@ -274,7 +276,11 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                                     ),
                                 )
                             }
-                            rows={resultsData?.rows}
+                            getGsheetLink={
+                                getGsheetLink === undefined
+                                    ? undefined
+                                    : () => getGsheetLink(columnOrder)
+                            }
                         />
                     </Popover.Dropdown>
                 </Popover>

@@ -578,11 +578,6 @@
                 ],
                 "type": "object"
             },
-            "Record_string.string_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
             "UploadMetricGsheet": {
                 "properties": {
                     "columnOrder": {
@@ -591,18 +586,7 @@
                         },
                         "type": "array"
                     },
-                    "customLabels": {
-                        "$ref": "#/components/schemas/Record_string.string_"
-                    },
                     "showTableNames": {
-                        "type": "boolean"
-                    },
-                    "csvLimit": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "onlyRaw": {
                         "type": "boolean"
                     },
                     "metricQuery": {
@@ -613,19 +597,14 @@
                     },
                     "projectUuid": {
                         "type": "string"
-                    },
-                    "userUuid": {
-                        "type": "string"
                     }
                 },
                 "required": [
                     "columnOrder",
                     "showTableNames",
-                    "onlyRaw",
                     "metricQuery",
                     "exploreId",
-                    "projectUuid",
-                    "userUuid"
+                    "projectUuid"
                 ],
                 "type": "object"
             },

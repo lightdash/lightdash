@@ -78,8 +78,8 @@ const ResultsCard: FC = memo(() => {
     const getGsheetLink = async () => {
         const gsheetResponse = await uploadGsheet({
             projectUuid,
-            tableId: tableName,
-            query: metricQuery,
+            exploreId: tableName,
+            metricQuery,
             columnOrder,
             showTableNames: true,
         });

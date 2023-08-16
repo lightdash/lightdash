@@ -14,6 +14,7 @@ import {
     SchedulerSlackTarget,
     SlackNotificationPayload,
     UploadMetricGsheet,
+    UploadMetricGsheetPayload,
     ValidateProjectPayload,
 } from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
@@ -312,7 +313,7 @@ export class SchedulerClient {
         return { jobId };
     }
 
-    async uploadGsheetFromQueryJob(payload: UploadMetricGsheet) {
+    async uploadGsheetFromQueryJob(payload: UploadMetricGsheetPayload) {
         const graphileClient = await this.graphileUtils;
         const now = new Date();
         const { id: jobId } = await graphileClient.addJob(

@@ -6,13 +6,13 @@ export type ApiGdriveAccessTokenResponse = {
 };
 
 export type UploadMetricGsheet = {
-    userUuid: string;
     projectUuid: string;
     exploreId: string;
     metricQuery: MetricQuery;
-    onlyRaw: boolean;
-    csvLimit: number | null | undefined;
     showTableNames: boolean;
-    customLabels: Record<string, string> | undefined;
     columnOrder: string[];
+};
+
+export type UploadMetricGsheetPayload = UploadMetricGsheet & {
+    userUuid: string;
 };

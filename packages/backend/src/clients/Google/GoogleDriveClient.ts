@@ -94,6 +94,23 @@ export class GoogleDriveClient {
         return tabTitle;
     }
 
+    async createNewSheet(refreshToken: string, title: string) {
+        if (!this.isEnabled) {
+            throw new Error('Google Drive is not enabled');
+        }
+        const auth = await GoogleDriveClient.getCredentials(refreshToken);
+        const sheets = google.sheets({ version: 'v4', auth });
+
+        const response = await sheets.spreadsheets.create({
+            requestBody: {
+                properties: {
+                    title,
+                },
+            },
+        });
+        return response.data;
+    }
+
     private static async clearTabName(
         sheets: sheets_v4.Sheets,
         fileId: string,
@@ -144,7 +161,7 @@ export class GoogleDriveClient {
         const sheets = google.sheets({ version: 'v4', auth });
 
         // Clear first sheet before writting
-        GoogleDriveClient.clearTabName(sheets, fileId, tabName);
+        await GoogleDriveClient.clearTabName(sheets, fileId, tabName);
 
         if (csvContent.length === 0) {
             Logger.info('No data to write to the sheet');

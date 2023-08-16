@@ -22,6 +22,7 @@ import {
     SessionUser,
     TableCalculation,
     UploadMetricGsheet,
+    UploadMetricGsheetPayload,
 } from '@lightdash/common';
 
 import { stringify } from 'csv-stringify';
@@ -98,7 +99,7 @@ export class GdriveService {
             throw new ForbiddenError();
         }
 
-        const payload: DownloadCsvPayload = {
+        const payload: UploadMetricGsheetPayload = {
             ...gsheetOptions,
             userUuid: user.userUuid,
         };

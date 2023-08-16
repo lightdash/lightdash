@@ -23,7 +23,7 @@ import {
     SchedulerLog,
     SchedulerSlackTarget,
     SlackNotificationPayload,
-    UploadMetricGsheet,
+    UploadMetricGsheetPayload,
     ValidateProjectPayload,
 } from '@lightdash/common';
 import csv from 'csvtojson';
@@ -609,10 +609,10 @@ export const downloadCsv = async (
 export const uploadGsheetFromQuery = async (
     jobId: string,
     scheduledTime: Date,
-    payload: UploadMetricGsheet,
+    payload: UploadMetricGsheetPayload,
 ) => {
     const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> = {
-        task: 'downloadCsv',
+        task: 'uploadGsheetFromQuery',
         jobId,
         scheduledTime,
     };
@@ -629,22 +629,33 @@ export const uploadGsheetFromQuery = async (
             payload.metricQuery,
             payload.projectUuid,
             payload.exploreId,
-            payload.csvLimit,
+            undefined,
             QueryExecutionContext.CSV, // TODO chang eto gsheets
         );
-
-        // TODO create new spreadsheet
-        const gdriveId = '';
         const refreshToken = await userService.getRefreshToken(
             payload.userUuid,
         );
-        googleDriveClient.appendToSheet(refreshToken, gdriveId, rows);
+        const { spreadsheetId, spreadsheetUrl } =
+            await googleDriveClient.createNewSheet(
+                refreshToken,
+                payload.exploreId,
+            );
 
-        const fileUrl = ''; // get url from gdriveId
+        if (!spreadsheetId) {
+            throw new Error('Unable to create new sheet');
+        }
+        await googleDriveClient.appendToSheet(
+            refreshToken,
+            spreadsheetId,
+            rows,
+        );
 
         schedulerService.logSchedulerJob({
             ...baseLog,
-            details: { fileUrl, createdByUserUuid: payload.userUuid },
+            details: {
+                fileUrl: spreadsheetUrl,
+                createdByUserUuid: payload.userUuid,
+            },
             status: SchedulerJobStatus.COMPLETED,
         });
     } catch (e) {

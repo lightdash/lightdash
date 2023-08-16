@@ -2,7 +2,7 @@ import {
     ApiError,
     ApiGdriveAccessTokenResponse,
     ApiScheduledDownloadCsv,
-    MetricQuery,
+    UploadMetricGsheet,
 } from '@lightdash/common';
 import { useQuery } from 'react-query';
 import { lightdashApi } from '../../api';
@@ -22,37 +22,17 @@ export const useGdriveAccessToken = () =>
         retry: false,
     });
 
-export const uploadGsheet = async ({
-    projectUuid,
-    tableId,
-    query,
-    showTableNames,
-    columnOrder,
-    customLabels,
-}: {
-    projectUuid: string;
-    tableId: string;
-    query: MetricQuery;
-    showTableNames: boolean;
-    columnOrder: string[];
-    customLabels?: Record<string, string>;
-}) => {
+export const uploadGsheet = async (gsheetMetric: UploadMetricGsheet) => {
     const timezoneFixQuery = {
-        ...query,
-        filters: convertDateFilters(query.filters),
+        ...gsheetMetric.metricQuery,
+        filters: convertDateFilters(gsheetMetric.metricQuery.filters),
     };
     return lightdashApi<ApiScheduledDownloadCsv>({
         url: `/gdrive/upload-gsheet`,
         method: 'POST',
         body: JSON.stringify({
-            ...timezoneFixQuery,
-            tableId,
-            projectUuid,
-            csvLimit: undefined,
-            onlyRaw: true,
-            showTableNames,
-            customLabels,
-            columnOrder,
+            ...gsheetMetric,
+            metricQuery: timezoneFixQuery,
         }),
     });
 };

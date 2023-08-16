@@ -536,15 +536,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.string_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     UploadMetricGsheet: {
         dataType: 'refAlias',
         type: {
@@ -555,29 +546,10 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'string' },
                     required: true,
                 },
-                customLabels: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'Record_string.string_' },
-                        { dataType: 'undefined' },
-                    ],
-                    required: true,
-                },
                 showTableNames: { dataType: 'boolean', required: true },
-                csvLimit: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'double' },
-                        { dataType: 'enum', enums: [null] },
-                        { dataType: 'undefined' },
-                    ],
-                    required: true,
-                },
-                onlyRaw: { dataType: 'boolean', required: true },
                 metricQuery: { ref: 'MetricQuery', required: true },
                 exploreId: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string', required: true },
-                userUuid: { dataType: 'string', required: true },
             },
             validators: {},
         },

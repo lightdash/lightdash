@@ -3,6 +3,7 @@ import { FC, memo, useCallback, useMemo, useState } from 'react';
 
 import { Space } from '@mantine/core';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
+import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { downloadCsv } from '../../../hooks/useDownloadCsv';
 import { useExplore } from '../../../hooks/useExplore';
 import {
@@ -115,7 +116,23 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
             }
             throw new NotFoundError('no metric query defined');
         };
-
+        const getGsheetLink = async (columnOrder: string[]) => {
+            if (
+                explore?.name &&
+                unsavedChartVersion?.metricQuery &&
+                projectUuid
+            ) {
+                const gsheetResponse = await uploadGsheet({
+                    projectUuid,
+                    exploreId: explore?.name,
+                    metricQuery: unsavedChartVersion?.metricQuery,
+                    columnOrder,
+                    showTableNames: true,
+                });
+                return gsheetResponse;
+            }
+            throw new NotFoundError('no metric query defined');
+        };
         return (
             <VisualizationProvider
                 initialChartConfig={unsavedChartVersion.chartConfig}
@@ -154,6 +171,7 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
                                 <ChartDownloadMenu
                                     getCsvLink={getCsvLink}
                                     projectUuid={projectUuid!}
+                                    getGsheetLink={getGsheetLink}
                                 />
                             </>
                         )
