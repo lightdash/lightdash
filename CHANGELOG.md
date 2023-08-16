@@ -1,3 +1,38 @@
+# [0.748.0](https://github.com/lightdash/lightdash/compare/0.747.1...0.748.0) (2023-08-16)
+
+
+### Features
+
+* Migrate general settings forms to use Mantine ([#6712](https://github.com/lightdash/lightdash/issues/6712)) ([32812bc](https://github.com/lightdash/lightdash/commit/32812bc20cecb48e96b762427d65bcb8f10c2ade))
+
+## [0.747.1](https://github.com/lightdash/lightdash/compare/0.747.0...0.747.1) (2023-08-16)
+
+
+### Bug Fixes
+
+* get dbtVersion when creating new connection ([#6775](https://github.com/lightdash/lightdash/issues/6775)) ([12c2e7a](https://github.com/lightdash/lightdash/commit/12c2e7a95db0df2cda1c8a3c189b7d6f44adebc0))
+
+# [0.747.0](https://github.com/lightdash/lightdash/compare/0.746.0...0.747.0) (2023-08-16)
+
+
+### Features
+
+* improve chart from dashboard edit ux ([#6755](https://github.com/lightdash/lightdash/issues/6755)) ([0364859](https://github.com/lightdash/lightdash/commit/03648592bf3128153fd81bcc95d2b74051c3ae77))
+
+# [0.746.0](https://github.com/lightdash/lightdash/compare/0.745.0...0.746.0) (2023-08-16)
+
+
+### Features
+
+* hide intercom for non-cloud customers ([#6770](https://github.com/lightdash/lightdash/issues/6770)) ([3cebd4e](https://github.com/lightdash/lightdash/commit/3cebd4eabc6f01a25aeeda3419a4cb26f7d611e7))
+
+# [0.745.0](https://github.com/lightdash/lightdash/compare/0.744.2...0.745.0) (2023-08-16)
+
+
+### Features
+
+* dashboard filters tooltips consistency ([#6762](https://github.com/lightdash/lightdash/issues/6762)) ([53ec412](https://github.com/lightdash/lightdash/commit/53ec412ee5c1e1020e5acb18b6432747f0f37314))
+
 ## [0.744.2](https://github.com/lightdash/lightdash/compare/0.744.1...0.744.2) (2023-08-16)
 
 

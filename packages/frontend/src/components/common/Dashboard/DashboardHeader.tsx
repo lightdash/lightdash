@@ -176,7 +176,7 @@ const DashboardHeader = ({
                 <PageActionsContainer>
                     <AddTileButton onAddTiles={onAddTiles} />
                     <Tooltip
-                        fs="x"
+                        fz="xs"
                         withinPortal
                         position="bottom"
                         label="No changes to save"

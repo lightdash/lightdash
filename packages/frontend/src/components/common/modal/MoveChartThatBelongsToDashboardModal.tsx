@@ -1,5 +1,6 @@
 import {
     Button,
+    Flex,
     Group,
     Modal,
     ModalProps,
@@ -10,6 +11,7 @@ import {
 import { IconFolders } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import { useMoveChartMutation } from '../../../hooks/useSavedQuery';
+import MantineIcon from '../MantineIcon';
 
 interface Props extends ModalProps {
     uuid: string;
@@ -36,27 +38,38 @@ const MoveChartThatBelongsToDashboardModal: FC<Props> = ({
 
     return (
         <Modal
-            size="md"
+            size="lg"
             title={
-                <Group spacing="xs">
-                    <IconFolders size={15} />
-                    <Title order={4}>
-                        Move {name} to {spaceName}
+                <Flex align="center" gap="xs">
+                    <MantineIcon icon={IconFolders} size="lg" />
+                    <Title order={5}>
+                        <Text span fw={400}>
+                            Move{' '}
+                        </Text>
+                        {name}
                     </Title>
-                </Group>
+                </Flex>
             }
             {...modelProps}
         >
-            <Stack>
+            <Stack mt="sm">
                 <Text>
-                    Are you sure you want to move the chart <b>{name}</b> to the
-                    space <b>{spaceName}</b>?
+                    Are you sure you want to move the chart{' '}
+                    <Text fw={600} span>
+                        {name}
+                    </Text>{' '}
+                    to the space{' '}
+                    <Text fw={600} span>
+                        {spaceName}
+                    </Text>
+                    ?
                 </Text>
                 <Text>
                     This chart was created from within the dashboard, moving the
                     chart to the space will make it available in chart lists
-                    across the app. This change can not be undone.
+                    across the app.
                 </Text>
+                <Text fw={600}>This change cannot be undone.</Text>
 
                 <Group position="right" spacing="xs">
                     <Button variant="outline" onClick={modelProps.onClose}>
