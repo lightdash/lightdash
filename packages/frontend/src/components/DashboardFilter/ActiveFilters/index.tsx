@@ -1,7 +1,7 @@
 import { FieldId, fieldId, FilterableField } from '@lightdash/common';
 import { FC } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
-import ActiveFilter from './ActiveFilter';
+import Filter from '../Filter';
 
 interface ActiveFiltersProps {
     isEditMode: boolean;
@@ -27,7 +27,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
             {dashboardFilters.dimensions
                 .filter((item) => !!fieldMap[item.target.fieldId])
                 .map((item, index) => (
-                    <ActiveFilter
+                    <Filter
                         key={item.id}
                         isEditMode={isEditMode}
                         field={fieldMap[item.target.fieldId]}
@@ -44,7 +44,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
             {dashboardTemporaryFilters.dimensions
                 .filter((item) => !!fieldMap[item.target.fieldId])
                 .map((item, index) => (
-                    <ActiveFilter
+                    <Filter
                         key={item.id}
                         isTemporary
                         isEditMode={isEditMode}
