@@ -95,9 +95,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                     closeOnClickOutside={!isSubPopoverOpen}
                     onClose={handleClose}
                     disabled={!hasChartTiles}
-                    transitionProps={{
-                        transition: 'pop',
-                    }}
+                    transitionProps={{ transition: 'pop' }}
                     withArrow
                     shadow="md"
                     offset={-1}
@@ -106,12 +104,17 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                     <Popover.Target>
                         <Tooltip
                             disabled={isPopoverOpen || isEditMode}
-                            position="bottom"
-                            openDelay={500}
+                            position="top-start"
+                            withinPortal
+                            offset={0}
+                            arrowOffset={16}
                             label={
                                 <Text fz="xs">
-                                    Only filters added in <b>'edit'</b> mode
-                                    will be saved
+                                    Only filters added in{' '}
+                                    <Text span fw={600}>
+                                        'edit'
+                                    </Text>{' '}
+                                    mode will be saved
                                 </Text>
                             }
                         >

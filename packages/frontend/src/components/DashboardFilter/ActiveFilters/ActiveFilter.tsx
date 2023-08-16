@@ -82,67 +82,79 @@ const ActiveFilter: FC<Props> = ({
             opened={isPopoverOpen}
             closeOnEscape={!isSubPopoverOpen}
             closeOnClickOutside={!isSubPopoverOpen}
+            transitionProps={{ transition: 'pop' }}
             onClose={() => {
                 handleClose();
             }}
             offset={-1}
             keepMounted
-            transitionProps={{
-                duration: 0,
-            }}
         >
             <Popover.Target>
-                <Tooltip
-                    position="top-start"
-                    disabled={isPopoverOpen}
-                    label={
-                        <Text fs="xs">
-                            {filterRuleTables.length === 0
-                                ? `Table: ${filterRuleTables[0]}`
-                                : `Tables: ${filterRuleTables.join(', ')}`}
-                        </Text>
+                <Button
+                    size="xs"
+                    variant={isTemporary ? 'outline' : 'default'}
+                    bg="white"
+                    mr="xxs"
+                    rightIcon={
+                        (isEditMode || isTemporary) && (
+                            <CloseButton size="sm" onClick={onRemove} />
+                        )
                     }
+                    styles={{
+                        inner: {
+                            color: 'black',
+                        },
+                    }}
+                    onClick={togglePopover}
                 >
-                    <Button
-                        size="xs"
-                        variant={isTemporary ? 'outline' : 'default'}
-                        bg="white"
-                        mr="xxs"
-                        rightIcon={
-                            (isEditMode || isTemporary) && (
-                                <CloseButton size="sm" onClick={onRemove} />
-                            )
-                        }
-                        styles={{
-                            inner: {
-                                color: 'black',
-                            },
-                        }}
-                        onClick={togglePopover}
-                    >
-                        <Text fz="xs">
+                    <Text fz="xs">
+                        <Tooltip
+                            withinPortal
+                            position="top-start"
+                            disabled={isPopoverOpen}
+                            offset={8}
+                            label={
+                                <Text fz="xs">
+                                    {filterRuleTables.length === 0 ? (
+                                        <>
+                                            Table:
+                                            <Text span fw={600}>
+                                                {filterRuleTables[0]}
+                                            </Text>
+                                        </>
+                                    ) : (
+                                        <>
+                                            Tables:{' '}
+                                            <Text span fw={600}>
+                                                {filterRuleTables.join(', ')}
+                                            </Text>
+                                        </>
+                                    )}
+                                </Text>
+                            }
+                        >
                             <Text fw={600} span>
                                 {filterRule.label || filterRuleLabels.field}{' '}
                             </Text>
-                            <Text fw={400} span>
-                                {filterRule.disabled ? (
-                                    <Text span color="gray.6">
-                                        is any value
+                        </Tooltip>
+                        <Text fw={400} span>
+                            {filterRule.disabled ? (
+                                <Text span color="gray.6">
+                                    is any value
+                                </Text>
+                            ) : (
+                                <>
+                                    <Text span color="gray.7">
+                                        {filterRuleLabels.operator}{' '}
                                     </Text>
-                                ) : (
-                                    <>
-                                        <Text span color="gray.7">
-                                            {filterRuleLabels.operator}{' '}
-                                        </Text>
-                                        <Text fw={700} span>
-                                            {filterRuleLabels.value}
-                                        </Text>
-                                    </>
-                                )}
-                            </Text>
+                                    <Text fw={700} span>
+                                        {filterRuleLabels.value}
+                                    </Text>
+                                </>
+                            )}
                         </Text>
-                    </Button>
-                </Tooltip>
+                    </Text>
+                </Button>
             </Popover.Target>
 
             <Popover.Dropdown>
