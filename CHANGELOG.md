@@ -1,3 +1,10 @@
+## [0.747.1](https://github.com/lightdash/lightdash/compare/0.747.0...0.747.1) (2023-08-16)
+
+
+### Bug Fixes
+
+* get dbtVersion when creating new connection ([#6775](https://github.com/lightdash/lightdash/issues/6775)) ([12c2e7a](https://github.com/lightdash/lightdash/commit/12c2e7a95db0df2cda1c8a3c189b7d6f44adebc0))
+
 # [0.747.0](https://github.com/lightdash/lightdash/compare/0.746.0...0.747.0) (2023-08-16)
 
 
