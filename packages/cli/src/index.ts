@@ -508,6 +508,10 @@ ${styles.bold('Examples:')}
         'specify models (accepts dbt selection syntax)',
     )
     .option(
+        '-e, --exclude <models...>',
+        'specify models (accepts dbt selection syntax)',
+    )
+    .option(
         '-m, --models <models...>',
         'specify models (accepts dbt selection syntax)',
     )

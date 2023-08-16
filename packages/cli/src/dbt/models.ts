@@ -1,5 +1,4 @@
 import {
-    buildModelGraph,
     DbtDoc,
     DbtManifest,
     DbtModelNode,
@@ -11,6 +10,7 @@ import {
     patchPathParts,
 } from '@lightdash/common';
 import { WarehouseClient, WarehouseTableSchema } from '@lightdash/warehouses';
+import execa from 'execa';
 import inquirer from 'inquirer';
 import * as path from 'path';
 import GlobalState from '../globalState';
@@ -268,26 +268,6 @@ ${deletedColumnNames.map((name) => `- ${styles.bold(name)} \n`).join('')}
     };
 };
 
-const selectorRe =
-    /^(?<childrens_parents>(@))?(?<parents>((?<parents_depth>(\d*))\+))?((?<method>([\w.]+)):)?(?<value>(.*?))(?<children>(\+(?<children_depth>(\d*))))?$/;
-
-const parseSelector = (selector: string) => {
-    const match = selector.match(selectorRe);
-    if (!match) {
-        throw new ParseError(`Invalid selector: ${selector}`);
-    }
-    const method = match.groups?.method;
-    const value = match.groups?.value;
-    const includeParents = !!match.groups?.parents;
-    const includeChildren = !!match.groups?.children;
-    return {
-        method,
-        value,
-        includeParents,
-        includeChildren,
-    };
-};
-
 export const getModelsFromManifest = (
     manifest: DbtManifest,
 ): DbtModelNode[] => {
@@ -312,131 +292,76 @@ export const getModelsFromManifest = (
         .map((model) => normaliseModelDatabase(model, adapterType));
 };
 
-type MethodSelectorArgs = {
-    method: string;
-    value: string | undefined | null;
-    models: DbtRawModelNode[];
-};
-const methodSelector = ({
-    method,
-    value,
-    models,
-}: MethodSelectorArgs): string[] => {
-    if (method !== 'tag') {
-        throw new ParseError(
-            `Selector method "${method}" not supported. Only "tag" is supported.`,
-        );
-    }
-    if (!value) {
-        throw new ParseError(`Invalid value for tag selector "${value}"`);
-    }
-    return models
-        .filter((model) => model.tags?.includes(value))
-        .map((model) => model.unique_id);
-};
+export const getCompiledModels = async (
+    models: DbtModelNode[],
+    args: {
+        select: string[] | undefined;
+        exclude: string[] | undefined;
+        projectDir: string;
+        profilesDir: string;
+        target: string | undefined;
+        profile: string | undefined;
+    },
+): Promise<CompiledModel[]> => {
+    let allModelIds = models.map((model) => model.unique_id);
 
-type ModelNameSelectorArgs = {
-    projectName: string;
-    value: string | undefined | null;
-    includeParents: boolean;
-    includeChildren: boolean;
-    models: DbtRawModelNode[];
-    modelGraph: ReturnType<typeof buildModelGraph>;
-};
-const modelNameSelector = ({
-    projectName,
-    value,
-    includeParents,
-    includeChildren,
-    models,
-    modelGraph,
-}: ModelNameSelectorArgs): string[] => {
-    if (!value) {
-        throw new ParseError(`Invalid model name given`);
-    }
-    const modelName = path.parse(value).name;
-    const nodeId = `model.${projectName}.${modelName}`;
-    const node = models.find((model) => model.unique_id === nodeId);
-    if (!node) {
-        throw new ParseError(
-            `Could not find model with name "${modelName}" in project "${projectName}"`,
-        );
-    }
-    let selectedNodes: string[] = [];
-    if (includeParents) {
-        const parents = modelGraph.dependenciesOf(nodeId);
-        selectedNodes = [...selectedNodes, ...parents];
-    }
-    selectedNodes = [...selectedNodes, nodeId];
-    if (includeChildren) {
-        const children = modelGraph.dependantsOf(nodeId);
-        selectedNodes = [...selectedNodes, ...children];
-    }
-    return selectedNodes;
-};
+    if (args.select || args.exclude) {
+        const spinner = GlobalState.startSpinner(`Filtering models`);
+        try {
+            const { stdout } = await execa('dbt', [
+                'ls',
+                '--profiles-dir',
+                args.profilesDir,
+                '--project-dir',
+                args.projectDir,
+                ...(args.target ? ['--target', args.target] : []),
+                ...(args.profile ? ['--profile', args.profile] : []),
+                ...(args.select ? ['--select', args.select.join(' ')] : []),
+                ...(args.exclude ? ['--exclude', args.exclude.join(' ')] : []),
+                '--resource-type=model',
+                '--output=json',
+            ]);
 
-type SelectModelsArgs = {
-    selector: string;
-    projectName: string;
-    models: DbtRawModelNode[];
-    modelGraph: ReturnType<typeof buildModelGraph>;
-};
-const selectModels = ({
-    selector,
-    projectName,
-    models,
-    modelGraph,
-}: SelectModelsArgs) => {
-    const parsedSelector = parseSelector(selector);
-    const { method } = parsedSelector;
-    if (method) {
-        return methodSelector({ method, value: parsedSelector.value, models });
-    }
-    return modelNameSelector({
-        ...parsedSelector,
-        projectName,
-        models,
-        modelGraph,
-    });
-};
+            const filteredModelIds = stdout
+                .split('\n')
+                .map((l) => l.trim())
+                .filter((l) => l.length > 0)
+                .map((l) => {
+                    try {
+                        return JSON.parse(l);
+                    } catch (e) {
+                        return null;
+                    }
+                })
+                .filter(
+                    (l): l is { resource_type: string; unique_id: string } =>
+                        l !== null,
+                )
+                .filter((model: any) => model.resource_type === 'model')
+                .map((model: any) => model.unique_id);
 
-type GetCompiledModelsFromManifestArgs = {
-    projectName: string;
-    selectors: string[] | undefined;
-    manifest: DbtManifest;
-};
-export const getCompiledModelsFromManifest = ({
-    projectName,
-    selectors,
-    manifest,
-}: GetCompiledModelsFromManifestArgs): CompiledModel[] => {
-    const models = getModelsFromManifest(manifest);
-    const modelGraph = buildModelGraph(models);
-    let nodeIds: string[] = [];
-    if (selectors === undefined) {
-        nodeIds = models.map((model) => model.unique_id);
-    } else {
-        nodeIds = Array.from(
-            new Set(
-                selectors.flatMap((selector) =>
-                    selectModels({ selector, projectName, models, modelGraph }),
-                ),
-            ),
-        );
+            allModelIds = allModelIds.filter((modelId) =>
+                filteredModelIds.includes(modelId),
+            );
+        } catch (e) {
+            console.error(styles.error(`Failed to filter models: ${e}`));
+            throw e;
+        } finally {
+            spinner.stop();
+        }
     }
-    const modelLookup = models.reduce<{ [nodeId: string]: DbtModelNode }>(
-        (acc, model) => {
-            acc[model.unique_id] = model;
-            return acc;
-        },
+
+    const modelLookup = models.reduce<Record<string, DbtModelNode>>(
+        (acc, model) => ({ ...acc, [model.unique_id]: model }),
         {},
     );
-    return nodeIds.map((nodeId) => ({
-        name: modelLookup[nodeId].name,
-        schema: modelLookup[nodeId].schema,
-        database: modelLookup[nodeId].database,
-        originalFilePath: modelLookup[nodeId].original_file_path,
-        patchPath: modelLookup[nodeId].patch_path,
-        alias: modelLookup[nodeId].alias,
+
+    return allModelIds.map((modelId) => ({
+        name: modelLookup[modelId].name,
+        schema: modelLookup[modelId].schema,
+        database: modelLookup[modelId].database,
+        originalFilePath: modelLookup[modelId].original_file_path,
+        patchPath: modelLookup[modelId].patch_path,
+        alias: modelLookup[modelId].alias,
     }));
 };

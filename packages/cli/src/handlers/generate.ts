@@ -9,7 +9,8 @@ import { getDbtContext } from '../dbt/context';
 import { loadManifest } from '../dbt/manifest';
 import {
     findAndUpdateModelYaml,
-    getCompiledModelsFromManifest,
+    getCompiledModels,
+    getModelsFromManifest,
     getWarehouseTableForModel,
 } from '../dbt/models';
 import {
@@ -24,6 +25,7 @@ import { checkLightdashVersion } from './dbt/apiClient';
 
 type GenerateHandlerOptions = CompileHandlerOptions & {
     select: string[] | undefined;
+    exclude: string[] | undefined;
     models: string[] | undefined;
     assumeYes: boolean;
     excludeMeta: boolean;
@@ -33,8 +35,11 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
 
-    const select = options.select || options.models;
-    if (select === undefined && !options.assumeYes) {
+    if (
+        options.select === undefined &&
+        options.exclude === undefined &&
+        !options.assumeYes
+    ) {
         const answers = await inquirer.prompt([
             {
                 type: 'confirm',
@@ -48,7 +53,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
         }
     }
 
-    const numModelsSelected = select ? select.length : undefined;
+    const numModelsSelected = (options.select || options.models)?.length;
     await LightdashAnalytics.track({
         event: 'generate.started',
         properties: {
@@ -80,10 +85,15 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
     const credentials = await warehouseCredentialsFromDbtTarget(target);
     const warehouseClient = warehouseClientFromCredentials(credentials);
     const manifest = await loadManifest({ targetDir: context.targetDir });
-    const compiledModels = getCompiledModelsFromManifest({
-        projectName: context.projectName,
-        selectors: select,
-        manifest,
+    const models = getModelsFromManifest(manifest);
+
+    const compiledModels = await getCompiledModels(models, {
+        projectDir: absoluteProjectPath,
+        profilesDir: absoluteProfilesPath,
+        profile: profileName,
+        target: options.target,
+        select: options.select || options.models,
+        exclude: options.exclude,
     });
 
     GlobalState.debug(`> Compiled models: ${compiledModels.length}`);
