@@ -201,7 +201,8 @@ const TileFilterConfiguration: FC<Props> = ({
                         inputProps={{
                             // TODO: Remove once this component is migrated to Mantine
                             style: {
-                                borderRadius: '3px',
+                                borderRadius: '4px',
+                                borderWidth: '1px',
                                 boxShadow: 'none',
                                 fontSize: theme.fontSizes.xs,
                             },
