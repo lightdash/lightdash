@@ -26,7 +26,6 @@ import {
     SlackNotificationPayload,
     ValidateProjectPayload,
 } from '@lightdash/common';
-import csv from 'csvtojson';
 import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
 import {
