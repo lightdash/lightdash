@@ -105,7 +105,7 @@ const NavBar = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: projects } = useProjects();
     const { activeProjectUuid, isLoading: isLoadingActiveProject } =
-        useActiveProjectUuid();
+        useActiveProjectUuid({ refetchOnMount: true });
 
     const homeUrl = activeProjectUuid
         ? `/projects/${activeProjectUuid}/home`
