@@ -113,8 +113,12 @@ const FilterConfiguration: FC<Props> = ({
         }
     };
 
+    console.log({ originalFilterRule });
+
     const handleRevert = useCallback(() => {
         if (!originalFilterRule) return;
+
+        console.log({ draftFilterRule, originalFilterRule });
 
         setDraftFilterRule(
             draftFilterRule
@@ -290,7 +294,8 @@ const FilterConfiguration: FC<Props> = ({
 
                 {!isTemporary &&
                     isFilterModified &&
-                    selectedTabId === FilterTabs.SETTINGS && (
+                    selectedTabId === FilterTabs.SETTINGS &&
+                    !isEditMode && (
                         <Tooltip
                             label="Reset to original value"
                             position="left"
