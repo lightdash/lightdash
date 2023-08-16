@@ -113,12 +113,8 @@ const FilterConfiguration: FC<Props> = ({
         }
     };
 
-    console.log({ originalFilterRule });
-
     const handleRevert = useCallback(() => {
         if (!originalFilterRule) return;
-
-        console.log({ draftFilterRule, originalFilterRule });
 
         setDraftFilterRule(
             draftFilterRule
