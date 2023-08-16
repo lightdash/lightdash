@@ -1,3 +1,10 @@
+# [0.747.0](https://github.com/lightdash/lightdash/compare/0.746.0...0.747.0) (2023-08-16)
+
+
+### Features
+
+* improve chart from dashboard edit ux ([#6755](https://github.com/lightdash/lightdash/issues/6755)) ([0364859](https://github.com/lightdash/lightdash/commit/03648592bf3128153fd81bcc95d2b74051c3ae77))
+
 # [0.746.0](https://github.com/lightdash/lightdash/compare/0.745.0...0.746.0) (2023-08-16)
 
 
