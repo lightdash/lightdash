@@ -1,3 +1,10 @@
+## [0.744.2](https://github.com/lightdash/lightdash/compare/0.744.1...0.744.2) (2023-08-16)
+
+
+### Bug Fixes
+
+* google sheet typescript ([#6756](https://github.com/lightdash/lightdash/issues/6756)) ([5eb702e](https://github.com/lightdash/lightdash/commit/5eb702ead2e7613a46745b7d3301727e37c40ed0))
+
 ## [0.744.1](https://github.com/lightdash/lightdash/compare/0.744.0...0.744.1) (2023-08-15)
 
 
