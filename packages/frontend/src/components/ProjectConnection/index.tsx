@@ -227,7 +227,7 @@ export const UpdateProjectConnection: FC<{
                 name,
                 dbtConnection,
                 warehouseConnection,
-                dbtVersion: dbtVersion,
+                dbtVersion,
             });
         }
     };
@@ -332,6 +332,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         name,
         dbt: dbtConnection,
         warehouse: warehouseConnection,
+        dbtVersion,
     }: Required<ProjectConnectionForm>) => {
         track({
             name: EventName.CREATE_PROJECT_BUTTON_CLICKED,
@@ -341,6 +342,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                 name: name || user.data?.organizationName || 'My project',
                 type: ProjectType.DEFAULT,
                 dbtConnection,
+                dbtVersion,
                 //@ts-ignore
                 warehouseConnection: {
                     ...warehouseConnection,
