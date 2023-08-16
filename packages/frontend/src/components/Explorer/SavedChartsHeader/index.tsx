@@ -8,7 +8,9 @@ import {
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
+import { Box, Tooltip } from '@mantine/core';
 import {
+    IconArrowBack,
     IconCheck,
     IconCirclePlus,
     IconCopy,
@@ -324,9 +326,20 @@ const SavedChartsHeader: FC = () => {
                                 </Button>
 
                                 {isFromDashboard && (
-                                    <Button onClick={handleGoBackClick}>
-                                        Go back
-                                    </Button>
+                                    <Tooltip
+                                        offset={-1}
+                                        label="Return to dashboard"
+                                    >
+                                        <Box>
+                                            <Button
+                                                style={{ padding: '5px 7px' }}
+                                                icon={
+                                                    <IconArrowBack size={16} />
+                                                }
+                                                onClick={handleGoBackClick}
+                                            />
+                                        </Box>
+                                    </Tooltip>
                                 )}
                             </>
                         )}
