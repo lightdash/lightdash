@@ -8,7 +8,9 @@ import {
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
+import { Box, Tooltip } from '@mantine/core';
 import {
+    IconArrowBack,
     IconCheck,
     IconCirclePlus,
     IconCopy,
@@ -62,6 +64,7 @@ const SavedChartsHeader: FC = () => {
         projectUuid: string;
     }>();
     const dashboardUuid = useSearchParams('fromDashboard');
+    const isFromDashboard = !!dashboardUuid;
     const spaceUuid = useSearchParams('fromSpace');
 
     const history = useHistory();
@@ -166,6 +169,31 @@ const SavedChartsHeader: FC = () => {
             projectUuid,
         }),
     );
+
+    const handleGoBackClick = () => {
+        if (hasUnsavedChanges && isEditMode) {
+            history.block((prompt) => {
+                setBlockedNavigationLocation(prompt.pathname);
+                setIsSaveWarningModalOpen(true);
+                return false; //blocks history
+            });
+        }
+
+        history.push({
+            pathname: `/projects/${savedChart?.projectUuid}/dashboards/${dashboardUuid}`,
+        });
+        sessionStorage.removeItem('fromDashboard');
+        sessionStorage.removeItem('dashboardUuid');
+    };
+
+    const handleCancelClick = () => {
+        reset();
+
+        if (!isFromDashboard)
+            history.push({
+                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`,
+            });
+    };
 
     return (
         <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
@@ -289,26 +317,30 @@ const SavedChartsHeader: FC = () => {
                             <>
                                 <SaveChartButton />
                                 <Button
-                                    onClick={() => {
-                                        reset();
-                                        if (dashboardUuid) {
-                                            history.push({
-                                                pathname: `/projects/${savedChart?.projectUuid}/dashboards/${dashboardUuid}`,
-                                            });
-                                            sessionStorage.removeItem(
-                                                'fromDashboard',
-                                            );
-                                            sessionStorage.removeItem(
-                                                'dashboardUuid',
-                                            );
-                                        } else
-                                            history.push({
-                                                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`,
-                                            });
-                                    }}
+                                    disabled={
+                                        isFromDashboard && !hasUnsavedChanges
+                                    }
+                                    onClick={handleCancelClick}
                                 >
-                                    Cancel
+                                    Cancel {isFromDashboard ? 'changes' : ''}
                                 </Button>
+
+                                {isFromDashboard && (
+                                    <Tooltip
+                                        offset={-1}
+                                        label="Return to dashboard"
+                                    >
+                                        <Box>
+                                            <Button
+                                                style={{ padding: '5px 7px' }}
+                                                icon={
+                                                    <IconArrowBack size={16} />
+                                                }
+                                                onClick={handleGoBackClick}
+                                            />
+                                        </Box>
+                                    </Tooltip>
+                                )}
                             </>
                         )}
 
