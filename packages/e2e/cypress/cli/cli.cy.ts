@@ -62,7 +62,7 @@ describe('CLI', () => {
             },
         )
             .its('stderr')
-            .should('not.contain', 'Filtering models')
+            .should('contain', 'Filtering models')
             .should('contain', 'customers')
             .should('contain', 'orders')
             .should('not.contain', 'events')
