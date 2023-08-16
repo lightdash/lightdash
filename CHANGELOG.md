@@ -1,3 +1,10 @@
+# [0.748.0](https://github.com/lightdash/lightdash/compare/0.747.1...0.748.0) (2023-08-16)
+
+
+### Features
+
+* Migrate general settings forms to use Mantine ([#6712](https://github.com/lightdash/lightdash/issues/6712)) ([32812bc](https://github.com/lightdash/lightdash/commit/32812bc20cecb48e96b762427d65bcb8f10c2ade))
+
 ## [0.747.1](https://github.com/lightdash/lightdash/compare/0.747.0...0.747.1) (2023-08-16)
 
 
