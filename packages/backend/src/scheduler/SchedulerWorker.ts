@@ -50,6 +50,7 @@ const traceTask = (taskName: string, task: Task): Task => {
             async (span) => {
                 const { job } = helpers;
 
+                // TODO: have clearer types for payload
                 let organizationUuidAttribute = {};
                 if (
                     typeof payload === 'object' &&
