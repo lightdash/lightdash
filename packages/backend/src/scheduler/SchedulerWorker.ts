@@ -49,12 +49,26 @@ const traceTask = (taskName: string, task: Task): Task => {
             `worker.task.${taskName}`,
             async (span) => {
                 const { job } = helpers;
+
+                // TODO: have clearer types for payload
+                let organizationUuidAttribute = {};
+                if (
+                    typeof payload === 'object' &&
+                    payload !== null &&
+                    'organizationUuid' in payload
+                ) {
+                    organizationUuidAttribute = {
+                        'worker.task.organization_id': payload.organizationUuid,
+                    };
+                }
+
                 span.setAttributes({
                     'worker.task.name': taskName,
                     'worker.job.id': job.id,
                     'worker.job.task_identifier': job.task_identifier,
                     'worker.job.attempts': job.attempts,
                     'worker.job.max_attempts': job.max_attempts,
+                    ...organizationUuidAttribute,
                 });
                 if (job.locked_at) {
                     span.setAttribute(

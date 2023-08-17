@@ -492,6 +492,7 @@ export class ProjectService {
 
         if (savedProject.dbtConnection.type !== DbtProjectType.NONE) {
             await schedulerClient.testAndCompileProject({
+                organizationUuid: user.organizationUuid,
                 createdByUserUuid: user.userUuid,
                 projectUuid,
                 requestMethod: method,
@@ -1549,6 +1550,7 @@ export class ProjectService {
 
         await schedulerClient.compileProject({
             createdByUserUuid: user.userUuid,
+            organizationUuid,
             projectUuid,
             requestMethod,
             jobUuid: job.jobUuid,
