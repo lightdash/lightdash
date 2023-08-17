@@ -859,7 +859,7 @@ export const uploadGsheets = async (
                             : undefined;
                     return {
                         ...acc,
-                        chartUuid:
+                        [chartUuid]:
                             tile?.properties.title || chartName || chartUuid,
                     };
                 },
@@ -873,6 +873,9 @@ export const uploadGsheets = async (
                 Object.values(chartNames),
             );
 
+            Logger.debug(
+                `Uploading dashboard with ${chartUuids.length} charts to Google Sheets`,
+            );
             // We want to process all charts in sequence, so we don't load all chart results in memory
             chartUuids.reduce(async (promise, chartUuid) => {
                 await promise;
