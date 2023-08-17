@@ -4,7 +4,7 @@ import {
     SchedulerJobStatus,
     SchedulerWithLogs,
 } from '@lightdash/common';
-import { MantineTheme, Tooltip } from '@mantine/core';
+import { Image, MantineTheme, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangleFilled,
     IconCircleCheckFilled,
@@ -14,6 +14,7 @@ import {
     IconProgress,
 } from '@tabler/icons-react';
 import moment from 'moment';
+import GsheetSvg from '../../svgs/gsheets.svg';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
 
@@ -51,10 +52,11 @@ export const getSchedulerIcon = (item: SchedulerItem, theme: MantineTheme) => {
             );
         case SchedulerFormat.GSHEETS:
             return (
-                <IconBox
-                    icon={IconCsv} // TODO use gsheets
-                    color="indigo.6"
-                    style={{ color: theme.colors.indigo[6] }}
+                <Image
+                    src={GsheetSvg}
+                    alt="Google Sheets"
+                    width={32}
+                    height={32}
                 />
             );
         default:

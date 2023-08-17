@@ -1,3 +1,32 @@
+## [0.750.1](https://github.com/lightdash/lightdash/compare/0.750.0...0.750.1) (2023-08-17)
+
+
+### Bug Fixes
+
+* dashboard filters tile settings select all ([#6792](https://github.com/lightdash/lightdash/issues/6792)) ([1484fb5](https://github.com/lightdash/lightdash/commit/1484fb5b144d8effe57d3aecf6e49a80362fee1e))
+
+# [0.750.0](https://github.com/lightdash/lightdash/compare/0.749.0...0.750.0) (2023-08-17)
+
+
+### Features
+
+* gsheet on scheduler dashboard ([#6793](https://github.com/lightdash/lightdash/issues/6793)) ([13402a3](https://github.com/lightdash/lightdash/commit/13402a3b067f278953904dab7b239db469c47ebd))
+
+# [0.749.0](https://github.com/lightdash/lightdash/compare/0.748.1...0.749.0) (2023-08-16)
+
+
+### Features
+
+* generate with dbt compatible --select and --exclude ([#6684](https://github.com/lightdash/lightdash/issues/6684)) ([ff6a12e](https://github.com/lightdash/lightdash/commit/ff6a12e96720c79bb19978640df02b4554ccdb56))
+
+## [0.748.1](https://github.com/lightdash/lightdash/compare/0.748.0...0.748.1) (2023-08-16)
+
+
+### Bug Fixes
+
+* clear dashboard filter state when closed ([#6754](https://github.com/lightdash/lightdash/issues/6754)) ([b56dbfd](https://github.com/lightdash/lightdash/commit/b56dbfd92ae44a9e270b4321c91ddbcf2e339c25))
+* fix filter input border style ([#6783](https://github.com/lightdash/lightdash/issues/6783)) ([463bc6a](https://github.com/lightdash/lightdash/commit/463bc6a00a33f05d18c72329a5991fd0a9fbb528))
+
 # [0.748.0](https://github.com/lightdash/lightdash/compare/0.747.1...0.748.0) (2023-08-16)
 
 

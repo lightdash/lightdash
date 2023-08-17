@@ -6,6 +6,7 @@ import {
     UseQueryOptions,
 } from 'react-query';
 import { lightdashApi } from '../api';
+import { UseQueryFetchOptions } from '../types/UseQuery';
 import { useOrganization } from './organization/useOrganization';
 import useToaster from './toaster/useToaster';
 
@@ -26,12 +27,16 @@ export const useProjects = (
     });
 };
 
-export const useDefaultProject = (): {
+export const useDefaultProject = (
+    useQueryFetchOptions?: UseQueryFetchOptions,
+): {
     isLoading: boolean;
     data: OrganizationProject | undefined;
 } => {
-    const { isLoading: isOrganizationLoading, data: org } = useOrganization();
-    const { isLoading: isLoadingProjects, data: projects = [] } = useProjects();
+    const { isLoading: isOrganizationLoading, data: org } =
+        useOrganization(useQueryFetchOptions);
+    const { isLoading: isLoadingProjects, data: projects = [] } =
+        useProjects(useQueryFetchOptions);
 
     const defaultProject = projects?.find(
         (project) => project.projectUuid === org?.defaultProjectUuid,

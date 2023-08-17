@@ -22,10 +22,10 @@ import {
     downloadCsv,
     handleScheduledDelivery,
     sendEmailNotification,
-    sendGsheetsNotification,
     sendSlackNotification,
     testAndCompileProject,
     uploadGsheetFromQuery,
+    uploadGsheets,
     validateProject,
 } from './SchedulerTask';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
@@ -247,17 +247,14 @@ export class SchedulerWorker {
                         },
                     );
                 },
-                sendGsheetsNotification: async (
-                    payload: any,
-                    helpers: JobHelpers,
-                ) => {
+                uploadGsheets: async (payload: any, helpers: JobHelpers) => {
                     await tryJobOrTimeout(
-                        sendGsheetsNotification(helpers.job.id, payload),
+                        uploadGsheets(helpers.job.id, payload),
                         helpers.job,
                         this.lightdashConfig.scheduler.jobTimeout,
                         async (job, e) => {
                             await schedulerService.logSchedulerJob({
-                                task: 'sendGsheetsNotification',
+                                task: 'uploadGsheets',
                                 schedulerUuid: payload.schedulerUuid,
                                 jobId: job.id,
                                 scheduledTime: job.run_at,

@@ -1,6 +1,7 @@
 import { ApiError, ApiExploresResults } from '@lightdash/common';
 import { useQuery } from 'react-query';
 import { lightdashApi } from '../api';
+import { UseQueryFetchOptions } from '../types/UseQuery';
 import useQueryError from './useQueryError';
 
 const getExplores = async (projectUuid: string, filtered?: boolean) =>
@@ -12,7 +13,11 @@ const getExplores = async (projectUuid: string, filtered?: boolean) =>
         body: undefined,
     });
 
-export const useExplores = (projectUuid: string, filtered?: boolean) => {
+export const useExplores = (
+    projectUuid: string,
+    filtered?: boolean,
+    useQueryFetchOptions?: UseQueryFetchOptions,
+) => {
     const setErrorResponse = useQueryError();
     const queryKey = ['tables', projectUuid, filtered ? 'filtered' : 'all'];
     return useQuery<ApiExploresResults, ApiError>({
@@ -20,5 +25,6 @@ export const useExplores = (projectUuid: string, filtered?: boolean) => {
         queryFn: () => getExplores(projectUuid, filtered),
         onError: (result) => setErrorResponse(result),
         retry: false,
+        ...useQueryFetchOptions,
     });
 };

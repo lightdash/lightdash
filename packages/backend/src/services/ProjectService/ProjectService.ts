@@ -53,6 +53,7 @@ import {
     ProjectType,
     RequestMethod,
     ResultRow,
+    SchedulerCsvOptions,
     SessionUser,
     SpaceSummary,
     SummaryExplore,
@@ -1003,6 +1004,26 @@ export class ProjectService {
             rows: formattedRows,
             metricQuery,
         };
+    }
+
+    async getResultsForChart(
+        user: SessionUser,
+        chartUuid: string,
+    ): Promise<Record<string, any>[]> {
+        const chart = await this.savedChartModel.get(chartUuid);
+        const { metricQuery } = chart;
+        const exploreId = chart.tableName;
+
+        const rows = await this.runMetricQuery(
+            user,
+            metricQuery,
+            chart.projectUuid,
+            exploreId,
+            undefined,
+            QueryExecutionContext.GSHEETS,
+        );
+
+        return rows;
     }
 
     async runMetricQuery(

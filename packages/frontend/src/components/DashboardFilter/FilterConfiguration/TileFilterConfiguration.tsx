@@ -17,7 +17,6 @@ import {
     Text,
     useMantineTheme,
 } from '@mantine/core';
-import { useListState } from '@mantine/hooks';
 import { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { FilterActions } from '.';
@@ -37,6 +36,7 @@ type Props = {
         tileUuid: string,
         filter?: FilterableField,
     ) => void;
+    onToggleAll: (checked: boolean) => void;
 };
 
 const TileFilterConfiguration: FC<Props> = ({
@@ -46,11 +46,14 @@ const TileFilterConfiguration: FC<Props> = ({
     availableTileFilters,
     popoverProps,
     onChange,
+    onToggleAll,
 }) => {
     const theme = useMantineTheme();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const { data: savedCharts } = useChartSummaries(projectUuid);
+    const { data: savedCharts } = useChartSummaries(projectUuid, {
+        refetchOnMount: false,
+    });
 
     const sortTilesByFieldMatch = useCallback(
         (
@@ -83,24 +86,25 @@ const TileFilterConfiguration: FC<Props> = ({
         },
         [field],
     );
-    const sortedTileWithFilters = useMemo(
-        () =>
-            Object.entries(availableTileFilters)
-                .sort(([, a], [, b]) =>
-                    sortTilesByFieldMatch(matchFieldByTypeAndName, a, b),
-                )
-                .sort(([, a], [, b]) =>
-                    sortTilesByFieldMatch(matchFieldExact, a, b),
-                ),
-        [sortTilesByFieldMatch, availableTileFilters],
-    );
 
-    const initialFilterTileTargets = sortedTileWithFilters.map(
-        ([tileUuid, filters], index) => {
+    const sortedTileWithFilters = useMemo(() => {
+        return Object.entries(availableTileFilters)
+            .sort(([, a], [, b]) =>
+                sortTilesByFieldMatch(matchFieldByTypeAndName, a, b),
+            )
+            .sort(([, a], [, b]) =>
+                sortTilesByFieldMatch(matchFieldExact, a, b),
+            );
+    }, [sortTilesByFieldMatch, availableTileFilters]);
+
+    const tileTargetList = useMemo(() => {
+        return sortedTileWithFilters.map(([tileUuid, filters], index) => {
             const tile = tiles.find((t) => t.uuid === tileUuid);
             const tileConfig = filterRule.tileTargets?.[tileUuid];
 
-            const isFilterAvailable = filters?.some(matchFieldByType(field));
+            const isFilterAvailable =
+                filters?.some(matchFieldByType(field)) ?? false;
+
             const sortedFilters = filters
                 ?.filter(matchFieldByType(field))
                 .sort((a, b) =>
@@ -112,6 +116,7 @@ const TileFilterConfiguration: FC<Props> = ({
             const selectedFilter = filters?.find(
                 (f) => getFieldId(f) === fieldId,
             );
+
             const tileWithoutTitle =
                 !tile?.properties.title || tile.properties.title.length === 0;
             const isChartTileType = tile && isDashboardChartTileType(tile);
@@ -128,10 +133,11 @@ const TileFilterConfiguration: FC<Props> = ({
                     tileLabel = tile.properties.title;
                 }
             }
+
             return {
                 key: tileUuid + index,
                 label: tileLabel,
-                checked: Boolean(isFilterAvailable && tileConfig),
+                checked: isFilterAvailable && !!tileConfig,
                 tileUuid,
                 ...(tile &&
                     isDashboardChartTileType(tile) && {
@@ -141,105 +147,32 @@ const TileFilterConfiguration: FC<Props> = ({
                 sortedFilters,
                 selectedFilter,
             };
-        },
-    );
+        });
+    }, [
+        filterRule,
+        field,
+        savedCharts,
+        sortFieldsByMatch,
+        sortedTileWithFilters,
+        tiles,
+    ]);
 
-    const [tileTargetCheckboxes, handlers] = useListState(
-        initialFilterTileTargets,
-    );
-
-    const allChecked = tileTargetCheckboxes.every(({ checked }) => checked);
-    const indeterminate =
-        tileTargetCheckboxes.some(({ checked }) => checked) && !allChecked;
-
-    const tileTargets = tileTargetCheckboxes.map((value, index) => (
-        <Box key={value.key}>
-            <Checkbox
-                size="xs"
-                fw={500}
-                label={
-                    <Flex align="center" gap="xxs">
-                        <MantineIcon
-                            color="blue.8"
-                            icon={getChartIcon(value.tileChartKind)}
-                        />
-                        {value.label}
-                    </Flex>
-                }
-                styles={{
-                    label: {
-                        paddingLeft: theme.spacing.xs,
-                    },
-                }}
-                checked={value.checked}
-                onChange={(event) => {
-                    handlers.setItem(index, {
-                        ...value,
-                        checked: event.currentTarget.checked,
-                        selectedFilter: value.selectedFilter ?? field,
-                    });
-
-                    onChange(
-                        event.currentTarget.checked
-                            ? FilterActions.ADD
-                            : FilterActions.REMOVE,
-                        value.tileUuid,
-                    );
-                }}
-            />
-
-            {value.sortedFilters && (
-                <Box ml="xl" mt="sm" display={!value.checked ? 'none' : 'auto'}>
-                    <FieldAutoComplete
-                        disabled={!value.checked}
-                        popoverProps={{
-                            lazy: true,
-                            minimal: true,
-                            matchTargetWidth: true,
-                            ...popoverProps,
-                        }}
-                        inputProps={{
-                            // TODO: Remove once this component is migrated to Mantine
-                            style: {
-                                borderRadius: '3px',
-                                boxShadow: 'none',
-                                fontSize: theme.fontSizes.xs,
-                            },
-                        }}
-                        fields={value.sortedFilters}
-                        activeField={value.selectedFilter}
-                        onChange={(newFilter) => {
-                            handlers.setItemProp(
-                                index,
-                                'selectedFilter',
-                                newFilter,
-                            );
-
-                            onChange(
-                                FilterActions.ADD,
-                                value.tileUuid,
-                                newFilter,
-                            );
-                        }}
-                    />
-                </Box>
-            )}
-        </Box>
-    ));
+    const isAllChecked = tileTargetList.every(({ checked }) => checked);
+    const isIndeterminate =
+        !isAllChecked && tileTargetList.some(({ checked }) => checked);
 
     return (
         <Stack spacing="lg">
             <Checkbox
                 size="xs"
-                checked={allChecked}
-                indeterminate={indeterminate}
+                checked={isAllChecked}
+                indeterminate={isIndeterminate}
                 label={
-                    <Text span fz="10px" color="gray.8" fw={500}>
+                    <Text fw={500}>
                         Select all{' '}
-                        {indeterminate
+                        {isIndeterminate
                             ? ` (${
-                                  tileTargetCheckboxes.filter((v) => v.checked)
-                                      .length
+                                  tileTargetList.filter((v) => v.checked).length
                               } charts selected)`
                             : ''}
                     </Text>
@@ -249,20 +182,83 @@ const TileFilterConfiguration: FC<Props> = ({
                         paddingLeft: theme.spacing.xs,
                     },
                 }}
-                transitionDuration={0}
-                onChange={() =>
-                    handlers.setState((current) =>
-                        current.map((value) => ({
-                            ...value,
-                            checked: !allChecked,
-                            ...(!value.checked && {
-                                selectedFilter: value.selectedFilter || field,
-                            }),
-                        })),
-                    )
-                }
+                onChange={() => {
+                    if (isIndeterminate) {
+                        onToggleAll(false);
+                    } else {
+                        onToggleAll(!isAllChecked);
+                    }
+                }}
             />
-            <Stack spacing="md">{tileTargets}</Stack>
+            <Stack spacing="md">
+                {tileTargetList.map((value) => (
+                    <Box key={value.key}>
+                        <Checkbox
+                            size="xs"
+                            fw={500}
+                            label={
+                                <Flex align="center" gap="xxs">
+                                    <MantineIcon
+                                        color="blue.8"
+                                        icon={getChartIcon(value.tileChartKind)}
+                                    />
+                                    {value.label}
+                                </Flex>
+                            }
+                            styles={{
+                                label: {
+                                    paddingLeft: theme.spacing.xs,
+                                },
+                            }}
+                            checked={value.checked}
+                            onChange={(event) => {
+                                onChange(
+                                    event.currentTarget.checked
+                                        ? FilterActions.ADD
+                                        : FilterActions.REMOVE,
+                                    value.tileUuid,
+                                );
+                            }}
+                        />
+
+                        {value.sortedFilters && (
+                            <Box
+                                ml="xl"
+                                mt="sm"
+                                display={!value.checked ? 'none' : 'auto'}
+                            >
+                                <FieldAutoComplete
+                                    disabled={!value.checked}
+                                    popoverProps={{
+                                        lazy: true,
+                                        minimal: true,
+                                        matchTargetWidth: true,
+                                        ...popoverProps,
+                                    }}
+                                    inputProps={{
+                                        // TODO: Remove once this component is migrated to Mantine
+                                        style: {
+                                            borderRadius: '4px',
+                                            borderWidth: '1px',
+                                            boxShadow: 'none',
+                                            fontSize: theme.fontSizes.xs,
+                                        },
+                                    }}
+                                    fields={value.sortedFilters}
+                                    activeField={value.selectedFilter}
+                                    onChange={(newFilter) => {
+                                        onChange(
+                                            FilterActions.ADD,
+                                            value.tileUuid,
+                                            newFilter,
+                                        );
+                                    }}
+                                />
+                            </Box>
+                        )}
+                    </Box>
+                ))}
+            </Stack>
         </Stack>
     );
 };

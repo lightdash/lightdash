@@ -56,17 +56,33 @@ interface Props {
     tiles: DashboardTile[];
     field?: FilterableField;
     fields?: FilterableField[];
-    onFieldChange?: (newField: FilterableField) => void;
     availableTileFilters: Record<string, FilterableField[] | undefined>;
     originalFilterRule?: DashboardFilterRule;
-    draftFilterRule?: DashboardFilterRule;
-    onChangeDraftFilterRule: (value?: DashboardFilterRule) => void;
+    defaultFilterRule?: DashboardFilterRule;
     popoverProps?: Popover2Props;
     isEditMode: boolean;
     isCreatingNew?: boolean;
     isTemporary?: boolean;
     onSave: (value: DashboardFilterRule) => void;
 }
+
+const getExactFilter = (
+    filters: FilterableField[],
+    selectedField: FilterableField,
+) => {
+    return filters.find(matchFieldExact(selectedField));
+};
+
+const getDefaultFilter = (
+    filters: FilterableField[],
+    selectedField: FilterableField,
+) => {
+    return (
+        filters.find(matchFieldExact(selectedField)) ??
+        filters.find(matchFieldByTypeAndName(selectedField)) ??
+        filters.find(matchFieldByType(selectedField))
+    );
+};
 
 const FilterConfiguration: FC<Props> = ({
     isEditMode,
@@ -75,16 +91,22 @@ const FilterConfiguration: FC<Props> = ({
     tiles,
     field,
     fields,
-    onFieldChange,
     availableTileFilters,
     originalFilterRule,
-    draftFilterRule,
-    onChangeDraftFilterRule,
+    defaultFilterRule,
     popoverProps,
     onSave,
 }) => {
     const theme = useMantineTheme();
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>(DEFAULT_TAB);
+
+    const [selectedField, setSelectedField] = useState<
+        FilterableField | undefined
+    >(field);
+
+    const [draftFilterRule, setDraftFilterRule] = useState<
+        DashboardFilterRule | undefined
+    >(defaultFilterRule);
 
     const isFilterModified = useMemo(() => {
         if (!originalFilterRule || !draftFilterRule) return false;
@@ -96,23 +118,23 @@ const FilterConfiguration: FC<Props> = ({
     }, [originalFilterRule, draftFilterRule]);
 
     const handleChangeField = (newField: FilterableField) => {
-        if (!fields || !onFieldChange) return;
+        if (!fields) return;
 
         if (newField && isField(newField) && isFilterableField(newField)) {
-            onChangeDraftFilterRule(
+            setDraftFilterRule(
                 createDashboardFilterRuleFromField(
                     newField,
                     availableTileFilters,
                 ),
             );
-            onFieldChange(newField);
+            setSelectedField(newField);
         }
     };
 
     const handleRevert = useCallback(() => {
         if (!originalFilterRule) return;
 
-        onChangeDraftFilterRule(
+        setDraftFilterRule(
             draftFilterRule
                 ? {
                       ...draftFilterRule,
@@ -120,13 +142,13 @@ const FilterConfiguration: FC<Props> = ({
                   }
                 : undefined,
         );
-    }, [originalFilterRule, onChangeDraftFilterRule, draftFilterRule]);
+    }, [originalFilterRule, setDraftFilterRule, draftFilterRule]);
 
     const handleChangeFilterRule = useCallback(
         (newFilterRule: DashboardFilterRule) => {
-            onChangeDraftFilterRule(newFilterRule);
+            setDraftFilterRule(newFilterRule);
         },
-        [onChangeDraftFilterRule],
+        [setDraftFilterRule],
     );
 
     const handleChangeTileConfiguration = useCallback(
@@ -134,18 +156,15 @@ const FilterConfiguration: FC<Props> = ({
             const filters = availableTileFilters[tileUuid];
             if (!filters) return;
 
-            onChangeDraftFilterRule(
-                produce(draftFilterRule, (draftState) => {
-                    if (!draftState || !field) return;
+            const changedFilterRule = produce(draftFilterRule, (draftState) => {
+                if (!draftState || !selectedField) return;
 
-                    draftState.tileTargets = draftState.tileTargets ?? {};
+                draftState.tileTargets = draftState.tileTargets ?? {};
 
-                    if (action === FilterActions.ADD) {
+                switch (action) {
+                    case FilterActions.ADD:
                         const filterableField =
-                            filter ??
-                            filters.find(matchFieldExact(field)) ??
-                            filters.find(matchFieldByTypeAndName(field)) ??
-                            filters.find(matchFieldByType(field));
+                            filter ?? getDefaultFilter(filters, selectedField);
 
                         if (!filterableField) return draftState;
 
@@ -153,18 +172,80 @@ const FilterConfiguration: FC<Props> = ({
                             fieldId: fieldId(filterableField),
                             tableName: filterableField.table,
                         };
-                    } else if (action === FilterActions.REMOVE) {
+
+                        return draftState;
+
+                    case FilterActions.REMOVE:
                         delete draftState.tileTargets[tileUuid];
-                    } else {
+                        return draftState;
+
+                    default:
                         return assertUnreachable(
                             action,
                             'Invalid FilterActions',
                         );
-                    }
-                }),
-            );
+                }
+            });
+
+            setDraftFilterRule(changedFilterRule);
         },
-        [field, availableTileFilters, onChangeDraftFilterRule, draftFilterRule],
+        [
+            selectedField,
+            availableTileFilters,
+            setDraftFilterRule,
+            draftFilterRule,
+        ],
+    );
+
+    const handleToggleAll = useCallback(
+        (checked: boolean) => {
+            if (!checked) {
+                const newFilterRule = produce(draftFilterRule, (draftState) => {
+                    if (!draftState || !selectedField) return;
+
+                    draftState.tileTargets = {};
+                    return draftState;
+                });
+
+                setDraftFilterRule(newFilterRule);
+            } else {
+                const newFilterRule = produce(draftFilterRule, (draftState) => {
+                    if (!draftState || !selectedField) return;
+
+                    Object.entries(availableTileFilters).forEach(
+                        ([tileUuid, filters]) => {
+                            if (!filters) return;
+
+                            const filterableField = getExactFilter(
+                                filters,
+                                selectedField,
+                            );
+
+                            if (!filterableField) return;
+
+                            if (!draftState.tileTargets) {
+                                draftState.tileTargets = {};
+                            }
+
+                            draftState.tileTargets[tileUuid] = {
+                                fieldId: fieldId(filterableField),
+                                tableName: filterableField.table,
+                            };
+                        },
+                    );
+
+                    return draftState;
+                });
+
+                setDraftFilterRule(newFilterRule);
+            }
+        },
+        [
+            selectedField,
+            availableTileFilters,
+            setDraftFilterRule,
+            draftFilterRule,
+        ],
     );
 
     return (
@@ -190,7 +271,7 @@ const FilterConfiguration: FC<Props> = ({
                         >
                             <Tabs.Tab
                                 value={FilterTabs.TILES}
-                                disabled={!field}
+                                disabled={!selectedField}
                             >
                                 Chart tiles
                             </Tabs.Tab>
@@ -217,12 +298,13 @@ const FilterConfiguration: FC<Props> = ({
                                     hasGrouping
                                     id="field-autocomplete"
                                     fields={fields}
-                                    activeField={field}
+                                    activeField={selectedField}
                                     onChange={handleChangeField}
                                     inputProps={{
                                         // TODO: Remove once this component is migrated to Mantine
                                         style: {
-                                            borderRadius: '3px',
+                                            borderRadius: '4px',
+                                            borderWidth: '1px',
                                             boxShadow: 'none',
                                             fontSize: theme.fontSizes.xs,
                                         },
@@ -238,19 +320,19 @@ const FilterConfiguration: FC<Props> = ({
                                 />
                             </FormGroup>
                         ) : (
-                            field && (
+                            selectedField && (
                                 <Group spacing="xs">
-                                    <FieldIcon item={field} />
-                                    <FieldLabel item={field} />
+                                    <FieldIcon item={selectedField} />
+                                    <FieldLabel item={selectedField} />
                                 </Group>
                             )
                         )}
 
-                        {!!field && draftFilterRule && (
+                        {!!selectedField && draftFilterRule && (
                             <FilterSettings
                                 isEditMode={isEditMode}
                                 isCreatingNew={isCreatingNew}
-                                field={field}
+                                field={selectedField}
                                 filterRule={draftFilterRule}
                                 onChangeFilterRule={handleChangeFilterRule}
                                 popoverProps={popoverProps}
@@ -259,15 +341,16 @@ const FilterConfiguration: FC<Props> = ({
                     </Stack>
                 </Tabs.Panel>
 
-                {!!field && draftFilterRule && (
+                {!!selectedField && draftFilterRule && (
                     <Tabs.Panel value={FilterTabs.TILES} w={500}>
                         <TileFilterConfiguration
-                            field={field}
+                            field={selectedField}
                             filterRule={draftFilterRule}
                             popoverProps={popoverProps}
                             tiles={tiles}
                             availableTileFilters={availableTileFilters}
                             onChange={handleChangeTileConfiguration}
+                            onToggleAll={handleToggleAll}
                         />
                     </Tabs.Panel>
                 )}
