@@ -133,6 +133,7 @@ export enum QueryExecutionContext {
     CHART = 'chartView',
     VIEW_UNDERLYING_DATA = 'viewUnderlyingData',
     CSV = 'csvDownload',
+    GSHEETS = 'gsheets',
 }
 
 type QueryExecutionEvent = BaseTrack & {

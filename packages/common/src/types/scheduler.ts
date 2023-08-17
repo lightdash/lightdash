@@ -37,7 +37,7 @@ export type SchedulerLog = {
         | 'handleScheduledDelivery'
         | 'sendEmailNotification'
         | 'sendSlackNotification'
-        | 'sendGsheetsNotification'
+        | 'uploadGsheets'
         | 'downloadCsv'
         | 'compileProject'
         | 'testAndCompileProject'
@@ -252,8 +252,10 @@ export type EmailNotificationPayload = NotificationPayloadBase & {
     schedulerEmailTargetUuid: string;
 };
 
-export type GsheetsNotificationPayload = NotificationPayloadBase & {
+export type GsheetsNotificationPayload = {
     schedulerUuid: string;
+    scheduledTime: Date;
+    jobGroup: string;
 };
 
 export type DownloadCsvPayload = {

@@ -2,6 +2,7 @@ import {
     CompileProjectPayload,
     DownloadCsvPayload,
     EmailNotificationPayload,
+    GsheetsNotificationPayload,
     isSlackTarget,
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
@@ -137,35 +138,65 @@ export class SchedulerClient {
         return { jobId: id, date };
     }
 
+    private async addGsheetsUploadJob(
+        date: Date,
+        jobGroup: string,
+        scheduler: Scheduler,
+    ) {
+        const graphileClient = await this.graphileUtils;
+
+        const payload: GsheetsNotificationPayload = {
+            schedulerUuid: scheduler.schedulerUuid,
+            jobGroup,
+            scheduledTime: date,
+        };
+
+        const { id } = await graphileClient.addJob('uploadGsheets', payload, {
+            runAt: date,
+            maxAttempts: 1,
+        });
+        analytics.track({
+            event: 'scheduler_notification_job.created',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId: id,
+                schedulerId: scheduler.schedulerUuid,
+                schedulerTargetId: undefined,
+                type: 'gsheets',
+                format: scheduler.format,
+            },
+        });
+        return { jobId: id };
+    }
+
     private async addNotificationJob(
         date: Date,
         jobGroup: string,
         scheduler: Scheduler,
         target: SchedulerSlackTarget | SchedulerEmailTarget | undefined,
-        page: NotificationPayloadBase['page'],
+        page: NotificationPayloadBase['page'] | undefined,
     ) {
+        if (!target) {
+            throw new Error('Missing target for slack or email notification');
+        }
+        if (!page) {
+            throw new Error(
+                'Missing page data for slack or email notification',
+            );
+        }
+        if (scheduler.format === SchedulerFormat.GSHEETS) {
+            throw new Error("Can't add Google sheets notification");
+        }
+
         const graphileClient = await this.graphileUtils;
 
         const getIdentifierAndPayload = (): {
             identifier: string;
             targetUuid?: string;
-            type: 'slack' | 'email' | 'gsheets';
-            payload: any;
+            type: 'slack' | 'email';
+            payload: SlackNotificationPayload | EmailNotificationPayload;
         } => {
-            if (scheduler.format === SchedulerFormat.GSHEETS) {
-                return {
-                    identifier: 'sendGsheetsNotification',
-                    targetUuid: undefined,
-                    type: 'gsheets',
-                    payload: {
-                        schedulerUuid: scheduler.schedulerUuid,
-                        jobGroup,
-                        scheduledTime: date,
-                        page,
-                    },
-                };
-            }
-            if (target && isSlackTarget(target)) {
+            if (isSlackTarget(target)) {
                 return {
                     identifier: 'sendSlackNotification',
                     targetUuid: target.schedulerSlackTargetUuid,
@@ -250,7 +281,7 @@ export class SchedulerClient {
     async generateJobsForSchedulerTargets(
         scheduledTime: Date,
         scheduler: SchedulerAndTargets,
-        page: NotificationPayloadBase['page'],
+        page: NotificationPayloadBase['page'] | undefined,
         parentJobId: string,
     ) {
         try {
@@ -258,14 +289,12 @@ export class SchedulerClient {
                 Logger.info(
                     `Creating gsheet notification jobs for scheduler ${scheduler.schedulerUuid}`,
                 );
-                const job = await this.addNotificationJob(
+                const job = await this.addGsheetsUploadJob(
                     scheduledTime,
                     parentJobId,
                     scheduler,
-                    undefined,
-                    page,
                 );
-                return [job];
+                return [{ ...job, target: undefined }];
             }
             const promises = scheduler.targets.map((target) =>
                 this.addNotificationJob(
