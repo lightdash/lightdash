@@ -140,23 +140,28 @@ export class GoogleDriveClient {
         if (!this.isEnabled) {
             throw new Error('Google Drive is not enabled');
         }
+
         const auth = await GoogleDriveClient.getCredentials(refreshToken);
         const sheets = google.sheets({ version: 'v4', auth });
 
         // Clear first sheet before writting
-        GoogleDriveClient.clearTabName(sheets, fileId, tabName);
+        await GoogleDriveClient.clearTabName(sheets, fileId, tabName);
 
         if (csvContent.length === 0) {
             Logger.info('No data to write to the sheet');
             return;
         }
+
         const header = Object.keys(csvContent[0]);
+        Logger.info(
+            `Writing ${csvContent.length} rows and ${header.length} columns to Google sheets`,
+        );
         const values = csvContent.map((row) => Object.values(row));
 
         await sheets.spreadsheets.values.update({
             spreadsheetId: fileId,
             range: tabName ? `${tabName}!A1` : 'A1',
-            valueInputOption: 'USER_ENTERED',
+            valueInputOption: 'RAW',
             requestBody: {
                 values: [header, ...values],
             },
