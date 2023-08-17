@@ -1,3 +1,15 @@
+# [0.751.0](https://github.com/lightdash/lightdash/compare/0.750.1...0.751.0) (2023-08-17)
+
+
+### Bug Fixes
+
+* upload gsheet content from rows instead of csv ([#6763](https://github.com/lightdash/lightdash/issues/6763)) ([cd3d559](https://github.com/lightdash/lightdash/commit/cd3d5590dad9ed5b7172edcd852f4a48d0550680))
+
+
+### Features
+
+* add organization_id attribute to schedule worker task ([#6795](https://github.com/lightdash/lightdash/issues/6795)) ([420919a](https://github.com/lightdash/lightdash/commit/420919aeb85e5e6b196b683acaa2e73ea6ea7161))
+
 ## [0.750.1](https://github.com/lightdash/lightdash/compare/0.750.0...0.750.1) (2023-08-17)
 
 
