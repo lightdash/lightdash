@@ -66,6 +66,24 @@ interface Props {
     onSave: (value: DashboardFilterRule) => void;
 }
 
+const getExactFilter = (
+    filters: FilterableField[],
+    selectedField: FilterableField,
+) => {
+    return filters.find(matchFieldExact(selectedField));
+};
+
+const getDefaultFilter = (
+    filters: FilterableField[],
+    selectedField: FilterableField,
+) => {
+    return (
+        filters.find(matchFieldExact(selectedField)) ??
+        filters.find(matchFieldByTypeAndName(selectedField)) ??
+        filters.find(matchFieldByType(selectedField))
+    );
+};
+
 const FilterConfiguration: FC<Props> = ({
     isEditMode,
     isCreatingNew = false,
@@ -138,20 +156,15 @@ const FilterConfiguration: FC<Props> = ({
             const filters = availableTileFilters[tileUuid];
             if (!filters) return;
 
-            setDraftFilterRule(
-                produce(draftFilterRule, (draftState) => {
-                    if (!draftState || !selectedField) return;
+            const changedFilterRule = produce(draftFilterRule, (draftState) => {
+                if (!draftState || !selectedField) return;
 
-                    draftState.tileTargets = draftState.tileTargets ?? {};
+                draftState.tileTargets = draftState.tileTargets ?? {};
 
-                    if (action === FilterActions.ADD) {
+                switch (action) {
+                    case FilterActions.ADD:
                         const filterableField =
-                            filter ??
-                            filters.find(matchFieldExact(selectedField)) ??
-                            filters.find(
-                                matchFieldByTypeAndName(selectedField),
-                            ) ??
-                            filters.find(matchFieldByType(selectedField));
+                            filter ?? getDefaultFilter(filters, selectedField);
 
                         if (!filterableField) return draftState;
 
@@ -159,16 +172,73 @@ const FilterConfiguration: FC<Props> = ({
                             fieldId: fieldId(filterableField),
                             tableName: filterableField.table,
                         };
-                    } else if (action === FilterActions.REMOVE) {
+
+                        return draftState;
+
+                    case FilterActions.REMOVE:
                         delete draftState.tileTargets[tileUuid];
-                    } else {
+                        return draftState;
+
+                    default:
                         return assertUnreachable(
                             action,
                             'Invalid FilterActions',
                         );
-                    }
-                }),
-            );
+                }
+            });
+
+            setDraftFilterRule(changedFilterRule);
+        },
+        [
+            selectedField,
+            availableTileFilters,
+            setDraftFilterRule,
+            draftFilterRule,
+        ],
+    );
+
+    const handleToggleAll = useCallback(
+        (checked: boolean) => {
+            if (!checked) {
+                const newFilterRule = produce(draftFilterRule, (draftState) => {
+                    if (!draftState || !selectedField) return;
+
+                    draftState.tileTargets = {};
+                    return draftState;
+                });
+
+                setDraftFilterRule(newFilterRule);
+            } else {
+                const newFilterRule = produce(draftFilterRule, (draftState) => {
+                    if (!draftState || !selectedField) return;
+
+                    Object.entries(availableTileFilters).forEach(
+                        ([tileUuid, filters]) => {
+                            if (!filters) return;
+
+                            const filterableField = getExactFilter(
+                                filters,
+                                selectedField,
+                            );
+
+                            if (!filterableField) return;
+
+                            if (!draftState.tileTargets) {
+                                draftState.tileTargets = {};
+                            }
+
+                            draftState.tileTargets[tileUuid] = {
+                                fieldId: fieldId(filterableField),
+                                tableName: filterableField.table,
+                            };
+                        },
+                    );
+
+                    return draftState;
+                });
+
+                setDraftFilterRule(newFilterRule);
+            }
         },
         [
             selectedField,
@@ -280,6 +350,7 @@ const FilterConfiguration: FC<Props> = ({
                             tiles={tiles}
                             availableTileFilters={availableTileFilters}
                             onChange={handleChangeTileConfiguration}
+                            onToggleAll={handleToggleAll}
                         />
                     </Tabs.Panel>
                 )}
