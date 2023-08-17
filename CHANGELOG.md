@@ -1,3 +1,10 @@
+# [0.750.0](https://github.com/lightdash/lightdash/compare/0.749.0...0.750.0) (2023-08-17)
+
+
+### Features
+
+* gsheet on scheduler dashboard ([#6793](https://github.com/lightdash/lightdash/issues/6793)) ([13402a3](https://github.com/lightdash/lightdash/commit/13402a3b067f278953904dab7b239db469c47ebd))
+
 # [0.749.0](https://github.com/lightdash/lightdash/compare/0.748.1...0.749.0) (2023-08-16)
 
 
