@@ -133,7 +133,7 @@ export const getFilterTypeFromItem = (item: FilterableItem): FilterType => {
 export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     field: FilterableField,
     filterRule: T,
-    values?: any[],
+    values?: any[] | null,
 ): T => {
     const filterType = getFilterTypeFromItem(field);
     const filterRuleDefaults: Partial<FilterRule> = {};
@@ -141,7 +141,8 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     if (
         ![FilterOperator.NULL, FilterOperator.NOT_NULL].includes(
             filterRule.operator,
-        )
+        ) &&
+        values !== null
     ) {
         switch (filterType) {
             case FilterType.DATE: {
@@ -294,18 +295,23 @@ export const applyDefaultTileTargets = (
 export const createDashboardFilterRuleFromField = (
     field: FilterableField,
     availableTileFilters: Record<string, FilterableField[] | undefined>,
+    includeDefaultValue: boolean,
 ): DashboardFilterRule =>
-    getFilterRuleWithDefaultValue(field, {
-        id: uuidv4(),
-        operator: FilterOperator.EQUALS,
-        target: {
-            fieldId: fieldId(field),
-            tableName: field.table,
+    getFilterRuleWithDefaultValue(
+        field,
+        {
+            id: uuidv4(),
+            operator: FilterOperator.EQUALS,
+            target: {
+                fieldId: fieldId(field),
+                tableName: field.table,
+            },
+            tileTargets: getDefaultTileTargets(field, availableTileFilters),
+            disabled: true,
+            label: undefined,
         },
-        tileTargets: getDefaultTileTargets(field, availableTileFilters),
-        disabled: true,
-        label: undefined,
-    });
+        includeDefaultValue ? [] : null,
+    );
 
 type AddFilterRuleArgs = {
     filters: Filters;

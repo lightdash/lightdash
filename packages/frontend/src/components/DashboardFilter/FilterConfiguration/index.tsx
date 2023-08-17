@@ -125,6 +125,7 @@ const FilterConfiguration: FC<Props> = ({
                 createDashboardFilterRuleFromField(
                     newField,
                     availableTileFilters,
+                    !isEditMode,
                 ),
             );
             setSelectedField(newField);
@@ -134,15 +135,15 @@ const FilterConfiguration: FC<Props> = ({
     const handleRevert = useCallback(() => {
         if (!originalFilterRule) return;
 
-        setDraftFilterRule(
-            draftFilterRule
+        setDraftFilterRule((oldDraftFilterRule) => {
+            return oldDraftFilterRule
                 ? {
-                      ...draftFilterRule,
+                      ...oldDraftFilterRule,
                       ...getFilterRuleRevertableObject(originalFilterRule),
                   }
-                : undefined,
-        );
-    }, [originalFilterRule, setDraftFilterRule, draftFilterRule]);
+                : undefined;
+        });
+    }, [originalFilterRule, setDraftFilterRule]);
 
     const handleChangeFilterRule = useCallback(
         (newFilterRule: DashboardFilterRule) => {
@@ -301,7 +302,6 @@ const FilterConfiguration: FC<Props> = ({
                                     activeField={selectedField}
                                     onChange={handleChangeField}
                                     inputProps={{
-                                        // TODO: Remove once this component is migrated to Mantine
                                         style: {
                                             borderRadius: '4px',
                                             borderWidth: '1px',
