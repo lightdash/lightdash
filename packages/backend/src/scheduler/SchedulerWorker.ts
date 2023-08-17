@@ -2,13 +2,13 @@ import { SchedulerJobStatus } from '@lightdash/common';
 import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
 import { getSchedule, stringToArray } from 'cron-converter';
 import {
-    Logger as GraphileLogger,
     JobHelpers,
+    Logger as GraphileLogger,
+    parseCronItems,
+    run as runGraphileWorker,
     Runner,
     Task,
     TaskList,
-    parseCronItems,
-    run as runGraphileWorker,
 } from 'graphile-worker';
 import moment from 'moment';
 import { schedulerClient } from '../clients/clients';
