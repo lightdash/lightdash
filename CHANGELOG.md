@@ -1,3 +1,10 @@
+## [0.750.1](https://github.com/lightdash/lightdash/compare/0.750.0...0.750.1) (2023-08-17)
+
+
+### Bug Fixes
+
+* dashboard filters tile settings select all ([#6792](https://github.com/lightdash/lightdash/issues/6792)) ([1484fb5](https://github.com/lightdash/lightdash/commit/1484fb5b144d8effe57d3aecf6e49a80362fee1e))
+
 # [0.750.0](https://github.com/lightdash/lightdash/compare/0.749.0...0.750.0) (2023-08-17)
 
 
