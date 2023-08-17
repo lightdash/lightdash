@@ -39,6 +39,7 @@ import {
     schedulerClient,
     slackClient,
 } from '../clients/clients';
+import { GoogleDriveClient } from '../clients/Google/GoogleDriveClient';
 import {
     getChartAndDashboardBlocks,
     getChartCsvResultsBlocks,
@@ -816,6 +817,12 @@ export const sendGsheetsNotification = async (
             const refreshToken = await userService.getRefreshToken(
                 scheduler.createdBy,
             );
+
+            await googleDriveClient.uploadMetadata(
+                refreshToken,
+                gdriveId,
+                getHumanReadableCronExpression(scheduler.cron),
+            );
             await googleDriveClient.appendToSheet(
                 refreshToken,
                 gdriveId,
@@ -829,6 +836,14 @@ export const sendGsheetsNotification = async (
             const refreshToken = await userService.getRefreshToken(
                 scheduler.createdBy,
             );
+
+            await googleDriveClient.uploadMetadata(
+                refreshToken,
+                gdriveId,
+                getHumanReadableCronExpression(scheduler.cron),
+                csvUrls.map((c) => c.filename),
+            );
+
             const googleUploadPromises = csvUrls.map(async (cu) => {
                 const csvContent = await csv().fromFile(cu.localPath);
 
