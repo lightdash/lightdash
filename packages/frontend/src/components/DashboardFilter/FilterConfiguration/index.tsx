@@ -361,7 +361,8 @@ const FilterConfiguration: FC<Props> = ({
 
                 {!isTemporary &&
                     isFilterModified &&
-                    selectedTabId === FilterTabs.SETTINGS && (
+                    selectedTabId === FilterTabs.SETTINGS &&
+                    !isEditMode && (
                         <Tooltip
                             label="Reset to original value"
                             position="left"
