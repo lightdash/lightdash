@@ -232,23 +232,50 @@ const SchedulerForm: FC<{
         health.data?.auth.google.oauth2ClientId !== undefined &&
         health.data?.auth.google.googleDriveApiKey !== undefined;
     const { data: gdriveAuth, refetch } = useGdriveAccessToken();
+    const [showDestinationLabel, setShowDestinationLabel] =
+        useState<boolean>(true);
+
+    const onGooglePickerSelect = useCallback(
+        (data: any) => {
+            if (
+                data.action === 'cancel' ||
+                data.docs === undefined ||
+                data.docs.length === 0
+            ) {
+                return;
+            }
+            const doc = data.docs[0];
+
+            methods.setValue('options.gdriveId', doc.id);
+            methods.setValue('options.gdriveName', doc.name);
+            methods.setValue('options.url', doc.url);
+            methods.setValue(
+                'options.gdriveOrganizationName',
+                doc.organizationDisplayName,
+            );
+        },
+        [methods],
+    );
 
     const handleOpenPicker = useCallback(
-        (callback) => {
+        (accessToken: string | undefined) => {
             if (
                 !health.data?.auth.google.oauth2ClientId ||
                 !health.data.auth.google.googleDriveApiKey
             )
                 return;
 
-            if (gdriveAuth === undefined) {
+            if (accessToken === undefined) {
                 const gdriveUrl = `${health?.data?.siteUrl}/api/v1/login/gdrive`;
                 window.open(gdriveUrl, 'login-popup', 'width=600,height=600');
 
                 // Refetching until user logs in with google drive auth
                 const refetchAuth = setInterval(() => {
                     refetch().then((r) => {
-                        if (r.data !== undefined) clearInterval(refetchAuth);
+                        if (r.data !== undefined) {
+                            clearInterval(refetchAuth);
+                            handleOpenPicker(r.data);
+                        }
                     });
                 }, 2000);
                 return false;
@@ -258,17 +285,17 @@ const SchedulerForm: FC<{
                 clientId: health.data.auth.google.oauth2ClientId,
                 developerKey: health.data.auth.google.googleDriveApiKey,
                 viewId: 'SPREADSHEETS',
-                token: gdriveAuth,
+                token: accessToken,
                 showUploadView: true,
                 showUploadFolders: true,
                 setSelectFolderEnabled: false,
                 setIncludeFolders: true,
                 supportDrives: true,
                 multiselect: false,
-                callbackFunction: callback,
+                callbackFunction: onGooglePickerSelect,
             });
         },
-        [openPicker, gdriveAuth, health?.data, refetch],
+        [openPicker, health?.data, refetch, onGooglePickerSelect],
     );
     const isImageDisabled = !health.data?.hasHeadlessBrowser;
 
@@ -281,8 +308,6 @@ const SchedulerForm: FC<{
     const googleDriveName = methods.watch('options.gdriveName');
     const hasGoogleDriveId =
         format === SchedulerFormat.GSHEETS && googleDriveId;
-    const [showDestinationLabel, setShowDestinationLabel] =
-        useState<boolean>(true);
 
     return (
         <Form name="scheduler" methods={methods}>
@@ -578,42 +603,7 @@ const SchedulerForm: FC<{
                                                 minimal
                                                 onClick={() => {
                                                     handleOpenPicker(
-                                                        (data: any) => {
-                                                            if (
-                                                                data.action ===
-                                                                    'cancel' ||
-                                                                data.docs ===
-                                                                    undefined ||
-                                                                data.docs
-                                                                    .length ===
-                                                                    0
-                                                            ) {
-                                                                return;
-                                                            }
-                                                            const doc =
-                                                                data.docs[0];
-
-                                                            methods.setValue(
-                                                                'options.gdriveId',
-                                                                doc.id,
-                                                            );
-                                                            methods.setValue(
-                                                                'options.gdriveName',
-                                                                doc.name,
-                                                            );
-                                                            methods.setValue(
-                                                                'options.url',
-                                                                doc.url,
-                                                            );
-                                                            methods.setValue(
-                                                                'options.gdriveOrganizationName',
-                                                                doc.organizationDisplayName,
-                                                            );
-
-                                                            setShowDestinationLabel(
-                                                                false,
-                                                            );
-                                                        },
+                                                        gdriveAuth,
                                                     );
                                                 }}
                                                 icon={'plus'}
