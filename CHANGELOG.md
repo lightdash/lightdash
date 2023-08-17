@@ -1,3 +1,10 @@
+## [0.751.1](https://github.com/lightdash/lightdash/compare/0.751.0...0.751.1) (2023-08-17)
+
+
+### Bug Fixes
+
+* dashboard filters should not show reset in edit mode ([#6790](https://github.com/lightdash/lightdash/issues/6790)) ([a3367fb](https://github.com/lightdash/lightdash/commit/a3367fb0d4d50b7565e7ce09c9cfff47d3cb98cd))
+
 # [0.751.0](https://github.com/lightdash/lightdash/compare/0.750.1...0.751.0) (2023-08-17)
 
 
