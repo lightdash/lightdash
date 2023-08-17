@@ -11,6 +11,7 @@ import {
     TaskList,
 } from 'graphile-worker';
 import moment from 'moment';
+import { isStringObject } from 'util/types';
 import { schedulerClient } from '../clients/clients';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
@@ -49,12 +50,25 @@ const traceTask = (taskName: string, task: Task): Task => {
             `worker.task.${taskName}`,
             async (span) => {
                 const { job } = helpers;
+
+                let organizationUuidAttribute = {};
+                if (
+                    typeof payload === 'object' &&
+                    payload !== null &&
+                    'organizationUuid' in payload
+                ) {
+                    organizationUuidAttribute = {
+                        'worker.task.organization_id': payload.organizationUuid,
+                    };
+                }
+
                 span.setAttributes({
                     'worker.task.name': taskName,
                     'worker.job.id': job.id,
                     'worker.job.task_identifier': job.task_identifier,
                     'worker.job.attempts': job.attempts,
                     'worker.job.max_attempts': job.max_attempts,
+                    ...organizationUuidAttribute,
                 });
                 if (job.locked_at) {
                     span.setAttribute(
