@@ -267,8 +267,6 @@ const FilterConfiguration: FC<Props> = ({
         isCreatingNew,
     );
 
-    console.log('render', draftFilterRule);
-
     return (
         <Stack>
             <Tabs
