@@ -1,3 +1,10 @@
+## [0.751.4](https://github.com/lightdash/lightdash/compare/0.751.3...0.751.4) (2023-08-18)
+
+
+### Bug Fixes
+
+* improve saving state on dashboards ([#6808](https://github.com/lightdash/lightdash/issues/6808)) ([239ae08](https://github.com/lightdash/lightdash/commit/239ae08f9459eccc7e51404476e32ea76117ef7c))
+
 ## [0.751.3](https://github.com/lightdash/lightdash/compare/0.751.2...0.751.3) (2023-08-18)
 
 
