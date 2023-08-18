@@ -296,6 +296,7 @@ export const createDashboardFilterRuleFromField = (
     field: FilterableField,
     availableTileFilters: Record<string, FilterableField[] | undefined>,
     includeDefaultValue: boolean,
+    isTemporary: boolean,
 ): DashboardFilterRule =>
     getFilterRuleWithDefaultValue(
         field,
@@ -307,7 +308,7 @@ export const createDashboardFilterRuleFromField = (
                 tableName: field.table,
             },
             tileTargets: getDefaultTileTargets(field, availableTileFilters),
-            disabled: true,
+            disabled: !isTemporary,
             label: undefined,
         },
         includeDefaultValue ? [] : null,

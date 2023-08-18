@@ -126,6 +126,7 @@ const FilterConfiguration: FC<Props> = ({
                     newField,
                     availableTileFilters,
                     false,
+                    isCreatingNew && !isEditMode,
                 ),
             );
             setSelectedField(newField);
@@ -147,7 +148,18 @@ const FilterConfiguration: FC<Props> = ({
 
     const handleChangeFilterRule = useCallback(
         (newFilterRule: DashboardFilterRule) => {
-            setDraftFilterRule(newFilterRule);
+            setDraftFilterRule((oldFilterRule) => {
+                // TODO: Maybe this isn't the best place to do this.
+                // All this says is if a filter *was* disabled and had no
+                // value but now has a value, enable it. This is a way of
+                // keeping disabled and 'no value' in sync.
+                return oldFilterRule &&
+                    !oldFilterRule?.values?.length &&
+                    oldFilterRule?.disabled &&
+                    newFilterRule.values?.length
+                    ? { ...newFilterRule, disabled: false }
+                    : newFilterRule;
+            });
         },
         [setDraftFilterRule],
     );
@@ -254,6 +266,8 @@ const FilterConfiguration: FC<Props> = ({
         isEditMode,
         isCreatingNew,
     );
+
+    console.log('render', draftFilterRule);
 
     return (
         <Stack>
