@@ -490,8 +490,9 @@ export class ProjectService {
         await this.projectModel.update(projectUuid, updatedProject);
         await this.jobModel.create(job);
 
-        if (savedProject.dbtConnection.type !== DbtProjectType.NONE) {
+        if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
             await schedulerClient.testAndCompileProject({
+                organizationUuid: user.organizationUuid,
                 createdByUserUuid: user.userUuid,
                 projectUuid,
                 requestMethod: method,
@@ -1549,6 +1550,7 @@ export class ProjectService {
 
         await schedulerClient.compileProject({
             createdByUserUuid: user.userUuid,
+            organizationUuid,
             projectUuid,
             requestMethod,
             jobUuid: job.jobUuid,

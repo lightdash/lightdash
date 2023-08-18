@@ -281,6 +281,7 @@ export type ApiCsvUrlResponse = {
 
 export type CompileProjectPayload = {
     createdByUserUuid: string;
+    organizationUuid: string;
     projectUuid: string;
     requestMethod: string;
     jobUuid: string;

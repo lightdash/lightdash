@@ -174,7 +174,10 @@ const DashboardHeader = ({
             </PageTitleAndDetailsContainer>
             {userCanManageDashboard && isEditMode ? (
                 <PageActionsContainer>
-                    <AddTileButton onAddTiles={onAddTiles} />
+                    <AddTileButton
+                        onAddTiles={onAddTiles}
+                        disabled={isSaving}
+                    />
                     <Tooltip
                         fz="xs"
                         withinPortal
@@ -185,7 +188,8 @@ const DashboardHeader = ({
                         <Box>
                             <Button
                                 size="xs"
-                                disabled={!hasDashboardChanged || isSaving}
+                                disabled={!hasDashboardChanged}
+                                loading={isSaving}
                                 onClick={onSaveDashboard}
                             >
                                 Save

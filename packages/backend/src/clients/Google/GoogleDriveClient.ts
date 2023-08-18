@@ -111,6 +111,45 @@ export class GoogleDriveClient {
         return response.data;
     }
 
+    async uploadMetadata(
+        refreshToken: string,
+        fileId: string,
+        updateFrequency: string,
+        tabs?: string[],
+    ) {
+        if (!this.isEnabled) {
+            throw new Error('Google Drive is not enabled');
+        }
+
+        const metadataTabName = 'metadata';
+        const auth = await GoogleDriveClient.getCredentials(refreshToken);
+        const sheets = google.sheets({ version: 'v4', auth });
+        await this.createNewTab(refreshToken, fileId, metadataTabName);
+
+        await GoogleDriveClient.clearTabName(sheets, fileId, metadataTabName); // in case already exists
+
+        const tabsUpdated = tabs
+            ? tabs.map((t, i) => [i === 0 ? 'Tabs updated' : '', t])
+            : [[]];
+        const metadata: string[][] = [
+            [
+                'The data in this Google Sheet has been automatically synced via Lightdash',
+            ],
+            ['Update frequency:', updateFrequency],
+            ['Time of last sync:', new Date().toLocaleString()],
+            ...tabsUpdated,
+        ];
+
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: fileId,
+            range: `${metadataTabName}!A1`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: {
+                values: metadata,
+            },
+        });
+    }
+
     private static async clearTabName(
         sheets: sheets_v4.Sheets,
         fileId: string,
@@ -183,14 +222,5 @@ export class GoogleDriveClient {
                 values: [header, ...values],
             },
         });
-
-        const updatedTimestamp = new Date()
-            .toLocaleString()
-            .replaceAll(':', '.');
-        await GoogleDriveClient.changeTabTitle(
-            sheets,
-            fileId,
-            updatedTimestamp,
-        );
     }
 }
