@@ -621,6 +621,11 @@ export const uploadGsheetFromQuery = async (
         scheduledTime,
     };
     try {
+        if (!googleDriveClient.isEnabled) {
+            throw new Error(
+                'Unable to upload Google Sheet from query, Google Drive is not enabled',
+            );
+        }
         schedulerService.logSchedulerJob({
             ...baseLog,
             details: { createdByUserUuid: payload.userUuid },
@@ -844,6 +849,12 @@ export const uploadGsheets = async (
     });
 
     try {
+        if (!googleDriveClient.isEnabled) {
+            throw new Error(
+                'Unable to upload Google Sheet from scheduler, Google Drive is not enabled',
+            );
+        }
+
         const scheduler =
             await schedulerService.schedulerModel.getSchedulerAndTargets(
                 schedulerUuid,
