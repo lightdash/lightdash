@@ -14,6 +14,8 @@ import {
     SchedulerJobStatus,
     SchedulerSlackTarget,
     SlackNotificationPayload,
+    UploadMetricGsheet,
+    UploadMetricGsheetPayload,
     ValidateProjectPayload,
 } from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
@@ -331,6 +333,28 @@ export class SchedulerClient {
         );
         await this.schedulerModel.logSchedulerJob({
             task: 'downloadCsv',
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: { createdByUserUuid: payload.userUuid },
+        });
+
+        return { jobId };
+    }
+
+    async uploadGsheetFromQueryJob(payload: UploadMetricGsheetPayload) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const { id: jobId } = await graphileClient.addJob(
+            'uploadGsheetFromQuery',
+            payload,
+            {
+                runAt: now,
+                maxAttempts: 1,
+            },
+        );
+        await this.schedulerModel.logSchedulerJob({
+            task: 'uploadGsheetFromQuery',
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,

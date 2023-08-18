@@ -24,6 +24,7 @@ import {
     sendEmailNotification,
     sendSlackNotification,
     testAndCompileProject,
+    uploadGsheetFromQuery,
     uploadGsheets,
     validateProject,
 } from './SchedulerTask';
@@ -291,6 +292,32 @@ export class SchedulerWorker {
                         async (job, e) => {
                             await schedulerService.logSchedulerJob({
                                 task: 'downloadCsv',
+                                jobId: job.id,
+                                scheduledTime: job.run_at,
+                                status: SchedulerJobStatus.ERROR,
+                                details: {
+                                    createdByUserUuid: payload.userUuid,
+                                    error: e.message,
+                                },
+                            });
+                        },
+                    );
+                },
+                uploadGsheetFromQuery: async (
+                    payload: any,
+                    helpers: JobHelpers,
+                ) => {
+                    await tryJobOrTimeout(
+                        uploadGsheetFromQuery(
+                            helpers.job.id,
+                            helpers.job.run_at,
+                            payload,
+                        ),
+                        helpers.job,
+                        this.lightdashConfig.scheduler.jobTimeout,
+                        async (job, e) => {
+                            await schedulerService.logSchedulerJob({
+                                task: 'uploadGsheetFromQuery',
                                 jobId: job.id,
                                 scheduledTime: job.run_at,
                                 status: SchedulerJobStatus.ERROR,

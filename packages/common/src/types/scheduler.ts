@@ -39,6 +39,7 @@ export type SchedulerLog = {
         | 'sendSlackNotification'
         | 'uploadGsheets'
         | 'downloadCsv'
+        | 'uploadGsheetFromQuery'
         | 'compileProject'
         | 'testAndCompileProject'
         | 'validateProject';

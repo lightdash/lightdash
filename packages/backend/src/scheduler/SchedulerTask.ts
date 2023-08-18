@@ -24,6 +24,7 @@ import {
     SchedulerLog,
     SchedulerSlackTarget,
     SlackNotificationPayload,
+    UploadMetricGsheetPayload,
     ValidateProjectPayload,
 } from '@lightdash/common';
 import { nanoid } from 'nanoid';
@@ -32,6 +33,7 @@ import {
     DownloadCsv,
     LightdashAnalytics,
     parseAnalyticsLimit,
+    QueryExecutionContext,
 } from '../analytics/LightdashAnalytics';
 import {
     emailClient,
@@ -608,6 +610,73 @@ export const downloadCsv = async (
     }
 };
 
+export const uploadGsheetFromQuery = async (
+    jobId: string,
+    scheduledTime: Date,
+    payload: UploadMetricGsheetPayload,
+) => {
+    const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> = {
+        task: 'uploadGsheetFromQuery',
+        jobId,
+        scheduledTime,
+    };
+    try {
+        if (!googleDriveClient.isEnabled) {
+            throw new Error(
+                'Unable to upload Google Sheet from query, Google Drive is not enabled',
+            );
+        }
+        schedulerService.logSchedulerJob({
+            ...baseLog,
+            details: { createdByUserUuid: payload.userUuid },
+            status: SchedulerJobStatus.STARTED,
+        });
+        const user = await userService.getSessionByUserUuid(payload.userUuid);
+
+        const rows = await projectService.runMetricQuery(
+            user,
+            payload.metricQuery,
+            payload.projectUuid,
+            payload.exploreId,
+            undefined,
+            QueryExecutionContext.GSHEETS,
+        );
+        const refreshToken = await userService.getRefreshToken(
+            payload.userUuid,
+        );
+        const { spreadsheetId, spreadsheetUrl } =
+            await googleDriveClient.createNewSheet(
+                refreshToken,
+                payload.exploreId,
+            );
+
+        if (!spreadsheetId) {
+            throw new Error('Unable to create new sheet');
+        }
+        await googleDriveClient.appendToSheet(
+            refreshToken,
+            spreadsheetId,
+            rows,
+        );
+
+        schedulerService.logSchedulerJob({
+            ...baseLog,
+            details: {
+                fileUrl: spreadsheetUrl,
+                createdByUserUuid: payload.userUuid,
+            },
+            status: SchedulerJobStatus.COMPLETED,
+        });
+    } catch (e) {
+        schedulerService.logSchedulerJob({
+            ...baseLog,
+            status: SchedulerJobStatus.ERROR,
+            details: { createdByUserUuid: payload.userUuid, error: e },
+        });
+        throw e; // Cascade error to it can be retried by graphile
+    }
+};
+
 export const sendEmailNotification = async (
     jobId: string,
     notification: EmailNotificationPayload,
@@ -780,6 +849,12 @@ export const uploadGsheets = async (
     });
 
     try {
+        if (!googleDriveClient.isEnabled) {
+            throw new Error(
+                'Unable to upload Google Sheet from scheduler, Google Drive is not enabled',
+            );
+        }
+
         const scheduler =
             await schedulerService.schedulerModel.getSchedulerAndTargets(
                 schedulerUuid,

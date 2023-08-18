@@ -94,6 +94,23 @@ export class GoogleDriveClient {
         return tabTitle;
     }
 
+    async createNewSheet(refreshToken: string, title: string) {
+        if (!this.isEnabled) {
+            throw new Error('Google Drive is not enabled');
+        }
+        const auth = await GoogleDriveClient.getCredentials(refreshToken);
+        const sheets = google.sheets({ version: 'v4', auth });
+
+        const response = await sheets.spreadsheets.create({
+            requestBody: {
+                properties: {
+                    title,
+                },
+            },
+        });
+        return response.data;
+    }
+
     async uploadMetadata(
         refreshToken: string,
         fileId: string,
