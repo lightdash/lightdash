@@ -1,3 +1,10 @@
+# [0.752.0](https://github.com/lightdash/lightdash/compare/0.751.4...0.752.0) (2023-08-18)
+
+
+### Features
+
+* improve render filter list performance ([#6811](https://github.com/lightdash/lightdash/issues/6811)) ([6376e2c](https://github.com/lightdash/lightdash/commit/6376e2c51601e9ba00cf7cbde4642785ac8657b3))
+
 ## [0.751.4](https://github.com/lightdash/lightdash/compare/0.751.3...0.751.4) (2023-08-18)
 
 
