@@ -817,10 +817,15 @@ export const uploadGsheets = async (
                 savedChartUuid,
             );
 
-            // TODO use csv().fromStream to do stream reading/writting on gsheets
             const refreshToken = await userService.getRefreshToken(
                 scheduler.createdBy,
             );
+            await googleDriveClient.uploadMetadata(
+                refreshToken,
+                gdriveId,
+                getHumanReadableCronExpression(scheduler.cron),
+            );
+
             await googleDriveClient.appendToSheet(refreshToken, gdriveId, rows);
         } else if (dashboardUuid) {
             const dashboard = await dashboardService.getById(
@@ -841,6 +846,36 @@ export const uploadGsheets = async (
                 scheduler.createdBy,
             );
 
+            const chartNames = chartUuids.reduce<Record<string, string>>(
+                (acc, chartUuid) => {
+                    const tile = dashboard.tiles.find(
+                        (t) =>
+                            isDashboardChartTileType(t) &&
+                            t.properties.savedChartUuid === chartUuid,
+                    );
+                    const chartName =
+                        tile && isDashboardChartTileType(tile)
+                            ? tile.properties.chartName
+                            : undefined;
+                    return {
+                        ...acc,
+                        [chartUuid]:
+                            tile?.properties.title || chartName || chartUuid,
+                    };
+                },
+                {},
+            );
+
+            await googleDriveClient.uploadMetadata(
+                refreshToken,
+                gdriveId,
+                getHumanReadableCronExpression(scheduler.cron),
+                Object.values(chartNames),
+            );
+
+            Logger.debug(
+                `Uploading dashboard with ${chartUuids.length} charts to Google Sheets`,
+            );
             // We want to process all charts in sequence, so we don't load all chart results in memory
             chartUuids.reduce(async (promise, chartUuid) => {
                 await promise;
@@ -849,19 +884,10 @@ export const uploadGsheets = async (
                     chartUuid,
                 );
 
-                const tile = dashboard.tiles.find(
-                    (t) =>
-                        isDashboardChartTileType(t) &&
-                        t.properties.savedChartUuid === chartUuid,
-                );
-                const chartName =
-                    tile && isDashboardChartTileType(tile)
-                        ? tile.properties.chartName
-                        : undefined;
                 const tabName = await googleDriveClient.createNewTab(
                     refreshToken,
                     gdriveId,
-                    tile?.properties.title || chartName || chartUuid,
+                    chartNames[chartUuid] || chartUuid,
                 );
 
                 await googleDriveClient.appendToSheet(
