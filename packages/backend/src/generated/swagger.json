@@ -206,118 +206,43 @@
             "FieldId": {
                 "type": "string"
             },
-            "FilterGroup": {
+            "FilterGroupResponse": {
                 "anyOf": [
                     {
-                        "$ref": "#/components/schemas/OrFilterGroup"
+                        "properties": {
+                            "or": {
+                                "items": {},
+                                "type": "array"
+                            },
+                            "id": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["or", "id"],
+                        "type": "object"
                     },
                     {
-                        "$ref": "#/components/schemas/AndFilterGroup"
+                        "properties": {
+                            "and": {
+                                "items": {},
+                                "type": "array"
+                            },
+                            "id": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["and", "id"],
+                        "type": "object"
                     }
                 ]
             },
-            "FieldTarget": {
-                "properties": {
-                    "fieldId": {
-                        "type": "string"
-                    }
-                },
-                "required": ["fieldId"],
-                "type": "object"
-            },
-            "ConditionalOperator": {
-                "enum": [
-                    "isNull",
-                    "notNull",
-                    "equals",
-                    "notEquals",
-                    "startsWith",
-                    "endsWith",
-                    "include",
-                    "doesNotInclude",
-                    "lessThan",
-                    "lessThanOrEqual",
-                    "greaterThan",
-                    "greaterThanOrEqual",
-                    "inThePast",
-                    "notInThePast",
-                    "inTheNext",
-                    "inTheCurrent",
-                    "inBetween"
-                ],
-                "type": "string"
-            },
-            "FilterRule": {
-                "properties": {
-                    "values": {
-                        "items": {},
-                        "type": "array"
-                    },
-                    "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
-                    },
-                    "id": {
-                        "type": "string"
-                    },
-                    "target": {
-                        "$ref": "#/components/schemas/FieldTarget"
-                    },
-                    "settings": {},
-                    "disabled": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["operator", "id", "target"],
-                "type": "object",
-                "additionalProperties": false
-            },
-            "FilterGroupItem": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/FilterGroup"
-                    },
-                    {
-                        "$ref": "#/components/schemas/FilterRule"
-                    }
-                ]
-            },
-            "OrFilterGroup": {
-                "properties": {
-                    "or": {
-                        "items": {
-                            "$ref": "#/components/schemas/FilterGroupItem"
-                        },
-                        "type": "array"
-                    },
-                    "id": {
-                        "type": "string"
-                    }
-                },
-                "required": ["or", "id"],
-                "type": "object"
-            },
-            "AndFilterGroup": {
-                "properties": {
-                    "and": {
-                        "items": {
-                            "$ref": "#/components/schemas/FilterGroupItem"
-                        },
-                        "type": "array"
-                    },
-                    "id": {
-                        "type": "string"
-                    }
-                },
-                "required": ["and", "id"],
-                "type": "object"
-            },
-            "Filters": {
+            "FiltersResponse": {
                 "properties": {
                     "metrics": {
-                        "$ref": "#/components/schemas/FilterGroup"
+                        "$ref": "#/components/schemas/FilterGroupResponse"
                     },
                     "dimensions": {
-                        "$ref": "#/components/schemas/FilterGroup"
+                        "$ref": "#/components/schemas/FilterGroupResponse"
                     }
                 },
                 "type": "object"
@@ -443,6 +368,28 @@
                 "enum": ["km", "mi", "usd", "gbp", "eur", "id", "percent"],
                 "type": "string"
             },
+            "ConditionalOperator": {
+                "enum": [
+                    "isNull",
+                    "notNull",
+                    "equals",
+                    "notEquals",
+                    "startsWith",
+                    "endsWith",
+                    "include",
+                    "doesNotInclude",
+                    "lessThan",
+                    "lessThanOrEqual",
+                    "greaterThan",
+                    "greaterThanOrEqual",
+                    "inThePast",
+                    "notInThePast",
+                    "inTheNext",
+                    "inTheCurrent",
+                    "inBetween"
+                ],
+                "type": "string"
+            },
             "MetricFilterRule": {
                 "properties": {
                     "values": {
@@ -528,7 +475,7 @@
                 "type": "object",
                 "additionalProperties": false
             },
-            "MetricQuery": {
+            "MetricQueryResponse": {
                 "properties": {
                     "additionalMetrics": {
                         "items": {
@@ -553,7 +500,7 @@
                         "type": "array"
                     },
                     "filters": {
-                        "$ref": "#/components/schemas/Filters"
+                        "$ref": "#/components/schemas/FiltersResponse"
                     },
                     "metrics": {
                         "items": {
@@ -590,7 +537,7 @@
                         "type": "boolean"
                     },
                     "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQuery"
+                        "$ref": "#/components/schemas/MetricQueryResponse"
                     },
                     "exploreId": {
                         "type": "string"
@@ -2557,56 +2504,6 @@
                     }
                 },
                 "required": ["rows", "fields"],
-                "type": "object"
-            },
-            "MetricQueryResponse": {
-                "properties": {
-                    "additionalMetrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/AdditionalMetric"
-                        },
-                        "type": "array"
-                    },
-                    "tableCalculations": {
-                        "items": {
-                            "$ref": "#/components/schemas/TableCalculation"
-                        },
-                        "type": "array"
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "sorts": {
-                        "items": {
-                            "$ref": "#/components/schemas/SortField"
-                        },
-                        "type": "array"
-                    },
-                    "filters": {
-                        "$ref": "#/components/schemas/Filters"
-                    },
-                    "metrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/FieldId"
-                        },
-                        "type": "array"
-                    },
-                    "dimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/FieldId"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": [
-                    "tableCalculations",
-                    "limit",
-                    "sorts",
-                    "filters",
-                    "metrics",
-                    "dimensions"
-                ],
                 "type": "object"
             },
             "ApiRunQueryResponse": {
@@ -5881,7 +5778,7 @@
                             "schema": {
                                 "properties": {
                                     "filters": {
-                                        "$ref": "#/components/schemas/Filters"
+                                        "$ref": "#/components/schemas/FiltersResponse"
                                     }
                                 },
                                 "type": "object"

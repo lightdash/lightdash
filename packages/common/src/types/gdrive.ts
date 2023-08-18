@@ -1,4 +1,4 @@
-import { MetricQuery } from './metricQuery';
+import { MetricQueryResponse } from './metricQuery';
 
 export type ApiGdriveAccessTokenResponse = {
     status: 'ok';
@@ -8,7 +8,7 @@ export type ApiGdriveAccessTokenResponse = {
 export type UploadMetricGsheet = {
     projectUuid: string;
     exploreId: string;
-    metricQuery: MetricQuery;
+    metricQuery: MetricQueryResponse; // tsoa doesn't support complex types like MetricQuery
     showTableNames: boolean;
     columnOrder: string[];
 };

@@ -4,6 +4,7 @@ import {
     ApiQueryResults,
     FieldId,
     MetricQuery,
+    MetricQueryResponse,
     SortField,
     TableCalculation,
 } from '@lightdash/common';
@@ -23,28 +24,6 @@ import {
 import { projectService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
-type FilterGroupResponse =
-    | {
-          id: string;
-          or: any[];
-      }
-    | {
-          id: string;
-          and: any[];
-      };
-export type Filters = {
-    dimensions?: FilterGroupResponse;
-    metrics?: FilterGroupResponse;
-};
-type MetricQueryResponse = {
-    dimensions: FieldId[]; // Dimensions to group by in the explore
-    metrics: FieldId[]; // Metrics to compute in the explore
-    filters: Filters;
-    sorts: SortField[]; // Sorts for the data
-    limit: number; // Max number of rows to return from query
-    tableCalculations: TableCalculation[]; // calculations to append to results
-    additionalMetrics?: AdditionalMetric[]; // existing metric type
-};
 export type ApiRunQueryResponse = {
     status: 'ok';
     results: {

@@ -230,110 +230,45 @@ const models: TsoaRoute.Models = {
         type: { dataType: 'string', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FilterGroup: {
+    FilterGroupResponse: {
         dataType: 'refAlias',
         type: {
             dataType: 'union',
-            subSchemas: [{ ref: 'OrFilterGroup' }, { ref: 'AndFilterGroup' }],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FieldTarget: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                fieldId: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ConditionalOperator: {
-        dataType: 'refEnum',
-        enums: [
-            'isNull',
-            'notNull',
-            'equals',
-            'notEquals',
-            'startsWith',
-            'endsWith',
-            'include',
-            'doesNotInclude',
-            'lessThan',
-            'lessThanOrEqual',
-            'greaterThan',
-            'greaterThanOrEqual',
-            'inThePast',
-            'notInThePast',
-            'inTheNext',
-            'inTheCurrent',
-            'inBetween',
-        ],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FilterRule: {
-        dataType: 'refObject',
-        properties: {
-            values: { dataType: 'array', array: { dataType: 'any' } },
-            operator: { ref: 'ConditionalOperator', required: true },
-            id: { dataType: 'string', required: true },
-            target: { ref: 'FieldTarget', required: true },
-            settings: { dataType: 'any' },
-            disabled: { dataType: 'boolean' },
-        },
-        additionalProperties: false,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FilterGroupItem: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [{ ref: 'FilterGroup' }, { ref: 'FilterRule' }],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    OrFilterGroup: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                or: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'FilterGroupItem' },
-                    required: true,
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        or: {
+                            dataType: 'array',
+                            array: { dataType: 'any' },
+                            required: true,
+                        },
+                        id: { dataType: 'string', required: true },
+                    },
                 },
-                id: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AndFilterGroup: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                and: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'FilterGroupItem' },
-                    required: true,
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        and: {
+                            dataType: 'array',
+                            array: { dataType: 'any' },
+                            required: true,
+                        },
+                        id: { dataType: 'string', required: true },
+                    },
                 },
-                id: { dataType: 'string', required: true },
-            },
+            ],
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    Filters: {
+    FiltersResponse: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                metrics: { ref: 'FilterGroup' },
-                dimensions: { ref: 'FilterGroup' },
+                metrics: { ref: 'FilterGroupResponse' },
+                dimensions: { ref: 'FilterGroupResponse' },
             },
             validators: {},
         },
@@ -451,6 +386,29 @@ const models: TsoaRoute.Models = {
         enums: ['km', 'mi', 'usd', 'gbp', 'eur', 'id', 'percent'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ConditionalOperator: {
+        dataType: 'refEnum',
+        enums: [
+            'isNull',
+            'notNull',
+            'equals',
+            'notEquals',
+            'startsWith',
+            'endsWith',
+            'include',
+            'doesNotInclude',
+            'lessThan',
+            'lessThanOrEqual',
+            'greaterThan',
+            'greaterThanOrEqual',
+            'inThePast',
+            'notInThePast',
+            'inTheNext',
+            'inTheCurrent',
+            'inBetween',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MetricFilterRule: {
         dataType: 'refObject',
         properties: {
@@ -500,7 +458,7 @@ const models: TsoaRoute.Models = {
         additionalProperties: false,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    MetricQuery: {
+    MetricQueryResponse: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -520,7 +478,7 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'refAlias', ref: 'SortField' },
                     required: true,
                 },
-                filters: { ref: 'Filters', required: true },
+                filters: { ref: 'FiltersResponse', required: true },
                 metrics: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'FieldId' },
@@ -547,7 +505,7 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 showTableNames: { dataType: 'boolean', required: true },
-                metricQuery: { ref: 'MetricQuery', required: true },
+                metricQuery: { ref: 'MetricQueryResponse', required: true },
                 exploreId: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string', required: true },
             },
@@ -2221,42 +2179,6 @@ const models: TsoaRoute.Models = {
                 },
                 fields: {
                     ref: 'Record_string._type-DimensionType--__',
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    MetricQueryResponse: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                additionalMetrics: {
-                    dataType: 'array',
-                    array: { dataType: 'refObject', ref: 'AdditionalMetric' },
-                },
-                tableCalculations: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'TableCalculation' },
-                    required: true,
-                },
-                limit: { dataType: 'double', required: true },
-                sorts: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'SortField' },
-                    required: true,
-                },
-                filters: { ref: 'Filters', required: true },
-                metrics: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'FieldId' },
-                    required: true,
-                },
-                dimensions: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'FieldId' },
                     required: true,
                 },
             },
@@ -5394,7 +5316,7 @@ export function RegisterRoutes(app: express.Router) {
                     name: 'body',
                     required: true,
                     dataType: 'nestedObjectLiteral',
-                    nestedProperties: { filters: { ref: 'Filters' } },
+                    nestedProperties: { filters: { ref: 'FiltersResponse' } },
                 },
                 chartUuid: {
                     in: 'path',
