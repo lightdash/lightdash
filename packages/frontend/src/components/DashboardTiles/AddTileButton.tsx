@@ -1,7 +1,7 @@
 import { Menu, MenuDivider, PopoverPosition } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { Dashboard, DashboardTileTypes } from '@lightdash/common';
-import { Button, Group, Text, Tooltip } from '@mantine/core';
+import { Button, ButtonProps, Group, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle, IconPlus } from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
@@ -13,9 +13,13 @@ import { TileAddModal } from './TileForms/TileAddModal';
 type Props = {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     popoverPosition?: PopoverPosition;
-};
+} & Pick<ButtonProps, 'disabled'>;
 
-const AddTileButton: FC<Props> = ({ onAddTiles, popoverPosition }) => {
+const AddTileButton: FC<Props> = ({
+    onAddTiles,
+    popoverPosition,
+    disabled,
+}) => {
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
@@ -126,6 +130,7 @@ const AddTileButton: FC<Props> = ({ onAddTiles, popoverPosition }) => {
                 <Button
                     size="xs"
                     variant="default"
+                    disabled={disabled}
                     leftIcon={<MantineIcon icon={IconPlus} />}
                 >
                     Add tile
