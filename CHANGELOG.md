@@ -1,3 +1,10 @@
+## [0.751.3](https://github.com/lightdash/lightdash/compare/0.751.2...0.751.3) (2023-08-18)
+
+
+### Bug Fixes
+
+* automatically open google picker on login ([#6802](https://github.com/lightdash/lightdash/issues/6802)) ([e62228e](https://github.com/lightdash/lightdash/commit/e62228e16c96429a68bd92c6e80ef816a9d52e00))
+
 ## [0.751.2](https://github.com/lightdash/lightdash/compare/0.751.1...0.751.2) (2023-08-18)
 
 
