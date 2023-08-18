@@ -2592,10 +2592,7 @@ const models: TsoaRoute.Models = {
                         },
                         { dataType: 'enum', enums: ['sendEmailNotification'] },
                         { dataType: 'enum', enums: ['sendSlackNotification'] },
-                        {
-                            dataType: 'enum',
-                            enums: ['sendGsheetsNotification'],
-                        },
+                        { dataType: 'enum', enums: ['uploadGsheets'] },
                         { dataType: 'enum', enums: ['downloadCsv'] },
                         { dataType: 'enum', enums: ['uploadGsheetFromQuery'] },
                         { dataType: 'enum', enums: ['compileProject'] },

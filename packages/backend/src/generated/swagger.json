@@ -2990,7 +2990,7 @@
                             "handleScheduledDelivery",
                             "sendEmailNotification",
                             "sendSlackNotification",
-                            "sendGsheetsNotification",
+                            "uploadGsheets",
                             "downloadCsv",
                             "uploadGsheetFromQuery",
                             "compileProject",
@@ -4072,7 +4072,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.748.0",
+        "version": "0.752.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -4340,7 +4340,7 @@
                         }
                     }
                 },
-                "description": "Get access token for google drive",
+                "description": "Upload results from query to Google Sheet",
                 "tags": ["Integrations"],
                 "security": [],
                 "parameters": [],
