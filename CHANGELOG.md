@@ -1,3 +1,10 @@
+# [0.753.0](https://github.com/lightdash/lightdash/compare/0.752.0...0.753.0) (2023-08-18)
+
+
+### Features
+
+* metadata tab ([#6794](https://github.com/lightdash/lightdash/issues/6794)) ([2f375e6](https://github.com/lightdash/lightdash/commit/2f375e616a5081831d8be0363c60ba8c3836af5f))
+
 # [0.752.0](https://github.com/lightdash/lightdash/compare/0.751.4...0.752.0) (2023-08-18)
 
 
