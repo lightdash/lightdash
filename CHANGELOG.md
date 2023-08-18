@@ -1,3 +1,10 @@
+# [0.754.0](https://github.com/lightdash/lightdash/compare/0.753.0...0.754.0) (2023-08-18)
+
+
+### Features
+
+* download google sheet results ([#6764](https://github.com/lightdash/lightdash/issues/6764)) ([9af234f](https://github.com/lightdash/lightdash/commit/9af234f1cc998057b1ee958c0cd68999c846341d))
+
 # [0.753.0](https://github.com/lightdash/lightdash/compare/0.752.0...0.753.0) (2023-08-18)
 
 
