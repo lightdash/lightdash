@@ -198,7 +198,7 @@ const Filter: FC<Props> = ({
                                 </Text>
                             </Tooltip>
                             <Text fw={400} span>
-                                {filterRule?.disabled ? (
+                                {!filterRule?.values?.length ? (
                                     <Text span color="gray.6">
                                         is any value
                                     </Text>

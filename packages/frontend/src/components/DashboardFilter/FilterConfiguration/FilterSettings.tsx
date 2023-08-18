@@ -129,6 +129,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                             : getFilterRuleWithDefaultValue(
                                                   field,
                                                   newFilter,
+                                                  null,
                                               ),
                                     );
                                 }}
