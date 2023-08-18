@@ -45,7 +45,7 @@ export class GoogleDriveController extends Controller {
     }
 
     /**
-     * Get access token for google drive
+     * Upload results from query to Google Sheet
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
