@@ -1,3 +1,10 @@
+## [0.751.2](https://github.com/lightdash/lightdash/compare/0.751.1...0.751.2) (2023-08-18)
+
+
+### Bug Fixes
+
+* compile correct project settings on project update ([#6805](https://github.com/lightdash/lightdash/issues/6805)) ([beb2738](https://github.com/lightdash/lightdash/commit/beb27387ef8135eb035699c60e94428821c241d7))
+
 ## [0.751.1](https://github.com/lightdash/lightdash/compare/0.751.0...0.751.1) (2023-08-17)
 
 
