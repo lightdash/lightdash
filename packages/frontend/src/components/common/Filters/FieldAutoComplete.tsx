@@ -15,7 +15,7 @@ import {
     renderFilterItem,
     renderFilterItemWithoutTableName,
 } from './renderFilterItem';
-import renderFilterList from './renderFilterList';
+import RenderFilterList from './renderFilterList';
 
 const AutocompleteMaxHeight = createGlobalStyle`
   .autocomplete-max-height {
@@ -117,7 +117,12 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
                                 description: explore.description,
                                 name: explore.name,
                             })) ?? [];
-                        return renderFilterList(itemListRendererProps, tables);
+                        return (
+                            <RenderFilterList
+                                {...itemListRendererProps}
+                                tables={tables}
+                            />
+                        );
                     },
                 })}
                 activeItem={activeField}
