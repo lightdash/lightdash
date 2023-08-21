@@ -120,13 +120,15 @@ const FilterConfiguration: FC<Props> = ({
     const handleChangeField = (newField: FilterableField) => {
         if (!fields) return;
 
+        const isCreatingTemporary = isCreatingNew && !isEditMode;
+
         if (newField && isField(newField) && isFilterableField(newField)) {
             setDraftFilterRule(
                 createDashboardFilterRuleFromField(
                     newField,
                     availableTileFilters,
                     false,
-                    isCreatingNew && !isEditMode,
+                    isCreatingTemporary,
                 ),
             );
             setSelectedField(newField);
@@ -261,7 +263,7 @@ const FilterConfiguration: FC<Props> = ({
         ],
     );
 
-    const showApplyButton = !isFilterConfigurationApplyButtonEnabled(
+    const isApplyDisabled = !isFilterConfigurationApplyButtonEnabled(
         draftFilterRule,
         isEditMode,
         isCreatingNew,
@@ -398,14 +400,14 @@ const FilterConfiguration: FC<Props> = ({
 
                 <Tooltip
                     label="Filter field and value required"
-                    disabled={showApplyButton}
+                    disabled={isApplyDisabled}
                 >
                     <Box>
                         <Button
                             size="xs"
                             variant="filled"
                             className={Classes.POPOVER2_DISMISS}
-                            disabled={showApplyButton}
+                            disabled={isApplyDisabled}
                             onClick={() => {
                                 setSelectedTabId(FilterTabs.SETTINGS);
                                 if (!!draftFilterRule) onSave(draftFilterRule);
