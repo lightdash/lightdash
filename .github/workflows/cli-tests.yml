@@ -12,6 +12,11 @@ jobs:
     outputs:
       url: ${{ steps.deployment-url.outputs.url }}
     steps:
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github.event) }}
+        run: |
+          echo "$GITHUB_CONTEXT"
       - name: Get PR number
         id: regex
         uses: AsasInnab/regex-action@v1
