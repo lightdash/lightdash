@@ -1,3 +1,10 @@
+## [0.754.1](https://github.com/lightdash/lightdash/compare/0.754.0...0.754.1) (2023-08-21)
+
+
+### Bug Fixes
+
+* remove extra quotes on rotate transform ([#6818](https://github.com/lightdash/lightdash/issues/6818)) ([2581a44](https://github.com/lightdash/lightdash/commit/2581a4477b6cd78f537d52fe2293ab3134c6bc2b))
+
 # [0.754.0](https://github.com/lightdash/lightdash/compare/0.753.0...0.754.0) (2023-08-18)
 
 
