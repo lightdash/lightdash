@@ -217,6 +217,13 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                             d.spaceUuid === currentSpace?.uuid,
                                     )?.uuid
                                 }
+                                searchable
+                                nothingFound="No matching dashboards found"
+                                filter={(value, dashboard) =>
+                                    !!dashboard.label
+                                        ?.toLowerCase()
+                                        .includes(value.toLowerCase().trim())
+                                }
                                 withinPortal
                                 required
                                 {...form.getInputProps('dashboardUuid')}
