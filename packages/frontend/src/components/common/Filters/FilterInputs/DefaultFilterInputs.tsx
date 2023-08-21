@@ -40,7 +40,9 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
     const placeholder = getPlaceholderByFilterTypeAndOperator({
         type: filterType,
         operator: rule.operator,
-        disabled: isFilterRule(rule) ? rule.disabled : undefined,
+        disabled: isFilterRule(rule)
+            ? rule.disabled && !rule.values
+            : undefined,
     });
 
     switch (rule.operator) {

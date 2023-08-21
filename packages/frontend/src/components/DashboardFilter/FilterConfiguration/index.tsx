@@ -120,11 +120,15 @@ const FilterConfiguration: FC<Props> = ({
     const handleChangeField = (newField: FilterableField) => {
         if (!fields) return;
 
+        const isCreatingTemporary = isCreatingNew && !isEditMode;
+
         if (newField && isField(newField) && isFilterableField(newField)) {
             setDraftFilterRule(
                 createDashboardFilterRuleFromField(
                     newField,
                     availableTileFilters,
+                    false,
+                    isCreatingTemporary,
                 ),
             );
             setSelectedField(newField);
@@ -134,19 +138,30 @@ const FilterConfiguration: FC<Props> = ({
     const handleRevert = useCallback(() => {
         if (!originalFilterRule) return;
 
-        setDraftFilterRule(
-            draftFilterRule
+        setDraftFilterRule((oldDraftFilterRule) => {
+            return oldDraftFilterRule
                 ? {
-                      ...draftFilterRule,
+                      ...oldDraftFilterRule,
                       ...getFilterRuleRevertableObject(originalFilterRule),
                   }
-                : undefined,
-        );
-    }, [originalFilterRule, setDraftFilterRule, draftFilterRule]);
+                : undefined;
+        });
+    }, [originalFilterRule, setDraftFilterRule]);
 
     const handleChangeFilterRule = useCallback(
         (newFilterRule: DashboardFilterRule) => {
-            setDraftFilterRule(newFilterRule);
+            setDraftFilterRule((oldFilterRule) => {
+                // TODO: Maybe this isn't the best place to do this.
+                // All this says is if a filter *was* disabled and had no
+                // value but now has a value, enable it. This is a way of
+                // keeping disabled and 'no value' in sync.
+                return oldFilterRule &&
+                    !oldFilterRule?.values?.length &&
+                    oldFilterRule?.disabled &&
+                    newFilterRule.values?.length
+                    ? { ...newFilterRule, disabled: false }
+                    : newFilterRule;
+            });
         },
         [setDraftFilterRule],
     );
@@ -248,6 +263,12 @@ const FilterConfiguration: FC<Props> = ({
         ],
     );
 
+    const isApplyDisabled = !isFilterConfigurationApplyButtonEnabled(
+        draftFilterRule,
+        isEditMode,
+        isCreatingNew,
+    );
+
     return (
         <Stack>
             <Tabs
@@ -301,7 +322,6 @@ const FilterConfiguration: FC<Props> = ({
                                     activeField={selectedField}
                                     onChange={handleChangeField}
                                     inputProps={{
-                                        // TODO: Remove once this component is migrated to Mantine
                                         style: {
                                             borderRadius: '4px',
                                             borderWidth: '1px',
@@ -380,20 +400,14 @@ const FilterConfiguration: FC<Props> = ({
 
                 <Tooltip
                     label="Filter field and value required"
-                    disabled={isFilterConfigurationApplyButtonEnabled(
-                        draftFilterRule,
-                    )}
+                    disabled={isApplyDisabled}
                 >
                     <Box>
                         <Button
                             size="xs"
                             variant="filled"
                             className={Classes.POPOVER2_DISMISS}
-                            disabled={
-                                !isFilterConfigurationApplyButtonEnabled(
-                                    draftFilterRule,
-                                )
-                            }
+                            disabled={isApplyDisabled}
                             onClick={() => {
                                 setSelectedTabId(FilterTabs.SETTINGS);
                                 if (!!draftFilterRule) onSave(draftFilterRule);

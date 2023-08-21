@@ -42,7 +42,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
     const placeholder = getPlaceholderByFilterTypeAndOperator({
         type: filterType,
         operator: rule.operator,
-        disabled: rule.disabled,
+        disabled: rule.disabled && !rule.values,
     });
 
     switch (rule.operator) {
@@ -147,7 +147,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         defaultTimezone="UTC"
                         showTimezoneSelect={false}
                         value={
-                            rule.values
+                            rule.values && rule.values.length > 0
                                 ? new Date(rule.values[0]).toString()
                                 : null
                         }
@@ -185,7 +185,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     disabled={disabled}
                     fill
                     value={
-                        rule.values
+                        rule.values && rule.values.length > 0
                             ? formatDate(rule.values?.[0], undefined, false)
                             : null
                     }

@@ -39,17 +39,6 @@ const FilterSettings: FC<FilterSettingsProps> = ({
         [filterType],
     );
 
-    useEffect(() => {
-        if (!isEditMode && isFilterDisabled) {
-            onChangeFilterRule({
-                ...filterRule,
-                disabled: false,
-                values: undefined,
-                settings: undefined,
-            });
-        }
-    }, [isEditMode, isFilterDisabled, onChangeFilterRule, filterRule]);
-
     // Set default label when using revert (undo) button
     useEffect(() => {
         if (filterLabel !== '') {
@@ -66,14 +55,27 @@ const FilterSettings: FC<FilterSettingsProps> = ({
         );
     };
 
+    const showValueInput = useMemo(() => {
+        // Always show the input in view mode
+        if (!isEditMode) {
+            return true;
+        }
+        // In edit mode, only don't show input when disabled
+        if (isFilterDisabled) {
+            return false;
+        }
+        return true;
+    }, [isFilterDisabled, isEditMode]);
+
     const showAnyValueDisabledInput = useMemo(
         () =>
             isFilterDisabled &&
+            isEditMode &&
             ![FilterOperator.NULL, FilterOperator.NOT_NULL].includes(
                 filterRule.operator,
             ),
 
-        [filterRule.operator, isFilterDisabled],
+        [filterRule.operator, isFilterDisabled, isEditMode],
     );
 
     return (
@@ -127,6 +129,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                             : getFilterRuleWithDefaultValue(
                                                   field,
                                                   newFilter,
+                                                  null,
                                               ),
                                     );
                                 }}
@@ -157,7 +160,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         })}
                     />
                 )}
-                {!isFilterDisabled && (
+                {showValueInput && (
                     <filterConfig.inputs
                         popoverProps={popoverProps}
                         filterType={filterType}
