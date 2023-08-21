@@ -1,3 +1,10 @@
+## [0.754.2](https://github.com/lightdash/lightdash/compare/0.754.1...0.754.2) (2023-08-21)
+
+
+### Bug Fixes
+
+* any-value filters could not be reset ([#6806](https://github.com/lightdash/lightdash/issues/6806)) ([33c7fa6](https://github.com/lightdash/lightdash/commit/33c7fa64dfb03cf96f1deccd284214480149423a))
+
 ## [0.754.1](https://github.com/lightdash/lightdash/compare/0.754.0...0.754.1) (2023-08-21)
 
 
