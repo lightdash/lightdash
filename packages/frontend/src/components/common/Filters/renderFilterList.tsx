@@ -8,9 +8,16 @@ import {
 } from '@lightdash/common';
 import { Group, Text, Tooltip } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 import MantineIcon from '../MantineIcon';
+
+type GroupTable = Pick<SummaryExplore, 'name' | 'description'>;
+
+type GroupedItems<T> = {
+    group: GroupTable;
+    items: T[];
+};
 
 type MenuDividerProps = {
     $isFirst: boolean;
@@ -61,40 +68,57 @@ const StickyMenuDivider = forwardRef<HTMLLIElement, StickyMenuDividerProps>(
 const getItemGroupLabel = (item: Field | TableCalculation) =>
     isField(item) ? item.tableLabel : 'Table Calculations';
 
-const renderFilterList = <T extends Field | TableCalculation>(
-    itemListRendererProps: ItemListRendererProps<T>,
-    tables: Pick<SummaryExplore, 'name' | 'description'>[],
-) => {
-    const { items, itemsParentRef, renderItem } = itemListRendererProps;
-    const getGroupedItems = (filteredItems: typeof items) => {
-        return filteredItems.reduce<
-            {
-                group: typeof tables[0];
-                items: typeof items;
-            }[]
-        >((acc, item) => {
-            const table = isField(item)
-                ? tables.find((t) => t.name === item.table)
-                : undefined;
+const useGroupedItems = <T extends Field | TableCalculation>(
+    items: T[],
+    tables: GroupTable[],
+): GroupedItems<T>[] => {
+    const tableMap = useMemo(
+        () => new Map(tables.map((table) => [table.name, table])),
+        [tables],
+    );
 
-            const group = {
-                name: getItemGroupLabel(item),
-                description: table?.description,
-            };
+    const getGroupedItems = useCallback(
+        (filteredItems: typeof items): GroupedItems<T>[] => {
+            return filteredItems.reduce<GroupedItems<T>[]>((acc, item) => {
+                const table = isField(item)
+                    ? tableMap.get(item.table)
+                    : undefined;
 
-            const lastGroup = acc[acc.length - 1];
-            if (lastGroup && lastGroup.group.name === group.name) {
-                lastGroup.items.push(item);
-            } else {
-                acc.push({ group, items: [item] });
-            }
-            return acc;
-        }, []);
-    };
+                const group = {
+                    name: getItemGroupLabel(item),
+                    description: table?.description,
+                };
+
+                const lastGroup = acc[acc.length - 1];
+                if (lastGroup && lastGroup.group.name === group.name) {
+                    lastGroup.items.push(item);
+                } else {
+                    acc.push({ group, items: [item] });
+                }
+                return acc;
+            }, []);
+        },
+        [tableMap],
+    );
+
+    return useMemo(() => getGroupedItems(items), [getGroupedItems, items]);
+};
+
+type RenderFilterListProps<T> = ItemListRendererProps<T> & {
+    tables: Pick<SummaryExplore, 'name' | 'description'>[];
+};
+
+const RenderFilterList = <T extends Field | TableCalculation>({
+    items,
+    itemsParentRef,
+    renderItem,
+    tables,
+}: RenderFilterListProps<T>) => {
+    const groupedItems = useGroupedItems<T>(items, tables);
 
     return (
         <Menu role="listbox" ulRef={itemsParentRef}>
-            {getGroupedItems(items).map((groupedItem, index) => (
+            {groupedItems.map((groupedItem, index) => (
                 <React.Fragment key={index}>
                     <Tooltip
                         offset={-2}
@@ -121,4 +145,4 @@ const renderFilterList = <T extends Field | TableCalculation>(
     );
 };
 
-export default renderFilterList;
+export default RenderFilterList;

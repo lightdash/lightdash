@@ -24,6 +24,7 @@ import {
     SchedulerLog,
     SchedulerSlackTarget,
     SlackNotificationPayload,
+    UploadMetricGsheetPayload,
     ValidateProjectPayload,
 } from '@lightdash/common';
 import { nanoid } from 'nanoid';
@@ -32,6 +33,7 @@ import {
     DownloadCsv,
     LightdashAnalytics,
     parseAnalyticsLimit,
+    QueryExecutionContext,
 } from '../analytics/LightdashAnalytics';
 import {
     emailClient,
@@ -608,6 +610,73 @@ export const downloadCsv = async (
     }
 };
 
+export const uploadGsheetFromQuery = async (
+    jobId: string,
+    scheduledTime: Date,
+    payload: UploadMetricGsheetPayload,
+) => {
+    const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> = {
+        task: 'uploadGsheetFromQuery',
+        jobId,
+        scheduledTime,
+    };
+    try {
+        if (!googleDriveClient.isEnabled) {
+            throw new Error(
+                'Unable to upload Google Sheet from query, Google Drive is not enabled',
+            );
+        }
+        schedulerService.logSchedulerJob({
+            ...baseLog,
+            details: { createdByUserUuid: payload.userUuid },
+            status: SchedulerJobStatus.STARTED,
+        });
+        const user = await userService.getSessionByUserUuid(payload.userUuid);
+
+        const rows = await projectService.runMetricQuery(
+            user,
+            payload.metricQuery,
+            payload.projectUuid,
+            payload.exploreId,
+            undefined,
+            QueryExecutionContext.GSHEETS,
+        );
+        const refreshToken = await userService.getRefreshToken(
+            payload.userUuid,
+        );
+        const { spreadsheetId, spreadsheetUrl } =
+            await googleDriveClient.createNewSheet(
+                refreshToken,
+                payload.exploreId,
+            );
+
+        if (!spreadsheetId) {
+            throw new Error('Unable to create new sheet');
+        }
+        await googleDriveClient.appendToSheet(
+            refreshToken,
+            spreadsheetId,
+            rows,
+        );
+
+        schedulerService.logSchedulerJob({
+            ...baseLog,
+            details: {
+                fileUrl: spreadsheetUrl,
+                createdByUserUuid: payload.userUuid,
+            },
+            status: SchedulerJobStatus.COMPLETED,
+        });
+    } catch (e) {
+        schedulerService.logSchedulerJob({
+            ...baseLog,
+            status: SchedulerJobStatus.ERROR,
+            details: { createdByUserUuid: payload.userUuid, error: e },
+        });
+        throw e; // Cascade error to it can be retried by graphile
+    }
+};
+
 export const sendEmailNotification = async (
     jobId: string,
     notification: EmailNotificationPayload,
@@ -780,6 +849,12 @@ export const uploadGsheets = async (
     });
 
     try {
+        if (!googleDriveClient.isEnabled) {
+            throw new Error(
+                'Unable to upload Google Sheet from scheduler, Google Drive is not enabled',
+            );
+        }
+
         const scheduler =
             await schedulerService.schedulerModel.getSchedulerAndTargets(
                 schedulerUuid,
@@ -817,10 +892,15 @@ export const uploadGsheets = async (
                 savedChartUuid,
             );
 
-            // TODO use csv().fromStream to do stream reading/writting on gsheets
             const refreshToken = await userService.getRefreshToken(
                 scheduler.createdBy,
             );
+            await googleDriveClient.uploadMetadata(
+                refreshToken,
+                gdriveId,
+                getHumanReadableCronExpression(scheduler.cron),
+            );
+
             await googleDriveClient.appendToSheet(refreshToken, gdriveId, rows);
         } else if (dashboardUuid) {
             const dashboard = await dashboardService.getById(
@@ -841,6 +921,36 @@ export const uploadGsheets = async (
                 scheduler.createdBy,
             );
 
+            const chartNames = chartUuids.reduce<Record<string, string>>(
+                (acc, chartUuid) => {
+                    const tile = dashboard.tiles.find(
+                        (t) =>
+                            isDashboardChartTileType(t) &&
+                            t.properties.savedChartUuid === chartUuid,
+                    );
+                    const chartName =
+                        tile && isDashboardChartTileType(tile)
+                            ? tile.properties.chartName
+                            : undefined;
+                    return {
+                        ...acc,
+                        [chartUuid]:
+                            tile?.properties.title || chartName || chartUuid,
+                    };
+                },
+                {},
+            );
+
+            await googleDriveClient.uploadMetadata(
+                refreshToken,
+                gdriveId,
+                getHumanReadableCronExpression(scheduler.cron),
+                Object.values(chartNames),
+            );
+
+            Logger.debug(
+                `Uploading dashboard with ${chartUuids.length} charts to Google Sheets`,
+            );
             // We want to process all charts in sequence, so we don't load all chart results in memory
             chartUuids.reduce(async (promise, chartUuid) => {
                 await promise;
@@ -849,19 +959,10 @@ export const uploadGsheets = async (
                     chartUuid,
                 );
 
-                const tile = dashboard.tiles.find(
-                    (t) =>
-                        isDashboardChartTileType(t) &&
-                        t.properties.savedChartUuid === chartUuid,
-                );
-                const chartName =
-                    tile && isDashboardChartTileType(tile)
-                        ? tile.properties.chartName
-                        : undefined;
                 const tabName = await googleDriveClient.createNewTab(
                     refreshToken,
                     gdriveId,
-                    tile?.properties.title || chartName || chartUuid,
+                    chartNames[chartUuid] || chartUuid,
                 );
 
                 await googleDriveClient.appendToSheet(

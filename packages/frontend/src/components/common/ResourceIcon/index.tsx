@@ -100,7 +100,7 @@ export const ChartIcon: FC<{ chartType: ChartKind | undefined }> = ({
         icon={getChartIcon(chartType)}
         color="blue.8"
         transform={
-            chartType === ChartKind.HORIZONTAL_BAR ? `"rotate(90)"` : undefined
+            chartType === ChartKind.HORIZONTAL_BAR ? 'rotate(90)' : undefined
         }
     />
 );

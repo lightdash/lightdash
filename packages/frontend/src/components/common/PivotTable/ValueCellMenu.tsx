@@ -1,10 +1,5 @@
 import { subject } from '@casl/ability';
-import {
-    DashboardFilters,
-    Field,
-    ResultValue,
-    TableCalculation,
-} from '@lightdash/common';
+import { Field, ResultValue, TableCalculation } from '@lightdash/common';
 import { Menu, MenuProps } from '@mantine/core';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import { FC } from 'react';
@@ -16,7 +11,7 @@ import { EventName } from '../../../types/Events';
 import { useMetricQueryDataContext } from '../../MetricQueryData/MetricQueryDataProvider';
 import MantineIcon from '../MantineIcon';
 
-export type ValueCellMenuProps = {
+type ValueCellMenuProps = {
     value?: ResultValue | null;
     onCopy: () => void;
 
@@ -27,8 +22,6 @@ export type ValueCellMenuProps = {
         colIndex: number,
         rowIndex: number,
     ) => Record<string, ResultValue>;
-
-    dashboardFilters?: DashboardFilters;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 
 const ValueCellMenu: FC<ValueCellMenuProps> = ({
@@ -42,7 +35,6 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
     onOpen,
     onClose,
     onCopy,
-    dashboardFilters,
 }) => {
     const { user } = useApp();
     const tracking = useTracking(true);
@@ -100,7 +92,6 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
             item,
             value,
             fieldValues: underlyingFieldValues,
-            dashboardFilters,
         });
 
         track({
@@ -131,7 +122,6 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
         openDrillDownModal({
             item,
             fieldValues: underlyingFieldValues,
-            dashboardFilters,
         });
 
         track({

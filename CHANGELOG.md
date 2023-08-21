@@ -1,3 +1,52 @@
+## [0.754.1](https://github.com/lightdash/lightdash/compare/0.754.0...0.754.1) (2023-08-21)
+
+
+### Bug Fixes
+
+* remove extra quotes on rotate transform ([#6818](https://github.com/lightdash/lightdash/issues/6818)) ([2581a44](https://github.com/lightdash/lightdash/commit/2581a4477b6cd78f537d52fe2293ab3134c6bc2b))
+
+# [0.754.0](https://github.com/lightdash/lightdash/compare/0.753.0...0.754.0) (2023-08-18)
+
+
+### Features
+
+* download google sheet results ([#6764](https://github.com/lightdash/lightdash/issues/6764)) ([9af234f](https://github.com/lightdash/lightdash/commit/9af234f1cc998057b1ee958c0cd68999c846341d))
+
+# [0.753.0](https://github.com/lightdash/lightdash/compare/0.752.0...0.753.0) (2023-08-18)
+
+
+### Features
+
+* metadata tab ([#6794](https://github.com/lightdash/lightdash/issues/6794)) ([2f375e6](https://github.com/lightdash/lightdash/commit/2f375e616a5081831d8be0363c60ba8c3836af5f))
+
+# [0.752.0](https://github.com/lightdash/lightdash/compare/0.751.4...0.752.0) (2023-08-18)
+
+
+### Features
+
+* improve render filter list performance ([#6811](https://github.com/lightdash/lightdash/issues/6811)) ([6376e2c](https://github.com/lightdash/lightdash/commit/6376e2c51601e9ba00cf7cbde4642785ac8657b3))
+
+## [0.751.4](https://github.com/lightdash/lightdash/compare/0.751.3...0.751.4) (2023-08-18)
+
+
+### Bug Fixes
+
+* improve saving state on dashboards ([#6808](https://github.com/lightdash/lightdash/issues/6808)) ([239ae08](https://github.com/lightdash/lightdash/commit/239ae08f9459eccc7e51404476e32ea76117ef7c))
+
+## [0.751.3](https://github.com/lightdash/lightdash/compare/0.751.2...0.751.3) (2023-08-18)
+
+
+### Bug Fixes
+
+* automatically open google picker on login ([#6802](https://github.com/lightdash/lightdash/issues/6802)) ([e62228e](https://github.com/lightdash/lightdash/commit/e62228e16c96429a68bd92c6e80ef816a9d52e00))
+
+## [0.751.2](https://github.com/lightdash/lightdash/compare/0.751.1...0.751.2) (2023-08-18)
+
+
+### Bug Fixes
+
+* compile correct project settings on project update ([#6805](https://github.com/lightdash/lightdash/issues/6805)) ([beb2738](https://github.com/lightdash/lightdash/commit/beb27387ef8135eb035699c60e94428821c241d7))
+
 ## [0.751.1](https://github.com/lightdash/lightdash/compare/0.751.0...0.751.1) (2023-08-17)
 
 
