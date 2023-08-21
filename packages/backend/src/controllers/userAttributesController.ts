@@ -4,6 +4,8 @@ import {
     ApiSuccessEmpty,
     ApiUserAttributesResponse,
     CreateUserAttribute,
+    getRequestMethod,
+    LightdashRequestMethodHeader,
 } from '@lightdash/common';
 import { Controller, Delete, Post, Put } from '@tsoa/runtime';
 import express from 'express';
@@ -40,9 +42,12 @@ export class UserAttributesController extends Controller {
         @Request() req: express.Request,
     ): Promise<ApiUserAttributesResponse> {
         this.setStatus(200);
+        const context = getRequestMethod(
+            req.header(LightdashRequestMethodHeader),
+        );
         return {
             status: 'ok',
-            results: await userAttributesService.getAll(req.user!),
+            results: await userAttributesService.getAll(req.user!, context),
         };
     }
 

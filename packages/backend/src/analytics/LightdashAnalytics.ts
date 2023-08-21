@@ -730,6 +730,39 @@ export type ValidationErrorDismissed = BaseTrack & {
     };
 };
 
+export type UserAttributesPageEvent = BaseTrack & {
+    event: 'user_attributes.page_viewed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        userAttributesCount: number;
+    };
+};
+
+export type UserAttributeCreateAndUpdateEvent = BaseTrack & {
+    event: 'user_attribute.created' | 'user_attribute.updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        attributeId: string;
+        name: string;
+        description?: string;
+        values: {
+            userIds: string[];
+            values: string[];
+        };
+    };
+};
+
+export type UserAttributeDeleteEvent = BaseTrack & {
+    event: 'user_attribute.deleted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        attributeId: string;
+    };
+};
+
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -785,6 +818,9 @@ type Track =
     | SchedulerDashboardView
     | Validation
     | ValidationErrorDismissed
+    | UserAttributesPageEvent
+    | UserAttributeCreateAndUpdateEvent
+    | UserAttributeDeleteEvent
     | ConditionalFormattingRuleSavedEvent;
 
 export class LightdashAnalytics extends Analytics {

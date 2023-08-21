@@ -2,9 +2,12 @@ import { subject } from '@casl/ability';
 import {
     CreateUserAttribute,
     ForbiddenError,
+    RequestMethod,
     SessionUser,
     UserAttribute,
 } from '@lightdash/common';
+import { analytics } from '../../analytics/client';
+import { UserAttributeCreateAndUpdateEvent } from '../../analytics/LightdashAnalytics';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 
 type Dependencies = {
@@ -18,7 +21,25 @@ export class UserAttributesService {
         this.userAttributesModel = dependencies.userAttributesModel;
     }
 
-    async getAll(user: SessionUser): Promise<UserAttribute[]> {
+    static getAnalyticsEventProperties(
+        attribute: UserAttribute,
+    ): UserAttributeCreateAndUpdateEvent['properties'] {
+        return {
+            organizationId: attribute.organizationUuid,
+            attributeId: attribute.uuid,
+            name: attribute.name,
+            description: attribute.description,
+            values: {
+                userIds: attribute.users.map((u) => u.userUuid),
+                values: attribute.users.map((u) => u.value),
+            },
+        };
+    }
+
+    async getAll(
+        user: SessionUser,
+        context: RequestMethod,
+    ): Promise<UserAttribute[]> {
         const organizationUuid = user.organizationUuid!;
         if (
             user.ability.cannot(
@@ -29,9 +50,21 @@ export class UserAttributesService {
             throw new ForbiddenError();
         }
 
-        return this.userAttributesModel.find({
+        const attributes = await this.userAttributesModel.find({
             organizationUuid,
         });
+
+        if (context === RequestMethod.WEB_APP) {
+            analytics.track({
+                event: 'user_attributes.page_viewed',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    userAttributesCount: attributes.length,
+                },
+            });
+        }
+        return attributes;
     }
 
     async create(
@@ -48,7 +81,21 @@ export class UserAttributesService {
         ) {
             throw new ForbiddenError();
         }
-        return this.userAttributesModel.create(organizationUuid, orgAttribute);
+        const createdAttribute = await this.userAttributesModel.create(
+            organizationUuid,
+            orgAttribute,
+        );
+
+        analytics.track({
+            event: 'user_attribute.created',
+            userId: user.userUuid,
+            properties:
+                UserAttributesService.getAnalyticsEventProperties(
+                    createdAttribute,
+                ),
+        });
+
+        return createdAttribute;
     }
 
     async update(
@@ -70,11 +117,22 @@ export class UserAttributesService {
         ) {
             throw new ForbiddenError();
         }
-        return this.userAttributesModel.update(
+        const updatedAttribute = await this.userAttributesModel.update(
             user.organizationUuid!,
             orgAttributeUuid,
             orgAttribute,
         );
+
+        analytics.track({
+            event: 'user_attribute.updated',
+            userId: user.userUuid,
+            properties:
+                UserAttributesService.getAnalyticsEventProperties(
+                    updatedAttribute,
+                ),
+        });
+
+        return updatedAttribute;
     }
 
     async delete(user: SessionUser, orgAttributeUuid: string): Promise<void> {
@@ -92,5 +150,14 @@ export class UserAttributesService {
             throw new ForbiddenError();
         }
         await this.userAttributesModel.delete(orgAttributeUuid);
+
+        analytics.track({
+            event: 'user_attribute.deleted',
+            userId: user.userUuid,
+            properties: {
+                organizationId: orgAttribute.organizationUuid,
+                attributeId: orgAttributeUuid,
+            },
+        });
     }
 }
