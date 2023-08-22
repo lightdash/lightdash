@@ -13,7 +13,9 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import last from 'lodash-es/last';
 import React, { FC, useCallback, useMemo } from 'react';
 import { useScroll } from 'react-use';
+import useDashboardFiltersForExplore from '../../../hooks/dashboard/useDashboardFiltersForExplore';
 import { isSummable } from '../../../hooks/useColumnTotals';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import Cell from './Cell';
 import { usePivotTableStyles } from './tableStyles';
 import ValueCell from './ValueCell';
@@ -41,6 +43,7 @@ type PivotTableProps = TableProps &
         hideRowNumbers: boolean;
         getFieldLabel: (fieldId: string) => string | undefined;
         getField: (fieldId: string) => Field | TableCalculation;
+        tileUuid?: string;
     };
 
 const PivotTable: FC<PivotTableProps> = ({
@@ -51,9 +54,15 @@ const PivotTable: FC<PivotTableProps> = ({
     getFieldLabel,
     getField,
     className,
+    tileUuid,
     ...tableProps
 }) => {
     const { cx, classes } = usePivotTableStyles();
+    const { explore } = useVisualizationContext();
+    const appliedDashboardFilters = useDashboardFiltersForExplore(
+        tileUuid,
+        explore,
+    );
 
     const containerScroll = useScroll(containerRef);
 
@@ -410,6 +419,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                         }
                                         conditionalFormattings={
                                             conditionalFormattings
+                                        }
+                                        appliedDashboardFilters={
+                                            appliedDashboardFilters
                                         }
                                     />
                                 );
