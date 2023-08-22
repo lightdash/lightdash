@@ -89,6 +89,9 @@ const Filter: FC<Props> = ({
         [isCreatingNew, onSave, onUpdate, handleClose],
     );
 
+    const isPopoverDisabled =
+        !filterableFieldsByTileUuid || !allFilterableFields;
+
     return (
         <Popover
             position="bottom-start"
@@ -97,7 +100,7 @@ const Filter: FC<Props> = ({
             closeOnEscape={!isSubPopoverOpen}
             closeOnClickOutside={!isSubPopoverOpen}
             onClose={handleClose}
-            disabled={isLoadingDashboardFilters}
+            disabled={isPopoverDisabled}
             transitionProps={{
                 transition: 'pop',
             }}
