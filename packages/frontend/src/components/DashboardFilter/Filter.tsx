@@ -1,7 +1,6 @@
 import {
     applyDefaultTileTargets,
     DashboardFilterRule,
-    DashboardTileTypes,
     FilterableField,
 } from '@lightdash/common';
 import { Button, CloseButton, Popover, Text, Tooltip } from '@mantine/core';
@@ -42,6 +41,7 @@ const Filter: FC<Props> = ({
         dashboardTiles,
         allFilterableFields,
         filterableFieldsByTileUuid,
+        isLoadingDashboardFilters,
     } = useDashboardContext();
 
     const [isPopoverOpen, { close: closePopover, toggle: togglePopover }] =
@@ -62,12 +62,6 @@ const Filter: FC<Props> = ({
     const originalFilterRule = dashboard?.filters?.dimensions.find(
         (item) => filterRule && item.id === filterRule.id,
     );
-
-    //Only used by Add filters
-    const hasChartTiles =
-        dashboardTiles.filter(
-            (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
-        ).length >= 1;
 
     const filterRuleLabels =
         filterRule && field
@@ -95,9 +89,8 @@ const Filter: FC<Props> = ({
         [isCreatingNew, onSave, onUpdate, handleClose],
     );
 
-    if (!filterableFieldsByTileUuid || !allFilterableFields) {
-        return null;
-    }
+    const isPopoverDisabled =
+        !filterableFieldsByTileUuid || !allFilterableFields;
 
     return (
         <Popover
@@ -107,7 +100,7 @@ const Filter: FC<Props> = ({
             closeOnEscape={!isSubPopoverOpen}
             closeOnClickOutside={!isSubPopoverOpen}
             onClose={handleClose}
-            disabled={!hasChartTiles}
+            disabled={isPopoverDisabled}
             transitionProps={{
                 transition: 'pop',
             }}
@@ -139,7 +132,8 @@ const Filter: FC<Props> = ({
                             leftIcon={
                                 <MantineIcon color="blue" icon={IconFilter} />
                             }
-                            disabled={!hasChartTiles}
+                            disabled={!allFilterableFields}
+                            loading={isLoadingDashboardFilters}
                             onClick={togglePopover}
                         >
                             Add filter
@@ -164,7 +158,6 @@ const Filter: FC<Props> = ({
                         onClick={togglePopover}
                     >
                         <Text fz="xs">
-                            {' '}
                             <Tooltip
                                 withinPortal
                                 position="top-start"
@@ -219,25 +212,27 @@ const Filter: FC<Props> = ({
             </Popover.Target>
 
             <Popover.Dropdown ml={5}>
-                <FilterConfiguration
-                    isCreatingNew={isCreatingNew}
-                    isEditMode={isEditMode}
-                    isTemporary={isTemporary}
-                    field={field}
-                    fields={allFilterableFields || []}
-                    tiles={dashboardTiles}
-                    originalFilterRule={originalFilterRule}
-                    availableTileFilters={filterableFieldsByTileUuid}
-                    defaultFilterRule={defaultFilterRule}
-                    onSave={handelSaveChanges}
-                    // FIXME: remove this once we migrate off of Blueprint
-                    popoverProps={{
-                        onOpened: () => openSubPopover(),
-                        onOpening: () => openSubPopover(),
-                        onClose: () => closeSubPopover(),
-                        onClosing: () => closeSubPopover(),
-                    }}
-                />
+                {filterableFieldsByTileUuid && (
+                    <FilterConfiguration
+                        isCreatingNew={isCreatingNew}
+                        isEditMode={isEditMode}
+                        isTemporary={isTemporary}
+                        field={field}
+                        fields={allFilterableFields || []}
+                        tiles={dashboardTiles}
+                        originalFilterRule={originalFilterRule}
+                        availableTileFilters={filterableFieldsByTileUuid}
+                        defaultFilterRule={defaultFilterRule}
+                        onSave={handelSaveChanges}
+                        // FIXME: remove this once we migrate off of Blueprint
+                        popoverProps={{
+                            onOpened: () => openSubPopover(),
+                            onOpening: () => openSubPopover(),
+                            onClose: () => closeSubPopover(),
+                            onClosing: () => closeSubPopover(),
+                        }}
+                    />
+                )}
             </Popover.Dropdown>
         </Popover>
     );
