@@ -18,21 +18,25 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
         isLoadingDashboardFilters,
     } = useDashboardContext();
 
+    if (isLoadingDashboardFilters) {
+        return (
+            <Group spacing="xs" ml="xs">
+                <Skeleton h={30} w={100} radius={4} />
+                <Skeleton h={30} w={100} radius={4} />
+                <Skeleton h={30} w={100} radius={4} />
+                <Skeleton h={30} w={100} radius={4} />
+                <Skeleton h={30} w={100} radius={4} />
+            </Group>
+        );
+    }
+
     if (!allFilterableFields) return null;
 
-    const fieldMap = allFilterableFields.reduce<
+    const fieldMap = allFilterableFields?.reduce<
         Record<FieldId, FilterableField>
     >((acc, field) => ({ ...acc, [fieldId(field)]: field }), {});
 
-    return isLoadingDashboardFilters ? (
-        <Group spacing="xs" ml="xs">
-            <Skeleton h={30} w={100} radius={4} />
-            <Skeleton h={30} w={100} radius={4} />
-            <Skeleton h={30} w={100} radius={4} />
-            <Skeleton h={30} w={100} radius={4} />
-            <Skeleton h={30} w={100} radius={4} />
-        </Group>
-    ) : (
+    return (
         <>
             {dashboardFilters.dimensions
                 .filter((item) => !!fieldMap[item.target.fieldId])
