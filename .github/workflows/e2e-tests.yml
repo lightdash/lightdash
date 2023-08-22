@@ -41,7 +41,7 @@ jobs:
       # Prepare bigquery credentials for Cypress
       - name: create-json
         id: create-json
-        uses: jsdaniell/create-json@1.2.2
+        uses: jsdaniell/create-json@v1.2.2
         with:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
@@ -111,7 +111,7 @@ jobs:
       # Prepare bigquery credentials for Cypress
       - name: create-json
         id: create-json
-        uses: jsdaniell/create-json@1.2.2
+        uses: jsdaniell/create-json@v1.2.2
         with:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
