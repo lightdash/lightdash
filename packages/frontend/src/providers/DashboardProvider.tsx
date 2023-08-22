@@ -45,6 +45,7 @@ type DashboardContext = {
     dashboardFilters: DashboardFilters;
     dashboardTemporaryFilters: DashboardFilters;
     allFilters: DashboardFilters;
+    isLoadingDashboardFilters: boolean;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     setDashboardTemporaryFilters: Dispatch<SetStateAction<DashboardFilters>>;
     addDimensionDashboardFilter: (
@@ -93,8 +94,10 @@ export const DashboardProvider: React.FC = ({ children }) => {
             .filter((uuid): uuid is string => !!uuid);
     }, [dashboardTiles]);
 
-    const { isLoading, data: filterableFieldsBySavedQueryUuid } =
-        useDashboardsAvailableFilters(tileSavedChartUuids);
+    const {
+        isLoading: isLoadingDashboardFilters,
+        data: filterableFieldsBySavedQueryUuid,
+    } = useDashboardsAvailableFilters(tileSavedChartUuids);
 
     const filterableFieldsByTileUuid = useMemo(() => {
         if (!dashboard || !dashboardTiles || !filterableFieldsBySavedQueryUuid)
@@ -115,7 +118,8 @@ export const DashboardProvider: React.FC = ({ children }) => {
     }, [dashboard, dashboardTiles, filterableFieldsBySavedQueryUuid]);
 
     const allFilterableFields = useMemo(() => {
-        if (isLoading || !filterableFieldsBySavedQueryUuid) return;
+        if (isLoadingDashboardFilters || !filterableFieldsBySavedQueryUuid)
+            return;
 
         const allFilters = Object.values(
             filterableFieldsBySavedQueryUuid,
@@ -123,7 +127,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
         if (allFilters.length === 0) return;
 
         return uniqBy(allFilters, (f) => fieldId(f));
-    }, [isLoading, filterableFieldsBySavedQueryUuid]);
+    }, [isLoadingDashboardFilters, filterableFieldsBySavedQueryUuid]);
 
     const [fieldsWithSuggestions, setFieldsWithSuggestions] =
         useState<FieldsWithSuggestions>({});
@@ -348,6 +352,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
         addSuggestions,
         allFilterableFields,
         filterableFieldsBySavedQueryUuid,
+        isLoadingDashboardFilters,
         filterableFieldsByTileUuid,
         allFilters,
     };

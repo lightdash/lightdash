@@ -1,4 +1,5 @@
 import { FieldId, fieldId, FilterableField } from '@lightdash/common';
+import { Group, Skeleton } from '@mantine/core';
 import { FC } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import Filter from '../Filter';
@@ -14,6 +15,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
         updateDimensionDashboardFilter,
         removeDimensionDashboardFilter,
         allFilterableFields,
+        isLoadingDashboardFilters,
     } = useDashboardContext();
 
     if (!allFilterableFields) return null;
@@ -22,7 +24,15 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
         Record<FieldId, FilterableField>
     >((acc, field) => ({ ...acc, [fieldId(field)]: field }), {});
 
-    return (
+    return isLoadingDashboardFilters ? (
+        <Group spacing="xs" ml="xs">
+            <Skeleton h={30} w={100} radius={4} />
+            <Skeleton h={30} w={100} radius={4} />
+            <Skeleton h={30} w={100} radius={4} />
+            <Skeleton h={30} w={100} radius={4} />
+            <Skeleton h={30} w={100} radius={4} />
+        </Group>
+    ) : (
         <>
             {dashboardFilters.dimensions
                 .filter((item) => !!fieldMap[item.target.fieldId])
