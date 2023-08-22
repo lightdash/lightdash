@@ -9,9 +9,9 @@ jobs:
       url: ${{ github.event.deployment_status.environment_url }}
     steps:
       - name: is render ready
-        if: ${{ github.event.deployment_status.state == 'success' && github.event.deployment_status.environment_url != null }}
+        if: ${{ !(github.event.deployment_status.state == 'success' && github.event.deployment_status.environment_url != null) }}
         run: |
-          echo "Render environment ${{ github.event.deployment.environment }} is not ready: ${{ github.event.deployment_status.state }}"
+          echo "Render environment ${{ github.event.deployment.environment }} is not ready: ${{ github.event.deployment_status.state }} ${{ github.event.deployment_status.environment_url }}"
           exit 1
 
   app-tests:
