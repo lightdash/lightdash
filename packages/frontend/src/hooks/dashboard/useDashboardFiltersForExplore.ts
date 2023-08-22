@@ -7,9 +7,9 @@ import { useCallback, useMemo } from 'react';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 
 const useDashboardFiltersForExplore = (
-    tileUuid: string,
+    tileUuid: string | undefined,
     explore: Explore | undefined,
-): DashboardFilters => {
+): DashboardFilters | undefined => {
     const { dashboardFilters, dashboardTemporaryFilters } =
         useDashboardContext();
 
@@ -20,41 +20,54 @@ const useDashboardFiltersForExplore = (
 
     const overrideTileFilters = useCallback(
         (rules: DashboardFilterRule[]) =>
-            rules
-                .filter((rule) => !rule.disabled)
-                .filter((f) => f.tileTargets?.[tileUuid] ?? true)
-                .map((filter) => {
-                    const { tileTargets, ...rest } = filter;
-                    if (!tileTargets) return filter;
+            !tileUuid
+                ? undefined
+                : rules
+                      .filter((rule) => !rule.disabled)
+                      .filter((f) => f.tileTargets?.[tileUuid ?? ''] ?? true)
+                      .map((filter) => {
+                          const { tileTargets, ...rest } = filter;
+                          if (!tileTargets) return filter;
 
-                    const tileConfig = tileTargets[tileUuid];
-                    if (!tileConfig) return null;
+                          const tileConfig = tileTargets[tileUuid ?? ''];
+                          if (!tileConfig) return null;
 
-                    return {
-                        ...rest,
-                        target: {
-                            fieldId: tileConfig.fieldId,
-                            tableName: tileConfig.tableName,
-                        },
-                    };
-                })
-                .filter((f): f is DashboardFilterRule => f !== null)
-                .filter((f) => tables.includes(f.target.tableName)),
+                          return {
+                              ...rest,
+                              target: {
+                                  fieldId: tileConfig.fieldId,
+                                  tableName: tileConfig.tableName,
+                              },
+                          };
+                      })
+                      .filter((f): f is DashboardFilterRule => f !== null)
+                      .filter((f) => tables.includes(f.target.tableName)),
         [tables, tileUuid],
     );
 
     return useMemo(() => {
+        if (!tileUuid) return undefined;
+
         return {
-            dimensions: overrideTileFilters([
-                ...dashboardFilters.dimensions,
-                ...(dashboardTemporaryFilters?.dimensions ?? []),
-            ]),
-            metrics: overrideTileFilters([
-                ...dashboardFilters.metrics,
-                ...(dashboardTemporaryFilters?.metrics ?? []),
-            ]),
+            dimensions:
+                overrideTileFilters([
+                    ...dashboardFilters.dimensions,
+                    ...(dashboardTemporaryFilters?.dimensions ?? []),
+                ]) ?? [], // TODO: check this
+            metrics:
+                overrideTileFilters([
+                    ...dashboardFilters.metrics,
+                    ...(dashboardTemporaryFilters?.metrics ?? []),
+                ]) ?? [], // TODO: check this
         };
-    }, [dashboardFilters, dashboardTemporaryFilters, overrideTileFilters]);
+    }, [
+        dashboardFilters.dimensions,
+        dashboardFilters.metrics,
+        dashboardTemporaryFilters?.dimensions,
+        dashboardTemporaryFilters?.metrics,
+        overrideTileFilters,
+        tileUuid,
+    ]);
 };
 
 export default useDashboardFiltersForExplore;
