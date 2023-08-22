@@ -331,6 +331,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="http://advith.me"><img src="https://avatars.githubusercontent.com/u/4915950?v=4?s=100" width="100px;" alt="Advith Chelikani"/><br /><sub><b>Advith Chelikani</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3AAChelikani" title="Bug reports">🐛</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://pranavdhar.netlify.com"><img src="https://avatars.githubusercontent.com/u/73348574?v=4?s=100" width="100px;" alt="Sai Pranavdhar Reddy N"/><br /><sub><b>Sai Pranavdhar Reddy N</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=iampranavdhar" title="Code">💻</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/ujwalkumar1995"><img src="https://avatars.githubusercontent.com/u/20976813?v=4?s=100" width="100px;" alt="Ujwal Kumar"/><br /><sub><b>Ujwal Kumar</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=ujwalkumar1995" title="Code">💻</a></td>
+    </tr>
   </tbody>
 </table>
 
