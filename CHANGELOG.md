@@ -1,3 +1,10 @@
+# [0.756.0](https://github.com/lightdash/lightdash/compare/0.755.1...0.756.0) (2023-08-22)
+
+
+### Features
+
+* remove footer from Dashboard page ([#6847](https://github.com/lightdash/lightdash/issues/6847)) ([bd3cff7](https://github.com/lightdash/lightdash/commit/bd3cff7e66875dcc93150e4c3ef762483bf874e2))
+
 ## [0.755.1](https://github.com/lightdash/lightdash/compare/0.755.0...0.755.1) (2023-08-22)
 
 
