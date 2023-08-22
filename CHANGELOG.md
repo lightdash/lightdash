@@ -1,3 +1,10 @@
+# [0.755.0](https://github.com/lightdash/lightdash/compare/0.754.3...0.755.0) (2023-08-22)
+
+
+### Features
+
+* add searchable dashboard list when adding chart to dashboard ([#6825](https://github.com/lightdash/lightdash/issues/6825)) ([42cafae](https://github.com/lightdash/lightdash/commit/42cafaea09e65d638e43c38b533c8f2fb9ab347d))
+
 ## [0.754.3](https://github.com/lightdash/lightdash/compare/0.754.2...0.754.3) (2023-08-22)
 
 
