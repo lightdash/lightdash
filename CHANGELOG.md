@@ -1,3 +1,10 @@
+## [0.755.1](https://github.com/lightdash/lightdash/compare/0.755.0...0.755.1) (2023-08-22)
+
+
+### Bug Fixes
+
+* loading state for dashboard filters ([#6837](https://github.com/lightdash/lightdash/issues/6837)) ([cd3c017](https://github.com/lightdash/lightdash/commit/cd3c01713d3a3090e4d0f8cfdaf68f2bfeeed359))
+
 # [0.755.0](https://github.com/lightdash/lightdash/compare/0.754.3...0.755.0) (2023-08-22)
 
 
