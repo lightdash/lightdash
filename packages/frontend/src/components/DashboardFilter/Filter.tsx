@@ -96,9 +96,7 @@ const Filter: FC<Props> = ({
         [isCreatingNew, onSave, onUpdate, handleClose],
     );
 
-    if (!filterableFieldsByTileUuid || !allFilterableFields) {
-        return null;
-    }
+    if (!hasChartTiles) return null;
 
     return (
         <Popover
@@ -108,7 +106,7 @@ const Filter: FC<Props> = ({
             closeOnEscape={!isSubPopoverOpen}
             closeOnClickOutside={!isSubPopoverOpen}
             onClose={handleClose}
-            disabled={!hasChartTiles}
+            disabled={isLoadingDashboardFilters}
             transitionProps={{
                 transition: 'pop',
             }}
@@ -166,7 +164,6 @@ const Filter: FC<Props> = ({
                         onClick={togglePopover}
                     >
                         <Text fz="xs">
-                            {' '}
                             <Tooltip
                                 withinPortal
                                 position="top-start"
@@ -221,25 +218,27 @@ const Filter: FC<Props> = ({
             </Popover.Target>
 
             <Popover.Dropdown ml={5}>
-                <FilterConfiguration
-                    isCreatingNew={isCreatingNew}
-                    isEditMode={isEditMode}
-                    isTemporary={isTemporary}
-                    field={field}
-                    fields={allFilterableFields || []}
-                    tiles={dashboardTiles}
-                    originalFilterRule={originalFilterRule}
-                    availableTileFilters={filterableFieldsByTileUuid}
-                    defaultFilterRule={defaultFilterRule}
-                    onSave={handelSaveChanges}
-                    // FIXME: remove this once we migrate off of Blueprint
-                    popoverProps={{
-                        onOpened: () => openSubPopover(),
-                        onOpening: () => openSubPopover(),
-                        onClose: () => closeSubPopover(),
-                        onClosing: () => closeSubPopover(),
-                    }}
-                />
+                {filterableFieldsByTileUuid && (
+                    <FilterConfiguration
+                        isCreatingNew={isCreatingNew}
+                        isEditMode={isEditMode}
+                        isTemporary={isTemporary}
+                        field={field}
+                        fields={allFilterableFields || []}
+                        tiles={dashboardTiles}
+                        originalFilterRule={originalFilterRule}
+                        availableTileFilters={filterableFieldsByTileUuid}
+                        defaultFilterRule={defaultFilterRule}
+                        onSave={handelSaveChanges}
+                        // FIXME: remove this once we migrate off of Blueprint
+                        popoverProps={{
+                            onOpened: () => openSubPopover(),
+                            onOpening: () => openSubPopover(),
+                            onClose: () => closeSubPopover(),
+                            onClosing: () => closeSubPopover(),
+                        }}
+                    />
+                )}
             </Popover.Dropdown>
         </Popover>
     );
