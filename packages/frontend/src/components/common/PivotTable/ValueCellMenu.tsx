@@ -5,6 +5,7 @@ import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 
+import useDashboardFiltersForExplore from '../../../hooks/dashboard/useDashboardFiltersForExplore';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -22,6 +23,7 @@ type ValueCellMenuProps = {
         colIndex: number,
         rowIndex: number,
     ) => Record<string, ResultValue>;
+    appliedDashboardFilters?: ReturnType<typeof useDashboardFiltersForExplore>;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 
 const ValueCellMenu: FC<ValueCellMenuProps> = ({
@@ -35,6 +37,7 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
     onOpen,
     onClose,
     onCopy,
+    appliedDashboardFilters,
 }) => {
     const { user } = useApp();
     const tracking = useTracking(true);
@@ -92,6 +95,9 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
             item,
             value,
             fieldValues: underlyingFieldValues,
+            ...(appliedDashboardFilters && {
+                dashboardFilters: appliedDashboardFilters,
+            }),
         });
 
         track({
@@ -122,6 +128,9 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
         openDrillDownModal({
             item,
             fieldValues: underlyingFieldValues,
+            ...(appliedDashboardFilters && {
+                dashboardFilters: appliedDashboardFilters,
+            }),
         });
 
         track({

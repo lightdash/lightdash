@@ -11,6 +11,7 @@ import {
 import { getHotkeyHandler, useClipboard } from '@mantine/hooks';
 import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 
+import useDashboardFiltersForExplore from '../../../hooks/dashboard/useDashboardFiltersForExplore';
 import { getColorFromRange, readableColor } from '../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../Filters/configs';
 import Cell, { CellProps } from './Cell';
@@ -27,6 +28,7 @@ interface ValueCellProps extends CellProps {
         colIndex: number,
         rowIndex: number,
     ) => Record<string, ResultValue>;
+    appliedDashboardFilters?: ReturnType<typeof useDashboardFiltersForExplore>;
 }
 
 const SMALL_TEXT_LENGTH = 30;
@@ -38,7 +40,7 @@ const ValueCell: FC<ValueCellProps> = ({
     colIndex,
     conditionalFormattings,
     getUnderlyingFieldValues,
-
+    appliedDashboardFilters,
     ...rest
 }) => {
     const conditionalFormatting = useMemo(() => {
@@ -110,6 +112,7 @@ const ValueCell: FC<ValueCellProps> = ({
             onCopy={handleCopy}
             onOpen={() => setIsMenuOpen(true)}
             onClose={() => setIsMenuOpen(false)}
+            appliedDashboardFilters={appliedDashboardFilters}
         >
             <Cell
                 withValue={!!formattedValue}
