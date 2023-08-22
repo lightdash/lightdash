@@ -1,3 +1,10 @@
+## [0.754.3](https://github.com/lightdash/lightdash/compare/0.754.2...0.754.3) (2023-08-22)
+
+
+### Bug Fixes
+
+* move dashboard filter default value switch ([#6824](https://github.com/lightdash/lightdash/issues/6824)) ([bc1257a](https://github.com/lightdash/lightdash/commit/bc1257af888c2538f2b9a922560d76f59ef9aa26))
+
 ## [0.754.2](https://github.com/lightdash/lightdash/compare/0.754.1...0.754.2) (2023-08-21)
 
 
