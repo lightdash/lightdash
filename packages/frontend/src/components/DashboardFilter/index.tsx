@@ -24,8 +24,13 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const project = useProject(projectUuid);
-    const { allFilters, fieldsWithSuggestions, addDimensionDashboardFilter } =
-        useDashboardContext();
+    const {
+        allFilters,
+        fieldsWithSuggestions,
+        addDimensionDashboardFilter,
+        hasChartTiles,
+    } = useDashboardContext();
+
     // Load data on filter mount
     useExplores(projectUuid);
 
@@ -45,6 +50,8 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
         });
         addDimensionDashboardFilter(value, !isEditMode);
     };
+
+    if (!hasChartTiles) return null;
 
     return (
         // TODO is this provider necessary?

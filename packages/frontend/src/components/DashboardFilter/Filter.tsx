@@ -1,7 +1,6 @@
 import {
     applyDefaultTileTargets,
     DashboardFilterRule,
-    DashboardTileTypes,
     FilterableField,
 } from '@lightdash/common';
 import { Button, CloseButton, Popover, Text, Tooltip } from '@mantine/core';
@@ -64,12 +63,6 @@ const Filter: FC<Props> = ({
         (item) => filterRule && item.id === filterRule.id,
     );
 
-    //Only used by Add filters
-    const hasChartTiles =
-        dashboardTiles.filter(
-            (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
-        ).length >= 1;
-
     const filterRuleLabels =
         filterRule && field
             ? getConditionalRuleLabel(filterRule, field)
@@ -95,8 +88,6 @@ const Filter: FC<Props> = ({
         },
         [isCreatingNew, onSave, onUpdate, handleClose],
     );
-
-    if (!hasChartTiles) return null;
 
     return (
         <Popover
@@ -138,7 +129,7 @@ const Filter: FC<Props> = ({
                             leftIcon={
                                 <MantineIcon color="blue" icon={IconFilter} />
                             }
-                            disabled={!hasChartTiles}
+                            disabled={!allFilterableFields}
                             loading={isLoadingDashboardFilters}
                             onClick={togglePopover}
                         >

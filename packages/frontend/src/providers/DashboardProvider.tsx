@@ -6,6 +6,7 @@ import {
     DashboardAvailableFilters,
     DashboardFilterRule,
     DashboardFilters,
+    DashboardTileTypes,
     fieldId,
     FilterableField,
     isDashboardChartTileType,
@@ -71,6 +72,7 @@ type DashboardContext = {
     allFilterableFields: FilterableField[] | undefined;
     filterableFieldsBySavedQueryUuid: DashboardAvailableFilters | undefined;
     filterableFieldsByTileUuid: DashboardAvailableFilters | undefined;
+    hasChartTiles: boolean;
 };
 
 const Context = createContext<DashboardContext | undefined>(undefined);
@@ -331,6 +333,14 @@ export const DashboardProvider: React.FC = ({ children }) => {
         };
     }, [dashboardFilters, dashboardTemporaryFilters]);
 
+    const hasChartTiles = useMemo(
+        () =>
+            dashboardTiles.filter(
+                (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
+            ).length >= 1,
+        [dashboardTiles],
+    );
+
     const value = {
         dashboard,
         dashboardError,
@@ -355,6 +365,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
         isLoadingDashboardFilters,
         filterableFieldsByTileUuid,
         allFilters,
+        hasChartTiles,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };
