@@ -40,7 +40,7 @@ const useSavedQueryWithDashboardFilters = (
             ...(savedQuery.metricQuery.filters.dimensions
                 ? [savedQuery.metricQuery.filters.dimensions]
                 : []),
-            ...dashboardFilters.dimensions,
+            ...(dashboardFilters?.dimensions || []),
         ],
     };
     const metricFilters: FilterGroup = {
@@ -49,7 +49,7 @@ const useSavedQueryWithDashboardFilters = (
             ...(savedQuery.metricQuery.filters.metrics
                 ? [savedQuery.metricQuery.filters.metrics]
                 : []),
-            ...dashboardFilters.metrics,
+            ...(dashboardFilters?.metrics || []),
         ],
     };
     const savedQueryWithDashboardFilters = {
