@@ -1,3 +1,10 @@
+## [0.756.2](https://github.com/lightdash/lightdash/compare/0.756.1...0.756.2) (2023-08-23)
+
+
+### Bug Fixes
+
+* format boolean values as true/false ([#6855](https://github.com/lightdash/lightdash/issues/6855)) ([3912695](https://github.com/lightdash/lightdash/commit/3912695ff1dd3ee1a4e48b69f32f5f6d149ca52d))
+
 ## [0.756.1](https://github.com/lightdash/lightdash/compare/0.756.0...0.756.1) (2023-08-23)
 
 
