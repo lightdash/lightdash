@@ -1,3 +1,10 @@
+## [0.756.1](https://github.com/lightdash/lightdash/compare/0.756.0...0.756.1) (2023-08-23)
+
+
+### Bug Fixes
+
+* apply dashboard filters pivot tables' cells (drill-down | underlying) ([#6832](https://github.com/lightdash/lightdash/issues/6832)) ([378b553](https://github.com/lightdash/lightdash/commit/378b5531e2ada6c46403b1a813c34ac1306478b7))
+
 # [0.756.0](https://github.com/lightdash/lightdash/compare/0.755.1...0.756.0) (2023-08-22)
 
 
