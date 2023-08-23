@@ -1,5 +1,5 @@
 import { ApiScheduledDownloadCsv } from '@lightdash/common';
-import { FC, memo, useCallback, useState } from 'react';
+import { FC, memo, useCallback } from 'react';
 import { useMutation } from 'react-query';
 
 import { Spinner } from '@blueprintjs/core';
@@ -19,20 +19,36 @@ export type ExportGsheetProps = {
 const ExportGsheets: FC<ExportGsheetProps> = memo(
     ({ getGsheetLink, asMenuItem }) => {
         const { data: gdriveAuth, refetch } = useGdriveAccessToken();
-        const [isLoading, setIsLoading] = useState(false);
         const health = useHealth();
         const hasGoogleDrive =
             health.data?.auth.google.oauth2ClientId !== undefined &&
             health.data?.auth.google.googleDriveApiKey !== undefined;
 
         const { showToastError, showToast } = useToaster();
+        const scheduleGoogleSheetsExport = async () => {
+            try {
+                const scheduledGoogleSheetsData = await getGsheetLink();
+                const url = await pollCsvFileUrl(scheduledGoogleSheetsData);
+                if (url) window.open(url, '_blank'); //Open in new tab
 
-        const { mutateAsync: exportCsvMutation } = useMutation(
-            [],
-            () => getGsheetLink(),
+                return;
+            } catch (error) {
+                AppToaster.dismiss('exporting-gsheets');
+
+                showToastError({
+                    title: `Unable to upload Google Sheets`,
+                    subtitle: error?.error?.message,
+                });
+                throw error;
+            }
+        };
+
+        // TODO: move to own hook
+        const { mutateAsync: exportCsvMutation, isLoading } = useMutation(
+            ['google-sheets'],
+            scheduleGoogleSheetsExport,
             {
                 onMutate: () => {
-                    setIsLoading(true);
                     showToast({
                         title: 'Exporting Google Sheets',
                         subtitle: 'This may take a few minutes...',
@@ -46,28 +62,11 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
                         timeout: 0,
                     });
                 },
-                onSuccess: (scheduledCsvResponse) => {
-                    pollCsvFileUrl(scheduledCsvResponse)
-                        .then((url) => {
-                            if (url) window.open(url, '_blank'); //Open in new tab
-                            AppToaster.dismiss('exporting-gsheets');
-                        })
-                        .catch((error) => {
-                            AppToaster.dismiss('exporting-gsheets');
-
-                            showToastError({
-                                title: `Unable to upload Google Sheets`,
-                                subtitle: error?.error?.message,
-                            });
-                        })
-                        .finally(() => {
-                            setIsLoading(false);
-                        });
-                },
-                onError: (error: { error: Error }) => {
-                    setIsLoading(false);
+                onSettled: () => {
                     AppToaster.dismiss('exporting-gsheets');
+                },
 
+                onError: (error: { error: Error }) => {
                     showToastError({
                         title: `Unable to upload to Google Sheets`,
                         subtitle: error?.error?.message,
