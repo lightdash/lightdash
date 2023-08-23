@@ -1,0 +1,157 @@
+import { lightdashApi } from '../api';
+
+export type GetMetricFlowFieldsResponse = {
+    dimensions: Array<{
+        name: string;
+        description?: string;
+        type: 'CATEGORICAL' | 'TIME';
+    }>;
+    metricsForDimensions: Array<{
+        name: string;
+        description?: string;
+        type: 'SIMPLE' | 'RATIO' | 'DERIVED' | 'CUMULATIVE';
+        dimensions: Array<{
+            name: string;
+            description?: string;
+            type: 'CATEGORICAL' | 'TIME';
+        }>;
+    }>;
+};
+
+export function getMetricFlowFields(
+    projectUuid: string,
+    filters?: {
+        metrics: string[];
+        dimensions: string[];
+    },
+): Promise<GetMetricFlowFieldsResponse> {
+    const query = `query GetFields($environmentId: BigInt!) {
+            metricsForDimensions(environmentId: $environmentId, dimensions: [${
+                filters?.dimensions.map((dimension) => `"${dimension}"`) ?? ''
+            }]) {
+                name
+                description
+                type
+                dimensions {
+                  name
+                  description
+                  type
+                } 
+            }
+            dimensions(environmentId: $environmentId, metrics: [${
+                filters?.metrics.map((metric) => `"${metric}"`) ?? ''
+            }]) {
+                name
+                description
+                type
+            }
+        }`;
+
+    return lightdashApi<any>({
+        url: `/projects/${projectUuid}/metricflow`,
+        method: 'POST',
+        body: JSON.stringify({ query }),
+    });
+}
+
+export type CreateMetricFlowQueryResponse = {
+    createQuery: {
+        queryId: string;
+    };
+};
+
+export function createMetricFlowQuery(
+    projectUuid: string,
+    data: {
+        metrics: string[];
+        dimensions: string[];
+    },
+): Promise<CreateMetricFlowQueryResponse> {
+    const query: string = `
+            mutation CreateQuery($environmentId: BigInt!) {
+              createQuery(
+                environmentId: $environmentId
+                metrics: ${JSON.stringify(data.metrics)}
+                groupBy: ${JSON.stringify(data.dimensions)}
+              ) {
+                queryId
+              }
+            }`;
+
+    return lightdashApi<any>({
+        url: `/projects/${projectUuid}/metricflow`,
+        method: 'POST',
+        body: JSON.stringify({ query }),
+    });
+}
+
+export enum QueryStatus {
+    PENDING = 'PENDING',
+    RUNNING = 'RUNNING',
+    COMPILED = 'COMPILED',
+    SUCCESSFUL = 'SUCCESSFUL',
+    FAILED = 'FAILED',
+}
+
+export type GetMetricFlowQueryBase64ResultsResponse = {
+    query: {
+        status: QueryStatus;
+        sql: string;
+        jsonResult: string; // base64 encoded
+        error: string;
+    };
+};
+
+export type MetricFlowJsonResults = {
+    schema: {
+        fields: Array<{
+            name: string;
+            type: string;
+        }>;
+        primaryKey: Array<string>;
+        pandas_version: string;
+    };
+    data: Array<{
+        index: number;
+        [key: string]: string | number | boolean | null;
+    }>;
+};
+
+export type GetMetricFlowQueryResultsResponse = {
+    query: {
+        status: QueryStatus;
+        sql: string | null;
+        jsonResult: MetricFlowJsonResults | null;
+        error: string | null;
+    };
+};
+
+export function getMetricFlowQueryResults(
+    projectUuid: string,
+    queryId: string,
+): Promise<GetMetricFlowQueryResultsResponse> {
+    const query: string = `query GetQueryResults($environmentId: BigInt!) {
+              query(environmentId: $environmentId, queryId: "${queryId}") {
+                status
+                sql
+                jsonResult
+                error
+              }
+            }`;
+
+    return lightdashApi<any>({
+        url: `/projects/${projectUuid}/metricflow`,
+        method: 'POST',
+        body: JSON.stringify({ query }),
+    }).then((response: GetMetricFlowQueryBase64ResultsResponse) => {
+        return {
+            ...response,
+            query: {
+                ...response.query,
+                jsonResult: response.query.jsonResult
+                    ? JSON.parse(atob(response.query.jsonResult))
+                    : null,
+            },
+        } as GetMetricFlowQueryResultsResponse;
+    });
+}

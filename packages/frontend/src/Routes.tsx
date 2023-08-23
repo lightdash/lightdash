@@ -21,6 +21,7 @@ import Home from './pages/Home';
 import Invite from './pages/Invite';
 import JoinOrganization from './pages/JoinOrganization';
 import Login from './pages/Login';
+import MetricFlowPage from './pages/MetricFlow';
 import MinimalDashboard from './pages/MinimalDashboard';
 import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
 import PasswordRecovery from './pages/PasswordRecovery';
@@ -180,6 +181,13 @@ const Routes: FC = () => {
                                         <NavBar />
                                         <TrackPage name={PageName.SQL_RUNNER}>
                                             <SqlRunner />
+                                        </TrackPage>
+                                    </Route>
+
+                                    <Route path="/projects/:projectUuid/metricflow">
+                                        <NavBar />
+                                        <TrackPage name={PageName.METRIC_FLOW}>
+                                            <MetricFlowPage />
                                         </TrackPage>
                                     </Route>
 
