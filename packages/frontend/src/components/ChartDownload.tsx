@@ -12,12 +12,13 @@ import {
     ChartType,
     getCustomLabelsFromColumnProperties,
 } from '@lightdash/common';
+import { Button, Popover } from '@mantine/core';
+import { IconShare2 } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
 import React, { memo, RefObject, useCallback, useState } from 'react';
+import { useIsMutating } from 'react-query';
 
-import { Button, Popover } from '@mantine/core';
-import { IconShare2 } from '@tabler/icons-react';
 import useEcharts from '../hooks/echarts/useEcharts';
 import { useApp } from '../providers/AppProvider';
 import { Can } from './common/Authorization';
@@ -218,6 +219,12 @@ interface ChartDownloadMenuProps {
 
 export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
     ({ getCsvLink, getGsheetLink, projectUuid }) => {
+        const isGoogleSheetsExportingInResults = useIsMutating([
+            'google-sheets-results',
+        ]);
+        const isGoogleSheetsExportingInChart = useIsMutating([
+            'google-sheets-chart',
+        ]);
         const {
             chartRef,
             chartType,
@@ -231,7 +238,8 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                 resultsData.rows.length <= 0) ||
             !resultsData?.metricQuery ||
             chartType === ChartType.BIG_NUMBER ||
-            (chartType === ChartType.CARTESIAN && !eChartsOptions);
+            (chartType === ChartType.CARTESIAN && !eChartsOptions) ||
+            !!isGoogleSheetsExportingInResults;
 
         const { user } = useApp();
 
@@ -246,6 +254,7 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                 <Popover
                     {...COLLAPSABLE_CARD_POPOVER_PROPS}
                     disabled={disabled}
+                    closeOnClickOutside={!isGoogleSheetsExportingInChart}
                     position="bottom-end"
                 >
                     <Popover.Target>
@@ -261,6 +270,7 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
 
                     <Popover.Dropdown>
                         <ExportSelector
+                            context="chart"
                             rows={resultsData?.rows}
                             getCsvLink={async (
                                 limit: number | null,

@@ -8,8 +8,11 @@ import ExportGsheets from '../Explorer/ExportGsheets';
 import ExportCSV, { ExportCSVProps } from '../ExportCSV';
 
 const ExportSelector: FC<
-    ExportCSVProps & { getGsheetLink?: () => Promise<ApiScheduledDownloadCsv> }
-> = memo(({ rows, getCsvLink, getGsheetLink }) => {
+    ExportCSVProps & {
+        getGsheetLink?: () => Promise<ApiScheduledDownloadCsv>;
+        context: 'dashboard' | 'chart' | 'results';
+    }
+> = memo(({ rows, getCsvLink, getGsheetLink, context }) => {
     const health = useHealth();
     const hasGoogleDrive =
         health.data?.auth.google.oauth2ClientId !== undefined &&
@@ -17,7 +20,12 @@ const ExportSelector: FC<
 
     const [exportType, setExportType] = useState<string | undefined>();
 
-    const isGoogleSheetsExporting = useIsMutating(['google-sheets']);
+    const isGoogleSheetsExportingInChart = useIsMutating([
+        'google-sheets-chart',
+    ]);
+    const isGoogleSheetsExportingInResults = useIsMutating([
+        'google-sheets-results',
+    ]);
 
     if (exportType === 'csv') {
         return (
@@ -40,12 +48,18 @@ const ExportSelector: FC<
                 <Button
                     size="xs"
                     variant="default"
-                    disabled={!!isGoogleSheetsExporting}
+                    disabled={
+                        !!isGoogleSheetsExportingInChart ||
+                        !!isGoogleSheetsExportingInResults
+                    }
                     onClick={() => setExportType('csv')}
                 >
                     csv
                 </Button>
-                <ExportGsheets getGsheetLink={getGsheetLink} />
+                <ExportGsheets
+                    getGsheetLink={getGsheetLink}
+                    context={context}
+                />
             </Stack>
         );
     }

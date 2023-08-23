@@ -142,7 +142,13 @@ const ExportGoogleSheet: FC<{ savedChart: SavedChart }> = ({ savedChart }) => {
         return gsheetResponse;
     };
 
-    return <ExportGsheets getGsheetLink={getGsheetLink} asMenuItem={true} />;
+    return (
+        <ExportGsheets
+            getGsheetLink={getGsheetLink}
+            asMenuItem={true}
+            context="dashboard"
+        />
+    );
 };
 
 const ValidDashboardChartTile: FC<{
