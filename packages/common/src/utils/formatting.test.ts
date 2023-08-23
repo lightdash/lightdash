@@ -404,7 +404,7 @@ describe('Formatting', () => {
                     { ...dimension, type: DimensionType.BOOLEAN },
                     true,
                 ),
-            ).toEqual('Yes');
+            ).toEqual('True');
             expect(
                 formatFieldValue(
                     {
