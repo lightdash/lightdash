@@ -469,6 +469,10 @@
                     "uuid": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "percentile": {
+                        "type": "number",
+                        "format": "double"
                     }
                 },
                 "required": ["type", "sql", "table", "name"],
@@ -3969,7 +3973,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.753.0",
+        "version": "0.755.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

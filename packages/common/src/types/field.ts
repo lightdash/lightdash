@@ -133,6 +133,7 @@ export interface Field {
     hidden: boolean;
     compact?: CompactOrAlias;
     round?: number;
+    percentile?: number;
     format?: Format;
     groupLabel?: string;
     urls?: FieldUrl[];

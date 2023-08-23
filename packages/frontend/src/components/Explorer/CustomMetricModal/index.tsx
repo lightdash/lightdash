@@ -3,11 +3,13 @@ import {
     friendlyName,
     isAdditionalMetric,
     isDimension,
+    MetricType,
 } from '@lightdash/common';
 import {
     Accordion,
     Button,
     Modal,
+    NumberInput,
     Stack,
     Text,
     TextInput,
@@ -64,6 +66,7 @@ export const CustomMetricModal = () => {
         validateInputOnChange: true,
         initialValues: {
             customMetricLabel: '',
+            percentile: 50,
         },
         validate: {
             customMetricLabel: (label) => {
@@ -90,6 +93,12 @@ export const CustomMetricModal = () => {
                 )
                     ? 'Metric with this label already exists'
                     : null;
+            },
+            percentile: (percentile: number) => {
+                if (!percentile) return null;
+                if (percentile < 0 || percentile > 100) {
+                    return 'Percentile must be a number between 0 and 100';
+                }
             },
         },
     });
@@ -127,45 +136,50 @@ export const CustomMetricModal = () => {
         setCustomMetricFiltersWithIds(initialCustomMetricFiltersWithIds);
     }, [initialCustomMetricFiltersWithIds]);
 
-    const handleOnSubmit = form.onSubmit(({ customMetricLabel }) => {
-        if (!item) return;
+    const handleOnSubmit = form.onSubmit(
+        ({ customMetricLabel, percentile }) => {
+            if (!item) return;
 
-        const data = prepareCustomMetricData({
-            dimension: item,
-            type: customMetricType!,
-            customMetricLabel,
-            customMetricFiltersWithIds,
-            isEditingCustomMetric: !!isEditing,
-            item,
-            exploreData,
-        });
-
-        if (isEditing && isAdditionalMetric(item)) {
-            editAdditionalMetric(
-                {
-                    ...item,
-                    ...data,
-                },
-                getFieldId(item),
-            );
-            showToastSuccess({
-                title: 'Custom metric edited successfully',
-            });
-        } else if (isDimension(item) && form.values.customMetricLabel) {
-            addAdditionalMetric({
-                uuid: uuidv4(),
-                table: item.table,
-                sql: item.sql,
+            const data = prepareCustomMetricData({
+                dimension: item,
                 type: customMetricType!,
-                baseDimensionName: item.name,
-                ...data,
+                customMetricLabel,
+                customMetricFiltersWithIds,
+                isEditingCustomMetric: !!isEditing,
+                item,
+                exploreData,
+                percentile,
             });
-            showToastSuccess({
-                title: 'Custom metric added successfully',
-            });
-        }
-        toggleModal();
-    });
+
+            console.log(data);
+
+            if (isEditing && isAdditionalMetric(item)) {
+                editAdditionalMetric(
+                    {
+                        ...item,
+                        ...data,
+                    },
+                    getFieldId(item),
+                );
+                showToastSuccess({
+                    title: 'Custom metric edited successfully',
+                });
+            } else if (isDimension(item) && form.values.customMetricLabel) {
+                addAdditionalMetric({
+                    uuid: uuidv4(),
+                    table: item.table,
+                    sql: item.sql,
+                    type: customMetricType!,
+                    baseDimensionName: item.name,
+                    ...data,
+                });
+                showToastSuccess({
+                    title: 'Custom metric added successfully',
+                });
+            }
+            toggleModal();
+        },
+    );
 
     const defaultFilterRuleFieldId = useMemo(() => {
         if (item) {
@@ -201,6 +215,14 @@ export const CustomMetricModal = () => {
                         placeholder="Enter custom metric label"
                         {...form.getInputProps('customMetricLabel')}
                     />
+                    {customMetricType === MetricType.PERCENTILE && (
+                        <NumberInput
+                            w={100}
+                            required
+                            label="Percentile"
+                            {...form.getInputProps('percentile')}
+                        />
+                    )}
                     <Accordion chevronPosition="left" chevronSize="xs">
                         <Accordion.Item value="filters">
                             <Accordion.Control>

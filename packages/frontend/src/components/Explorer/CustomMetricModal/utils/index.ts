@@ -63,6 +63,7 @@ export const prepareCustomMetricData = ({
     isEditingCustomMetric,
     item,
     exploreData,
+    percentile: metricPercentile,
 }: {
     dimension: Dimension | AdditionalMetric;
     type: MetricType;
@@ -71,6 +72,7 @@ export const prepareCustomMetricData = ({
     isEditingCustomMetric: boolean;
     item: Dimension | AdditionalMetric;
     exploreData?: Explore;
+    percentile?: number;
 }) => {
     const shouldCopyFormatting = [
         MetricType.PERCENTILE,
@@ -95,6 +97,11 @@ export const prepareCustomMetricData = ({
             ? { round: dimension.round }
             : defaultRound;
 
+    const percentile =
+        shouldCopyFormatting && dimension.percentile
+            ? dimension.percentile
+            : metricPercentile;
+
     const customMetricFilters: MetricFilterRule[] =
         customMetricFiltersWithIds.map(
             ({
@@ -111,6 +118,7 @@ export const prepareCustomMetricData = ({
     return {
         ...format,
         ...round,
+        percentile,
         ...compact,
         filters: customMetricFilters.length > 0 ? customMetricFilters : [],
         label: customMetricLabel,
