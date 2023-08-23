@@ -4,6 +4,10 @@ import CreateChartWithinDashboard from './assets/create-chart-within-dashboard.j
 import MoveChartToSpace from './assets/move-chart-to-space.jpg';
 import AddSavedChart from './assets/dashboard-add-saved-chart.png';
 import AllDashboards from './assets/all-dashboards.jpg';
+import AddNewFilter from './assets/dashboard-add-new-filter.png';
+import AddNewFilterAndSetValue from './assets/dashboard-add-new-filter-and-select-value.png';
+import DashboardClickEditButton from './assets/dashboard-click-edit-button.png';
+import DashboardNewFilterApplied from './assets/dashboard-new-filter-applied.png';
 
 # Creating Dashboards
 
@@ -52,11 +56,9 @@ You can resize charts by dragging the lower-right corner.
 
 You can position your chart by dragging the center of the chart.
 
-## 3. Save and share your dashboard
+## 3. Save your dashboard
 
 When you're happy with the layout, hit "Save".
-
-You can share your dashboard with anybody in your Lightdash organisation by copying the URL (or by pressing on the 🔗 button). 
 
 You can also see all of the saved dashboards in your project by clicking on `Browse` --> `All Dashboards`.
 
@@ -64,4 +66,32 @@ You can also see all of the saved dashboards in your project by clicking on `Bro
 
 ## 4. Add filters to your dashboards
 
-Learn about adding filters to your dashboards [here](/guides/limiting-data-using-filters#adding-filters-to-your-dashboard)
+Now let's add some filters to your dashboard. First, start by editing your dashboard by clicking on the `Edit dashboard` button.
+
+<img src={DashboardClickEditButton} width="500" height="622" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+Click on the `Add filter` button to add a new filter to your dashboard by selecting a field and a value to filter by.
+
+<img src={AddNewFilter} width="500" height="622" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+Select a value to filter by and hit `Apply`. You can add as many filters as you like.
+
+<img src={AddNewFilterAndSetValue} width="500" height="622" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+Now that you've added a filter, you can see the filter applied to your dashboard.
+
+<img src={DashboardNewFilterApplied} width="1119" height="622" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+Hit `Save` to save your dashboard with the new filter.
+
+You might want to add an empty-value filter so that your dashboard viewers can choose their own value and explore the data based on their own criteria.
+Your dashboard viewers might also want to add their own filters to your dashboard.
+
+To learn more about adding filters to your dashboards, check out our guide on [using filters](/guides/limiting-data-using-filters).
+
+
+## 5. Share your dashboard
+
+You might want to share your dashboard with other people in your organisation. You can do this by copying the URL (or by pressing on the 🔗 button).
+
+
