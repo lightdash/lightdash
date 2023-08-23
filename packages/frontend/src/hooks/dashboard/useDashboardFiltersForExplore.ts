@@ -7,9 +7,9 @@ import { useCallback, useMemo } from 'react';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 
 const useDashboardFiltersForExplore = (
-    tileUuid: string | undefined,
+    tileUuid: string,
     explore: Explore | undefined,
-): DashboardFilters | undefined => {
+): DashboardFilters => {
     const { dashboardFilters, dashboardTemporaryFilters } =
         useDashboardContext();
 
@@ -22,12 +22,12 @@ const useDashboardFiltersForExplore = (
         (rules: DashboardFilterRule[]) =>
             rules
                 .filter((rule) => !rule.disabled)
-                .filter((f) => f.tileTargets?.[tileUuid ?? ''] ?? true)
+                .filter((f) => f.tileTargets?.[tileUuid] ?? true)
                 .map((filter) => {
                     const { tileTargets, ...rest } = filter;
                     if (!tileTargets) return filter;
 
-                    const tileConfig = tileTargets[tileUuid ?? ''];
+                    const tileConfig = tileTargets[tileUuid];
                     if (!tileConfig) return null;
 
                     return {
@@ -44,8 +44,6 @@ const useDashboardFiltersForExplore = (
     );
 
     return useMemo(() => {
-        if (!tileUuid) return undefined;
-
         return {
             dimensions: overrideTileFilters([
                 ...dashboardFilters.dimensions,
@@ -56,14 +54,7 @@ const useDashboardFiltersForExplore = (
                 ...(dashboardTemporaryFilters?.metrics ?? []),
             ]),
         };
-    }, [
-        dashboardFilters.dimensions,
-        dashboardFilters.metrics,
-        dashboardTemporaryFilters?.dimensions,
-        dashboardTemporaryFilters?.metrics,
-        overrideTileFilters,
-        tileUuid,
-    ]);
+    }, [dashboardFilters, dashboardTemporaryFilters, overrideTileFilters]);
 };
 
 export default useDashboardFiltersForExplore;
