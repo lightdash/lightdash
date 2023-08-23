@@ -2,6 +2,7 @@ import { ApiScheduledDownloadCsv } from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { FC, memo, useState } from 'react';
+import { useIsMutating } from 'react-query';
 import useHealth from '../../hooks/health/useHealth';
 import ExportGsheets from '../Explorer/ExportGsheets';
 import ExportCSV, { ExportCSVProps } from '../ExportCSV';
@@ -15,6 +16,8 @@ const ExportSelector: FC<
         health.data?.auth.google.googleDriveApiKey !== undefined;
 
     const [exportType, setExportType] = useState<string | undefined>();
+
+    const isGoogleSheetsExporting = useIsMutating(['google-sheets']);
 
     if (exportType === 'csv') {
         return (
@@ -37,6 +40,7 @@ const ExportSelector: FC<
                 <Button
                     size="xs"
                     variant="default"
+                    disabled={!!isGoogleSheetsExporting}
                     onClick={() => setExportType('csv')}
                 >
                     csv
