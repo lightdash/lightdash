@@ -39,7 +39,7 @@ import {
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
 import useSavedQueryWithDashboardFilters from '../hooks/dashboard/useSavedQueryWithDashboardFilters';
-import { deleteSavedQuery, useSavedQuery } from '../hooks/useSavedQuery';
+import { deleteSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import {
     DashboardProvider,
@@ -88,18 +88,13 @@ const GridTile: FC<
         tile.type === DashboardTileTypes.SAVED_CHART
             ? tile.properties?.savedChartUuid || undefined
             : undefined;
-    const {
-        data: savedQuery,
-        isLoading,
-        isError,
-    } = useSavedQuery({
-        id: savedChartUuid,
-    });
 
-    const { dashboardFilters } = useSavedQueryWithDashboardFilters(
-        tile.uuid,
-        savedChartUuid ?? null,
-    );
+    const {
+        dashboardFilters,
+        isError,
+        isLoading,
+        data: savedQuery,
+    } = useSavedQueryWithDashboardFilters(tile.uuid, savedChartUuid ?? null);
 
     switch (tile.type) {
         case DashboardTileTypes.SAVED_CHART:
