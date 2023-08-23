@@ -41,7 +41,6 @@ type PivotTableProps = TableProps &
         hideRowNumbers: boolean;
         getFieldLabel: (fieldId: string) => string | undefined;
         getField: (fieldId: string) => Field | TableCalculation;
-        tileUuid?: string;
     };
 
 const PivotTable: FC<PivotTableProps> = ({
@@ -52,7 +51,6 @@ const PivotTable: FC<PivotTableProps> = ({
     getFieldLabel,
     getField,
     className,
-    tileUuid,
     ...tableProps
 }) => {
     const { cx, classes } = usePivotTableStyles();
