@@ -1,5 +1,5 @@
 import { ApiScheduledDownloadCsv } from '@lightdash/common';
-import { FC, memo, useCallback } from 'react';
+import { FC, memo, useCallback, useState } from 'react';
 import { useMutation } from 'react-query';
 
 import { Spinner } from '@blueprintjs/core';
@@ -19,6 +19,7 @@ export type ExportGsheetProps = {
 const ExportGsheets: FC<ExportGsheetProps> = memo(
     ({ getGsheetLink, asMenuItem }) => {
         const { data: gdriveAuth, refetch } = useGdriveAccessToken();
+        const [isLoading, setIsLoading] = useState(false);
         const health = useHealth();
         const hasGoogleDrive =
             health.data?.auth.google.oauth2ClientId !== undefined &&
@@ -31,6 +32,7 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
             () => getGsheetLink(),
             {
                 onMutate: () => {
+                    setIsLoading(true);
                     showToast({
                         title: 'Exporting Google Sheets',
                         subtitle: 'This may take a few minutes...',
@@ -57,9 +59,13 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
                                 title: `Unable to upload Google Sheets`,
                                 subtitle: error?.error?.message,
                             });
+                        })
+                        .finally(() => {
+                            setIsLoading(false);
                         });
                 },
                 onError: (error: { error: Error }) => {
+                    setIsLoading(false);
                     AppToaster.dismiss('exporting-gsheets');
 
                     showToastError({
@@ -112,7 +118,12 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
             );
         }
         return (
-            <Button variant="subtle" onClick={handleLoginAndExport}>
+            <Button
+                size="xs"
+                variant="default"
+                loading={isLoading}
+                onClick={handleLoginAndExport}
+            >
                 Google Sheets
             </Button>
         );
