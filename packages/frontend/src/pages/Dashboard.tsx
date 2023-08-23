@@ -38,6 +38,7 @@ import {
     useMoveDashboardMutation,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
+import useSavedQueryWithDashboardFilters from '../hooks/dashboard/useSavedQueryWithDashboardFilters';
 import { deleteSavedQuery, useSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import {
@@ -95,6 +96,11 @@ const GridTile: FC<
         id: savedChartUuid,
     });
 
+    const { dashboardFilters } = useSavedQueryWithDashboardFilters(
+        tile.uuid,
+        savedChartUuid ?? null,
+    );
+
     switch (tile.type) {
         case DashboardTileTypes.SAVED_CHART:
             if (isLoading)
@@ -112,6 +118,7 @@ const GridTile: FC<
                 <MetricQueryDataProvider
                     metricQuery={savedQuery?.metricQuery}
                     tableName={savedQuery?.tableName || ''}
+                    appliedDashboardFilters={dashboardFilters}
                 >
                     <ChartTile {...props} tile={tile} />
                     <UnderlyingDataModal />

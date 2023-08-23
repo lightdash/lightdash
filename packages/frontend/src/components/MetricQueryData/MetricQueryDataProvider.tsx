@@ -12,6 +12,7 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { createContext, FC, useCallback, useContext, useState } from 'react';
+import useSavedQueryWithDashboardFilters from '../../hooks/dashboard/useSavedQueryWithDashboardFilters';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import { useExplore } from '../../hooks/useExplore';
 import { EchartSeriesClickEvent } from '../SimpleChart';
@@ -101,11 +102,15 @@ const Context = createContext<MetricQueryDataContext | undefined>(undefined);
 type Props = {
     tableName: string;
     metricQuery: MetricQuery | undefined;
+    appliedDashboardFilters?: ReturnType<
+        typeof useSavedQueryWithDashboardFilters
+    >['dashboardFilters'];
 };
 
 const MetricQueryDataProvider: FC<Props> = ({
     tableName,
     metricQuery,
+    appliedDashboardFilters,
     children,
 }) => {
     const [underlyingDataConfig, setUnderlyingDataConfig] =
@@ -119,10 +124,15 @@ const MetricQueryDataProvider: FC<Props> = ({
 
     const openDrillDownModal = useCallback(
         (config: DrillDownConfig) => {
-            setDrillDownConfig(config);
+            setDrillDownConfig({
+                ...config,
+                ...(appliedDashboardFilters && {
+                    dashboardFilters: appliedDashboardFilters,
+                }),
+            });
             setIsDrillDownModalOpen(true);
         },
-        [setDrillDownConfig],
+        [appliedDashboardFilters, setDrillDownConfig],
     );
     const closeDrillDownModal = useCallback(() => {
         setIsDrillDownModalOpen(false);
@@ -130,10 +140,15 @@ const MetricQueryDataProvider: FC<Props> = ({
 
     const openUnderlyingDataModal = useCallback(
         (config: UnderlyingDataConfig) => {
-            setUnderlyingDataConfig(config);
+            setUnderlyingDataConfig({
+                ...config,
+                ...(appliedDashboardFilters && {
+                    dashboardFilters: appliedDashboardFilters,
+                }),
+            });
             setIsUnderlyingDataModalOpen(true);
         },
-        [setUnderlyingDataConfig],
+        [appliedDashboardFilters, setUnderlyingDataConfig],
     );
     const closeUnderlyingDataModal = useCallback(() => {
         setIsUnderlyingDataModalOpen(false);
