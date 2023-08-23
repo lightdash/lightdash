@@ -90,7 +90,6 @@ const GridTile: FC<
             : undefined;
 
     const {
-        dashboardFilters,
         isError,
         isLoading,
         data: savedQuery,
@@ -113,7 +112,6 @@ const GridTile: FC<
                 <MetricQueryDataProvider
                     metricQuery={savedQuery?.metricQuery}
                     tableName={savedQuery?.tableName || ''}
-                    appliedDashboardFilters={dashboardFilters}
                 >
                     <ChartTile {...props} tile={tile} />
                     <UnderlyingDataModal />
