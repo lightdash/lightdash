@@ -1,8 +1,8 @@
 import { Button } from '@blueprintjs/core';
 import { ApiScheduledDownloadCsv } from '@lightdash/common';
 import { FC, memo } from 'react';
+import { pollCsvFileUrl } from '../../api/csv';
 import useToaster from '../../hooks/toaster/useToaster';
-import { pollCsvFileUrl } from '../../hooks/useDownloadCsv';
 
 type Props = {
     disabled: boolean;

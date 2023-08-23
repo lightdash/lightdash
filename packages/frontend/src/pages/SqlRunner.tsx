@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 
+import { downloadCsvFromSqlRunner } from '../api/csv';
 import { ChartDownloadMenu } from '../components/ChartDownload';
 import CollapsableCard from '../components/common/CollapsableCard';
 import MantineIcon from '../components/common/MantineIcon';
@@ -31,7 +32,6 @@ import RunSqlQueryButton from '../components/SqlRunner/RunSqlQueryButton';
 import SqlRunnerInput from '../components/SqlRunner/SqlRunnerInput';
 import SqlRunnerResultsTable from '../components/SqlRunner/SqlRunnerResultsTable';
 import { useProjectDbtCloudMetrics } from '../hooks/dbtCloud/useProjectDbtCloudMetrics';
-import { downloadCsvFromSqlRunner } from '../hooks/useDownloadCsv';
 import { useProjectCatalog } from '../hooks/useProjectCatalog';
 import {
     ProjectCatalogTreeNode,
