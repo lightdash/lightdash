@@ -10,8 +10,12 @@ const useSavedQueryWithDashboardFilters = (
     isLoading: boolean;
     data: SavedChart | undefined;
     dashboardFilters: DashboardFilters | undefined;
-} => {
-    const { data: savedQuery, isLoading } = useSavedQuery({
+} & Pick<ReturnType<typeof useSavedQuery>, 'isError' | 'isLoading'> => {
+    const {
+        data: savedQuery,
+        isLoading,
+        isError,
+    } = useSavedQuery({
         id: savedChartUuid || undefined,
         useQueryOptions: { refetchOnMount: false },
     });
@@ -22,15 +26,29 @@ const useSavedQueryWithDashboardFilters = (
 
     const dashboardFilters = useDashboardFiltersForExplore(tileUuid, explore);
 
+    if (isError)
+        return {
+            data: undefined,
+            dashboardFilters: undefined,
+            isLoading,
+            isError,
+        };
+
     if (savedChartUuid === null) {
-        return { isLoading: false, data: undefined, dashboardFilters };
+        return {
+            data: undefined,
+            dashboardFilters,
+            isLoading: false,
+            isError,
+        };
     }
 
     if (isLoading || isLoadingExplore || !savedQuery || !explore) {
         return {
-            isLoading: true,
             data: undefined,
             dashboardFilters: undefined,
+            isLoading,
+            isError,
         };
     }
 
@@ -64,7 +82,8 @@ const useSavedQueryWithDashboardFilters = (
     };
 
     return {
-        isLoading: false,
+        isLoading,
+        isError,
         data: savedQueryWithDashboardFilters,
         dashboardFilters,
     };
