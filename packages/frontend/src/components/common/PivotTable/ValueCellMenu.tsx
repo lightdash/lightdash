@@ -128,9 +128,6 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
         openDrillDownModal({
             item,
             fieldValues: underlyingFieldValues,
-            ...(appliedDashboardFilters && {
-                dashboardFilters: appliedDashboardFilters,
-            }),
         });
 
         track({
