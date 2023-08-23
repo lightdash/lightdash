@@ -69,15 +69,15 @@ const getCsvFileUrl = async (
         });
 };
 
-export const pollCsvFileUrl = async ({ jobId }: ApiScheduledDownloadCsv) => {
-    return new Promise<string>((resolve, reject) => {
+export const pollCsvFileUrl = async ({ jobId }: ApiScheduledDownloadCsv) =>
+    new Promise<string>((resolve, reject) => {
         getCsvFileUrl(
             { jobId },
             (url) => resolve(url),
             (error) => reject(error),
         );
     });
-};
+
 export const downloadCsvFromSqlRunner = async ({
     projectUuid,
     sql,
@@ -86,10 +86,9 @@ export const downloadCsvFromSqlRunner = async ({
     projectUuid: string;
     sql: string;
     customLabels?: Record<string, string>;
-}) => {
-    return lightdashApi<ApiDownloadCsv>({
+}) =>
+    lightdashApi<ApiDownloadCsv>({
         url: `/projects/${projectUuid}/sqlRunner/downloadCsv`,
         method: 'POST',
         body: JSON.stringify({ sql, customLabels }),
     });
-};

@@ -2,9 +2,9 @@ import { NotFoundError } from '@lightdash/common';
 import { FC, memo, useCallback, useMemo, useState } from 'react';
 
 import { Space } from '@mantine/core';
+import { downloadCsv } from '../../../api/csv';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
-import { downloadCsv } from '../../../hooks/useDownloadCsv';
 import { useExplore } from '../../../hooks/useExplore';
 import {
     ExplorerSection,

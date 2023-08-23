@@ -14,9 +14,9 @@ import { Classes } from '@blueprintjs/popover2';
 import { ApiScheduledDownloadCsv, ResultRow } from '@lightdash/common';
 import { FC, Fragment, memo, useState } from 'react';
 import { useMutation } from 'react-query';
+import { pollCsvFileUrl } from '../../api/csv';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
-import { pollCsvFileUrl } from '../../hooks/useDownloadCsv';
 import { AppToaster } from '../AppToaster';
 import { InputWrapper, LimitWarning, Title } from './ExportCSV.styles';
 

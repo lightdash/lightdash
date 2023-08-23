@@ -5,10 +5,10 @@ import { useMutation } from 'react-query';
 import { Spinner } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { Button } from '@mantine/core';
+import { pollCsvFileUrl } from '../../../api/csv';
 import { useGdriveAccessToken } from '../../../hooks/gdrive/useGdrive';
 import useHealth from '../../../hooks/health/useHealth';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { pollCsvFileUrl } from '../../../hooks/useDownloadCsv';
 import { AppToaster } from '../../AppToaster';
 
 export type ExportGsheetProps = {

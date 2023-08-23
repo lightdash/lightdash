@@ -3,8 +3,8 @@ import { Button, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { FC, memo, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
+import { downloadCsv } from '../../../api/csv';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
-import { downloadCsv } from '../../../hooks/useDownloadCsv';
 import { useApp } from '../../../providers/AppProvider';
 import {
     ExplorerSection,

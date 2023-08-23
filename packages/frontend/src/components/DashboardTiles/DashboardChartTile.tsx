@@ -34,12 +34,12 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { Text } from '@mantine/core';
 import { IconFolders } from '@tabler/icons-react';
+import { downloadCsv } from '../../api/csv';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import useSavedQueryWithDashboardFilters from '../../hooks/dashboard/useSavedQueryWithDashboardFilters';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import useToaster from '../../hooks/toaster/useToaster';
-import { downloadCsv } from '../../hooks/useDownloadCsv';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useChartResults } from '../../hooks/useQueryResults';
