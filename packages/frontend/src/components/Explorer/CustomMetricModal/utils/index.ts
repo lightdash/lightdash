@@ -98,9 +98,7 @@ export const prepareCustomMetricData = ({
             : defaultRound;
 
     const percentile =
-        shouldCopyFormatting && dimension.percentile
-            ? dimension.percentile
-            : metricPercentile;
+        type === MetricType.PERCENTILE ? metricPercentile || 50 : undefined;
 
     const customMetricFilters: MetricFilterRule[] =
         customMetricFiltersWithIds.map(

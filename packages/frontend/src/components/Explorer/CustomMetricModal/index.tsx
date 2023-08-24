@@ -151,8 +151,6 @@ export const CustomMetricModal = () => {
                 percentile,
             });
 
-            console.log(data);
-
             if (isEditing && isAdditionalMetric(item)) {
                 editAdditionalMetric(
                     {
@@ -218,6 +216,8 @@ export const CustomMetricModal = () => {
                     {customMetricType === MetricType.PERCENTILE && (
                         <NumberInput
                             w={100}
+                            max={100}
+                            min={0}
                             required
                             label="Percentile"
                             {...form.getInputProps('percentile')}
