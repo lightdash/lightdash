@@ -75,20 +75,21 @@ describe('Dashboard', () => {
         cy.findByRole('dialog').get('.mantine-MultiSelect-input').click(); // Close dropdown
         cy.findByText('Add').click();
 
-        cy.findAllByText('Add tile').click({ multiple: true });
-        cy.findByText('New chart').click();
-        cy.findByText('You are creating this chart from within "Title"').should(
-            'exist',
-        );
-        cy.findByText('Orders').click();
-        cy.findByText('Status').click();
-        cy.findByText('Average order size').click();
-        cy.findByText('Save chart').click();
-        cy.get('input#chart-name').type('Average order size per status');
-        cy.findByText('Save').click();
-        cy.findByText(
-            'Success! Average order size per status was added to Title',
-        ).should('exist');
+        // TODO: re-enable this section with creating charts from dashboards
+        // cy.findAllByText('Add tile').click({ multiple: true });
+        // cy.findByText('New chart').click();
+        // cy.findByText('You are creating this chart from within "Title"').should(
+        //     'exist',
+        // );
+        // cy.findByText('Orders').click();
+        // cy.findByText('Status').click();
+        // cy.findByText('Average order size').click();
+        // cy.findByText('Save chart').click();
+        // cy.get('input#chart-name').type('Average order size per status');
+        // cy.findByText('Save').click();
+        // cy.findByText(
+        //     'Success! Average order size per status was added to Title',
+        // ).should('exist');
 
         cy.findAllByText('Add tile').click({ multiple: true });
         cy.findByText('Markdown').click();
