@@ -26,47 +26,28 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
             health.data?.auth.google.googleDriveApiKey !== undefined;
 
         const { showToastError, showToast } = useToaster();
-        const scheduleGoogleSheetsExport = async () => {
-            try {
-                const scheduledGoogleSheetsData = await getGsheetLink();
-                const url = await pollCsvFileUrl(scheduledGoogleSheetsData);
-                if (url) window.open(url, '_blank'); //Open in new tab
-
-                return;
-            } catch (error) {
-                AppToaster.dismiss('exporting-gsheets');
-
-                showToastError({
-                    title: `Unable to upload Google Sheets`,
-                    subtitle: error?.error?.message,
-                });
-                throw error;
-            }
-        };
 
         // TODO: move to own hook
-        const { mutateAsync: exportCsvMutation, isLoading } = useMutation(
+        const {
+            mutateAsync: exportGoogleSheet,
+            isLoading: isExportGoogleSheetLoading,
+        } = useMutation(
             [`google-sheets-${context}`],
-            scheduleGoogleSheetsExport,
+            (params: ApiScheduledDownloadCsv) =>
+                params
+                    ? pollCsvFileUrl(params)
+                    : Promise.reject({
+                          error: new Error(
+                              "Couldn't create scheduler job for google sheets export",
+                          ),
+                      }),
             {
-                onMutate: () => {
-                    showToast({
-                        title: 'Exporting Google Sheets',
-                        subtitle: 'This may take a few minutes...',
-                        icon: (
-                            <Spinner
-                                className="bp4-icon bp4-icon-error"
-                                size={16}
-                            />
-                        ),
-                        key: 'exporting-gsheets',
-                        timeout: 0,
-                    });
+                onSuccess: (url) => {
+                    if (url) window.open(url, '_blank');
                 },
                 onSettled: () => {
                     AppToaster.dismiss('exporting-gsheets');
                 },
-
                 onError: (error: { error: Error }) => {
                     showToastError({
                         title: `Unable to upload to Google Sheets`,
@@ -75,6 +56,36 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
                 },
             },
         );
+
+        // TODO: move to own hook
+        const {
+            mutateAsync: startGoogleSheetExport,
+            isLoading: isStartGoogleSheetExportLoading,
+        } = useMutation(['google-sheets-start'], getGsheetLink, {
+            onMutate: () => {
+                showToast({
+                    title: 'Exporting Google Sheets',
+                    subtitle: 'This may take a few minutes...',
+                    icon: (
+                        <Spinner
+                            className="bp4-icon bp4-icon-error"
+                            size={16}
+                        />
+                    ),
+                    key: 'exporting-gsheets',
+                    timeout: 0,
+                });
+            },
+            onSuccess: (dataJobId) => {
+                exportGoogleSheet(dataJobId);
+            },
+            onError: (error: { error: Error }) => {
+                showToastError({
+                    title: `Unable to upload to Google Sheets`,
+                    subtitle: error?.error?.message,
+                });
+            },
+        });
 
         const handleLoginAndExport = useCallback(() => {
             if (
@@ -92,15 +103,22 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
                     refetch().then((r) => {
                         if (r.data !== undefined) {
                             clearInterval(refetchAuth);
-                            exportCsvMutation();
+                            startGoogleSheetExport();
                         }
                     });
                 }, 2000);
                 return false;
             }
 
-            exportCsvMutation();
-        }, [gdriveAuth, health.data, refetch, exportCsvMutation]);
+            startGoogleSheetExport();
+        }, [
+            gdriveAuth,
+            health.data?.auth.google.googleDriveApiKey,
+            health.data?.auth.google.oauth2ClientId,
+            health.data?.siteUrl,
+            refetch,
+            startGoogleSheetExport,
+        ]);
 
         if (!hasGoogleDrive) {
             // We should not load this component on `ExporSelector` if google keys are not available
@@ -121,7 +139,10 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
             <Button
                 size="xs"
                 variant="default"
-                loading={isLoading}
+                loading={
+                    isStartGoogleSheetExportLoading ||
+                    isExportGoogleSheetLoading
+                }
                 onClick={handleLoginAndExport}
             >
                 Google Sheets
