@@ -13,6 +13,10 @@ tasks:
       gp sync-done migration
 
   - name: Run FE & BE
+    init: |
+      yarn install
+      yarn common-build
+      yarn warehouses-build
     command: |
       gp sync-await migration
       export SITE_ENV=3000-$GITPOD_WORKSPACE_URL
