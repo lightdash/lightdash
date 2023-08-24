@@ -1,6 +1,7 @@
 import {
     ApiEmailStatusResponse,
     ApiErrorPayload,
+    ApiGetAuthenticatedUserResponse,
     ApiSuccessEmpty,
     ApiUserAllowedOrganizationsResponse,
 } from '@lightdash/common';
@@ -19,6 +20,7 @@ import {
     Tags,
 } from 'tsoa';
 import { userModel } from '../models/models';
+import { UserModel } from '../models/UserModel';
 import { userService } from '../services/services';
 import {
     allowApiKeyAuthentication,
@@ -30,6 +32,23 @@ import {
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('My Account')
 export class UserController extends Controller {
+    /**
+     * Get authenticated user
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/')
+    @OperationId('GetAuthenticatedUser')
+    async getAuthenticatedUser(
+        @Request() req: express.Request,
+    ): Promise<ApiGetAuthenticatedUserResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: UserModel.lightdashUserFromSession(req.user!),
+        };
+    }
+
     /**
      * Create a new one-time passcode for the current user's primary email.
      * The user will receive an email with the passcode.

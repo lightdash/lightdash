@@ -82,3 +82,11 @@ export type ApiUserAllowedOrganizationsResponse = {
     status: 'ok';
     results: UserAllowedOrganization[];
 };
+
+/**
+ * Shows the authenticated user
+ */
+export type ApiGetAuthenticatedUserResponse = {
+    status: 'ok';
+    results: LightdashUserWithAbilityRules;
+};
