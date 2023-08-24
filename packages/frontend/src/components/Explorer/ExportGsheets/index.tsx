@@ -67,8 +67,6 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
             queryKey: [`google-sheets-${context}`],
             queryFn: () => getCsvFileUrl(startGoogleSheetExportData!),
             refetchInterval: (data) => {
-                console.log({ data });
-
                 if (data?.url) return false;
                 return 2000;
             },
