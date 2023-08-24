@@ -21,6 +21,8 @@ const AddTileButton: FC<Props> = ({
     popoverPosition,
     disabled,
 }) => {
+    // TODO: this is a feature flag. Remove when create chart
+    // in dashboard is ready
     const [isCreateChartInDashboardEnabled] = useLocalStorage({
         key: 'enable-create-chart-in-dashboard',
         defaultValue: false,
