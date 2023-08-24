@@ -169,9 +169,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                 <DialogFooter
                     actions={
                         <>
-                            <Button onClick={() => modalProps.onClosed}>
-                                Cancel
-                            </Button>
+                            <Button onClick={handleClose}>Cancel</Button>
                             <Button
                                 disabled={!form.formState.isValid}
                                 loading={isCreatingDashboard || isCreatingSpace}
