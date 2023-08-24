@@ -1,3 +1,10 @@
+## [0.756.3](https://github.com/lightdash/lightdash/compare/0.756.2...0.756.3) (2023-08-24)
+
+
+### Bug Fixes
+
+* create dashboard cancel button doesnt work ([#6872](https://github.com/lightdash/lightdash/issues/6872)) ([b0e2a0c](https://github.com/lightdash/lightdash/commit/b0e2a0c5b0154cbaa9c6a2b50e0d1933e1e08c5f))
+
 ## [0.756.2](https://github.com/lightdash/lightdash/compare/0.756.1...0.756.2) (2023-08-23)
 
 
