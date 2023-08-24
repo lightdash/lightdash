@@ -9,7 +9,10 @@ import {
     MetricType,
     SupportedDbtAdapter,
 } from '@lightdash/common';
-import { GetMetricFlowFieldsResponse } from '../../../api/MetricFlowAPI';
+import {
+    GetMetricFlowFieldsResponse,
+    MetricFlowDimensionType,
+} from '../../../api/MetricFlowAPI';
 
 export default function convertMetricFlowFieldsToExplore(
     tableName: string,
@@ -19,7 +22,10 @@ export default function convertMetricFlowFieldsToExplore(
         (acc, { name, description, type }) => {
             const dimension: CompiledDimension = {
                 fieldType: FieldType.DIMENSION,
-                type: type as DimensionType, // ??? what are the types here
+                type:
+                    type === MetricFlowDimensionType.TIME
+                        ? DimensionType.TIMESTAMP
+                        : DimensionType.STRING,
                 name,
                 description,
                 label: friendlyName(name),
