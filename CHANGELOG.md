@@ -1,3 +1,10 @@
+## [0.756.4](https://github.com/lightdash/lightdash/compare/0.756.3...0.756.4) (2023-08-24)
+
+
+### Bug Fixes
+
+* hide create chart in dashboard ([#6873](https://github.com/lightdash/lightdash/issues/6873)) ([c431027](https://github.com/lightdash/lightdash/commit/c43102770e79a53cc2069cd3d8eac2e4812dd706))
+
 ## [0.756.3](https://github.com/lightdash/lightdash/compare/0.756.2...0.756.3) (2023-08-24)
 
 
