@@ -1,5 +1,5 @@
-import { ApiQueryResults, Explore, getItemId } from '@lightdash/common';
-import { MetricFlowJsonResults } from '../../api/MetricFlowAPI';
+import { ApiQueryResults, Explore, Field, getItemId } from '@lightdash/common';
+import { MetricFlowJsonResults } from '../../../api/MetricFlowAPI';
 
 export default function convertMetricFlowQueryResultsToResultsData(
     explore: Explore,
@@ -46,7 +46,9 @@ export default function convertMetricFlowQueryResultsToResultsData(
 
     return {
         resultsData,
-        fieldsMap: [...dimensionsInSchema, ...metricsInSchema].reduce(
+        fieldsMap: [...dimensionsInSchema, ...metricsInSchema].reduce<
+            Record<string, Field>
+        >(
             (acc, field) => ({
                 ...acc,
                 [getItemId(field)]: field,

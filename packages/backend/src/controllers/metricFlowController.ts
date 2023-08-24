@@ -1,7 +1,6 @@
-import { ApiErrorPayload, UnexpectedServerError } from '@lightdash/common';
+import { ApiErrorPayload } from '@lightdash/common';
 import { Body, Post } from '@tsoa/runtime';
 import express from 'express';
-import fetch, { Headers } from 'node-fetch';
 import {
     Controller,
     Middlewares,
@@ -13,12 +12,8 @@ import {
     SuccessResponse,
     Tags,
 } from 'tsoa';
+import { dbtCloudGraphqlClient } from '../clients/clients';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
-
-// TODO: get there from lightdash config / env vars
-const url: string = '';
-const bearerToken: string = '';
-const environmentId: string = '';
 
 @Route('/api/v1/projects/{projectUuid}/metricflow')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -39,39 +34,23 @@ export class MetricFlowController extends Controller {
         @Request() req: express.Request,
         @Body() body: { query: string },
     ): Promise<any> {
-        const myHeaders = new Headers();
-        myHeaders.append('Content-Type', 'application/json');
-        myHeaders.append('Authorization', `Bearer ${bearerToken}`);
+        this.setStatus(200);
 
-        const graphql = JSON.stringify({
-            query: body.query,
-            variables: {
-                environmentId,
-            },
-        });
-        const data: { data: any; errors: Array<{ message: string }> } =
-            await fetch(url, {
-                method: 'POST',
-                headers: myHeaders,
-                body: graphql,
-                redirect: 'follow',
-            }).then((response) => response.json());
+        // TODO: soon available via UI
+        const bearerToken = process.env.DBT_CLOUD_BEARER_TOKEN || undefined;
+        const environmentId = process.env.DBT_CLOUD_ENVIRONMENT_ID || undefined;
 
-        if (data.errors) {
-            this.setStatus(500);
-            return {
-                status: 'error',
-                error: new UnexpectedServerError(
-                    data.errors.map((e) => e.message).join(', '),
-                    data.errors,
-                ),
-            };
+        if (!bearerToken || !environmentId) {
+            throw new Error('Dbt Cloud is not enabled');
         }
 
-        this.setStatus(200);
         return {
             status: 'ok',
-            results: data.data,
+            results: await dbtCloudGraphqlClient.runQuery(
+                bearerToken,
+                environmentId,
+                body.query,
+            ),
         };
     }
 }

@@ -1,10 +1,9 @@
 import { subject } from '@casl/ability';
-import { Flex, NavLink, Stack, Text, Title } from '@mantine/core';
-import { Icon123 } from '@tabler/icons-react';
-import { useCallback, useMemo, useState } from 'react';
+import { ActionIcon, Flex, Group, Stack, Text, Title } from '@mantine/core';
+import { IconRefresh } from '@tabler/icons-react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ChartDownloadMenu } from '../components/ChartDownload';
 import CollapsableCard from '../components/common/CollapsableCard';
-import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import VisualizationConfigPanel from '../components/Explorer/VisualizationCard/VisualizationConfigPanel';
@@ -13,16 +12,21 @@ import ForbiddenPanel from '../components/ForbiddenPanel';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
 import { LoadingPanel } from '../components/MetricQueryData/UnderlyingDataModal.styles';
-import MetricFlowResultsTable from '../features/components/ResultsTable';
-import { useMetricFlowFieldsAPI } from '../features/hooks/useMetricFlowFieldsAPI';
-import { useMetricFlowQueryAPI } from '../features/hooks/useMetricFlowQueryAPI';
-import { useMetricFlowQueryResultsAPI } from '../features/hooks/useMetricFlowQueryResultsAPI';
-import useSqlQueryVisualizationState from '../features/hooks/useMetricFlowVisualizationState';
-import convertMetricFlowFieldsToExplore from '../features/utils/convertMetricFlowFieldsToExplore';
-import convertMetricFlowQueryResultsToResultsData from '../features/utils/convertMetricFlowQueryResultsToResultsData';
+import MetricFlowFieldList from '../features/MetricFlow/components/MetricFlowFieldList';
+import MetricFlowResultsTable from '../features/MetricFlow/components/ResultsTable';
+import RunQueryButton from '../features/MetricFlow/components/RunQueryButton';
+import { useMetricFlowFieldsAPI } from '../features/MetricFlow/hooks/useMetricFlowFieldsAPI';
+import { useMetricFlowQueryAPI } from '../features/MetricFlow/hooks/useMetricFlowQueryAPI';
+import { useMetricFlowQueryResultsAPI } from '../features/MetricFlow/hooks/useMetricFlowQueryResultsAPI';
+import useSqlQueryVisualizationState from '../features/MetricFlow/hooks/useMetricFlowVisualizationState';
+import convertFieldMapToTableColumns from '../features/MetricFlow/utils/convertFieldMapToTableColumns';
+import convertMetricFlowFieldsToExplore from '../features/MetricFlow/utils/convertMetricFlowFieldsToExplore';
+import convertMetricFlowQueryResultsToResultsData from '../features/MetricFlow/utils/convertMetricFlowQueryResultsToResultsData';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
+import { TrackSection } from '../providers/TrackingProvider';
+import { SectionName } from '../types/Events';
 
 const MOCK_TABLE_NAME = 'metricflow';
 
@@ -32,36 +36,43 @@ const MetricFlowPage = () => {
     const { data: project } = useProject(activeProjectUuid);
     const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
     const [selectedDimensions, setSelectedDimensions] = useState<string[]>([]);
-    const { data } = useMetricFlowFieldsAPI(activeProjectUuid, {
+    const metricFlowFieldsQuery = useMetricFlowFieldsAPI(activeProjectUuid, {
         metrics: selectedMetrics,
         dimensions: selectedDimensions,
     });
-    const { data: query } = useMetricFlowQueryAPI(activeProjectUuid, {
+    const metricFlowQuery = useMetricFlowQueryAPI(activeProjectUuid, {
         metrics: selectedMetrics,
         dimensions: selectedDimensions,
     });
     const metricFlowQueryResultsQuery = useMetricFlowQueryResultsAPI(
         activeProjectUuid,
-        query?.createQuery.queryId,
+        metricFlowQuery.data?.createQuery.queryId,
     );
 
     const explore = useMemo(() => {
-        if (!data) {
+        if (!metricFlowFieldsQuery.data) {
             return undefined;
         }
 
-        return convertMetricFlowFieldsToExplore(MOCK_TABLE_NAME, data);
-    }, [data]);
+        return convertMetricFlowFieldsToExplore(
+            MOCK_TABLE_NAME,
+            metricFlowFieldsQuery.data,
+        );
+    }, [metricFlowFieldsQuery.data]);
 
-    const { resultsData, fieldsMap } = useMemo(() => {
+    const { resultsData, columns } = useMemo(() => {
         if (!explore || !metricFlowQueryResultsQuery.data?.query.jsonResult) {
-            return { resultsData: undefined, fieldsMap: {} };
+            return { resultsData: undefined, columns: [] };
         }
 
-        return convertMetricFlowQueryResultsToResultsData(
+        const results = convertMetricFlowQueryResultsToResultsData(
             explore,
             metricFlowQueryResultsQuery.data.query.jsonResult,
         );
+        return {
+            resultsData: results.resultsData,
+            columns: convertFieldMapToTableColumns(results.fieldsMap),
+        };
     }, [explore, metricFlowQueryResultsQuery.data]);
     const {
         chartType,
@@ -121,14 +132,29 @@ const MetricFlowPage = () => {
                     mah="100%"
                     sx={{ overflowY: 'hidden', flex: 1 }}
                 >
-                    <PageBreadcrumbs
-                        items={[{ title: 'MetricFlow', active: true }]}
-                    />
+                    <Group position="apart">
+                        <PageBreadcrumbs
+                            items={[{ title: 'MetricFlow', active: true }]}
+                        />
+                        <ActionIcon
+                            size="sm"
+                            variant="outline"
+                            loading={metricFlowFieldsQuery.isFetching}
+                            disabled={metricFlowFieldsQuery.isFetching}
+                            onClick={() => metricFlowFieldsQuery.refetch()}
+                        >
+                            <IconRefresh />
+                        </ActionIcon>
+                    </Group>
                     <Stack mah="100%">
                         <Flex align="baseline" gap="xxs">
                             <Title order={5}>Metrics</Title>
                             <Text span fz="xs" color="gray.6">
-                                ({data?.metricsForDimensions.length}
+                                (
+                                {
+                                    metricFlowFieldsQuery.data
+                                        ?.metricsForDimensions.length
+                                }
                                 {selectedDimensions.length > 0 && (
                                     <> available based on selected dimensions</>
                                 )}
@@ -136,31 +162,19 @@ const MetricFlowPage = () => {
                             </Text>
                         </Flex>
                         <Stack sx={{ overflowY: 'auto', flex: 1 }}>
-                            {data?.metricsForDimensions?.map((metric) => (
-                                <NavLink
-                                    key={metric.name}
-                                    active={selectedMetrics.includes(
-                                        metric.name,
-                                    )}
-                                    icon={
-                                        <MantineIcon
-                                            icon={Icon123}
-                                            size="lg"
-                                            color="gray.7"
-                                        />
-                                    }
-                                    label={metric.name}
-                                    description={metric.description}
-                                    onClick={() =>
-                                        handleMetricSelect(metric.name)
-                                    }
-                                />
-                            ))}
+                            <MetricFlowFieldList
+                                fields={
+                                    metricFlowFieldsQuery.data
+                                        ?.metricsForDimensions
+                                }
+                                selectedFields={selectedMetrics}
+                                onClick={(name) => handleMetricSelect(name)}
+                            />
                         </Stack>
                         <Flex align="baseline" gap="xxs">
                             <Title order={5}>Dimensions</Title>
                             <Text span fz="xs" color="gray.6">
-                                ({data?.dimensions.length}
+                                ({metricFlowFieldsQuery.data?.dimensions.length}
                                 {selectedMetrics.length > 0 && (
                                     <> available based on selected metrics</>
                                 )}
@@ -168,31 +182,27 @@ const MetricFlowPage = () => {
                             </Text>
                         </Flex>
                         <Stack sx={{ overflowY: 'auto', flex: 1 }}>
-                            {data?.dimensions?.map((dimension) => (
-                                <NavLink
-                                    key={dimension.name}
-                                    active={selectedDimensions.includes(
-                                        dimension.name,
-                                    )}
-                                    icon={
-                                        <MantineIcon
-                                            icon={Icon123}
-                                            size="lg"
-                                            color="gray.7"
-                                        />
-                                    }
-                                    label={dimension.name}
-                                    description={dimension.description}
-                                    onClick={() =>
-                                        handleDimensionSelect(dimension.name)
-                                    }
-                                />
-                            ))}
+                            <MetricFlowFieldList
+                                fields={metricFlowFieldsQuery.data?.dimensions}
+                                selectedFields={selectedDimensions}
+                                onClick={(name) => handleDimensionSelect(name)}
+                            />
                         </Stack>
                     </Stack>
                 </Stack>
             }
         >
+            <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
+                <Group position="apart">
+                    <RunQueryButton
+                        isLoading={
+                            metricFlowQuery.isLoading ||
+                            metricFlowQueryResultsQuery.isLoading
+                        }
+                        onClick={() => metricFlowQuery.refetch()}
+                    />
+                </Group>
+            </TrackSection>
             <Stack mt="lg" spacing="sm" sx={{ flexGrow: 1 }}>
                 <VisualizationProvider
                     initialChartConfig={undefined}
@@ -235,8 +245,8 @@ const MetricFlowPage = () => {
                     onToggle={() => undefined}
                 >
                     <MetricFlowResultsTable
+                        columns={columns}
                         resultsData={resultsData}
-                        fieldsMap={fieldsMap}
                         status={metricFlowQueryResultsQuery.status}
                         error={metricFlowQueryResultsQuery.error}
                     />

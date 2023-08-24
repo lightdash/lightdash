@@ -1,12 +1,12 @@
 import { NonIdealState } from '@blueprintjs/core';
-import { ApiError, ApiQueryResults, Field } from '@lightdash/common';
+import { ApiError, ApiQueryResults } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import React, { FC } from 'react';
 import { useQuery } from 'react-query';
-import Table from '../../components/common/Table';
-import useSqlRunnerColumns from '../../hooks/useSqlRunnerColumns';
-import { TrackSection } from '../../providers/TrackingProvider';
-import { SectionName } from '../../types/Events';
+import Table from '../../../components/common/Table';
+import { TableColumn } from '../../../components/common/Table/types';
+import { TrackSection } from '../../../providers/TrackingProvider';
+import { SectionName } from '../../../types/Events';
 
 const ResultsErrorState: FC<{ error: string }> = ({ error }) => (
     <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
@@ -17,16 +17,11 @@ const ResultsErrorState: FC<{ error: string }> = ({ error }) => (
 );
 
 const MetricFlowResultsTable: FC<{
-    fieldsMap: Record<string, Field>;
+    columns: TableColumn[];
     resultsData: ApiQueryResults | undefined;
     status: ReturnType<typeof useQuery>['status'];
     error: ReturnType<typeof useQuery<any, ApiError>>['error'];
-}> = ({ fieldsMap, resultsData, status, error }) => {
-    const columns = useSqlRunnerColumns({
-        resultsData,
-        fieldsMap,
-    });
-
+}> = ({ columns, resultsData, status, error }) => {
     if (error) {
         return <ResultsErrorState error={error.error.message} />;
     }

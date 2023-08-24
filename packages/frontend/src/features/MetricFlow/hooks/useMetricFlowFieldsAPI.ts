@@ -5,7 +5,7 @@ import { UseQueryOptions } from 'react-query/types/react/types';
 import {
     getMetricFlowFields,
     GetMetricFlowFieldsResponse,
-} from '../../api/MetricFlowAPI';
+} from '../../../api/MetricFlowAPI';
 
 export const useMetricFlowFieldsAPI = (
     projectUuid?: string,

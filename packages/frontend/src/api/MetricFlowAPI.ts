@@ -1,19 +1,31 @@
 import { lightdashApi } from '../api';
 
+export enum MetricFlowDimensionType {
+    CATEGORICAL = 'CATEGORICAL',
+    TIME = 'TIME',
+}
+
+export enum MetricFlowMetricType {
+    SIMPLE = 'SIMPLE',
+    RATIO = 'RATIO',
+    DERIVED = 'DERIVED',
+    CUMULATIVE = 'CUMULATIVE',
+}
+
 export type GetMetricFlowFieldsResponse = {
     dimensions: Array<{
         name: string;
         description?: string;
-        type: 'CATEGORICAL' | 'TIME';
+        type: MetricFlowDimensionType;
     }>;
     metricsForDimensions: Array<{
         name: string;
         description?: string;
-        type: 'SIMPLE' | 'RATIO' | 'DERIVED' | 'CUMULATIVE';
+        type: MetricFlowMetricType;
         dimensions: Array<{
             name: string;
             description?: string;
-            type: 'CATEGORICAL' | 'TIME';
+            type: MetricFlowDimensionType;
         }>;
     }>;
 };

@@ -9,7 +9,7 @@ import {
     MetricType,
     SupportedDbtAdapter,
 } from '@lightdash/common';
-import { GetMetricFlowFieldsResponse } from '../../api/MetricFlowAPI';
+import { GetMetricFlowFieldsResponse } from '../../../api/MetricFlowAPI';
 
 export default function convertMetricFlowFieldsToExplore(
     tableName: string,
