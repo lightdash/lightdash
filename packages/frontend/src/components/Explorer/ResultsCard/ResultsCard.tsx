@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import { Button, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { FC, memo, useCallback, useMemo } from 'react';
-import { useIsMutating } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { downloadCsv } from '../../../api/csv';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
@@ -59,16 +58,7 @@ const ResultsCard: FC = memo(() => {
         (context) => context.state.unsavedChartVersion.tableConfig.columnOrder,
     );
 
-    const isGoogleSheetsExportingInResults = useIsMutating([
-        'google-sheets-results',
-    ]);
-    const isGoogleSheetsExportingInChart = useIsMutating([
-        'google-sheets-chart',
-    ]);
-    const disabled =
-        !resultsData ||
-        resultsData.rows.length <= 0 ||
-        !!isGoogleSheetsExportingInChart;
+    const disabled = !resultsData || resultsData.rows.length <= 0;
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
@@ -143,9 +133,6 @@ const ResultsCard: FC = memo(() => {
                                 {...COLLAPSABLE_CARD_POPOVER_PROPS}
                                 disabled={disabled}
                                 position="bottom-end"
-                                closeOnClickOutside={
-                                    !isGoogleSheetsExportingInResults
-                                }
                             >
                                 <Popover.Target>
                                     <Button

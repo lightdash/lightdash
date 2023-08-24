@@ -17,7 +17,6 @@ import { IconShare2 } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
 import React, { memo, RefObject, useCallback, useState } from 'react';
-import { useIsMutating } from 'react-query';
 
 import useEcharts from '../hooks/echarts/useEcharts';
 import { useApp } from '../providers/AppProvider';
@@ -219,12 +218,6 @@ interface ChartDownloadMenuProps {
 
 export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
     ({ getCsvLink, getGsheetLink, projectUuid }) => {
-        const isGoogleSheetsExportingInResults = useIsMutating([
-            'google-sheets-results',
-        ]);
-        const isGoogleSheetsExportingInChart = useIsMutating([
-            'google-sheets-chart',
-        ]);
         const {
             chartRef,
             chartType,
@@ -238,8 +231,7 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                 resultsData.rows.length <= 0) ||
             !resultsData?.metricQuery ||
             chartType === ChartType.BIG_NUMBER ||
-            (chartType === ChartType.CARTESIAN && !eChartsOptions) ||
-            !!isGoogleSheetsExportingInResults;
+            (chartType === ChartType.CARTESIAN && !eChartsOptions);
 
         const { user } = useApp();
 
@@ -254,7 +246,6 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                 <Popover
                     {...COLLAPSABLE_CARD_POPOVER_PROPS}
                     disabled={disabled}
-                    closeOnClickOutside={!isGoogleSheetsExportingInChart}
                     position="bottom-end"
                 >
                     <Popover.Target>
