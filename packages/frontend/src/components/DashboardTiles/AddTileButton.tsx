@@ -2,6 +2,7 @@ import { Menu, MenuDivider, PopoverPosition } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { Dashboard, DashboardTileTypes } from '@lightdash/common';
 import { Button, ButtonProps, Group, Text, Tooltip } from '@mantine/core';
+import { useLocalStorage } from '@mantine/hooks';
 import { IconInfoCircle, IconPlus } from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
@@ -20,6 +21,12 @@ const AddTileButton: FC<Props> = ({
     popoverPosition,
     disabled,
 }) => {
+    // TODO: this is a feature flag. Remove when create chart
+    // in dashboard is ready
+    const [isCreateChartInDashboardEnabled] = useLocalStorage({
+        key: 'enable-create-chart-in-dashboard',
+        defaultValue: false,
+    });
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
@@ -55,51 +62,61 @@ const AddTileButton: FC<Props> = ({
 
                         <MenuDivider />
 
-                        <MenuItem2
-                            icon="series-add"
-                            text={
-                                <Group spacing="xxs">
-                                    <Text>New chart</Text>
-                                    <Tooltip label="Charts generated from here are exclusive to this dashboard">
-                                        <MantineIcon
-                                            icon={IconInfoCircle}
-                                            color="gray.6"
-                                        />
-                                    </Tooltip>
-                                </Group>
-                            }
-                            onClick={() => {
-                                sessionStorage.setItem(
-                                    'fromDashboard',
-                                    dashboard?.name ?? '',
-                                );
-                                sessionStorage.setItem(
-                                    'dashboardUuid',
-                                    dashboard?.uuid ?? '',
-                                );
-                                sessionStorage.setItem(
-                                    'unsavedDashboardTiles',
-                                    JSON.stringify(dashboardTiles),
-                                );
-                                if (
-                                    dashboardFilters.dimensions.length > 0 ||
-                                    dashboardFilters.metrics.length > 0
-                                ) {
-                                    sessionStorage.setItem(
-                                        'unsavedDashboardFilters',
-                                        JSON.stringify(dashboardFilters),
-                                    );
-                                }
-                                sessionStorage.setItem(
-                                    'hasDashboardChanges',
-                                    JSON.stringify(
-                                        haveTilesChanged || haveFiltersChanged,
-                                    ),
-                                );
-                                history.push(`/projects/${projectUuid}/tables`);
-                            }}
-                        />
-                        <MenuDivider />
+                        {isCreateChartInDashboardEnabled && (
+                            <>
+                                <MenuItem2
+                                    icon="series-add"
+                                    text={
+                                        <Group spacing="xxs">
+                                            <Text>New chart</Text>
+                                            <Tooltip label="Charts generated from here are exclusive to this dashboard">
+                                                <MantineIcon
+                                                    icon={IconInfoCircle}
+                                                    color="gray.6"
+                                                />
+                                            </Tooltip>
+                                        </Group>
+                                    }
+                                    onClick={() => {
+                                        sessionStorage.setItem(
+                                            'fromDashboard',
+                                            dashboard?.name ?? '',
+                                        );
+                                        sessionStorage.setItem(
+                                            'dashboardUuid',
+                                            dashboard?.uuid ?? '',
+                                        );
+                                        sessionStorage.setItem(
+                                            'unsavedDashboardTiles',
+                                            JSON.stringify(dashboardTiles),
+                                        );
+                                        if (
+                                            dashboardFilters.dimensions.length >
+                                                0 ||
+                                            dashboardFilters.metrics.length > 0
+                                        ) {
+                                            sessionStorage.setItem(
+                                                'unsavedDashboardFilters',
+                                                JSON.stringify(
+                                                    dashboardFilters,
+                                                ),
+                                            );
+                                        }
+                                        sessionStorage.setItem(
+                                            'hasDashboardChanges',
+                                            JSON.stringify(
+                                                haveTilesChanged ||
+                                                    haveFiltersChanged,
+                                            ),
+                                        );
+                                        history.push(
+                                            `/projects/${projectUuid}/tables`,
+                                        );
+                                    }}
+                                />
+                                <MenuDivider />
+                            </>
+                        )}
 
                         <MenuItem2
                             icon="new-text-box"
