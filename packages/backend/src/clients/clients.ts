@@ -1,7 +1,7 @@
 import { lightdashConfig } from '../config/lightdashConfig';
 import { schedulerModel, slackAuthenticationModel } from '../models/models';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
-import DbtCloudGraphqlClient from './DbtCloud/DbtCloudGraphqlClient';
+import DbtCloudGraphqlClient from './dbtCloud/DbtCloudGraphqlClient';
 import EmailClient from './EmailClient/EmailClient';
 import { GoogleDriveClient } from './Google/GoogleDriveClient';
 import { SlackClient } from './Slack/SlackClient';
