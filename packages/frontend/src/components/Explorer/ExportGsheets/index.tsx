@@ -1,11 +1,15 @@
-import { ApiScheduledDownloadCsv } from '@lightdash/common';
+import {
+    ApiDownloadCsv,
+    ApiError,
+    ApiScheduledDownloadCsv,
+} from '@lightdash/common';
 import { FC, memo, useCallback } from 'react';
-import { useMutation } from 'react-query';
+import { useMutation, useQuery } from 'react-query';
 
 import { Spinner } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { Button } from '@mantine/core';
-import { pollCsvFileUrl } from '../../../api/csv';
+import { getCsvFileUrl } from '../../../api/csv';
 import { useGdriveAccessToken } from '../../../hooks/gdrive/useGdrive';
 import useHealth from '../../../hooks/health/useHealth';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -28,39 +32,10 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
         const { showToastError, showToast } = useToaster();
 
         // TODO: move to own hook
-        const {
-            mutateAsync: exportGoogleSheet,
-            isLoading: isExportGoogleSheetLoading,
-        } = useMutation(
-            [`google-sheets-${context}`],
-            (params: ApiScheduledDownloadCsv) =>
-                params
-                    ? pollCsvFileUrl(params)
-                    : Promise.reject({
-                          error: new Error(
-                              "Couldn't create scheduler job for google sheets export",
-                          ),
-                      }),
-            {
-                onSuccess: (url) => {
-                    if (url) window.open(url, '_blank');
-                },
-                onSettled: () => {
-                    AppToaster.dismiss('exporting-gsheets');
-                },
-                onError: (error: { error: Error }) => {
-                    showToastError({
-                        title: `Unable to upload to Google Sheets`,
-                        subtitle: error?.error?.message,
-                    });
-                },
-            },
-        );
 
-        // TODO: move to own hook
         const {
             mutateAsync: startGoogleSheetExport,
-            isLoading: isStartGoogleSheetExportLoading,
+            data: startGoogleSheetExportData,
         } = useMutation(['google-sheets-start'], getGsheetLink, {
             onMutate: () => {
                 showToast({
@@ -76,9 +51,7 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
                     timeout: 0,
                 });
             },
-            onSuccess: (dataJobId) => {
-                exportGoogleSheet(dataJobId);
-            },
+
             onError: (error: { error: Error }) => {
                 showToastError({
                     title: `Unable to upload to Google Sheets`,
@@ -86,6 +59,35 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
                 });
             },
         });
+
+        const { data: exportGoogleSheetData } = useQuery<
+            ApiDownloadCsv | undefined,
+            ApiError
+        >({
+            queryKey: [`google-sheets-${context}`],
+            queryFn: () => getCsvFileUrl(startGoogleSheetExportData!),
+            refetchInterval: (data) => {
+                console.log({ data });
+
+                if (data?.url) return false;
+                return 2000;
+            },
+
+            onSuccess: (data) => {
+                if (data?.url) {
+                    window.open(data.url, '_blank');
+                    AppToaster.dismiss('exporting-gsheets');
+                }
+            },
+            refetchOnWindowFocus: false,
+            refetchOnMount: false,
+            enabled: !!startGoogleSheetExportData,
+        });
+
+        const buttonIsLoading =
+            !!startGoogleSheetExportData && !exportGoogleSheetData?.url;
+
+        // TODO: move to own hook
 
         const handleLoginAndExport = useCallback(() => {
             if (
@@ -139,10 +141,7 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
             <Button
                 size="xs"
                 variant="default"
-                loading={
-                    isStartGoogleSheetExportLoading ||
-                    isExportGoogleSheetLoading
-                }
+                loading={buttonIsLoading}
                 onClick={handleLoginAndExport}
             >
                 Google Sheets
