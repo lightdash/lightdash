@@ -316,6 +316,7 @@ const SqlRunnerPage = () => {
                     onPivotDimensionsChange={setPivotFields}
                     columnOrder={columnOrder}
                     explore={explore}
+                    isSqlRunner={true}
                 >
                     <CollapsableCard
                         title="Charts"

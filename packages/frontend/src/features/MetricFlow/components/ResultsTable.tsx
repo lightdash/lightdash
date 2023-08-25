@@ -37,7 +37,7 @@ const MetricFlowResultsTable: FC<{
                         show: true,
                     }}
                     footer={{
-                        show: true,
+                        show: false,
                     }}
                 />
             </Box>
