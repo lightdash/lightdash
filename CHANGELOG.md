@@ -1,3 +1,10 @@
+## [0.756.5](https://github.com/lightdash/lightdash/compare/0.756.4...0.756.5) (2023-08-25)
+
+
+### Bug Fixes
+
+* uneven spacing between add filters and filters in dashboard ([#6892](https://github.com/lightdash/lightdash/issues/6892)) ([9751fd7](https://github.com/lightdash/lightdash/commit/9751fd79f8b3bfe7e97091f4fd72397f4514cb8e))
+
 ## [0.756.4](https://github.com/lightdash/lightdash/compare/0.756.3...0.756.4) (2023-08-24)
 
 
