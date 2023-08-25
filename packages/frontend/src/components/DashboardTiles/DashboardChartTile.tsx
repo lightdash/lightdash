@@ -29,7 +29,7 @@ import {
 } from '@lightdash/common';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
-import { useHistory, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Text } from '@mantine/core';
@@ -266,7 +266,6 @@ interface DashboardChartTileMainProps
 const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const { showToastSuccess } = useToaster();
     const { track } = useTracking();
-    const history = useHistory();
     const {
         tile: {
             uuid: tileUuid,
@@ -506,7 +505,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                 'manage',
                                 'SavedChart',
                             ) && (
-                                <MenuItem2
+                                <LinkMenuItem
                                     icon="document-open"
                                     text="Edit chart"
                                     onClick={() => {
@@ -518,10 +517,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                             dashboard?.uuid,
                                             dashboard?.name,
                                         );
-                                        history.push(
-                                            `/projects/${projectUuid}/saved/${savedChartUuid}/edit?fromDashboard=${dashboardUuid}`,
-                                        );
                                     }}
+                                    href={`/projects/${projectUuid}/saved/${savedChartUuid}/edit?fromDashboard=${dashboardUuid}`}
                                 />
                             )}
 
