@@ -1,15 +1,15 @@
-import { Card, Flex } from '@mantine/core';
+import { Card, CardProps, Flex } from '@mantine/core';
 import { FC } from 'react';
 
 export const PAGE_HEADER_HEIGHT = 80;
 
-const PageHeader: FC = ({ children }) => (
+const PageHeader: FC<Pick<CardProps, 'h'>> = ({ h, children }) => (
     <Card
         component={Flex}
         justify="flex-end"
         align="center"
         pos="relative"
-        h={PAGE_HEADER_HEIGHT}
+        h={h ?? PAGE_HEADER_HEIGHT}
         px="lg"
         py="md"
         bg="white"

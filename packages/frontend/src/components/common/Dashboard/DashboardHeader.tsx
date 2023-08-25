@@ -121,7 +121,7 @@ const DashboardHeader = ({
     );
 
     return (
-        <PageHeader>
+        <PageHeader h="auto">
             <PageTitleAndDetailsContainer>
                 <PageTitleContainer className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
                     <PageTitle>{dashboardName}</PageTitle>
