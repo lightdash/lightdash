@@ -128,6 +128,7 @@ const Filter: FC<Props> = ({
                     >
                         <Button
                             size="xs"
+                            mr="xxs"
                             variant="default"
                             leftIcon={
                                 <MantineIcon color="blue" icon={IconFilter} />
