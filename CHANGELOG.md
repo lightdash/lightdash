@@ -1,3 +1,10 @@
+## [0.756.6](https://github.com/lightdash/lightdash/compare/0.756.5...0.756.6) (2023-08-25)
+
+
+### Bug Fixes
+
+* add an input for percentile in metrics ([#6860](https://github.com/lightdash/lightdash/issues/6860)) ([2e84871](https://github.com/lightdash/lightdash/commit/2e8487137e9bf4acd7493a829c61f8b2e834121a))
+
 ## [0.756.5](https://github.com/lightdash/lightdash/compare/0.756.4...0.756.5) (2023-08-25)
 
 
