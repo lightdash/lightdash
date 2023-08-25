@@ -4,6 +4,7 @@ export const useDashboardRefresh = (dashboardUuid: string) => {
     const queryClient = useQueryClient();
 
     const queriesToRefresh = [
+        { queryKey: ['queryResults'] },
         { queryKey: ['saved_query'] },
         { queryKey: ['saved_dashboard_query', dashboardUuid] },
         { queryKey: ['dashboards', 'availableFilters'] },
