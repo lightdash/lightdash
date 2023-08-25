@@ -50,8 +50,8 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
                     timeout: 0,
                 });
             },
-
             onError: (error: { error: Error }) => {
+                AppToaster.dismiss('exporting-gsheets');
                 showToastError({
                     title: `Unable to upload to Google Sheets`,
                     subtitle: error?.error?.message,
