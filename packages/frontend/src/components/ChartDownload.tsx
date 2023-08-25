@@ -12,12 +12,12 @@ import {
     ChartType,
     getCustomLabelsFromColumnProperties,
 } from '@lightdash/common';
-import { Button, Popover } from '@mantine/core';
-import { IconShare2 } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
 import React, { memo, RefObject, useCallback, useState } from 'react';
 
+import { Button, Popover } from '@mantine/core';
+import { IconShare2 } from '@tabler/icons-react';
 import useEcharts from '../hooks/echarts/useEcharts';
 import { useApp } from '../providers/AppProvider';
 import { Can } from './common/Authorization';
