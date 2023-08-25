@@ -2,12 +2,14 @@ import {
     ApiEmailStatusResponse,
     ApiErrorPayload,
     ApiGetAuthenticatedUserResponse,
+    ApiRegisterUserResponse,
     ApiSuccessEmpty,
     ApiUserAllowedOrganizationsResponse,
 } from '@lightdash/common';
 import { Controller, Delete, Query } from '@tsoa/runtime';
 import express from 'express';
 import {
+    Body,
     Get,
     Middlewares,
     OperationId,
@@ -47,6 +49,49 @@ export class UserController extends Controller {
             status: 'ok',
             results: UserModel.lightdashUserFromSession(req.user!),
         };
+    }
+
+    /**
+     * Register a new user with invite code
+     * @param req express request
+     * @param body
+     */
+    @Middlewares([unauthorisedInDemo])
+    @Post('/')
+    @OperationId('RegisterUserFromInvite')
+    async registerUserFromInvite(
+        @Request() req: express.Request,
+        @Body()
+        body: {
+            inviteCode: string;
+            firstName: string;
+            lastName: string;
+            password: string;
+        },
+    ): Promise<ApiRegisterUserResponse> {
+        const lightdashUser = await userService.activateUserFromInvite(
+            req.body.inviteCode,
+            {
+                firstName: body.firstName,
+                lastName: body.lastName,
+                password: body.password,
+            },
+        );
+        const sessionUser = await userModel.findSessionUserByUUID(
+            lightdashUser.userUuid,
+        );
+        return new Promise((resolve, reject) => {
+            req.login(sessionUser, (err) => {
+                if (err) {
+                    reject(err);
+                }
+                this.setStatus(200);
+                resolve({
+                    status: 'ok',
+                    results: lightdashUser,
+                });
+            });
+        });
     }
 
     /**

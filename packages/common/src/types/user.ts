@@ -90,3 +90,8 @@ export type ApiGetAuthenticatedUserResponse = {
     status: 'ok';
     results: LightdashUserWithAbilityRules;
 };
+
+export type ApiRegisterUserResponse = {
+    status: 'ok';
+    results: LightdashUser;
+};
