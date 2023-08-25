@@ -64,12 +64,18 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
             ApiError
         >({
             queryKey: [`google-sheets`],
-            queryFn: () => getCsvFileUrl(startGoogleSheetExportData!),
+            queryFn: () =>
+                startGoogleSheetExportData
+                    ? getCsvFileUrl(startGoogleSheetExportData)
+                    : Promise.reject({
+                          error: new Error(
+                              "Couldn't create scheduler job for google sheets export",
+                          ),
+                      }),
             refetchInterval: (data) => {
                 if (data?.url) return false;
                 return 2000;
             },
-
             onSuccess: (data) => {
                 if (data?.url) {
                     window.open(data.url, '_blank');
