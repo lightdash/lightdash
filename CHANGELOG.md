@@ -1,3 +1,10 @@
+# [0.758.0](https://github.com/lightdash/lightdash/compare/0.757.1...0.758.0) (2023-08-25)
+
+
+### Features
+
+* add refresh button to dashboard ([#6898](https://github.com/lightdash/lightdash/issues/6898)) ([9a31714](https://github.com/lightdash/lightdash/commit/9a317143ff81b2ec9939bef90953545316de4033))
+
 ## [0.757.1](https://github.com/lightdash/lightdash/compare/0.757.0...0.757.1) (2023-08-25)
 
 
