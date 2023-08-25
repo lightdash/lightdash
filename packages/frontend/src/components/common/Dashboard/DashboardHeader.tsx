@@ -236,6 +236,7 @@ const DashboardHeader = ({
                 <PageActionsContainer>
                     <Button
                         size="xs"
+                        disabled={isEditMode}
                         loading={isOneAtLeastFetching}
                         leftIcon={<MantineIcon icon={IconRefresh} />}
                         onClick={invalidateDashboardRelatedQueries}
