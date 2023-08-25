@@ -5,7 +5,6 @@ import {
     ActionIcon,
     Box,
     Button,
-    Flex,
     Popover,
     Stack,
     Text,
@@ -147,16 +146,11 @@ const DashboardHeader = ({
                                         {dashboardDescription}
                                     </Text>
                                 )}
-                                <Flex align="center" gap="xxs">
-                                    <MantineIcon
-                                        icon={IconPencil}
-                                        color="gray.6"
-                                    />
-                                    <UpdatedInfo
-                                        updatedAt={dashboardUpdatedAt}
-                                        user={dashboardUpdatedByUser}
-                                    />
-                                </Flex>
+
+                                <UpdatedInfo
+                                    updatedAt={dashboardUpdatedAt}
+                                    user={dashboardUpdatedByUser}
+                                />
 
                                 <ViewInfo
                                     views={dashboardViews}
