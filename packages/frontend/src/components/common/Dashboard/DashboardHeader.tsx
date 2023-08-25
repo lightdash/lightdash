@@ -236,25 +236,29 @@ const DashboardHeader = ({
                 <PageActionsContainer>
                     <Button
                         size="xs"
-                        disabled={isEditMode}
                         loading={isOneAtLeastFetching}
                         leftIcon={<MantineIcon icon={IconRefresh} />}
                         onClick={invalidateDashboardRelatedQueries}
                     >
                         Refresh
                     </Button>
-                    <Button
-                        size="xs"
-                        variant="default"
-                        leftIcon={<MantineIcon icon={IconPencil} />}
-                        onClick={() => {
-                            history.replace(
-                                `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
-                            );
-                        }}
+
+                    <Tooltip
+                        label="Edit dashboard"
+                        withinPortal
+                        position="bottom"
                     >
-                        Edit dashboard
-                    </Button>
+                        <ActionIcon
+                            variant="default"
+                            onClick={() => {
+                                history.replace(
+                                    `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+                                );
+                            }}
+                        >
+                            <MantineIcon icon={IconPencil} />
+                        </ActionIcon>
+                    </Tooltip>
 
                     <ShareLinkButton url={`${window.location.href}`} />
 
