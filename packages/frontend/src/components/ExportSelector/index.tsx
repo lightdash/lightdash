@@ -9,9 +9,8 @@ import ExportCSV, { ExportCSVProps } from '../ExportCSV';
 const ExportSelector: FC<
     ExportCSVProps & {
         getGsheetLink?: () => Promise<ApiScheduledDownloadCsv>;
-        context: 'dashboard' | 'chart' | 'results';
     }
-> = memo(({ rows, getCsvLink, getGsheetLink, context }) => {
+> = memo(({ rows, getCsvLink, getGsheetLink }) => {
     const health = useHealth();
     const hasGoogleDrive =
         health.data?.auth.google.oauth2ClientId !== undefined &&
@@ -44,10 +43,7 @@ const ExportSelector: FC<
                 >
                     csv
                 </Button>
-                <ExportGsheets
-                    getGsheetLink={getGsheetLink}
-                    context={context}
-                />
+                <ExportGsheets getGsheetLink={getGsheetLink} />
             </Stack>
         );
     }

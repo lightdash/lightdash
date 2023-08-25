@@ -261,7 +261,6 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
 
                     <Popover.Dropdown>
                         <ExportSelector
-                            context="chart"
                             rows={resultsData?.rows}
                             getCsvLink={async (
                                 limit: number | null,

@@ -18,11 +18,10 @@ import { AppToaster } from '../../AppToaster';
 export type ExportGsheetProps = {
     getGsheetLink: () => Promise<ApiScheduledDownloadCsv>;
     asMenuItem?: boolean;
-    context: 'dashboard' | 'chart' | 'results';
 };
 
 const ExportGsheets: FC<ExportGsheetProps> = memo(
-    ({ getGsheetLink, asMenuItem, context }) => {
+    ({ getGsheetLink, asMenuItem }) => {
         const { data: gdriveAuth, refetch } = useGdriveAccessToken();
         const health = useHealth();
         const hasGoogleDrive =
@@ -64,7 +63,7 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
             ApiDownloadCsv | undefined,
             ApiError
         >({
-            queryKey: [`google-sheets-${context}`],
+            queryKey: [`google-sheets`],
             queryFn: () => getCsvFileUrl(startGoogleSheetExportData!),
             refetchInterval: (data) => {
                 if (data?.url) return false;
