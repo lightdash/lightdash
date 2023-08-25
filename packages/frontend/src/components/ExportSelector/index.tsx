@@ -7,7 +7,9 @@ import ExportGsheets from '../Explorer/ExportGsheets';
 import ExportCSV, { ExportCSVProps } from '../ExportCSV';
 
 const ExportSelector: FC<
-    ExportCSVProps & { getGsheetLink?: () => Promise<ApiScheduledDownloadCsv> }
+    ExportCSVProps & {
+        getGsheetLink?: () => Promise<ApiScheduledDownloadCsv>;
+    }
 > = memo(({ rows, getCsvLink, getGsheetLink }) => {
     const health = useHealth();
     const hasGoogleDrive =
@@ -33,8 +35,12 @@ const ExportSelector: FC<
         );
     } else if (hasGoogleDrive && getGsheetLink) {
         return (
-            <Stack>
-                <Button variant="subtle" onClick={() => setExportType('csv')}>
+            <Stack spacing="xs">
+                <Button
+                    size="xs"
+                    variant="default"
+                    onClick={() => setExportType('csv')}
+                >
                     csv
                 </Button>
                 <ExportGsheets getGsheetLink={getGsheetLink} />

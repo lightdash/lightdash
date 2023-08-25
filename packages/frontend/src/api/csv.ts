@@ -43,39 +43,30 @@ export const downloadCsv = async ({
         }),
     });
 };
-
-const getCsvFileUrl = async (
-    { jobId }: ApiScheduledDownloadCsv,
-    onSuccess: (data: string) => void,
-    onError: (error: Error) => void,
-) => {
+export const getCsvFileUrl = async ({ jobId }: ApiScheduledDownloadCsv) =>
     lightdashApi<ApiDownloadCsv>({
         url: `/csv/${jobId}`,
         method: 'GET',
         body: undefined,
-    })
-        .then((data) => {
-            if (data.url) {
-                return onSuccess(data.url);
-            } else {
-                setTimeout(
-                    () => getCsvFileUrl({ jobId }, onSuccess, onError),
-                    2000,
-                );
-            }
-        })
-        .catch((error) => {
-            return onError(error);
-        });
-};
+    });
 
 export const pollCsvFileUrl = async ({ jobId }: ApiScheduledDownloadCsv) =>
     new Promise<string>((resolve, reject) => {
-        getCsvFileUrl(
-            { jobId },
-            (url) => resolve(url),
-            (error) => reject(error),
-        );
+        const poll = () => {
+            getCsvFileUrl({ jobId })
+                .then((data) => {
+                    if (data.url) {
+                        resolve(data.url);
+                    } else {
+                        setTimeout(poll, 2000);
+                    }
+                })
+                .catch((error) => {
+                    reject(error);
+                });
+        };
+
+        poll();
     });
 
 export const downloadCsvFromSqlRunner = async ({
