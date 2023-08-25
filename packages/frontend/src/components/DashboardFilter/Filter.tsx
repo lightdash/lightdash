@@ -42,6 +42,7 @@ const Filter: FC<Props> = ({
         allFilterableFields,
         filterableFieldsByTileUuid,
         isLoadingDashboardFilters,
+        isFetchingDashboardFilters,
     } = useDashboardContext();
 
     const [isPopoverOpen, { close: closePopover, toggle: togglePopover }] =
@@ -134,7 +135,10 @@ const Filter: FC<Props> = ({
                                 <MantineIcon color="blue" icon={IconFilter} />
                             }
                             disabled={!allFilterableFields}
-                            loading={isLoadingDashboardFilters}
+                            loading={
+                                isLoadingDashboardFilters ||
+                                isFetchingDashboardFilters
+                            }
                             onClick={togglePopover}
                         >
                             Add filter

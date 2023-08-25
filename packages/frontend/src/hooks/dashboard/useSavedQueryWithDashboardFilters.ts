@@ -14,6 +14,7 @@ const useSavedQueryWithDashboardFilters = (
     const {
         data: savedQuery,
         isLoading,
+        isFetching,
         isError,
     } = useSavedQuery({
         id: savedChartUuid || undefined,
@@ -43,11 +44,17 @@ const useSavedQueryWithDashboardFilters = (
         };
     }
 
-    if (isLoading || isLoadingExplore || !savedQuery || !explore) {
+    if (
+        isLoading ||
+        isFetching ||
+        isLoadingExplore ||
+        !savedQuery ||
+        !explore
+    ) {
         return {
             data: undefined,
             dashboardFilters: undefined,
-            isLoading,
+            isLoading: isLoading || isFetching,
             isError,
         };
     }

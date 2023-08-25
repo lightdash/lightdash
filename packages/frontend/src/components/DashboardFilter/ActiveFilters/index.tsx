@@ -16,9 +16,10 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
         removeDimensionDashboardFilter,
         allFilterableFields,
         isLoadingDashboardFilters,
+        isFetchingDashboardFilters,
     } = useDashboardContext();
 
-    if (isLoadingDashboardFilters) {
+    if (isLoadingDashboardFilters || isFetchingDashboardFilters) {
         return (
             <Group spacing="xs" ml="xs">
                 <Skeleton h={30} w={100} radius={4} />

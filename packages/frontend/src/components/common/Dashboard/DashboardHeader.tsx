@@ -18,6 +18,7 @@ import {
     IconInfoCircle,
     IconPencil,
     IconPlus,
+    IconRefresh,
     IconSend,
     IconTrash,
     IconUpload,
@@ -25,6 +26,7 @@ import {
 import { useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
+import { useDashboardRefresh } from '../../../hooks/dashboard/useDashboardRefresh';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -94,6 +96,8 @@ const DashboardHeader = ({
         projectUuid: string;
         dashboardUuid: string;
     }>();
+    const { isOneAtLeastFetching, invalidateDashboardRelatedQueries } =
+        useDashboardRefresh(dashboardUuid);
     const history = useHistory();
     const { track } = useTracking();
     const [isUpdating, setIsUpdating] = useState(false);
@@ -226,15 +230,29 @@ const DashboardHeader = ({
                 <PageActionsContainer>
                     <Button
                         size="xs"
-                        leftIcon={<MantineIcon icon={IconPencil} />}
-                        onClick={() => {
-                            history.replace(
-                                `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
-                            );
-                        }}
+                        loading={isOneAtLeastFetching}
+                        leftIcon={<MantineIcon icon={IconRefresh} />}
+                        onClick={invalidateDashboardRelatedQueries}
                     >
-                        Edit dashboard
+                        Refresh
                     </Button>
+
+                    <Tooltip
+                        label="Edit dashboard"
+                        withinPortal
+                        position="bottom"
+                    >
+                        <ActionIcon
+                            variant="default"
+                            onClick={() => {
+                                history.replace(
+                                    `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+                                );
+                            }}
+                        >
+                            <MantineIcon icon={IconPencil} />
+                        </ActionIcon>
+                    </Tooltip>
 
                     <ShareLinkButton url={`${window.location.href}`} />
 
