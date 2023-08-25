@@ -1,7 +1,15 @@
 import { subject } from '@casl/ability';
-import { ActionIcon, Flex, Group, Stack, Text, Title } from '@mantine/core';
-import { IconRefresh } from '@tabler/icons-react';
-import React, { useCallback, useMemo, useState } from 'react';
+import {
+    ActionIcon,
+    Flex,
+    Group,
+    Stack,
+    Text,
+    Title,
+    Tooltip,
+} from '@mantine/core';
+import { IconRefresh, IconTrashX } from '@tabler/icons-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChartDownloadMenu } from '../components/ChartDownload';
 import CollapsableCard from '../components/common/CollapsableCard';
 import Page from '../components/common/Page/Page';
@@ -22,6 +30,7 @@ import useSqlQueryVisualizationState from '../features/MetricFlow/hooks/useMetri
 import convertFieldMapToTableColumns from '../features/MetricFlow/utils/convertFieldMapToTableColumns';
 import convertMetricFlowFieldsToExplore from '../features/MetricFlow/utils/convertMetricFlowFieldsToExplore';
 import convertMetricFlowQueryResultsToResultsData from '../features/MetricFlow/utils/convertMetricFlowQueryResultsToResultsData';
+import useToaster from '../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
@@ -31,6 +40,7 @@ import { SectionName } from '../types/Events';
 const MOCK_TABLE_NAME = 'metricflow';
 
 const MetricFlowPage = () => {
+    const { showToastError } = useToaster();
     const { user } = useApp();
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
@@ -48,6 +58,15 @@ const MetricFlowPage = () => {
         activeProjectUuid,
         metricFlowQuery.data?.createQuery.queryId,
     );
+
+    useEffect(() => {
+        if (metricFlowQueryResultsQuery.error) {
+            showToastError({
+                title: 'Error running query',
+                subtitle: metricFlowQueryResultsQuery.error.error.message,
+            });
+        }
+    }, [metricFlowQueryResultsQuery.error, showToastError]);
 
     const explore = useMemo(() => {
         if (!metricFlowFieldsQuery.data) {
@@ -136,15 +155,33 @@ const MetricFlowPage = () => {
                         <PageBreadcrumbs
                             items={[{ title: 'MetricFlow', active: true }]}
                         />
-                        <ActionIcon
-                            size="sm"
-                            variant="outline"
-                            loading={metricFlowFieldsQuery.isFetching}
-                            disabled={metricFlowFieldsQuery.isFetching}
-                            onClick={() => metricFlowFieldsQuery.refetch()}
-                        >
-                            <IconRefresh />
-                        </ActionIcon>
+                        <Flex gap="xs">
+                            <Tooltip label={'Refetch fields'}>
+                                <ActionIcon
+                                    size="sm"
+                                    variant="outline"
+                                    loading={metricFlowFieldsQuery.isFetching}
+                                    disabled={metricFlowFieldsQuery.isFetching}
+                                    onClick={() =>
+                                        metricFlowFieldsQuery.refetch()
+                                    }
+                                >
+                                    <IconRefresh />
+                                </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label={'Clear selected fields'}>
+                                <ActionIcon
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                        setSelectedMetrics([]);
+                                        setSelectedDimensions([]);
+                                    }}
+                                >
+                                    <IconTrashX />
+                                </ActionIcon>
+                            </Tooltip>
+                        </Flex>
                     </Group>
                     <Stack mah="100%">
                         <Flex align="baseline" gap="xxs">
