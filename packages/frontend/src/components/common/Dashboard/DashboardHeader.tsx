@@ -1,7 +1,16 @@
 import { Classes, Divider, Menu } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { Dashboard, SpaceSummary, UpdatedByUser } from '@lightdash/common';
-import { ActionIcon, Box, Button, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Button,
+    Flex,
+    Popover,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import {
     IconCheck,
     IconCopy,
@@ -29,11 +38,9 @@ import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import PageHeader from '../Page/PageHeader';
 import {
     PageActionsContainer,
-    PageDetailsContainer,
     PageTitle,
     PageTitleAndDetailsContainer,
     PageTitleContainer,
-    SeparatorDot,
 } from '../PageHeader';
 import SpaceAndDashboardInfo from '../PageHeader/SpaceAndDashboardInfo';
 import { UpdatedInfo } from '../PageHeader/UpdatedInfo';
@@ -119,11 +126,54 @@ const DashboardHeader = ({
                 <PageTitleContainer className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
                     <PageTitle>{dashboardName}</PageTitle>
 
-                    {dashboardDescription && (
-                        <Tooltip label={dashboardDescription} position="bottom">
-                            <MantineIcon icon={IconInfoCircle} />
-                        </Tooltip>
-                    )}
+                    <Popover
+                        withinPortal
+                        withArrow
+                        offset={{
+                            mainAxis: -2,
+                            crossAxis: 6,
+                        }}
+                    >
+                        <Popover.Target>
+                            <ActionIcon color="dark">
+                                <MantineIcon icon={IconInfoCircle} />
+                            </ActionIcon>
+                        </Popover.Target>
+
+                        <Popover.Dropdown>
+                            <Stack spacing="xs">
+                                {dashboardDescription && (
+                                    <Text fz="xs" color="gray.7" fw={500}>
+                                        {dashboardDescription}
+                                    </Text>
+                                )}
+                                <Flex align="center" gap="xxs">
+                                    <MantineIcon
+                                        icon={IconPencil}
+                                        color="gray.6"
+                                    />
+                                    <UpdatedInfo
+                                        updatedAt={dashboardUpdatedAt}
+                                        user={dashboardUpdatedByUser}
+                                    />
+                                </Flex>
+
+                                <ViewInfo
+                                    views={dashboardViews}
+                                    firstViewedAt={dashboardFirstViewedAt}
+                                />
+
+                                {dashboardSpaceName && (
+                                    <SpaceAndDashboardInfo
+                                        space={{
+                                            link: `/projects/${projectUuid}/spaces/${dashboardSpaceUuid}`,
+                                            name: dashboardSpaceName,
+                                        }}
+                                    />
+                                )}
+                            </Stack>
+                        </Popover.Dropdown>
+                    </Popover>
 
                     {isEditMode && userCanManageDashboard && (
                         <ActionIcon
@@ -144,33 +194,6 @@ const DashboardHeader = ({
                         />
                     )}
                 </PageTitleContainer>
-
-                <PageDetailsContainer>
-                    <UpdatedInfo
-                        updatedAt={dashboardUpdatedAt}
-                        user={dashboardUpdatedByUser}
-                    />
-
-                    <SeparatorDot icon="dot" size={6} />
-
-                    <ViewInfo
-                        views={dashboardViews}
-                        firstViewedAt={dashboardFirstViewedAt}
-                    />
-
-                    {dashboardSpaceName && (
-                        <>
-                            <SeparatorDot icon="dot" size={6} />
-
-                            <SpaceAndDashboardInfo
-                                space={{
-                                    link: `/projects/${projectUuid}/spaces/${dashboardSpaceUuid}`,
-                                    name: dashboardSpaceName,
-                                }}
-                            />
-                        </>
-                    )}
-                </PageDetailsContainer>
             </PageTitleAndDetailsContainer>
             {userCanManageDashboard && isEditMode ? (
                 <PageActionsContainer>
