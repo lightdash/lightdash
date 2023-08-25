@@ -269,7 +269,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const {
         tile: {
             uuid: tileUuid,
-            properties: { savedChartUuid, hideTitle, title },
+            properties: {
+                savedChartUuid,
+                hideTitle,
+                title,
+                belongsToDashboard,
+            },
         },
         isEditMode,
     } = props;
@@ -509,14 +514,16 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     icon="document-open"
                                     text="Edit chart"
                                     onClick={() => {
-                                        storeDashboard(
-                                            dashboardTiles,
-                                            filtersFromCOntext,
-                                            haveTilesChanged,
-                                            haveFiltersChanged,
-                                            dashboard?.uuid,
-                                            dashboard?.name,
-                                        );
+                                        if (belongsToDashboard) {
+                                            storeDashboard(
+                                                dashboardTiles,
+                                                filtersFromCOntext,
+                                                haveTilesChanged,
+                                                haveFiltersChanged,
+                                                dashboard?.uuid,
+                                                dashboard?.name,
+                                            );
+                                        }
                                     }}
                                     href={`/projects/${projectUuid}/saved/${savedChartUuid}/edit?fromDashboard=${dashboardUuid}`}
                                 />
