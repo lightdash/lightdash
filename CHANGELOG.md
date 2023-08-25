@@ -1,3 +1,10 @@
+# [0.757.0](https://github.com/lightdash/lightdash/compare/0.756.6...0.757.0) (2023-08-25)
+
+
+### Features
+
+* move dashboard details to popover ([#6894](https://github.com/lightdash/lightdash/issues/6894)) ([fb0f641](https://github.com/lightdash/lightdash/commit/fb0f64191ea8a8abef739737656790fd120bd62f))
+
 ## [0.756.6](https://github.com/lightdash/lightdash/compare/0.756.5...0.756.6) (2023-08-25)
 
 
