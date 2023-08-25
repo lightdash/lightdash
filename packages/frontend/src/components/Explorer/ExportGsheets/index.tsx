@@ -35,6 +35,7 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
         const {
             mutateAsync: startGoogleSheetExport,
             data: startGoogleSheetExportData,
+            reset: resetStartGoogleSheetExport,
         } = useMutation(['google-sheets-start'], getGsheetLink, {
             onMutate: () => {
                 showToast({
@@ -72,6 +73,16 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
                               "Couldn't create scheduler job for google sheets export",
                           ),
                       }),
+            retry: (failureCount) => {
+                if (failureCount === 5) {
+                    resetStartGoogleSheetExport();
+                    showToastError({
+                        title: 'Unable to export to Google Sheets',
+                    });
+                    return false;
+                }
+                return true;
+            },
             refetchInterval: (data) => {
                 if (data?.url) return false;
                 return 2000;
@@ -81,6 +92,9 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
                     window.open(data.url, '_blank');
                     AppToaster.dismiss('exporting-gsheets');
                 }
+            },
+            onError: () => {
+                AppToaster.dismiss('exporting-gsheets');
             },
             refetchOnWindowFocus: false,
             refetchOnMount: false,
