@@ -45,6 +45,7 @@ import { SearchResults } from './types/search';
 import { ShareUrl } from './types/share';
 import { SlackSettings } from './types/slackSettings';
 
+import { Email } from './types/api/email';
 import { EmailStatusExpiring } from './types/email';
 import { FieldValueSearchResult } from './types/fieldMatch';
 import {
@@ -392,21 +393,29 @@ export type ActivateUser = {
 export type CreateUserArgs = {
     firstName: string;
     lastName: string;
-    email: string;
-    password?: string;
+    email: Email;
+    password: string;
 };
 
 export type CreateUserWithRole = {
     firstName: string;
     lastName: string;
-    email: string;
+    email: Email;
     password?: string;
     role: OrganizationMemberRole;
 };
 
-export type CreateOrganizationUser = CreateUserArgs & {
+export type ActivateUserWithInviteCode = ActivateUser & {
     inviteCode: string;
 };
+
+export type RegisterOrActivateUser =
+    | ActivateUserWithInviteCode
+    | CreateUserArgs;
+
+export const hasInviteCode = (
+    data: RegisterOrActivateUser,
+): data is ActivateUserWithInviteCode => 'inviteCode' in data;
 
 export type CompleteUserArgs = {
     organizationName?: string;

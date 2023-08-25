@@ -1,8 +1,3 @@
-import {
-    getPasswordSchema,
-    ParameterError,
-    validatePassword,
-} from '@lightdash/common';
 import express from 'express';
 import passport from 'passport';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -10,12 +5,9 @@ import {
     redirectOIDCFailure,
     redirectOIDCSuccess,
     storeOIDCRedirect,
-    unauthorisedInDemo,
 } from '../controllers/authentication';
-import { userModel } from '../models/models';
 import { UserModel } from '../models/UserModel';
 import { healthService, userService } from '../services/services';
-import { sanitizeEmailParam, sanitizeStringParam } from '../utils';
 import { analyticsRouter } from './analyticsRouter';
 import { dashboardRouter } from './dashboardRouter';
 import { headlessBrowserRouter } from './headlessBrowser';
@@ -53,35 +45,6 @@ apiV1Router.get('/flash', (req, res) => {
         status: 'ok',
         results: req.flash(),
     });
-});
-
-apiV1Router.post('/register', unauthorisedInDemo, async (req, res, next) => {
-    try {
-        if (req.body.password && !validatePassword(req.body.password)) {
-            next(new ParameterError('Password does not meet requirements'));
-            return;
-        }
-        const lightdashUser = await userService.registerUser({
-            firstName: sanitizeStringParam(req.body.firstName),
-            lastName: sanitizeStringParam(req.body.lastName),
-            email: sanitizeEmailParam(req.body.email),
-            password: sanitizeStringParam(req.body.password),
-        });
-        const sessionUser = await userModel.findSessionUserByUUID(
-            lightdashUser.userUuid,
-        );
-        req.login(sessionUser, (err) => {
-            if (err) {
-                next(err);
-            }
-            res.json({
-                status: 'ok',
-                results: lightdashUser,
-            });
-        });
-    } catch (e) {
-        next(e);
-    }
 });
 
 apiV1Router.post('/login', passport.authenticate('local'), (req, res, next) => {

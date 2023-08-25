@@ -5,6 +5,9 @@ import {
     ApiRegisterUserResponse,
     ApiSuccessEmpty,
     ApiUserAllowedOrganizationsResponse,
+    ParameterError,
+    RegisterOrActivateUser,
+    validatePassword,
 } from '@lightdash/common';
 import { Controller, Delete, Query } from '@tsoa/runtime';
 import express from 'express';
@@ -52,34 +55,24 @@ export class UserController extends Controller {
     }
 
     /**
-     * Register a new user with invite code
+     * Register user
      * @param req express request
      * @param body
      */
     @Middlewares([unauthorisedInDemo])
     @Post('/')
-    @OperationId('RegisterUserFromInvite')
-    async registerUserFromInvite(
+    @OperationId('RegisterUser')
+    async registerUser(
         @Request() req: express.Request,
         @Body()
-        body: {
-            inviteCode: string;
-            firstName: string;
-            lastName: string;
-            password: string;
-        },
+        body: RegisterOrActivateUser,
     ): Promise<ApiRegisterUserResponse> {
-        const lightdashUser = await userService.activateUserFromInvite(
-            req.body.inviteCode,
-            {
-                firstName: body.firstName,
-                lastName: body.lastName,
-                password: body.password,
-            },
-        );
-        const sessionUser = await userModel.findSessionUserByUUID(
-            lightdashUser.userUuid,
-        );
+        if (!validatePassword(req.body.password)) {
+            throw new ParameterError(
+                'Password must contain at least 8 characters, 1 letter and 1 number or 1 special character',
+            );
+        }
+        const sessionUser = await userService.registerOrActivateUser(body);
         return new Promise((resolve, reject) => {
             req.login(sessionUser, (err) => {
                 if (err) {
@@ -88,7 +81,7 @@ export class UserController extends Controller {
                 this.setStatus(200);
                 resolve({
                     status: 'ok',
-                    results: lightdashUser,
+                    results: sessionUser,
                 });
             });
         });
