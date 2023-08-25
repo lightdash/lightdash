@@ -31,7 +31,6 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
         const { showToastError, showToast } = useToaster();
 
         // TODO: move to own hook
-
         const {
             mutateAsync: startGoogleSheetExport,
             data: startGoogleSheetExportData,
@@ -59,7 +58,7 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
                 });
             },
         });
-
+        // TODO: move to own hook
         const { data: exportGoogleSheetData } = useQuery<
             ApiDownloadCsv | undefined,
             ApiError
@@ -103,8 +102,6 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
 
         const buttonIsLoading =
             !!startGoogleSheetExportData && !exportGoogleSheetData?.url;
-
-        // TODO: move to own hook
 
         const handleLoginAndExport = useCallback(() => {
             if (
