@@ -25,6 +25,7 @@ export interface AdditionalMetric {
     filters?: MetricFilterRule[];
     baseDimensionName?: string;
     uuid?: string | null;
+    percentile?: number;
 }
 
 export const isAdditionalMetric = (value: any): value is AdditionalMetric =>

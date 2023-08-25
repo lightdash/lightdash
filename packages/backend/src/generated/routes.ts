@@ -454,6 +454,7 @@ const models: TsoaRoute.Models = {
                     { dataType: 'enum', enums: [null] },
                 ],
             },
+            percentile: { dataType: 'double' },
         },
         additionalProperties: false,
     },
