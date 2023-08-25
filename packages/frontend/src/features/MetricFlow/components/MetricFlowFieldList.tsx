@@ -1,3 +1,4 @@
+import { friendlyName } from '@lightdash/common';
 import { NavLink } from '@mantine/core';
 import React, { FC } from 'react';
 import { GetMetricFlowFieldsResponse } from '../../../api/MetricFlowAPI';
@@ -24,7 +25,7 @@ const MetricFlowFieldList: FC<Props> = ({
                     key={field.name}
                     active={selectedFields.includes(field.name)}
                     icon={<MetricFlowFieldIcon type={field.type} size="lg" />}
-                    label={field.name}
+                    label={friendlyName(field.name)}
                     description={field.description}
                     onClick={() => onClick(field.name)}
                 />
