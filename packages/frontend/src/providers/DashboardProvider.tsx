@@ -47,6 +47,7 @@ type DashboardContext = {
     dashboardTemporaryFilters: DashboardFilters;
     allFilters: DashboardFilters;
     isLoadingDashboardFilters: boolean;
+    isFetchingDashboardFilters: boolean;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     setDashboardTemporaryFilters: Dispatch<SetStateAction<DashboardFilters>>;
     addDimensionDashboardFilter: (
@@ -98,6 +99,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
 
     const {
         isLoading: isLoadingDashboardFilters,
+        isFetching: isFetchingDashboardFilters,
         data: filterableFieldsBySavedQueryUuid,
     } = useDashboardsAvailableFilters(tileSavedChartUuids);
 
@@ -363,6 +365,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
         allFilterableFields,
         filterableFieldsBySavedQueryUuid,
         isLoadingDashboardFilters,
+        isFetchingDashboardFilters,
         filterableFieldsByTileUuid,
         allFilters,
         hasChartTiles,
