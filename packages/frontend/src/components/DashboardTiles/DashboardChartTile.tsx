@@ -29,13 +29,14 @@ import {
 } from '@lightdash/common';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
-import { useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Text } from '@mantine/core';
 import { IconFolders } from '@tabler/icons-react';
 import { downloadCsv } from '../../api/csv';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
+import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import useSavedQueryWithDashboardFilters from '../../hooks/dashboard/useSavedQueryWithDashboardFilters';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
@@ -265,6 +266,7 @@ interface DashboardChartTileMainProps
 const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const { showToastSuccess } = useToaster();
     const { track } = useTracking();
+    const history = useHistory();
     const {
         tile: {
             uuid: tileUuid,
@@ -283,8 +285,19 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const { data: explore, isLoading: isLoadingExplore } = useExplore(
         savedQuery?.tableName,
     );
-    const { addDimensionDashboardFilter, setDashboardTiles } =
-        useDashboardContext();
+
+    const {
+        addDimensionDashboardFilter,
+        setDashboardTiles,
+        dashboardTiles,
+        dashboardFilters: filtersFromCOntext,
+        haveTilesChanged,
+        haveFiltersChanged,
+        dashboard,
+    } = useDashboardContext();
+
+    const { storeDashboard } = useDashboardStorage();
+
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -493,10 +506,22 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                 'manage',
                                 'SavedChart',
                             ) && (
-                                <LinkMenuItem
+                                <MenuItem2
                                     icon="document-open"
                                     text="Edit chart"
-                                    href={`/projects/${projectUuid}/saved/${savedChartUuid}/edit?fromDashboard=${dashboardUuid}`}
+                                    onClick={() => {
+                                        storeDashboard(
+                                            dashboardTiles,
+                                            filtersFromCOntext,
+                                            haveTilesChanged,
+                                            haveFiltersChanged,
+                                            dashboard?.uuid,
+                                            dashboard?.name,
+                                        );
+                                        history.push(
+                                            `/projects/${projectUuid}/saved/${savedChartUuid}/edit?fromDashboard=${dashboardUuid}`,
+                                        );
+                                    }}
                                 />
                             )}
 
