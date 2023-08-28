@@ -6,6 +6,7 @@ import { useLocalStorage } from '@mantine/hooks';
 import { IconInfoCircle, IconPlus } from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
+import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import MantineIcon from '../common/MantineIcon';
 import AddChartTilesModal from './TileForms/AddChartTilesModal';
@@ -30,6 +31,18 @@ const AddTileButton: FC<Props> = ({
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
+
+    const {
+        dashboardTiles,
+        dashboardFilters,
+        haveTilesChanged,
+        haveFiltersChanged,
+        dashboard,
+    } = useDashboardContext();
+
+    const { storeDashboard } = useDashboardStorage();
+    const history = useHistory();
+
     const onAddTile = useCallback(
         (tile: Dashboard['tiles'][number]) => {
             onAddTiles([tile]);
@@ -39,14 +52,6 @@ const AddTileButton: FC<Props> = ({
     const { projectUuid } = useParams<{
         projectUuid: string;
     }>();
-    const {
-        dashboard,
-        dashboardTiles,
-        dashboardFilters,
-        haveTilesChanged,
-        haveFiltersChanged,
-    } = useDashboardContext();
-    const history = useHistory();
 
     return (
         <>
@@ -78,36 +83,13 @@ const AddTileButton: FC<Props> = ({
                                         </Group>
                                     }
                                     onClick={() => {
-                                        sessionStorage.setItem(
-                                            'fromDashboard',
-                                            dashboard?.name ?? '',
-                                        );
-                                        sessionStorage.setItem(
-                                            'dashboardUuid',
-                                            dashboard?.uuid ?? '',
-                                        );
-                                        sessionStorage.setItem(
-                                            'unsavedDashboardTiles',
-                                            JSON.stringify(dashboardTiles),
-                                        );
-                                        if (
-                                            dashboardFilters.dimensions.length >
-                                                0 ||
-                                            dashboardFilters.metrics.length > 0
-                                        ) {
-                                            sessionStorage.setItem(
-                                                'unsavedDashboardFilters',
-                                                JSON.stringify(
-                                                    dashboardFilters,
-                                                ),
-                                            );
-                                        }
-                                        sessionStorage.setItem(
-                                            'hasDashboardChanges',
-                                            JSON.stringify(
-                                                haveTilesChanged ||
-                                                    haveFiltersChanged,
-                                            ),
+                                        storeDashboard(
+                                            dashboardTiles,
+                                            dashboardFilters,
+                                            haveTilesChanged,
+                                            haveFiltersChanged,
+                                            dashboard?.uuid,
+                                            dashboard?.name,
                                         );
                                         history.push(
                                             `/projects/${projectUuid}/tables`,

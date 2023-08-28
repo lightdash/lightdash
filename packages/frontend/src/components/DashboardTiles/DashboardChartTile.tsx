@@ -36,6 +36,7 @@ import { Text } from '@mantine/core';
 import { IconFolders } from '@tabler/icons-react';
 import { downloadCsv } from '../../api/csv';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
+import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import useSavedQueryWithDashboardFilters from '../../hooks/dashboard/useSavedQueryWithDashboardFilters';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
@@ -268,7 +269,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const {
         tile: {
             uuid: tileUuid,
-            properties: { savedChartUuid, hideTitle, title },
+            properties: {
+                savedChartUuid,
+                hideTitle,
+                title,
+                belongsToDashboard,
+            },
         },
         isEditMode,
     } = props;
@@ -283,8 +289,19 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const { data: explore, isLoading: isLoadingExplore } = useExplore(
         savedQuery?.tableName,
     );
-    const { addDimensionDashboardFilter, setDashboardTiles } =
-        useDashboardContext();
+
+    const {
+        addDimensionDashboardFilter,
+        setDashboardTiles,
+        dashboardTiles,
+        dashboardFilters: filtersFromCOntext,
+        haveTilesChanged,
+        haveFiltersChanged,
+        dashboard,
+    } = useDashboardContext();
+
+    const { storeDashboard } = useDashboardStorage();
+
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -496,6 +513,18 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                 <LinkMenuItem
                                     icon="document-open"
                                     text="Edit chart"
+                                    onClick={() => {
+                                        if (belongsToDashboard) {
+                                            storeDashboard(
+                                                dashboardTiles,
+                                                filtersFromCOntext,
+                                                haveTilesChanged,
+                                                haveFiltersChanged,
+                                                dashboard?.uuid,
+                                                dashboard?.name,
+                                            );
+                                        }
+                                    }}
                                     href={`/projects/${projectUuid}/saved/${savedChartUuid}/edit?fromDashboard=${dashboardUuid}`}
                                 />
                             )}
