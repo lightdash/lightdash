@@ -1,3 +1,10 @@
+## [0.758.2](https://github.com/lightdash/lightdash/compare/0.758.1...0.758.2) (2023-08-28)
+
+
+### Bug Fixes
+
+* dashboard crash on refresh ([#6908](https://github.com/lightdash/lightdash/issues/6908)) ([591f2b1](https://github.com/lightdash/lightdash/commit/591f2b183f9ee8249d1acdea1726f2d59a8176a0))
+
 ## [0.758.1](https://github.com/lightdash/lightdash/compare/0.758.0...0.758.1) (2023-08-28)
 
 
