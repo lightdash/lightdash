@@ -1,3 +1,10 @@
+## [0.758.1](https://github.com/lightdash/lightdash/compare/0.758.0...0.758.1) (2023-08-28)
+
+
+### Bug Fixes
+
+* editing an in-dashboard chart loses the chart ([#6903](https://github.com/lightdash/lightdash/issues/6903)) ([dbf6831](https://github.com/lightdash/lightdash/commit/dbf6831e5d96ec9df09cfe1daeed5e98ebeb532b))
+
 # [0.758.0](https://github.com/lightdash/lightdash/compare/0.757.1...0.758.0) (2023-08-25)
 
 
