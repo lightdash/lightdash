@@ -93,7 +93,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                         popoverProps?.onClose?.(null as any),
                                 }}
                                 value={
-                                    rule.values
+                                    rule.values && rule.values[0]
                                         ? parseDate(
                                               formatDate(
                                                   rule.values[0],
@@ -128,7 +128,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                         popoverProps?.onClose?.(null as any),
                                 }}
                                 value={
-                                    rule.values
+                                    rule.values && rule.values[0]
                                         ? parseDate(
                                               formatDate(
                                                   rule.values[0],
