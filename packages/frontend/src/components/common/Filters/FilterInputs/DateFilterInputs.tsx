@@ -92,17 +92,23 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                     onClose: () =>
                                         popoverProps?.onClose?.(null as any),
                                 }}
-                                value={rule.values ? rule.values[0] : null}
+                                value={
+                                    rule.values
+                                        ? parseDate(
+                                              formatDate(
+                                                  rule.values[0],
+                                                  TimeFrames.MONTH,
+                                              ),
+                                              TimeFrames.MONTH,
+                                          )
+                                        : null
+                                }
                                 onChange={(value: Date) => {
-                                    // converts to utc to remove timezone offset from date to avoid issues with datepicker
-                                    const date = moment(value)
-                                        .utc(true)
-                                        .toDate()
-                                        .toISOString();
-
                                     onChange({
                                         ...rule,
-                                        values: [date],
+                                        values: [
+                                            formatDate(value, TimeFrames.MONTH),
+                                        ],
                                     });
                                 }}
                             />
@@ -121,17 +127,26 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                     onClose: () =>
                                         popoverProps?.onClose?.(null as any),
                                 }}
-                                value={rule.values ? rule.values[0] : null}
-                                onChange={(value: Date) => {
-                                    // converts to utc to remove timezone offset from date to avoid issues with datepicker
-                                    const date = moment(value)
-                                        .utc(true)
-                                        .toDate()
-                                        .toISOString();
-
+                                value={
+                                    rule.values
+                                        ? parseDate(
+                                              formatDate(
+                                                  rule.values[0],
+                                                  TimeFrames.YEAR,
+                                              ),
+                                              TimeFrames.YEAR,
+                                          )
+                                        : null
+                                }
+                                onChange={(newDate: Date) => {
                                     onChange({
                                         ...rule,
-                                        values: [date],
+                                        values: [
+                                            formatDate(
+                                                newDate,
+                                                TimeFrames.YEAR,
+                                            ),
+                                        ],
                                     });
                                 }}
                             />
