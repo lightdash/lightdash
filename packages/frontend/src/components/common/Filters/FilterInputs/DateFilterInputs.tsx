@@ -94,13 +94,15 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 }}
                                 value={rule.values ? rule.values[0] : null}
                                 onChange={(value: Date) => {
+                                    // converts to utc to remove timezone offset from date to avoid issues with datepicker
+                                    const date = moment(value)
+                                        .utc(true)
+                                        .toDate()
+                                        .toISOString();
+
                                     onChange({
                                         ...rule,
-                                        values: [
-                                            moment(value)
-                                                .startOf('month')
-                                                .toDate(),
-                                        ],
+                                        values: [date],
                                     });
                                 }}
                             />
@@ -121,13 +123,15 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 }}
                                 value={rule.values ? rule.values[0] : null}
                                 onChange={(value: Date) => {
+                                    // converts to utc to remove timezone offset from date to avoid issues with datepicker
+                                    const date = moment(value)
+                                        .utc(true)
+                                        .toDate()
+                                        .toISOString();
+
                                     onChange({
                                         ...rule,
-                                        values: [
-                                            moment(value)
-                                                .startOf('year')
-                                                .toDate(),
-                                        ],
+                                        values: [date],
                                     });
                                 }}
                             />
