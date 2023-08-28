@@ -96,8 +96,8 @@ const DashboardHeader = ({
         projectUuid: string;
         dashboardUuid: string;
     }>();
-    const { isOneAtLeastFetching, invalidateDashboardRelatedQueries } =
-        useDashboardRefresh(dashboardUuid);
+    const { isFetching, invalidateDashboardRelatedQueries } =
+        useDashboardRefresh();
     const history = useHistory();
     const { track } = useTracking();
     const [isUpdating, setIsUpdating] = useState(false);
@@ -122,6 +122,8 @@ const DashboardHeader = ({
         'manage',
         'Dashboard',
     );
+
+    const isOneAtLeastFetching = isFetching > 0;
 
     return (
         <PageHeader h="auto">
