@@ -203,6 +203,14 @@ type TrackUserDeletedEvent = BaseTrack & {
     };
 };
 
+type MetricFlowQueryEvent = BaseTrack & {
+    event: 'metricflow_query.created';
+    properties: {
+        organizationId: string;
+        projectId: string;
+    };
+};
+
 type ModeDashboardChartEvent = BaseTrack & {
     event: 'dashboard_chart.moved';
     properties: {
@@ -821,6 +829,7 @@ type Track =
     | UserAttributesPageEvent
     | UserAttributeCreateAndUpdateEvent
     | UserAttributeDeleteEvent
+    | MetricFlowQueryEvent
     | ConditionalFormattingRuleSavedEvent;
 
 export class LightdashAnalytics extends Analytics {

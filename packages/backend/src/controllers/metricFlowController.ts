@@ -12,6 +12,7 @@ import {
     SuccessResponse,
     Tags,
 } from 'tsoa';
+import { analytics } from '../analytics/client';
 import { dbtCloudGraphqlClient } from '../clients/clients';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
@@ -42,6 +43,18 @@ export class MetricFlowController extends Controller {
 
         if (!bearerToken || !environmentId) {
             throw new Error('Dbt Cloud is not enabled');
+        }
+
+        // TODO: soon to be moved to a service
+        if (body.query.includes('createQuery(')) {
+            analytics.track({
+                event: 'metricflow_query.created',
+                userId: req.user!.userUuid,
+                properties: {
+                    organizationId: req.user!.organizationUuid!,
+                    projectId: projectUuid,
+                },
+            });
         }
 
         return {
