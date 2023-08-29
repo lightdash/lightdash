@@ -14,6 +14,8 @@ import { useGdriveAccessToken } from '../../../hooks/gdrive/useGdrive';
 import useHealth from '../../../hooks/health/useHealth';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { AppToaster } from '../../AppToaster';
+import MantineIcon from '../../common/MantineIcon';
+import { GsheetsIcon } from '../../SchedulerModals/SchedulerModalBase/SchedulerModalBase.styles';
 
 export type ExportGsheetProps = {
     getGsheetLink: () => Promise<ApiScheduledDownloadCsv>;
@@ -109,13 +111,21 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
 
             if (gdriveAuth === undefined) {
                 const gdriveUrl = `${health?.data?.siteUrl}/api/v1/login/gdrive`;
-                window.open(gdriveUrl, 'login-popup', 'width=600,height=600');
+                const googleLoginPopup = window.open(
+                    gdriveUrl,
+                    'login-popup',
+                    'width=600,height=600',
+                );
 
                 // Refetching until user logs in with google drive auth
                 const refetchAuth = setInterval(() => {
                     refetch().then((r) => {
+                        if (googleLoginPopup?.closed) {
+                            clearInterval(refetchAuth);
+                        }
                         if (r.data !== undefined) {
                             clearInterval(refetchAuth);
+                            googleLoginPopup?.close();
                             startGoogleSheetExport();
                         }
                     });
@@ -164,6 +174,7 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
                 size="xs"
                 variant="default"
                 loading={isExportingGoogleSheets}
+                leftIcon={<MantineIcon icon={GsheetsIcon} />}
                 onClick={handleLoginAndExport}
             >
                 Google Sheets

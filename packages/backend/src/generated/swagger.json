@@ -3618,95 +3618,6 @@
                     }
                 ]
             },
-            "DefineRule_ToAbilityTypes_T-at-uniquesymbol_.T-at-uniquesymbol.ClaimRawRule_Extract_ToAbilityTypes_T-at-uniquesymbol_.string___": {
-                "$ref": "#/components/schemas/RawRuleOf_T_"
-            },
-            "DefineRule_ToAbilityTypes_T_.Generics_T_%5Bconditions%5D_": {
-                "$ref": "#/components/schemas/DefineRule_ToAbilityTypes_T-at-uniquesymbol_.T-at-uniquesymbol.ClaimRawRule_Extract_ToAbilityTypes_T-at-uniquesymbol_.string___"
-            },
-            "RawRule_ToAbilityTypes_Generics_T_%5Babilities%5D_.Generics_T_%5Bconditions%5D_": {
-                "$ref": "#/components/schemas/DefineRule_ToAbilityTypes_T_.Generics_T_%5Bconditions%5D_"
-            },
-            "RawRuleFrom_Generics_T_%5Babilities%5D.Generics_T_%5Bconditions%5D_": {
-                "$ref": "#/components/schemas/RawRule_ToAbilityTypes_Generics_T_%5Babilities%5D_.Generics_T_%5Bconditions%5D_"
-            },
-            "RawRuleOf_T_": {
-                "$ref": "#/components/schemas/RawRuleFrom_Generics_T_%5Babilities%5D.Generics_T_%5Bconditions%5D_"
-            },
-            "LightdashUserWithAbilityRules": {
-                "properties": {
-                    "userUuid": {
-                        "type": "string"
-                    },
-                    "email": {
-                        "type": "string"
-                    },
-                    "firstName": {
-                        "type": "string"
-                    },
-                    "lastName": {
-                        "type": "string"
-                    },
-                    "organizationUuid": {
-                        "type": "string"
-                    },
-                    "organizationName": {
-                        "type": "string"
-                    },
-                    "organizationCreatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "isTrackingAnonymized": {
-                        "type": "boolean"
-                    },
-                    "isMarketingOptedIn": {
-                        "type": "boolean"
-                    },
-                    "isSetupComplete": {
-                        "type": "boolean"
-                    },
-                    "role": {
-                        "$ref": "#/components/schemas/OrganizationMemberRole"
-                    },
-                    "isActive": {
-                        "type": "boolean"
-                    },
-                    "abilityRules": {
-                        "items": {
-                            "$ref": "#/components/schemas/RawRuleOf_T_"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": [
-                    "userUuid",
-                    "firstName",
-                    "lastName",
-                    "isTrackingAnonymized",
-                    "isMarketingOptedIn",
-                    "isSetupComplete",
-                    "isActive",
-                    "abilityRules"
-                ],
-                "type": "object",
-                "additionalProperties": false
-            },
-            "ApiGetAuthenticatedUserResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/LightdashUserWithAbilityRules"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object",
-                "description": "Shows the authenticated user"
-            },
             "LightdashUser": {
                 "properties": {
                     "userUuid": {
@@ -3758,6 +3669,21 @@
                 ],
                 "type": "object",
                 "additionalProperties": false
+            },
+            "ApiGetAuthenticatedUserResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LightdashUser"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object",
+                "description": "Shows the authenticated user"
             },
             "ApiRegisterUserResponse": {
                 "properties": {
@@ -4192,7 +4118,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.757.1",
+        "version": "0.759.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

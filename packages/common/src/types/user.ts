@@ -88,7 +88,7 @@ export type ApiUserAllowedOrganizationsResponse = {
  */
 export type ApiGetAuthenticatedUserResponse = {
     status: 'ok';
-    results: LightdashUserWithAbilityRules;
+    results: LightdashUser;
 };
 
 export type ApiRegisterUserResponse = {
