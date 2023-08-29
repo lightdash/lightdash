@@ -58,9 +58,37 @@ export const useMetricFlowQueryResultsAPI = (
         ...useResultQueryOptions,
     });
 
+    if (metricFlowQueryResultsQuery.data?.query.status === QueryStatus.FAILED) {
+        return {
+            isLoading: false,
+            error: {
+                status: 'error',
+                error: {
+                    name: 'ApiError',
+                    statusCode: 500,
+                    message:
+                        metricFlowQueryResultsQuery.data.query.error ||
+                        'Unknown error',
+                    data: {},
+                },
+            },
+            data: undefined,
+            status: 'error',
+            refetch: metricFlowQuery.refetch,
+        };
+    }
+
+    const isResultsQueryFinished =
+        !!metricFlowQueryResultsQuery.data &&
+        [QueryStatus.SUCCESSFUL, QueryStatus.FAILED].includes(
+            metricFlowQueryResultsQuery.data?.query.status,
+        );
+
     return {
         isLoading:
-            metricFlowQuery.isLoading || metricFlowQueryResultsQuery.isLoading,
+            metricFlowQuery.isLoading ||
+            metricFlowQueryResultsQuery.isLoading ||
+            !isResultsQueryFinished,
         error: metricFlowQuery.error || metricFlowQueryResultsQuery.error,
         data: metricFlowQueryResultsQuery.data,
         status: metricFlowQuery.isLoading
