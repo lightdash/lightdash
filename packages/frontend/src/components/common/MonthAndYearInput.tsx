@@ -17,6 +17,8 @@ const MonthAndYearInput: FC<Props> = ({ value, onChange, ...props }) => {
         <MonthPickerInput
             sx={{ width: '100%' }}
             size="xs"
+            minDate={moment().year(1000).toDate()}
+            maxDate={moment().year(9999).toDate()}
             onClick={toggle}
             {...props}
             popoverProps={{

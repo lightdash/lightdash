@@ -92,14 +92,22 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                     onClose: () =>
                                         popoverProps?.onClose?.(null as any),
                                 }}
-                                value={rule.values ? rule.values[0] : null}
+                                value={
+                                    rule.values && rule.values[0]
+                                        ? parseDate(
+                                              formatDate(
+                                                  rule.values[0],
+                                                  TimeFrames.MONTH,
+                                              ),
+                                              TimeFrames.MONTH,
+                                          )
+                                        : null
+                                }
                                 onChange={(value: Date) => {
                                     onChange({
                                         ...rule,
                                         values: [
-                                            moment(value)
-                                                .startOf('month')
-                                                .toDate(),
+                                            formatDate(value, TimeFrames.MONTH),
                                         ],
                                     });
                                 }}
@@ -119,14 +127,25 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                     onClose: () =>
                                         popoverProps?.onClose?.(null as any),
                                 }}
-                                value={rule.values ? rule.values[0] : null}
-                                onChange={(value: Date) => {
+                                value={
+                                    rule.values && rule.values[0]
+                                        ? parseDate(
+                                              formatDate(
+                                                  rule.values[0],
+                                                  TimeFrames.YEAR,
+                                              ),
+                                              TimeFrames.YEAR,
+                                          )
+                                        : null
+                                }
+                                onChange={(newDate: Date) => {
                                     onChange({
                                         ...rule,
                                         values: [
-                                            moment(value)
-                                                .startOf('year')
-                                                .toDate(),
+                                            formatDate(
+                                                newDate,
+                                                TimeFrames.YEAR,
+                                            ),
                                         ],
                                     });
                                 }}
