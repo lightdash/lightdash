@@ -1,3 +1,10 @@
+## [0.760.2](https://github.com/lightdash/lightdash/compare/0.760.1...0.760.2) (2023-08-29)
+
+
+### Bug Fixes
+
+* custom metrics percentile ([#6914](https://github.com/lightdash/lightdash/issues/6914)) ([a25df01](https://github.com/lightdash/lightdash/commit/a25df0159825852e67560fdaa618453ab81f4cb8))
+
 ## [0.760.1](https://github.com/lightdash/lightdash/compare/0.760.0...0.760.1) (2023-08-29)
 
 
