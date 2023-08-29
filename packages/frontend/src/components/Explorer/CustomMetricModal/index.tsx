@@ -105,7 +105,9 @@ export const CustomMetricModal = () => {
 
     const { setFieldValue } = form;
     useEffect(() => {
-        if (item?.label && customMetricType) {
+        if (!item || !customMetricType) return;
+
+        if (item.label && customMetricType) {
             setFieldValue(
                 'customMetricLabel',
                 isEditing
@@ -114,6 +116,14 @@ export const CustomMetricModal = () => {
                     ? `${friendlyName(customMetricType)} of ${item.label}`
                     : '',
             );
+        }
+
+        if (
+            isEditing &&
+            isAdditionalMetric(item) &&
+            item.percentile !== undefined
+        ) {
+            setFieldValue('percentile', item.percentile);
         }
     }, [setFieldValue, item, customMetricType, isEditing]);
 
@@ -138,11 +148,11 @@ export const CustomMetricModal = () => {
 
     const handleOnSubmit = form.onSubmit(
         ({ customMetricLabel, percentile }) => {
-            if (!item) return;
+            if (!item || !customMetricType) return;
 
             const data = prepareCustomMetricData({
                 dimension: item,
-                type: customMetricType!,
+                type: customMetricType,
                 customMetricLabel,
                 customMetricFiltersWithIds,
                 isEditingCustomMetric: !!isEditing,
@@ -167,7 +177,7 @@ export const CustomMetricModal = () => {
                     uuid: uuidv4(),
                     table: item.table,
                     sql: item.sql,
-                    type: customMetricType!,
+                    type: customMetricType,
                     baseDimensionName: item.name,
                     ...data,
                 });
