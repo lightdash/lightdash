@@ -1,3 +1,10 @@
+# [0.759.0](https://github.com/lightdash/lightdash/compare/0.758.3...0.759.0) (2023-08-29)
+
+
+### Features
+
+* combine user registration endpoints ([#6901](https://github.com/lightdash/lightdash/issues/6901)) ([7881ae3](https://github.com/lightdash/lightdash/commit/7881ae37afab83b1e978e05b94c9f77dbb77adba))
+
 ## [0.758.3](https://github.com/lightdash/lightdash/compare/0.758.2...0.758.3) (2023-08-29)
 
 
