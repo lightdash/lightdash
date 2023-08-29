@@ -13,7 +13,7 @@ import {
     IconPhoto,
     IconProgress,
 } from '@tabler/icons-react';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import GsheetSvg from '../../svgs/google-sheets.svg';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
@@ -126,4 +126,4 @@ export const getItemLink = (item: SchedulerItem, projectUuid: string) => {
 };
 
 export const formatTime = (date: Date) =>
-    moment(date).format('YYYY/MM/DD HH:mm A');
+    dayjs(date).format('YYYY/MM/DD hh:mm A');
