@@ -197,6 +197,7 @@ const createSavedChartVersion = async (
                     description: additionalMetric.description,
                     sql: additionalMetric.sql,
                     hidden: additionalMetric.hidden,
+                    percentile: additionalMetric.percentile,
                     compact: additionalMetric.compact,
                     round: additionalMetric.round,
                     format: additionalMetric.format,
@@ -510,6 +511,7 @@ export class SavedChartModel {
                     'hidden',
                     'round',
                     'format',
+                    'percentile',
                     'filters',
                     'base_dimension_name',
                     'uuid',
@@ -542,6 +544,7 @@ export class SavedChartModel {
                     format: isFormat(additionalMetric.format)
                         ? additionalMetric.format
                         : undefined,
+                    percentile: additionalMetric.percentile,
                     uuid: additionalMetric.uuid,
                     sql: additionalMetric.sql,
                     table: additionalMetric.table,
