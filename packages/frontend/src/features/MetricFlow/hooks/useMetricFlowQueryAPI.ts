@@ -16,9 +16,7 @@ export const useMetricFlowQueryAPI = (
 ) => {
     return useQuery<CreateMetricFlowQueryResponse, ApiError>({
         queryKey: ['metric_flow_query', projectUuid, query],
-        enabled:
-            !!projectUuid &&
-            (!!query?.metrics.length || !!query?.dimensions.length),
+        enabled: !!projectUuid && !!query?.metrics.length,
         queryFn: () => createMetricFlowQuery(projectUuid!, query!),
         ...useQueryOptions,
     });

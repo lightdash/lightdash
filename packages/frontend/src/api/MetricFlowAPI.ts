@@ -83,8 +83,12 @@ export function createMetricFlowQuery(
             mutation CreateQuery($environmentId: BigInt!) {
               createQuery(
                 environmentId: $environmentId
-                metrics: ${JSON.stringify(data.metrics)}
-                groupBy: ${JSON.stringify(data.dimensions)}
+                metrics: [${data.metrics.map(
+                    (metric) => `{ name: "${metric}" }`,
+                )}]
+                groupBy: [${data.dimensions.map(
+                    (dimension) => `{ name: "${dimension}" }`,
+                )}]
               ) {
                 queryId
               }
