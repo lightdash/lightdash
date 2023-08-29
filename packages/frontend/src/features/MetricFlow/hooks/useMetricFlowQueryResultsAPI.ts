@@ -78,9 +78,9 @@ export const useMetricFlowQueryResultsAPI = (
         };
     }
 
-    const isResultsQueryFinished =
+    const isResultsQueryRefetching =
         !!metricFlowQueryResultsQuery.data &&
-        [QueryStatus.SUCCESSFUL, QueryStatus.FAILED].includes(
+        ![QueryStatus.SUCCESSFUL, QueryStatus.FAILED].includes(
             metricFlowQueryResultsQuery.data?.query.status,
         );
 
@@ -88,7 +88,7 @@ export const useMetricFlowQueryResultsAPI = (
         isLoading:
             metricFlowQuery.isLoading ||
             metricFlowQueryResultsQuery.isLoading ||
-            !isResultsQueryFinished,
+            isResultsQueryRefetching,
         error: metricFlowQuery.error || metricFlowQueryResultsQuery.error,
         data: metricFlowQueryResultsQuery.data,
         status: metricFlowQuery.isLoading

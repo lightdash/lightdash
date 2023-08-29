@@ -18,7 +18,7 @@ import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
 @Route('/api/v1/projects/{projectUuid}/metricflow')
 @Response<ApiErrorPayload>('default', 'Error')
-@Tags('Projects')
+@Tags('MetricFlow')
 export class MetricFlowController extends Controller {
     /**
      * Get MetricFlow data
