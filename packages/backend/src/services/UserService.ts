@@ -11,6 +11,7 @@ import {
     ExpiredError,
     ForbiddenError,
     getEmailDomain,
+    hasInviteCode,
     InviteLink,
     isOpenIdUser,
     isUserWithOrg,
@@ -23,6 +24,7 @@ import {
     OrganizationMemberRole,
     ParameterError,
     PasswordReset,
+    RegisterOrActivateUser,
     SessionUser,
     UpdateUserArgs,
     UserAllowedOrganization,
@@ -579,7 +581,29 @@ export class UserService {
         return updatedUser;
     }
 
-    async registerUser(createUser: CreateUserArgs | OpenIdUser) {
+    async registerOrActivateUser(
+        user: RegisterOrActivateUser,
+    ): Promise<SessionUser> {
+        let lightdashUser;
+        if (hasInviteCode(user)) {
+            lightdashUser = await this.activateUserFromInvite(user.inviteCode, {
+                firstName: user.firstName,
+                lastName: user.lastName,
+                password: user.password,
+            });
+        } else {
+            lightdashUser = await this.registerUser({
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                password: user.password,
+            });
+        }
+
+        return this.userModel.findSessionUserByUUID(lightdashUser.userUuid);
+    }
+
+    private async registerUser(createUser: CreateUserArgs | OpenIdUser) {
         if (
             !isOpenIdUser(createUser) &&
             lightdashConfig.auth.disablePasswordAuthentication

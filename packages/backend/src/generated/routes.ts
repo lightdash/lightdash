@@ -3152,6 +3152,191 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'DefineRule_ToAbilityTypes_T-at-uniquesymbol_.T-at-uniquesymbol.ClaimRawRule_Extract_ToAbilityTypes_T-at-uniquesymbol_.string___':
+        {
+            dataType: 'refAlias',
+            type: { ref: 'RawRuleOf_T_', validators: {} },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'DefineRule_ToAbilityTypes_T_.Generics_T_%5Bconditions%5D_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'DefineRule_ToAbilityTypes_T-at-uniquesymbol_.T-at-uniquesymbol.ClaimRawRule_Extract_ToAbilityTypes_T-at-uniquesymbol_.string___',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'RawRule_ToAbilityTypes_Generics_T_%5Babilities%5D_.Generics_T_%5Bconditions%5D_':
+        {
+            dataType: 'refAlias',
+            type: {
+                ref: 'DefineRule_ToAbilityTypes_T_.Generics_T_%5Bconditions%5D_',
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'RawRuleFrom_Generics_T_%5Babilities%5D.Generics_T_%5Bconditions%5D_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'RawRule_ToAbilityTypes_Generics_T_%5Babilities%5D_.Generics_T_%5Bconditions%5D_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RawRuleOf_T_: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'RawRuleFrom_Generics_T_%5Babilities%5D.Generics_T_%5Bconditions%5D_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    LightdashUserWithAbilityRules: {
+        dataType: 'refObject',
+        properties: {
+            userUuid: { dataType: 'string', required: true },
+            email: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
+                required: true,
+            },
+            firstName: { dataType: 'string', required: true },
+            lastName: { dataType: 'string', required: true },
+            organizationUuid: { dataType: 'string' },
+            organizationName: { dataType: 'string' },
+            organizationCreatedAt: { dataType: 'datetime' },
+            isTrackingAnonymized: { dataType: 'boolean', required: true },
+            isMarketingOptedIn: { dataType: 'boolean', required: true },
+            isSetupComplete: { dataType: 'boolean', required: true },
+            role: { ref: 'OrganizationMemberRole' },
+            isActive: { dataType: 'boolean', required: true },
+            abilityRules: {
+                dataType: 'array',
+                array: { dataType: 'refAlias', ref: 'RawRuleOf_T_' },
+                required: true,
+            },
+        },
+        additionalProperties: false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiGetAuthenticatedUserResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'LightdashUserWithAbilityRules',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    LightdashUser: {
+        dataType: 'refObject',
+        properties: {
+            userUuid: { dataType: 'string', required: true },
+            email: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
+                required: true,
+            },
+            firstName: { dataType: 'string', required: true },
+            lastName: { dataType: 'string', required: true },
+            organizationUuid: { dataType: 'string' },
+            organizationName: { dataType: 'string' },
+            organizationCreatedAt: { dataType: 'datetime' },
+            isTrackingAnonymized: { dataType: 'boolean', required: true },
+            isMarketingOptedIn: { dataType: 'boolean', required: true },
+            isSetupComplete: { dataType: 'boolean', required: true },
+            role: { ref: 'OrganizationMemberRole' },
+            isActive: { dataType: 'boolean', required: true },
+        },
+        additionalProperties: false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiRegisterUserResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'LightdashUser', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ActivateUser: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                password: { dataType: 'string', required: true },
+                lastName: { dataType: 'string', required: true },
+                firstName: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ActivateUserWithInviteCode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ActivateUser' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        inviteCode: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Email: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'string',
+            validators: {
+                pattern: {
+                    value: '^(([^<>()[\\]\\\\.,;:\\s@"]+(\\.[^<>()[\\]\\\\.,;:\\s@"]+)*)|(".+"))@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\])|(([a-zA-Z\\-0-9]+\\.)+[a-zA-Z]{2,}))$',
+                },
+            },
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CreateUserArgs: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                password: { dataType: 'string', required: true },
+                email: { ref: 'Email', required: true },
+                lastName: { dataType: 'string', required: true },
+                firstName: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RegisterOrActivateUser: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'ActivateUserWithInviteCode' },
+                { ref: 'CreateUserArgs' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     EmailOneTimePassword: {
         dataType: 'refAlias',
         type: {
@@ -6292,6 +6477,92 @@ export function RegisterRoutes(app: express.Router) {
                 const controller = new UserAttributesController();
 
                 const promise = controller.removeUserAttribute.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, undefined, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/user',
+        ...fetchMiddlewares<RequestHandler>(UserController),
+        ...fetchMiddlewares<RequestHandler>(
+            UserController.prototype.getAuthenticatedUser,
+        ),
+
+        function UserController_getAuthenticatedUser(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new UserController();
+
+                const promise = controller.getAuthenticatedUser.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, undefined, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.post(
+        '/api/v1/user',
+        ...fetchMiddlewares<RequestHandler>(UserController),
+        ...fetchMiddlewares<RequestHandler>(
+            UserController.prototype.registerUser,
+        ),
+
+        function UserController_registerUser(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    ref: 'RegisterOrActivateUser',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new UserController();
+
+                const promise = controller.registerUser.apply(
                     controller,
                     validatedArgs as any,
                 );

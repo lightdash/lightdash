@@ -3618,6 +3618,225 @@
                     }
                 ]
             },
+            "DefineRule_ToAbilityTypes_T-at-uniquesymbol_.T-at-uniquesymbol.ClaimRawRule_Extract_ToAbilityTypes_T-at-uniquesymbol_.string___": {
+                "$ref": "#/components/schemas/RawRuleOf_T_"
+            },
+            "DefineRule_ToAbilityTypes_T_.Generics_T_%5Bconditions%5D_": {
+                "$ref": "#/components/schemas/DefineRule_ToAbilityTypes_T-at-uniquesymbol_.T-at-uniquesymbol.ClaimRawRule_Extract_ToAbilityTypes_T-at-uniquesymbol_.string___"
+            },
+            "RawRule_ToAbilityTypes_Generics_T_%5Babilities%5D_.Generics_T_%5Bconditions%5D_": {
+                "$ref": "#/components/schemas/DefineRule_ToAbilityTypes_T_.Generics_T_%5Bconditions%5D_"
+            },
+            "RawRuleFrom_Generics_T_%5Babilities%5D.Generics_T_%5Bconditions%5D_": {
+                "$ref": "#/components/schemas/RawRule_ToAbilityTypes_Generics_T_%5Babilities%5D_.Generics_T_%5Bconditions%5D_"
+            },
+            "RawRuleOf_T_": {
+                "$ref": "#/components/schemas/RawRuleFrom_Generics_T_%5Babilities%5D.Generics_T_%5Bconditions%5D_"
+            },
+            "LightdashUserWithAbilityRules": {
+                "properties": {
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "organizationName": {
+                        "type": "string"
+                    },
+                    "organizationCreatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "isTrackingAnonymized": {
+                        "type": "boolean"
+                    },
+                    "isMarketingOptedIn": {
+                        "type": "boolean"
+                    },
+                    "isSetupComplete": {
+                        "type": "boolean"
+                    },
+                    "role": {
+                        "$ref": "#/components/schemas/OrganizationMemberRole"
+                    },
+                    "isActive": {
+                        "type": "boolean"
+                    },
+                    "abilityRules": {
+                        "items": {
+                            "$ref": "#/components/schemas/RawRuleOf_T_"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "userUuid",
+                    "firstName",
+                    "lastName",
+                    "isTrackingAnonymized",
+                    "isMarketingOptedIn",
+                    "isSetupComplete",
+                    "isActive",
+                    "abilityRules"
+                ],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "ApiGetAuthenticatedUserResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LightdashUserWithAbilityRules"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object",
+                "description": "Shows the authenticated user"
+            },
+            "LightdashUser": {
+                "properties": {
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "organizationName": {
+                        "type": "string"
+                    },
+                    "organizationCreatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "isTrackingAnonymized": {
+                        "type": "boolean"
+                    },
+                    "isMarketingOptedIn": {
+                        "type": "boolean"
+                    },
+                    "isSetupComplete": {
+                        "type": "boolean"
+                    },
+                    "role": {
+                        "$ref": "#/components/schemas/OrganizationMemberRole"
+                    },
+                    "isActive": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "userUuid",
+                    "firstName",
+                    "lastName",
+                    "isTrackingAnonymized",
+                    "isMarketingOptedIn",
+                    "isSetupComplete",
+                    "isActive"
+                ],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "ApiRegisterUserResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LightdashUser"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ActivateUser": {
+                "properties": {
+                    "password": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["password", "lastName", "firstName"],
+                "type": "object"
+            },
+            "ActivateUserWithInviteCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ActivateUser"
+                    },
+                    {
+                        "properties": {
+                            "inviteCode": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["inviteCode"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "Email": {
+                "type": "string",
+                "description": "Email",
+                "pattern": "^(([^<>()[\\]\\\\.,;:\\s@\"]+(\\.[^<>()[\\]\\\\.,;:\\s@\"]+)*)|(\".+\"))@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\])|(([a-zA-Z\\-0-9]+\\.)+[a-zA-Z]{2,}))$"
+            },
+            "CreateUserArgs": {
+                "properties": {
+                    "password": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "$ref": "#/components/schemas/Email"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["password", "email", "lastName", "firstName"],
+                "type": "object"
+            },
+            "RegisterOrActivateUser": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ActivateUserWithInviteCode"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateUserArgs"
+                    }
+                ]
+            },
             "EmailOneTimePassword": {
                 "properties": {
                     "numberOfAttempts": {
@@ -3973,7 +4192,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.755.0",
+        "version": "0.757.1",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -6634,6 +6853,76 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/user": {
+            "get": {
+                "operationId": "GetAuthenticatedUser",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetAuthenticatedUserResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get authenticated user",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": []
+            },
+            "post": {
+                "operationId": "RegisterUser",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRegisterUserResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Register user",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RegisterOrActivateUser"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/user/me/email/otp": {

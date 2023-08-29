@@ -122,7 +122,9 @@ export class UserModel {
 
     static async createUserTransaction(
         trx: Transaction,
-        createUser: (CreateUserArgs | OpenIdUser) & { isActive: boolean },
+        createUser: (Omit<CreateUserWithRole, 'role'> | OpenIdUser) & {
+            isActive: boolean;
+        },
     ) {
         const userIn: DbUserIn = isOpenIdUser(createUser)
             ? {

@@ -21,7 +21,7 @@ import { Divider, DividerWrapper } from './Invite.styles';
 
 const registerQuery = async (data: CreateUserArgs) =>
     lightdashApi<LightdashUser>({
-        url: `/register`,
+        url: `/user`,
         method: 'POST',
         body: JSON.stringify(data),
     });
