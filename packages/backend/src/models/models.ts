@@ -4,7 +4,6 @@ import { EncryptionService } from '../services/EncryptionService/EncryptionServi
 import { AnalyticsModel } from './AnalyticsModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
-import { DbtCloudMetricsModel } from './DbtCloudMetricsModel';
 import { EmailModel } from './EmailModel';
 import { GroupsModel } from './GroupsModel';
 import { InviteLinkModel } from './InviteLinkModel';
@@ -62,7 +61,6 @@ export const spaceModel = new SpaceModel({
 export const searchModel = new SearchModel({
     database,
 });
-export const dbtCloudMetricsModel = new DbtCloudMetricsModel();
 
 export const shareModel = new ShareModel({
     database,

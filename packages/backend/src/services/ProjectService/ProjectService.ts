@@ -79,7 +79,6 @@ import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
-import { DbtCloudMetricsModel } from '../../models/DbtCloudMetricsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -2114,29 +2113,6 @@ export class ProjectService {
             throw new ForbiddenError();
         }
         return this.projectModel.findDbtCloudIntegration(projectUuid);
-    }
-
-    async getdbtCloudMetrics(user: SessionUser, projectUuid: string) {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
-        if (
-            user.ability.cannot(
-                'view',
-                subject('Project', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        const integration =
-            await this.projectModel.findDbtCloudIntegrationWithSecrets(
-                projectUuid,
-            );
-        if (integration === undefined) {
-            return { metrics: [] };
-        }
-        return DbtCloudMetricsModel.getMetrics(
-            integration.serviceToken,
-            integration.metricsJobId,
-        );
     }
 
     async getCharts(
