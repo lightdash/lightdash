@@ -88,7 +88,7 @@ const SavedChartsHeader: FC = () => {
     const [isRenamingChart, setIsRenamingChart] = useState(false);
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isMovingChart, setIsMovingChart] = useState(false);
-    const [isScheduledDeliveriesModalOpen, toggleSchedulerDeliveriesModel] =
+    const [isScheduledDeliveriesModalOpen, toggleScheduledDeliveriesModal] =
         useToggle(false);
     const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
         useState<boolean>(false);
@@ -111,9 +111,9 @@ const SavedChartsHeader: FC = () => {
         const schedulerUuidFromUrlParams =
             getSchedulerUuidFromUrlParams(search);
         if (schedulerUuidFromUrlParams) {
-            toggleSchedulerDeliveriesModel(true);
+            toggleScheduledDeliveriesModal(true);
         }
-    }, [search, toggleSchedulerDeliveriesModel]);
+    }, [search, toggleScheduledDeliveriesModal]);
 
     useEffect(() => {
         const checkReload = (event: BeforeUnloadEvent) => {
@@ -444,7 +444,7 @@ const SavedChartsHeader: FC = () => {
                                             icon={<IconSend />}
                                             text="Scheduled deliveries"
                                             onClick={() =>
-                                                toggleSchedulerDeliveriesModel(
+                                                toggleScheduledDeliveriesModal(
                                                     true,
                                                 )
                                             }
@@ -516,7 +516,7 @@ const SavedChartsHeader: FC = () => {
                     chartUuid={savedChart.uuid}
                     name={savedChart.name}
                     isOpen={isScheduledDeliveriesModalOpen}
-                    onClose={() => toggleSchedulerDeliveriesModel(false)}
+                    onClose={() => toggleScheduledDeliveriesModal(false)}
                 />
             )}
             {savedChart && (

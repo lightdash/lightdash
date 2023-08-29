@@ -102,7 +102,7 @@ const DashboardHeader = ({
     const { track } = useTracking();
     const [isUpdating, setIsUpdating] = useState(false);
     const [isCreatingNewSpace, setIsCreatingNewSpace] = useState(false);
-    const [isScheduledDeliveriesModalOpen, toggleSchedulerDeliveriesModel] =
+    const [isScheduledDeliveriesModalOpen, toggleScheduledDeliveriesModal] =
         useToggle(false);
     const handleEditClick = () => {
         setIsUpdating(true);
@@ -113,9 +113,9 @@ const DashboardHeader = ({
         const schedulerUuidFromUrlParams =
             getSchedulerUuidFromUrlParams(search);
         if (schedulerUuidFromUrlParams) {
-            toggleSchedulerDeliveriesModel(true);
+            toggleScheduledDeliveriesModal(true);
         }
-    }, [search, toggleSchedulerDeliveriesModel]);
+    }, [search, toggleScheduledDeliveriesModal]);
 
     const { user } = useApp();
     const userCanManageDashboard = user.data?.ability.can(
@@ -324,7 +324,7 @@ const DashboardHeader = ({
                                     icon={<IconSend />}
                                     text="Scheduled deliveries"
                                     onClick={() => {
-                                        toggleSchedulerDeliveriesModel(true);
+                                        toggleScheduledDeliveriesModal(true);
                                     }}
                                 />
                                 <MenuItem2
@@ -366,7 +366,7 @@ const DashboardHeader = ({
                             name={dashboardName}
                             isOpen={isScheduledDeliveriesModalOpen}
                             onClose={() =>
-                                toggleSchedulerDeliveriesModel(false)
+                                toggleScheduledDeliveriesModal(false)
                             }
                         />
                     )}
