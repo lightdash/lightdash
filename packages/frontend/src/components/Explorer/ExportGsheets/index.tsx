@@ -100,9 +100,6 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
             enabled: !!startGoogleSheetExportData,
         });
 
-        const buttonIsLoading =
-            !!startGoogleSheetExportData && !exportGoogleSheetData?.url;
-
         const handleLoginAndExport = useCallback(() => {
             if (
                 !health.data?.auth.google.oauth2ClientId ||
@@ -136,6 +133,9 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
             startGoogleSheetExport,
         ]);
 
+        const isExportingGoogleSheets =
+            !!startGoogleSheetExportData && !exportGoogleSheetData?.url;
+
         if (!hasGoogleDrive) {
             // We should not load this component on `ExporSelector` if google keys are not available
             console.warn('Using ExportGsheets without Google Drive API keys');
@@ -145,8 +145,16 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
         if (asMenuItem) {
             return (
                 <MenuItem2
-                    icon="export"
+                    icon={
+                        isExportingGoogleSheets ? (
+                            <Spinner size={16} />
+                        ) : (
+                            'export'
+                        )
+                    }
                     text="Export Google Sheets"
+                    disabled={isExportingGoogleSheets}
+                    shouldDismissPopover={false}
                     onClick={handleLoginAndExport}
                 />
             );
@@ -155,7 +163,7 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
             <Button
                 size="xs"
                 variant="default"
-                loading={buttonIsLoading}
+                loading={isExportingGoogleSheets}
                 onClick={handleLoginAndExport}
             >
                 Google Sheets
