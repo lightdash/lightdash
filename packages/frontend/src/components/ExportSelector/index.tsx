@@ -1,8 +1,9 @@
 import { ApiScheduledDownloadCsv } from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
-import { IconArrowLeft } from '@tabler/icons-react';
+import { IconArrowLeft, IconFileTypeCsv } from '@tabler/icons-react';
 import { FC, memo, useState } from 'react';
 import useHealth from '../../hooks/health/useHealth';
+import MantineIcon from '../common/MantineIcon';
 import ExportGsheets from '../Explorer/ExportGsheets';
 import ExportCSV, { ExportCSVProps } from '../ExportCSV';
 
@@ -40,6 +41,7 @@ const ExportSelector: FC<
                     size="xs"
                     variant="default"
                     onClick={() => setExportType('csv')}
+                    leftIcon={<MantineIcon icon={IconFileTypeCsv} />}
                 >
                     csv
                 </Button>

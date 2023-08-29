@@ -14,6 +14,8 @@ import { useGdriveAccessToken } from '../../../hooks/gdrive/useGdrive';
 import useHealth from '../../../hooks/health/useHealth';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { AppToaster } from '../../AppToaster';
+import MantineIcon from '../../common/MantineIcon';
+import { GsheetsIcon } from '../../SchedulerModals/SchedulerModalBase/SchedulerModalBase.styles';
 
 export type ExportGsheetProps = {
     getGsheetLink: () => Promise<ApiScheduledDownloadCsv>;
@@ -155,6 +157,7 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
             <Button
                 size="xs"
                 variant="default"
+                leftIcon={<MantineIcon icon={GsheetsIcon} />}
                 loading={buttonIsLoading}
                 onClick={handleLoginAndExport}
             >
