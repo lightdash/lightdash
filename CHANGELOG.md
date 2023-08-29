@@ -1,3 +1,10 @@
+## [0.760.1](https://github.com/lightdash/lightdash/compare/0.760.0...0.760.1) (2023-08-29)
+
+
+### Bug Fixes
+
+* dashboard refresh loader ([#6918](https://github.com/lightdash/lightdash/issues/6918)) ([b034b19](https://github.com/lightdash/lightdash/commit/b034b19a23d0cddf58e186b8694de9238a03222a))
+
 # [0.760.0](https://github.com/lightdash/lightdash/compare/0.759.0...0.760.0) (2023-08-29)
 
 
