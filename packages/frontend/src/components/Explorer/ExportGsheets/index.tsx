@@ -112,13 +112,21 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
 
             if (gdriveAuth === undefined) {
                 const gdriveUrl = `${health?.data?.siteUrl}/api/v1/login/gdrive`;
-                window.open(gdriveUrl, 'login-popup', 'width=600,height=600');
+                const googleLoginPopup = window.open(
+                    gdriveUrl,
+                    'login-popup',
+                    'width=600,height=600',
+                );
 
                 // Refetching until user logs in with google drive auth
                 const refetchAuth = setInterval(() => {
                     refetch().then((r) => {
+                        if (googleLoginPopup?.closed) {
+                            clearInterval(refetchAuth);
+                        }
                         if (r.data !== undefined) {
                             clearInterval(refetchAuth);
+                            googleLoginPopup?.close();
                             startGoogleSheetExport();
                         }
                     });
