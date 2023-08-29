@@ -3152,88 +3152,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'DefineRule_ToAbilityTypes_T-at-uniquesymbol_.T-at-uniquesymbol.ClaimRawRule_Extract_ToAbilityTypes_T-at-uniquesymbol_.string___':
-        {
-            dataType: 'refAlias',
-            type: { ref: 'RawRuleOf_T_', validators: {} },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'DefineRule_ToAbilityTypes_T_.Generics_T_%5Bconditions%5D_': {
-        dataType: 'refAlias',
-        type: {
-            ref: 'DefineRule_ToAbilityTypes_T-at-uniquesymbol_.T-at-uniquesymbol.ClaimRawRule_Extract_ToAbilityTypes_T-at-uniquesymbol_.string___',
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'RawRule_ToAbilityTypes_Generics_T_%5Babilities%5D_.Generics_T_%5Bconditions%5D_':
-        {
-            dataType: 'refAlias',
-            type: {
-                ref: 'DefineRule_ToAbilityTypes_T_.Generics_T_%5Bconditions%5D_',
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'RawRuleFrom_Generics_T_%5Babilities%5D.Generics_T_%5Bconditions%5D_': {
-        dataType: 'refAlias',
-        type: {
-            ref: 'RawRule_ToAbilityTypes_Generics_T_%5Babilities%5D_.Generics_T_%5Bconditions%5D_',
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    RawRuleOf_T_: {
-        dataType: 'refAlias',
-        type: {
-            ref: 'RawRuleFrom_Generics_T_%5Babilities%5D.Generics_T_%5Bconditions%5D_',
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    LightdashUserWithAbilityRules: {
-        dataType: 'refObject',
-        properties: {
-            userUuid: { dataType: 'string', required: true },
-            email: {
-                dataType: 'union',
-                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
-                required: true,
-            },
-            firstName: { dataType: 'string', required: true },
-            lastName: { dataType: 'string', required: true },
-            organizationUuid: { dataType: 'string' },
-            organizationName: { dataType: 'string' },
-            organizationCreatedAt: { dataType: 'datetime' },
-            isTrackingAnonymized: { dataType: 'boolean', required: true },
-            isMarketingOptedIn: { dataType: 'boolean', required: true },
-            isSetupComplete: { dataType: 'boolean', required: true },
-            role: { ref: 'OrganizationMemberRole' },
-            isActive: { dataType: 'boolean', required: true },
-            abilityRules: {
-                dataType: 'array',
-                array: { dataType: 'refAlias', ref: 'RawRuleOf_T_' },
-                required: true,
-            },
-        },
-        additionalProperties: false,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiGetAuthenticatedUserResponse: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: {
-                    ref: 'LightdashUserWithAbilityRules',
-                    required: true,
-                },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     LightdashUser: {
         dataType: 'refObject',
         properties: {
@@ -3255,6 +3173,18 @@ const models: TsoaRoute.Models = {
             isActive: { dataType: 'boolean', required: true },
         },
         additionalProperties: false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiGetAuthenticatedUserResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'LightdashUser', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiRegisterUserResponse: {
