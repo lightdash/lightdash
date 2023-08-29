@@ -1,3 +1,10 @@
+## [0.758.3](https://github.com/lightdash/lightdash/compare/0.758.2...0.758.3) (2023-08-29)
+
+
+### Bug Fixes
+
+* filter input year and year month timezone issue ([#6907](https://github.com/lightdash/lightdash/issues/6907)) ([591d7b8](https://github.com/lightdash/lightdash/commit/591d7b88f809eec6e0d44e6e26ab4b068a553231))
+
 ## [0.758.2](https://github.com/lightdash/lightdash/compare/0.758.1...0.758.2) (2023-08-28)
 
 
