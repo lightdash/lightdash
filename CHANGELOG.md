@@ -1,3 +1,10 @@
+# [0.760.0](https://github.com/lightdash/lightdash/compare/0.759.0...0.760.0) (2023-08-29)
+
+
+### Features
+
+* close popup window on successful login ([#6911](https://github.com/lightdash/lightdash/issues/6911)) ([2c61d0f](https://github.com/lightdash/lightdash/commit/2c61d0f6b627f54e0795b878472aee7303fa4f37))
+
 # [0.759.0](https://github.com/lightdash/lightdash/compare/0.758.3...0.759.0) (2023-08-29)
 
 
