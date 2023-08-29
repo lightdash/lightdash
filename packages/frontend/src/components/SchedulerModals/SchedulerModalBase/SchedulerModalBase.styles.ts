@@ -1,13 +1,12 @@
 import { Card, H5, HTMLSelect } from '@blueprintjs/core';
 import { IconMail } from '@tabler/icons-react';
 import styled from 'styled-components';
-import { ReactComponent as GsheetsSvg } from '../../../svgs/gsheets.svg';
+import { ReactComponent as GsheetsSvg } from '../../../svgs/google-sheets.svg';
 import { ReactComponent as SlackSvg } from '../../../svgs/slack.svg';
 
 export const GsheetsIcon = styled(GsheetsSvg)`
-    width: 20px;
-    height: 20px;
-    margin: 5px;
+    width: 16px;
+    height: 16px;
 `;
 export const SlackIcon = styled(SlackSvg)`
     width: 20px;

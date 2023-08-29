@@ -14,7 +14,7 @@ import {
     IconProgress,
 } from '@tabler/icons-react';
 import moment from 'moment';
-import GsheetSvg from '../../svgs/gsheets.svg';
+import GsheetSvg from '../../svgs/google-sheets.svg';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
 
