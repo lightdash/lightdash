@@ -9,7 +9,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconRefresh, IconTrashX } from '@tabler/icons-react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ChartDownloadMenu } from '../components/ChartDownload';
 import CollapsableCard from '../components/common/CollapsableCard';
 import Page from '../components/common/Page/Page';
@@ -24,7 +24,6 @@ import MetricFlowFieldList from '../features/MetricFlow/components/MetricFlowFie
 import MetricFlowResultsTable from '../features/MetricFlow/components/ResultsTable';
 import RunQueryButton from '../features/MetricFlow/components/RunQueryButton';
 import { useMetricFlowFieldsAPI } from '../features/MetricFlow/hooks/useMetricFlowFieldsAPI';
-import { useMetricFlowQueryAPI } from '../features/MetricFlow/hooks/useMetricFlowQueryAPI';
 import { useMetricFlowQueryResultsAPI } from '../features/MetricFlow/hooks/useMetricFlowQueryResultsAPI';
 import useSqlQueryVisualizationState from '../features/MetricFlow/hooks/useMetricFlowVisualizationState';
 import convertFieldMapToTableColumns from '../features/MetricFlow/utils/convertFieldMapToTableColumns';
@@ -50,23 +49,29 @@ const MetricFlowPage = () => {
         metrics: selectedMetrics,
         dimensions: selectedDimensions,
     });
-    const metricFlowQuery = useMetricFlowQueryAPI(activeProjectUuid, {
-        metrics: selectedMetrics,
-        dimensions: selectedDimensions,
-    });
     const metricFlowQueryResultsQuery = useMetricFlowQueryResultsAPI(
         activeProjectUuid,
-        metricFlowQuery.data?.createQuery.queryId,
+        {
+            metrics: selectedMetrics,
+            dimensions: selectedDimensions,
+        },
+        {
+            onError: (err) => {
+                showToastError({
+                    title: 'Error generating query',
+                    subtitle: err.error.message,
+                });
+            },
+        },
+        {
+            onError: (err) => {
+                showToastError({
+                    title: 'Error fetching results',
+                    subtitle: err.error.message,
+                });
+            },
+        },
     );
-
-    useEffect(() => {
-        if (metricFlowQueryResultsQuery.error) {
-            showToastError({
-                title: 'Error running query',
-                subtitle: metricFlowQueryResultsQuery.error.error.message,
-            });
-        }
-    }, [metricFlowQueryResultsQuery.error, showToastError]);
 
     const explore = useMemo(() => {
         if (!metricFlowFieldsQuery.data) {
@@ -232,11 +237,8 @@ const MetricFlowPage = () => {
             <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
                 <Group position="apart">
                     <RunQueryButton
-                        isLoading={
-                            metricFlowQuery.isLoading ||
-                            metricFlowQueryResultsQuery.isLoading
-                        }
-                        onClick={() => metricFlowQuery.refetch()}
+                        isLoading={metricFlowQueryResultsQuery.isLoading}
+                        onClick={() => metricFlowQueryResultsQuery.refetch()}
                     />
                 </Group>
             </TrackSection>

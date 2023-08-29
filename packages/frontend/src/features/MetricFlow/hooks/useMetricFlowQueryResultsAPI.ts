@@ -2,23 +2,45 @@ import { ApiError } from '@lightdash/common';
 import { useQuery } from 'react-query';
 import { UseQueryOptions } from 'react-query/types/react/types';
 import {
+    createMetricFlowQuery,
+    CreateMetricFlowQueryResponse,
     getMetricFlowQueryResults,
     GetMetricFlowQueryResultsResponse,
     QueryStatus,
 } from '../../../api/MetricFlowAPI';
 
+type ApiRequestsState = Pick<
+    ReturnType<typeof useQuery<GetMetricFlowQueryResultsResponse, ApiError>>,
+    'isLoading' | 'data' | 'error' | 'status'
+> &
+    Pick<
+        ReturnType<typeof useQuery<CreateMetricFlowQueryResponse, ApiError>>,
+        'refetch'
+    >;
+
 export const useMetricFlowQueryResultsAPI = (
     projectUuid: string | undefined,
-    queryId: string | undefined,
-    useQueryOptions?: UseQueryOptions<
+    query?: {
+        metrics: string[];
+        dimensions: string[];
+    },
+    useCreateQueryOptions?: UseQueryOptions<
+        CreateMetricFlowQueryResponse,
+        ApiError
+    >,
+    useResultQueryOptions?: UseQueryOptions<
         GetMetricFlowQueryResultsResponse,
         ApiError
     >,
-): Pick<
-    ReturnType<typeof useQuery<GetMetricFlowQueryResultsResponse, ApiError>>,
-    'isLoading' | 'data' | 'error' | 'status'
-> => {
-    const { data, isLoading, error, status } = useQuery<
+): ApiRequestsState => {
+    const metricFlowQuery = useQuery<CreateMetricFlowQueryResponse, ApiError>({
+        queryKey: ['metric_flow_query', projectUuid, query],
+        enabled: !!projectUuid && !!query?.metrics.length,
+        queryFn: () => createMetricFlowQuery(projectUuid!, query!),
+        ...useCreateQueryOptions,
+    });
+    const queryId = metricFlowQuery.data?.createQuery.queryId;
+    const metricFlowQueryResultsQuery = useQuery<
         GetMetricFlowQueryResultsResponse,
         ApiError
     >({
@@ -33,45 +55,17 @@ export const useMetricFlowQueryResultsAPI = (
                 ? false
                 : 500;
         },
-        ...useQueryOptions,
+        ...useResultQueryOptions,
     });
 
-    if (data?.query.status === QueryStatus.SUCCESSFUL) {
-        return {
-            isLoading,
-            error,
-            data,
-            status,
-        };
-    }
-    if (data?.query.status === QueryStatus.FAILED) {
-        return {
-            isLoading,
-            error: {
-                status: 'error',
-                error: {
-                    name: 'ApiError',
-                    statusCode: 500,
-                    message: data.query.error || 'Unknown error',
-                    data: {},
-                },
-            },
-            data: undefined,
-            status: 'error',
-        };
-    }
-    if (!!data?.query.status) {
-        return {
-            isLoading: true,
-            error: null,
-            data: undefined,
-            status: 'loading',
-        };
-    }
     return {
-        isLoading,
-        error,
-        data: undefined,
-        status,
+        isLoading:
+            metricFlowQuery.isLoading || metricFlowQueryResultsQuery.isLoading,
+        error: metricFlowQuery.error || metricFlowQueryResultsQuery.error,
+        data: metricFlowQueryResultsQuery.data,
+        status: metricFlowQuery.isLoading
+            ? metricFlowQuery.status
+            : metricFlowQueryResultsQuery.status,
+        refetch: metricFlowQuery.refetch,
     };
 };
