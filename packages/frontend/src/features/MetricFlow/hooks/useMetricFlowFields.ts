@@ -9,20 +9,20 @@ import {
 
 const useMetricFlowFields = (
     projectUuid?: string,
-    filters?: {
+    selectedFields?: {
         metrics: string[];
         dimensions: string[];
     },
     useQueryOptions?: UseQueryOptions<GetMetricFlowFieldsResponse, ApiError>,
 ) => {
     return useQuery<GetMetricFlowFieldsResponse, ApiError>({
-        queryKey: ['metric_flow_fields', projectUuid, filters],
+        queryKey: ['metric_flow_fields', projectUuid, selectedFields],
         enabled: !!projectUuid,
-        queryFn: () => getMetricFlowFields(projectUuid!, filters),
+        queryFn: () => getMetricFlowFields(projectUuid!, selectedFields),
         keepPreviousData: true,
         select: (data) => {
             // If no dimensions are returned, use the dimensions from the metrics
-            if (!filters || filters.metrics.length === 0) {
+            if (!selectedFields || selectedFields.metrics.length === 0) {
                 const dimensionsFromMetrics = uniqWith(
                     data.metricsForDimensions
                         .map((metric) => metric.dimensions)
