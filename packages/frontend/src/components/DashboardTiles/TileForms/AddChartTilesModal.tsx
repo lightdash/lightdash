@@ -121,6 +121,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                 </Flex>
             }
             withCloseButton
+            closeOnClickOutside={false}
         >
             <Stack spacing="md">
                 <form
