@@ -17,7 +17,7 @@ import { useChartSchedulers } from '../../../../../hooks/scheduler/useChartSched
 import {
     SyncWithGoogleSheetsModalAction,
     useSyncWithGoogleSheetsModal,
-} from '../../providers/SyncWithGoogleSheetsModalProvider';
+} from './providers/SyncWithGoogleSheetsModalProvider';
 
 export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     const { data } = useChartSchedulers(chartUuid);
