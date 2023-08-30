@@ -1,3 +1,10 @@
+## [0.760.5](https://github.com/lightdash/lightdash/compare/0.760.4...0.760.5) (2023-08-30)
+
+
+### Bug Fixes
+
+* change scheduler time format to 12H and use dayjs ([#6923](https://github.com/lightdash/lightdash/issues/6923)) ([9ac1061](https://github.com/lightdash/lightdash/commit/9ac1061b8a1fba2f2a14ef7a949ee544c800e33b))
+
 ## [0.760.4](https://github.com/lightdash/lightdash/compare/0.760.3...0.760.4) (2023-08-30)
 
 
