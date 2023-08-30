@@ -9,6 +9,8 @@ import {
 import { isNumber } from 'lodash-es';
 import { Entries } from 'type-fest';
 
+const MAX_COLUMNS = 60;
+
 type PivotQueryResultsArgs = {
     pivotConfig: PivotConfig;
     metricQuery: Pick<
@@ -328,6 +330,13 @@ export const pivotQueryResults = ({
                 )
             ) {
                 columnCount++;
+
+                if (columnCount > MAX_COLUMNS) {
+                    throw new Error(
+                        `Cannot pivot results with more than ${MAX_COLUMNS} columns`,
+                    );
+                }
+
                 headerValuesT.push(headerRowValues);
             }
         }
