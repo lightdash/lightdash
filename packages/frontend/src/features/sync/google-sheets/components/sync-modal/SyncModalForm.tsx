@@ -23,11 +23,11 @@ import { useChartSchedulerCreateMutation } from '../../../../../hooks/scheduler/
 import { useScheduler } from '../../../../../hooks/scheduler/useScheduler';
 import { useSchedulersUpdateMutation } from '../../../../../hooks/scheduler/useSchedulersUpdateMutation';
 import { isInvalidCronExpression } from '../../../../../utils/fieldValidators';
+import { SelectGoogleSheetButton } from '../SelectGoogleSheetButton';
 import {
     SyncWithGoogleSheetsModalAction,
     useSyncWithGoogleSheetsModal,
-} from '../../providers/SyncWithGoogleSheetsModalProvider';
-import { SelectGoogleSheetButton } from '../SelectGoogleSheetButton';
+} from './providers/SyncWithGoogleSheetsModalProvider';
 
 export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     const { action, setAction, currentSchedulerUuid } =

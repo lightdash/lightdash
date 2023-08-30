@@ -7,7 +7,7 @@ import {
     SyncWithGoogleSheetsModalAction,
     SyncWithGoogleSheetsModalProvider,
     useSyncWithGoogleSheetsModal,
-} from '../../providers/SyncWithGoogleSheetsModalProvider';
+} from './providers/SyncWithGoogleSheetsModalProvider';
 import { SyncModalDelete } from './SyncModalDelete';
 import { SyncModalForm } from './SyncModalForm';
 import { SyncModalView } from './SyncModalView';
