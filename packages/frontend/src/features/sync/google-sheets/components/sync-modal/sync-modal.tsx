@@ -1,8 +1,8 @@
 import { Flex, Modal, ModalProps, Title } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { FC } from 'react';
-import MantineIcon from '../../../../../../components/common/MantineIcon';
-import { GsheetsIcon } from '../../../../../../components/SchedulerModals/SchedulerModalBase/SchedulerModalBase.styles';
+import MantineIcon from '../../../../../components/common/MantineIcon';
+import { GsheetsIcon } from '../../../../../components/SchedulerModals/SchedulerModalBase/SchedulerModalBase.styles';
 import {
     SyncWithGoogleSheetsModalAction,
     useSyncWithGoogleSheetsModal,
