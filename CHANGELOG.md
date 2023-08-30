@@ -1,3 +1,10 @@
+## [0.760.3](https://github.com/lightdash/lightdash/compare/0.760.2...0.760.3) (2023-08-30)
+
+
+### Bug Fixes
+
+* add loading state to export google sheets menu item ([#6919](https://github.com/lightdash/lightdash/issues/6919)) ([1f80f80](https://github.com/lightdash/lightdash/commit/1f80f80d0ecdef494ae2ace657ac33cf9a72f39a))
+
 ## [0.760.2](https://github.com/lightdash/lightdash/compare/0.760.1...0.760.2) (2023-08-29)
 
 
