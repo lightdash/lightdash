@@ -1,3 +1,10 @@
+# [0.761.0](https://github.com/lightdash/lightdash/compare/0.760.5...0.761.0) (2023-08-30)
+
+
+### Features
+
+* remove legacy dbt metrics integration ([#6915](https://github.com/lightdash/lightdash/issues/6915)) ([fb150da](https://github.com/lightdash/lightdash/commit/fb150da29c06ff55a8d7ea9b6f4e865118bb2b74))
+
 ## [0.760.5](https://github.com/lightdash/lightdash/compare/0.760.4...0.760.5) (2023-08-30)
 
 
