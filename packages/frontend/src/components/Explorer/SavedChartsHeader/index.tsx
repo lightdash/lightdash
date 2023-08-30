@@ -22,10 +22,10 @@ import {
     IconSquarePlus,
     IconTrash,
 } from '@tabler/icons-react';
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
-import { SyncWithGoogleSheets } from '../../../features/sync/google-sheets/components/sync-modal';
+import { SyncModal as GoogleSheetsSyncModal } from '../../../features/sync/google-sheets/components/sync-modal';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import {
     useDuplicateChartMutation,
@@ -534,7 +534,7 @@ const SavedChartsHeader: FC = () => {
                 />
             )}
             {isSyncWithGoogleSheetsModalOpen && savedChart?.uuid && (
-                <SyncWithGoogleSheets
+                <GoogleSheetsSyncModal
                     chartUuid={savedChart.uuid}
                     opened={isSyncWithGoogleSheetsModalOpen}
                     onClose={() => toggleSyncWithGoogleSheetsModalOpen(false)}

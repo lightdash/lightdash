@@ -5,15 +5,16 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import { GsheetsIcon } from '../../../../../components/SchedulerModals/SchedulerModalBase/SchedulerModalBase.styles';
 import {
     SyncWithGoogleSheetsModalAction,
+    SyncWithGoogleSheetsModalProvider,
     useSyncWithGoogleSheetsModal,
-} from '../../hooks/use-sync-with-google-sheets-modal-provider';
-import { SyncModalDelete } from './sync-modal-delete';
-import { SyncModalForm } from './sync-modal-form';
-import { SyncModalView } from './sync-modal-view';
+} from '../../providers/SyncWithGoogleSheetsModalProvider';
+import { SyncModalDelete } from './SyncModalDelete';
+import { SyncModalForm } from './SyncModalForm';
+import { SyncModalView } from './SyncModalView';
 
 type Props = { chartUuid: string } & Pick<ModalProps, 'opened' | 'onClose'>;
 
-export const SyncModal: FC<Props> = ({ chartUuid, opened, onClose }) => {
+const SyncModalBaseAndManager: FC<Props> = ({ chartUuid, opened, onClose }) => {
     const { action } = useSyncWithGoogleSheetsModal();
 
     let modalTitle = 'Sync with Google Sheets';
@@ -55,3 +56,13 @@ export const SyncModal: FC<Props> = ({ chartUuid, opened, onClose }) => {
         </Modal>
     );
 };
+
+export const SyncModal: FC<Props> = ({ chartUuid, opened, onClose }) => (
+    <SyncWithGoogleSheetsModalProvider>
+        <SyncModalBaseAndManager
+            chartUuid={chartUuid}
+            opened={opened}
+            onClose={onClose}
+        />
+    </SyncWithGoogleSheetsModalProvider>
+);
