@@ -26,8 +26,8 @@ import { isInvalidCronExpression } from '../../../../../utils/fieldValidators';
 import {
     SyncWithGoogleSheetsModalAction,
     useSyncWithGoogleSheetsModal,
-} from '../../hooks/use-sync-with-google-sheets-modal-provider';
-import { SelectGoogleSheetButton } from '../select-google-sheet-button';
+} from '../../providers/SyncWithGoogleSheetsModalProvider';
+import { SelectGoogleSheetButton } from '../SelectGoogleSheetButton';
 
 export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     const { action, setAction, currentSchedulerUuid } =

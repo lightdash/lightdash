@@ -7,7 +7,7 @@ import { useSchedulersDeleteMutation } from '../../../../../hooks/scheduler/useS
 import {
     SyncWithGoogleSheetsModalAction,
     useSyncWithGoogleSheetsModal,
-} from '../../hooks/use-sync-with-google-sheets-modal-provider';
+} from '../../providers/SyncWithGoogleSheetsModalProvider';
 
 export const SyncModalDelete = () => {
     const { currentSchedulerUuid, setAction } = useSyncWithGoogleSheetsModal();
