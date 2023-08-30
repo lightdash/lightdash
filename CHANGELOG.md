@@ -1,3 +1,10 @@
+## [0.760.4](https://github.com/lightdash/lightdash/compare/0.760.3...0.760.4) (2023-08-30)
+
+
+### Bug Fixes
+
+* tooltip-hover-effect-on-add-email-and-add-slack ([#6924](https://github.com/lightdash/lightdash/issues/6924)) ([08a581a](https://github.com/lightdash/lightdash/commit/08a581ad18d010df7501d92e379106605ef197e7))
+
 ## [0.760.3](https://github.com/lightdash/lightdash/compare/0.760.2...0.760.3) (2023-08-30)
 
 
