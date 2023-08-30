@@ -18,7 +18,7 @@ const ResultsErrorState: FC<{ error: string }> = ({ error }) => (
 
 const MetricFlowResultsTable: FC<{
     columns: TableColumn[];
-    resultsData: ApiQueryResults | undefined;
+    resultsData: Pick<ApiQueryResults, 'rows'> | undefined;
     status: ReturnType<typeof useQuery>['status'];
     error: ReturnType<typeof useQuery<any, ApiError>>['error'];
 }> = ({ columns, resultsData, status, error }) => {

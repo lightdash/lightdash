@@ -31,7 +31,6 @@ import convertMetricFlowFieldsToExplore from '../features/MetricFlow/utils/conve
 import convertMetricFlowQueryResultsToResultsData from '../features/MetricFlow/utils/convertMetricFlowQueryResultsToResultsData';
 import useToaster from '../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
-import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
@@ -42,7 +41,6 @@ const MetricFlowPage = () => {
     const { showToastError } = useToaster();
     const { user } = useApp();
     const { activeProjectUuid } = useActiveProjectUuid();
-    const { data: project } = useProject(activeProjectUuid);
     const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
     const [selectedDimensions, setSelectedDimensions] = useState<string[]>([]);
     const metricFlowFieldsQuery = useMetricFlowFields(
@@ -146,12 +144,12 @@ const MetricFlowPage = () => {
     const cannotViewProject = user.data?.ability?.cannot(
         'view',
         subject('Project', {
-            organizationUuid: project?.organizationUuid,
-            projectUuid: project?.organizationUuid,
+            organizationUuid: user.data.organizationUuid,
+            projectUuid: activeProjectUuid,
         }),
     );
 
-    if (!project) {
+    if (user.isLoading) {
         return <LoadingPanel />;
     }
     if (cannotViewProject) {
