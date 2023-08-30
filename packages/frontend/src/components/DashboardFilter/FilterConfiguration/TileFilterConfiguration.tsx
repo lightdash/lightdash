@@ -18,9 +18,7 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { FC, useCallback, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
 import { FilterActions } from '.';
-import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 import MantineIcon from '../../common/MantineIcon';
 import { getChartIcon } from '../../common/ResourceIcon';
@@ -49,11 +47,6 @@ const TileFilterConfiguration: FC<Props> = ({
     onToggleAll,
 }) => {
     const theme = useMantineTheme();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-
-    const { data: savedCharts } = useChartSummaries(projectUuid, {
-        refetchOnMount: false,
-    });
 
     const sortTilesByFieldMatch = useCallback(
         (
@@ -124,11 +117,7 @@ const TileFilterConfiguration: FC<Props> = ({
             let tileLabel = '';
             if (tile) {
                 if (tileWithoutTitle && isChartTileType) {
-                    const relatedChart = savedCharts?.find(
-                        (chart) =>
-                            chart.uuid === tile.properties.savedChartUuid,
-                    );
-                    tileLabel = relatedChart?.name || '';
+                    tileLabel = tile.properties.chartName || '';
                 } else if (tile.properties.title) {
                     tileLabel = tile.properties.title;
                 }
@@ -148,14 +137,7 @@ const TileFilterConfiguration: FC<Props> = ({
                 selectedFilter,
             };
         });
-    }, [
-        filterRule,
-        field,
-        savedCharts,
-        sortFieldsByMatch,
-        sortedTileWithFilters,
-        tiles,
-    ]);
+    }, [filterRule, field, sortFieldsByMatch, sortedTileWithFilters, tiles]);
 
     const isAllChecked = tileTargetList.every(({ checked }) => checked);
     const isIndeterminate =
