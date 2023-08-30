@@ -12,8 +12,8 @@ import {
 import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
 import cronstrue from 'cronstrue';
 import { FC } from 'react';
-import MantineIcon from '../../../../../../components/common/MantineIcon';
-import { useChartSchedulers } from '../../../../../../hooks/scheduler/useChartSchedulers';
+import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useChartSchedulers } from '../../../../../hooks/scheduler/useChartSchedulers';
 import {
     SyncWithGoogleSheetsModalAction,
     useSyncWithGoogleSheetsModal,

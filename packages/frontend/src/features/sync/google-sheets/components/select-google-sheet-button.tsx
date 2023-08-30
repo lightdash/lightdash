@@ -2,10 +2,10 @@ import { Badge, Button, CloseButton, Tooltip } from '@mantine/core';
 import { FC, useCallback } from 'react';
 import useDrivePicker from 'react-google-drive-picker';
 import { useFormContext } from 'react-hook-form';
-import MantineIcon from '../../../../../components/common/MantineIcon';
-import { GsheetsIcon } from '../../../../../components/SchedulerModals/SchedulerModalBase/SchedulerModalBase.styles';
-import { useGdriveAccessToken } from '../../../../../hooks/gdrive/useGdrive';
-import useHealth from '../../../../../hooks/health/useHealth';
+import MantineIcon from '../../../../components/common/MantineIcon';
+import { GsheetsIcon } from '../../../../components/SchedulerModals/SchedulerModalBase/SchedulerModalBase.styles';
+import { useGdriveAccessToken } from '../../../../hooks/gdrive/useGdrive';
+import useHealth from '../../../../hooks/health/useHealth';
 
 export const SelectGoogleSheetButton: FC = () => {
     const methods = useFormContext();
