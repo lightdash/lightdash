@@ -18,6 +18,8 @@ const SyncWithGoogleSheetsModalContext = createContext<
     | {
           action: SyncWithGoogleSheetsModalAction;
           setAction: Dispatch<SetStateAction<SyncWithGoogleSheetsModalAction>>;
+          currentSchedulerUuid?: string;
+          setCurrentSchedulerUuid: Dispatch<SetStateAction<string | undefined>>;
       }
     | undefined
 >(undefined);
@@ -26,10 +28,16 @@ export const SyncWithGoogleSheetsModalProvider: FC = ({ children }) => {
     const [action, setAction] = useState<SyncWithGoogleSheetsModalAction>(
         SyncWithGoogleSheetsModalAction.VIEW,
     );
+    const [currentSchedulerUuid, setCurrentSchedulerUuid] = useState<string>();
 
     return (
         <SyncWithGoogleSheetsModalContext.Provider
-            value={{ action, setAction }}
+            value={{
+                action,
+                setAction,
+                currentSchedulerUuid,
+                setCurrentSchedulerUuid,
+            }}
         >
             {children}
         </SyncWithGoogleSheetsModalContext.Provider>
