@@ -137,6 +137,7 @@ export interface Field {
     groupLabel?: string;
     urls?: FieldUrl[];
     index?: number;
+    timeInterval?: TimeFrames;
 }
 
 export const isField = (field: any): field is Field =>
@@ -195,7 +196,6 @@ export interface Dimension extends Field {
     fieldType: FieldType.DIMENSION;
     type: DimensionType;
     group?: string;
-    timeInterval?: TimeFrames;
     requiredAttributes?: Record<string, string>;
 }
 

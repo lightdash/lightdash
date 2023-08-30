@@ -9,6 +9,7 @@ import {
     TableCalculation,
 } from './field';
 import { Filters, MetricFilterRule } from './filter';
+import { TimeFrames } from './timeFrames';
 
 export interface AdditionalMetric {
     label?: string;
@@ -26,6 +27,7 @@ export interface AdditionalMetric {
     baseDimensionName?: string;
     uuid?: string | null;
     percentile?: number;
+    timeInterval?: TimeFrames;
 }
 
 export const isAdditionalMetric = (value: any): value is AdditionalMetric =>

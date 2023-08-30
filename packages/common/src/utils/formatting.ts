@@ -6,7 +6,6 @@ import {
     Field,
     findCompactConfig,
     Format,
-    isDimension,
     isField,
     isTableCalculation,
     MetricType,
@@ -65,22 +64,17 @@ export const formatBoolean = <T>(v: T) =>
 export const getDateFormat = (
     timeInterval: TimeFrames | undefined = TimeFrames.DAY,
 ): string => {
-    let dateForm: string;
     switch (timeInterval) {
         case TimeFrames.YEAR:
-            dateForm = 'YYYY';
-            break;
+            return 'YYYY';
         case TimeFrames.QUARTER:
-            dateForm = 'YYYY-[Q]Q';
-            break;
+            return 'YYYY-[Q]Q';
         case TimeFrames.MONTH:
-            dateForm = 'YYYY-MM';
-            break;
+            return 'YYYY-MM';
+        case TimeFrames.DAY:
         default:
-            dateForm = 'YYYY-MM-DD';
-            break;
+            return 'YYYY-MM-DD';
     }
-    return dateForm;
 };
 
 export const isMomentInput = (value: unknown): value is MomentInput =>
@@ -117,6 +111,7 @@ const getTimeFormat = (
         case TimeFrames.SECOND:
             timeFormat = 'HH:mm:ss';
             break;
+        case TimeFrames.MILLISECOND:
         default:
             timeFormat = 'HH:mm:ss:SSS';
             break;
@@ -282,28 +277,29 @@ export function formatFieldValue(
         case DimensionType.DATE:
         case MetricType.DATE:
             return isMomentInput(value)
-                ? formatDate(
-                      value,
-                      isDimension(field) ? field.timeInterval : undefined,
-                      convertToUTC,
-                  )
+                ? formatDate(value, field.timeInterval, convertToUTC)
                 : 'NaT';
         case DimensionType.TIMESTAMP:
             return isMomentInput(value)
-                ? formatTimestamp(
-                      value,
-                      isDimension(field) ? field.timeInterval : undefined,
-                      convertToUTC,
-                  )
+                ? formatTimestamp(value, field.timeInterval, convertToUTC)
                 : 'NaT';
         case MetricType.MAX:
         case MetricType.MIN: {
             if (value instanceof Date) {
-                return formatTimestamp(
-                    value,
-                    isDimension(field) ? field.timeInterval : undefined,
-                    convertToUTC,
-                );
+                if (
+                    field.timeInterval &&
+                    [
+                        TimeFrames.YEAR,
+                        TimeFrames.QUARTER,
+                        TimeFrames.MONTH,
+                        TimeFrames.WEEK,
+                        TimeFrames.DAY,
+                    ].includes(field.timeInterval)
+                ) {
+                    return formatDate(value, field.timeInterval, convertToUTC);
+                }
+
+                return formatTimestamp(value, field.timeInterval, convertToUTC);
             }
             return formatValue(value, { format, round, compact });
         }
