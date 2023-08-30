@@ -45,10 +45,23 @@ const MetricFlowPage = () => {
     const { data: project } = useProject(activeProjectUuid);
     const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
     const [selectedDimensions, setSelectedDimensions] = useState<string[]>([]);
-    const metricFlowFieldsQuery = useMetricFlowFields(activeProjectUuid, {
-        metrics: selectedMetrics,
-        dimensions: selectedDimensions,
-    });
+    const metricFlowFieldsQuery = useMetricFlowFields(
+        activeProjectUuid,
+        {
+            metrics: selectedMetrics,
+            dimensions: selectedDimensions,
+        },
+        {
+            onError: (err) => {
+                showToastError({
+                    title: 'Error fetching metrics and dimensions',
+                    subtitle: err.error.message,
+                });
+                setSelectedMetrics([]);
+                setSelectedDimensions([]);
+            },
+        },
+    );
     const metricFlowQueryResultsQuery = useMetricFlowQueryResults(
         activeProjectUuid,
         {
@@ -193,10 +206,8 @@ const MetricFlowPage = () => {
                             <Title order={5}>Metrics</Title>
                             <Text span fz="xs" color="gray.6">
                                 (
-                                {
-                                    metricFlowFieldsQuery.data
-                                        ?.metricsForDimensions.length
-                                }
+                                {metricFlowFieldsQuery.data
+                                    ?.metricsForDimensions.length ?? 0}
                                 {selectedDimensions.length > 0 && (
                                     <> available based on selected dimensions</>
                                 )}
@@ -216,7 +227,9 @@ const MetricFlowPage = () => {
                         <Flex align="baseline" gap="xxs">
                             <Title order={5}>Dimensions</Title>
                             <Text span fz="xs" color="gray.6">
-                                ({metricFlowFieldsQuery.data?.dimensions.length}
+                                (
+                                {metricFlowFieldsQuery.data?.dimensions
+                                    .length ?? 0}
                                 {selectedMetrics.length > 0 && (
                                     <> available based on selected metrics</>
                                 )}
