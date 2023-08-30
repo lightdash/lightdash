@@ -45,7 +45,7 @@ const useMetricFlowQueryResults = (
         ApiError
     >({
         queryKey: ['metric_flow_query_results', projectUuid, queryId],
-        enabled: !!projectUuid && !!queryId,
+        enabled: !!projectUuid && !!queryId && metricFlowQuery.isSuccess,
         queryFn: () => getMetricFlowQueryResults(projectUuid!, queryId!),
         refetchInterval: (refetchData) => {
             return refetchData === undefined ||
@@ -57,6 +57,22 @@ const useMetricFlowQueryResults = (
         },
         ...useResultQueryOptions,
     });
+
+    const isResultsQueryRefetching =
+        !!metricFlowQueryResultsQuery.data &&
+        ![QueryStatus.SUCCESSFUL, QueryStatus.FAILED].includes(
+            metricFlowQueryResultsQuery.data?.query.status,
+        );
+
+    if (isResultsQueryRefetching) {
+        return {
+            isLoading: true,
+            error: null,
+            data: undefined,
+            status: 'loading',
+            refetch: metricFlowQuery.refetch,
+        };
+    }
 
     if (metricFlowQueryResultsQuery.data?.query.status === QueryStatus.FAILED) {
         return {
@@ -78,17 +94,9 @@ const useMetricFlowQueryResults = (
         };
     }
 
-    const isResultsQueryRefetching =
-        !!metricFlowQueryResultsQuery.data &&
-        ![QueryStatus.SUCCESSFUL, QueryStatus.FAILED].includes(
-            metricFlowQueryResultsQuery.data?.query.status,
-        );
-
     return {
         isLoading:
-            metricFlowQuery.isLoading ||
-            metricFlowQueryResultsQuery.isLoading ||
-            isResultsQueryRefetching,
+            metricFlowQuery.isLoading || metricFlowQueryResultsQuery.isLoading,
         error: metricFlowQuery.error || metricFlowQueryResultsQuery.error,
         data: metricFlowQueryResultsQuery.data,
         status: metricFlowQuery.isLoading
