@@ -74,6 +74,7 @@ type DbtCliArgs = {
 enum DbtCommands {
     DBT_1_4 = 'dbt',
     DBT_1_5 = 'dbt1.5',
+    DBT_1_6 = 'dbt1.6',
 }
 
 export class DbtCliClient implements DbtClient {
@@ -138,6 +139,8 @@ export class DbtCliClient implements DbtClient {
                 return DbtCommands.DBT_1_4;
             case SupportedDbtVersions.V1_5:
                 return DbtCommands.DBT_1_5;
+            case SupportedDbtVersions.V1_6:
+                return DbtCommands.DBT_1_6;
             default:
                 return assertUnreachable(
                     this.dbtVersion,
