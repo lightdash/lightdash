@@ -8,6 +8,14 @@ export const GsheetsIcon = styled(GsheetsSvg)`
     width: 16px;
     height: 16px;
 `;
+
+export const GSheetsIconIndigo = styled(GsheetsIcon)`
+    & path {
+        stroke: rgb(76, 110, 245);
+        stroke-width: 1.5;
+    }
+`;
+
 export const SlackIcon = styled(SlackSvg)`
     width: 20px;
     height: 20px;
