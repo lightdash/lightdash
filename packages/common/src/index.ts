@@ -6,10 +6,7 @@ import {
     DashboardBasicDetails,
 } from './types/dashboard';
 import { convertAdditionalMetric } from './types/dbt';
-import {
-    DbtCloudIntegration,
-    DbtCloudMetadataResponseMetrics,
-} from './types/dbtCloud';
+import { DbtCloudIntegration } from './types/dbtCloud';
 import { Explore, SummaryExplore } from './types/explore';
 import {
     CompiledDimension,
@@ -507,7 +504,6 @@ type ApiResults =
     | ProjectMemberProfile[]
     | SearchResults
     | Space
-    | DbtCloudMetadataResponseMetrics
     | DbtCloudIntegration
     | ShareUrl
     | SlackSettings

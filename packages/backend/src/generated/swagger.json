@@ -104,71 +104,6 @@
                 "required": ["status"],
                 "type": "object"
             },
-            "DbtCloudMetric": {
-                "properties": {
-                    "label": {
-                        "type": "string"
-                    },
-                    "timeGrains": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "dimensions": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "uniqueId": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "label",
-                    "timeGrains",
-                    "description",
-                    "dimensions",
-                    "name",
-                    "uniqueId"
-                ],
-                "type": "object"
-            },
-            "DbtCloudMetadataResponseMetrics": {
-                "properties": {
-                    "metrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/DbtCloudMetric"
-                        },
-                        "type": "array",
-                        "description": "A list of dbt metric definitions from the dbt cloud metadata api"
-                    }
-                },
-                "required": ["metrics"],
-                "type": "object",
-                "description": "Response from dbt cloud metadata api containing a list of metric definitions"
-            },
-            "ApiDbtCloudMetrics": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/DbtCloudMetadataResponseMetrics"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
             "ApiGdriveAccessTokenResponse": {
                 "properties": {
                     "results": {
@@ -4276,46 +4211,6 @@
                     }
                 },
                 "description": "Remove the dbt Cloud integration settings for a project",
-                "tags": ["Integrations"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/projects/{projectUuid}/integrations/dbt-cloud/metrics": {
-            "get": {
-                "operationId": "getDbtCloudMetrics",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiDbtCloudMetrics"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get a list of dbt metric definitions from the dbt Cloud metadata api.\nThe metrics are taken from the metadata from a single dbt Cloud job configured\nwith the dbt Cloud integration settings for the project.",
                 "tags": ["Integrations"],
                 "security": [],
                 "parameters": [

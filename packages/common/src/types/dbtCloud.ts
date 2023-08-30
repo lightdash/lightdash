@@ -1,22 +1,3 @@
-export type DbtCloudMetric = {
-    uniqueId: string;
-    name: string;
-    dimensions: string[];
-    description: string;
-    timeGrains: string[];
-    label: string;
-};
-
-/**
- * Response from dbt cloud metadata api containing a list of metric definitions
- */
-export type DbtCloudMetadataResponseMetrics = {
-    /**
-     * A list of dbt metric definitions from the dbt cloud metadata api
-     */
-    metrics: DbtCloudMetric[];
-};
-
 /**
  * Credentials required to connect a Lightdash project to dbt Cloud
  */

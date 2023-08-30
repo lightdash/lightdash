@@ -1,16 +1,8 @@
-import {
-    DbtCloudIntegration,
-    DbtCloudMetadataResponseMetrics,
-} from '../dbtCloud';
+import { DbtCloudIntegration } from '../dbtCloud';
 
 export type ApiDbtCloudIntegrationSettings = {
     status: 'ok';
     results: DbtCloudIntegration | undefined;
-};
-
-export type ApiDbtCloudMetrics = {
-    status: 'ok';
-    results: DbtCloudMetadataResponseMetrics;
 };
 
 export type ApiDbtCloudSettingsDeleteSuccess = {
