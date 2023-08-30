@@ -26,7 +26,7 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     const methods = useForm<CreateSchedulerAndTargetsWithoutIds>({
         mode: 'onSubmit',
         defaultValues: {
-            cron: '',
+            cron: '0 9 * * *',
             name: '',
             options: {
                 gdriveId: '',
