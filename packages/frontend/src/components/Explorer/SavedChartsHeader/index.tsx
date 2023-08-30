@@ -13,6 +13,7 @@ import {
     IconArrowBack,
     IconCheck,
     IconCirclePlus,
+    IconCirclesRelation,
     IconCopy,
     IconDots,
     IconFolders,
@@ -24,6 +25,7 @@ import {
 import React, { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
+import { SyncWithGoogleSheets } from '../../../features/sync/google-sheets/sync/components/sync-modal';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import {
     useDuplicateChartMutation,
@@ -90,11 +92,15 @@ const SavedChartsHeader: FC = () => {
     const [isMovingChart, setIsMovingChart] = useState(false);
     const [isScheduledDeliveriesModalOpen, toggleScheduledDeliveriesModal] =
         useToggle(false);
+    const [
+        isSyncWithGoogleSheetsModalOpen,
+        toggleSyncWithGoogleSheetsModalOpen,
+    ] = useToggle(false);
     const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
         useState<boolean>(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] =
         useState<boolean>(false);
-    const { user } = useApp();
+    const { user, health } = useApp();
     const { data: spaces } = useSpaceSummaries(projectUuid);
     const { mutate: moveChartToSpace } = useMoveChartMutation();
     const updateSavedChart = useUpdateMutation(
@@ -106,6 +112,10 @@ const SavedChartsHeader: FC = () => {
     const { mutate: duplicateChart } = useDuplicateChartMutation();
     const chartId = savedChart?.uuid || '';
     const chartBelongsToDashboard: boolean = !!savedChart?.dashboardUuid;
+
+    const hasGoogleDriveEnabled =
+        health.data?.auth.google.oauth2ClientId !== undefined &&
+        health.data?.auth.google.googleDriveApiKey !== undefined;
 
     useEffect(() => {
         const schedulerUuidFromUrlParams =
@@ -450,6 +460,18 @@ const SavedChartsHeader: FC = () => {
                                             }
                                         />
                                     )}
+                                    {userCanManageCharts &&
+                                    hasGoogleDriveEnabled ? (
+                                        <MenuItem2
+                                            icon={<IconCirclesRelation />}
+                                            text="Sync with Google Sheets"
+                                            onClick={() =>
+                                                toggleSyncWithGoogleSheetsModalOpen(
+                                                    true,
+                                                )
+                                            }
+                                        />
+                                    ) : null}
                                     <Divider />
                                     <MenuItem2
                                         icon={<IconTrash />}
@@ -510,6 +532,10 @@ const SavedChartsHeader: FC = () => {
                         setIsDeleteDialogOpen(false);
                     }}
                 />
+            )}
+            {/*  TODO: rename */}
+            {isSyncWithGoogleSheetsModalOpen && savedChart?.uuid && (
+                <SyncWithGoogleSheets chartUuid={savedChart.uuid} />
             )}
             {isScheduledDeliveriesModalOpen && savedChart?.uuid && (
                 <ChartSchedulersModal
