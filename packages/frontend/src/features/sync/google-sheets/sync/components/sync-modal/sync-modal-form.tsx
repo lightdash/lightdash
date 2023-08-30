@@ -96,7 +96,7 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                                 setAction(SyncWithGoogleSheetsModalAction.VIEW)
                             }
                         >
-                            Back
+                            Cancel
                         </Button>
 
                         <Button
