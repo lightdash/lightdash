@@ -1,3 +1,10 @@
+## [0.761.1](https://github.com/lightdash/lightdash/compare/0.761.0...0.761.1) (2023-08-30)
+
+
+### Bug Fixes
+
+* keep add charts dialog open on click outside ([#6934](https://github.com/lightdash/lightdash/issues/6934)) ([e1ef0d9](https://github.com/lightdash/lightdash/commit/e1ef0d9643247d2253e1ff7ad77f681bffe0c7fb))
+
 # [0.761.0](https://github.com/lightdash/lightdash/compare/0.760.5...0.761.0) (2023-08-30)
 
 
