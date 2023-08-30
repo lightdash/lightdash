@@ -32,14 +32,16 @@ export type GetMetricFlowFieldsResponse = {
 
 export function getMetricFlowFields(
     projectUuid: string,
-    filters?: {
+    selectedFields?: {
         metrics: string[];
         dimensions: string[];
     },
 ): Promise<GetMetricFlowFieldsResponse> {
     const query = `query GetFields($environmentId: BigInt!) {
             metricsForDimensions(environmentId: $environmentId, dimensions: [${
-                filters?.dimensions.map((dimension) => `"${dimension}"`) ?? ''
+                selectedFields?.dimensions.map(
+                    (dimension) => `"${dimension}"`,
+                ) ?? ''
             }]) {
                 name
                 description
@@ -51,7 +53,7 @@ export function getMetricFlowFields(
                 } 
             }
             dimensions(environmentId: $environmentId, metrics: [${
-                filters?.metrics.map((metric) => `"${metric}"`) ?? ''
+                selectedFields?.metrics.map((metric) => `"${metric}"`) ?? ''
             }]) {
                 name
                 description
