@@ -29,12 +29,21 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     return (
         <Stack spacing="lg">
             {googleSheetsSyncs && googleSheetsSyncs.length ? (
-                <List listStyleType="none">
+                <List
+                    listStyleType="none"
+                    styles={{
+                        itemWrapper: {
+                            width: '100%',
+                        },
+                    }}
+                >
                     {googleSheetsSyncs.map((sync) => (
                         <List.Item key={sync.schedulerUuid} mb="sm">
-                            <Card withBorder pos="relative">
+                            <Card withBorder pos="relative" p="xs">
                                 <Stack spacing="xs">
-                                    <Text fw={500}>{sync.name}</Text>
+                                    <Text fz="sm" fw={500}>
+                                        {sync.name}
+                                    </Text>
 
                                     <Flex align="center">
                                         <Text span size="xs" color="gray.6">
