@@ -13,7 +13,6 @@ import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
 import cronstrue from 'cronstrue';
 import { FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import { SeparatorDot } from '../../../../../../components/common/PageHeader';
 import { useChartSchedulers } from '../../../../../../hooks/scheduler/useChartSchedulers';
 import {
     SyncWithGoogleSheetsModalAction,
@@ -53,11 +52,6 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                                                 throwExceptionOnParseError:
                                                     false,
                                             })}
-                                        </Text>
-
-                                        <SeparatorDot icon="dot" size={6} />
-                                        <Text span size="xs" color="gray.6">
-                                            {sync.targets.length} recipients
                                         </Text>
                                     </Flex>
                                 </Stack>
