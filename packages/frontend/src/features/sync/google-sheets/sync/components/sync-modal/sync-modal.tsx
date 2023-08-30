@@ -1,4 +1,4 @@
-import { Flex, Modal, Title } from '@mantine/core';
+import { Flex, Modal, ModalProps, Title } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
@@ -11,7 +11,9 @@ import { SyncModalDelete } from './sync-modal-delete';
 import { SyncModalForm } from './sync-modal-form';
 import { SyncModalView } from './sync-modal-view';
 
-export const SyncModal: FC<{ chartUuid: string }> = ({ chartUuid }) => {
+type Props = { chartUuid: string } & Pick<ModalProps, 'opened' | 'onClose'>;
+
+export const SyncModal: FC<Props> = ({ chartUuid, opened, onClose }) => {
     const { action } = useSyncWithGoogleSheetsModal();
 
     let modalTitle = 'Sync with Google Sheets';
@@ -31,14 +33,14 @@ export const SyncModal: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     return (
         <Modal
             size="md"
-            opened
+            opened={opened}
             title={
                 <Flex align="center" gap="xs">
                     <MantineIcon icon={headerIcon} color={headerIconColor} />
                     <Title order={5}>{modalTitle}</Title>
                 </Flex>
             }
-            onClose={() => {}}
+            onClose={onClose}
         >
             {action === SyncWithGoogleSheetsModalAction.VIEW && (
                 <SyncModalView chartUuid={chartUuid} />

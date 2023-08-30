@@ -533,9 +533,12 @@ const SavedChartsHeader: FC = () => {
                     }}
                 />
             )}
-            {/*  TODO: rename */}
             {isSyncWithGoogleSheetsModalOpen && savedChart?.uuid && (
-                <SyncWithGoogleSheets chartUuid={savedChart.uuid} />
+                <SyncWithGoogleSheets
+                    chartUuid={savedChart.uuid}
+                    opened={isSyncWithGoogleSheetsModalOpen}
+                    onClose={() => toggleSyncWithGoogleSheetsModalOpen(false)}
+                />
             )}
             {isScheduledDeliveriesModalOpen && savedChart?.uuid && (
                 <ChartSchedulersModal
