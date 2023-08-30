@@ -97,8 +97,14 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                                                     icon={IconTrash}
                                                 />
                                             }
-                                            //TODO: add delete action
-                                            onClick={() => {}}
+                                            onClick={() => {
+                                                setAction(
+                                                    SyncWithGoogleSheetsModalAction.DELETE,
+                                                );
+                                                setCurrentSchedulerUuid(
+                                                    sync.schedulerUuid,
+                                                );
+                                            }}
                                         >
                                             Delete
                                         </Menu.Item>

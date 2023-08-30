@@ -11,7 +11,7 @@ export enum SyncWithGoogleSheetsModalAction {
     CREATE = 'create',
     EDIT = 'edit',
     VIEW = 'view',
-    // TODO: add delete action
+    DELETE = 'delete',
 }
 
 const SyncWithGoogleSheetsModalContext = createContext<
