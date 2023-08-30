@@ -6,6 +6,7 @@ import {
     Flex,
     List,
     Menu,
+    ScrollArea,
     Stack,
     Text,
 } from '@mantine/core';
@@ -29,91 +30,93 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     return (
         <Stack spacing="lg">
             {googleSheetsSyncs && googleSheetsSyncs.length ? (
-                <List
-                    listStyleType="none"
-                    styles={{
-                        itemWrapper: {
-                            width: '100%',
-                        },
-                    }}
-                >
-                    {googleSheetsSyncs.map((sync) => (
-                        <List.Item key={sync.schedulerUuid} mb="sm">
-                            <Card withBorder pos="relative" p="xs">
-                                <Stack spacing="xs">
-                                    <Text fz="sm" fw={500}>
-                                        {sync.name}
-                                    </Text>
-
-                                    <Flex align="center">
-                                        <Text span size="xs" color="gray.6">
-                                            {cronstrue.toString(sync.cron, {
-                                                verbose: true,
-                                                throwExceptionOnParseError:
-                                                    false,
-                                            })}
+                <ScrollArea h={450}>
+                    <List
+                        listStyleType="none"
+                        styles={{
+                            itemWrapper: {
+                                width: '100%',
+                            },
+                        }}
+                    >
+                        {googleSheetsSyncs.map((sync) => (
+                            <List.Item key={sync.schedulerUuid} mb="sm">
+                                <Card withBorder pos="relative" p="xs">
+                                    <Stack spacing="xs">
+                                        <Text fz="sm" fw={500}>
+                                            {sync.name}
                                         </Text>
-                                    </Flex>
-                                </Stack>
 
-                                <Menu
-                                    shadow="md"
-                                    width={200}
-                                    withinPortal
-                                    position="right-start"
-                                >
-                                    <Menu.Target>
-                                        <ActionIcon
-                                            pos="absolute"
-                                            top={0}
-                                            right={0}
-                                        >
-                                            <MantineIcon icon={IconDots} />
-                                        </ActionIcon>
-                                    </Menu.Target>
+                                        <Flex align="center">
+                                            <Text span size="xs" color="gray.6">
+                                                {cronstrue.toString(sync.cron, {
+                                                    verbose: true,
+                                                    throwExceptionOnParseError:
+                                                        false,
+                                                })}
+                                            </Text>
+                                        </Flex>
+                                    </Stack>
 
-                                    <Menu.Dropdown>
-                                        <Menu.Item
-                                            icon={
-                                                <MantineIcon
-                                                    icon={IconPencil}
-                                                />
-                                            }
-                                            onClick={() => {
-                                                setAction(
-                                                    SyncWithGoogleSheetsModalAction.EDIT,
-                                                );
-                                                setCurrentSchedulerUuid(
-                                                    sync.schedulerUuid,
-                                                );
-                                            }}
-                                        >
-                                            Edit
-                                        </Menu.Item>
-                                        <Menu.Item
-                                            icon={
-                                                <MantineIcon
-                                                    color="red"
-                                                    icon={IconTrash}
-                                                />
-                                            }
-                                            onClick={() => {
-                                                setAction(
-                                                    SyncWithGoogleSheetsModalAction.DELETE,
-                                                );
-                                                setCurrentSchedulerUuid(
-                                                    sync.schedulerUuid,
-                                                );
-                                            }}
-                                        >
-                                            Delete
-                                        </Menu.Item>
-                                    </Menu.Dropdown>
-                                </Menu>
-                            </Card>
-                        </List.Item>
-                    ))}
-                </List>
+                                    <Menu
+                                        shadow="md"
+                                        width={200}
+                                        withinPortal
+                                        position="right-start"
+                                    >
+                                        <Menu.Target>
+                                            <ActionIcon
+                                                pos="absolute"
+                                                top={0}
+                                                right={0}
+                                            >
+                                                <MantineIcon icon={IconDots} />
+                                            </ActionIcon>
+                                        </Menu.Target>
+
+                                        <Menu.Dropdown>
+                                            <Menu.Item
+                                                icon={
+                                                    <MantineIcon
+                                                        icon={IconPencil}
+                                                    />
+                                                }
+                                                onClick={() => {
+                                                    setAction(
+                                                        SyncWithGoogleSheetsModalAction.EDIT,
+                                                    );
+                                                    setCurrentSchedulerUuid(
+                                                        sync.schedulerUuid,
+                                                    );
+                                                }}
+                                            >
+                                                Edit
+                                            </Menu.Item>
+                                            <Menu.Item
+                                                icon={
+                                                    <MantineIcon
+                                                        color="red"
+                                                        icon={IconTrash}
+                                                    />
+                                                }
+                                                onClick={() => {
+                                                    setAction(
+                                                        SyncWithGoogleSheetsModalAction.DELETE,
+                                                    );
+                                                    setCurrentSchedulerUuid(
+                                                        sync.schedulerUuid,
+                                                    );
+                                                }}
+                                            >
+                                                Delete
+                                            </Menu.Item>
+                                        </Menu.Dropdown>
+                                    </Menu>
+                                </Card>
+                            </List.Item>
+                        ))}
+                    </List>
+                </ScrollArea>
             ) : (
                 <Text>No Syncs found</Text>
             )}
