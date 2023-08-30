@@ -22,7 +22,8 @@ import {
 
 export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     const { data } = useChartSchedulers(chartUuid);
-    const { setAction } = useSyncWithGoogleSheetsModal();
+    const { setAction, setCurrentSchedulerUuid } =
+        useSyncWithGoogleSheetsModal();
     const googleSheetsSyncs = data?.filter(
         ({ format }) => format === SchedulerFormat.GSHEETS,
     );
@@ -79,17 +80,19 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
 
                                     <Menu.Dropdown>
                                         <Menu.Item
-                                            //TODO: add edit action
                                             icon={
                                                 <MantineIcon
                                                     icon={IconPencil}
                                                 />
                                             }
-                                            onClick={() =>
+                                            onClick={() => {
                                                 setAction(
                                                     SyncWithGoogleSheetsModalAction.EDIT,
-                                                )
-                                            }
+                                                );
+                                                setCurrentSchedulerUuid(
+                                                    sync.schedulerUuid,
+                                                );
+                                            }}
                                         >
                                             Edit
                                         </Menu.Item>
