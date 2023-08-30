@@ -18,7 +18,7 @@ type ApiRequestsState = Pick<
         'refetch'
     >;
 
-export const useMetricFlowQueryResultsAPI = (
+const useMetricFlowQueryResults = (
     projectUuid: string | undefined,
     query?: {
         metrics: string[];
@@ -97,3 +97,5 @@ export const useMetricFlowQueryResultsAPI = (
         refetch: metricFlowQuery.refetch,
     };
 };
+
+export default useMetricFlowQueryResults;

@@ -23,9 +23,9 @@ import { LoadingPanel } from '../components/MetricQueryData/UnderlyingDataModal.
 import MetricFlowFieldList from '../features/MetricFlow/components/MetricFlowFieldList';
 import MetricFlowResultsTable from '../features/MetricFlow/components/ResultsTable';
 import RunQueryButton from '../features/MetricFlow/components/RunQueryButton';
-import { useMetricFlowFieldsAPI } from '../features/MetricFlow/hooks/useMetricFlowFieldsAPI';
-import { useMetricFlowQueryResultsAPI } from '../features/MetricFlow/hooks/useMetricFlowQueryResultsAPI';
-import useSqlQueryVisualizationState from '../features/MetricFlow/hooks/useMetricFlowVisualizationState';
+import useMetricFlowFields from '../features/MetricFlow/hooks/useMetricFlowFields';
+import useMetricFlowQueryResults from '../features/MetricFlow/hooks/useMetricFlowQueryResults';
+import useMetricFlowVisualization from '../features/MetricFlow/hooks/useMetricFlowVisualization';
 import convertFieldMapToTableColumns from '../features/MetricFlow/utils/convertFieldMapToTableColumns';
 import convertMetricFlowFieldsToExplore from '../features/MetricFlow/utils/convertMetricFlowFieldsToExplore';
 import convertMetricFlowQueryResultsToResultsData from '../features/MetricFlow/utils/convertMetricFlowQueryResultsToResultsData';
@@ -45,11 +45,11 @@ const MetricFlowPage = () => {
     const { data: project } = useProject(activeProjectUuid);
     const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
     const [selectedDimensions, setSelectedDimensions] = useState<string[]>([]);
-    const metricFlowFieldsQuery = useMetricFlowFieldsAPI(activeProjectUuid, {
+    const metricFlowFieldsQuery = useMetricFlowFields(activeProjectUuid, {
         metrics: selectedMetrics,
         dimensions: selectedDimensions,
     });
-    const metricFlowQueryResultsQuery = useMetricFlowQueryResultsAPI(
+    const metricFlowQueryResultsQuery = useMetricFlowQueryResults(
         activeProjectUuid,
         {
             metrics: selectedMetrics,
@@ -104,7 +104,7 @@ const MetricFlowPage = () => {
         setChartType,
         setChartConfig,
         setPivotFields,
-    } = useSqlQueryVisualizationState(resultsData);
+    } = useMetricFlowVisualization(resultsData);
 
     const handleMetricSelect = useCallback(
         (metric: string) => {

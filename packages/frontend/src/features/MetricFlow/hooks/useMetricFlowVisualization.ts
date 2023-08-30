@@ -1,7 +1,7 @@
 import { ApiQueryResults, ChartConfig, ChartType } from '@lightdash/common';
 import { useState } from 'react';
 
-const useSqlQueryVisualizationState = (
+const useMetricFlowVisualization = (
     resultsData: ApiQueryResults | undefined,
 ) => {
     const [chartType, setChartType] = useState<ChartType>(ChartType.CARTESIAN);
@@ -23,4 +23,4 @@ const useSqlQueryVisualizationState = (
         setPivotFields,
     };
 };
-export default useSqlQueryVisualizationState;
+export default useMetricFlowVisualization;
