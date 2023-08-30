@@ -59,6 +59,8 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
         }
     }, [isSuccess, methods, setAction]);
 
+    const hasSetGoogleSheet = methods.watch('options.gdriveId') !== '';
+
     return (
         <FormProvider {...methods}>
             <form onSubmit={methods.handleSubmit(handleSubmit)}>
@@ -103,6 +105,7 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                             display="block"
                             ml="auto"
                             type="submit"
+                            disabled={!hasSetGoogleSheet}
                             loading={isLoading}
                             leftIcon={
                                 <MantineIcon icon={IconCirclesRelation} />
