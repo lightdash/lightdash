@@ -4,7 +4,7 @@ import {
     SchedulerJobStatus,
     SchedulerWithLogs,
 } from '@lightdash/common';
-import { Image, MantineTheme, Tooltip } from '@mantine/core';
+import { MantineTheme, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangleFilled,
     IconCircleCheckFilled,
@@ -14,9 +14,9 @@ import {
     IconProgress,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import GsheetSvg from '../../svgs/google-sheets.svg';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
+import { GSheetsIconIndigo } from '../SchedulerModals/SchedulerModalBase/SchedulerModalBase.styles';
 
 export type SchedulerItem = SchedulerWithLogs['schedulers'][number];
 export type Log = SchedulerWithLogs['logs'][number];
@@ -51,14 +51,7 @@ export const getSchedulerIcon = (item: SchedulerItem, theme: MantineTheme) => {
                 />
             );
         case SchedulerFormat.GSHEETS:
-            return (
-                <Image
-                    src={GsheetSvg}
-                    alt="Google Sheets"
-                    width={32}
-                    height={32}
-                />
-            );
+            return <IconBox icon={GSheetsIconIndigo} color="indigo.6" />;
         default:
             return assertUnreachable(
                 item.format,
