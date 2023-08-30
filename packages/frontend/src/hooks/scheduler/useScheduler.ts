@@ -22,10 +22,11 @@ const getSchedulerLogs = async (projectUuid: string) =>
         body: undefined,
     });
 
-export const useScheduler = (uuid: string) =>
+export const useScheduler = (uuid: string, enabled?: boolean) =>
     useQuery<SchedulerAndTargets, ApiError>({
         queryKey: ['scheduler', uuid],
         queryFn: () => getScheduler(uuid),
+        ...(enabled && { enabled }),
     });
 
 export const useSchedulerLogs = (projectUuid: string) =>
