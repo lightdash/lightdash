@@ -1,6 +1,7 @@
 import {
     attachTypesToModels,
     convertExplores,
+    DbtManifestVersion,
     getSchemaStructureFromDbtModels,
     isExploreError,
     isSupportedDbtAdapter,
@@ -12,7 +13,7 @@ import inquirer from 'inquirer';
 import path from 'path';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getDbtContext } from '../dbt/context';
-import { loadManifest } from '../dbt/manifest';
+import { getDbtManifest, loadManifest } from '../dbt/manifest';
 import { getModelsFromManifest } from '../dbt/models';
 import {
     loadDbtTarget,
@@ -138,7 +139,9 @@ ${errors.join('')}`),
         validModelsWithTypes,
         false,
         manifest.metadata.adapter_type,
-        Object.values(manifest.metrics),
+        (await getDbtManifest()) === DbtManifestVersion.V10
+            ? []
+            : Object.values(manifest.metrics),
         warehouseClient,
     );
     console.error('');

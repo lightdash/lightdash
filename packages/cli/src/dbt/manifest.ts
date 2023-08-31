@@ -12,7 +12,7 @@ export const getDbtManifest = async (): Promise<DbtManifestVersion> => {
     const version = await getDbtVersion();
     if (version.startsWith('1.3.')) return DbtManifestVersion.V7;
     if (version.startsWith('1.5.')) return DbtManifestVersion.V9;
-    if (version.startsWith('1.6.')) return DbtManifestVersion.V9;
+    if (version.startsWith('1.6.')) return DbtManifestVersion.V10;
     return DbtManifestVersion.V8;
 };
 
