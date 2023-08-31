@@ -170,10 +170,12 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                             disabled={!hasSetGoogleSheet}
                             loading={isLoading}
                             leftIcon={
-                                <MantineIcon icon={IconCirclesRelation} />
+                                !isEditing && (
+                                    <MantineIcon icon={IconCirclesRelation} />
+                                )
                             }
                         >
-                            Sync
+                            {isEditing ? 'Save changes' : 'Sync'}
                         </Button>
                     </Group>
                 </Stack>
