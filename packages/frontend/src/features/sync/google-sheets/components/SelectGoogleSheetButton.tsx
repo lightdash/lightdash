@@ -93,17 +93,17 @@ export const SelectGoogleSheetButton: FC = () => {
         return (
             <Badge
                 py="md"
-                radius="xs"
+                radius="sm"
                 leftSection={<MantineIcon icon={GsheetsIcon} />}
                 styles={{
                     root: {
+                        color: 'black',
                         textTransform: 'none',
                         fontWeight: 500,
                     },
                 }}
                 size="md"
-                color="gray.7"
-                variant="outline"
+                color="green.4"
                 rightSection={
                     <CloseButton
                         onClick={() => {
