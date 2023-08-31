@@ -14,7 +14,7 @@ export const GSheetsIconFilled = styled(GsheetsFilledSvg)`
     width: 16px;
     height: 16px;
     & path {
-        stroke-width: 3;
+        stroke-width: 4;
     }
 `;
 
