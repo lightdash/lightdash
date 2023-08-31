@@ -1,3 +1,10 @@
+## [0.761.2](https://github.com/lightdash/lightdash/compare/0.761.1...0.761.2) (2023-08-31)
+
+
+### Bug Fixes
+
+* tile name not showing up for charts in dashes ([#6937](https://github.com/lightdash/lightdash/issues/6937)) ([e9f94e1](https://github.com/lightdash/lightdash/commit/e9f94e149d29b4bd089e21fc360991300b16807d))
+
 ## [0.761.1](https://github.com/lightdash/lightdash/compare/0.761.0...0.761.1) (2023-08-30)
 
 
