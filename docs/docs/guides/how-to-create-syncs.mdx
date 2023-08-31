@@ -12,12 +12,13 @@ Syncs let you send your chart results to a Google Sheet in your Google Drive on 
 
 ## Enabling scheduled deliveries
 
-If you are running Lightdash on self-host, make sure you have set up Google Sheets integration before you start. See [setting up Google Sheets](self-host/customize-deployment/google-sheets-integration.mdx) for more information.
-If you're not on a self-hosted instance (e.g. Cloud or Enterprise), then your instance comes preconfigured with Google Sheets integration, so you don't need to do anything to enable it.
+If you are self-hosting Lightdash, make sure you have the Google Sheets integration configured before you start. See [setting up Google Sheets](self-host/customize-deployment/google-sheets-integration.mdx) for more information.
+
+If you're using Lightdash Cloud, this is already set up and available for you to use immediately.
 
 ## Creating a Sync
 
-Only users with [admin or edit access](/references/roles.mdx) can create Syncs. To create a Sync, click on the three-dot menu in the top-right corner of your chart, then click on `Sync with Google Sheets`.
+All users with editor access or above can create Syncs.. To create a Sync, click on the three-dot menu in the top-right corner of your chart, then click on `Sync with Google Sheets`.
 
 <img
     src={ThreeDotMenu}
@@ -26,7 +27,7 @@ Only users with [admin or edit access](/references/roles.mdx) can create Syncs. 
     style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-You'll get a modal that pops up and shows you the list of existing Syncs for your saved chart, and gives you the option to `Create new Sync`.
+The pop-up shows you a list of any existing Syncs for the saved chart, you also have the option to `Create new Sync`.
 
 <img
     src={CreateNewButtonModal}
@@ -35,7 +36,7 @@ You'll get a modal that pops up and shows you the list of existing Syncs for you
     style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-If you click on `Create new Sync`, you'll be brought to a configuration screen for your new Sync.
+Clicking `Create new Sync` takes you to the configuration screen to setup a new Google Sheets Sync.
 
 <img
     src={CreateNewModal}
@@ -46,9 +47,9 @@ If you click on `Create new Sync`, you'll be brought to a configuration screen f
 
 ## Sync options
 
--   **Name**: this is the name of your Sync.
+-   **Name**: this is the name of your Sync in Lightdash
 -   **Frequency**: this is how often your Google Sheet will be synced. You can make this hourly, daily, weekly, monthly, or custom - each frequency has its own options. For example, with a monthly schedule, you set the day of the month and the time that you want your Sync to be happen. The custom frequency lets you write out your own custom Cron expression if you need something more specific than our standard options. All times for the scheduler are in UTC.
--   **Select Google Sheet**: here, you can select the Google Sheet (from your Google Drive) that you want to sync your chart results to. Note: you have to have created the Google Sheet before you can select it here.
+-   **Select Google Sheet**: Use the file picker to select the Google Sheet that you'd like to sync your chart results to. Note: You need to sync to an existing Google Sheet, so ensure you have created it before you can select it here.
 
 This is what a Sync looks like when it's been set up:
 
