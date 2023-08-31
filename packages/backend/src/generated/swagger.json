@@ -4712,6 +4712,14 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "operationName": {
+                                        "type": "string",
+                                        "enum": [
+                                            "GetFields",
+                                            "CreateQuery",
+                                            "GetQueryResults"
+                                        ]
+                                    },
                                     "query": {
                                         "type": "string"
                                     }

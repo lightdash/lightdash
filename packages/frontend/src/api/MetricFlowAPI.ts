@@ -64,7 +64,7 @@ export function getMetricFlowFields(
     return lightdashApi<any>({
         url: `/projects/${projectUuid}/metricflow`,
         method: 'POST',
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, operationName: 'GetFields' }),
     });
 }
 
@@ -99,7 +99,7 @@ export function createMetricFlowQuery(
     return lightdashApi<any>({
         url: `/projects/${projectUuid}/metricflow`,
         method: 'POST',
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, operationName: 'CreateQuery' }),
     });
 }
 
@@ -160,7 +160,7 @@ export function getMetricFlowQueryResults(
     return lightdashApi<any>({
         url: `/projects/${projectUuid}/metricflow`,
         method: 'POST',
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, operationName: 'GetQueryResults' }),
     }).then((response: GetMetricFlowQueryBase64ResultsResponse) => {
         return {
             ...response,

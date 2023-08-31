@@ -204,7 +204,7 @@ type TrackUserDeletedEvent = BaseTrack & {
 };
 
 type MetricFlowQueryEvent = BaseTrack & {
-    event: 'metricflow_query.created';
+    event: 'metricflow_query.executed';
     properties: {
         organizationId: string;
         projectId: string;

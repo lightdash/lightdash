@@ -33,7 +33,11 @@ export class MetricFlowController extends Controller {
     async post(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-        @Body() body: { query: string },
+        @Body()
+        body: {
+            query: string;
+            operationName?: 'GetFields' | 'CreateQuery' | 'GetQueryResults';
+        },
     ): Promise<any> {
         this.setStatus(200);
 
@@ -46,9 +50,9 @@ export class MetricFlowController extends Controller {
         }
 
         // TODO: soon to be moved to a service
-        if (body.query.includes('createQuery(')) {
+        if (body.operationName === 'GetQueryResults') {
             analytics.track({
-                event: 'metricflow_query.created',
+                event: 'metricflow_query.executed',
                 userId: req.user!.userUuid,
                 properties: {
                     organizationId: req.user!.organizationUuid!,

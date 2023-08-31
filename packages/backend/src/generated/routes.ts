@@ -4195,6 +4195,17 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        operationName: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'enum', enums: ['GetFields'] },
+                                { dataType: 'enum', enums: ['CreateQuery'] },
+                                {
+                                    dataType: 'enum',
+                                    enums: ['GetQueryResults'],
+                                },
+                            ],
+                        },
                         query: { dataType: 'string', required: true },
                     },
                 },
