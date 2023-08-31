@@ -182,8 +182,6 @@ const SavedChartsHeader: FC = () => {
         history.push({
             pathname: `/projects/${savedChart?.projectUuid}/dashboards/${dashboardUuid}`,
         });
-        sessionStorage.removeItem('fromDashboard');
-        sessionStorage.removeItem('dashboardUuid');
     };
 
     const handleCancelClick = () => {
@@ -529,8 +527,6 @@ const SavedChartsHeader: FC = () => {
                     opened={isMovingChart}
                     onClose={() => setIsMovingChart(false)}
                     onConfirm={() => {
-                        sessionStorage.removeItem('fromDashboard');
-                        sessionStorage.removeItem('dashboardUuid');
                         history.push(
                             `/projects/${projectUuid}/saved/${savedChart.uuid}/edit`,
                         );

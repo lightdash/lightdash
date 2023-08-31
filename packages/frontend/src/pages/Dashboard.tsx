@@ -38,6 +38,7 @@ import {
     useMoveDashboardMutation,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
+import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import useSavedQueryWithDashboardFilters from '../hooks/dashboard/useSavedQueryWithDashboardFilters';
 import { deleteSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../hooks/useSpaces';
@@ -140,6 +141,8 @@ const Dashboard: FC = () => {
     }>();
     const { data: spaces } = useSpaceSummaries(projectUuid);
 
+    const { clearIsEditingDashboardChart } = useDashboardStorage();
+
     const {
         dashboard,
         dashboardError,
@@ -186,7 +189,14 @@ const Dashboard: FC = () => {
 
     const { tiles: savedTiles } = dashboard || {};
     useEffect(() => {
+        // TODO: The logic in this useEffect isn't right. It's checking if
+        // there are saved tiles, then checking for unsaved tiles,
+        // then replacing the saved tiles with the unsaved ones if they exist.
         if (savedTiles) {
+            // TODO: maybe this should move in the future, but it makes
+            // some sense here since this useEffect is essentially handling
+            // sessions storage
+            clearIsEditingDashboardChart();
             const unsavedDashboardTilesRaw = sessionStorage.getItem(
                 'unsavedDashboardTiles',
             );
@@ -205,7 +215,12 @@ const Dashboard: FC = () => {
             setDashboardTiles(unsavedDashboardTiles || savedTiles);
             setHaveTilesChanged(!!unsavedDashboardTiles);
         }
-    }, [setHaveTilesChanged, setDashboardTiles, savedTiles]);
+    }, [
+        setHaveTilesChanged,
+        setDashboardTiles,
+        savedTiles,
+        clearIsEditingDashboardChart,
+    ]);
 
     useEffect(() => {
         if (isSuccess) {

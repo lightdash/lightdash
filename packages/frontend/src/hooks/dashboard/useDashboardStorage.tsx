@@ -2,6 +2,39 @@ import { DashboardFilters, DashboardTile } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 
 const useDashboardStorage = () => {
+    const getIsEditingDashboardChart = useCallback(() => {
+        return (
+            !!sessionStorage.getItem('fromDashboard') ||
+            !!sessionStorage.getItem('dashboardUuid')
+        );
+    }, []);
+
+    const clearIsEditingDashboardChart = useCallback(() => {
+        sessionStorage.removeItem('fromDashboard');
+        sessionStorage.removeItem('dashboardUuid');
+    }, []);
+
+    const getEditingDashboardInfo = useCallback(() => {
+        return {
+            name: sessionStorage.getItem('fromDashboard'),
+            dashboardUuid: sessionStorage.getItem('dashboardUuid'),
+        };
+    }, []);
+
+    const getHasDashboardChanges = useCallback(() => {
+        return JSON.parse(
+            sessionStorage.getItem('getHasDashboardChanges') ?? 'false',
+        );
+    }, []);
+
+    const clearDashboardStorage = useCallback(() => {
+        sessionStorage.removeItem('fromDashboard');
+        sessionStorage.removeItem('dashboardUuid');
+        sessionStorage.removeItem('unsavedDashboardTiles');
+        sessionStorage.removeItem('unsavedDashboardFilters');
+        sessionStorage.removeItem('hasDashboardChanges');
+    }, []);
+
     const storeDashboard = useCallback(
         (
             dashboardTiles: DashboardTile[],
@@ -37,8 +70,20 @@ const useDashboardStorage = () => {
     return useMemo(() => {
         return {
             storeDashboard: storeDashboard,
+            clearDashboardStorage: clearDashboardStorage,
+            getEditingDashboardInfo: getEditingDashboardInfo,
+            getIsEditingDashboardChart: getIsEditingDashboardChart,
+            clearIsEditingDashboardChart: clearIsEditingDashboardChart,
+            getHasDashboardChanges: getHasDashboardChanges,
         };
-    }, [storeDashboard]);
+    }, [
+        storeDashboard,
+        clearDashboardStorage,
+        getEditingDashboardInfo,
+        getIsEditingDashboardChart,
+        clearIsEditingDashboardChart,
+        getHasDashboardChanges,
+    ]);
 };
 
 export default useDashboardStorage;
