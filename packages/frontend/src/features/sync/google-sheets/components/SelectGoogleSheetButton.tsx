@@ -99,7 +99,10 @@ export const SelectGoogleSheetButton: FC = () => {
                     root: {
                         color: 'black',
                         textTransform: 'none',
-                        fontWeight: 500,
+                        fontWeight: 450,
+                    },
+                    leftSection: {
+                        marginRight: 8,
                     },
                 }}
                 size="md"
