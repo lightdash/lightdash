@@ -14,8 +14,7 @@ import {
     Source,
 } from './field';
 import { parseFilters } from './filterGrammar';
-import { AdditionalMetric } from './metricQuery';
-import { OrderFieldsByStrategy, TableBase } from './table';
+import { OrderFieldsByStrategy } from './table';
 import { TimeFrames } from './timeFrames';
 
 export enum SupportedDbtAdapter {
