@@ -17,9 +17,9 @@ import {
     IconCopy,
     IconDots,
     IconFolders,
+    IconLayoutGridAdd,
     IconPencil,
     IconSend,
-    IconSquarePlus,
     IconTrash,
 } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
@@ -393,7 +393,7 @@ const SavedChartsHeader: FC = () => {
 
                                     {!chartBelongsToDashboard && (
                                         <MenuItem2
-                                            icon={<IconSquarePlus />}
+                                            icon={<IconLayoutGridAdd />}
                                             text="Add to dashboard"
                                             onClick={() =>
                                                 setIsAddToDashboardModalOpen(
