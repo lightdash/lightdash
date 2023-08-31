@@ -5,7 +5,7 @@ import {
     SchedulerJobStatus,
     SchedulerWithLogs,
 } from '@lightdash/common';
-import { useQuery } from 'react-query';
+import { useQuery, UseQueryOptions } from 'react-query';
 import { lightdashApi } from '../../api';
 
 const getScheduler = async (uuid: string) =>
@@ -22,10 +22,14 @@ const getSchedulerLogs = async (projectUuid: string) =>
         body: undefined,
     });
 
-export const useScheduler = (uuid: string) =>
+export const useScheduler = (
+    uuid: string,
+    useQueryOptions?: UseQueryOptions<SchedulerAndTargets, ApiError>,
+) =>
     useQuery<SchedulerAndTargets, ApiError>({
         queryKey: ['scheduler', uuid],
         queryFn: () => getScheduler(uuid),
+        ...useQueryOptions,
     });
 
 export const useSchedulerLogs = (projectUuid: string) =>

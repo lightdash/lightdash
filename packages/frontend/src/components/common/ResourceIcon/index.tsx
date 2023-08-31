@@ -26,6 +26,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { FC, ReactNode, useRef, useState } from 'react';
+import { StyledComponent } from 'styled-components';
 import MantineIcon, { MantineIconProps } from '../MantineIcon';
 
 interface ResourceIconProps {
@@ -34,7 +35,7 @@ interface ResourceIconProps {
 
 interface IconBoxProps extends MantineIconProps {
     color: string;
-    icon: TablerIconType;
+    icon: TablerIconType | StyledComponent<'svg', any, {}, never>;
 }
 
 export const IconBox: FC<IconBoxProps> = ({

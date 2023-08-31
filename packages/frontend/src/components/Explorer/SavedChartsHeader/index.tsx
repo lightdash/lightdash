@@ -13,6 +13,7 @@ import {
     IconArrowBack,
     IconCheck,
     IconCirclePlus,
+    IconCirclesRelation,
     IconCopy,
     IconDots,
     IconFolders,
@@ -21,9 +22,10 @@ import {
     IconSquarePlus,
     IconTrash,
 } from '@tabler/icons-react';
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
+import { SyncModal as GoogleSheetsSyncModal } from '../../../features/sync/components';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import {
     useDuplicateChartMutation,
@@ -55,7 +57,10 @@ import ViewInfo from '../../common/PageHeader/ViewInfo';
 import { ResourceInfoPopup } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import ChartSchedulersModal from '../../SchedulerModals/ChartSchedulersModal';
-import { getSchedulerUuidFromUrlParams } from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
+import {
+    getSchedulerUuidFromUrlParams,
+    isSchedulerTypeSync,
+} from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
 import SaveChartButton from '../SaveChartButton';
 
 const SavedChartsHeader: FC = () => {
@@ -90,11 +95,15 @@ const SavedChartsHeader: FC = () => {
     const [isMovingChart, setIsMovingChart] = useState(false);
     const [isScheduledDeliveriesModalOpen, toggleScheduledDeliveriesModal] =
         useToggle(false);
+    const [
+        isSyncWithGoogleSheetsModalOpen,
+        toggleSyncWithGoogleSheetsModalOpen,
+    ] = useToggle(false);
     const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
         useState<boolean>(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] =
         useState<boolean>(false);
-    const { user } = useApp();
+    const { user, health } = useApp();
     const { data: spaces } = useSpaceSummaries(projectUuid);
     const { mutate: moveChartToSpace } = useMoveChartMutation();
     const updateSavedChart = useUpdateMutation(
@@ -107,13 +116,25 @@ const SavedChartsHeader: FC = () => {
     const chartId = savedChart?.uuid || '';
     const chartBelongsToDashboard: boolean = !!savedChart?.dashboardUuid;
 
+    const hasGoogleDriveEnabled =
+        health.data?.auth.google.oauth2ClientId !== undefined &&
+        health.data?.auth.google.googleDriveApiKey !== undefined;
+
     useEffect(() => {
         const schedulerUuidFromUrlParams =
             getSchedulerUuidFromUrlParams(search);
+        const isSync = isSchedulerTypeSync(search);
+
         if (schedulerUuidFromUrlParams) {
-            toggleScheduledDeliveriesModal(true);
+            if (isSync) {
+                toggleSyncWithGoogleSheetsModalOpen(true);
+            } else toggleScheduledDeliveriesModal(true);
         }
-    }, [search, toggleScheduledDeliveriesModal]);
+    }, [
+        search,
+        toggleScheduledDeliveriesModal,
+        toggleSyncWithGoogleSheetsModalOpen,
+    ]);
 
     useEffect(() => {
         const checkReload = (event: BeforeUnloadEvent) => {
@@ -450,6 +471,18 @@ const SavedChartsHeader: FC = () => {
                                             }
                                         />
                                     )}
+                                    {userCanManageCharts &&
+                                    hasGoogleDriveEnabled ? (
+                                        <MenuItem2
+                                            icon={<IconCirclesRelation />}
+                                            text="Sync with Google Sheets"
+                                            onClick={() =>
+                                                toggleSyncWithGoogleSheetsModalOpen(
+                                                    true,
+                                                )
+                                            }
+                                        />
+                                    ) : null}
                                     <Divider />
                                     <MenuItem2
                                         icon={<IconTrash />}
@@ -509,6 +542,13 @@ const SavedChartsHeader: FC = () => {
 
                         setIsDeleteDialogOpen(false);
                     }}
+                />
+            )}
+            {isSyncWithGoogleSheetsModalOpen && savedChart?.uuid && (
+                <GoogleSheetsSyncModal
+                    chartUuid={savedChart.uuid}
+                    opened={isSyncWithGoogleSheetsModalOpen}
+                    onClose={() => toggleSyncWithGoogleSheetsModalOpen(false)}
                 />
             )}
             {isScheduledDeliveriesModalOpen && savedChart?.uuid && (

@@ -4,7 +4,7 @@ import {
     SchedulerJobStatus,
     SchedulerWithLogs,
 } from '@lightdash/common';
-import { Image, MantineTheme, Tooltip } from '@mantine/core';
+import { MantineTheme, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangleFilled,
     IconCircleCheckFilled,
@@ -14,9 +14,9 @@ import {
     IconProgress,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import GsheetSvg from '../../svgs/google-sheets.svg';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
+import { GSheetsIconFilled } from '../SchedulerModals/SchedulerModalBase/SchedulerModalBase.styles';
 
 export type SchedulerItem = SchedulerWithLogs['schedulers'][number];
 export type Log = SchedulerWithLogs['logs'][number];
@@ -51,14 +51,7 @@ export const getSchedulerIcon = (item: SchedulerItem, theme: MantineTheme) => {
                 />
             );
         case SchedulerFormat.GSHEETS:
-            return (
-                <Image
-                    src={GsheetSvg}
-                    alt="Google Sheets"
-                    width={32}
-                    height={32}
-                />
-            );
+            return <IconBox icon={GSheetsIconFilled} color="green" />;
         default:
             return assertUnreachable(
                 item.format,
@@ -116,7 +109,11 @@ export const getLogStatusIcon = (log: Log, theme: MantineTheme) => {
 
 export const getSchedulerLink = (item: SchedulerItem, projectUuid: string) => {
     return item.savedChartUuid
-        ? `/projects/${projectUuid}/saved/${item.savedChartUuid}/view/?scheduler_uuid=${item.schedulerUuid}`
+        ? `/projects/${projectUuid}/saved/${
+              item.savedChartUuid
+          }/view/?scheduler_uuid=${item.schedulerUuid}${
+              item.format === SchedulerFormat.GSHEETS ? `&isSync=true` : ``
+          }`
         : `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view/?scheduler_uuid=${item.schedulerUuid}`;
 };
 export const getItemLink = (item: SchedulerItem, projectUuid: string) => {
