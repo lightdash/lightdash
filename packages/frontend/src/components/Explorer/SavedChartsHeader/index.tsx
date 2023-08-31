@@ -25,7 +25,7 @@ import {
 import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
-import { SyncModal as GoogleSheetsSyncModal } from '../../../features/sync/google-sheets/components/sync-modal';
+import { SyncModal as GoogleSheetsSyncModal } from '../../../features/sync/components';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import {
     useDuplicateChartMutation,

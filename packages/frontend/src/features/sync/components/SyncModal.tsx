@@ -2,14 +2,14 @@ import { Flex, Modal, ModalProps, Title } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { FC, useEffect } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
-import MantineIcon from '../../../../../components/common/MantineIcon';
-import { GsheetsIcon } from '../../../../../components/SchedulerModals/SchedulerModalBase/SchedulerModalBase.styles';
-import { getSchedulerUuidFromUrlParams } from '../../../../../components/SchedulerModals/SchedulerModalBase/SchedulerModalContent';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { GsheetsIcon } from '../../../components/SchedulerModals/SchedulerModalBase/SchedulerModalBase.styles';
+import { getSchedulerUuidFromUrlParams } from '../../../components/SchedulerModals/SchedulerModalBase/SchedulerModalContent';
 import {
     SyncWithGoogleSheetsModalAction,
     SyncWithGoogleSheetsModalProvider,
     useSyncWithGoogleSheetsModal,
-} from './providers/SyncWithGoogleSheetsModalProvider';
+} from '../providers/SyncWithGoogleSheetsModalProvider';
 import { SyncModalDelete } from './SyncModalDelete';
 import { SyncModalForm } from './SyncModalForm';
 import { SyncModalView } from './SyncModalView';
