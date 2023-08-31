@@ -112,9 +112,8 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                 </ScrollArea>
             ) : (
                 <Text>
-                    You haven't set up any Syncs for this chart yet. Get started
-                    by clicking 'Create new Sync' to seamlessly integrate your
-                    chart data with Google Sheets!"
+                    Get started by clicking 'Create new Sync' to seamlessly
+                    integrate your chart data with Google Sheets
                 </Text>
             )}
             <Button
