@@ -7,31 +7,29 @@ import {
     useState,
 } from 'react';
 
-export enum SyncWithGoogleSheetsModalAction {
+export enum SyncModalAction {
     CREATE = 'create',
     EDIT = 'edit',
     VIEW = 'view',
     DELETE = 'delete',
 }
 
-const SyncWithGoogleSheetsModalContext = createContext<
+const SyncModalContext = createContext<
     | {
-          action: SyncWithGoogleSheetsModalAction;
-          setAction: Dispatch<SetStateAction<SyncWithGoogleSheetsModalAction>>;
+          action: SyncModalAction;
+          setAction: Dispatch<SetStateAction<SyncModalAction>>;
           currentSchedulerUuid?: string;
           setCurrentSchedulerUuid: Dispatch<SetStateAction<string | undefined>>;
       }
     | undefined
 >(undefined);
 
-export const SyncWithGoogleSheetsModalProvider: FC = ({ children }) => {
-    const [action, setAction] = useState<SyncWithGoogleSheetsModalAction>(
-        SyncWithGoogleSheetsModalAction.VIEW,
-    );
+export const SyncModalProvider: FC = ({ children }) => {
+    const [action, setAction] = useState<SyncModalAction>(SyncModalAction.VIEW);
     const [currentSchedulerUuid, setCurrentSchedulerUuid] = useState<string>();
 
     return (
-        <SyncWithGoogleSheetsModalContext.Provider
+        <SyncModalContext.Provider
             value={{
                 action,
                 setAction,
@@ -40,15 +38,15 @@ export const SyncWithGoogleSheetsModalProvider: FC = ({ children }) => {
             }}
         >
             {children}
-        </SyncWithGoogleSheetsModalContext.Provider>
+        </SyncModalContext.Provider>
     );
 };
 
-export const useSyncWithGoogleSheetsModal = () => {
-    const context = useContext(SyncWithGoogleSheetsModalContext);
+export const useSyncModal = () => {
+    const context = useContext(SyncModalContext);
     if (!context) {
         throw new Error(
-            'useSyncWithGoogleSheets must be used within a SyncWithGoogleSheetsModalProvider',
+            'useSyncWithGoogleSheets must be used within a SyncModalProvider',
         );
     }
     return context;

@@ -14,15 +14,11 @@ import cronstrue from 'cronstrue';
 import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useChartSchedulers } from '../../../hooks/scheduler/useChartSchedulers';
-import {
-    SyncWithGoogleSheetsModalAction,
-    useSyncWithGoogleSheetsModal,
-} from '../providers/SyncWithGoogleSheetsModalProvider';
+import { SyncModalAction, useSyncModal } from '../providers/SyncModalProvider';
 
 export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     const { data } = useChartSchedulers(chartUuid);
-    const { setAction, setCurrentSchedulerUuid } =
-        useSyncWithGoogleSheetsModal();
+    const { setAction, setCurrentSchedulerUuid } = useSyncModal();
     const googleSheetsSyncs = data?.filter(
         ({ format }) => format === SchedulerFormat.GSHEETS,
     );
@@ -82,9 +78,7 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                                                 />
                                             }
                                             onClick={() => {
-                                                setAction(
-                                                    SyncWithGoogleSheetsModalAction.EDIT,
-                                                );
+                                                setAction(SyncModalAction.EDIT);
                                                 setCurrentSchedulerUuid(
                                                     sync.schedulerUuid,
                                                 );
@@ -101,7 +95,7 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                                             }
                                             onClick={() => {
                                                 setAction(
-                                                    SyncWithGoogleSheetsModalAction.DELETE,
+                                                    SyncModalAction.DELETE,
                                                 );
                                                 setCurrentSchedulerUuid(
                                                     sync.schedulerUuid,
@@ -123,9 +117,7 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                 size="sm"
                 display="block"
                 ml="auto"
-                onClick={() =>
-                    setAction(SyncWithGoogleSheetsModalAction.CREATE)
-                }
+                onClick={() => setAction(SyncModalAction.CREATE)}
             >
                 Create New Sync
             </Button>

@@ -4,13 +4,10 @@ import { useCallback, useEffect } from 'react';
 import ErrorState from '../../../components/common/ErrorState';
 import { useScheduler } from '../../../hooks/scheduler/useScheduler';
 import { useSchedulersDeleteMutation } from '../../../hooks/scheduler/useSchedulersDeleteMutation';
-import {
-    SyncWithGoogleSheetsModalAction,
-    useSyncWithGoogleSheetsModal,
-} from '../providers/SyncWithGoogleSheetsModalProvider';
+import { SyncModalAction, useSyncModal } from '../providers/SyncModalProvider';
 
 export const SyncModalDelete = () => {
-    const { currentSchedulerUuid, setAction } = useSyncWithGoogleSheetsModal();
+    const { currentSchedulerUuid, setAction } = useSyncModal();
     const scheduler = useScheduler(currentSchedulerUuid ?? '');
     const {
         mutate: deleteScheduler,
@@ -20,7 +17,7 @@ export const SyncModalDelete = () => {
 
     useEffect(() => {
         if (isSchedulerDeleteSuccessful) {
-            setAction(SyncWithGoogleSheetsModalAction.VIEW);
+            setAction(SyncModalAction.VIEW);
         }
     }, [isSchedulerDeleteSuccessful, setAction]);
 
@@ -47,9 +44,7 @@ export const SyncModalDelete = () => {
                 <Button
                     variant="outline"
                     color="gray"
-                    onClick={() =>
-                        setAction(SyncWithGoogleSheetsModalAction.VIEW)
-                    }
+                    onClick={() => setAction(SyncModalAction.VIEW)}
                 >
                     Cancel
                 </Button>

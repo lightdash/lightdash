@@ -23,17 +23,13 @@ import { useChartSchedulerCreateMutation } from '../../../hooks/scheduler/useCha
 import { useScheduler } from '../../../hooks/scheduler/useScheduler';
 import { useSchedulersUpdateMutation } from '../../../hooks/scheduler/useSchedulersUpdateMutation';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
-import {
-    SyncWithGoogleSheetsModalAction,
-    useSyncWithGoogleSheetsModal,
-} from '../providers/SyncWithGoogleSheetsModalProvider';
+import { SyncModalAction, useSyncModal } from '../providers/SyncModalProvider';
 import { SelectGoogleSheetButton } from './SelectGoogleSheetButton';
 
 export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
-    const { action, setAction, currentSchedulerUuid } =
-        useSyncWithGoogleSheetsModal();
+    const { action, setAction, currentSchedulerUuid } = useSyncModal();
 
-    const isEditing = action === SyncWithGoogleSheetsModalAction.EDIT;
+    const isEditing = action === SyncModalAction.EDIT;
     const {
         data: schedulerData,
         isLoading: isLoadingSchedulerData,
@@ -107,7 +103,7 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     useEffect(() => {
         if (isSuccess) {
             methods.reset();
-            setAction(SyncWithGoogleSheetsModalAction.VIEW);
+            setAction(SyncModalAction.VIEW);
         }
     }, [isSuccess, methods, setAction]);
 
@@ -155,9 +151,7 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                         <Button
                             variant="outline"
                             loading={isLoading}
-                            onClick={() =>
-                                setAction(SyncWithGoogleSheetsModalAction.VIEW)
-                            }
+                            onClick={() => setAction(SyncModalAction.VIEW)}
                         >
                             Cancel
                         </Button>

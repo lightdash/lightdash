@@ -6,10 +6,10 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { GsheetsIcon } from '../../../components/SchedulerModals/SchedulerModalBase/SchedulerModalBase.styles';
 import { getSchedulerUuidFromUrlParams } from '../../../components/SchedulerModals/SchedulerModalBase/SchedulerModalContent';
 import {
-    SyncWithGoogleSheetsModalAction,
-    SyncWithGoogleSheetsModalProvider,
-    useSyncWithGoogleSheetsModal,
-} from '../providers/SyncWithGoogleSheetsModalProvider';
+    SyncModalAction,
+    SyncModalProvider,
+    useSyncModal,
+} from '../providers/SyncModalProvider';
 import { SyncModalDelete } from './SyncModalDelete';
 import { SyncModalForm } from './SyncModalForm';
 import { SyncModalView } from './SyncModalView';
@@ -19,14 +19,13 @@ type Props = { chartUuid: string } & Pick<ModalProps, 'opened' | 'onClose'>;
 const SyncModalBaseAndManager: FC<Props> = ({ chartUuid, opened, onClose }) => {
     const { search, pathname } = useLocation();
     const history = useHistory();
-    const { action, setAction, setCurrentSchedulerUuid } =
-        useSyncWithGoogleSheetsModal();
+    const { action, setAction, setCurrentSchedulerUuid } = useSyncModal();
 
     useEffect(() => {
         const schedulerUuidFromParams = getSchedulerUuidFromUrlParams(search);
 
         if (schedulerUuidFromParams) {
-            setAction(SyncWithGoogleSheetsModalAction.EDIT);
+            setAction(SyncModalAction.EDIT);
             setCurrentSchedulerUuid(schedulerUuidFromParams);
             history.replace({ pathname });
         }
@@ -36,11 +35,11 @@ const SyncModalBaseAndManager: FC<Props> = ({ chartUuid, opened, onClose }) => {
     let headerIcon: typeof GsheetsIcon | typeof IconTrash = GsheetsIcon;
     let headerIconColor = 'black';
 
-    if (action === SyncWithGoogleSheetsModalAction.CREATE) {
+    if (action === SyncModalAction.CREATE) {
         modalTitle = 'Create a new Sync';
-    } else if (action === SyncWithGoogleSheetsModalAction.EDIT) {
+    } else if (action === SyncModalAction.EDIT) {
         modalTitle = 'Edit Sync';
-    } else if (action === SyncWithGoogleSheetsModalAction.DELETE) {
+    } else if (action === SyncModalAction.DELETE) {
         headerIcon = IconTrash;
         modalTitle = 'Delete Sync';
         headerIconColor = 'red';
@@ -58,26 +57,24 @@ const SyncModalBaseAndManager: FC<Props> = ({ chartUuid, opened, onClose }) => {
             }
             onClose={onClose}
         >
-            {action === SyncWithGoogleSheetsModalAction.VIEW && (
+            {action === SyncModalAction.VIEW && (
                 <SyncModalView chartUuid={chartUuid} />
             )}
-            {(action === SyncWithGoogleSheetsModalAction.CREATE ||
-                action === SyncWithGoogleSheetsModalAction.EDIT) && (
+            {(action === SyncModalAction.CREATE ||
+                action === SyncModalAction.EDIT) && (
                 <SyncModalForm chartUuid={chartUuid} />
             )}
-            {action === SyncWithGoogleSheetsModalAction.DELETE && (
-                <SyncModalDelete />
-            )}
+            {action === SyncModalAction.DELETE && <SyncModalDelete />}
         </Modal>
     );
 };
 
 export const SyncModal: FC<Props> = ({ chartUuid, opened, onClose }) => (
-    <SyncWithGoogleSheetsModalProvider>
+    <SyncModalProvider>
         <SyncModalBaseAndManager
             chartUuid={chartUuid}
             opened={opened}
             onClose={onClose}
         />
-    </SyncWithGoogleSheetsModalProvider>
+    </SyncModalProvider>
 );
