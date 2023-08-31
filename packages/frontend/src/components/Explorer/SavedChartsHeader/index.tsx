@@ -57,7 +57,10 @@ import ViewInfo from '../../common/PageHeader/ViewInfo';
 import { ResourceInfoPopup } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import ChartSchedulersModal from '../../SchedulerModals/ChartSchedulersModal';
-import { getSchedulerUuidFromUrlParams } from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
+import {
+    getSchedulerUuidFromUrlParams,
+    isSchedulerTypeSync,
+} from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
 import SaveChartButton from '../SaveChartButton';
 
 const SavedChartsHeader: FC = () => {
@@ -120,10 +123,18 @@ const SavedChartsHeader: FC = () => {
     useEffect(() => {
         const schedulerUuidFromUrlParams =
             getSchedulerUuidFromUrlParams(search);
+        const isSync = isSchedulerTypeSync(search);
+
         if (schedulerUuidFromUrlParams) {
-            toggleScheduledDeliveriesModal(true);
+            if (isSync) {
+                toggleSyncWithGoogleSheetsModalOpen(true);
+            } else toggleScheduledDeliveriesModal(true);
         }
-    }, [search, toggleScheduledDeliveriesModal]);
+    }, [
+        search,
+        toggleScheduledDeliveriesModal,
+        toggleSyncWithGoogleSheetsModalOpen,
+    ]);
 
     useEffect(() => {
         const checkReload = (event: BeforeUnloadEvent) => {

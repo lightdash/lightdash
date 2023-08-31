@@ -1,8 +1,10 @@
 import { Flex, Modal, ModalProps, Title } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
-import { FC } from 'react';
+import { FC, useEffect } from 'react';
+import { useHistory, useLocation } from 'react-router-dom';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { GsheetsIcon } from '../../../../../components/SchedulerModals/SchedulerModalBase/SchedulerModalBase.styles';
+import { getSchedulerUuidFromUrlParams } from '../../../../../components/SchedulerModals/SchedulerModalBase/SchedulerModalContent';
 import {
     SyncWithGoogleSheetsModalAction,
     SyncWithGoogleSheetsModalProvider,
@@ -15,7 +17,20 @@ import { SyncModalView } from './SyncModalView';
 type Props = { chartUuid: string } & Pick<ModalProps, 'opened' | 'onClose'>;
 
 const SyncModalBaseAndManager: FC<Props> = ({ chartUuid, opened, onClose }) => {
-    const { action } = useSyncWithGoogleSheetsModal();
+    const { search, pathname } = useLocation();
+    const history = useHistory();
+    const { action, setAction, setCurrentSchedulerUuid } =
+        useSyncWithGoogleSheetsModal();
+
+    useEffect(() => {
+        const schedulerUuidFromParams = getSchedulerUuidFromUrlParams(search);
+
+        if (schedulerUuidFromParams) {
+            setAction(SyncWithGoogleSheetsModalAction.EDIT);
+            setCurrentSchedulerUuid(schedulerUuidFromParams);
+            history.replace({ pathname });
+        }
+    }, [history, pathname, search, setAction, setCurrentSchedulerUuid]);
 
     let modalTitle = 'Sync with Google Sheets';
     let headerIcon: typeof GsheetsIcon | typeof IconTrash = GsheetsIcon;
