@@ -39,10 +39,9 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
         isLoading: isLoadingSchedulerData,
         isError: isSchedulerError,
         error: schedulerError,
-    } = useScheduler(
-        currentSchedulerUuid ?? '',
-        !!currentSchedulerUuid && isEditing,
-    );
+    } = useScheduler(currentSchedulerUuid ?? '', {
+        enabled: !!currentSchedulerUuid && isEditing,
+    });
 
     const {
         mutate: updateChartSync,
@@ -116,7 +115,7 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
 
     if (isEditing && (isLoadingSchedulerData || isSchedulerError)) {
         return isLoadingSchedulerData ? (
-            <NonIdealState title="Loading scheduler" icon={<Spinner />} />
+            <NonIdealState title="Loading Sync" icon={<Spinner />} />
         ) : (
             <ErrorState error={schedulerError.error} />
         );
@@ -164,8 +163,6 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                         </Button>
 
                         <Button
-                            display="block"
-                            ml="auto"
                             type="submit"
                             disabled={!hasSetGoogleSheet}
                             loading={isLoading}
