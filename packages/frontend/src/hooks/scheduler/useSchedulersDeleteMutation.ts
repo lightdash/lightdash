@@ -19,7 +19,7 @@ export const useSchedulersDeleteMutation = () => {
             await queryClient.invalidateQueries('chart_schedulers');
             await queryClient.invalidateQueries('dashboard_schedulers');
             showToastSuccess({
-                title: `Success! Scheduled delivery was delete.`,
+                title: `Success! Scheduled delivery was deleted`,
             });
         },
         onError: (error) => {
