@@ -1,0 +1,99 @@
+import ThreeDotMenu from './assets/sync-with-google-sheets-three-dot-menu.png';
+import CreateNewButtonModal from './assets/sync-with-google-sheets-create-modal.png';
+import CreateNewModal from './assets/sync-with-google-sheets-create-new-modal.png';
+import CreateNewModalFilled from './assets/sync-with-google-sheets-create-new-modal-filled.png';
+import EditDeleteSync from './assets/sync-with-google-sheets-edit-delete-options.png';
+import DashboardOverview from './assets/sync-with-google-sheets-dashboard-overview.png';
+import DashboardOverviewThreeDotMenu from './assets/sync-with-google-sheets-dashboard-overview-three-dot-menu.png';
+
+# Syncs
+
+Syncs let you send your chart results to a Google Sheet in your Google Drive on a schedule. You can set up as many syncs as you like, and if you make any changes to the content, Lightdash will update the syncs the next time they’re sent.
+
+## Enabling scheduled deliveries
+
+If you are running Lightdash on self-host, make sure you have set up Google Sheets integration before you start. See [setting up Google Sheets](self-host/customize-deployment/google-sheets-integration.mdx) for more information.
+If you're not on a self-hosted instance (e.g. Cloud or Enterprise), then your instance comes preconfigured with Google Sheets integration, so you don't need to do anything to enable it.
+
+## Creating a Sync
+
+Only users with [admin or edit access](/references/roles.mdx) can create Syncs. To create a Sync, click on the three-dot menu in the top-right corner of your chart, then click on `Sync with Google Sheets`.
+
+<img
+    src={ThreeDotMenu}
+    width="300"
+    height="276"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+You'll get a modal that pops up and shows you the list of existing Syncs for your saved chart, and gives you the option to `Create new Sync`.
+
+<img
+    src={CreateNewButtonModal}
+    width="300"
+    height="605"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+If you click on `Create new Sync`, you'll be brought to a configuration screen for your new Sync.
+
+<img
+    src={CreateNewModal}
+    width="300"
+    height="745"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+## Sync options
+
+-   **Name**: this is the name of your Sync.
+-   **Frequency**: this is how often your Google Sheet will be synced. You can make this hourly, daily, weekly, monthly, or custom - each frequency has its own options. For example, with a monthly schedule, you set the day of the month and the time that you want your Sync to be happen. The custom frequency lets you write out your own custom Cron expression if you need something more specific than our standard options. All times for the scheduler are in UTC.
+-   **Select Google Sheet**: here, you can select the Google Sheet (from your Google Drive) that you want to sync your chart results to. Note: you have to have created the Google Sheet before you can select it here.
+
+This is what a Sync looks like when it's been set up:
+
+<img
+    src={CreateNewModalFilled}
+    width="400"
+    height="745"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Once you've set up all of your Sync options, you can click `Sync`.
+
+## Editing and deleting your Syncs
+
+To remove a Sync from a chart, click on the three-dot-menu beside the Sync name. From there, you can choose to `edit` or `delete` it.
+
+<img
+    src={EditDeleteSync}
+    width="400"
+    height="515"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+## Overview of your Syncs
+
+Users who have an admin role in your project can access an overview of your Syncs in the Project Settings.
+
+In the `Syncs & Scheduled deliveries` overview page, you can see a list of all of your Syncs (along with your Scheduled Deliveries), their most recent delivery status, and a history of all of the previous deliveries in your project.
+
+To access the overview page, just head to your Project Settings, then to the `Syncs & Scheduled deliveries` tab.
+
+<img
+    src={DashboardOverview}
+    width="900"
+    height="589"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Here, you can also click on the three-dot-menu beside each Sync to edit or delete it.
+
+<img
+    src={DashboardOverviewThreeDotMenu}
+    width="700"
+    height="589"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Editing a Sync from the overview page will bring you to the same configuration screen as when you create a new Sync. Deleting a Sync from the overview page will remove it from your chart.
