@@ -16,7 +16,7 @@ import {
 import dayjs from 'dayjs';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
-import { GSheetsIconIndigo } from '../SchedulerModals/SchedulerModalBase/SchedulerModalBase.styles';
+import { GSheetsIconFilled } from '../SchedulerModals/SchedulerModalBase/SchedulerModalBase.styles';
 
 export type SchedulerItem = SchedulerWithLogs['schedulers'][number];
 export type Log = SchedulerWithLogs['logs'][number];
@@ -51,7 +51,7 @@ export const getSchedulerIcon = (item: SchedulerItem, theme: MantineTheme) => {
                 />
             );
         case SchedulerFormat.GSHEETS:
-            return <IconBox icon={GSheetsIconIndigo} color="indigo.6" />;
+            return <IconBox icon={GSheetsIconFilled} color="green" />;
         default:
             return assertUnreachable(
                 item.format,
