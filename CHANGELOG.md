@@ -1,3 +1,10 @@
+# [0.762.0](https://github.com/lightdash/lightdash/compare/0.761.2...0.762.0) (2023-08-31)
+
+
+### Features
+
+* add google sheets sync feature and modal  ([#6938](https://github.com/lightdash/lightdash/issues/6938)) ([7d15f5f](https://github.com/lightdash/lightdash/commit/7d15f5fba66a73697c4f12eea16ce9d61e0b4cb1))
+
 ## [0.761.2](https://github.com/lightdash/lightdash/compare/0.761.1...0.761.2) (2023-08-31)
 
 
