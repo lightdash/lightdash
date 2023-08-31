@@ -685,7 +685,7 @@ export type DownloadCsv = BaseTrack & {
         organizationId?: string;
         projectId: string;
         tableId?: string;
-        fileType: SchedulerFormat.CSV;
+        fileType: SchedulerFormat.CSV | SchedulerFormat.GSHEETS;
         values?: 'raw' | 'formatted';
         limit?: 'results' | 'all' | 'custom';
         context?:
