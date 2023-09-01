@@ -685,7 +685,7 @@ export type DownloadCsv = BaseTrack & {
         organizationId?: string;
         projectId: string;
         tableId?: string;
-        fileType: SchedulerFormat.CSV;
+        fileType: SchedulerFormat.CSV | SchedulerFormat.GSHEETS;
         values?: 'raw' | 'formatted';
         limit?: 'results' | 'all' | 'custom';
         context?:
@@ -694,7 +694,7 @@ export type DownloadCsv = BaseTrack & {
             | 'scheduled delivery chart'
             | 'scheduled delivery dashboard'
             | 'sql runner';
-        storage: 'local' | 's3';
+        storage?: 'local' | 's3';
         numCharts?: number;
         numRows?: number;
         numColumns?: number;

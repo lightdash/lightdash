@@ -15,4 +15,5 @@ export type UploadMetricGsheet = {
 
 export type UploadMetricGsheetPayload = UploadMetricGsheet & {
     userUuid: string;
+    organizationUuid?: string;
 };

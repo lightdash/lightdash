@@ -102,6 +102,7 @@ export class GdriveService {
         const payload: UploadMetricGsheetPayload = {
             ...gsheetOptions,
             userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid,
         };
         const { jobId } = await schedulerClient.uploadGsheetFromQueryJob(
             payload,

@@ -620,6 +620,15 @@ export const uploadGsheetFromQuery = async (
         jobId,
         scheduledTime,
     };
+
+    const analyticsProperties: DownloadCsv['properties'] = {
+        jobId,
+        userId: payload.userUuid,
+        organizationId: payload.organizationUuid,
+        projectId: payload.projectUuid,
+        fileType: SchedulerFormat.GSHEETS,
+    };
+
     try {
         if (!googleDriveClient.isEnabled) {
             throw new Error(
@@ -630,6 +639,12 @@ export const uploadGsheetFromQuery = async (
             ...baseLog,
             details: { createdByUserUuid: payload.userUuid },
             status: SchedulerJobStatus.STARTED,
+        });
+
+        analytics.track({
+            event: 'download_results.started',
+            userId: payload.userUuid,
+            properties: analyticsProperties,
         });
         const user = await userService.getSessionByUserUuid(payload.userUuid);
 
@@ -667,11 +682,21 @@ export const uploadGsheetFromQuery = async (
             },
             status: SchedulerJobStatus.COMPLETED,
         });
+        analytics.track({
+            event: 'download_results.completed',
+            userId: payload.userUuid,
+            properties: analyticsProperties,
+        });
     } catch (e) {
         schedulerService.logSchedulerJob({
             ...baseLog,
             status: SchedulerJobStatus.ERROR,
             details: { createdByUserUuid: payload.userUuid, error: e },
+        });
+        analytics.track({
+            event: 'download_results.error',
+            userId: payload.userUuid,
+            properties: analyticsProperties,
         });
         throw e; // Cascade error to it can be retried by graphile
     }
