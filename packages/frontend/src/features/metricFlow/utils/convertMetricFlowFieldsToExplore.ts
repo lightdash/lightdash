@@ -20,13 +20,14 @@ export default function convertMetricFlowFieldsToExplore(
 ) {
     const dimensionsMap = metricFlowFields.dimensions.reduce(
         (acc, { name, description, type }) => {
+            const isTimeDimension = type === MetricFlowDimensionType.TIME;
             const dimension: CompiledDimension = {
                 fieldType: FieldType.DIMENSION,
-                type:
-                    type === MetricFlowDimensionType.TIME
-                        ? DimensionType.TIMESTAMP
-                        : DimensionType.STRING,
-                name,
+                type: isTimeDimension
+                    ? DimensionType.TIMESTAMP
+                    : DimensionType.STRING,
+                // Note: time columns in results are suffixed with '__day' by default
+                name: isTimeDimension ? `${name}__day` : name,
                 description,
                 label: friendlyName(name),
                 table: tableName,
