@@ -1,3 +1,11 @@
+## [0.763.1](https://github.com/lightdash/lightdash/compare/0.763.0...0.763.1) (2023-09-01)
+
+
+### Bug Fixes
+
+* size of icons in new and browse tab in navbar to 16x16 ([#6965](https://github.com/lightdash/lightdash/issues/6965)) ([61b6cfe](https://github.com/lightdash/lightdash/commit/61b6cfe862284cf46faf53040290ed9ae9a703ed))
+* update tabler icons for add to dashboard and unpin from homepage ([#6964](https://github.com/lightdash/lightdash/issues/6964)) ([d604d15](https://github.com/lightdash/lightdash/commit/d604d154001b03c32fcb014927959d1b54ba279f))
+
 # [0.763.0](https://github.com/lightdash/lightdash/compare/0.762.0...0.763.0) (2023-09-01)
 
 
