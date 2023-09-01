@@ -338,7 +338,7 @@ const Settings: FC = () => {
                                 ) : null}
 
                                 <RouterNavLink
-                                    label="Scheduled deliveries"
+                                    label="Syncs & Scheduled deliveries"
                                     exact
                                     to={`/generalSettings/projectManagement/${project.projectUuid}/scheduledDeliveries`}
                                     icon={
