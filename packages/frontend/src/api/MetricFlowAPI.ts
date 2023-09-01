@@ -39,9 +39,9 @@ export function getMetricFlowFields(
 ): Promise<GetMetricFlowFieldsResponse> {
     const query = `query GetFields($environmentId: BigInt!) {
             metricsForDimensions(environmentId: $environmentId, dimensions: [${
-                selectedFields?.dimensions.map(
-                    (dimension) => `"${dimension}"`,
-                ) ?? ''
+                selectedFields?.dimensions
+                    .filter((dimension) => dimension !== 'metric_time') // TODO: remove this when dbt stops throwing error when filtering by "metric_time"
+                    .map((dimension) => `"${dimension}"`) ?? ''
             }]) {
                 name
                 description
