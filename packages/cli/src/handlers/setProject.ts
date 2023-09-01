@@ -49,6 +49,39 @@ export const setProjectInteractively = async () => {
     return answers.project;
 };
 
+export const setProjectByName = async (projectName: string): Promise<void> => {
+    const projects = await lightdashApi<OrganizationProject[]>({
+        method: 'GET',
+        url: `/api/v1/org/projects`,
+        body: undefined,
+    });
+
+    GlobalState.debug(
+        `> Set project returned response: ${JSON.stringify(projects)}`,
+    );
+
+    if (projects.length === 0) throw new Error('No projects found.');
+
+    const selectedProject = projects.find(
+        (project) => project.name === projectName,
+    );
+
+    if (!selectedProject)
+        throw new Error(`Project "${projectName}" not found.`);
+
+    await setProject(selectedProject.projectUuid, selectedProject.name);
+    const config = await getConfig();
+    const projectUrl =
+        config.context?.serverUrl &&
+        new URL(
+            `/projects/${selectedProject.projectUuid}/home`,
+            config.context.serverUrl,
+        );
+    console.error(
+        `\n  ✅️ Connected to Lightdash project: ${projectUrl || ''}\n`,
+    );
+};
+
 export const setFirstProject = async () => {
     const projects = await lightdashApi<OrganizationProject[]>({
         method: 'GET',
@@ -75,4 +108,12 @@ export const setProjectInteractivelyHandler = async (
 ) => {
     GlobalState.setVerbose(options.verbose);
     return setProjectInteractively();
+};
+
+export const setProjectByNameHandler = async (
+    projectName: string,
+    options: SetProjectOptions,
+) => {
+    GlobalState.setVerbose(options.verbose);
+    return setProjectByName(projectName);
 };

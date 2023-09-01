@@ -14,7 +14,10 @@ import {
     startPreviewHandler,
     stopPreviewHandler,
 } from './handlers/preview';
-import { setProjectInteractivelyHandler } from './handlers/setProject';
+import {
+    setProjectByNameHandler,
+    setProjectInteractivelyHandler,
+} from './handlers/setProject';
 import { validateHandler } from './handlers/validate';
 import * as styles from './styles';
 
@@ -162,10 +165,15 @@ configProgram
     .description(
         'Interactively choose project.\nSee https://docs.lightdash.com/guides/cli/cli-authentication#set-active-project for more help and examples',
     )
-    .description('Interactively choose project')
     .option('--verbose', undefined, false)
-
     .action(setProjectInteractivelyHandler);
+configProgram
+    .command('set-project-by-name <projectName>')
+    .description(
+        'Set the project using its name without any interactive prompt',
+    )
+    .option('--verbose', undefined, false)
+    .action(setProjectByNameHandler);
 
 const dbtProgram = program.command('dbt').description('runs dbt commands');
 
