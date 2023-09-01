@@ -1,3 +1,10 @@
+# [0.763.0](https://github.com/lightdash/lightdash/compare/0.762.0...0.763.0) (2023-09-01)
+
+
+### Features
+
+* dbt 1.6 ([#6950](https://github.com/lightdash/lightdash/issues/6950)) ([61e2af2](https://github.com/lightdash/lightdash/commit/61e2af291ea26ee1299586ffb12fc939e77988c6))
+
 # [0.762.0](https://github.com/lightdash/lightdash/compare/0.761.2...0.762.0) (2023-08-31)
 
 
