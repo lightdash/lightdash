@@ -1,3 +1,10 @@
+## [0.765.1](https://github.com/lightdash/lightdash/compare/0.765.0...0.765.1) (2023-09-01)
+
+
+### Bug Fixes
+
+* dashbaord charts disappearing during edit ([#6983](https://github.com/lightdash/lightdash/issues/6983)) ([b7e80b9](https://github.com/lightdash/lightdash/commit/b7e80b99a4279b1163da96b0dddc9f3945be5947))
+
 # [0.765.0](https://github.com/lightdash/lightdash/compare/0.764.1...0.765.0) (2023-09-01)
 
 
