@@ -367,9 +367,11 @@ columns:
 
 ### min
 
-Min gives you the smallest value in a given field. It's like SQL’s `MIN` function.
+Min gives you the smallest value in a given numeric field. It's like SQL’s `MIN` function.
 
-The `min` metric can be used on any dimension or, [for custom SQL](#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a set of values.
+The `min` metric can be used on any numeric dimension or, [for custom SQL](#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a numeric value.
+
+Because `type: min` metrics only work with numerical fields, you can't use them to find a minimum date. Instead, you can use the `MIN()` function in the `sql` parameter of a metric of `type: date` to get a minimum date (you can see an [example of this in the `date` section](#date).
 
 For example, this creates a metric `min_delivery_cost` by looking at the `delivery_cost` dimension and taking the smallest value it finds:
 
