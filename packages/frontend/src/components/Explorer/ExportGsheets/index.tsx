@@ -20,10 +20,11 @@ import { GsheetsIcon } from '../../SchedulerModals/SchedulerModalBase/SchedulerM
 export type ExportGsheetProps = {
     getGsheetLink: () => Promise<ApiScheduledDownloadCsv>;
     asMenuItem?: boolean;
+    disabled?: boolean;
 };
 
 const ExportGsheets: FC<ExportGsheetProps> = memo(
-    ({ getGsheetLink, asMenuItem }) => {
+    ({ getGsheetLink, asMenuItem, disabled }) => {
         const { data: gdriveAuth, refetch } = useGdriveAccessToken();
         const health = useHealth();
         const hasGoogleDrive =
@@ -163,7 +164,7 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
                         )
                     }
                     text="Export Google Sheets"
-                    disabled={isExportingGoogleSheets}
+                    disabled={isExportingGoogleSheets || disabled}
                     shouldDismissPopover={false}
                     onClick={handleLoginAndExport}
                 />
@@ -176,6 +177,7 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
                 loading={isExportingGoogleSheets}
                 leftIcon={<MantineIcon icon={GsheetsIcon} />}
                 onClick={handleLoginAndExport}
+                disabled={disabled}
             >
                 Google Sheets
             </Button>

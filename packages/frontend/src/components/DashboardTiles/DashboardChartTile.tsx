@@ -32,7 +32,7 @@ import CopyToClipboard from 'react-copy-to-clipboard';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 
-import { Text } from '@mantine/core';
+import { Box, Text, Tooltip } from '@mantine/core';
 import { IconFolders } from '@tabler/icons-react';
 import { downloadCsv } from '../../api/csv';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
@@ -131,7 +131,10 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
     );
 };
 
-const ExportGoogleSheet: FC<{ savedChart: SavedChart }> = ({ savedChart }) => {
+const ExportGoogleSheet: FC<{ savedChart: SavedChart; disabled?: boolean }> = ({
+    savedChart,
+    disabled,
+}) => {
     const getGsheetLink = async () => {
         const gsheetResponse = await uploadGsheet({
             projectUuid: savedChart.projectUuid,
@@ -143,7 +146,13 @@ const ExportGoogleSheet: FC<{ savedChart: SavedChart }> = ({ savedChart }) => {
         return gsheetResponse;
     };
 
-    return <ExportGsheets getGsheetLink={getGsheetLink} asMenuItem={true} />;
+    return (
+        <ExportGsheets
+            getGsheetLink={getGsheetLink}
+            asMenuItem={true}
+            disabled={disabled}
+        />
+    );
 };
 
 const ValidDashboardChartTile: FC<{
@@ -505,67 +514,77 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 extraMenuItems={
                     savedChartUuid !== null &&
                     user.data?.ability?.can('manage', 'Explore') && (
-                        <>
-                            {user.data?.ability?.can(
-                                'manage',
-                                'SavedChart',
-                            ) && (
-                                <LinkMenuItem
-                                    icon="document-open"
-                                    text="Edit chart"
-                                    onClick={() => {
-                                        if (belongsToDashboard) {
-                                            storeDashboard(
-                                                dashboardTiles,
-                                                filtersFromCOntext,
-                                                haveTilesChanged,
-                                                haveFiltersChanged,
-                                                dashboard?.uuid,
-                                                dashboard?.name,
-                                            );
-                                        }
-                                    }}
-                                    href={`/projects/${projectUuid}/saved/${savedChartUuid}/edit?fromDashboard=${dashboardUuid}`}
-                                />
-                            )}
+                        <Tooltip
+                            disabled={!isEditMode}
+                            label="Finish editing dashboard to use these actions"
+                        >
+                            <Box>
+                                {user.data?.ability?.can(
+                                    'manage',
+                                    'SavedChart',
+                                ) && (
+                                    <LinkMenuItem
+                                        icon="document-open"
+                                        text="Edit chart"
+                                        disabled={isEditMode}
+                                        onClick={() => {
+                                            if (belongsToDashboard) {
+                                                storeDashboard(
+                                                    dashboardTiles,
+                                                    filtersFromCOntext,
+                                                    haveTilesChanged,
+                                                    haveFiltersChanged,
+                                                    dashboard?.uuid,
+                                                    dashboard?.name,
+                                                );
+                                            }
+                                        }}
+                                        href={`/projects/${projectUuid}/saved/${savedChartUuid}/edit?fromDashboard=${dashboardUuid}`}
+                                    />
+                                )}
 
-                            {exploreFromHereUrl && (
-                                <LinkMenuItem
-                                    icon="series-search"
-                                    text="Explore from here"
-                                    href={exploreFromHereUrl}
-                                />
-                            )}
+                                {exploreFromHereUrl && (
+                                    <LinkMenuItem
+                                        icon="series-search"
+                                        text="Explore from here"
+                                        disabled={isEditMode}
+                                        href={exploreFromHereUrl}
+                                    />
+                                )}
 
-                            {savedQueryWithDashboardFilters &&
-                                savedQueryWithDashboardFilters.chartConfig
-                                    .type === ChartType.TABLE && (
+                                {savedQueryWithDashboardFilters &&
+                                    savedQueryWithDashboardFilters.chartConfig
+                                        .type === ChartType.TABLE && (
+                                        <MenuItem2
+                                            icon="export"
+                                            text="Export CSV"
+                                            disabled={isEditMode}
+                                            onClick={() =>
+                                                setIsCSVExportModalOpen(true)
+                                            }
+                                        />
+                                    )}
+                                {savedQueryWithDashboardFilters &&
+                                    savedQueryWithDashboardFilters.chartConfig
+                                        .type === ChartType.TABLE && (
+                                        <ExportGoogleSheet
+                                            savedChart={
+                                                savedQueryWithDashboardFilters
+                                            }
+                                            disabled={isEditMode}
+                                        />
+                                    )}
+
+                                {savedQueryWithDashboardFilters?.dashboardUuid && (
                                     <MenuItem2
-                                        icon="export"
-                                        text="Export CSV"
-                                        onClick={() =>
-                                            setIsCSVExportModalOpen(true)
-                                        }
+                                        icon={<IconFolders size={16} />}
+                                        text="Move to space"
+                                        onClick={() => setIsMovingChart(true)}
+                                        disabled={isEditMode}
                                     />
                                 )}
-                            {savedQueryWithDashboardFilters &&
-                                savedQueryWithDashboardFilters.chartConfig
-                                    .type === ChartType.TABLE && (
-                                    <ExportGoogleSheet
-                                        savedChart={
-                                            savedQueryWithDashboardFilters
-                                        }
-                                    />
-                                )}
-
-                            {savedQueryWithDashboardFilters?.dashboardUuid && (
-                                <MenuItem2
-                                    icon={<IconFolders size={16} />}
-                                    text="Move to space"
-                                    onClick={() => setIsMovingChart(true)}
-                                />
-                            )}
-                        </>
+                            </Box>
+                        </Tooltip>
                     )
                 }
                 {...props}

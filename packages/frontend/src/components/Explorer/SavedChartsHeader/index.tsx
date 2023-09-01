@@ -88,7 +88,8 @@ const SavedChartsHeader: FC = () => {
     );
     const reset = useExplorerContext((context) => context.actions.reset);
 
-    const { clearIsEditingDashboardChart } = useDashboardStorage();
+    const { clearIsEditingDashboardChart, getIsEditingDashboardChart } =
+        useDashboardStorage();
 
     const [blockedNavigationLocation, setBlockedNavigationLocation] =
         useState<string>();
@@ -486,14 +487,23 @@ const SavedChartsHeader: FC = () => {
                                         />
                                     ) : null}
                                     <Divider />
-                                    <MenuItem2
-                                        icon={<IconTrash />}
-                                        text="Delete"
-                                        intent="danger"
-                                        onClick={() =>
-                                            setIsDeleteDialogOpen(true)
-                                        }
-                                    />
+                                    <Tooltip
+                                        disabled={!getIsEditingDashboardChart()}
+                                        position="bottom"
+                                        label="This chart can be deleted from its dashboard"
+                                    >
+                                        <Box>
+                                            <MenuItem2
+                                                icon={<IconTrash />}
+                                                text="Delete"
+                                                intent="danger"
+                                                disabled={getIsEditingDashboardChart()}
+                                                onClick={() =>
+                                                    setIsDeleteDialogOpen(true)
+                                                }
+                                            />
+                                        </Box>
+                                    </Tooltip>
                                 </Menu>
                             }
                         >
