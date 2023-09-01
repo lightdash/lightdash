@@ -12,10 +12,10 @@ import {
     IconDots,
     IconEdit,
     IconFolders,
+    IconLayoutGridAdd,
     IconPin,
-    IconPinned,
+    IconPinnedOff,
     IconPlus,
-    IconSquarePlus,
     IconTrash,
 } from '@tabler/icons-react';
 import { FC } from 'react';
@@ -146,7 +146,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                     <Menu.Item
                         component="button"
                         role="menuitem"
-                        icon={<IconSquarePlus size={18} />}
+                        icon={<IconLayoutGridAdd size={18} />}
                         onClick={() => {
                             onAction({
                                 type: ResourceViewItemAction.ADD_TO_DASHBOARD,
@@ -167,7 +167,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         role="menuitem"
                         icon={
                             isPinned ? (
-                                <IconPinned size={18} />
+                                <IconPinnedOff size={18} />
                             ) : (
                                 <IconPin size={18} />
                             )
