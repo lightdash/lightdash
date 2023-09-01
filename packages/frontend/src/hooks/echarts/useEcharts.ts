@@ -1360,7 +1360,7 @@ const useEcharts = (validCartesianConfigLegend?: LegendValues) => {
             if (xFieldId === undefined) return results;
 
             const alreadySorted =
-                resultsData?.metricQuery.sorts?.[0].fieldId === xFieldId;
+                resultsData?.metricQuery.sorts?.[0]?.fieldId === xFieldId;
             if (alreadySorted) return results;
 
             const xField = dimensions.find(
