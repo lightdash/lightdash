@@ -70,6 +70,7 @@ import {
     ApiJobScheduledResponse,
     ApiJobStatusResponse,
     SchedulerAndTargets,
+    SchedulerJobStatus,
     SchedulerWithLogs,
 } from './types/scheduler';
 import { SlackChannel } from './types/slack';
@@ -327,6 +328,7 @@ export type ApiScheduledDownloadCsv = {
 };
 export type ApiDownloadCsv = {
     url: string;
+    status: SchedulerJobStatus;
 };
 
 export type ProjectCatalog = {
