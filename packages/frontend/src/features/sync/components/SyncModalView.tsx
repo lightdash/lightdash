@@ -4,6 +4,7 @@ import {
     Button,
     Card,
     Flex,
+    Group,
     Menu,
     ScrollArea,
     Stack,
@@ -111,10 +112,15 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                     </Stack>
                 </ScrollArea>
             ) : (
-                <Text>
-                    Get started by clicking 'Create new Sync' to seamlessly
-                    integrate your chart data with Google Sheets
-                </Text>
+                <Group position="center" ta="center" spacing="xs" my="sm">
+                    <Text fz="sm" fw={450} c="gray.7">
+                        This chart has no Syncs set up yet
+                    </Text>
+                    <Text fz="xs" fw={400} c="gray.6">
+                        Get started by clicking 'Create new Sync' to seamlessly
+                        integrate your chart data with Google Sheets
+                    </Text>
+                </Group>
             )}
             <Button
                 size="sm"
