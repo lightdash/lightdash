@@ -296,7 +296,7 @@ export class ExploreCompiler {
         if (metric.filters !== undefined && metric.filters.length > 0) {
             if (isNonAggregateMetric(metric)) {
                 throw new CompileError(
-                    'You cannot apply filters to non-aggregate metrics',
+                    'Metric filters cannot be used with non-aggregate metrics',
                 );
             }
 
