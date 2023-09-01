@@ -378,7 +378,7 @@ const Dashboard: FC = () => {
 
     const handleExportDashboard = () => {
         if (!dashboard) return;
-        exportDashboard({ dashboard, search: location.search });
+        exportDashboard({ dashboard, queryFilters: location.search });
     };
 
     const [isSaveWarningModalOpen, setIsSaveWarningModalOpen] =

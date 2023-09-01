@@ -218,7 +218,7 @@ export class UnfurlService {
 
     async exportDashboard(
         dashboardUuid: string,
-        filters: string,
+        queryFilters: string,
         user: SessionUser,
     ): Promise<string> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
@@ -226,7 +226,7 @@ export class UnfurlService {
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,
             name: dashboard.name,
-            minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}${filters}`,
+            minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}${queryFilters}`,
             pageType: LightdashPage.DASHBOARD,
         };
         if (

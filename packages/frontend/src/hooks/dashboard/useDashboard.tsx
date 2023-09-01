@@ -59,11 +59,11 @@ const postDashboardsAvailableFilters = async (savedQueryUuids: string[]) =>
         body: JSON.stringify(savedQueryUuids),
     });
 
-const exportDashboard = async (id: string, filters: string) =>
+const exportDashboard = async (id: string, queryFilters: string) =>
     lightdashApi<string>({
         url: `/dashboards/${id}/export`,
         method: 'POST',
-        body: JSON.stringify({ filters }),
+        body: JSON.stringify({ queryFilters }),
     });
 
 export const useDashboardsAvailableFilters = (savedQueryUuids: string[]) =>
@@ -93,8 +93,8 @@ export const useExportDashboard = () => {
     return useMutation<
         string,
         ApiError,
-        { dashboard: Dashboard; search: string }
-    >((data) => exportDashboard(data.dashboard.uuid, data.search), {
+        { dashboard: Dashboard; queryFilters: string }
+    >((data) => exportDashboard(data.dashboard.uuid, data.queryFilters), {
         mutationKey: ['export_dashboard'],
         onMutate: (data) => {
             showToast({
