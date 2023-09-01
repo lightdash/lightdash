@@ -1,3 +1,15 @@
+# [0.765.0](https://github.com/lightdash/lightdash/compare/0.764.1...0.765.0) (2023-09-01)
+
+
+### Bug Fixes
+
+* dbt error worksaround for metric_time dimension ([#6975](https://github.com/lightdash/lightdash/issues/6975)) ([7fea944](https://github.com/lightdash/lightdash/commit/7fea944480bde2d08193048a0f174f72cf8b2c26))
+
+
+### Features
+
+* pivot table max column size ([#6933](https://github.com/lightdash/lightdash/issues/6933)) ([ba55798](https://github.com/lightdash/lightdash/commit/ba55798f820dcbc93ffd60419daa0d26e1035c44))
+
 ## [0.764.1](https://github.com/lightdash/lightdash/compare/0.764.0...0.764.1) (2023-09-01)
 
 
