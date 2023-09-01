@@ -294,6 +294,12 @@ export class ExploreCompiler {
             },
         );
         if (metric.filters !== undefined && metric.filters.length > 0) {
+            if (isNonAggregateMetric(metric)) {
+                throw new CompileError(
+                    'You cannot apply filters to non-aggregate metrics',
+                );
+            }
+
             const conditions = metric.filters.map((filter) => {
                 const fieldRef =
                     // @ts-expect-error This fallback is to support old metric filters in yml. We can delete this after a few months since we can assume all projects have been redeployed
