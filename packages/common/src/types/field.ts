@@ -264,6 +264,7 @@ export enum MetricType {
     MEDIAN = 'median',
     STRING = 'string',
     DATE = 'date',
+    TIMESTAMP = 'timestamp',
     BOOLEAN = 'boolean',
 }
 

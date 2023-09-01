@@ -115,6 +115,7 @@ export const getFilterTypeFromItem = (item: FilterableItem): FilterType => {
         case MetricType.MAX:
             return FilterType.NUMBER;
         case DimensionType.TIMESTAMP:
+        case MetricType.TIMESTAMP:
         case DimensionType.DATE:
         case MetricType.DATE:
             return FilterType.DATE;

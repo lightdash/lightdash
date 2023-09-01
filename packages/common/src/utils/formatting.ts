@@ -6,6 +6,7 @@ import {
     Field,
     findCompactConfig,
     Format,
+    isDimension,
     isField,
     isTableCalculation,
     MetricType,
@@ -71,7 +72,6 @@ export const getDateFormat = (
             return 'YYYY-[Q]Q';
         case TimeFrames.MONTH:
             return 'YYYY-MM';
-        case TimeFrames.DAY:
         default:
             return 'YYYY-MM-DD';
     }
@@ -111,7 +111,6 @@ const getTimeFormat = (
         case TimeFrames.SECOND:
             timeFormat = 'HH:mm:ss';
             break;
-        case TimeFrames.MILLISECOND:
         default:
             timeFormat = 'HH:mm:ss:SSS';
             break;
@@ -277,29 +276,29 @@ export function formatFieldValue(
         case DimensionType.DATE:
         case MetricType.DATE:
             return isMomentInput(value)
-                ? formatDate(value, field.timeInterval, convertToUTC)
+                ? formatDate(
+                      value,
+                      isDimension(field) ? field.timeInterval : undefined,
+                      convertToUTC,
+                  )
                 : 'NaT';
         case DimensionType.TIMESTAMP:
+        case MetricType.TIMESTAMP:
             return isMomentInput(value)
-                ? formatTimestamp(value, field.timeInterval, convertToUTC)
+                ? formatTimestamp(
+                      value,
+                      isDimension(field) ? field.timeInterval : undefined,
+                      convertToUTC,
+                  )
                 : 'NaT';
         case MetricType.MAX:
         case MetricType.MIN: {
             if (value instanceof Date) {
-                if (
-                    field.timeInterval &&
-                    [
-                        TimeFrames.YEAR,
-                        TimeFrames.QUARTER,
-                        TimeFrames.MONTH,
-                        TimeFrames.WEEK,
-                        TimeFrames.DAY,
-                    ].includes(field.timeInterval)
-                ) {
-                    return formatDate(value, field.timeInterval, convertToUTC);
-                }
-
-                return formatTimestamp(value, field.timeInterval, convertToUTC);
+                return formatTimestamp(
+                    value,
+                    isDimension(field) ? field.timeInterval : undefined,
+                    convertToUTC,
+                );
             }
             return formatValue(value, { format, round, compact });
         }

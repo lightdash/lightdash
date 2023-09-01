@@ -151,12 +151,11 @@ export const CustomMetricModal = () => {
             if (!item || !customMetricType) return;
 
             const data = prepareCustomMetricData({
-                dimension: item,
+                item,
                 type: customMetricType,
                 customMetricLabel,
                 customMetricFiltersWithIds,
                 isEditingCustomMetric: !!isEditing,
-                item,
                 exploreData,
                 percentile,
             });
@@ -175,9 +174,6 @@ export const CustomMetricModal = () => {
             } else if (isDimension(item) && form.values.customMetricLabel) {
                 addAdditionalMetric({
                     uuid: uuidv4(),
-                    table: item.table,
-                    sql: item.sql,
-                    type: customMetricType,
                     baseDimensionName: item.name,
                     ...data,
                 });

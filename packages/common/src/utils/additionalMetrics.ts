@@ -12,15 +12,6 @@ export const convertAdditionalMetric = ({
     additionalMetric,
     table,
 }: ConvertAdditionalMetricArgs): Metric => {
-    // dimensions with date ends with caps: DAY, MONTH, YEAR
-    // for example `order_date_DAY`, `order_date_MONTH`
-    const baseDimension = additionalMetric.baseDimensionName
-        ? Object.entries(table.dimensions).find(
-              ([name]) =>
-                  name.toLowerCase() === additionalMetric.baseDimensionName,
-          )?.[1]
-        : undefined;
-
     const metric = convertColumnMetric({
         modelName: table.name,
         dimensionSql: additionalMetric.sql,
@@ -33,9 +24,6 @@ export const convertAdditionalMetric = ({
         ...metric,
         ...(additionalMetric.filters && {
             filters: additionalMetric.filters,
-        }),
-        ...(baseDimension && {
-            timeInterval: baseDimension.timeInterval,
         }),
     };
 };
