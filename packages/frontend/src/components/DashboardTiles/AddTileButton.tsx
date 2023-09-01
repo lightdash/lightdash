@@ -2,7 +2,6 @@ import { Menu, MenuDivider, PopoverPosition } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { Dashboard, DashboardTileTypes } from '@lightdash/common';
 import { Button, ButtonProps, Group, Text, Tooltip } from '@mantine/core';
-import { useLocalStorage } from '@mantine/hooks';
 import { IconInfoCircle, IconPlus } from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
@@ -22,12 +21,6 @@ const AddTileButton: FC<Props> = ({
     popoverPosition,
     disabled,
 }) => {
-    // TODO: this is a feature flag. Remove when create chart
-    // in dashboard is ready
-    const [isCreateChartInDashboardEnabled] = useLocalStorage({
-        key: 'enable-create-chart-in-dashboard',
-        defaultValue: false,
-    });
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
@@ -67,38 +60,32 @@ const AddTileButton: FC<Props> = ({
 
                         <MenuDivider />
 
-                        {isCreateChartInDashboardEnabled && (
-                            <>
-                                <MenuItem2
-                                    icon="series-add"
-                                    text={
-                                        <Group spacing="xxs">
-                                            <Text>New chart</Text>
-                                            <Tooltip label="Charts generated from here are exclusive to this dashboard">
-                                                <MantineIcon
-                                                    icon={IconInfoCircle}
-                                                    color="gray.6"
-                                                />
-                                            </Tooltip>
-                                        </Group>
-                                    }
-                                    onClick={() => {
-                                        storeDashboard(
-                                            dashboardTiles,
-                                            dashboardFilters,
-                                            haveTilesChanged,
-                                            haveFiltersChanged,
-                                            dashboard?.uuid,
-                                            dashboard?.name,
-                                        );
-                                        history.push(
-                                            `/projects/${projectUuid}/tables`,
-                                        );
-                                    }}
-                                />
-                                <MenuDivider />
-                            </>
-                        )}
+                        <MenuItem2
+                            icon="series-add"
+                            text={
+                                <Group spacing="xxs">
+                                    <Text>New chart</Text>
+                                    <Tooltip label="Charts generated from here are exclusive to this dashboard">
+                                        <MantineIcon
+                                            icon={IconInfoCircle}
+                                            color="gray.6"
+                                        />
+                                    </Tooltip>
+                                </Group>
+                            }
+                            onClick={() => {
+                                storeDashboard(
+                                    dashboardTiles,
+                                    dashboardFilters,
+                                    haveTilesChanged,
+                                    haveFiltersChanged,
+                                    dashboard?.uuid,
+                                    dashboard?.name,
+                                );
+                                history.push(`/projects/${projectUuid}/tables`);
+                            }}
+                        />
+                        <MenuDivider />
 
                         <MenuItem2
                             icon="new-text-box"
