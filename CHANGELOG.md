@@ -1,3 +1,10 @@
+# [0.764.0](https://github.com/lightdash/lightdash/compare/0.763.1...0.764.0) (2023-09-01)
+
+
+### Features
+
+* metricflow page ([#6871](https://github.com/lightdash/lightdash/issues/6871)) ([9bc538e](https://github.com/lightdash/lightdash/commit/9bc538e08b4389ac9c58f89b96e9d215e915f446))
+
 ## [0.763.1](https://github.com/lightdash/lightdash/compare/0.763.0...0.763.1) (2023-09-01)
 
 
