@@ -178,6 +178,7 @@ dashboardRouter.post(
         try {
             const results = await unfurlService.exportDashboard(
                 req.params.dashboardUuid,
+                req.body.filters,
                 req.user!,
             );
 

@@ -16,7 +16,7 @@ import React, {
     useState,
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
@@ -175,6 +175,7 @@ const Dashboard: FC = () => {
         showRedirectButton: true,
     });
     const { mutate: exportDashboard } = useExportDashboard();
+    const location = useLocation();
 
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
@@ -377,7 +378,7 @@ const Dashboard: FC = () => {
 
     const handleExportDashboard = () => {
         if (!dashboard) return;
-        exportDashboard(dashboard);
+        exportDashboard({ dashboard, search: location.search });
     };
 
     const [isSaveWarningModalOpen, setIsSaveWarningModalOpen] =

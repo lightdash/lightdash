@@ -218,6 +218,7 @@ export class UnfurlService {
 
     async exportDashboard(
         dashboardUuid: string,
+        filters: string,
         user: SessionUser,
     ): Promise<string> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
@@ -225,7 +226,7 @@ export class UnfurlService {
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,
             name: dashboard.name,
-            minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}`,
+            minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}${filters}`,
             pageType: LightdashPage.DASHBOARD,
         };
         if (
@@ -239,7 +240,7 @@ export class UnfurlService {
         const imageUrl = await this.unfurlImage(
             minimalUrl,
             pageType,
-            `${snakeCaseName(name)}_${useNanoid()}`,
+            `slack-image_${snakeCaseName(name)}_${useNanoid()}`, // In order to use local images from slackRouter, image needs to start with slack-image
             user.userUuid,
         );
         if (imageUrl === undefined) {
