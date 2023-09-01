@@ -137,7 +137,6 @@ export interface Field {
     groupLabel?: string;
     urls?: FieldUrl[];
     index?: number;
-    timeInterval?: TimeFrames;
 }
 
 export const isField = (field: any): field is Field =>
@@ -197,6 +196,7 @@ export interface Dimension extends Field {
     type: DimensionType;
     group?: string;
     requiredAttributes?: Record<string, string>;
+    timeInterval?: TimeFrames;
 }
 
 export interface CompiledDimension extends Dimension {
@@ -287,7 +287,6 @@ export const parseMetricType = (metricType: string): MetricType => {
             return MetricType.PERCENTILE;
         case 'median':
             return MetricType.MEDIAN;
-
         case 'average':
             return MetricType.AVERAGE;
         case 'count':
