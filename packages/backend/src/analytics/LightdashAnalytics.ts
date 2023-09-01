@@ -694,7 +694,7 @@ export type DownloadCsv = BaseTrack & {
             | 'scheduled delivery chart'
             | 'scheduled delivery dashboard'
             | 'sql runner';
-        storage: 'local' | 's3';
+        storage?: 'local' | 's3';
         numCharts?: number;
         numRows?: number;
         numColumns?: number;

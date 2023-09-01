@@ -627,7 +627,6 @@ export const uploadGsheetFromQuery = async (
         organizationId: payload.organizationUuid,
         projectId: payload.projectUuid,
         fileType: SchedulerFormat.GSHEETS,
-        storage: s3Service.isEnabled() ? 's3' : 'local',
     };
 
     try {
