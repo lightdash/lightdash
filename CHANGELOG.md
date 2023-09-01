@@ -1,3 +1,10 @@
+## [0.764.1](https://github.com/lightdash/lightdash/compare/0.764.0...0.764.1) (2023-09-01)
+
+
+### Bug Fixes
+
+* header breaks returning from chart edit ([#6963](https://github.com/lightdash/lightdash/issues/6963)) ([700ef67](https://github.com/lightdash/lightdash/commit/700ef6788fbf94d4dcd05823b2fe1a4471bcd86e))
+
 # [0.764.0](https://github.com/lightdash/lightdash/compare/0.763.1...0.764.0) (2023-09-01)
 
 
