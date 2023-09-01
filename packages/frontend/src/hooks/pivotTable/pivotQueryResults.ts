@@ -333,7 +333,7 @@ export const pivotQueryResults = ({
 
                 if (columnCount > MAX_COLUMNS) {
                     throw new Error(
-                        `Cannot pivot results with more than ${MAX_COLUMNS} columns`,
+                        `Cannot pivot results with more than ${MAX_COLUMNS} columns. Try adding a filter to limit your results.`,
                     );
                 }
 
