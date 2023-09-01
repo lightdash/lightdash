@@ -557,7 +557,7 @@ You can compact values in your YAML. For example, if I wanted all of my revenue 
 
 ## Filters
 
-Filters are applied to metrics any time that metric is used in Lightdash.
+Filters are applied to metrics any time that metric is used in Lightdash. Filters can only be used with [aggregate metric types](#metric-categories).
 
 For example, we could add a filter to our users count to make sure it didn't include user IDs with closed accounts, like this:
 
@@ -656,6 +656,50 @@ models:
               filters:
                 - is_closed_account: false
                 - web_sessions.is_bot_user: false
+...
+```
+
+### Filters cannot be used with non-aggregate metrics
+
+You can't use filters with non-aggregate metric types. Instead, if your non-aggregate metrics are referencing aggregate metric types, you need to apply metric filters to the aggregate metrics. 
+
+Here's an example: imagine you wanted to calculate the average cost per item that had the status `shipped`. You would need to do something like this in your .yml:
+
+```yaml
+version: 2
+
+models:
+  - name: orders
+    meta:
+      metrics:
+        average_cost_per_item_shipped:
+          type: number
+          sql: ${total_cost_of_shipped} / ${count_unique_items_shipped}
+    columns:
+      - name: item_id
+        description: "Unique ID for items ordered."
+        meta:
+          dimension:
+            type: string
+          metrics:
+            count_unique_items:
+              type: count_distinct
+            count_unique_items_shipped:
+              type: count_distinct
+              filters:
+                - status: 'shipped'
+      - name: item_cost
+        description: "Cost for each item ordered."
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_cost:
+              type: sum
+            total_cost_of_shipped:
+              type: sum
+              filters:
+                - status: 'shipped'
 ...
 ```
 
