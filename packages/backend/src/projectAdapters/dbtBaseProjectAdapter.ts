@@ -103,7 +103,9 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         // Validate metrics in the manifest - compile fails if any invalid
         const metrics = DbtBaseProjectAdapter._validateDbtMetrics(
             manifestVersion,
-            Object.values(manifest.metrics),
+            manifestVersion === DbtManifestVersion.V10
+                ? []
+                : Object.values(manifest.metrics),
         );
 
         // Be lazy and try to attach types to the remaining models without refreshing the catalog
