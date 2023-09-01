@@ -27,6 +27,7 @@ import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { SyncModal as GoogleSheetsSyncModal } from '../../../features/sync/components';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
+import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import {
     useDuplicateChartMutation,
     useMoveChartMutation,
@@ -86,6 +87,9 @@ const SavedChartsHeader: FC = () => {
         (context) => context.state.savedChart,
     );
     const reset = useExplorerContext((context) => context.actions.reset);
+
+    const { clearIsEditingDashboardChart } = useDashboardStorage();
+
     const [blockedNavigationLocation, setBlockedNavigationLocation] =
         useState<string>();
     const [isSaveWarningModalOpen, setIsSaveWarningModalOpen] =
@@ -203,8 +207,6 @@ const SavedChartsHeader: FC = () => {
         history.push({
             pathname: `/projects/${savedChart?.projectUuid}/dashboards/${dashboardUuid}`,
         });
-        sessionStorage.removeItem('fromDashboard');
-        sessionStorage.removeItem('dashboardUuid');
     };
 
     const handleCancelClick = () => {
@@ -569,8 +571,7 @@ const SavedChartsHeader: FC = () => {
                     opened={isMovingChart}
                     onClose={() => setIsMovingChart(false)}
                     onConfirm={() => {
-                        sessionStorage.removeItem('fromDashboard');
-                        sessionStorage.removeItem('dashboardUuid');
+                        clearIsEditingDashboardChart();
                         history.push(
                             `/projects/${projectUuid}/saved/${savedChart.uuid}/edit`,
                         );
