@@ -2,6 +2,7 @@ import {
     ApiDownloadCsv,
     ApiError,
     ApiScheduledDownloadCsv,
+    SchedulerJobStatus,
 } from '@lightdash/common';
 import { FC, memo, useCallback } from 'react';
 import { useMutation, useQuery } from 'react-query';
@@ -89,7 +90,7 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
                 return 2000;
             },
             onSuccess: (data) => {
-                if (data?.url) {
+                if (data?.url && data.status === SchedulerJobStatus.COMPLETED) {
                     window.open(data.url, '_blank');
                     AppToaster.dismiss('exporting-gsheets');
                 }
