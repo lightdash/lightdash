@@ -51,9 +51,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             size="xs"
                             fz="sm"
                             leftIcon={
-                                <MantineIcon
-                                    icon={IconSquareRoundedPlus}
-                                />
+                                <MantineIcon icon={IconSquareRoundedPlus} />
                             }
                             onClick={() => setIsOpen(!isOpen)}
                         >
