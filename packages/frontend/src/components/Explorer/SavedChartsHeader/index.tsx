@@ -25,6 +25,7 @@ import React, { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
+import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import {
     useDuplicateChartMutation,
     useMoveChartMutation,
@@ -81,6 +82,9 @@ const SavedChartsHeader: FC = () => {
         (context) => context.state.savedChart,
     );
     const reset = useExplorerContext((context) => context.actions.reset);
+
+    const { clearIsEditingDashboardChart } = useDashboardStorage();
+
     const [blockedNavigationLocation, setBlockedNavigationLocation] =
         useState<string>();
     const [isSaveWarningModalOpen, setIsSaveWarningModalOpen] =
@@ -527,6 +531,7 @@ const SavedChartsHeader: FC = () => {
                     opened={isMovingChart}
                     onClose={() => setIsMovingChart(false)}
                     onConfirm={() => {
+                        clearIsEditingDashboardChart();
                         history.push(
                             `/projects/${projectUuid}/saved/${savedChart.uuid}/edit`,
                         );
