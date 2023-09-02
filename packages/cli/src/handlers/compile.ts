@@ -42,6 +42,7 @@ export const compile = async (options: CompileHandlerOptions) => {
     });
 
     const dbtVersion = await getDbtVersion();
+    const manifestVersion = await getDbtManifest();
     GlobalState.debug(`> dbt version ${dbtVersion}`);
 
     if (!isSupportedDbtVersion(dbtVersion)) {
@@ -139,7 +140,7 @@ ${errors.join('')}`),
         validModelsWithTypes,
         false,
         manifest.metadata.adapter_type,
-        (await getDbtManifest()) === DbtManifestVersion.V10
+        manifestVersion === DbtManifestVersion.V10
             ? []
             : Object.values(manifest.metrics),
         warehouseClient,
@@ -170,6 +171,9 @@ ${errors.join('')}`),
         properties: {
             explores: explores.length,
             errors,
+            dbtMetrics: Object.values(manifest.metrics).length,
+            dbtVersion,
+            manifestVersion,
         },
     });
     return explores;

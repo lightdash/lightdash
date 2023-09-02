@@ -126,6 +126,9 @@ type CliCompileCompleted = BaseTrack & {
     properties: {
         explores: number;
         errors: number;
+        dbtMetrics: number;
+        dbtVersion: string;
+        manifestVersion: string;
     };
 };
 type CliCompileError = BaseTrack & {
