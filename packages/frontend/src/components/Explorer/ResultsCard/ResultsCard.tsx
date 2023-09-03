@@ -3,7 +3,8 @@ import { Button, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { FC, memo, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { downloadCsv } from '../../../hooks/useDownloadCsv';
+import { downloadCsv } from '../../../api/csv';
+import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useApp } from '../../../providers/AppProvider';
 import {
     ExplorerSection,
@@ -16,7 +17,7 @@ import CollapsableCard, {
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from '../../common/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
-import ExportCSV from '../../ExportCSV';
+import ExportSelector from '../../ExportSelector';
 import LimitButton from '../../LimitButton';
 import SortButton from '../../SortButton';
 import { ExplorerResults } from './ExplorerResults';
@@ -72,6 +73,17 @@ const ResultsCard: FC = memo(() => {
             showTableNames: true,
         });
         return csvResponse;
+    };
+
+    const getGsheetLink = async () => {
+        const gsheetResponse = await uploadGsheet({
+            projectUuid,
+            exploreId: tableName,
+            metricQuery,
+            columnOrder,
+            showTableNames: true,
+        });
+        return gsheetResponse;
     };
 
     const resultsIsOpen = useMemo(
@@ -137,9 +149,10 @@ const ResultsCard: FC = memo(() => {
                                 </Popover.Target>
 
                                 <Popover.Dropdown>
-                                    <ExportCSV
+                                    <ExportSelector
                                         rows={rows}
                                         getCsvLink={getCsvLink}
+                                        getGsheetLink={getGsheetLink}
                                     />
                                 </Popover.Dropdown>
                             </Popover>

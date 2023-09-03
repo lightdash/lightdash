@@ -1,7 +1,8 @@
 import { FieldId, fieldId, FilterableField } from '@lightdash/common';
+import { Group, Skeleton } from '@mantine/core';
 import { FC } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
-import ActiveFilter from './ActiveFilter';
+import Filter from '../Filter';
 
 interface ActiveFiltersProps {
     isEditMode: boolean;
@@ -14,11 +15,25 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
         updateDimensionDashboardFilter,
         removeDimensionDashboardFilter,
         allFilterableFields,
+        isLoadingDashboardFilters,
+        isFetchingDashboardFilters,
     } = useDashboardContext();
+
+    if (isLoadingDashboardFilters || isFetchingDashboardFilters) {
+        return (
+            <Group spacing="xs" ml="xs">
+                <Skeleton h={30} w={100} radius={4} />
+                <Skeleton h={30} w={100} radius={4} />
+                <Skeleton h={30} w={100} radius={4} />
+                <Skeleton h={30} w={100} radius={4} />
+                <Skeleton h={30} w={100} radius={4} />
+            </Group>
+        );
+    }
 
     if (!allFilterableFields) return null;
 
-    const fieldMap = allFilterableFields.reduce<
+    const fieldMap = allFilterableFields?.reduce<
         Record<FieldId, FilterableField>
     >((acc, field) => ({ ...acc, [fieldId(field)]: field }), {});
 
@@ -27,7 +42,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
             {dashboardFilters.dimensions
                 .filter((item) => !!fieldMap[item.target.fieldId])
                 .map((item, index) => (
-                    <ActiveFilter
+                    <Filter
                         key={item.id}
                         isEditMode={isEditMode}
                         field={fieldMap[item.target.fieldId]}
@@ -44,7 +59,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
             {dashboardTemporaryFilters.dimensions
                 .filter((item) => !!fieldMap[item.target.fieldId])
                 .map((item, index) => (
-                    <ActiveFilter
+                    <Filter
                         key={item.id}
                         isTemporary
                         isEditMode={isEditMode}

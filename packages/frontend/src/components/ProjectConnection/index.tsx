@@ -1,4 +1,4 @@
-import { Callout, H5, Intent } from '@blueprintjs/core';
+import { Callout, Intent } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import {
     CreateWarehouseCredentials,
@@ -9,9 +9,18 @@ import {
     SupportedDbtVersions,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Anchor, Avatar, Card, Flex, Stack, Title } from '@mantine/core';
+import {
+    Anchor,
+    Avatar,
+    Button,
+    Card,
+    Flex,
+    Stack,
+    TextInput,
+    Title,
+} from '@mantine/core';
 import { FC, useEffect, useMemo, useState } from 'react';
-import { FieldErrors, useForm } from 'react-hook-form';
+import { FieldErrors, useForm, useFormContext } from 'react-hook-form';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
 import { useHistory } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -27,7 +36,6 @@ import { EventName } from '../../types/Events';
 import { useAbilityContext } from '../common/Authorization';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
-import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
 import { getWarehouseIcon } from './ProjectConnectFlow/SelectWarehouse';
@@ -66,23 +74,22 @@ const ProjectForm: FC<Props> = ({
 }) => {
     const { health } = useApp();
     const [warehouse, setWarehouse] = useState(selectedWarehouse);
+    const { register } = useFormContext();
 
     return (
         <Stack spacing="xl">
             {showGeneralSettings && (
                 <SettingsGridCard>
                     <div>
-                        <H5>General settings</H5>
+                        <Title order={5}>General settings</Title>
                     </div>
 
                     <div>
-                        <Input
-                            name="name"
+                        <TextInput
                             label="Project name"
-                            rules={{
-                                required: 'Required field',
-                            }}
+                            required
                             disabled={disabled}
+                            {...register('name')}
                         />
                     </div>
                 </SettingsGridCard>
@@ -227,7 +234,7 @@ export const UpdateProjectConnection: FC<{
                 name,
                 dbtConnection,
                 warehouseConnection,
-                dbtVersion: dbtVersion,
+                dbtVersion,
             });
         }
     };
@@ -286,17 +293,11 @@ export const UpdateProjectConnection: FC<{
                     bottom: `-${theme.spacing.xl}`,
                 })}
             >
-                <CompileProjectButton
-                    large
-                    type="submit"
-                    intent={Intent.PRIMARY}
-                    loading={isSaving}
-                    disabled={isDisabled}
-                >
+                <Button type="submit" loading={isSaving} disabled={isDisabled}>
                     {data?.dbtConnection?.type === DbtProjectType.NONE
                         ? 'Save and test'
                         : 'Test & compile project'}
-                </CompileProjectButton>
+                </Button>
             </Card>
         </FormContainer>
     );
@@ -332,6 +333,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         name,
         dbt: dbtConnection,
         warehouse: warehouseConnection,
+        dbtVersion,
     }: Required<ProjectConnectionForm>) => {
         track({
             name: EventName.CREATE_PROJECT_BUTTON_CLICKED,
@@ -341,6 +343,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                 name: name || user.data?.organizationName || 'My project',
                 type: ProjectType.DEFAULT,
                 dbtConnection,
+                dbtVersion,
                 //@ts-ignore
                 warehouseConnection: {
                     ...warehouseConnection,

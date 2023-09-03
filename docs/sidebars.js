@@ -144,6 +144,7 @@ module.exports = {
                 'guides/pinning',
                 'guides/sharing-in-slack',
                 'guides/how-to-create-scheduled-deliveries',
+                'guides/how-to-create-syncs',
                 'guides/validating-your-content',
                 'guides/how-to-create-multiple-projects',
                 'guides/customizing-the-appearance-of-your-project',

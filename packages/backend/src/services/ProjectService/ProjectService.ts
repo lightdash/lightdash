@@ -53,6 +53,7 @@ import {
     ProjectType,
     RequestMethod,
     ResultRow,
+    SchedulerCsvOptions,
     SessionUser,
     SpaceSummary,
     SummaryExplore,
@@ -78,7 +79,6 @@ import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
-import { DbtCloudMetricsModel } from '../../models/DbtCloudMetricsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -489,8 +489,9 @@ export class ProjectService {
         await this.projectModel.update(projectUuid, updatedProject);
         await this.jobModel.create(job);
 
-        if (savedProject.dbtConnection.type !== DbtProjectType.NONE) {
+        if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
             await schedulerClient.testAndCompileProject({
+                organizationUuid: user.organizationUuid,
                 createdByUserUuid: user.userUuid,
                 projectUuid,
                 requestMethod: method,
@@ -1003,6 +1004,26 @@ export class ProjectService {
             rows: formattedRows,
             metricQuery,
         };
+    }
+
+    async getResultsForChart(
+        user: SessionUser,
+        chartUuid: string,
+    ): Promise<Record<string, any>[]> {
+        const chart = await this.savedChartModel.get(chartUuid);
+        const { metricQuery } = chart;
+        const exploreId = chart.tableName;
+
+        const rows = await this.runMetricQuery(
+            user,
+            metricQuery,
+            chart.projectUuid,
+            exploreId,
+            undefined,
+            QueryExecutionContext.GSHEETS,
+        );
+
+        return rows;
     }
 
     async runMetricQuery(
@@ -1528,6 +1549,7 @@ export class ProjectService {
 
         await schedulerClient.compileProject({
             createdByUserUuid: user.userUuid,
+            organizationUuid,
             projectUuid,
             requestMethod,
             jobUuid: job.jobUuid,
@@ -2091,29 +2113,6 @@ export class ProjectService {
             throw new ForbiddenError();
         }
         return this.projectModel.findDbtCloudIntegration(projectUuid);
-    }
-
-    async getdbtCloudMetrics(user: SessionUser, projectUuid: string) {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
-        if (
-            user.ability.cannot(
-                'view',
-                subject('Project', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        const integration =
-            await this.projectModel.findDbtCloudIntegrationWithSecrets(
-                projectUuid,
-            );
-        if (integration === undefined) {
-            return { metrics: [] };
-        }
-        return DbtCloudMetricsModel.getMetrics(
-            integration.serviceToken,
-            integration.metricsJobId,
-        );
     }
 
     async getCharts(

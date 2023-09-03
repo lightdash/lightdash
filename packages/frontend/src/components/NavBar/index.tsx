@@ -15,6 +15,7 @@ import {
 import { IconInfoCircle, IconTool } from '@tabler/icons-react';
 import { FC, memo, useEffect, useMemo } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
+import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProjects } from '../../hooks/useProjects';
 import { ReactComponent as Logo } from '../../svgs/logo-icon.svg';
@@ -86,8 +87,6 @@ const DashboardExplorerBanner: FC<{
                                 savedQueryUuid ? 'view' : 'edit'
                             }`,
                         );
-                        sessionStorage.removeItem('fromDashboard');
-                        sessionStorage.removeItem('dashboardUuid');
                     }}
                     size="xs"
                     ml="md"
@@ -105,7 +104,14 @@ const NavBar = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: projects } = useProjects();
     const { activeProjectUuid, isLoading: isLoadingActiveProject } =
-        useActiveProjectUuid();
+        useActiveProjectUuid({ refetchOnMount: true });
+    const {
+        getIsEditingDashboardChart,
+        getEditingDashboardInfo,
+        clearDashboardStorage,
+    } = useDashboardStorage();
+
+    const dashboardInfo = getEditingDashboardInfo();
 
     const homeUrl = activeProjectUuid
         ? `/projects/${activeProjectUuid}/home`
@@ -116,26 +122,19 @@ const NavBar = memo(() => {
             project.projectUuid === activeProjectUuid &&
             project.type === ProjectType.PREVIEW,
     );
-    const fromDashboard = sessionStorage.getItem('fromDashboard');
-    const dashboardUuid = sessionStorage.getItem('dashboardUuid');
 
     useEffect(() => {
-        const clearDashboardStorage = () => {
-            if (fromDashboard) {
-                sessionStorage.clear();
-            }
-        };
         window.addEventListener('unload', clearDashboardStorage);
         return () =>
             window.removeEventListener('unload', clearDashboardStorage);
-    }, [fromDashboard]);
+    }, [clearDashboardStorage]);
 
-    if (fromDashboard && dashboardUuid) {
+    if (getIsEditingDashboardChart()) {
         return (
             <DashboardExplorerBanner
-                dashboardName={fromDashboard}
+                dashboardName={dashboardInfo.name || ''}
                 projectUuid={projectUuid}
-                dashboardUuid={dashboardUuid}
+                dashboardUuid={dashboardInfo.dashboardUuid || ''}
             />
         );
     }

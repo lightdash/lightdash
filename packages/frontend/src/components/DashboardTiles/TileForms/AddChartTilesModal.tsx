@@ -89,10 +89,12 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
     const handleSubmit = form.onSubmit(({ savedChartsUuids }) => {
         onAddTiles(
             savedChartsUuids.map((uuid) => {
+                const chart = savedCharts?.find((c) => c.uuid === uuid);
                 return {
                     uuid: uuid4(),
                     properties: {
                         savedChartUuid: uuid,
+                        chartName: chart?.name ?? '',
                     },
                     type: DashboardTileTypes.SAVED_CHART,
                     ...defaultTileSize,
@@ -121,6 +123,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                 </Flex>
             }
             withCloseButton
+            closeOnClickOutside={false}
         >
             <Stack spacing="md">
                 <form

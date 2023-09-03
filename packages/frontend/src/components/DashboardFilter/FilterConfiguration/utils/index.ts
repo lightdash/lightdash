@@ -8,11 +8,16 @@ import isEqual from 'lodash-es/isEqual';
 
 export const isFilterConfigurationApplyButtonEnabled = (
     filterRule?: DashboardFilterRule,
+    isEditMode?: boolean,
+    isCreatingNew?: boolean,
 ) => {
     if (!filterRule) return false;
 
     const isFilterRuleDisabled = filterRule.disabled;
-    if (isFilterRuleDisabled) {
+    if (
+        (isFilterRuleDisabled && isEditMode) ||
+        (isFilterRuleDisabled && !isCreatingNew)
+    ) {
         return true;
     }
 
@@ -51,6 +56,7 @@ export const getFilterRuleRevertableObject = (
     filterRule: DashboardFilterRule,
 ) => {
     return {
+        disabled: filterRule.disabled,
         values: filterRule.values,
         operator: filterRule.operator,
         settings: filterRule.settings,

@@ -67,7 +67,7 @@ export const ThirdPartySignInButton: FC<ThirdPartySignInButtonProps> = ({
 
     switch (providerName) {
         case OpenIdIdentityIssuerType.GOOGLE:
-            return health.data?.auth.google.oauth2ClientId ? (
+            return health.data?.auth.google.enabled ? (
                 <ThirdPartySignInButtonBase
                     loginPath={health.data.auth.google.loginPath}
                     intent={intent}

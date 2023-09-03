@@ -1,12 +1,18 @@
 import {
     ApiEmailStatusResponse,
     ApiErrorPayload,
+    ApiGetAuthenticatedUserResponse,
+    ApiRegisterUserResponse,
     ApiSuccessEmpty,
     ApiUserAllowedOrganizationsResponse,
+    ParameterError,
+    RegisterOrActivateUser,
+    validatePassword,
 } from '@lightdash/common';
 import { Controller, Delete, Query } from '@tsoa/runtime';
 import express from 'express';
 import {
+    Body,
     Get,
     Middlewares,
     OperationId,
@@ -19,6 +25,7 @@ import {
     Tags,
 } from 'tsoa';
 import { userModel } from '../models/models';
+import { UserModel } from '../models/UserModel';
 import { userService } from '../services/services';
 import {
     allowApiKeyAuthentication,
@@ -30,6 +37,56 @@ import {
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('My Account')
 export class UserController extends Controller {
+    /**
+     * Get authenticated user
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/')
+    @OperationId('GetAuthenticatedUser')
+    async getAuthenticatedUser(
+        @Request() req: express.Request,
+    ): Promise<ApiGetAuthenticatedUserResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: UserModel.lightdashUserFromSession(req.user!),
+        };
+    }
+
+    /**
+     * Register user
+     * @param req express request
+     * @param body
+     */
+    @Middlewares([unauthorisedInDemo])
+    @Post('/')
+    @OperationId('RegisterUser')
+    async registerUser(
+        @Request() req: express.Request,
+        @Body()
+        body: RegisterOrActivateUser,
+    ): Promise<ApiRegisterUserResponse> {
+        if (!validatePassword(req.body.password)) {
+            throw new ParameterError(
+                'Password must contain at least 8 characters, 1 letter and 1 number or 1 special character',
+            );
+        }
+        const sessionUser = await userService.registerOrActivateUser(body);
+        return new Promise((resolve, reject) => {
+            req.login(sessionUser, (err) => {
+                if (err) {
+                    reject(err);
+                }
+                this.setStatus(200);
+                resolve({
+                    status: 'ok',
+                    results: sessionUser,
+                });
+            });
+        });
+    }
+
     /**
      * Create a new one-time passcode for the current user's primary email.
      * The user will receive an email with the passcode.

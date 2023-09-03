@@ -122,7 +122,9 @@ export class UserModel {
 
     static async createUserTransaction(
         trx: Transaction,
-        createUser: (CreateUserArgs | OpenIdUser) & { isActive: boolean },
+        createUser: (Omit<CreateUserWithRole, 'role'> | OpenIdUser) & {
+            isActive: boolean;
+        },
     ) {
         const userIn: DbUserIn = isOpenIdUser(createUser)
             ? {
@@ -684,5 +686,26 @@ export class UserModel {
             await Promise.all(projectMemberships);
         });
         return this.getUserDetailsByUuid(userUuid);
+    }
+
+    async getRefreshToken(userUuid: string) {
+        const [row] = await this.database(UserTableName)
+            .leftJoin(
+                'openid_identities',
+                'users.user_id',
+                'openid_identities.user_id',
+            )
+            .where('user_uuid', userUuid)
+            .select('refresh_token');
+
+        if (!row) {
+            throw new NotExistsError('Cannot find user with refresh token');
+        }
+
+        if (!row.refresh_token) {
+            throw new NotExistsError('Cannot find refresh token');
+        }
+
+        return row.refresh_token;
     }
 }

@@ -133,6 +133,7 @@ export enum QueryExecutionContext {
     CHART = 'chartView',
     VIEW_UNDERLYING_DATA = 'viewUnderlyingData',
     CSV = 'csvDownload',
+    GSHEETS = 'gsheets',
 }
 
 type QueryExecutionEvent = BaseTrack & {
@@ -199,6 +200,14 @@ type TrackUserDeletedEvent = BaseTrack & {
     event: 'user.deleted';
     properties: {
         deletedUserUuid: string;
+    };
+};
+
+type MetricFlowQueryEvent = BaseTrack & {
+    event: 'metricflow_query.executed';
+    properties: {
+        organizationId: string;
+        projectId: string;
     };
 };
 
@@ -652,9 +661,9 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
     properties: {
         jobId: string;
         schedulerId: string;
-        schedulerTargetId: string;
+        schedulerTargetId?: string;
         resourceType?: 'dashboard' | 'chart';
-        type: 'slack' | 'email';
+        type: 'slack' | 'email' | 'gsheets';
         format?: SchedulerFormat;
     };
 };
@@ -684,7 +693,7 @@ export type DownloadCsv = BaseTrack & {
         organizationId?: string;
         projectId: string;
         tableId?: string;
-        fileType: SchedulerFormat.CSV;
+        fileType: SchedulerFormat.CSV | SchedulerFormat.GSHEETS;
         values?: 'raw' | 'formatted';
         limit?: 'results' | 'all' | 'custom';
         context?:
@@ -693,7 +702,7 @@ export type DownloadCsv = BaseTrack & {
             | 'scheduled delivery chart'
             | 'scheduled delivery dashboard'
             | 'sql runner';
-        storage: 'local' | 's3';
+        storage?: 'local' | 's3';
         numCharts?: number;
         numRows?: number;
         numColumns?: number;
@@ -726,6 +735,39 @@ export type ValidationErrorDismissed = BaseTrack & {
     properties: {
         organizationId?: string;
         projectId: string;
+    };
+};
+
+export type UserAttributesPageEvent = BaseTrack & {
+    event: 'user_attributes.page_viewed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        userAttributesCount: number;
+    };
+};
+
+export type UserAttributeCreateAndUpdateEvent = BaseTrack & {
+    event: 'user_attribute.created' | 'user_attribute.updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        attributeId: string;
+        name: string;
+        description?: string;
+        values: {
+            userIds: string[];
+            values: string[];
+        };
+    };
+};
+
+export type UserAttributeDeleteEvent = BaseTrack & {
+    event: 'user_attribute.deleted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        attributeId: string;
     };
 };
 
@@ -784,6 +826,10 @@ type Track =
     | SchedulerDashboardView
     | Validation
     | ValidationErrorDismissed
+    | UserAttributesPageEvent
+    | UserAttributeCreateAndUpdateEvent
+    | UserAttributeDeleteEvent
+    | MetricFlowQueryEvent
     | ConditionalFormattingRuleSavedEvent;
 
 export class LightdashAnalytics extends Analytics {

@@ -2,18 +2,20 @@ import { Popover2Props } from '@blueprintjs/popover2';
 import {
     DashboardFilterRule,
     FilterableField,
+    FilterOperator,
     FilterRule,
     FilterType,
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
 } from '@lightdash/common';
-import { Select, Stack, Switch, TextInput, Tooltip } from '@mantine/core';
+import { Select, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
 import { FC, useEffect, useMemo, useState } from 'react';
 import { FilterTypeConfig } from '../../common/Filters/configs';
 import { getPlaceholderByFilterTypeAndOperator } from '../../common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 
 interface FilterSettingsProps {
     isEditMode: boolean;
+    isCreatingNew: boolean;
     field: FilterableField;
     filterRule: DashboardFilterRule;
     popoverProps?: Popover2Props;
@@ -22,6 +24,7 @@ interface FilterSettingsProps {
 
 const FilterSettings: FC<FilterSettingsProps> = ({
     isEditMode,
+    isCreatingNew,
     field,
     filterRule,
     popoverProps,
@@ -29,22 +32,12 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 }) => {
     const [filterLabel, setFilterLabel] = useState<string>();
     const filterType = field ? getFilterTypeFromItem(field) : FilterType.STRING;
+    const isFilterDisabled = !!filterRule.disabled;
 
     const filterConfig = useMemo(
         () => FilterTypeConfig[filterType],
         [filterType],
     );
-
-    useEffect(() => {
-        if (!isEditMode && filterRule.disabled) {
-            onChangeFilterRule({
-                ...filterRule,
-                disabled: false,
-                values: undefined,
-                settings: undefined,
-            });
-        }
-    }, [isEditMode, onChangeFilterRule, filterRule]);
 
     // Set default label when using revert (undo) button
     useEffect(() => {
@@ -62,6 +55,29 @@ const FilterSettings: FC<FilterSettingsProps> = ({
         );
     };
 
+    const showValueInput = useMemo(() => {
+        // Always show the input in view mode
+        if (!isEditMode) {
+            return true;
+        }
+        // In edit mode, only don't show input when disabled
+        if (isFilterDisabled) {
+            return false;
+        }
+        return true;
+    }, [isFilterDisabled, isEditMode]);
+
+    const showAnyValueDisabledInput = useMemo(
+        () =>
+            isFilterDisabled &&
+            isEditMode &&
+            ![FilterOperator.NULL, FilterOperator.NOT_NULL].includes(
+                filterRule.operator,
+            ),
+
+        [filterRule.operator, isFilterDisabled, isEditMode],
+    );
+
     return (
         <Stack>
             <Stack spacing="xs">
@@ -69,6 +85,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     <TextInput
                         label="Filter label"
                         mb="sm"
+                        size="xs"
                         onChange={(e) => {
                             setFilterLabel(e.target.value);
                             onChangeFilterRule({
@@ -80,12 +97,47 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         value={filterLabel}
                     />
                 )}
+                {isCreatingNew && !isEditMode && (
+                    <Text size="xs" fw={500}>
+                        Value
+                    </Text>
+                )}
+                <Select
+                    size="xs"
+                    data={filterConfig.operatorOptions}
+                    onChange={handleChangeFilterOperator}
+                    value={filterRule.operator}
+                />
+                {showAnyValueDisabledInput && (
+                    <TextInput
+                        disabled
+                        size="xs"
+                        placeholder={getPlaceholderByFilterTypeAndOperator({
+                            type: filterType,
+                            operator: filterRule.operator,
+                            disabled: true,
+                        })}
+                    />
+                )}
+                {showValueInput && (
+                    <filterConfig.inputs
+                        popoverProps={popoverProps}
+                        filterType={filterType}
+                        field={field}
+                        rule={filterRule}
+                        onChange={(newFilterRule) =>
+                            onChangeFilterRule(
+                                newFilterRule as DashboardFilterRule,
+                            )
+                        }
+                    />
+                )}
                 {isEditMode && (
                     <Tooltip
                         withinPortal
                         position="right"
                         label={
-                            filterRule.disabled
+                            isFilterDisabled
                                 ? 'Toggle on to set a default filter value'
                                 : 'Toggle off to leave the filter value empty, allowing users to populate it in view mode'
                         }
@@ -93,9 +145,13 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     >
                         <div style={{ width: 'max-content' }}>
                             <Switch
-                                label="Default value"
-                                labelPosition="left"
-                                checked={!filterRule.disabled}
+                                label={
+                                    <Text size="xs" mt="two" fw={500}>
+                                        Provide default value
+                                    </Text>
+                                }
+                                labelPosition="right"
+                                checked={!isFilterDisabled}
                                 onChange={(e) => {
                                     const newFilter: DashboardFilterRule = {
                                         ...filterRule,
@@ -108,42 +164,13 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                             : getFilterRuleWithDefaultValue(
                                                   field,
                                                   newFilter,
+                                                  null,
                                               ),
                                     );
                                 }}
                             />
                         </div>
                     </Tooltip>
-                )}
-
-                <Select
-                    size="xs"
-                    data={filterConfig.operatorOptions}
-                    onChange={handleChangeFilterOperator}
-                    value={filterRule.operator}
-                />
-                {filterRule.disabled ? (
-                    <TextInput
-                        disabled
-                        size="xs"
-                        placeholder={getPlaceholderByFilterTypeAndOperator({
-                            type: filterType,
-                            operator: filterRule.operator,
-                            disabled: true,
-                        })}
-                    />
-                ) : (
-                    <filterConfig.inputs
-                        popoverProps={popoverProps}
-                        filterType={filterType}
-                        field={field}
-                        rule={filterRule}
-                        onChange={(newFilterRule) =>
-                            onChangeFilterRule(
-                                newFilterRule as DashboardFilterRule,
-                            )
-                        }
-                    />
                 )}
             </Stack>
         </Stack>

@@ -25,6 +25,7 @@ export interface AdditionalMetric {
     filters?: MetricFilterRule[];
     baseDimensionName?: string;
     uuid?: string | null;
+    percentile?: number;
 }
 
 export const isAdditionalMetric = (value: any): value is AdditionalMetric =>
@@ -72,3 +73,26 @@ export const extractEntityNameFromIdColumn = (
 
 export const getAdditionalMetricLabel = (item: AdditionalMetric) =>
     `${friendlyName(item.table)} ${item.label}`;
+
+type FilterGroupResponse =
+    | {
+          id: string;
+          or: any[];
+      }
+    | {
+          id: string;
+          and: any[];
+      };
+export type FiltersResponse = {
+    dimensions?: FilterGroupResponse;
+    metrics?: FilterGroupResponse;
+};
+export type MetricQueryResponse = {
+    dimensions: FieldId[]; // Dimensions to group by in the explore
+    metrics: FieldId[]; // Metrics to compute in the explore
+    filters: FiltersResponse;
+    sorts: SortField[]; // Sorts for the data
+    limit: number; // Max number of rows to return from query
+    tableCalculations: TableCalculation[]; // calculations to append to results
+    additionalMetrics?: AdditionalMetric[]; // existing metric type
+};

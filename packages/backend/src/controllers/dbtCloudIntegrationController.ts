@@ -1,6 +1,5 @@
 import {
     ApiDbtCloudIntegrationSettings,
-    ApiDbtCloudMetrics,
     ApiDbtCloudSettingsDeleteSuccess,
     ApiErrorPayload,
 } from '@lightdash/common';
@@ -84,28 +83,6 @@ export class DbtCloudIntegrationController extends Controller {
         return {
             status: 'ok',
             results: undefined,
-        };
-    }
-
-    /**
-     * Get a list of dbt metric definitions from the dbt Cloud metadata api.
-     * The metrics are taken from the metadata from a single dbt Cloud job configured
-     * with the dbt Cloud integration settings for the project.
-     */
-    @Middlewares([isAuthenticated])
-    @Get('/metrics')
-    @OperationId('getDbtCloudMetrics')
-    async getMetrics(
-        @Path() projectUuid: string,
-        @Request() req: express.Request,
-    ): Promise<ApiDbtCloudMetrics> {
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await projectService.getdbtCloudMetrics(
-                req.user!,
-                projectUuid,
-            ),
         };
     }
 }

@@ -24,6 +24,8 @@ import {
     sendEmailNotification,
     sendSlackNotification,
     testAndCompileProject,
+    uploadGsheetFromQuery,
+    uploadGsheets,
     validateProject,
 } from './SchedulerTask';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
@@ -48,12 +50,26 @@ const traceTask = (taskName: string, task: Task): Task => {
             `worker.task.${taskName}`,
             async (span) => {
                 const { job } = helpers;
+
+                // TODO: have clearer types for payload
+                let organizationUuidAttribute = {};
+                if (
+                    typeof payload === 'object' &&
+                    payload !== null &&
+                    'organizationUuid' in payload
+                ) {
+                    organizationUuidAttribute = {
+                        'worker.task.organization_id': payload.organizationUuid,
+                    };
+                }
+
                 span.setAttributes({
                     'worker.task.name': taskName,
                     'worker.job.id': job.id,
                     'worker.job.task_identifier': job.task_identifier,
                     'worker.job.attempts': job.attempts,
                     'worker.job.max_attempts': job.max_attempts,
+                    ...organizationUuidAttribute,
                 });
                 if (job.locked_at) {
                     span.setAttribute(
@@ -245,6 +261,25 @@ export class SchedulerWorker {
                         },
                     );
                 },
+                uploadGsheets: async (payload: any, helpers: JobHelpers) => {
+                    await tryJobOrTimeout(
+                        uploadGsheets(helpers.job.id, payload),
+                        helpers.job,
+                        this.lightdashConfig.scheduler.jobTimeout,
+                        async (job, e) => {
+                            await schedulerService.logSchedulerJob({
+                                task: 'uploadGsheets',
+                                schedulerUuid: payload.schedulerUuid,
+                                jobId: job.id,
+                                scheduledTime: job.run_at,
+                                jobGroup: payload.jobGroup,
+                                targetType: 'gsheets',
+                                status: SchedulerJobStatus.ERROR,
+                                details: { error: e.message },
+                            });
+                        },
+                    );
+                },
                 downloadCsv: async (payload: any, helpers: JobHelpers) => {
                     await tryJobOrTimeout(
                         downloadCsv(
@@ -257,6 +292,32 @@ export class SchedulerWorker {
                         async (job, e) => {
                             await schedulerService.logSchedulerJob({
                                 task: 'downloadCsv',
+                                jobId: job.id,
+                                scheduledTime: job.run_at,
+                                status: SchedulerJobStatus.ERROR,
+                                details: {
+                                    createdByUserUuid: payload.userUuid,
+                                    error: e.message,
+                                },
+                            });
+                        },
+                    );
+                },
+                uploadGsheetFromQuery: async (
+                    payload: any,
+                    helpers: JobHelpers,
+                ) => {
+                    await tryJobOrTimeout(
+                        uploadGsheetFromQuery(
+                            helpers.job.id,
+                            helpers.job.run_at,
+                            payload,
+                        ),
+                        helpers.job,
+                        this.lightdashConfig.scheduler.jobTimeout,
+                        async (job, e) => {
+                            await schedulerService.logSchedulerJob({
+                                task: 'uploadGsheetFromQuery',
                                 jobId: job.id,
                                 scheduledTime: job.run_at,
                                 status: SchedulerJobStatus.ERROR,

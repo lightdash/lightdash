@@ -1,14 +1,24 @@
-import { Button, Classes, Divider, Intent, Menu } from '@blueprintjs/core';
-import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import { Classes, Divider, Menu } from '@blueprintjs/core';
+import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { Dashboard, SpaceSummary, UpdatedByUser } from '@lightdash/common';
-import { Box, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Button,
+    Popover,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import {
     IconCheck,
     IconCopy,
     IconDots,
     IconFolders,
+    IconInfoCircle,
     IconPencil,
     IconPlus,
+    IconRefresh,
     IconSend,
     IconTrash,
     IconUpload,
@@ -16,6 +26,7 @@ import {
 import { useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
+import { useDashboardRefresh } from '../../../hooks/dashboard/useDashboardRefresh';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -23,15 +34,14 @@ import AddTileButton from '../../DashboardTiles/AddTileButton';
 import DashboardSchedulersModal from '../../SchedulerModals/DashboardSchedulersModal';
 import { getSchedulerUuidFromUrlParams } from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
 import ShareLinkButton from '../../ShareLinkButton';
+import MantineIcon from '../MantineIcon';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import PageHeader from '../Page/PageHeader';
 import {
     PageActionsContainer,
-    PageDetailsContainer,
     PageTitle,
     PageTitleAndDetailsContainer,
     PageTitleContainer,
-    SeparatorDot,
 } from '../PageHeader';
 import SpaceAndDashboardInfo from '../PageHeader/SpaceAndDashboardInfo';
 import { UpdatedInfo } from '../PageHeader/UpdatedInfo';
@@ -86,11 +96,13 @@ const DashboardHeader = ({
         projectUuid: string;
         dashboardUuid: string;
     }>();
+    const { isFetching, invalidateDashboardRelatedQueries } =
+        useDashboardRefresh();
     const history = useHistory();
     const { track } = useTracking();
     const [isUpdating, setIsUpdating] = useState(false);
     const [isCreatingNewSpace, setIsCreatingNewSpace] = useState(false);
-    const [isScheduledDeliveriesModalOpen, toggleSchedulerDeliveriesModel] =
+    const [isScheduledDeliveriesModalOpen, toggleScheduledDeliveriesModal] =
         useToggle(false);
     const handleEditClick = () => {
         setIsUpdating(true);
@@ -101,9 +113,9 @@ const DashboardHeader = ({
         const schedulerUuidFromUrlParams =
             getSchedulerUuidFromUrlParams(search);
         if (schedulerUuidFromUrlParams) {
-            toggleSchedulerDeliveriesModel(true);
+            toggleScheduledDeliveriesModal(true);
         }
-    }, [search, toggleSchedulerDeliveriesModel]);
+    }, [search, toggleScheduledDeliveriesModal]);
 
     const { user } = useApp();
     const userCanManageDashboard = user.data?.ability.can(
@@ -111,28 +123,66 @@ const DashboardHeader = ({
         'Dashboard',
     );
 
+    const isOneAtLeastFetching = isFetching > 0;
+
     return (
-        <PageHeader>
+        <PageHeader h="auto">
             <PageTitleAndDetailsContainer>
                 <PageTitleContainer className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
                     <PageTitle>{dashboardName}</PageTitle>
 
-                    {dashboardDescription && (
-                        <Tooltip2
-                            content={dashboardDescription}
-                            position="bottom"
-                        >
-                            <Button icon="info-sign" minimal />
-                        </Tooltip2>
-                    )}
+                    <Popover
+                        withinPortal
+                        withArrow
+                        offset={{
+                            mainAxis: -2,
+                            crossAxis: 6,
+                        }}
+                    >
+                        <Popover.Target>
+                            <ActionIcon color="dark">
+                                <MantineIcon icon={IconInfoCircle} />
+                            </ActionIcon>
+                        </Popover.Target>
+
+                        <Popover.Dropdown>
+                            <Stack spacing="xs">
+                                {dashboardDescription && (
+                                    <Text fz="xs" color="gray.7" fw={500}>
+                                        {dashboardDescription}
+                                    </Text>
+                                )}
+
+                                <UpdatedInfo
+                                    updatedAt={dashboardUpdatedAt}
+                                    user={dashboardUpdatedByUser}
+                                />
+
+                                <ViewInfo
+                                    views={dashboardViews}
+                                    firstViewedAt={dashboardFirstViewedAt}
+                                />
+
+                                {dashboardSpaceName && (
+                                    <SpaceAndDashboardInfo
+                                        space={{
+                                            link: `/projects/${projectUuid}/spaces/${dashboardSpaceUuid}`,
+                                            name: dashboardSpaceName,
+                                        }}
+                                    />
+                                )}
+                            </Stack>
+                        </Popover.Dropdown>
+                    </Popover>
 
                     {isEditMode && userCanManageDashboard && (
-                        <Button
-                            icon={<IconPencil size={16} />}
+                        <ActionIcon
+                            color="dark"
                             disabled={isSaving}
                             onClick={handleEditClick}
-                            minimal
-                        />
+                        >
+                            <MantineIcon icon={IconPencil} />
+                        </ActionIcon>
                     )}
 
                     {isUpdating && (
@@ -144,38 +194,15 @@ const DashboardHeader = ({
                         />
                     )}
                 </PageTitleContainer>
-
-                <PageDetailsContainer>
-                    <UpdatedInfo
-                        updatedAt={dashboardUpdatedAt}
-                        user={dashboardUpdatedByUser}
-                    />
-
-                    <SeparatorDot icon="dot" size={6} />
-
-                    <ViewInfo
-                        views={dashboardViews}
-                        firstViewedAt={dashboardFirstViewedAt}
-                    />
-
-                    {dashboardSpaceName && (
-                        <>
-                            <SeparatorDot icon="dot" size={6} />
-
-                            <SpaceAndDashboardInfo
-                                space={{
-                                    link: `/projects/${projectUuid}/spaces/${dashboardSpaceUuid}`,
-                                    name: dashboardSpaceName,
-                                }}
-                            />
-                        </>
-                    )}
-                </PageDetailsContainer>
             </PageTitleAndDetailsContainer>
             {userCanManageDashboard && isEditMode ? (
                 <PageActionsContainer>
-                    <AddTileButton onAddTiles={onAddTiles} />
+                    <AddTileButton
+                        onAddTiles={onAddTiles}
+                        disabled={isSaving}
+                    />
                     <Tooltip
+                        fz="xs"
                         withinPortal
                         position="bottom"
                         label="No changes to save"
@@ -183,30 +210,51 @@ const DashboardHeader = ({
                     >
                         <Box>
                             <Button
-                                text="Save"
-                                disabled={!hasDashboardChanged || isSaving}
-                                intent={Intent.PRIMARY}
+                                size="xs"
+                                disabled={!hasDashboardChanged}
+                                loading={isSaving}
                                 onClick={onSaveDashboard}
-                            />
+                            >
+                                Save
+                            </Button>
                         </Box>
                     </Tooltip>
                     <Button
-                        text="Cancel"
+                        variant="default"
+                        size="xs"
                         disabled={isSaving}
                         onClick={onCancel}
-                    />
+                    >
+                        Cancel
+                    </Button>
                 </PageActionsContainer>
             ) : userCanManageDashboard ? (
                 <PageActionsContainer>
                     <Button
-                        icon={<IconPencil size={16} />}
-                        text="Edit dashboard"
-                        onClick={() => {
-                            history.replace(
-                                `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
-                            );
-                        }}
-                    />
+                        size="xs"
+                        loading={isOneAtLeastFetching}
+                        leftIcon={<MantineIcon icon={IconRefresh} />}
+                        onClick={invalidateDashboardRelatedQueries}
+                    >
+                        Refresh
+                    </Button>
+
+                    <Tooltip
+                        label="Edit dashboard"
+                        withinPortal
+                        position="bottom"
+                    >
+                        <ActionIcon
+                            variant="default"
+                            onClick={() => {
+                                history.replace(
+                                    `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+                                );
+                            }}
+                        >
+                            <MantineIcon icon={IconPencil} />
+                        </ActionIcon>
+                    </Tooltip>
 
                     <ShareLinkButton url={`${window.location.href}`} />
 
@@ -276,7 +324,7 @@ const DashboardHeader = ({
                                     icon={<IconSend />}
                                     text="Scheduled deliveries"
                                     onClick={() => {
-                                        toggleSchedulerDeliveriesModel(true);
+                                        toggleScheduledDeliveriesModal(true);
                                     }}
                                 />
                                 <MenuItem2
@@ -294,10 +342,9 @@ const DashboardHeader = ({
                             </Menu>
                         }
                     >
-                        <Button
-                            style={{ padding: '5px 7px' }}
-                            icon={<IconDots size={16} />}
-                        />
+                        <ActionIcon variant="default">
+                            <MantineIcon icon={IconDots} />
+                        </ActionIcon>
                     </Popover2>
 
                     {isCreatingNewSpace && (
@@ -319,7 +366,7 @@ const DashboardHeader = ({
                             name={dashboardName}
                             isOpen={isScheduledDeliveriesModalOpen}
                             onClose={() =>
-                                toggleSchedulerDeliveriesModel(false)
+                                toggleScheduledDeliveriesModal(false)
                             }
                         />
                     )}

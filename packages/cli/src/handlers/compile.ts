@@ -1,6 +1,7 @@
 import {
     attachTypesToModels,
     convertExplores,
+    DbtManifestVersion,
     getSchemaStructureFromDbtModels,
     isExploreError,
     isSupportedDbtAdapter,
@@ -12,7 +13,7 @@ import inquirer from 'inquirer';
 import path from 'path';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getDbtContext } from '../dbt/context';
-import { loadManifest } from '../dbt/manifest';
+import { getDbtManifest, loadManifest } from '../dbt/manifest';
 import { getModelsFromManifest } from '../dbt/models';
 import {
     loadDbtTarget,
@@ -46,7 +47,7 @@ export const compile = async (options: CompileHandlerOptions) => {
     if (!isSupportedDbtVersion(dbtVersion)) {
         if (process.env.CI === 'true') {
             console.error(
-                `Your dbt version ${dbtVersion} does not match our supported versions (1.3.* - 1.5.*), this could cause problems on compile or validation.`,
+                `Your dbt version ${dbtVersion} does not match our supported versions (1.3.* - 1.6.*), this could cause problems on compile or validation.`,
             );
         } else {
             const answers = await inquirer.prompt([
@@ -54,7 +55,7 @@ export const compile = async (options: CompileHandlerOptions) => {
                     type: 'confirm',
                     name: 'isConfirm',
                     message: `${styles.warning(
-                        `Your dbt version ${dbtVersion} does not match our supported version (1.3.* - 1.5.*), this could cause problems on compile or validation.`,
+                        `Your dbt version ${dbtVersion} does not match our supported version (1.3.* - 1.6.*), this could cause problems on compile or validation.`,
                     )}\nDo you still want to continue?`,
                 },
             ]);
@@ -138,7 +139,9 @@ ${errors.join('')}`),
         validModelsWithTypes,
         false,
         manifest.metadata.adapter_type,
-        Object.values(manifest.metrics),
+        (await getDbtManifest()) === DbtManifestVersion.V10
+            ? []
+            : Object.values(manifest.metrics),
         warehouseClient,
     );
     console.error('');

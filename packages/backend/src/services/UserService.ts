@@ -11,6 +11,7 @@ import {
     ExpiredError,
     ForbiddenError,
     getEmailDomain,
+    hasInviteCode,
     InviteLink,
     isOpenIdUser,
     isUserWithOrg,
@@ -23,6 +24,7 @@ import {
     OrganizationMemberRole,
     ParameterError,
     PasswordReset,
+    RegisterOrActivateUser,
     SessionUser,
     UpdateUserArgs,
     UserAllowedOrganization,
@@ -30,6 +32,7 @@ import {
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
 import { nanoid } from 'nanoid';
+import refresh from 'passport-oauth2-refresh';
 import { analytics, identifyUser } from '../analytics/client';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -578,7 +581,29 @@ export class UserService {
         return updatedUser;
     }
 
-    async registerUser(createUser: CreateUserArgs | OpenIdUser) {
+    async registerOrActivateUser(
+        user: RegisterOrActivateUser,
+    ): Promise<SessionUser> {
+        let lightdashUser;
+        if (hasInviteCode(user)) {
+            lightdashUser = await this.activateUserFromInvite(user.inviteCode, {
+                firstName: user.firstName,
+                lastName: user.lastName,
+                password: user.password,
+            });
+        } else {
+            lightdashUser = await this.registerUser({
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                password: user.password,
+            });
+        }
+
+        return this.userModel.findSessionUserByUUID(lightdashUser.userUuid);
+    }
+
+    private async registerUser(createUser: CreateUserArgs | OpenIdUser) {
         if (
             !isOpenIdUser(createUser) &&
             lightdashConfig.auth.disablePasswordAuthentication
@@ -847,5 +872,47 @@ export class UserService {
                 ),
             },
         });
+    }
+
+    private static async generateGoogleAccessToken(
+        refreshToken: string,
+    ): Promise<string> {
+        return new Promise((resolve, reject) => {
+            refresh.requestNewAccessToken(
+                'google',
+                refreshToken,
+                (err: any, accessToken: string) => {
+                    if (err || !accessToken) {
+                        reject(err);
+                        return;
+                    }
+                    resolve(accessToken);
+                },
+            );
+        });
+    }
+
+    /**
+     * This method is used on the gdrive API to get the accessToken for listing files on the user's drive
+     * @param user
+     * @returns accessToken
+     */
+    async getAccessToken(user: SessionUser): Promise<string> {
+        const refreshToken = await this.userModel.getRefreshToken(
+            user.userUuid,
+        );
+        const accessToken = await UserService.generateGoogleAccessToken(
+            refreshToken,
+        );
+        return accessToken;
+    }
+
+    /**
+     * This method is used on the scheduler to perform the actions on Google Drive for that user
+     * @param user
+     * @returns accessToken
+     */
+    async getRefreshToken(userUuid: string): Promise<string> {
+        return this.userModel.getRefreshToken(userUuid);
     }
 }

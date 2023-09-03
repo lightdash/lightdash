@@ -1,6 +1,6 @@
 import {
+    ActivateUserWithInviteCode,
     ApiError,
-    CreateOrganizationUser,
     CreateUserArgs,
     LightdashUser,
     OpenIdIdentityIssuerType,
@@ -83,7 +83,7 @@ const ErrorCard: FC<{ title: string }> = ({ title }) => {
     );
 };
 
-const createUserQuery = async (data: CreateOrganizationUser) =>
+const createUserQuery = async (data: ActivateUserWithInviteCode) =>
     lightdashApi<LightdashUser>({
         url: `/user`,
         method: 'POST',
@@ -100,7 +100,7 @@ const Invite: FC = () => {
     const { isLoading, mutate, isSuccess } = useMutation<
         LightdashUser,
         ApiError,
-        CreateOrganizationUser
+        ActivateUserWithInviteCode
     >(createUserQuery, {
         mutationKey: ['create_user'],
         onSuccess: (data) => {
@@ -136,7 +136,7 @@ const Invite: FC = () => {
     }
 
     const ssoAvailable =
-        !!health.data?.auth.google.oauth2ClientId ||
+        health.data?.auth.google.enabled ||
         health.data?.auth.okta.enabled ||
         health.data?.auth.oneLogin.enabled ||
         health.data?.auth.azuread.enabled;
@@ -156,10 +156,12 @@ const Invite: FC = () => {
         <CreateUserForm
             isLoading={isLoading || isSuccess}
             readOnlyEmail={inviteLinkQuery.data?.email}
-            onSubmit={(data: CreateUserArgs) => {
+            onSubmit={({ firstName, lastName, password }: CreateUserArgs) => {
                 mutate({
                     inviteCode,
-                    ...data,
+                    firstName,
+                    lastName,
+                    password,
                 });
             }}
         />

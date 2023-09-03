@@ -49,7 +49,7 @@ declare global {
 
             invite(email, role): Chainable<string>;
 
-            registerWithCode(email, inviteCode): Chainable<Element>;
+            registerWithCode(inviteCode): Chainable<Element>;
 
             verifyEmail(): Chainable<Element>;
 
@@ -121,7 +121,7 @@ Cypress.Commands.add('anotherLogin', () => {
 Cypress.Commands.add('registerNewUser', () => {
     const email = `demo+${new Date().getTime()}@lightdash.com`;
     cy.request({
-        url: 'api/v1/register',
+        url: 'api/v1/user',
         method: 'POST',
         body: {
             firstName: 'Test',
@@ -132,26 +132,22 @@ Cypress.Commands.add('registerNewUser', () => {
     });
 });
 
-Cypress.Commands.add(
-    'registerWithCode',
-    (email: string, inviteCode: string) => {
-        cy.request({
-            url: `api/v1/user`,
-            headers: { 'Content-type': 'application/json' },
-            method: 'POST',
-            body: {
-                inviteCode,
-                email,
-                firstName: 'test',
-                lastName: 'test',
-                password: 'test1234',
-            },
-        }).then((resp) => {
-            cy.log(JSON.stringify(resp.body));
-            expect(resp.status).to.eq(200);
-        });
-    },
-);
+Cypress.Commands.add('registerWithCode', (inviteCode: string) => {
+    cy.request({
+        url: `api/v1/user`,
+        headers: { 'Content-type': 'application/json' },
+        method: 'POST',
+        body: {
+            inviteCode,
+            firstName: 'test',
+            lastName: 'test',
+            password: 'test1234',
+        },
+    }).then((resp) => {
+        cy.log(JSON.stringify(resp.body));
+        expect(resp.status).to.eq(200);
+    });
+});
 
 Cypress.Commands.add('verifyEmail', () => {
     cy.request({
@@ -229,7 +225,7 @@ Cypress.Commands.add(
                 );
             });
 
-            cy.registerWithCode(email, inviteCode);
+            cy.registerWithCode(inviteCode);
             cy.verifyEmail();
             cy.wrap(email);
         });

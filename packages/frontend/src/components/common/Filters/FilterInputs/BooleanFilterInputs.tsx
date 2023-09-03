@@ -12,14 +12,20 @@ const BooleanFilterInputs = <T extends ConditionalRule>(
 ) => {
     const { rule, onChange, disabled, filterType } = props;
 
+    const isFilterRuleDisabled = isFilterRule(rule) && rule.disabled;
+
     const placeholder = getPlaceholderByFilterTypeAndOperator({
         type: filterType,
         operator: rule.operator,
-        disabled: isFilterRule(rule) ? rule.disabled : false,
+        disabled: isFilterRuleDisabled,
     });
 
-    const selectValue =
-        rule.values === undefined ? 'any' : rule.values[0] ? 'true' : 'false';
+    let selectValue;
+    if (isFilterRuleDisabled || (rule.values && rule.values.length < 1)) {
+        selectValue = 'any';
+    } else {
+        selectValue = rule.values?.[0] ? 'true' : 'false';
+    }
 
     switch (rule.operator) {
         case FilterOperator.EQUALS: {

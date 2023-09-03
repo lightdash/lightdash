@@ -150,14 +150,14 @@ const getValueAsString = (
                     if (!isFilterRule(rule)) throw new Error('Invalid rule');
 
                     return `${firstValue} ${
-                        rule.settings.completed ? 'completed ' : ''
-                    }${rule.settings.unitOfTime}`;
+                        rule.settings?.completed ? 'completed ' : ''
+                    }${rule.settings?.unitOfTime}`;
                 case FilterOperator.IN_BETWEEN:
                     return `${firstValue} and ${secondValue}`;
                 case FilterOperator.IN_THE_CURRENT:
                     if (!isFilterRule(rule)) throw new Error('Invalid rule');
 
-                    return rule.settings.unitOfTime.slice(0, -1);
+                    return rule.settings?.unitOfTime.slice(0, -1);
                 case FilterOperator.NULL:
                 case FilterOperator.NOT_NULL:
                 case FilterOperator.EQUALS:

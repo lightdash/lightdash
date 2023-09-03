@@ -38,7 +38,9 @@ import {
     useMoveDashboardMutation,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
-import { deleteSavedQuery, useSavedQuery } from '../hooks/useSavedQuery';
+import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
+import useSavedQueryWithDashboardFilters from '../hooks/dashboard/useSavedQueryWithDashboardFilters';
+import { deleteSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import {
     DashboardProvider,
@@ -87,13 +89,12 @@ const GridTile: FC<
         tile.type === DashboardTileTypes.SAVED_CHART
             ? tile.properties?.savedChartUuid || undefined
             : undefined;
+
     const {
-        data: savedQuery,
-        isLoading,
         isError,
-    } = useSavedQuery({
-        id: savedChartUuid,
-    });
+        isLoading,
+        data: savedQuery,
+    } = useSavedQueryWithDashboardFilters(tile.uuid, savedChartUuid ?? null);
 
     switch (tile.type) {
         case DashboardTileTypes.SAVED_CHART:
@@ -139,6 +140,8 @@ const Dashboard: FC = () => {
         mode?: string;
     }>();
     const { data: spaces } = useSpaceSummaries(projectUuid);
+
+    const { clearIsEditingDashboardChart } = useDashboardStorage();
 
     const {
         dashboard,
@@ -186,7 +189,14 @@ const Dashboard: FC = () => {
 
     const { tiles: savedTiles } = dashboard || {};
     useEffect(() => {
+        // TODO: The logic in this useEffect isn't right. It's checking if
+        // there are saved tiles, then checking for unsaved tiles,
+        // then replacing the saved tiles with the unsaved ones if they exist.
         if (savedTiles) {
+            // TODO: maybe this should move in the future, but it makes
+            // some sense here since this useEffect is essentially handling
+            // sessions storage
+            clearIsEditingDashboardChart();
             const unsavedDashboardTilesRaw = sessionStorage.getItem(
                 'unsavedDashboardTiles',
             );
@@ -205,7 +215,12 @@ const Dashboard: FC = () => {
             setDashboardTiles(unsavedDashboardTiles || savedTiles);
             setHaveTilesChanged(!!unsavedDashboardTiles);
         }
-    }, [setHaveTilesChanged, setDashboardTiles, savedTiles]);
+    }, [
+        setHaveTilesChanged,
+        setDashboardTiles,
+        savedTiles,
+        clearIsEditingDashboardChart,
+    ]);
 
     useEffect(() => {
         if (isSuccess) {
@@ -451,7 +466,6 @@ const Dashboard: FC = () => {
             </Alert>
 
             <Page
-                withFooter
                 withPaddedContent
                 title={dashboard.name}
                 header={

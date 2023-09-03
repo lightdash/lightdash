@@ -1,6 +1,8 @@
 import {
     getHumanReadableCronExpression,
+    isSchedulerGsheetsOptions,
     isSlackTarget,
+    SchedulerFormat,
     SchedulerWithLogs,
 } from '@lightdash/common';
 import { Anchor, Box, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
@@ -77,6 +79,16 @@ const Schedulers: FC<SchedulersProps> = ({
                                   dashboard.dashboardUuid ===
                                   item.dashboardUuid,
                           );
+                    const format = () => {
+                        switch (item.format) {
+                            case SchedulerFormat.CSV:
+                                return 'CSV';
+                            case SchedulerFormat.IMAGE:
+                                return 'Image';
+                            case SchedulerFormat.GSHEETS:
+                                return 'Google Sheets';
+                        }
+                    };
                     return (
                         <Group noWrap>
                             {getSchedulerIcon(item, theme)}
@@ -93,9 +105,7 @@ const Schedulers: FC<SchedulersProps> = ({
                                                 <Text color="gray.5">
                                                     Schedule type:{' '}
                                                     <Text color="white" span>
-                                                        {item.format === 'csv'
-                                                            ? 'CSV'
-                                                            : 'Image'}
+                                                        {format()}
                                                     </Text>
                                                 </Text>
                                                 <Text color="gray.5">
@@ -144,11 +154,15 @@ const Schedulers: FC<SchedulersProps> = ({
                     );
                     let emails: string[] = [];
                     let slackChannels: string[] = [];
-                    currentTargets.map((t) =>
-                        isSlackTarget(t)
-                            ? slackChannels.push(getSlackChannelName(t.channel))
-                            : emails.push(t.recipient),
-                    );
+                    currentTargets.map((t) => {
+                        if (isSlackTarget(t)) {
+                            return slackChannels.push(
+                                getSlackChannelName(t.channel),
+                            );
+                        } else {
+                            return emails.push(t.recipient);
+                        }
+                    });
                     return (
                         <Group spacing="xxs">
                             {emails.length > 0 && (
@@ -179,13 +193,37 @@ const Schedulers: FC<SchedulersProps> = ({
                                     </Text>
                                 </Tooltip>
                             )}
-                            {slackChannels.length === 0 && emails.length === 0 && (
-                                <Text fz="xs" color="gray.6">
-                                    No destinations
-                                </Text>
-                            )}
+                            {item.format === SchedulerFormat.GSHEETS &&
+                                isSchedulerGsheetsOptions(item.options) && (
+                                    <Tooltip label={item.options.gdriveName}>
+                                        <Anchor
+                                            fz="xs"
+                                            color="gray.6"
+                                            href={item.options.url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            sx={{
+                                                textDecoration: 'underline',
+                                            }}
+                                        >
+                                            Google Sheets
+                                        </Anchor>
+                                    </Tooltip>
+                                )}
+                            {item.format !== SchedulerFormat.GSHEETS &&
+                                slackChannels.length === 0 &&
+                                emails.length === 0 && (
+                                    <Text fz="xs" color="gray.6">
+                                        No destinations
+                                    </Text>
+                                )}
                         </Group>
                     );
+                },
+                meta: {
+                    style: {
+                        width: 130,
+                    },
                 },
             },
             {

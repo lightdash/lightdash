@@ -1,23 +1,19 @@
 import {
     DashboardFieldTarget,
     DashboardFilterRule,
-    DashboardTileTypes,
-    FilterableField,
     FilterOperator,
 } from '@lightdash/common';
-import { Button, Flex, Popover, Text, Tooltip } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
-import { IconFilter } from '@tabler/icons-react';
-import { FC, useCallback, useState } from 'react';
+import { Flex } from '@mantine/core';
+import { FC } from 'react';
 import { useParams } from 'react-router-dom';
+import { useExplores } from '../../hooks/useExplores';
 import { useProject } from '../../hooks/useProject';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { FiltersProvider } from '../common/Filters/FiltersProvider';
-import MantineIcon from '../common/MantineIcon';
 import ActiveFilters from './ActiveFilters';
-import FilterConfiguration from './FilterConfiguration';
+import Filter from './Filter';
 
 interface Props {
     isEditMode: boolean;
@@ -26,30 +22,19 @@ interface Props {
 const DashboardFilter: FC<Props> = ({ isEditMode }) => {
     const { track } = useTracking();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const [selectedField, setSelectedField] = useState<FilterableField>();
-    const [isPopoverOpen, { close: closePopover, toggle: togglePopover }] =
-        useDisclosure();
-    const [isSubPopoverOpen, { close: closeSubPopover, open: openSubPopover }] =
-        useDisclosure();
 
     const project = useProject(projectUuid);
     const {
         allFilters,
         fieldsWithSuggestions,
-        dashboardTiles,
-        allFilterableFields,
-        filterableFieldsByTileUuid,
         addDimensionDashboardFilter,
+        hasChartTiles,
     } = useDashboardContext();
 
-    const handleClose = useCallback(() => {
-        setSelectedField(undefined);
+    // Load data on filter mount
+    useExplores(projectUuid);
 
-        closeSubPopover();
-        closePopover();
-    }, [closeSubPopover, closePopover]);
-
-    const handleSave = (
+    const handleSaveNew = (
         value: DashboardFilterRule<
             FilterOperator,
             DashboardFieldTarget,
@@ -64,15 +49,12 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
             },
         });
         addDimensionDashboardFilter(value, !isEditMode);
-        handleClose();
     };
 
-    const hasChartTiles =
-        dashboardTiles.filter(
-            (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
-        ).length >= 1;
+    if (!hasChartTiles) return null;
 
     return (
+        // TODO is this provider necessary?
         <FiltersProvider
             projectUuid={projectUuid}
             fieldsMap={fieldsWithSuggestions}
@@ -80,75 +62,11 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
             dashboardFilters={allFilters}
         >
             <Flex gap={3} mb={8} ml={8} wrap="wrap">
-                <Popover
-                    position="bottom-start"
-                    trapFocus
-                    opened={isPopoverOpen}
-                    closeOnEscape={!isSubPopoverOpen}
-                    closeOnClickOutside={!isSubPopoverOpen}
-                    onClose={handleClose}
-                    disabled={!hasChartTiles}
-                    transitionProps={{
-                        transition: 'pop',
-                    }}
-                    withArrow
-                    shadow="md"
-                    offset={-1}
-                    keepMounted
-                >
-                    <Popover.Target>
-                        <Tooltip
-                            disabled={isPopoverOpen || isEditMode}
-                            position="bottom"
-                            openDelay={500}
-                            label={
-                                <Text fz="xs">
-                                    Only filters added in <b>'edit'</b> mode
-                                    will be saved
-                                </Text>
-                            }
-                        >
-                            <Button
-                                size="xs"
-                                variant="default"
-                                leftIcon={
-                                    <MantineIcon
-                                        color="blue"
-                                        icon={IconFilter}
-                                    />
-                                }
-                                disabled={!hasChartTiles}
-                                onClick={togglePopover}
-                            >
-                                Add filter
-                            </Button>
-                        </Tooltip>
-                    </Popover.Target>
-
-                    <Popover.Dropdown ml={5}>
-                        {filterableFieldsByTileUuid ? (
-                            <FilterConfiguration
-                                isCreatingNew
-                                isEditMode={isEditMode}
-                                field={selectedField}
-                                fields={allFilterableFields || []}
-                                onFieldChange={setSelectedField}
-                                tiles={dashboardTiles}
-                                availableTileFilters={
-                                    filterableFieldsByTileUuid
-                                }
-                                onSave={handleSave}
-                                // FIXME: remove this once we migrate off of Blueprint
-                                popoverProps={{
-                                    onOpened: () => openSubPopover(),
-                                    onOpening: () => openSubPopover(),
-                                    onClose: () => closeSubPopover(),
-                                    onClosing: () => closeSubPopover(),
-                                }}
-                            />
-                        ) : null}
-                    </Popover.Dropdown>
-                </Popover>
+                <Filter
+                    isCreatingNew
+                    isEditMode={isEditMode}
+                    onSave={handleSaveNew}
+                />
 
                 <ActiveFilters isEditMode={isEditMode} />
             </Flex>

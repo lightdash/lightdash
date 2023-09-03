@@ -38,7 +38,6 @@ const ValueCell: FC<ValueCellProps> = ({
     colIndex,
     conditionalFormattings,
     getUnderlyingFieldValues,
-
     ...rest
 }) => {
     const conditionalFormatting = useMemo(() => {

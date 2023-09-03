@@ -668,7 +668,7 @@
     {
       "login": "TiFaBl",
       "name": "TiFaBl",
-      "avatar_url": "https://avatars.githubusercontent.com/u/38563080?v=4",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1732972?v=4",
       "profile": "https://github.com/TiFaBl",
       "contributions": [
         "ideas"
@@ -1117,7 +1117,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/1864179?v=4",
       "profile": "https://github.com/magnew",
       "contributions": [
-        "code"
+        "code",
+        "bug"
       ]
     },
     {
@@ -1134,6 +1135,15 @@
       "name": "Sai Pranavdhar Reddy N",
       "avatar_url": "https://avatars.githubusercontent.com/u/73348574?v=4",
       "profile": "https://pranavdhar.netlify.com",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "ujwalkumar1995",
+      "name": "Ujwal Kumar",
+      "avatar_url": "https://avatars.githubusercontent.com/u/20976813?v=4",
+      "profile": "https://github.com/ujwalkumar1995",
       "contributions": [
         "code"
       ]

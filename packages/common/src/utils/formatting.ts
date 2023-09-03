@@ -58,7 +58,9 @@ export const currencies = [
 ];
 
 export const formatBoolean = <T>(v: T) =>
-    ['True', 'true', 'yes', 'Yes', '1', 'T'].includes(`${v}`) ? 'Yes' : 'No';
+    ['True', 'true', 'yes', 'Yes', '1', 'T'].includes(`${v}`)
+        ? 'True'
+        : 'False';
 
 export const getDateFormat = (
     timeInterval: TimeFrames | undefined = TimeFrames.DAY,

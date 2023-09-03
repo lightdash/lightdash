@@ -12,7 +12,7 @@ export type DbtCompileOptions = {
     vars: string | undefined;
     threads: string | undefined;
     noVersionCheck: boolean | undefined;
-    exclude: string | undefined;
+    exclude: string[] | undefined;
     selector: string | undefined;
     state: string | undefined;
     fullRefresh: boolean | undefined;

@@ -1,0 +1,23 @@
+image:
+  file: .gitpod.Dockerfile
+
+tasks:
+  - name: Start postgres
+    command: pg_start
+
+  - name: Run migration
+    command: |
+      gp ports await 5432
+      /workspace/lightdash/scripts/seed-jaffle.sh
+      /workspace/lightdash/scripts/reset-db.sh
+      gp sync-done migration
+
+  - name: Run FE & BE
+    init: |
+      yarn install
+      yarn common-build
+      yarn warehouses-build
+    command: |
+      gp sync-await migration
+      export SITE_ENV=3000-$GITPOD_WORKSPACE_URL
+      yarn dev

@@ -6,10 +6,7 @@ import {
     DashboardBasicDetails,
 } from './types/dashboard';
 import { convertAdditionalMetric } from './types/dbt';
-import {
-    DbtCloudIntegration,
-    DbtCloudMetadataResponseMetrics,
-} from './types/dbtCloud';
+import { DbtCloudIntegration } from './types/dbtCloud';
 import { Explore, SummaryExplore } from './types/explore';
 import {
     CompiledDimension,
@@ -45,6 +42,7 @@ import { SearchResults } from './types/search';
 import { ShareUrl } from './types/share';
 import { SlackSettings } from './types/slackSettings';
 
+import { Email } from './types/api/email';
 import { EmailStatusExpiring } from './types/email';
 import { FieldValueSearchResult } from './types/fieldMatch';
 import {
@@ -110,6 +108,7 @@ export * from './types/explore';
 export * from './types/field';
 export * from './types/fieldMatch';
 export * from './types/filter';
+export * from './types/gdrive';
 export * from './types/groups';
 export * from './types/job';
 export * from './types/metricQuery';
@@ -391,21 +390,29 @@ export type ActivateUser = {
 export type CreateUserArgs = {
     firstName: string;
     lastName: string;
-    email: string;
-    password?: string;
+    email: Email;
+    password: string;
 };
 
 export type CreateUserWithRole = {
     firstName: string;
     lastName: string;
-    email: string;
+    email: Email;
     password?: string;
     role: OrganizationMemberRole;
 };
 
-export type CreateOrganizationUser = CreateUserArgs & {
+export type ActivateUserWithInviteCode = ActivateUser & {
     inviteCode: string;
 };
+
+export type RegisterOrActivateUser =
+    | ActivateUserWithInviteCode
+    | CreateUserArgs;
+
+export const hasInviteCode = (
+    data: RegisterOrActivateUser,
+): data is ActivateUserWithInviteCode => 'inviteCode' in data;
 
 export type CompleteUserArgs = {
     organizationName?: string;
@@ -497,7 +504,6 @@ type ApiResults =
     | ProjectMemberProfile[]
     | SearchResults
     | Space
-    | DbtCloudMetadataResponseMetrics
     | DbtCloudIntegration
     | ShareUrl
     | SlackSettings
@@ -589,6 +595,8 @@ export type HealthState = {
         google: {
             oauth2ClientId: string | undefined;
             loginPath: string;
+            googleDriveApiKey: string | undefined;
+            enabled: boolean;
         };
         okta: {
             enabled: boolean;

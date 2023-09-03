@@ -1,8 +1,9 @@
+import { ActionIcon } from '@mantine/core';
 import { IconLink } from '@tabler/icons-react';
 import { FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import useToaster from '../../hooks/toaster/useToaster';
-import { ShareLink } from './ShareLinkButton.styles';
+import MantineIcon from '../common/MantineIcon';
 
 const ShareLinkButton: FC<{ url: string }> = ({ url }) => {
     const { showToastSuccess } = useToaster();
@@ -16,7 +17,9 @@ const ShareLinkButton: FC<{ url: string }> = ({ url }) => {
                 })
             }
         >
-            <ShareLink icon={<IconLink size={16} />} />
+            <ActionIcon variant="default">
+                <MantineIcon icon={IconLink} />
+            </ActionIcon>
         </CopyToClipboard>
     );
 };

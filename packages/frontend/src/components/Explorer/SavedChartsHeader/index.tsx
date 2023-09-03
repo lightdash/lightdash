@@ -8,21 +8,26 @@ import {
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
+import { Box, Tooltip } from '@mantine/core';
 import {
+    IconArrowBack,
     IconCheck,
     IconCirclePlus,
+    IconCirclesRelation,
     IconCopy,
     IconDots,
     IconFolders,
+    IconLayoutGridAdd,
     IconPencil,
     IconSend,
-    IconSquarePlus,
     IconTrash,
 } from '@tabler/icons-react';
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
+import { SyncModal as GoogleSheetsSyncModal } from '../../../features/sync/components';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
+import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import {
     useDuplicateChartMutation,
     useMoveChartMutation,
@@ -53,7 +58,10 @@ import ViewInfo from '../../common/PageHeader/ViewInfo';
 import { ResourceInfoPopup } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import ChartSchedulersModal from '../../SchedulerModals/ChartSchedulersModal';
-import { getSchedulerUuidFromUrlParams } from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
+import {
+    getSchedulerUuidFromUrlParams,
+    isSchedulerTypeSync,
+} from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
 import SaveChartButton from '../SaveChartButton';
 
 const SavedChartsHeader: FC = () => {
@@ -62,6 +70,7 @@ const SavedChartsHeader: FC = () => {
         projectUuid: string;
     }>();
     const dashboardUuid = useSearchParams('fromDashboard');
+    const isFromDashboard = !!dashboardUuid;
     const spaceUuid = useSearchParams('fromSpace');
 
     const history = useHistory();
@@ -78,6 +87,10 @@ const SavedChartsHeader: FC = () => {
         (context) => context.state.savedChart,
     );
     const reset = useExplorerContext((context) => context.actions.reset);
+
+    const { clearIsEditingDashboardChart, getIsEditingDashboardChart } =
+        useDashboardStorage();
+
     const [blockedNavigationLocation, setBlockedNavigationLocation] =
         useState<string>();
     const [isSaveWarningModalOpen, setIsSaveWarningModalOpen] =
@@ -85,13 +98,17 @@ const SavedChartsHeader: FC = () => {
     const [isRenamingChart, setIsRenamingChart] = useState(false);
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isMovingChart, setIsMovingChart] = useState(false);
-    const [isScheduledDeliveriesModalOpen, toggleSchedulerDeliveriesModel] =
+    const [isScheduledDeliveriesModalOpen, toggleScheduledDeliveriesModal] =
         useToggle(false);
+    const [
+        isSyncWithGoogleSheetsModalOpen,
+        toggleSyncWithGoogleSheetsModalOpen,
+    ] = useToggle(false);
     const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
         useState<boolean>(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] =
         useState<boolean>(false);
-    const { user } = useApp();
+    const { user, health } = useApp();
     const { data: spaces } = useSpaceSummaries(projectUuid);
     const { mutate: moveChartToSpace } = useMoveChartMutation();
     const updateSavedChart = useUpdateMutation(
@@ -104,13 +121,25 @@ const SavedChartsHeader: FC = () => {
     const chartId = savedChart?.uuid || '';
     const chartBelongsToDashboard: boolean = !!savedChart?.dashboardUuid;
 
+    const hasGoogleDriveEnabled =
+        health.data?.auth.google.oauth2ClientId !== undefined &&
+        health.data?.auth.google.googleDriveApiKey !== undefined;
+
     useEffect(() => {
         const schedulerUuidFromUrlParams =
             getSchedulerUuidFromUrlParams(search);
+        const isSync = isSchedulerTypeSync(search);
+
         if (schedulerUuidFromUrlParams) {
-            toggleSchedulerDeliveriesModel(true);
+            if (isSync) {
+                toggleSyncWithGoogleSheetsModalOpen(true);
+            } else toggleScheduledDeliveriesModal(true);
         }
-    }, [search, toggleSchedulerDeliveriesModel]);
+    }, [
+        search,
+        toggleScheduledDeliveriesModal,
+        toggleSyncWithGoogleSheetsModalOpen,
+    ]);
 
     useEffect(() => {
         const checkReload = (event: BeforeUnloadEvent) => {
@@ -166,6 +195,29 @@ const SavedChartsHeader: FC = () => {
             projectUuid,
         }),
     );
+
+    const handleGoBackClick = () => {
+        if (hasUnsavedChanges && isEditMode) {
+            history.block((prompt) => {
+                setBlockedNavigationLocation(prompt.pathname);
+                setIsSaveWarningModalOpen(true);
+                return false; //blocks history
+            });
+        }
+
+        history.push({
+            pathname: `/projects/${savedChart?.projectUuid}/dashboards/${dashboardUuid}`,
+        });
+    };
+
+    const handleCancelClick = () => {
+        reset();
+
+        if (!isFromDashboard)
+            history.push({
+                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`,
+            });
+    };
 
     return (
         <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
@@ -289,26 +341,30 @@ const SavedChartsHeader: FC = () => {
                             <>
                                 <SaveChartButton />
                                 <Button
-                                    onClick={() => {
-                                        reset();
-                                        if (dashboardUuid) {
-                                            history.push({
-                                                pathname: `/projects/${savedChart?.projectUuid}/dashboards/${dashboardUuid}`,
-                                            });
-                                            sessionStorage.removeItem(
-                                                'fromDashboard',
-                                            );
-                                            sessionStorage.removeItem(
-                                                'dashboardUuid',
-                                            );
-                                        } else
-                                            history.push({
-                                                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`,
-                                            });
-                                    }}
+                                    disabled={
+                                        isFromDashboard && !hasUnsavedChanges
+                                    }
+                                    onClick={handleCancelClick}
                                 >
-                                    Cancel
+                                    Cancel {isFromDashboard ? 'changes' : ''}
                                 </Button>
+
+                                {isFromDashboard && (
+                                    <Tooltip
+                                        offset={-1}
+                                        label="Return to dashboard"
+                                    >
+                                        <Box>
+                                            <Button
+                                                style={{ padding: '5px 7px' }}
+                                                icon={
+                                                    <IconArrowBack size={16} />
+                                                }
+                                                onClick={handleGoBackClick}
+                                            />
+                                        </Box>
+                                    </Tooltip>
+                                )}
                             </>
                         )}
 
@@ -340,7 +396,7 @@ const SavedChartsHeader: FC = () => {
 
                                     {!chartBelongsToDashboard && (
                                         <MenuItem2
-                                            icon={<IconSquarePlus />}
+                                            icon={<IconLayoutGridAdd />}
                                             text="Add to dashboard"
                                             onClick={() =>
                                                 setIsAddToDashboardModalOpen(
@@ -412,21 +468,42 @@ const SavedChartsHeader: FC = () => {
                                             icon={<IconSend />}
                                             text="Scheduled deliveries"
                                             onClick={() =>
-                                                toggleSchedulerDeliveriesModel(
+                                                toggleScheduledDeliveriesModal(
                                                     true,
                                                 )
                                             }
                                         />
                                     )}
+                                    {userCanManageCharts &&
+                                    hasGoogleDriveEnabled ? (
+                                        <MenuItem2
+                                            icon={<IconCirclesRelation />}
+                                            text="Sync with Google Sheets"
+                                            onClick={() =>
+                                                toggleSyncWithGoogleSheetsModalOpen(
+                                                    true,
+                                                )
+                                            }
+                                        />
+                                    ) : null}
                                     <Divider />
-                                    <MenuItem2
-                                        icon={<IconTrash />}
-                                        text="Delete"
-                                        intent="danger"
-                                        onClick={() =>
-                                            setIsDeleteDialogOpen(true)
-                                        }
-                                    />
+                                    <Tooltip
+                                        disabled={!getIsEditingDashboardChart()}
+                                        position="bottom"
+                                        label="This chart can be deleted from its dashboard"
+                                    >
+                                        <Box>
+                                            <MenuItem2
+                                                icon={<IconTrash />}
+                                                text="Delete"
+                                                intent="danger"
+                                                disabled={getIsEditingDashboardChart()}
+                                                onClick={() =>
+                                                    setIsDeleteDialogOpen(true)
+                                                }
+                                            />
+                                        </Box>
+                                    </Tooltip>
                                 </Menu>
                             }
                         >
@@ -479,12 +556,19 @@ const SavedChartsHeader: FC = () => {
                     }}
                 />
             )}
+            {isSyncWithGoogleSheetsModalOpen && savedChart?.uuid && (
+                <GoogleSheetsSyncModal
+                    chartUuid={savedChart.uuid}
+                    opened={isSyncWithGoogleSheetsModalOpen}
+                    onClose={() => toggleSyncWithGoogleSheetsModalOpen(false)}
+                />
+            )}
             {isScheduledDeliveriesModalOpen && savedChart?.uuid && (
                 <ChartSchedulersModal
                     chartUuid={savedChart.uuid}
                     name={savedChart.name}
                     isOpen={isScheduledDeliveriesModalOpen}
-                    onClose={() => toggleSchedulerDeliveriesModel(false)}
+                    onClose={() => toggleScheduledDeliveriesModal(false)}
                 />
             )}
             {savedChart && (
@@ -497,8 +581,7 @@ const SavedChartsHeader: FC = () => {
                     opened={isMovingChart}
                     onClose={() => setIsMovingChart(false)}
                     onConfirm={() => {
-                        sessionStorage.removeItem('fromDashboard');
-                        sessionStorage.removeItem('dashboardUuid');
+                        clearIsEditingDashboardChart();
                         history.push(
                             `/projects/${projectUuid}/saved/${savedChart.uuid}/edit`,
                         );

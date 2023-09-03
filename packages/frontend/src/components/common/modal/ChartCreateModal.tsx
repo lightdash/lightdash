@@ -139,6 +139,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
             properties: {
                 belongsToDashboard: true,
                 savedChartUuid: (await mutateAsync(newChartInDashboard)).uuid,
+                chartName: newChartInDashboard.name,
             },
             ...getDefaultChartTileSize(savedData.chartConfig?.type),
         };

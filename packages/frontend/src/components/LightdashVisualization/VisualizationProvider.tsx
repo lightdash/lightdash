@@ -82,6 +82,7 @@ type Props = {
     onChartTypeChange?: (value: ChartType) => void;
     onPivotDimensionsChange?: (value: string[] | undefined) => void;
     explore: Explore | undefined;
+    isSqlRunner?: boolean;
 };
 
 const VisualizationProvider: FC<Props> = ({
@@ -97,6 +98,7 @@ const VisualizationProvider: FC<Props> = ({
     onChartTypeChange,
     onPivotDimensionsChange,
     explore,
+    isSqlRunner,
     children,
 }) => {
     const chartRef = useRef<EChartsReact>(null);
@@ -216,10 +218,6 @@ const VisualizationProvider: FC<Props> = ({
     const { validBigNumberConfig } = bigNumberConfig;
     const { validTableConfig } = tableConfig;
 
-    const isSqlRunner = useMemo(() => {
-        return explore?.name === 'sql_runner';
-    }, [explore?.name]);
-
     const cartesianConfig = useCartesianChartConfig({
         chartType,
         initialChartConfig:
@@ -297,7 +295,7 @@ const VisualizationProvider: FC<Props> = ({
             resultsData: lastValidResultsData,
             isLoading,
             columnOrder,
-            isSqlRunner,
+            isSqlRunner: isSqlRunner || false,
             dimensions,
             metrics,
             customMetrics,

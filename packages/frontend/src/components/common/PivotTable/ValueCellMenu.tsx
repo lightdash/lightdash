@@ -47,7 +47,7 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
         return <>{children}</>;
     }
 
-    const { openUnderlyingDataModal, openDrillDownModel } = metricQueryData;
+    const { openUnderlyingDataModal, openDrillDownModal } = metricQueryData;
     const { track } = tracking;
 
     const hasUnderlyingData = getUnderlyingFieldValues && item;
@@ -119,7 +119,7 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
             colIndex,
         );
 
-        openDrillDownModel({
+        openDrillDownModal({
             item,
             fieldValues: underlyingFieldValues,
         });

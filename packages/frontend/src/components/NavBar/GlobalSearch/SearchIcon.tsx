@@ -12,7 +12,7 @@ import {
 import { FC } from 'react';
 import { Link } from 'react-router-dom';
 import {
-    getChartIcon,
+    ChartIcon,
     IconBox,
     ResourceIndicator,
 } from '../../common/ResourceIcon';
@@ -38,8 +38,12 @@ export const SearchIcon: FC<SearchIconProps> = ({ searchItem }) => {
         case 'dashboard':
             return <IconBox icon={IconLayoutDashboard} color="green.8" />;
         case 'saved_chart':
-            return getChartIcon(
-                (searchItem.item as SavedChartSearchResult)?.chartType,
+            return (
+                <ChartIcon
+                    chartType={
+                        (searchItem.item as SavedChartSearchResult)?.chartType
+                    }
+                />
             );
         case 'space':
             return <IconBox icon={IconFolder} color="violet.8" />;

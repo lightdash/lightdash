@@ -1,3 +1,485 @@
+## [0.765.1](https://github.com/lightdash/lightdash/compare/0.765.0...0.765.1) (2023-09-01)
+
+
+### Bug Fixes
+
+* dashbaord charts disappearing during edit ([#6983](https://github.com/lightdash/lightdash/issues/6983)) ([b7e80b9](https://github.com/lightdash/lightdash/commit/b7e80b99a4279b1163da96b0dddc9f3945be5947))
+
+# [0.765.0](https://github.com/lightdash/lightdash/compare/0.764.1...0.765.0) (2023-09-01)
+
+
+### Bug Fixes
+
+* dbt error worksaround for metric_time dimension ([#6975](https://github.com/lightdash/lightdash/issues/6975)) ([7fea944](https://github.com/lightdash/lightdash/commit/7fea944480bde2d08193048a0f174f72cf8b2c26))
+
+
+### Features
+
+* pivot table max column size ([#6933](https://github.com/lightdash/lightdash/issues/6933)) ([ba55798](https://github.com/lightdash/lightdash/commit/ba55798f820dcbc93ffd60419daa0d26e1035c44))
+
+## [0.764.1](https://github.com/lightdash/lightdash/compare/0.764.0...0.764.1) (2023-09-01)
+
+
+### Bug Fixes
+
+* header breaks returning from chart edit ([#6963](https://github.com/lightdash/lightdash/issues/6963)) ([700ef67](https://github.com/lightdash/lightdash/commit/700ef6788fbf94d4dcd05823b2fe1a4471bcd86e))
+
+# [0.764.0](https://github.com/lightdash/lightdash/compare/0.763.1...0.764.0) (2023-09-01)
+
+
+### Features
+
+* metricflow page ([#6871](https://github.com/lightdash/lightdash/issues/6871)) ([9bc538e](https://github.com/lightdash/lightdash/commit/9bc538e08b4389ac9c58f89b96e9d215e915f446))
+
+## [0.763.1](https://github.com/lightdash/lightdash/compare/0.763.0...0.763.1) (2023-09-01)
+
+
+### Bug Fixes
+
+* size of icons in new and browse tab in navbar to 16x16 ([#6965](https://github.com/lightdash/lightdash/issues/6965)) ([61b6cfe](https://github.com/lightdash/lightdash/commit/61b6cfe862284cf46faf53040290ed9ae9a703ed))
+* update tabler icons for add to dashboard and unpin from homepage ([#6964](https://github.com/lightdash/lightdash/issues/6964)) ([d604d15](https://github.com/lightdash/lightdash/commit/d604d154001b03c32fcb014927959d1b54ba279f))
+
+# [0.763.0](https://github.com/lightdash/lightdash/compare/0.762.0...0.763.0) (2023-09-01)
+
+
+### Features
+
+* dbt 1.6 ([#6950](https://github.com/lightdash/lightdash/issues/6950)) ([61e2af2](https://github.com/lightdash/lightdash/commit/61e2af291ea26ee1299586ffb12fc939e77988c6))
+
+# [0.762.0](https://github.com/lightdash/lightdash/compare/0.761.2...0.762.0) (2023-08-31)
+
+
+### Features
+
+* add google sheets sync feature and modal  ([#6938](https://github.com/lightdash/lightdash/issues/6938)) ([7d15f5f](https://github.com/lightdash/lightdash/commit/7d15f5fba66a73697c4f12eea16ce9d61e0b4cb1))
+
+## [0.761.2](https://github.com/lightdash/lightdash/compare/0.761.1...0.761.2) (2023-08-31)
+
+
+### Bug Fixes
+
+* tile name not showing up for charts in dashes ([#6937](https://github.com/lightdash/lightdash/issues/6937)) ([e9f94e1](https://github.com/lightdash/lightdash/commit/e9f94e149d29b4bd089e21fc360991300b16807d))
+
+## [0.761.1](https://github.com/lightdash/lightdash/compare/0.761.0...0.761.1) (2023-08-30)
+
+
+### Bug Fixes
+
+* keep add charts dialog open on click outside ([#6934](https://github.com/lightdash/lightdash/issues/6934)) ([e1ef0d9](https://github.com/lightdash/lightdash/commit/e1ef0d9643247d2253e1ff7ad77f681bffe0c7fb))
+
+# [0.761.0](https://github.com/lightdash/lightdash/compare/0.760.5...0.761.0) (2023-08-30)
+
+
+### Features
+
+* remove legacy dbt metrics integration ([#6915](https://github.com/lightdash/lightdash/issues/6915)) ([fb150da](https://github.com/lightdash/lightdash/commit/fb150da29c06ff55a8d7ea9b6f4e865118bb2b74))
+
+## [0.760.5](https://github.com/lightdash/lightdash/compare/0.760.4...0.760.5) (2023-08-30)
+
+
+### Bug Fixes
+
+* change scheduler time format to 12H and use dayjs ([#6923](https://github.com/lightdash/lightdash/issues/6923)) ([9ac1061](https://github.com/lightdash/lightdash/commit/9ac1061b8a1fba2f2a14ef7a949ee544c800e33b))
+
+## [0.760.4](https://github.com/lightdash/lightdash/compare/0.760.3...0.760.4) (2023-08-30)
+
+
+### Bug Fixes
+
+* tooltip-hover-effect-on-add-email-and-add-slack ([#6924](https://github.com/lightdash/lightdash/issues/6924)) ([08a581a](https://github.com/lightdash/lightdash/commit/08a581ad18d010df7501d92e379106605ef197e7))
+
+## [0.760.3](https://github.com/lightdash/lightdash/compare/0.760.2...0.760.3) (2023-08-30)
+
+
+### Bug Fixes
+
+* add loading state to export google sheets menu item ([#6919](https://github.com/lightdash/lightdash/issues/6919)) ([1f80f80](https://github.com/lightdash/lightdash/commit/1f80f80d0ecdef494ae2ace657ac33cf9a72f39a))
+
+## [0.760.2](https://github.com/lightdash/lightdash/compare/0.760.1...0.760.2) (2023-08-29)
+
+
+### Bug Fixes
+
+* custom metrics percentile ([#6914](https://github.com/lightdash/lightdash/issues/6914)) ([a25df01](https://github.com/lightdash/lightdash/commit/a25df0159825852e67560fdaa618453ab81f4cb8))
+
+## [0.760.1](https://github.com/lightdash/lightdash/compare/0.760.0...0.760.1) (2023-08-29)
+
+
+### Bug Fixes
+
+* dashboard refresh loader ([#6918](https://github.com/lightdash/lightdash/issues/6918)) ([b034b19](https://github.com/lightdash/lightdash/commit/b034b19a23d0cddf58e186b8694de9238a03222a))
+
+# [0.760.0](https://github.com/lightdash/lightdash/compare/0.759.0...0.760.0) (2023-08-29)
+
+
+### Features
+
+* close popup window on successful login ([#6911](https://github.com/lightdash/lightdash/issues/6911)) ([2c61d0f](https://github.com/lightdash/lightdash/commit/2c61d0f6b627f54e0795b878472aee7303fa4f37))
+
+# [0.759.0](https://github.com/lightdash/lightdash/compare/0.758.3...0.759.0) (2023-08-29)
+
+
+### Features
+
+* combine user registration endpoints ([#6901](https://github.com/lightdash/lightdash/issues/6901)) ([7881ae3](https://github.com/lightdash/lightdash/commit/7881ae37afab83b1e978e05b94c9f77dbb77adba))
+
+## [0.758.3](https://github.com/lightdash/lightdash/compare/0.758.2...0.758.3) (2023-08-29)
+
+
+### Bug Fixes
+
+* filter input year and year month timezone issue ([#6907](https://github.com/lightdash/lightdash/issues/6907)) ([591d7b8](https://github.com/lightdash/lightdash/commit/591d7b88f809eec6e0d44e6e26ab4b068a553231))
+
+## [0.758.2](https://github.com/lightdash/lightdash/compare/0.758.1...0.758.2) (2023-08-28)
+
+
+### Bug Fixes
+
+* dashboard crash on refresh ([#6908](https://github.com/lightdash/lightdash/issues/6908)) ([591f2b1](https://github.com/lightdash/lightdash/commit/591f2b183f9ee8249d1acdea1726f2d59a8176a0))
+
+## [0.758.1](https://github.com/lightdash/lightdash/compare/0.758.0...0.758.1) (2023-08-28)
+
+
+### Bug Fixes
+
+* editing an in-dashboard chart loses the chart ([#6903](https://github.com/lightdash/lightdash/issues/6903)) ([dbf6831](https://github.com/lightdash/lightdash/commit/dbf6831e5d96ec9df09cfe1daeed5e98ebeb532b))
+
+# [0.758.0](https://github.com/lightdash/lightdash/compare/0.757.1...0.758.0) (2023-08-25)
+
+
+### Features
+
+* add refresh button to dashboard ([#6898](https://github.com/lightdash/lightdash/issues/6898)) ([9a31714](https://github.com/lightdash/lightdash/commit/9a317143ff81b2ec9939bef90953545316de4033))
+
+## [0.757.1](https://github.com/lightdash/lightdash/compare/0.757.0...0.757.1) (2023-08-25)
+
+
+### Bug Fixes
+
+* add loading state when exporting to google sheets ([#6856](https://github.com/lightdash/lightdash/issues/6856)) ([a12c7c2](https://github.com/lightdash/lightdash/commit/a12c7c20318b8be49734a3af87cb3685a717e4df))
+
+# [0.757.0](https://github.com/lightdash/lightdash/compare/0.756.6...0.757.0) (2023-08-25)
+
+
+### Features
+
+* move dashboard details to popover ([#6894](https://github.com/lightdash/lightdash/issues/6894)) ([fb0f641](https://github.com/lightdash/lightdash/commit/fb0f64191ea8a8abef739737656790fd120bd62f))
+
+## [0.756.6](https://github.com/lightdash/lightdash/compare/0.756.5...0.756.6) (2023-08-25)
+
+
+### Bug Fixes
+
+* add an input for percentile in metrics ([#6860](https://github.com/lightdash/lightdash/issues/6860)) ([2e84871](https://github.com/lightdash/lightdash/commit/2e8487137e9bf4acd7493a829c61f8b2e834121a))
+
+## [0.756.5](https://github.com/lightdash/lightdash/compare/0.756.4...0.756.5) (2023-08-25)
+
+
+### Bug Fixes
+
+* uneven spacing between add filters and filters in dashboard ([#6892](https://github.com/lightdash/lightdash/issues/6892)) ([9751fd7](https://github.com/lightdash/lightdash/commit/9751fd79f8b3bfe7e97091f4fd72397f4514cb8e))
+
+## [0.756.4](https://github.com/lightdash/lightdash/compare/0.756.3...0.756.4) (2023-08-24)
+
+
+### Bug Fixes
+
+* hide create chart in dashboard ([#6873](https://github.com/lightdash/lightdash/issues/6873)) ([c431027](https://github.com/lightdash/lightdash/commit/c43102770e79a53cc2069cd3d8eac2e4812dd706))
+
+## [0.756.3](https://github.com/lightdash/lightdash/compare/0.756.2...0.756.3) (2023-08-24)
+
+
+### Bug Fixes
+
+* create dashboard cancel button doesnt work ([#6872](https://github.com/lightdash/lightdash/issues/6872)) ([b0e2a0c](https://github.com/lightdash/lightdash/commit/b0e2a0c5b0154cbaa9c6a2b50e0d1933e1e08c5f))
+
+## [0.756.2](https://github.com/lightdash/lightdash/compare/0.756.1...0.756.2) (2023-08-23)
+
+
+### Bug Fixes
+
+* format boolean values as true/false ([#6855](https://github.com/lightdash/lightdash/issues/6855)) ([3912695](https://github.com/lightdash/lightdash/commit/3912695ff1dd3ee1a4e48b69f32f5f6d149ca52d))
+
+## [0.756.1](https://github.com/lightdash/lightdash/compare/0.756.0...0.756.1) (2023-08-23)
+
+
+### Bug Fixes
+
+* apply dashboard filters pivot tables' cells (drill-down | underlying) ([#6832](https://github.com/lightdash/lightdash/issues/6832)) ([378b553](https://github.com/lightdash/lightdash/commit/378b5531e2ada6c46403b1a813c34ac1306478b7))
+
+# [0.756.0](https://github.com/lightdash/lightdash/compare/0.755.1...0.756.0) (2023-08-22)
+
+
+### Features
+
+* remove footer from Dashboard page ([#6847](https://github.com/lightdash/lightdash/issues/6847)) ([bd3cff7](https://github.com/lightdash/lightdash/commit/bd3cff7e66875dcc93150e4c3ef762483bf874e2))
+
+## [0.755.1](https://github.com/lightdash/lightdash/compare/0.755.0...0.755.1) (2023-08-22)
+
+
+### Bug Fixes
+
+* loading state for dashboard filters ([#6837](https://github.com/lightdash/lightdash/issues/6837)) ([cd3c017](https://github.com/lightdash/lightdash/commit/cd3c01713d3a3090e4d0f8cfdaf68f2bfeeed359))
+
+# [0.755.0](https://github.com/lightdash/lightdash/compare/0.754.3...0.755.0) (2023-08-22)
+
+
+### Features
+
+* add searchable dashboard list when adding chart to dashboard ([#6825](https://github.com/lightdash/lightdash/issues/6825)) ([42cafae](https://github.com/lightdash/lightdash/commit/42cafaea09e65d638e43c38b533c8f2fb9ab347d))
+
+## [0.754.3](https://github.com/lightdash/lightdash/compare/0.754.2...0.754.3) (2023-08-22)
+
+
+### Bug Fixes
+
+* move dashboard filter default value switch ([#6824](https://github.com/lightdash/lightdash/issues/6824)) ([bc1257a](https://github.com/lightdash/lightdash/commit/bc1257af888c2538f2b9a922560d76f59ef9aa26))
+
+## [0.754.2](https://github.com/lightdash/lightdash/compare/0.754.1...0.754.2) (2023-08-21)
+
+
+### Bug Fixes
+
+* any-value filters could not be reset ([#6806](https://github.com/lightdash/lightdash/issues/6806)) ([33c7fa6](https://github.com/lightdash/lightdash/commit/33c7fa64dfb03cf96f1deccd284214480149423a))
+
+## [0.754.1](https://github.com/lightdash/lightdash/compare/0.754.0...0.754.1) (2023-08-21)
+
+
+### Bug Fixes
+
+* remove extra quotes on rotate transform ([#6818](https://github.com/lightdash/lightdash/issues/6818)) ([2581a44](https://github.com/lightdash/lightdash/commit/2581a4477b6cd78f537d52fe2293ab3134c6bc2b))
+
+# [0.754.0](https://github.com/lightdash/lightdash/compare/0.753.0...0.754.0) (2023-08-18)
+
+
+### Features
+
+* download google sheet results ([#6764](https://github.com/lightdash/lightdash/issues/6764)) ([9af234f](https://github.com/lightdash/lightdash/commit/9af234f1cc998057b1ee958c0cd68999c846341d))
+
+# [0.753.0](https://github.com/lightdash/lightdash/compare/0.752.0...0.753.0) (2023-08-18)
+
+
+### Features
+
+* metadata tab ([#6794](https://github.com/lightdash/lightdash/issues/6794)) ([2f375e6](https://github.com/lightdash/lightdash/commit/2f375e616a5081831d8be0363c60ba8c3836af5f))
+
+# [0.752.0](https://github.com/lightdash/lightdash/compare/0.751.4...0.752.0) (2023-08-18)
+
+
+### Features
+
+* improve render filter list performance ([#6811](https://github.com/lightdash/lightdash/issues/6811)) ([6376e2c](https://github.com/lightdash/lightdash/commit/6376e2c51601e9ba00cf7cbde4642785ac8657b3))
+
+## [0.751.4](https://github.com/lightdash/lightdash/compare/0.751.3...0.751.4) (2023-08-18)
+
+
+### Bug Fixes
+
+* improve saving state on dashboards ([#6808](https://github.com/lightdash/lightdash/issues/6808)) ([239ae08](https://github.com/lightdash/lightdash/commit/239ae08f9459eccc7e51404476e32ea76117ef7c))
+
+## [0.751.3](https://github.com/lightdash/lightdash/compare/0.751.2...0.751.3) (2023-08-18)
+
+
+### Bug Fixes
+
+* automatically open google picker on login ([#6802](https://github.com/lightdash/lightdash/issues/6802)) ([e62228e](https://github.com/lightdash/lightdash/commit/e62228e16c96429a68bd92c6e80ef816a9d52e00))
+
+## [0.751.2](https://github.com/lightdash/lightdash/compare/0.751.1...0.751.2) (2023-08-18)
+
+
+### Bug Fixes
+
+* compile correct project settings on project update ([#6805](https://github.com/lightdash/lightdash/issues/6805)) ([beb2738](https://github.com/lightdash/lightdash/commit/beb27387ef8135eb035699c60e94428821c241d7))
+
+## [0.751.1](https://github.com/lightdash/lightdash/compare/0.751.0...0.751.1) (2023-08-17)
+
+
+### Bug Fixes
+
+* dashboard filters should not show reset in edit mode ([#6790](https://github.com/lightdash/lightdash/issues/6790)) ([a3367fb](https://github.com/lightdash/lightdash/commit/a3367fb0d4d50b7565e7ce09c9cfff47d3cb98cd))
+
+# [0.751.0](https://github.com/lightdash/lightdash/compare/0.750.1...0.751.0) (2023-08-17)
+
+
+### Bug Fixes
+
+* upload gsheet content from rows instead of csv ([#6763](https://github.com/lightdash/lightdash/issues/6763)) ([cd3d559](https://github.com/lightdash/lightdash/commit/cd3d5590dad9ed5b7172edcd852f4a48d0550680))
+
+
+### Features
+
+* add organization_id attribute to schedule worker task ([#6795](https://github.com/lightdash/lightdash/issues/6795)) ([420919a](https://github.com/lightdash/lightdash/commit/420919aeb85e5e6b196b683acaa2e73ea6ea7161))
+
+## [0.750.1](https://github.com/lightdash/lightdash/compare/0.750.0...0.750.1) (2023-08-17)
+
+
+### Bug Fixes
+
+* dashboard filters tile settings select all ([#6792](https://github.com/lightdash/lightdash/issues/6792)) ([1484fb5](https://github.com/lightdash/lightdash/commit/1484fb5b144d8effe57d3aecf6e49a80362fee1e))
+
+# [0.750.0](https://github.com/lightdash/lightdash/compare/0.749.0...0.750.0) (2023-08-17)
+
+
+### Features
+
+* gsheet on scheduler dashboard ([#6793](https://github.com/lightdash/lightdash/issues/6793)) ([13402a3](https://github.com/lightdash/lightdash/commit/13402a3b067f278953904dab7b239db469c47ebd))
+
+# [0.749.0](https://github.com/lightdash/lightdash/compare/0.748.1...0.749.0) (2023-08-16)
+
+
+### Features
+
+* generate with dbt compatible --select and --exclude ([#6684](https://github.com/lightdash/lightdash/issues/6684)) ([ff6a12e](https://github.com/lightdash/lightdash/commit/ff6a12e96720c79bb19978640df02b4554ccdb56))
+
+## [0.748.1](https://github.com/lightdash/lightdash/compare/0.748.0...0.748.1) (2023-08-16)
+
+
+### Bug Fixes
+
+* clear dashboard filter state when closed ([#6754](https://github.com/lightdash/lightdash/issues/6754)) ([b56dbfd](https://github.com/lightdash/lightdash/commit/b56dbfd92ae44a9e270b4321c91ddbcf2e339c25))
+* fix filter input border style ([#6783](https://github.com/lightdash/lightdash/issues/6783)) ([463bc6a](https://github.com/lightdash/lightdash/commit/463bc6a00a33f05d18c72329a5991fd0a9fbb528))
+
+# [0.748.0](https://github.com/lightdash/lightdash/compare/0.747.1...0.748.0) (2023-08-16)
+
+
+### Features
+
+* Migrate general settings forms to use Mantine ([#6712](https://github.com/lightdash/lightdash/issues/6712)) ([32812bc](https://github.com/lightdash/lightdash/commit/32812bc20cecb48e96b762427d65bcb8f10c2ade))
+
+## [0.747.1](https://github.com/lightdash/lightdash/compare/0.747.0...0.747.1) (2023-08-16)
+
+
+### Bug Fixes
+
+* get dbtVersion when creating new connection ([#6775](https://github.com/lightdash/lightdash/issues/6775)) ([12c2e7a](https://github.com/lightdash/lightdash/commit/12c2e7a95db0df2cda1c8a3c189b7d6f44adebc0))
+
+# [0.747.0](https://github.com/lightdash/lightdash/compare/0.746.0...0.747.0) (2023-08-16)
+
+
+### Features
+
+* improve chart from dashboard edit ux ([#6755](https://github.com/lightdash/lightdash/issues/6755)) ([0364859](https://github.com/lightdash/lightdash/commit/03648592bf3128153fd81bcc95d2b74051c3ae77))
+
+# [0.746.0](https://github.com/lightdash/lightdash/compare/0.745.0...0.746.0) (2023-08-16)
+
+
+### Features
+
+* hide intercom for non-cloud customers ([#6770](https://github.com/lightdash/lightdash/issues/6770)) ([3cebd4e](https://github.com/lightdash/lightdash/commit/3cebd4eabc6f01a25aeeda3419a4cb26f7d611e7))
+
+# [0.745.0](https://github.com/lightdash/lightdash/compare/0.744.2...0.745.0) (2023-08-16)
+
+
+### Features
+
+* dashboard filters tooltips consistency ([#6762](https://github.com/lightdash/lightdash/issues/6762)) ([53ec412](https://github.com/lightdash/lightdash/commit/53ec412ee5c1e1020e5acb18b6432747f0f37314))
+
+## [0.744.2](https://github.com/lightdash/lightdash/compare/0.744.1...0.744.2) (2023-08-16)
+
+
+### Bug Fixes
+
+* google sheet typescript ([#6756](https://github.com/lightdash/lightdash/issues/6756)) ([5eb702e](https://github.com/lightdash/lightdash/commit/5eb702ead2e7613a46745b7d3301727e37c40ed0))
+
+## [0.744.1](https://github.com/lightdash/lightdash/compare/0.744.0...0.744.1) (2023-08-15)
+
+
+### Bug Fixes
+
+* filter close icon color ([#6750](https://github.com/lightdash/lightdash/issues/6750)) ([163b12e](https://github.com/lightdash/lightdash/commit/163b12e61093fb0e13d2a0ddd37abcd9fa820930))
+
+# [0.744.0](https://github.com/lightdash/lightdash/compare/0.743.0...0.744.0) (2023-08-15)
+
+
+### Features
+
+* update tab name with update timestamp ([#6740](https://github.com/lightdash/lightdash/issues/6740)) ([68e0b60](https://github.com/lightdash/lightdash/commit/68e0b6081af0519d98f973c640cd35c55acf816d)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
+# [0.743.0](https://github.com/lightdash/lightdash/compare/0.742.0...0.743.0) (2023-08-15)
+
+
+### Features
+
+* google drive dashboards ([#6738](https://github.com/lightdash/lightdash/issues/6738)) ([724fd85](https://github.com/lightdash/lightdash/commit/724fd85bd5d75a555aeb0f3cd0d179db6d0cb316)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
+# [0.742.0](https://github.com/lightdash/lightdash/compare/0.741.0...0.742.0) (2023-08-15)
+
+
+### Features
+
+* export google drive ([#6696](https://github.com/lightdash/lightdash/issues/6696)) ([43d9dc3](https://github.com/lightdash/lightdash/commit/43d9dc33c85f7d19eb41a16864cfeab0cc73d2f3)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
+# [0.741.0](https://github.com/lightdash/lightdash/compare/0.740.0...0.741.0) (2023-08-14)
+
+
+### Features
+
+* hide any value input when null/not null ([#6743](https://github.com/lightdash/lightdash/issues/6743)) ([d9affa4](https://github.com/lightdash/lightdash/commit/d9affa480be2e3d22b6e467e9b98a1a59351a273))
+
+# [0.740.0](https://github.com/lightdash/lightdash/compare/0.739.4...0.740.0) (2023-08-14)
+
+
+### Features
+
+* add chart icon next to tile target checkbox ([#6739](https://github.com/lightdash/lightdash/issues/6739)) ([24faf62](https://github.com/lightdash/lightdash/commit/24faf62bc54b775be919ff1b6938c47d14d8ec48))
+
+## [0.739.4](https://github.com/lightdash/lightdash/compare/0.739.3...0.739.4) (2023-08-14)
+
+
+### Bug Fixes
+
+* error for broken urls in tables is covered up ([#6736](https://github.com/lightdash/lightdash/issues/6736)) ([331e28f](https://github.com/lightdash/lightdash/commit/331e28f0ee708bab37d014e2407e41951bae282f))
+
+## [0.739.3](https://github.com/lightdash/lightdash/compare/0.739.2...0.739.3) (2023-08-14)
+
+
+### Bug Fixes
+
+* pivot table dashboard filters ([#6733](https://github.com/lightdash/lightdash/issues/6733)) ([38f254c](https://github.com/lightdash/lightdash/commit/38f254ccc098e54df7a62dc47d7c5ab02a3badbf))
+
+## [0.739.2](https://github.com/lightdash/lightdash/compare/0.739.1...0.739.2) (2023-08-14)
+
+
+### Bug Fixes
+
+* add a tooltip when apply button is disabled ([#6720](https://github.com/lightdash/lightdash/issues/6720)) ([1b8f469](https://github.com/lightdash/lightdash/commit/1b8f469c099f27080474c1a8046506445e8a2a75))
+* fitler button spacing ([#6724](https://github.com/lightdash/lightdash/issues/6724)) ([aca6e2d](https://github.com/lightdash/lightdash/commit/aca6e2d12649c15f0c4f146d3bd7b2c7f8b1b841))
+
+## [0.739.1](https://github.com/lightdash/lightdash/compare/0.739.0...0.739.1) (2023-08-14)
+
+
+### Bug Fixes
+
+* stringify additional metrics filters on copy ([#6703](https://github.com/lightdash/lightdash/issues/6703)) ([94dbca7](https://github.com/lightdash/lightdash/commit/94dbca7b1b73a622c871edaf205f0066fe4daa31)), closes [#6536](https://github.com/lightdash/lightdash/issues/6536)
+
+# [0.739.0](https://github.com/lightdash/lightdash/compare/0.738.0...0.739.0) (2023-08-14)
+
+
+### Features
+
+* dashboard filter style updates ([#6721](https://github.com/lightdash/lightdash/issues/6721)) ([ce07c7b](https://github.com/lightdash/lightdash/commit/ce07c7bc12541e7587442736a9d79d1b9042bc76))
+
+# [0.738.0](https://github.com/lightdash/lightdash/compare/0.737.1...0.738.0) (2023-08-11)
+
+
+### Features
+
+* migrate dashboard buttons to mantine ([#6715](https://github.com/lightdash/lightdash/issues/6715)) ([19bea16](https://github.com/lightdash/lightdash/commit/19bea162c88c92bb8f57dcb419e1ee8f110b76c0))
+
+## [0.737.1](https://github.com/lightdash/lightdash/compare/0.737.0...0.737.1) (2023-08-11)
+
+
+### Bug Fixes
+
+* dashboard filters keep state when not applied ([#6717](https://github.com/lightdash/lightdash/issues/6717)) ([d7d2128](https://github.com/lightdash/lightdash/commit/d7d21289cd0b6dd03d21e0f662200662c518386a))
+
+# [0.737.0](https://github.com/lightdash/lightdash/compare/0.736.0...0.737.0) (2023-08-11)
+
+
+### Features
+
+* lighten dashboard-header's shadow ([#6710](https://github.com/lightdash/lightdash/issues/6710)) ([37e75b1](https://github.com/lightdash/lightdash/commit/37e75b103635f6e56b1ebe71446e758b7b768ce1))
+
 # [0.736.0](https://github.com/lightdash/lightdash/compare/0.735.0...0.736.0) (2023-08-11)
 
 

@@ -104,61 +104,10 @@
                 "required": ["status"],
                 "type": "object"
             },
-            "DbtCloudMetric": {
-                "properties": {
-                    "label": {
-                        "type": "string"
-                    },
-                    "timeGrains": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "dimensions": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "uniqueId": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "label",
-                    "timeGrains",
-                    "description",
-                    "dimensions",
-                    "name",
-                    "uniqueId"
-                ],
-                "type": "object"
-            },
-            "DbtCloudMetadataResponseMetrics": {
-                "properties": {
-                    "metrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/DbtCloudMetric"
-                        },
-                        "type": "array",
-                        "description": "A list of dbt metric definitions from the dbt cloud metadata api"
-                    }
-                },
-                "required": ["metrics"],
-                "type": "object",
-                "description": "Response from dbt cloud metadata api containing a list of metric definitions"
-            },
-            "ApiDbtCloudMetrics": {
+            "ApiGdriveAccessTokenResponse": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/DbtCloudMetadataResponseMetrics"
+                        "type": "string"
                     },
                     "status": {
                         "type": "string",
@@ -167,6 +116,382 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiJobScheduledResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "jobId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["jobId"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "FieldId": {
+                "type": "string"
+            },
+            "FilterGroupResponse": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "or": {
+                                "items": {},
+                                "type": "array"
+                            },
+                            "id": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["or", "id"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "and": {
+                                "items": {},
+                                "type": "array"
+                            },
+                            "id": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["and", "id"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "FiltersResponse": {
+                "properties": {
+                    "metrics": {
+                        "$ref": "#/components/schemas/FilterGroupResponse"
+                    },
+                    "dimensions": {
+                        "$ref": "#/components/schemas/FilterGroupResponse"
+                    }
+                },
+                "type": "object"
+            },
+            "SortField": {
+                "properties": {
+                    "descending": {
+                        "type": "boolean"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["descending", "fieldId"],
+                "type": "object"
+            },
+            "TableCalculationFormatType": {
+                "enum": ["default", "percent", "currency", "number"],
+                "type": "string"
+            },
+            "NumberSeparator": {
+                "enum": [
+                    "default",
+                    "commaPeriod",
+                    "spacePeriod",
+                    "periodComma",
+                    "noSeparatorPeriod"
+                ],
+                "type": "string"
+            },
+            "Compact": {
+                "enum": ["thousands", "millions", "billions", "trillions"],
+                "type": "string"
+            },
+            "TableCalculationFormat": {
+                "properties": {
+                    "suffix": {
+                        "type": "string"
+                    },
+                    "prefix": {
+                        "type": "string"
+                    },
+                    "compact": {
+                        "$ref": "#/components/schemas/Compact"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator"
+                    },
+                    "round": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/TableCalculationFormatType"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
+            "TableCalculation": {
+                "properties": {
+                    "format": {
+                        "$ref": "#/components/schemas/TableCalculationFormat"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "displayName": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "index": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["sql", "displayName", "name"],
+                "type": "object"
+            },
+            "MetricType": {
+                "enum": [
+                    "percentile",
+                    "average",
+                    "count",
+                    "count_distinct",
+                    "sum",
+                    "min",
+                    "max",
+                    "number",
+                    "median",
+                    "string",
+                    "date",
+                    "boolean"
+                ],
+                "type": "string"
+            },
+            "CompactOrAlias": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/Compact"
+                    },
+                    {
+                        "type": "string",
+                        "enum": [
+                            "K",
+                            "thousand",
+                            "M",
+                            "million",
+                            "B",
+                            "billion",
+                            "T",
+                            "trillion"
+                        ]
+                    }
+                ]
+            },
+            "Format": {
+                "enum": ["km", "mi", "usd", "gbp", "eur", "id", "percent"],
+                "type": "string"
+            },
+            "ConditionalOperator": {
+                "enum": [
+                    "isNull",
+                    "notNull",
+                    "equals",
+                    "notEquals",
+                    "startsWith",
+                    "endsWith",
+                    "include",
+                    "doesNotInclude",
+                    "lessThan",
+                    "lessThanOrEqual",
+                    "greaterThan",
+                    "greaterThanOrEqual",
+                    "inThePast",
+                    "notInThePast",
+                    "inTheNext",
+                    "inTheCurrent",
+                    "inBetween"
+                ],
+                "type": "string"
+            },
+            "MetricFilterRule": {
+                "properties": {
+                    "values": {
+                        "items": {},
+                        "type": "array"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/ConditionalOperator"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "target": {
+                        "properties": {
+                            "fieldRef": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["fieldRef"],
+                        "type": "object"
+                    },
+                    "settings": {},
+                    "disabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["operator", "id", "target"],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "AdditionalMetric": {
+                "properties": {
+                    "label": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/MetricType"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "hidden": {
+                        "type": "boolean"
+                    },
+                    "round": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "compact": {
+                        "$ref": "#/components/schemas/CompactOrAlias"
+                    },
+                    "format": {
+                        "$ref": "#/components/schemas/Format"
+                    },
+                    "table": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "index": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/MetricFilterRule"
+                        },
+                        "type": "array"
+                    },
+                    "baseDimensionName": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "percentile": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["type", "sql", "table", "name"],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "MetricQueryResponse": {
+                "properties": {
+                    "additionalMetrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/AdditionalMetric"
+                        },
+                        "type": "array"
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/TableCalculation"
+                        },
+                        "type": "array"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sorts": {
+                        "items": {
+                            "$ref": "#/components/schemas/SortField"
+                        },
+                        "type": "array"
+                    },
+                    "filters": {
+                        "$ref": "#/components/schemas/FiltersResponse"
+                    },
+                    "metrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array"
+                    },
+                    "dimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "tableCalculations",
+                    "limit",
+                    "sorts",
+                    "filters",
+                    "metrics",
+                    "dimensions"
+                ],
+                "type": "object"
+            },
+            "UploadMetricGsheet": {
+                "properties": {
+                    "columnOrder": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "showTableNames": {
+                        "type": "boolean"
+                    },
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQueryResponse"
+                    },
+                    "exploreId": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "columnOrder",
+                    "showTableNames",
+                    "metricQuery",
+                    "exploreId",
+                    "projectUuid"
+                ],
                 "type": "object"
             },
             "Group": {
@@ -1830,7 +2155,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid_": {
+            "Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -1856,6 +2181,14 @@
                     },
                     "spaceName": {
                         "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dashboardName": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -1865,7 +2198,9 @@
                     "projectUuid",
                     "spaceUuid",
                     "pinnedListUuid",
-                    "spaceName"
+                    "spaceName",
+                    "dashboardUuid",
+                    "dashboardName"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -1877,7 +2212,7 @@
             "ChartSummary": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid_"
+                        "$ref": "#/components/schemas/Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName_"
                     },
                     {
                         "properties": {
@@ -2110,328 +2445,6 @@
                 "required": ["rows", "fields"],
                 "type": "object"
             },
-            "FieldId": {
-                "type": "string"
-            },
-            "FilterGroupResponse": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "or": {
-                                "items": {},
-                                "type": "array"
-                            },
-                            "id": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["or", "id"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "and": {
-                                "items": {},
-                                "type": "array"
-                            },
-                            "id": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["and", "id"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "Filters": {
-                "properties": {
-                    "metrics": {
-                        "$ref": "#/components/schemas/FilterGroupResponse"
-                    },
-                    "dimensions": {
-                        "$ref": "#/components/schemas/FilterGroupResponse"
-                    }
-                },
-                "type": "object"
-            },
-            "SortField": {
-                "properties": {
-                    "descending": {
-                        "type": "boolean"
-                    },
-                    "fieldId": {
-                        "type": "string"
-                    }
-                },
-                "required": ["descending", "fieldId"],
-                "type": "object"
-            },
-            "TableCalculationFormatType": {
-                "enum": ["default", "percent", "currency", "number"],
-                "type": "string"
-            },
-            "NumberSeparator": {
-                "enum": [
-                    "default",
-                    "commaPeriod",
-                    "spacePeriod",
-                    "periodComma",
-                    "noSeparatorPeriod"
-                ],
-                "type": "string"
-            },
-            "Compact": {
-                "enum": ["thousands", "millions", "billions", "trillions"],
-                "type": "string"
-            },
-            "TableCalculationFormat": {
-                "properties": {
-                    "suffix": {
-                        "type": "string"
-                    },
-                    "prefix": {
-                        "type": "string"
-                    },
-                    "compact": {
-                        "$ref": "#/components/schemas/Compact"
-                    },
-                    "currency": {
-                        "type": "string"
-                    },
-                    "separator": {
-                        "$ref": "#/components/schemas/NumberSeparator"
-                    },
-                    "round": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/TableCalculationFormatType"
-                    }
-                },
-                "required": ["type"],
-                "type": "object"
-            },
-            "TableCalculation": {
-                "properties": {
-                    "format": {
-                        "$ref": "#/components/schemas/TableCalculationFormat"
-                    },
-                    "sql": {
-                        "type": "string"
-                    },
-                    "displayName": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "index": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["sql", "displayName", "name"],
-                "type": "object"
-            },
-            "MetricType": {
-                "enum": [
-                    "percentile",
-                    "average",
-                    "count",
-                    "count_distinct",
-                    "sum",
-                    "min",
-                    "max",
-                    "number",
-                    "median",
-                    "string",
-                    "date",
-                    "boolean"
-                ],
-                "type": "string"
-            },
-            "CompactOrAlias": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/Compact"
-                    },
-                    {
-                        "type": "string",
-                        "enum": [
-                            "K",
-                            "thousand",
-                            "M",
-                            "million",
-                            "B",
-                            "billion",
-                            "T",
-                            "trillion"
-                        ]
-                    }
-                ]
-            },
-            "Format": {
-                "enum": ["km", "mi", "usd", "gbp", "eur", "id", "percent"],
-                "type": "string"
-            },
-            "ConditionalOperator": {
-                "enum": [
-                    "isNull",
-                    "notNull",
-                    "equals",
-                    "notEquals",
-                    "startsWith",
-                    "endsWith",
-                    "include",
-                    "doesNotInclude",
-                    "lessThan",
-                    "lessThanOrEqual",
-                    "greaterThan",
-                    "greaterThanOrEqual",
-                    "inThePast",
-                    "notInThePast",
-                    "inTheNext",
-                    "inTheCurrent",
-                    "inBetween"
-                ],
-                "type": "string"
-            },
-            "MetricFilterRule": {
-                "properties": {
-                    "values": {
-                        "items": {},
-                        "type": "array"
-                    },
-                    "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
-                    },
-                    "id": {
-                        "type": "string"
-                    },
-                    "target": {
-                        "properties": {
-                            "fieldRef": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["fieldRef"],
-                        "type": "object"
-                    },
-                    "settings": {},
-                    "disabled": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["operator", "id", "target"],
-                "type": "object",
-                "additionalProperties": false
-            },
-            "AdditionalMetric": {
-                "properties": {
-                    "label": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/MetricType"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "sql": {
-                        "type": "string"
-                    },
-                    "hidden": {
-                        "type": "boolean"
-                    },
-                    "round": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "compact": {
-                        "$ref": "#/components/schemas/CompactOrAlias"
-                    },
-                    "format": {
-                        "$ref": "#/components/schemas/Format"
-                    },
-                    "table": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "index": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "filters": {
-                        "items": {
-                            "$ref": "#/components/schemas/MetricFilterRule"
-                        },
-                        "type": "array"
-                    },
-                    "baseDimensionName": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string",
-                        "nullable": true
-                    }
-                },
-                "required": ["type", "sql", "table", "name"],
-                "type": "object",
-                "additionalProperties": false
-            },
-            "MetricQueryResponse": {
-                "properties": {
-                    "additionalMetrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/AdditionalMetric"
-                        },
-                        "type": "array"
-                    },
-                    "tableCalculations": {
-                        "items": {
-                            "$ref": "#/components/schemas/TableCalculation"
-                        },
-                        "type": "array"
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "sorts": {
-                        "items": {
-                            "$ref": "#/components/schemas/SortField"
-                        },
-                        "type": "array"
-                    },
-                    "filters": {
-                        "$ref": "#/components/schemas/Filters"
-                    },
-                    "metrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/FieldId"
-                        },
-                        "type": "array"
-                    },
-                    "dimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/FieldId"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": [
-                    "tableCalculations",
-                    "limit",
-                    "sorts",
-                    "filters",
-                    "metrics",
-                    "dimensions"
-                ],
-                "type": "object"
-            },
             "ApiRunQueryResponse": {
                 "properties": {
                     "results": {
@@ -2515,7 +2528,7 @@
                 "type": "object"
             },
             "SchedulerFormat": {
-                "enum": ["csv", "image"],
+                "enum": ["csv", "image", "gsheets"],
                 "type": "string"
             },
             "SchedulerCsvOptions": {
@@ -2543,6 +2556,29 @@
                 "properties": {},
                 "type": "object"
             },
+            "SchedulerGsheetsOptions": {
+                "properties": {
+                    "url": {
+                        "type": "string"
+                    },
+                    "gdriveOrganizationName": {
+                        "type": "string"
+                    },
+                    "gdriveName": {
+                        "type": "string"
+                    },
+                    "gdriveId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "url",
+                    "gdriveOrganizationName",
+                    "gdriveName",
+                    "gdriveId"
+                ],
+                "type": "object"
+            },
             "SchedulerOptions": {
                 "anyOf": [
                     {
@@ -2550,6 +2586,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/SchedulerImageOptions"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SchedulerGsheetsOptions"
                     }
                 ]
             },
@@ -2756,7 +2795,7 @@
                     },
                     "targetType": {
                         "type": "string",
-                        "enum": ["email", "slack"]
+                        "enum": ["email", "slack", "gsheets"]
                     },
                     "target": {
                         "type": "string"
@@ -2787,7 +2826,9 @@
                             "handleScheduledDelivery",
                             "sendEmailNotification",
                             "sendSlackNotification",
+                            "uploadGsheets",
                             "downloadCsv",
+                            "uploadGsheetFromQuery",
                             "compileProject",
                             "testAndCompileProject",
                             "validateProject"
@@ -3512,6 +3553,151 @@
                     }
                 ]
             },
+            "LightdashUser": {
+                "properties": {
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "organizationName": {
+                        "type": "string"
+                    },
+                    "organizationCreatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "isTrackingAnonymized": {
+                        "type": "boolean"
+                    },
+                    "isMarketingOptedIn": {
+                        "type": "boolean"
+                    },
+                    "isSetupComplete": {
+                        "type": "boolean"
+                    },
+                    "role": {
+                        "$ref": "#/components/schemas/OrganizationMemberRole"
+                    },
+                    "isActive": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "userUuid",
+                    "firstName",
+                    "lastName",
+                    "isTrackingAnonymized",
+                    "isMarketingOptedIn",
+                    "isSetupComplete",
+                    "isActive"
+                ],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "ApiGetAuthenticatedUserResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LightdashUser"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object",
+                "description": "Shows the authenticated user"
+            },
+            "ApiRegisterUserResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LightdashUser"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ActivateUser": {
+                "properties": {
+                    "password": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["password", "lastName", "firstName"],
+                "type": "object"
+            },
+            "ActivateUserWithInviteCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ActivateUser"
+                    },
+                    {
+                        "properties": {
+                            "inviteCode": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["inviteCode"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "Email": {
+                "type": "string",
+                "description": "Email",
+                "pattern": "^(([^<>()[\\]\\\\.,;:\\s@\"]+(\\.[^<>()[\\]\\\\.,;:\\s@\"]+)*)|(\".+\"))@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\])|(([a-zA-Z\\-0-9]+\\.)+[a-zA-Z]{2,}))$"
+            },
+            "CreateUserArgs": {
+                "properties": {
+                    "password": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "$ref": "#/components/schemas/Email"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["password", "email", "lastName", "firstName"],
+                "type": "object"
+            },
+            "RegisterOrActivateUser": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ActivateUserWithInviteCode"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateUserArgs"
+                    }
+                ]
+            },
             "EmailOneTimePassword": {
                 "properties": {
                     "numberOfAttempts": {
@@ -3621,26 +3807,6 @@
                             "$ref": "#/components/schemas/UserAllowedOrganization"
                         },
                         "type": "array"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiJobScheduledResponse": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "jobId": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["jobId"],
-                        "type": "object"
                     },
                     "status": {
                         "type": "string",
@@ -3887,7 +4053,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.714.0",
+        "version": "0.759.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -4059,16 +4225,16 @@
                 ]
             }
         },
-        "/api/v1/projects/{projectUuid}/integrations/dbt-cloud/metrics": {
+        "/api/v1/gdrive/get-access-token": {
             "get": {
-                "operationId": "getDbtCloudMetrics",
+                "operationId": "getAccessToken",
                 "responses": {
                     "200": {
-                        "description": "Ok",
+                        "description": "Success",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiDbtCloudMetrics"
+                                    "$ref": "#/components/schemas/ApiGdriveAccessTokenResponse"
                                 }
                             }
                         }
@@ -4084,19 +4250,51 @@
                         }
                     }
                 },
-                "description": "Get a list of dbt metric definitions from the dbt Cloud metadata api.\nThe metrics are taken from the metadata from a single dbt Cloud job configured\nwith the dbt Cloud integration settings for the project.",
+                "description": "Get access token for google drive",
                 "tags": ["Integrations"],
                 "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
+                "parameters": []
+            }
+        },
+        "/api/v1/gdrive/upload-gsheet": {
+            "post": {
+                "operationId": "uploadGsheet",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiJobScheduledResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
                         }
                     }
-                ]
+                },
+                "description": "Upload results from query to Google Sheet",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UploadMetricGsheet"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/groups/{groupUuid}": {
@@ -4363,6 +4561,71 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/metricflow": {
+            "post": {
+                "operationId": "GetMetricFlowData",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get MetricFlow data",
+                "tags": ["MetricFlow"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the projectId",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "graphql query",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "operationName": {
+                                        "type": "string",
+                                        "enum": [
+                                            "GetFields",
+                                            "CreateQuery",
+                                            "GetQueryResults"
+                                        ]
+                                    },
+                                    "query": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["query"],
+                                "type": "object",
+                                "description": "graphql query"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/org": {
@@ -5624,7 +5887,7 @@
                             "schema": {
                                 "properties": {
                                     "filters": {
-                                        "$ref": "#/components/schemas/Filters"
+                                        "$ref": "#/components/schemas/FiltersResponse"
                                     }
                                 },
                                 "type": "object"
@@ -6476,6 +6739,76 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/user": {
+            "get": {
+                "operationId": "GetAuthenticatedUser",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetAuthenticatedUserResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get authenticated user",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": []
+            },
+            "post": {
+                "operationId": "RegisterUser",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRegisterUserResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Register user",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RegisterOrActivateUser"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/user/me/email/otp": {

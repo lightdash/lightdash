@@ -1,4 +1,5 @@
 import React, { FC, memo, useEffect } from 'react';
+import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { Can } from '../../common/Authorization';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
@@ -19,12 +20,11 @@ const ExplorerHeader: FC = memo(() => {
         (context) => context.state.isValidQuery,
     );
 
+    const { getHasDashboardChanges } = useDashboardStorage();
+
     useEffect(() => {
-        const hasUnsavedDashboardChanges = JSON.parse(
-            sessionStorage.getItem('hasDashboardChanges') ?? 'false',
-        );
         const checkReload = (event: BeforeUnloadEvent) => {
-            if (hasUnsavedDashboardChanges) {
+            if (getHasDashboardChanges()) {
                 const message =
                     'You have unsaved changes to your dashboard! Are you sure you want to leave without saving?';
                 event.returnValue = message;
@@ -35,7 +35,7 @@ const ExplorerHeader: FC = memo(() => {
         return () => {
             window.removeEventListener('beforeunload', checkReload);
         };
-    }, []);
+    }, [getHasDashboardChanges]);
 
     return (
         <Wrapper>

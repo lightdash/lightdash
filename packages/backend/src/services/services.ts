@@ -33,6 +33,7 @@ import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { EncryptionService } from './EncryptionService/EncryptionService';
+import { GdriveService } from './GdriveService/GdriveService';
 import { GroupsService } from './GroupService';
 import { HealthService } from './HealthService/HealthService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
@@ -195,4 +196,12 @@ export const sshKeyPairService = new SshKeyPairService({
 
 export const userAttributesService = new UserAttributesService({
     userAttributesModel,
+});
+
+export const gdriveService = new GdriveService({
+    lightdashConfig,
+    userModel,
+    projectService,
+    dashboardModel,
+    savedChartModel,
 });

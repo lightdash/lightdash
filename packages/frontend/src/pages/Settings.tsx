@@ -102,7 +102,7 @@ const Settings: FC = () => {
         !health.auth.disablePasswordAuthentication;
 
     const hasSocialLogin =
-        health.auth.google.oauth2ClientId ||
+        health.auth.google.enabled ||
         health.auth.okta.enabled ||
         health.auth.oneLogin.enabled ||
         health.auth.azuread.enabled;
@@ -338,7 +338,7 @@ const Settings: FC = () => {
                                 ) : null}
 
                                 <RouterNavLink
-                                    label="Scheduled deliveries"
+                                    label="Syncs & Scheduled deliveries"
                                     exact
                                     to={`/generalSettings/projectManagement/${project.projectUuid}/scheduledDeliveries`}
                                     icon={

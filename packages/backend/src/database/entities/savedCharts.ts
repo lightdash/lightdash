@@ -171,6 +171,7 @@ export type DbSavedChartAdditionalMetric = {
     round?: number;
     compact?: CompactOrAlias;
     format?: string;
+    percentile?: number;
     saved_queries_version_id: number;
     filters: MetricFilterRule[] | null; // JSONB
     base_dimension_name: string | null;
@@ -206,6 +207,7 @@ export type DBFilteredAdditionalMetrics = Pick<
             | 'round'
             | 'compact'
             | 'format'
+            | 'percentile'
             | 'filters'
             | 'base_dimension_name'
         >

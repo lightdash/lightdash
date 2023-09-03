@@ -26,6 +26,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { FC, ReactNode, useRef, useState } from 'react';
+import { StyledComponent } from 'styled-components';
 import MantineIcon, { MantineIconProps } from '../MantineIcon';
 
 interface ResourceIconProps {
@@ -34,7 +35,7 @@ interface ResourceIconProps {
 
 interface IconBoxProps extends MantineIconProps {
     color: string;
-    icon: TablerIconType;
+    icon: TablerIconType | StyledComponent<'svg', any, {}, never>;
 }
 
 export const IconBox: FC<IconBoxProps> = ({
@@ -68,29 +69,23 @@ export const getChartIcon = (chartType: ChartKind | undefined) => {
     switch (chartType) {
         case undefined:
         case ChartKind.VERTICAL_BAR:
-            return <IconBox icon={IconChartBar} color="blue.8" />;
+            return IconChartBar;
         case ChartKind.HORIZONTAL_BAR:
-            return (
-                <IconBox
-                    icon={IconChartBar}
-                    color="blue.8"
-                    transform="rotate(90)"
-                />
-            );
+            return IconChartBar;
         case ChartKind.LINE:
-            return <IconBox icon={IconChartLine} color="blue.8" />;
+            return IconChartLine;
         case ChartKind.SCATTER:
-            return <IconBox icon={IconChartDots} color="blue.8" />;
+            return IconChartDots;
         case ChartKind.AREA:
-            return <IconBox icon={IconChartArea} color="blue.8" />;
+            return IconChartArea;
         case ChartKind.MIXED:
-            return <IconBox icon={IconChartAreaLine} color="blue.8" />;
+            return IconChartAreaLine;
         case ChartKind.PIE:
-            return <IconBox icon={IconChartPie} color="blue.8" />;
+            return IconChartPie;
         case ChartKind.TABLE:
-            return <IconBox icon={IconTable} color="blue.8" />;
+            return IconTable;
         case ChartKind.BIG_NUMBER:
-            return <IconBox icon={IconSquareNumber1} color="blue.8" />;
+            return IconSquareNumber1;
         default:
             return assertUnreachable(
                 chartType,
@@ -99,6 +94,18 @@ export const getChartIcon = (chartType: ChartKind | undefined) => {
     }
 };
 
+export const ChartIcon: FC<{ chartType: ChartKind | undefined }> = ({
+    chartType,
+}) => (
+    <IconBox
+        icon={getChartIcon(chartType)}
+        color="blue.8"
+        transform={
+            chartType === ChartKind.HORIZONTAL_BAR ? 'rotate(90)' : undefined
+        }
+    />
+);
+
 export const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
     switch (item.type) {
         case ResourceViewItemType.DASHBOARD:
@@ -106,7 +113,7 @@ export const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
         case ResourceViewItemType.SPACE:
             return <IconBox icon={IconFolder} color="violet.8" />;
         case ResourceViewItemType.CHART:
-            return getChartIcon(item.data.chartType);
+            return <ChartIcon chartType={item.data.chartType} />;
         default:
             return assertUnreachable(item, 'Resource type not supported');
     }

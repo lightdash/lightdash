@@ -15,7 +15,7 @@ import {
     renderFilterItem,
     renderFilterItemWithoutTableName,
 } from './renderFilterItem';
-import renderFilterList from './renderFilterList';
+import RenderFilterList from './renderFilterList';
 
 const AutocompleteMaxHeight = createGlobalStyle`
   .autocomplete-max-height {
@@ -54,8 +54,12 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
     inputProps,
     hasGrouping = false,
 }: FieldAutoCompleteProps<T>) => {
-    const { activeProjectUuid } = useActiveProjectUuid();
-    const { data: exploresData } = useExplores(activeProjectUuid ?? '');
+    const { activeProjectUuid } = useActiveProjectUuid({
+        refetchOnMount: false,
+    });
+    const { data: exploresData } = useExplores(activeProjectUuid ?? '', false, {
+        refetchOnMount: false,
+    });
 
     const sortedFields = useMemo(() => {
         return fields.sort((a, b) =>
@@ -113,7 +117,12 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
                                 description: explore.description,
                                 name: explore.name,
                             })) ?? [];
-                        return renderFilterList(itemListRendererProps, tables);
+                        return (
+                            <RenderFilterList
+                                {...itemListRendererProps}
+                                tables={tables}
+                            />
+                        );
                     },
                 })}
                 activeItem={activeField}

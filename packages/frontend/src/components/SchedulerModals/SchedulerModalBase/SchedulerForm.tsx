@@ -76,7 +76,10 @@ const SlackErrorContent: FC<{ slackState: SlackStates }> = ({
                 <p>No Slack integration found</p>
                 <p>
                     To create a slack scheduled delivery, you need to
-                    <Anchor href="https://docs.lightdash.com/self-host/customize-deployment/configure-a-slack-app-for-lightdash">
+                    <Anchor
+                        target="_blank"
+                        href="https://docs.lightdash.com/self-host/customize-deployment/configure-a-slack-app-for-lightdash"
+                    >
                         {' '}
                         setup Slack{' '}
                     </Anchor>
@@ -221,18 +224,17 @@ const SchedulerForm: FC<{
         [slackChannelsQuery.data],
     );
     const health = useHealth();
-
     const isAddSlackDisabled = disabled || slackState !== SlackStates.SUCCESS;
     const isAddEmailDisabled = disabled || !health.data?.hasEmailClient;
+    const [showDestinationLabel, setShowDestinationLabel] =
+        useState<boolean>(true);
+
     const isImageDisabled = !health.data?.hasHeadlessBrowser;
 
     const format = methods.watch(
         'format',
         isImageDisabled ? SchedulerFormat.CSV : SchedulerFormat.IMAGE,
     );
-
-    const [showDestinationLabel, setShowDestinationLabel] =
-        useState<boolean>(true);
 
     return (
         <Form name="scheduler" methods={methods}>
@@ -266,6 +268,7 @@ const SchedulerForm: FC<{
                         <InlinedLabel>Format</InlinedLabel>
 
                         <StyledSelect
+                            value={format}
                             {...methods.register('format', {
                                 value: format,
 
@@ -324,12 +327,11 @@ const SchedulerForm: FC<{
                     )}
                     <Title>4. Add destination(s)</Title>
 
+                    {showDestinationLabel && (
+                        <InlinedLabel>No destination(s) selected</InlinedLabel>
+                    )}
+
                     <InlinedInputs>
-                        {showDestinationLabel && (
-                            <InlinedLabel>
-                                No destination(s) selected
-                            </InlinedLabel>
-                        )}
                         <ArrayInput
                             name="targets"
                             label=""
@@ -444,6 +446,7 @@ const SchedulerForm: FC<{
                                         </TargetRow>
                                     );
                                 } else {
+                                    // Email
                                     return (
                                         <TargetRow key={key}>
                                             <EmailIcon
@@ -477,6 +480,7 @@ const SchedulerForm: FC<{
                                 <>
                                     <Tooltip2
                                         interactionKind="hover"
+                                        hoverCloseDelay={500}
                                         content={
                                             <>
                                                 {SlackErrorContent({
@@ -510,6 +514,7 @@ const SchedulerForm: FC<{
                                     </Tooltip2>
                                     <Tooltip2
                                         interactionKind="hover"
+                                        hoverCloseDelay={500}
                                         content={
                                             <>
                                                 <p>
@@ -518,7 +523,10 @@ const SchedulerForm: FC<{
                                                 <p>
                                                     To create an email scheduled
                                                     delivery, you need to add
-                                                    <Anchor href="https://docs.lightdash.com/references/environmentVariables">
+                                                    <Anchor
+                                                        target="_blank"
+                                                        href="https://docs.lightdash.com/references/environmentVariables"
+                                                    >
                                                         {' '}
                                                         SMTP environment
                                                         variables{' '}

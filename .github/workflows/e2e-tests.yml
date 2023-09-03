@@ -6,24 +6,13 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref != 'refs/heads/main'
     outputs:
-      url: ${{ steps.deployment-url.outputs.url }}
+      url: ${{ github.event.deployment_status.environment_url }}
     steps:
       - name: is render ready
-        # This works assuming "Lightdash PR" is always the last deployment_status to be "success"
-        if: ${{ !( github.event.deployment_status.state == 'success' && (contains(github.event.deployment.environment, '- lightdash PR ') || contains(github.event.deployment.environment, '- lightdash-')) ) }}
+        if: ${{ !(github.event.deployment_status.state == 'success' && github.event.deployment_status.environment_url != null) }}
         run: |
-          echo "Render environment ${{ github.event.deployment.environment }} is not ready: ${{ github.event.deployment_status.state }}"
+          echo "Render environment ${{ github.event.deployment.environment }} is not ready: ${{ github.event.deployment_status.state }} ${{ github.event.deployment_status.environment_url }}"
           exit 1
-      - name: Get PR number
-        id: regex
-        uses: AsasInnab/regex-action@v1
-        with:
-          regex_pattern: '[0-9]+$'
-          regex_flags: 'gm'
-          search_string: ${{github.event.deployment.environment}}
-      - name: Get deployment url
-        id: deployment-url
-        run: echo "url=https://lightdash-pr-${{steps.regex.outputs.first_match}}.onrender.com" >> "$GITHUB_OUTPUT"
 
   app-tests:
     runs-on: ubuntu-latest
@@ -52,7 +41,7 @@ jobs:
       # Prepare bigquery credentials for Cypress
       - name: create-json
         id: create-json
-        uses: jsdaniell/create-json@1.1.2
+        uses: jsdaniell/create-json@v1.2.2
         with:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
@@ -122,7 +111,7 @@ jobs:
       # Prepare bigquery credentials for Cypress
       - name: create-json
         id: create-json
-        uses: jsdaniell/create-json@1.1.2
+        uses: jsdaniell/create-json@v1.2.2
         with:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}

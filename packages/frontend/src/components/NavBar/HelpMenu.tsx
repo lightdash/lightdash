@@ -1,3 +1,4 @@
+import { LightdashMode } from '@lightdash/common';
 import { Button, Menu } from '@mantine/core';
 import {
     IconBook,
@@ -8,10 +9,14 @@ import {
 } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useIntercom } from 'react-use-intercom';
+import useHealth from '../../hooks/health/useHealth';
 import LargeMenuItem from '../common/LargeMenuItem';
 import MantineIcon from '../common/MantineIcon';
 
 const HelpMenu: FC = () => {
+    const health = useHealth();
+    const isCloudCustomer = health.data?.mode === LightdashMode.CLOUD_BETA;
+
     const { show: showIntercom } = useIntercom();
 
     return (
@@ -29,12 +34,14 @@ const HelpMenu: FC = () => {
             </Menu.Target>
 
             <Menu.Dropdown>
-                <LargeMenuItem
-                    onClick={() => showIntercom()}
-                    title="Contact support"
-                    description="Drop us a message and we’ll get back to you asap!"
-                    icon={IconMessages}
-                />
+                {isCloudCustomer && (
+                    <LargeMenuItem
+                        onClick={() => showIntercom()}
+                        title="Contact support"
+                        description="Drop us a message and we’ll get back to you asap!"
+                        icon={IconMessages}
+                    />
+                )}
 
                 <LargeMenuItem
                     component="a"

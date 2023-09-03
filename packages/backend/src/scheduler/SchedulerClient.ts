@@ -2,6 +2,7 @@ import {
     CompileProjectPayload,
     DownloadCsvPayload,
     EmailNotificationPayload,
+    GsheetsNotificationPayload,
     isSlackTarget,
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
@@ -9,9 +10,12 @@ import {
     Scheduler,
     SchedulerAndTargets,
     SchedulerEmailTarget,
+    SchedulerFormat,
     SchedulerJobStatus,
     SchedulerSlackTarget,
     SlackNotificationPayload,
+    UploadMetricGsheet,
+    UploadMetricGsheetPayload,
     ValidateProjectPayload,
 } from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
@@ -136,51 +140,108 @@ export class SchedulerClient {
         return { jobId: id, date };
     }
 
-    private async addNotificationJob(
+    private async addGsheetsUploadJob(
         date: Date,
         jobGroup: string,
         scheduler: Scheduler,
-        target: SchedulerSlackTarget | SchedulerEmailTarget,
-        page: NotificationPayloadBase['page'],
     ) {
         const graphileClient = await this.graphileUtils;
 
-        const payload: SlackNotificationPayload | EmailNotificationPayload =
-            isSlackTarget(target)
-                ? {
-                      schedulerUuid: scheduler.schedulerUuid,
-                      jobGroup,
-                      scheduledTime: date,
-                      page,
-                      schedulerSlackTargetUuid: target.schedulerSlackTargetUuid,
-                  }
-                : {
-                      schedulerUuid: scheduler.schedulerUuid,
-                      scheduledTime: date,
-                      jobGroup,
-                      page,
-                      schedulerEmailTargetUuid: target.schedulerEmailTargetUuid,
-                  };
-        const { id } = await graphileClient.addJob(
-            isSlackTarget(target)
-                ? 'sendSlackNotification'
-                : 'sendEmailNotification',
-            payload,
-            {
-                runAt: date,
-                maxAttempts: 1,
-            },
-        );
+        const payload: GsheetsNotificationPayload = {
+            schedulerUuid: scheduler.schedulerUuid,
+            jobGroup,
+            scheduledTime: date,
+        };
+
+        const { id } = await graphileClient.addJob('uploadGsheets', payload, {
+            runAt: date,
+            maxAttempts: 1,
+        });
         analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
             properties: {
                 jobId: id,
                 schedulerId: scheduler.schedulerUuid,
-                schedulerTargetId: isSlackTarget(target)
-                    ? target.schedulerSlackTargetUuid
-                    : target.schedulerEmailTargetUuid,
-                type: isSlackTarget(target) ? 'slack' : 'email',
+                schedulerTargetId: undefined,
+                type: 'gsheets',
+                format: scheduler.format,
+            },
+        });
+        return { jobId: id };
+    }
+
+    private async addNotificationJob(
+        date: Date,
+        jobGroup: string,
+        scheduler: Scheduler,
+        target: SchedulerSlackTarget | SchedulerEmailTarget | undefined,
+        page: NotificationPayloadBase['page'] | undefined,
+    ) {
+        if (!target) {
+            throw new Error('Missing target for slack or email notification');
+        }
+        if (!page) {
+            throw new Error(
+                'Missing page data for slack or email notification',
+            );
+        }
+        if (scheduler.format === SchedulerFormat.GSHEETS) {
+            throw new Error("Can't add Google sheets notification");
+        }
+
+        const graphileClient = await this.graphileUtils;
+
+        const getIdentifierAndPayload = (): {
+            identifier: string;
+            targetUuid?: string;
+            type: 'slack' | 'email';
+            payload: SlackNotificationPayload | EmailNotificationPayload;
+        } => {
+            if (isSlackTarget(target)) {
+                return {
+                    identifier: 'sendSlackNotification',
+                    targetUuid: target.schedulerSlackTargetUuid,
+                    type: 'slack',
+                    payload: {
+                        schedulerUuid: scheduler.schedulerUuid,
+                        jobGroup,
+                        scheduledTime: date,
+                        page,
+                        schedulerSlackTargetUuid:
+                            target.schedulerSlackTargetUuid,
+                    },
+                };
+            }
+
+            return {
+                identifier: 'sendEmailNotification',
+                targetUuid: target?.schedulerEmailTargetUuid,
+                type: 'email',
+                payload: {
+                    schedulerUuid: scheduler.schedulerUuid,
+                    scheduledTime: date,
+                    jobGroup,
+                    page,
+                    schedulerEmailTargetUuid: target?.schedulerEmailTargetUuid,
+                },
+            };
+        };
+
+        const { identifier, targetUuid, payload, type } =
+            getIdentifierAndPayload();
+        const { id } = await graphileClient.addJob(identifier, payload, {
+            runAt: date,
+            maxAttempts: 1,
+        });
+        analytics.track({
+            event: 'scheduler_notification_job.created',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId: id,
+                schedulerId: scheduler.schedulerUuid,
+                schedulerTargetId: targetUuid,
+                type,
                 format: scheduler.format,
             },
         });
@@ -222,10 +283,21 @@ export class SchedulerClient {
     async generateJobsForSchedulerTargets(
         scheduledTime: Date,
         scheduler: SchedulerAndTargets,
-        page: NotificationPayloadBase['page'],
+        page: NotificationPayloadBase['page'] | undefined,
         parentJobId: string,
     ) {
         try {
+            if (scheduler.format === SchedulerFormat.GSHEETS) {
+                Logger.info(
+                    `Creating gsheet notification jobs for scheduler ${scheduler.schedulerUuid}`,
+                );
+                const job = await this.addGsheetsUploadJob(
+                    scheduledTime,
+                    parentJobId,
+                    scheduler,
+                );
+                return [{ ...job, target: undefined }];
+            }
             const promises = scheduler.targets.map((target) =>
                 this.addNotificationJob(
                     scheduledTime,
@@ -235,7 +307,6 @@ export class SchedulerClient {
                     page,
                 ),
             );
-
             Logger.info(
                 `Creating ${promises.length} notification jobs for scheduler ${scheduler.schedulerUuid}`,
             );
@@ -262,6 +333,28 @@ export class SchedulerClient {
         );
         await this.schedulerModel.logSchedulerJob({
             task: 'downloadCsv',
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: { createdByUserUuid: payload.userUuid },
+        });
+
+        return { jobId };
+    }
+
+    async uploadGsheetFromQueryJob(payload: UploadMetricGsheetPayload) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const { id: jobId } = await graphileClient.addJob(
+            'uploadGsheetFromQuery',
+            payload,
+            {
+                runAt: now,
+                maxAttempts: 1,
+            },
+        );
+        await this.schedulerModel.logSchedulerJob({
+            task: 'uploadGsheetFromQuery',
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,

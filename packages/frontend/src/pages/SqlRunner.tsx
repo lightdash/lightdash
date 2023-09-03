@@ -1,20 +1,19 @@
 import { subject } from '@casl/ability';
 import {
     ChartType,
-    DbtCloudMetric,
     getCustomLabelsFromTableConfig,
     NotFoundError,
 } from '@lightdash/common';
-import { Alert, Box, Group, NavLink, Stack, Tabs } from '@mantine/core';
+import { Alert, Box, Group, Stack, Tabs } from '@mantine/core';
 import { getHotkeyHandler } from '@mantine/hooks';
-import { Icon123, IconAlertCircle } from '@tabler/icons-react';
+import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 
+import { downloadCsvFromSqlRunner } from '../api/csv';
 import { ChartDownloadMenu } from '../components/ChartDownload';
 import CollapsableCard from '../components/common/CollapsableCard';
-import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ShareShortLinkButton from '../components/common/ShareShortLinkButton';
@@ -30,8 +29,6 @@ import RefreshDbtButton from '../components/RefreshDbtButton';
 import RunSqlQueryButton from '../components/SqlRunner/RunSqlQueryButton';
 import SqlRunnerInput from '../components/SqlRunner/SqlRunnerInput';
 import SqlRunnerResultsTable from '../components/SqlRunner/SqlRunnerResultsTable';
-import { useProjectDbtCloudMetrics } from '../hooks/dbtCloud/useProjectDbtCloudMetrics';
-import { downloadCsvFromSqlRunner } from '../hooks/useDownloadCsv';
 import { useProjectCatalog } from '../hooks/useProjectCatalog';
 import {
     ProjectCatalogTreeNode,
@@ -51,22 +48,6 @@ const generateBasicSqlQuery = (table: string) =>
     `SELECT *
    FROM ${table} LIMIT 25`;
 
-const generateDefaultDbtMetricQuery = (metric: DbtCloudMetric) => {
-    const args: string[] = [`metric('${metric.name}')`];
-    if (metric.dimensions.length > 0) {
-        args.push(
-            `dimensions=[${metric.dimensions.map((d) => `'${d}'`).join(', ')}]`,
-        );
-    }
-    if (metric.timeGrains.length > 0) {
-        args.push(`grain='${metric.timeGrains[0]}'`);
-    }
-    return `SELECT *
-          FROM {{ metrics.calculate(
-                  ${args.join(',\n    ')}
-              )}} LIMIT 500`;
-};
-
 enum SqlRunnerCards {
     CHART = 'CHART',
     SQL = 'SQL',
@@ -77,7 +58,6 @@ const SqlRunnerPage = () => {
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const initialState = useSqlRunnerUrlState();
-    const metrics = useProjectDbtCloudMetrics();
     const sqlQueryMutation = useSqlQueryMutation();
     const { isLoading: isCatalogLoading, data: catalogData } =
         useProjectCatalog();
@@ -216,16 +196,6 @@ const SqlRunnerPage = () => {
                             flexDirection: 'column',
                         }}
                     >
-                        {metrics.data?.metrics &&
-                        metrics.data.metrics.length > 0 ? (
-                            <Tabs.List mb="lg">
-                                <Tabs.Tab value="warehouse-schema">
-                                    Warehouse schema
-                                </Tabs.Tab>
-                                <Tabs.Tab value="metrics">dbt metrics</Tabs.Tab>
-                            </Tabs.List>
-                        ) : null}
-
                         <Tabs.Panel
                             value="warehouse-schema"
                             display="flex"
@@ -254,36 +224,6 @@ const SqlRunnerPage = () => {
                                 </Stack>
                             )}
                         </Tabs.Panel>
-
-                        {metrics.data?.metrics &&
-                        metrics.data.metrics.length > 0 ? (
-                            <Tabs.Panel
-                                value="metrics"
-                                sx={{ overflowY: 'auto', flex: 1 }}
-                            >
-                                {metrics.data.metrics.map((metric) => (
-                                    <NavLink
-                                        key={metric.uniqueId}
-                                        icon={
-                                            <MantineIcon
-                                                icon={Icon123}
-                                                size="lg"
-                                                color="gray.7"
-                                            />
-                                        }
-                                        label={metric.label}
-                                        description={metric.description}
-                                        onClick={() =>
-                                            setSql(
-                                                generateDefaultDbtMetricQuery(
-                                                    metric,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                ))}
-                            </Tabs.Panel>
-                        ) : null}
                     </Tabs>
                 </Stack>
             }
@@ -316,6 +256,7 @@ const SqlRunnerPage = () => {
                     onPivotDimensionsChange={setPivotFields}
                     columnOrder={columnOrder}
                     explore={explore}
+                    isSqlRunner={true}
                 >
                     <CollapsableCard
                         title="Charts"
