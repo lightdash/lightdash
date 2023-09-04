@@ -1,3 +1,10 @@
+## [0.765.5](https://github.com/lightdash/lightdash/compare/0.765.4...0.765.5) (2023-09-04)
+
+
+### Bug Fixes
+
+* remove feature flag for charts in dashboards ([#6986](https://github.com/lightdash/lightdash/issues/6986)) ([7a24ebf](https://github.com/lightdash/lightdash/commit/7a24ebf243953d573b004e1e166e44d32e40d7ef))
+
 ## [0.765.4](https://github.com/lightdash/lightdash/compare/0.765.3...0.765.4) (2023-09-04)
 
 
