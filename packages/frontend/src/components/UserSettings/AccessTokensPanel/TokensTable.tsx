@@ -15,6 +15,8 @@ import {
     useAccessToken,
     useDeleteAccessToken,
 } from '../../../hooks/useAccessToken';
+import MantineIcon from '../../common/MantineIcon';
+import { IconTrash } from '@tabler/icons-react';
 
 const TokenItem: FC<{
     token: ApiPersonalAccessTokenResponse;
@@ -36,12 +38,13 @@ const TokenItem: FC<{
                 </td>
                 <td width="1%">
                     <Button
+                        px="xs"
                         variant="outline"
                         size="xs"
                         color="red"
                         onClick={() => setTokenToDelete(token)}
                     >
-                        Delete
+                        <MantineIcon icon={IconTrash} />
                     </Button>
                 </td>
             </tr>

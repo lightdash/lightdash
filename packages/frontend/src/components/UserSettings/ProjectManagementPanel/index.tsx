@@ -78,7 +78,7 @@ const ProjectListItem: FC<ProjectListItemProps> = ({
                         })}
                     >
                         <Button
-                            leftIcon={<MantineIcon icon={IconTrash} />}
+                            px="xs"
                             size="xs"
                             variant="outline"
                             color="red"
@@ -86,7 +86,7 @@ const ProjectListItem: FC<ProjectListItemProps> = ({
                                 onDelete(projectUuid);
                             }}
                         >
-                            Delete
+                            <MantineIcon icon={IconTrash} />
                         </Button>
                     </Can>
                 </Group>
