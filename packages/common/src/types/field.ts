@@ -195,8 +195,8 @@ export interface Dimension extends Field {
     fieldType: FieldType.DIMENSION;
     type: DimensionType;
     group?: string;
-    timeInterval?: TimeFrames;
     requiredAttributes?: Record<string, string>;
+    timeInterval?: TimeFrames;
 }
 
 export interface CompiledDimension extends Dimension {
@@ -264,6 +264,7 @@ export enum MetricType {
     MEDIAN = 'median',
     STRING = 'string',
     DATE = 'date',
+    TIMESTAMP = 'timestamp',
     BOOLEAN = 'boolean',
 }
 
@@ -286,7 +287,6 @@ export const parseMetricType = (metricType: string): MetricType => {
             return MetricType.PERCENTILE;
         case 'median':
             return MetricType.MEDIAN;
-
         case 'average':
             return MetricType.AVERAGE;
         case 'count':
@@ -305,6 +305,8 @@ export const parseMetricType = (metricType: string): MetricType => {
             return MetricType.STRING;
         case 'date':
             return MetricType.DATE;
+        case 'timestamp':
+            return MetricType.TIMESTAMP;
         case 'boolean':
             return MetricType.BOOLEAN;
         default:
@@ -318,6 +320,7 @@ const NonAggregateMetricTypes = [
     MetricType.STRING,
     MetricType.NUMBER,
     MetricType.DATE,
+    MetricType.TIMESTAMP,
     MetricType.BOOLEAN,
 ];
 

@@ -65,22 +65,16 @@ export const formatBoolean = <T>(v: T) =>
 export const getDateFormat = (
     timeInterval: TimeFrames | undefined = TimeFrames.DAY,
 ): string => {
-    let dateForm: string;
     switch (timeInterval) {
         case TimeFrames.YEAR:
-            dateForm = 'YYYY';
-            break;
+            return 'YYYY';
         case TimeFrames.QUARTER:
-            dateForm = 'YYYY-[Q]Q';
-            break;
+            return 'YYYY-[Q]Q';
         case TimeFrames.MONTH:
-            dateForm = 'YYYY-MM';
-            break;
+            return 'YYYY-MM';
         default:
-            dateForm = 'YYYY-MM-DD';
-            break;
+            return 'YYYY-MM-DD';
     }
-    return dateForm;
 };
 
 export const isMomentInput = (value: unknown): value is MomentInput =>
@@ -289,6 +283,7 @@ export function formatFieldValue(
                   )
                 : 'NaT';
         case DimensionType.TIMESTAMP:
+        case MetricType.TIMESTAMP:
             return isMomentInput(value)
                 ? formatTimestamp(
                       value,

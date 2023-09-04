@@ -14,8 +14,7 @@ import {
     Source,
 } from './field';
 import { parseFilters } from './filterGrammar';
-import { AdditionalMetric } from './metricQuery';
-import { OrderFieldsByStrategy, TableBase } from './table';
+import { OrderFieldsByStrategy } from './table';
 import { TimeFrames } from './timeFrames';
 
 export enum SupportedDbtAdapter {
@@ -411,29 +410,6 @@ export const convertColumnMetric = ({
         source,
         tableLabel,
     });
-type ConvertAdditionalMetricArgs = {
-    additionalMetric: AdditionalMetric;
-    table: TableBase;
-};
-export const convertAdditionalMetric = ({
-    additionalMetric,
-    table,
-}: ConvertAdditionalMetricArgs): Metric => {
-    const metric = convertColumnMetric({
-        modelName: table.name,
-        dimensionSql: additionalMetric.sql,
-        name: additionalMetric.name,
-        metric: { ...additionalMetric, filters: undefined },
-        tableLabel: table.label,
-    });
-
-    return {
-        ...metric,
-        ...(additionalMetric.filters && {
-            filters: additionalMetric.filters,
-        }),
-    };
-};
 
 export enum DbtManifestVersion {
     V7 = 'v7',

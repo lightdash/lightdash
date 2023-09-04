@@ -1,6 +1,7 @@
 import {
     AdditionalMetric,
     Dimension,
+    DimensionType,
     Explore,
     Field,
     FilterRule,
@@ -55,25 +56,65 @@ const getCustomMetricDescription = (
             : ''
     }`;
 
+const getTypeOverridesForAdditionalMetric = (
+    item: Dimension | AdditionalMetric,
+    type: MetricType,
+): Partial<AdditionalMetric> | undefined => {
+    if (!isDimension(item)) return;
+
+    switch (type) {
+        case MetricType.MIN:
+            switch (item.type) {
+                case DimensionType.DATE:
+                    return {
+                        type: MetricType.DATE,
+                        sql: `MIN(${item.sql})`,
+                    };
+                case DimensionType.TIMESTAMP:
+                    return {
+                        type: MetricType.TIMESTAMP,
+                        sql: `MIN(${item.sql})`,
+                    };
+                default:
+                    return;
+            }
+        case MetricType.MAX:
+            switch (item.type) {
+                case DimensionType.DATE:
+                    return {
+                        type: MetricType.DATE,
+                        sql: `MAX(${item.sql})`,
+                    };
+                case DimensionType.TIMESTAMP:
+                    return {
+                        type: MetricType.TIMESTAMP,
+                        sql: `MAX(${item.sql})`,
+                    };
+                default:
+                    return;
+            }
+        default:
+            return;
+    }
+};
+
 export const prepareCustomMetricData = ({
-    dimension,
+    item,
     type,
     customMetricLabel,
     customMetricFiltersWithIds,
     isEditingCustomMetric,
-    item,
     exploreData,
     percentile: metricPercentile,
 }: {
-    dimension: Dimension | AdditionalMetric;
+    item: Dimension | AdditionalMetric;
     type: MetricType;
     customMetricLabel: string;
     customMetricFiltersWithIds: MetricFilterRuleWithFieldId[];
     isEditingCustomMetric: boolean;
-    item: Dimension | AdditionalMetric;
     exploreData?: Explore;
     percentile?: number;
-}) => {
+}): AdditionalMetric => {
     const shouldCopyFormatting = [
         MetricType.PERCENTILE,
         MetricType.MEDIAN,
@@ -82,19 +123,16 @@ export const prepareCustomMetricData = ({
         MetricType.MIN,
         MetricType.MAX,
     ].includes(type);
+
     const compact =
-        shouldCopyFormatting && dimension.compact
-            ? { compact: dimension.compact }
-            : {};
+        shouldCopyFormatting && item.compact ? { compact: item.compact } : {};
     const format =
-        shouldCopyFormatting && dimension.format
-            ? { format: dimension.format }
-            : {};
+        shouldCopyFormatting && item.format ? { format: item.format } : {};
 
     const defaultRound = type === MetricType.AVERAGE ? { round: 2 } : {};
     const round =
-        shouldCopyFormatting && dimension.round
-            ? { round: dimension.round }
+        shouldCopyFormatting && item.round
+            ? { round: item.round }
             : defaultRound;
 
     const percentile =
@@ -114,10 +152,13 @@ export const prepareCustomMetricData = ({
     const tableLabel = exploreData?.tables[item.table].label;
 
     return {
+        table: item.table,
+        sql: item.sql,
+        type,
         ...format,
         ...round,
-        percentile,
         ...compact,
+        percentile,
         filters: customMetricFilters.length > 0 ? customMetricFilters : [],
         label: customMetricLabel,
         name: getCustomMetricName(
@@ -130,23 +171,25 @@ export const prepareCustomMetricData = ({
                 : item.name,
         ),
         ...(isEditingCustomMetric &&
-            dimension.label &&
+            item.label &&
             tableLabel && {
                 description: getCustomMetricDescription(
                     type,
-                    dimension.label,
+                    item.label,
                     tableLabel,
                     customMetricFilters,
                 ),
             }),
         ...(!isEditingCustomMetric &&
-            isDimension(dimension) && {
+            isDimension(item) && {
                 description: getCustomMetricDescription(
                     type,
-                    dimension.label,
-                    dimension.tableLabel,
+                    item.label,
+                    item.tableLabel,
                     customMetricFilters,
                 ),
             }),
+
+        ...getTypeOverridesForAdditionalMetric(item, type),
     };
 };

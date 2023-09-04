@@ -275,6 +275,7 @@
                     "median",
                     "string",
                     "date",
+                    "timestamp",
                     "boolean"
                 ],
                 "type": "string"
@@ -2098,7 +2099,7 @@
                 ]
             },
             "SupportedDbtVersions": {
-                "enum": ["v1.4", "v1.5"],
+                "enum": ["v1.4", "v1.5", "v1.6"],
                 "type": "string"
             },
             "Project": {
@@ -4053,7 +4054,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.759.0",
+        "version": "0.764.1",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

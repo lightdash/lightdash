@@ -76,6 +76,7 @@ const getAxisTypeFromField = (item?: Field | TableCalculation): string => {
             case MetricType.MAX:
                 return 'value';
             case DimensionType.TIMESTAMP:
+            case MetricType.TIMESTAMP:
             case DimensionType.DATE:
             case MetricType.DATE:
                 return 'time';
@@ -419,6 +420,7 @@ const getMinAndMaxReferenceLines = (
                     );
 
                 case DimensionType.TIMESTAMP:
+                case MetricType.TIMESTAMP:
                 case DimensionType.DATE:
                 case MetricType.DATE:
                     return serie.markLine?.data.reduce<string[]>(
