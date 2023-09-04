@@ -1,3 +1,10 @@
+## [0.765.8](https://github.com/lightdash/lightdash/compare/0.765.7...0.765.8) (2023-09-04)
+
+
+### Bug Fixes
+
+* export dashboard with temporary filters ([#6984](https://github.com/lightdash/lightdash/issues/6984)) ([95b157c](https://github.com/lightdash/lightdash/commit/95b157c3f4631cc9d5fde7a2ef7a73b203c294a1))
+
 ## [0.765.7](https://github.com/lightdash/lightdash/compare/0.765.6...0.765.7) (2023-09-04)
 
 
