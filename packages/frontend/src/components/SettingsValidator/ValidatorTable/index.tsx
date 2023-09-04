@@ -7,7 +7,6 @@ import {
     ValidationResponse,
 } from '@lightdash/common';
 import {
-    Anchor,
     Box,
     Flex,
     Stack,
@@ -107,63 +106,47 @@ const TableValidationItem = forwardRef<
             }
         >
             <td>
-                <Anchor
-                    sx={{
-                        color: 'unset',
-                        ':hover': {
-                            color: 'unset',
-                            textDecoration: 'none',
-                        },
-                    }}
-                    href={getLinkToResource(validationError, projectUuid)}
-                    target="_blank"
-                >
-                    <Flex gap="sm" align="center">
-                        <Icon validationError={validationError} />
+                <Flex gap="sm" align="center">
+                    <Icon validationError={validationError} />
 
-                        <Stack spacing={4}>
-                            {isDeleted(validationError) ? (
-                                <Tooltip
-                                    label={`This ${
-                                        isChartValidationError(validationError)
-                                            ? 'chart'
-                                            : 'dashboard'
-                                    } has been deleted`}
-                                >
-                                    <Text fw={600} color={'gray.6'}>
-                                        {getErrorName(validationError)}
-                                    </Text>
-                                </Tooltip>
-                            ) : (
-                                <Text fw={600}>
+                    <Stack spacing={4}>
+                        {isDeleted(validationError) ? (
+                            <Tooltip
+                                label={`This ${
+                                    isChartValidationError(validationError)
+                                        ? 'chart'
+                                        : 'dashboard'
+                                } has been deleted`}
+                            >
+                                <Text fw={600} color={'gray.6'}>
                                     {getErrorName(validationError)}
                                 </Text>
-                            )}
+                            </Tooltip>
+                        ) : (
+                            <Text fw={600}>
+                                {getErrorName(validationError)}
+                            </Text>
+                        )}
 
-                            {(isChartValidationError(validationError) ||
-                                isDashboardValidationError(validationError)) &&
-                                !isDeleted(validationError) && (
-                                    <Text fz={11} color="gray.6">
-                                        {getViews(validationError)} view
-                                        {getViews(validationError) === 1
-                                            ? ''
-                                            : 's'}
-                                        {' • '}
-                                        {validationError.lastUpdatedBy ? (
-                                            <>
-                                                Last edited by{' '}
-                                                <Text span fw={500}>
-                                                    {
-                                                        validationError.lastUpdatedBy
-                                                    }
-                                                </Text>
-                                            </>
-                                        ) : null}
-                                    </Text>
-                                )}
-                        </Stack>
-                    </Flex>
-                </Anchor>
+                        {(isChartValidationError(validationError) ||
+                            isDashboardValidationError(validationError)) &&
+                            !isDeleted(validationError) && (
+                                <Text fz={11} color="gray.6">
+                                    {getViews(validationError)} view
+                                    {getViews(validationError) === 1 ? '' : 's'}
+                                    {' • '}
+                                    {validationError.lastUpdatedBy ? (
+                                        <>
+                                            Last edited by{' '}
+                                            <Text span fw={500}>
+                                                {validationError.lastUpdatedBy}
+                                            </Text>
+                                        </>
+                                    ) : null}
+                                </Text>
+                            )}
+                    </Stack>
+                </Flex>
             </td>
             <td>
                 <ErrorMessage validationError={validationError} />
