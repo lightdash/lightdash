@@ -1,3 +1,10 @@
+## [0.765.4](https://github.com/lightdash/lightdash/compare/0.765.3...0.765.4) (2023-09-04)
+
+
+### Bug Fixes
+
+* add default suffix to metricflow time dimensions ([#6980](https://github.com/lightdash/lightdash/issues/6980)) ([35c3f57](https://github.com/lightdash/lightdash/commit/35c3f57d5d1269a46fbe29f8891dd00bf50902ac))
+
 ## [0.765.3](https://github.com/lightdash/lightdash/compare/0.765.2...0.765.3) (2023-09-04)
 
 
