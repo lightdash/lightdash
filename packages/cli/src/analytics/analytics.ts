@@ -121,7 +121,6 @@ type CliCompileStarted = BaseTrack & {
     event: 'compile.started';
     properties: {
         dbtVersion: string;
-        manifestVersion: string;
     };
 };
 type CliCompileCompleted = BaseTrack & {
@@ -131,14 +130,12 @@ type CliCompileCompleted = BaseTrack & {
         errors: number;
         dbtMetrics: number;
         dbtVersion: string;
-        manifestVersion: string;
     };
 };
 type CliCompileError = BaseTrack & {
     event: 'compile.error';
     properties: {
         dbtVersion: string;
-        manifestVersion: string;
         error: string;
     };
 };

@@ -43,7 +43,6 @@ export const compile = async (options: CompileHandlerOptions) => {
         event: 'compile.started',
         properties: {
             dbtVersion,
-            manifestVersion,
         },
     });
 
@@ -127,7 +126,6 @@ ${errors.join('')}`),
             event: 'compile.error',
             properties: {
                 dbtVersion,
-                manifestVersion,
                 error: `Dbt adapter ${manifest.metadata.adapter_type} is not supported`,
             },
         });
@@ -177,7 +175,6 @@ ${errors.join('')}`),
             errors,
             dbtMetrics: Object.values(manifest.metrics).length,
             dbtVersion,
-            manifestVersion,
         },
     });
     return explores;
