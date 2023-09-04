@@ -305,6 +305,8 @@ export const parseMetricType = (metricType: string): MetricType => {
             return MetricType.STRING;
         case 'date':
             return MetricType.DATE;
+        case 'timestamp':
+            return MetricType.TIMESTAMP;
         case 'boolean':
             return MetricType.BOOLEAN;
         default:
@@ -318,6 +320,7 @@ const NonAggregateMetricTypes = [
     MetricType.STRING,
     MetricType.NUMBER,
     MetricType.DATE,
+    MetricType.TIMESTAMP,
     MetricType.BOOLEAN,
 ];
 
