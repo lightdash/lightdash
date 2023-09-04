@@ -1,3 +1,10 @@
+# [0.766.0](https://github.com/lightdash/lightdash/compare/0.765.9...0.766.0) (2023-09-04)
+
+
+### Features
+
+* resource view move to space sections ([#6999](https://github.com/lightdash/lightdash/issues/6999)) ([cfb00eb](https://github.com/lightdash/lightdash/commit/cfb00ebb2a91c1c58559d048adee5c3caa4b6088))
+
 ## [0.765.9](https://github.com/lightdash/lightdash/compare/0.765.8...0.765.9) (2023-09-04)
 
 
