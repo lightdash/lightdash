@@ -1,3 +1,10 @@
+## [0.765.3](https://github.com/lightdash/lightdash/compare/0.765.2...0.765.3) (2023-09-04)
+
+
+### Bug Fixes
+
+* fix total right axis ([#6989](https://github.com/lightdash/lightdash/issues/6989)) ([36c51d3](https://github.com/lightdash/lightdash/commit/36c51d3ba4e0925250707a6bf25a0efe23bdf09f))
+
 ## [0.765.2](https://github.com/lightdash/lightdash/compare/0.765.1...0.765.2) (2023-09-04)
 
 
