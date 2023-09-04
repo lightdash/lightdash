@@ -1,3 +1,10 @@
+# [0.767.0](https://github.com/lightdash/lightdash/compare/0.766.0...0.767.0) (2023-09-04)
+
+
+### Features
+
+* disable csv while google sheets are exporting ([#6985](https://github.com/lightdash/lightdash/issues/6985)) ([7b26269](https://github.com/lightdash/lightdash/commit/7b2626936c04bbb48146cb36b6b5bbfd2e1f49c7))
+
 # [0.766.0](https://github.com/lightdash/lightdash/compare/0.765.9...0.766.0) (2023-09-04)
 
 
