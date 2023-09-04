@@ -1,3 +1,10 @@
+## [0.765.2](https://github.com/lightdash/lightdash/compare/0.765.1...0.765.2) (2023-09-04)
+
+
+### Bug Fixes
+
+* throw error when filtering on non aggregated metric ([#6978](https://github.com/lightdash/lightdash/issues/6978)) ([096304d](https://github.com/lightdash/lightdash/commit/096304dd040249c027be7d23a8f14bc16fafba3e))
+
 ## [0.765.1](https://github.com/lightdash/lightdash/compare/0.765.0...0.765.1) (2023-09-01)
 
 
