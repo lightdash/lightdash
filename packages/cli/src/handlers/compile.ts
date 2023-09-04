@@ -36,13 +36,15 @@ export type CompileHandlerOptions = DbtCompileOptions & {
 };
 
 export const compile = async (options: CompileHandlerOptions) => {
+    const dbtVersion = await getDbtVersion();
+    const manifestVersion = await getDbtManifest();
+    GlobalState.debug(`> dbt version ${dbtVersion}`);
     await LightdashAnalytics.track({
         event: 'compile.started',
-        properties: {},
+        properties: {
+            dbtVersion,
+        },
     });
-
-    const dbtVersion = await getDbtVersion();
-    GlobalState.debug(`> dbt version ${dbtVersion}`);
 
     if (!isSupportedDbtVersion(dbtVersion)) {
         if (process.env.CI === 'true') {
@@ -123,6 +125,7 @@ ${errors.join('')}`),
         await LightdashAnalytics.track({
             event: 'compile.error',
             properties: {
+                dbtVersion,
                 error: `Dbt adapter ${manifest.metadata.adapter_type} is not supported`,
             },
         });
@@ -139,7 +142,7 @@ ${errors.join('')}`),
         validModelsWithTypes,
         false,
         manifest.metadata.adapter_type,
-        (await getDbtManifest()) === DbtManifestVersion.V10
+        manifestVersion === DbtManifestVersion.V10
             ? []
             : Object.values(manifest.metrics),
         warehouseClient,
@@ -170,6 +173,8 @@ ${errors.join('')}`),
         properties: {
             explores: explores.length,
             errors,
+            dbtMetrics: Object.values(manifest.metrics).length,
+            dbtVersion,
         },
     });
     return explores;
