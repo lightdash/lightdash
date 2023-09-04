@@ -1183,6 +1183,7 @@ const getStackTotalSeries = (
                     flipAxis,
                     selectedLegendNames,
                 ),
+                yAxisIndex: series[0].yAxisIndex,
             };
             return [...acc, stackSeries];
         },
