@@ -108,6 +108,8 @@ const TableValidationItem = forwardRef<
         >
             <td>
                 <Anchor
+                    href={getLinkToResource(validationError, projectUuid)}
+                    target="_blank"
                     sx={{
                         color: 'unset',
                         ':hover': {
@@ -115,8 +117,9 @@ const TableValidationItem = forwardRef<
                             textDecoration: 'none',
                         },
                     }}
-                    href={getLinkToResource(validationError, projectUuid)}
-                    target="_blank"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                    }}
                 >
                     <Flex gap="sm" align="center">
                         <Icon validationError={validationError} />
