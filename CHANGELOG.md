@@ -1,3 +1,10 @@
+## [0.765.9](https://github.com/lightdash/lightdash/compare/0.765.8...0.765.9) (2023-09-04)
+
+
+### Bug Fixes
+
+* validator item opens two tabs ([#6992](https://github.com/lightdash/lightdash/issues/6992)) ([df45d08](https://github.com/lightdash/lightdash/commit/df45d08d6419e2cfd9a803735c5a0adb626770c7))
+
 ## [0.765.8](https://github.com/lightdash/lightdash/compare/0.765.7...0.765.8) (2023-09-04)
 
 
