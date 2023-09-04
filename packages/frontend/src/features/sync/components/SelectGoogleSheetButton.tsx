@@ -53,6 +53,7 @@ export const SelectGoogleSheetButton: FC = () => {
                 developerKey: health.data.auth.google.googleDriveApiKey,
                 token: accessToken,
                 showUploadView: true,
+                viewId: 'SPREADSHEETS',
                 showUploadFolders: true,
                 setSelectFolderEnabled: false,
                 setIncludeFolders: true,
