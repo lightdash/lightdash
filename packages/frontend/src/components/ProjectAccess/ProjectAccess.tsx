@@ -14,7 +14,8 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
 } from '@lightdash/common';
-import { Button, Group, Stack, Modal, Title, Text } from '@mantine/core';
+import { Button, Group, Modal, Stack, Text, Title } from '@mantine/core';
+import { IconKey, IconTrash } from '@tabler/icons-react';
 import { FC, useMemo, useState } from 'react';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import {
@@ -24,6 +25,7 @@ import {
 } from '../../hooks/useProjectAccess';
 import { useApp } from '../../providers/AppProvider';
 import { useAbilityContext } from '../common/Authorization';
+import MantineIcon from '../common/MantineIcon';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import {
     ItemContent,
@@ -34,8 +36,6 @@ import {
     UserInfo,
     UserName,
 } from './ProjectAccess.styles';
-import { IconKey, IconTrash } from '@tabler/icons-react';
-import MantineIcon from '../common/MantineIcon';
 
 const UserListItem: FC<{
     user: OrganizationMemberProfile | ProjectMemberProfile;
@@ -121,21 +121,20 @@ const UserListItem: FC<{
                 onClose={() => setIsDeleteDialogOpen(false)}
                 title={
                     <Group spacing="xs">
-                        <MantineIcon
-                            size="lg"
-                            icon={IconKey}
-                            color="red"
-                        />
+                        <MantineIcon size="lg" icon={IconKey} color="red" />
                         <Title order={4}>Revoke project access</Title>
                     </Group>
                 }
-            >   
+            >
                 <Text pb="md">
                     Are you sure you want to revoke project access for this user{' '}
-                        {email} ?
+                    {email} ?
                 </Text>
                 <Group spacing="xs" position="right">
-                    <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+                    <Button
+                        variant="outline"
+                        onClick={() => setIsDeleteDialogOpen(false)}
+                    >
                         Cancel
                     </Button>
                     <Button color="red" onClick={onDelete}>

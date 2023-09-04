@@ -9,6 +9,7 @@ import {
     Text,
     Title,
 } from '@mantine/core';
+import { IconTrash } from '@tabler/icons-react';
 import { Dispatch, FC, SetStateAction, useEffect, useState } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import {
@@ -16,7 +17,6 @@ import {
     useDeleteAccessToken,
 } from '../../../hooks/useAccessToken';
 import MantineIcon from '../../common/MantineIcon';
-import { IconTrash } from '@tabler/icons-react';
 
 const TokenItem: FC<{
     token: ApiPersonalAccessTokenResponse;

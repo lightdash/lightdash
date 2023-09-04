@@ -193,8 +193,8 @@ const UserListItem: FC<{
                                     onClick={() => setIsDeleteDialogOpen(true)}
                                     disabled={disabled}
                                     color="red"
-                                >         
-                                    <MantineIcon icon={IconTrash} />        
+                                >
+                                    <MantineIcon icon={IconTrash} />
                                 </Button>
                             </Group>
                             <Modal
