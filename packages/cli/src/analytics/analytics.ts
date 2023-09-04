@@ -119,7 +119,10 @@ type CliRefreshError = BaseTrack & {
 
 type CliCompileStarted = BaseTrack & {
     event: 'compile.started';
-    properties: {};
+    properties: {
+        dbtVersion: string;
+        manifestVersion: string;
+    };
 };
 type CliCompileCompleted = BaseTrack & {
     event: 'compile.completed';
@@ -134,6 +137,8 @@ type CliCompileCompleted = BaseTrack & {
 type CliCompileError = BaseTrack & {
     event: 'compile.error';
     properties: {
+        dbtVersion: string;
+        manifestVersion: string;
         error: string;
     };
 };

@@ -36,14 +36,16 @@ export type CompileHandlerOptions = DbtCompileOptions & {
 };
 
 export const compile = async (options: CompileHandlerOptions) => {
-    await LightdashAnalytics.track({
-        event: 'compile.started',
-        properties: {},
-    });
-
     const dbtVersion = await getDbtVersion();
     const manifestVersion = await getDbtManifest();
     GlobalState.debug(`> dbt version ${dbtVersion}`);
+    await LightdashAnalytics.track({
+        event: 'compile.started',
+        properties: {
+            dbtVersion,
+            manifestVersion,
+        },
+    });
 
     if (!isSupportedDbtVersion(dbtVersion)) {
         if (process.env.CI === 'true') {
@@ -124,6 +126,8 @@ ${errors.join('')}`),
         await LightdashAnalytics.track({
             event: 'compile.error',
             properties: {
+                dbtVersion,
+                manifestVersion,
                 error: `Dbt adapter ${manifest.metadata.adapter_type} is not supported`,
             },
         });
