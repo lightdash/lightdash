@@ -18,7 +18,7 @@ import {
     IconPlus,
     IconTrash,
 } from '@tabler/icons-react';
-import { FC } from 'react';
+import { FC, Fragment, useMemo } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
@@ -40,6 +40,16 @@ interface ResourceViewActionMenuProps
     onClose?: () => void;
 }
 
+enum SpaceType {
+    SharedWithMe,
+    AdminContentView,
+}
+
+const SpaceTypeLabels = {
+    [SpaceType.SharedWithMe]: 'Shared with me',
+    [SpaceType.AdminContentView]: 'Admin content view',
+};
+
 const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     item,
     isOpen,
@@ -54,6 +64,28 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
     const isPinned = !!item.data.pinnedListUuid;
     const isDashboardPage = location.pathname.includes('/dashboards');
+
+    const spacesSharedWithMe = useMemo(() => {
+        return spaces.filter((space) => {
+            return user.data && space.access.includes(user.data.userUuid);
+        });
+    }, [spaces, user.data]);
+
+    const spacesAdminsCanSee = useMemo(() => {
+        return spaces.filter((space) => {
+            return (
+                spacesSharedWithMe.find((s) => s.uuid === space.uuid) ===
+                undefined
+            );
+        });
+    }, [spaces, spacesSharedWithMe]);
+
+    const spacesByType = useMemo(() => {
+        return {
+            [SpaceType.SharedWithMe]: spacesSharedWithMe,
+            [SpaceType.AdminContentView]: spacesAdminsCanSee,
+        };
+    }, [spacesSharedWithMe, spacesAdminsCanSee]);
 
     switch (item.type) {
         case ResourceViewItemType.CHART:
@@ -212,55 +244,93 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             </Menu.Target>
 
                             <Menu.Dropdown maw={320}>
-                                {spaces.map((space) => (
-                                    <Menu.Item
-                                        key={space.uuid}
-                                        role="menuitem"
-                                        disabled={
-                                            item.data.spaceUuid === space.uuid
-                                        }
-                                        icon={
-                                            item.data.spaceUuid ===
-                                            space.uuid ? (
-                                                <IconCheck size={18} />
-                                            ) : (
-                                                <Box w={18} h={18} />
-                                            )
-                                        }
-                                        component="button"
-                                        onClick={() => {
-                                            // TODO: remove when #6626 is closed
-                                            console.log('--------------------');
-                                            console.log(
-                                                'onClick in ResourceActionMenu',
-                                            );
-                                            console.log(
-                                                'item.data.spaceUuid',
-                                                item.data.spaceUuid,
-                                            );
-                                            console.log(
-                                                'space.uuid',
-                                                space.uuid,
-                                            );
-                                            console.log('====================');
-                                            if (
-                                                item.data.spaceUuid !==
-                                                space.uuid
-                                            ) {
-                                                onAction({
-                                                    type: ResourceViewItemAction.MOVE_TO_SPACE,
-                                                    item,
-                                                    data: {
-                                                        ...item.data,
-                                                        spaceUuid: space.uuid,
-                                                    },
-                                                });
-                                            }
-                                        }}
-                                    >
-                                        {space.name}
-                                    </Menu.Item>
+                                {[
+                                    SpaceType.SharedWithMe,
+                                    SpaceType.AdminContentView,
+                                ].map((spaceType) => (
+                                    <Fragment key={spaceType}>
+                                        {spacesByType[
+                                            SpaceType.AdminContentView
+                                        ].length > 0 ? (
+                                            <>
+                                                {spaceType ===
+                                                SpaceType.AdminContentView ? (
+                                                    <Menu.Divider />
+                                                ) : null}
+
+                                                <Menu.Label>
+                                                    {SpaceTypeLabels[spaceType]}
+                                                </Menu.Label>
+                                            </>
+                                        ) : null}
+
+                                        {spacesByType[spaceType].map(
+                                            (space) => (
+                                                <Menu.Item
+                                                    key={space.uuid}
+                                                    role="menuitem"
+                                                    disabled={
+                                                        item.data.spaceUuid ===
+                                                        space.uuid
+                                                    }
+                                                    icon={
+                                                        item.data.spaceUuid ===
+                                                        space.uuid ? (
+                                                            <IconCheck
+                                                                size={18}
+                                                            />
+                                                        ) : (
+                                                            <Box
+                                                                w={18}
+                                                                h={18}
+                                                            />
+                                                        )
+                                                    }
+                                                    component="button"
+                                                    onClick={() => {
+                                                        // TODO: remove when #6626 is closed
+                                                        console.log(
+                                                            '--------------------',
+                                                        );
+                                                        console.log(
+                                                            'onClick in ResourceActionMenu',
+                                                        );
+                                                        console.log(
+                                                            'item.data.spaceUuid',
+                                                            item.data.spaceUuid,
+                                                        );
+                                                        console.log(
+                                                            'space.uuid',
+                                                            space.uuid,
+                                                        );
+                                                        console.log(
+                                                            '====================',
+                                                        );
+                                                        if (
+                                                            item.data
+                                                                .spaceUuid !==
+                                                            space.uuid
+                                                        ) {
+                                                            onAction({
+                                                                type: ResourceViewItemAction.MOVE_TO_SPACE,
+                                                                item,
+                                                                data: {
+                                                                    ...item.data,
+                                                                    spaceUuid:
+                                                                        space.uuid,
+                                                                },
+                                                            });
+                                                        }
+                                                    }}
+                                                >
+                                                    {space.name}
+                                                </Menu.Item>
+                                            ),
+                                        )}
+                                    </Fragment>
                                 ))}
+
+                                {spaces.length > 0 ? <Menu.Divider /> : null}
 
                                 <Menu.Item
                                     component="button"
