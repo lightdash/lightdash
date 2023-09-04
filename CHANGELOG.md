@@ -1,3 +1,10 @@
+## [0.767.1](https://github.com/lightdash/lightdash/compare/0.767.0...0.767.1) (2023-09-04)
+
+
+### Bug Fixes
+
+* additional metric date formatting ([#6940](https://github.com/lightdash/lightdash/issues/6940)) ([ed138df](https://github.com/lightdash/lightdash/commit/ed138dfb8ea8c879c6843f36dd4639d773c7509b))
+
 # [0.767.0](https://github.com/lightdash/lightdash/compare/0.766.0...0.767.0) (2023-09-04)
 
 
