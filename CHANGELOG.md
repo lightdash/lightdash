@@ -1,3 +1,10 @@
+## [0.765.6](https://github.com/lightdash/lightdash/compare/0.765.5...0.765.6) (2023-09-04)
+
+
+### Bug Fixes
+
+* fix total legend with multiple series ([#6994](https://github.com/lightdash/lightdash/issues/6994)) ([64ac3c7](https://github.com/lightdash/lightdash/commit/64ac3c7ffe6740122b70886cb9b901e87588ace5))
+
 ## [0.765.5](https://github.com/lightdash/lightdash/compare/0.765.4...0.765.5) (2023-09-04)
 
 
