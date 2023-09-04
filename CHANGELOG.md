@@ -1,3 +1,10 @@
+## [0.765.7](https://github.com/lightdash/lightdash/compare/0.765.6...0.765.7) (2023-09-04)
+
+
+### Bug Fixes
+
+* admins should see all spaces when moving items ([#6993](https://github.com/lightdash/lightdash/issues/6993)) ([f08b895](https://github.com/lightdash/lightdash/commit/f08b8956005f7e9c42523b8084f2d86f927c4bfe))
+
 ## [0.765.6](https://github.com/lightdash/lightdash/compare/0.765.5...0.765.6) (2023-09-04)
 
 
