@@ -1,5 +1,5 @@
 import { Badge, Button, CloseButton, Tooltip } from '@mantine/core';
-import { FC, useCallback } from 'react';
+import { FC, useCallback, useState } from 'react';
 import useDrivePicker from 'react-google-drive-picker';
 import { useFormContext } from 'react-hook-form';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -12,7 +12,8 @@ export const SelectGoogleSheetButton: FC = () => {
     const health = useHealth();
     const [openPicker] = useDrivePicker();
 
-    const { data: gdriveAuth, refetch } = useGdriveAccessToken();
+    const [isGoogleAuthQueryEnabled, setIsGoogleAuthQueryEnabled] =
+        useState(false);
 
     const googleDriveId = methods.watch('options.gdriveId');
     const googleDriveName = methods.watch('options.gdriveName');
@@ -39,43 +40,17 @@ export const SelectGoogleSheetButton: FC = () => {
         [methods],
     );
 
-    const handleOpenPicker = useCallback(
-        (accessToken: string | undefined) => {
+    useGdriveAccessToken({
+        enabled: isGoogleAuthQueryEnabled,
+        onSuccess: (accessToken) => {
             if (
                 !health.data?.auth.google.oauth2ClientId ||
                 !health.data.auth.google.googleDriveApiKey
             )
                 return;
-
-            // TODO: Create hook/util to check and initiate google drive auth
-            if (accessToken === undefined) {
-                const gdriveUrl = `${health?.data?.siteUrl}/api/v1/login/gdrive`;
-                const googleLoginPopup = window.open(
-                    gdriveUrl,
-                    'login-popup',
-                    'width=600,height=600',
-                );
-
-                // Refetching until user logs in with google drive auth
-                const refetchAuth = setInterval(() => {
-                    refetch().then((r) => {
-                        if (googleLoginPopup?.closed) {
-                            clearInterval(refetchAuth);
-                        }
-                        if (r.data !== undefined) {
-                            clearInterval(refetchAuth);
-                            googleLoginPopup?.close();
-                            handleOpenPicker(r.data);
-                        }
-                    });
-                }, 2000);
-                return false;
-            }
-
             openPicker({
                 clientId: health.data?.auth.google.oauth2ClientId,
                 developerKey: health.data.auth.google.googleDriveApiKey,
-                viewId: 'SPREADSHEETS',
                 token: accessToken,
                 showUploadView: true,
                 showUploadFolders: true,
@@ -85,9 +60,9 @@ export const SelectGoogleSheetButton: FC = () => {
                 multiselect: false,
                 callbackFunction: onGooglePickerSelect,
             });
+            setIsGoogleAuthQueryEnabled(false);
         },
-        [openPicker, health?.data, refetch, onGooglePickerSelect],
-    );
+    });
 
     if (googleDriveId) {
         return (
@@ -135,7 +110,7 @@ export const SelectGoogleSheetButton: FC = () => {
             <Button
                 size="xs"
                 onClick={() => {
-                    handleOpenPicker(gdriveAuth);
+                    setIsGoogleAuthQueryEnabled(true);
                 }}
             >
                 Select Google Sheet via Google drive

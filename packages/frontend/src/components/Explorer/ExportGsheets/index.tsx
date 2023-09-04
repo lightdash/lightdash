@@ -1,15 +1,14 @@
+import { Spinner } from '@blueprintjs/core';
+import { MenuItem2 } from '@blueprintjs/popover2';
 import {
     ApiDownloadCsv,
     ApiError,
     ApiScheduledDownloadCsv,
     SchedulerJobStatus,
 } from '@lightdash/common';
-import { FC, memo, useCallback } from 'react';
-import { useMutation, useQuery } from 'react-query';
-
-import { Spinner } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
 import { Button } from '@mantine/core';
+import { FC, memo, useState } from 'react';
+import { useMutation, useQuery } from 'react-query';
 import { getCsvFileUrl } from '../../../api/csv';
 import { useGdriveAccessToken } from '../../../hooks/gdrive/useGdrive';
 import useHealth from '../../../hooks/health/useHealth';
@@ -26,12 +25,12 @@ export type ExportGsheetProps = {
 
 const ExportGsheets: FC<ExportGsheetProps> = memo(
     ({ getGsheetLink, asMenuItem, disabled }) => {
-        const { data: gdriveAuth, refetch } = useGdriveAccessToken();
         const health = useHealth();
         const hasGoogleDrive =
             health.data?.auth.google.oauth2ClientId !== undefined &&
             health.data?.auth.google.googleDriveApiKey !== undefined;
-
+        const [isGoogleAuthQueryEnabled, setIsGoogleAuthQueryEnabled] =
+            useState(false);
         const { showToastError, showToast } = useToaster();
 
         // TODO: move to own hook
@@ -62,6 +61,7 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
                 });
             },
         });
+
         // TODO: move to own hook
         const { data: exportGoogleSheetData } = useQuery<
             ApiDownloadCsv | undefined,
@@ -104,46 +104,13 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
             enabled: !!startGoogleSheetExportData,
         });
 
-        const handleLoginAndExport = useCallback(() => {
-            if (
-                !health.data?.auth.google.oauth2ClientId ||
-                !health.data.auth.google.googleDriveApiKey
-            )
-                return;
-
-            if (gdriveAuth === undefined) {
-                const gdriveUrl = `${health?.data?.siteUrl}/api/v1/login/gdrive`;
-                const googleLoginPopup = window.open(
-                    gdriveUrl,
-                    'login-popup',
-                    'width=600,height=600',
-                );
-
-                // Refetching until user logs in with google drive auth
-                const refetchAuth = setInterval(() => {
-                    refetch().then((r) => {
-                        if (googleLoginPopup?.closed) {
-                            clearInterval(refetchAuth);
-                        }
-                        if (r.data !== undefined) {
-                            clearInterval(refetchAuth);
-                            googleLoginPopup?.close();
-                            startGoogleSheetExport();
-                        }
-                    });
-                }, 2000);
-                return false;
-            }
-
-            startGoogleSheetExport();
-        }, [
-            gdriveAuth,
-            health.data?.auth.google.googleDriveApiKey,
-            health.data?.auth.google.oauth2ClientId,
-            health.data?.siteUrl,
-            refetch,
-            startGoogleSheetExport,
-        ]);
+        useGdriveAccessToken({
+            enabled: isGoogleAuthQueryEnabled,
+            onSuccess: () => {
+                startGoogleSheetExport();
+                setIsGoogleAuthQueryEnabled(false);
+            },
+        });
 
         const isExportingGoogleSheets =
             !!startGoogleSheetExportData && !exportGoogleSheetData?.url;
@@ -167,7 +134,7 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
                     text="Export Google Sheets"
                     disabled={isExportingGoogleSheets || disabled}
                     shouldDismissPopover={false}
-                    onClick={handleLoginAndExport}
+                    onClick={() => setIsGoogleAuthQueryEnabled(true)}
                 />
             );
         }
@@ -177,7 +144,7 @@ const ExportGsheets: FC<ExportGsheetProps> = memo(
                 variant="default"
                 loading={isExportingGoogleSheets}
                 leftIcon={<MantineIcon icon={GsheetsIcon} />}
-                onClick={handleLoginAndExport}
+                onClick={() => setIsGoogleAuthQueryEnabled(true)}
                 disabled={disabled}
             >
                 Google Sheets
