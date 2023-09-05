@@ -13,6 +13,7 @@ import {
     isEmailTarget,
     isSchedulerCsvOptions,
     isSchedulerGsheetsOptions,
+    isSchedulerImageOptions,
     isSlackTarget,
     LightdashPage,
     NotificationPayloadBase,
@@ -115,6 +116,7 @@ export const getNotificationPageData = async (
     let imageUrl;
     let csvUrl;
     let csvUrls;
+    let pdfFile;
     const {
         url,
         minimalUrl,
@@ -126,15 +128,22 @@ export const getNotificationPageData = async (
 
     switch (format) {
         case SchedulerFormat.IMAGE:
-            imageUrl = await unfurlService.unfurlImage(
+            const imageId = `slack-image-notification-${nanoid()}`;
+            const imageOptions = isSchedulerImageOptions(scheduler.options)
+                ? scheduler.options
+                : undefined;
+            const unfurlImage = await unfurlService.unfurlImage(
                 minimalUrl,
                 pageType,
-                `slack-image-notification-${nanoid()}`,
+                imageId,
                 userUuid,
+                imageOptions?.withPdf,
             );
-            if (imageUrl === undefined) {
+            if (unfurlImage.imageUrl === undefined) {
                 throw new Error('Unable to unfurl image');
             }
+            pdfFile = unfurlImage.pdfPath;
+            imageUrl = unfurlImage.imageUrl;
             break;
         case SchedulerFormat.GSHEETS:
             // We don't generate CSV files for Google sheets on handleNotification task,
@@ -222,6 +231,7 @@ export const getNotificationPageData = async (
         imageUrl,
         csvUrl,
         csvUrls,
+        pdfFile,
     };
 };
 
@@ -285,6 +295,7 @@ export const sendSlackNotification = async (
             imageUrl,
             csvUrl,
             csvUrls,
+            pdfFile, // TODO add pdf to slack
         } =
             notification.page ??
             (await getNotificationPageData(scheduler, jobId));
@@ -751,7 +762,7 @@ export const sendEmailNotification = async (
         });
 
         // Backwards compatibility for old scheduled deliveries
-        const { url, details, pageType, imageUrl, csvUrl, csvUrls } =
+        const { url, details, pageType, imageUrl, csvUrl, csvUrls, pdfFile } =
             notification.page ??
             (await getNotificationPageData(scheduler, jobId));
         const schedulerUrl = `${url}?scheduler_uuid=${schedulerUuid}`;
@@ -770,6 +781,7 @@ export const sendEmailNotification = async (
                 imageUrl,
                 url,
                 schedulerUrl,
+                pdfFile,
             );
         } else if (savedChartUuid) {
             if (csvUrl === undefined) {

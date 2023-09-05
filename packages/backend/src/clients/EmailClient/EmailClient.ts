@@ -189,6 +189,7 @@ export default class EmailClient {
         imageUrl: string,
         url: string,
         schedulerUrl: string,
+        pdfFile?: string,
     ) {
         return this.sendEmail({
             to: recipient,
@@ -205,6 +206,15 @@ export default class EmailClient {
                 schedulerUrl,
             },
             text: title,
+            attachments: pdfFile
+                ? [
+                      {
+                          filename: `${title}.pdf`,
+                          path: pdfFile,
+                          contentType: 'application/pdf',
+                      },
+                  ]
+                : undefined,
         });
     }
 

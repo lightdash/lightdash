@@ -9,8 +9,10 @@ import {
     snakeCaseName,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import * as fsPromise from 'fs/promises';
 import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
+import { PDFDocument } from 'pdf-lib';
 import puppeteer from 'puppeteer';
 import { S3Service } from '../../clients/Aws/s3';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -187,12 +189,35 @@ export class UnfurlService {
         };
     }
 
+    static async createImagePdf(
+        imageId: string,
+        buffer: Buffer,
+    ): Promise<string> {
+        const pdfDoc = await PDFDocument.create();
+        const pngImage = await pdfDoc.embedPng(buffer);
+        const page = pdfDoc.addPage();
+        const { width, height } = page.getSize();
+        const scaled = pngImage.scaleToFit(width, height);
+        page.drawImage(pngImage, {
+            x: 0,
+            y: 0,
+            width: scaled.width,
+            height: scaled.height,
+        });
+        const path = `/tmp/${imageId}.pdf`;
+        const pdfBytes = await pdfDoc.save();
+        await fsPromise.writeFile(path, pdfBytes);
+
+        return path;
+    }
+
     async unfurlImage(
         url: string,
         lightdashPage: LightdashPage,
         imageId: string,
         authUserUuid: string,
-    ): Promise<string | undefined> {
+        withPdf: boolean = false,
+    ): Promise<{ imageUrl?: string; pdfPath?: string }> {
         const cookie = await this.getUserCookie(authUserUuid);
         const details = await this.unfurlDetails(url);
         const buffer = await this.saveScreenshot(
@@ -204,7 +229,11 @@ export class UnfurlService {
         );
 
         let imageUrl;
+        let pdfPath;
         if (buffer !== undefined) {
+            if (withPdf)
+                pdfPath = await UnfurlService.createImagePdf(imageId, buffer);
+
             if (this.s3Service.isEnabled()) {
                 imageUrl = await this.s3Service.uploadImage(buffer, imageId);
             } else {
@@ -213,7 +242,7 @@ export class UnfurlService {
             }
         }
 
-        return imageUrl;
+        return { imageUrl, pdfPath };
     }
 
     async exportDashboard(
@@ -237,16 +266,16 @@ export class UnfurlService {
         ) {
             throw new ForbiddenError();
         }
-        const imageUrl = await this.unfurlImage(
+        const unfurlImage = await this.unfurlImage(
             minimalUrl,
             pageType,
             `slack-image_${snakeCaseName(name)}_${useNanoid()}`, // In order to use local images from slackRouter, image needs to start with slack-image
             user.userUuid,
         );
-        if (imageUrl === undefined) {
+        if (unfurlImage.imageUrl === undefined) {
             throw new Error('Unable to unfurl image');
         }
-        return imageUrl;
+        return unfurlImage.imageUrl;
     }
 
     private async saveScreenshot(
