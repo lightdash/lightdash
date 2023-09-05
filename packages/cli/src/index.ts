@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { LightdashError } from '@lightdash/common';
-import { InvalidArgumentError, program } from 'commander';
+import { InvalidArgumentError, Option, program } from 'commander';
 import * as os from 'os';
 import * as path from 'path';
 import { compileHandler } from './handlers/compile';
@@ -14,10 +14,7 @@ import {
     startPreviewHandler,
     stopPreviewHandler,
 } from './handlers/preview';
-import {
-    setProjectByNameHandler,
-    setProjectInteractivelyHandler,
-} from './handlers/setProject';
+import { setProjectHandler } from './handlers/setProject';
 import { validateHandler } from './handlers/validate';
 import * as styles from './styles';
 
@@ -163,17 +160,22 @@ const configProgram = program
 configProgram
     .command('set-project')
     .description(
-        'Interactively choose project.\nSee https://docs.lightdash.com/guides/cli/cli-authentication#set-active-project for more help and examples',
+        'Choose project.\nSee https://docs.lightdash.com/guides/cli/cli-authentication#set-active-project for more help and examples',
     )
     .option('--verbose', undefined, false)
-    .action(setProjectInteractivelyHandler);
-configProgram
-    .command('set-project-by-name <projectName>')
-    .description(
-        'Set the project using its name without any interactive prompt',
+    .addOption(
+        new Option(
+            '--name <project_name>',
+            'Set the project non-interactively by passing a project name.',
+        ),
     )
-    .option('--verbose', undefined, false)
-    .action(setProjectByNameHandler);
+    .addOption(
+        new Option(
+            '--uuid <project_uuid>',
+            'Set the project non-interactively by passing a project uuid.',
+        ).conflicts('name'),
+    )
+    .action(setProjectHandler);
 
 const dbtProgram = program.command('dbt').description('runs dbt commands');
 
