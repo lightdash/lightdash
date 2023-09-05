@@ -135,11 +135,9 @@ const UserAttributeModal: FC<{
                         {...form.getInputProps('description')}
                     />
                     <Stack spacing={0}>
-                        <Text fw={500} mb={0}>
-                            Default value
-                        </Text>
+                        <Text fw={500}>Default value</Text>
 
-                        <Group mt={0} h={36}>
+                        <Group h={36}>
                             <Switch
                                 checked={checked}
                                 onChange={(event) => {
