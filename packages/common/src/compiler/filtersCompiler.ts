@@ -342,7 +342,8 @@ export const renderFilterRuleSql = (
                 startOfWeek,
             );
         }
-        case DimensionType.TIMESTAMP: {
+        case DimensionType.TIMESTAMP:
+        case MetricType.TIMESTAMP: {
             return renderDateFilterSql(
                 fieldSql,
                 filterRule,

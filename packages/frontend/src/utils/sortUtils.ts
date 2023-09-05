@@ -101,6 +101,7 @@ export const getSortLabel = (
                     ? StringSortLabels.ASC
                     : StringSortLabels.DESC;
             case MetricType.DATE:
+            case MetricType.TIMESTAMP:
                 return direction === SortDirection.ASC
                     ? DateSortLabels.ASC
                     : DateSortLabels.DESC;

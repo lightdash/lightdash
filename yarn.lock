@@ -2960,6 +2960,14 @@
   resolved "https://registry.npmjs.org/@mantine/hooks/-/hooks-6.0.14.tgz"
   integrity sha512-cBGdTSdBDLcPScoeI12DCWFVzmT4tX+DmI9s+MOBm4IdhF4ogkLbbRgKosFbaBWNKx9WzYAUiQR/tUI5dTkJPQ==
 
+"@mantine/prism@^6.0.14":
+  version "6.0.19"
+  resolved "https://registry.yarnpkg.com/@mantine/prism/-/prism-6.0.19.tgz#6d8525d5e8e63acba2a9853b62be6cc60e1e1366"
+  integrity sha512-IsXPeNtoPuns+zB5kI3gY5ioEMmzFWcogWoUIOwaZpNMj5nn6OM6ihKPYpsEmHFiGIyR2qzFRF/VPMDhv9m7pg==
+  dependencies:
+    "@mantine/utils" "6.0.19"
+    prism-react-renderer "^1.2.1"
+
 "@mantine/spotlight@^6.0.14":
   version "6.0.14"
   resolved "https://registry.npmjs.org/@mantine/spotlight/-/spotlight-6.0.14.tgz"
@@ -2984,6 +2992,11 @@
   version "6.0.17"
   resolved "https://registry.npmjs.org/@mantine/utils/-/utils-6.0.17.tgz"
   integrity sha512-U6SWV/asYE6NhiHx4ltmVZdQR3HwGVqJxVulhOylMcV1tX/P1LMQUCbGV2Oe4O9jbX4/YW5B/CBb4BbEhENQFQ==
+
+"@mantine/utils@6.0.19":
+  version "6.0.19"
+  resolved "https://registry.yarnpkg.com/@mantine/utils/-/utils-6.0.19.tgz#0197fccc5649259787d5468228139f8815909803"
+  integrity sha512-duvtnaW1gDR2gnvUqnWhl6DMW7sN0HEWqS8Z/BbwaMi75U+Xp17Q72R9JtiIrxQbzsq+KvH9L9B/pxMVwbLirg==
 
 "@mapbox/node-pre-gyp@^1.0.0":
   version "1.0.5"
@@ -15449,6 +15462,11 @@ pretty-format@^29.0.0, pretty-format@^29.0.3:
     "@jest/schemas" "^29.0.0"
     ansi-styles "^5.0.0"
     react-is "^18.0.0"
+
+prism-react-renderer@^1.2.1:
+  version "1.3.5"
+  resolved "https://registry.yarnpkg.com/prism-react-renderer/-/prism-react-renderer-1.3.5.tgz#786bb69aa6f73c32ba1ee813fbe17a0115435085"
+  integrity sha512-IJ+MSwBWKG+SM3b2SUfdrhC+gu01QkV2KmRQgREThBfSQRoufqRfxfHUxpG1WcaFjP+kojcFyO9Qqtpgt3qLCg==
 
 prismjs@~1.25.0:
   version "1.25.0"

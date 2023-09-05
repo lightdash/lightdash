@@ -32,7 +32,7 @@ const getItemIconName = (type: DimensionType | MetricType) => {
             return 'calendar';
         case DimensionType.BOOLEAN || MetricType.BOOLEAN:
             return 'segmented-control';
-        case DimensionType.TIMESTAMP:
+        case DimensionType.TIMESTAMP || MetricType.TIMESTAMP:
             return 'time';
         default:
             return 'numerical';

@@ -18,6 +18,7 @@ export function getDefaultMetricSql(sql: string, type: MetricType): string {
         case MetricType.NUMBER:
         case MetricType.STRING:
         case MetricType.DATE:
+        case MetricType.TIMESTAMP:
         case MetricType.BOOLEAN:
         case MetricType.PERCENTILE:
         case MetricType.MEDIAN:

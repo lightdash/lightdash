@@ -1,15 +1,17 @@
 // eslint-disable-next-line import/prefer-default-export
 export enum TimeFrames {
     RAW = 'RAW',
-    DAY = 'DAY',
-    WEEK = 'WEEK',
-    MONTH = 'MONTH',
-    QUARTER = 'QUARTER',
+
     YEAR = 'YEAR',
+    QUARTER = 'QUARTER',
+    MONTH = 'MONTH',
+    WEEK = 'WEEK',
+    DAY = 'DAY',
     HOUR = 'HOUR',
     MINUTE = 'MINUTE',
     SECOND = 'SECOND',
     MILLISECOND = 'MILLISECOND',
+
     DAY_OF_WEEK_INDEX = 'DAY_OF_WEEK_INDEX',
     DAY_OF_MONTH_NUM = 'DAY_OF_MONTH_NUM',
     DAY_OF_YEAR_NUM = 'DAY_OF_YEAR_NUM',

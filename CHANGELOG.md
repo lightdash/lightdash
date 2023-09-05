@@ -1,3 +1,87 @@
+# [0.768.0](https://github.com/lightdash/lightdash/compare/0.767.1...0.768.0) (2023-09-05)
+
+
+### Features
+
+* metricflow sql card ([#7004](https://github.com/lightdash/lightdash/issues/7004)) ([7a1d923](https://github.com/lightdash/lightdash/commit/7a1d923b2fb1cb6dc7c7c7c73ca6b7aae58579c2))
+
+## [0.767.1](https://github.com/lightdash/lightdash/compare/0.767.0...0.767.1) (2023-09-04)
+
+
+### Bug Fixes
+
+* additional metric date formatting ([#6940](https://github.com/lightdash/lightdash/issues/6940)) ([ed138df](https://github.com/lightdash/lightdash/commit/ed138dfb8ea8c879c6843f36dd4639d773c7509b))
+
+# [0.767.0](https://github.com/lightdash/lightdash/compare/0.766.0...0.767.0) (2023-09-04)
+
+
+### Features
+
+* disable csv while google sheets are exporting ([#6985](https://github.com/lightdash/lightdash/issues/6985)) ([7b26269](https://github.com/lightdash/lightdash/commit/7b2626936c04bbb48146cb36b6b5bbfd2e1f49c7))
+
+# [0.766.0](https://github.com/lightdash/lightdash/compare/0.765.9...0.766.0) (2023-09-04)
+
+
+### Features
+
+* resource view move to space sections ([#6999](https://github.com/lightdash/lightdash/issues/6999)) ([cfb00eb](https://github.com/lightdash/lightdash/commit/cfb00ebb2a91c1c58559d048adee5c3caa4b6088))
+
+## [0.765.9](https://github.com/lightdash/lightdash/compare/0.765.8...0.765.9) (2023-09-04)
+
+
+### Bug Fixes
+
+* validator item opens two tabs ([#6992](https://github.com/lightdash/lightdash/issues/6992)) ([df45d08](https://github.com/lightdash/lightdash/commit/df45d08d6419e2cfd9a803735c5a0adb626770c7))
+
+## [0.765.8](https://github.com/lightdash/lightdash/compare/0.765.7...0.765.8) (2023-09-04)
+
+
+### Bug Fixes
+
+* export dashboard with temporary filters ([#6984](https://github.com/lightdash/lightdash/issues/6984)) ([95b157c](https://github.com/lightdash/lightdash/commit/95b157c3f4631cc9d5fde7a2ef7a73b203c294a1))
+
+## [0.765.7](https://github.com/lightdash/lightdash/compare/0.765.6...0.765.7) (2023-09-04)
+
+
+### Bug Fixes
+
+* admins should see all spaces when moving items ([#6993](https://github.com/lightdash/lightdash/issues/6993)) ([f08b895](https://github.com/lightdash/lightdash/commit/f08b8956005f7e9c42523b8084f2d86f927c4bfe))
+
+## [0.765.6](https://github.com/lightdash/lightdash/compare/0.765.5...0.765.6) (2023-09-04)
+
+
+### Bug Fixes
+
+* fix total legend with multiple series ([#6994](https://github.com/lightdash/lightdash/issues/6994)) ([64ac3c7](https://github.com/lightdash/lightdash/commit/64ac3c7ffe6740122b70886cb9b901e87588ace5))
+
+## [0.765.5](https://github.com/lightdash/lightdash/compare/0.765.4...0.765.5) (2023-09-04)
+
+
+### Bug Fixes
+
+* remove feature flag for charts in dashboards ([#6986](https://github.com/lightdash/lightdash/issues/6986)) ([7a24ebf](https://github.com/lightdash/lightdash/commit/7a24ebf243953d573b004e1e166e44d32e40d7ef))
+
+## [0.765.4](https://github.com/lightdash/lightdash/compare/0.765.3...0.765.4) (2023-09-04)
+
+
+### Bug Fixes
+
+* add default suffix to metricflow time dimensions ([#6980](https://github.com/lightdash/lightdash/issues/6980)) ([35c3f57](https://github.com/lightdash/lightdash/commit/35c3f57d5d1269a46fbe29f8891dd00bf50902ac))
+
+## [0.765.3](https://github.com/lightdash/lightdash/compare/0.765.2...0.765.3) (2023-09-04)
+
+
+### Bug Fixes
+
+* fix total right axis ([#6989](https://github.com/lightdash/lightdash/issues/6989)) ([36c51d3](https://github.com/lightdash/lightdash/commit/36c51d3ba4e0925250707a6bf25a0efe23bdf09f))
+
+## [0.765.2](https://github.com/lightdash/lightdash/compare/0.765.1...0.765.2) (2023-09-04)
+
+
+### Bug Fixes
+
+* throw error when filtering on non aggregated metric ([#6978](https://github.com/lightdash/lightdash/issues/6978)) ([096304d](https://github.com/lightdash/lightdash/commit/096304dd040249c027be7d23a8f14bc16fafba3e))
+
 ## [0.765.1](https://github.com/lightdash/lightdash/compare/0.765.0...0.765.1) (2023-09-01)
 
 

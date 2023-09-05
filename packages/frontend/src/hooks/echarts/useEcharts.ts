@@ -76,6 +76,7 @@ const getAxisTypeFromField = (item?: Field | TableCalculation): string => {
             case MetricType.MAX:
                 return 'value';
             case DimensionType.TIMESTAMP:
+            case MetricType.TIMESTAMP:
             case DimensionType.DATE:
             case MetricType.DATE:
                 return 'time';
@@ -419,6 +420,7 @@ const getMinAndMaxReferenceLines = (
                     );
 
                 case DimensionType.TIMESTAMP:
+                case MetricType.TIMESTAMP:
                 case DimensionType.DATE:
                 case MetricType.DATE:
                     return serie.markLine?.data.reduce<string[]>(
@@ -1092,7 +1094,7 @@ const calculateStackTotal = (
 ) => {
     return series.reduce<number>((acc, s) => {
         const hash = flipAxis ? s.encode?.x : s.encode?.y;
-        const legendName = s.encode?.seriesName.split('.')[2];
+        const legendName = s.dimensions?.[1]?.displayName;
         let selected = true;
         for (const key in selectedLegendNames) {
             if (legendName === key) {
@@ -1183,6 +1185,7 @@ const getStackTotalSeries = (
                     flipAxis,
                     selectedLegendNames,
                 ),
+                yAxisIndex: series[0].yAxisIndex,
             };
             return [...acc, stackSeries];
         },
