@@ -115,7 +115,9 @@ const getTimeFormat = (
             timeFormat = 'HH:mm:ss:SSS';
             break;
     }
-    return `YYYY-MM-DD, ${timeFormat} (Z)`;
+    return `YYYY-MM-DD, ${timeFormat} ${
+        timeInterval !== TimeFrames.RAW ? '(Z)' : ''
+    }`;
 };
 
 export function formatTimestamp(
