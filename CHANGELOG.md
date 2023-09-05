@@ -1,3 +1,10 @@
+# [0.768.0](https://github.com/lightdash/lightdash/compare/0.767.1...0.768.0) (2023-09-05)
+
+
+### Features
+
+* metricflow sql card ([#7004](https://github.com/lightdash/lightdash/issues/7004)) ([7a1d923](https://github.com/lightdash/lightdash/commit/7a1d923b2fb1cb6dc7c7c7c73ca6b7aae58579c2))
+
 ## [0.767.1](https://github.com/lightdash/lightdash/compare/0.767.0...0.767.1) (2023-09-04)
 
 
