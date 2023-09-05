@@ -22,7 +22,6 @@ export default defineConfig({
         ],
         trashAssetsBeforeRuns: true,
         videoUploadOnPasses: false,
-        videoCompression: 50,
         setupNodeEvents(on, config) {
             cypressSplit(on, config);
             // IMPORTANT: return the config object
