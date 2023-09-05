@@ -12,13 +12,8 @@ Joins let you connect different models to each other so that you can explore mor
 
 Joins are defined at the same level as your model parameters in your YAML file.
 
-:::info
-
-All joins are defined as `LEFT OUTER` joins.
-
-:::
-
-```version: 2
+```yaml
+version: 2
 models:
   - name: users
     meta:
@@ -27,6 +22,7 @@ models:
           sql_on: ${web_sessions.user_id} = ${users.user_id}
         - join: subscriptions
           sql_on: ${subscriptions.user_id} = ${users.user_id} AND ${subscriptions.is_active}
+          type: inner
 ```
 
 When you open Lightdash, your joined models' dimensions and metrics will appear below the ones in your selected model.
@@ -77,6 +73,92 @@ Note the following important differences when aliasing models in joins:
    fail to compile. Be careful of aliasing tables that are used in the base model.
 3. Joined models are automatically relabelled with the alias but you may also customise this using the `label:` 
    field as above.
+
+## Specify your join type using `type`
+
+If you want to specify the type of join to be used in your SQL query, use the type field in your YAML configuration file. Set its value to one of the following: inner, left, right, or full. This will determine how the tables are joined in your query, aligning with SQL's INNER JOIN, LEFT OUTER JOIN, RIGHT OUTER JOIN, or FULL OUTER JOIN respectively.
+
+here's an example of how to specify a join type:
+
+```yaml
+models:
+  - name: messages
+    meta:
+      joins:
+        - join: users
+          type: inner
+          sql_on: ${messages.sent_by} = ${users.user_id}
+```
+
+:::info
+
+By default, if no `type` is specified, all joins are `LEFT OUTER` joins.
+
+:::
+
+## Join types
+
+Here's a table to help you understand what each join type means and how it translates to SQL:
+
+| Join Type              | Generated SQL      | Description                                                                                                                                                       |
+| ---------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`inner`](#type-inner) | `INNER JOIN`       | Returns rows that have matching values in both tables.                                                                                                            |
+| [`left`](#type-left)   | `LEFT OUTER JOIN`  | Returns all rows from the left table, and the matching rows from the right table. Non-matching rows will have `NULL` for right table's columns.                   |
+| [`right`](#type-right) | `RIGHT OUTER JOIN` | Returns all rows from the right table, and the matching rows from the left table. Non-matching rows will have `NULL` for left table's columns.                    |
+| [`full`](#type-full)   | `FULL OUTER JOIN`  | Returns all rows when there is a match in either the left or right table records. Non-matching rows will have `NULL` for columns of the table that lacks a match. |
+
+
+### inner
+
+An inner join returns rows that have matching values in both tables. For example, if you have a `users` table and a `subscriptions` table, an inner join would return only the users who have a subscription.
+
+Here's an example of how to specify an inner join:
+
+```yaml
+models:
+  - name: users
+    meta:
+      joins:
+        - join: subscriptions
+          sql_on: ${users.user_id} = ${subscriptions.user_id}
+          type: inner
+```
+
+### left
+
+A left join returns all rows from the left table, and the matching rows from the right table. Non-matching rows will have `NULL` for right table's columns. For example, if you have a `users` table and a `subscriptions` table, a left join would return all users, and the subscription information for users who have a subscription.
+
+Here's an example of how to specify a left join:
+
+```yaml
+models:
+  - name: users
+    meta:
+      joins:
+        - join: subscriptions
+          sql_on: ${users.user_id} = ${subscriptions.user_id}
+          type: left  # you can omit this, as left is the default
+```
+
+### right
+
+A right join returns all rows from the right table, and the matching rows from the left table. Non-matching rows will have `NULL` for left table's columns. For example, if you have a `users` table and a `subscriptions` table, a right join would return all subscriptions, and the user information for users who have a subscription.
+
+Here's an example of how to specify a right join:
+
+```yaml
+models:
+  - name: users
+    meta:
+      joins:
+        - join: subscriptions
+          sql_on: ${users.user_id} = ${subscriptions.user_id}
+          type: right
+```
+
+### full
+
+A full join returns all rows when there is a match in either the left or right table records. Non-matching rows will have `NULL` for columns of the table that lacks a match. For example, if you have a `users` table and a `subscriptions` table, a full join would return all users and all subscriptions, and the subscription information for users who have a subscription.
 
 ## Only select a subset of fields from a join
 
