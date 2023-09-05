@@ -2,11 +2,11 @@ import { CreateUserAttribute, UserAttribute } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
-    Checkbox,
     Group,
     Modal,
     Select,
     Stack,
+    Switch,
     Text,
     Textarea,
     TextInput,
@@ -134,11 +134,13 @@ const UserAttributeModal: FC<{
                         placeholder="E.g. The country where the user is querying data from."
                         {...form.getInputProps('description')}
                     />
-                    <Stack>
-                        <Text fw={500}>Default value</Text>
+                    <Stack spacing={0}>
+                        <Text fw={500} mb={0}>
+                            Default value
+                        </Text>
 
-                        <Group h={35}>
-                            <Checkbox
+                        <Group mt={0} h={36}>
+                            <Switch
                                 checked={checked}
                                 onChange={(event) => {
                                     const isChecked =
