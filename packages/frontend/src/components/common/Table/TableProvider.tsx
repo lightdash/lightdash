@@ -69,6 +69,18 @@ const rowColumn: TableColumn = {
     },
 };
 
+const calculateColumnVisibility = (columns: Props['columns']) =>
+    columns.reduce(
+        (acc, c) => ({
+            ...acc,
+            ...(c.id && {
+                [c.id]:
+                    c.meta && 'isVisible' in c.meta ? c.meta?.isVisible : true,
+            }),
+        }),
+        {},
+    );
+
 export const TableProvider: FC<Props> = ({
     hideRowNumbers,
     showColumnCalculation,
@@ -78,6 +90,11 @@ export const TableProvider: FC<Props> = ({
     const { showToastSuccess } = useToaster();
     const { data, columns, columnOrder, pagination } = rest;
     const [columnVisibility, setColumnVisibility] = useState({});
+
+    useEffect(() => {
+        setColumnVisibility(calculateColumnVisibility(columns));
+    }, [columns]);
+
     const [tempColumnOrder, setTempColumnOrder] = useState<ColumnOrderState>([
         ROW_NUMBER_COLUMN_ID,
         ...(columnOrder || []),
