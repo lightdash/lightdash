@@ -54,7 +54,7 @@ const getDataAndColumns = ({
                 | typeof itemsMap[number]
                 | undefined;
 
-            if (!isColumnVisible(itemId) || !columnOrder.includes(itemId)) {
+            if (!columnOrder.includes(itemId)) {
                 return acc;
             }
             const headerOverride = getFieldLabelOverride(itemId);
@@ -100,6 +100,7 @@ const getDataAndColumns = ({
                             : null,
                     meta: {
                         item,
+                        isVisible: isColumnVisible(itemId),
                         frozen: isColumnFrozen(itemId),
                     },
                 },
