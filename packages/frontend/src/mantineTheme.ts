@@ -60,6 +60,14 @@ export const getMantineThemeOverride = (overrides?: {
                 },
             }),
         },
+        Textarea: {
+            styles: (theme, _params) => ({
+                label: {
+                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
+                    marginBottom: theme.spacing.xxs,
+                },
+            }),
+        },
 
         NumberInput: {
             styles: (theme, _params) => ({

@@ -134,7 +134,7 @@ const UserAttributeModal: FC<{
                         placeholder="E.g. The country where the user is querying data from."
                         {...form.getInputProps('description')}
                     />
-                    <Stack spacing={0}>
+                    <Stack spacing="xxs">
                         <Text fw={500}>Default value</Text>
 
                         <Group h={36}>
