@@ -5,6 +5,7 @@ export type UserAttribute = {
     organizationUuid: string;
     description?: string;
     users: UserAttributeValue[];
+    default: string | null;
 };
 
 export type UserAttributeValue = {
@@ -16,7 +17,7 @@ export type UserAttributeValue = {
 export type CreateUserAttributeValue = Omit<UserAttributeValue, 'email'>;
 export type CreateUserAttribute = Pick<
     UserAttribute,
-    'name' | 'description'
+    'name' | 'description' | 'default'
 > & {
     users: CreateUserAttributeValue[];
 };

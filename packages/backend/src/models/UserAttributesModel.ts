@@ -75,7 +75,9 @@ export class UserAttributesModel {
             );
         }
         if (filters.userUuid) {
-            query.where(`users.user_uuid`, filters.userUuid);
+            query
+                .where(`users.user_uuid`, filters.userUuid)
+                .orWhereNotNull(`default`);
         }
 
         const orgAttributes = await query;
@@ -101,6 +103,7 @@ export class UserAttributesModel {
                         name: orgAttribute.name,
                         organizationUuid: orgAttribute.organization_uuid,
                         description: orgAttribute.description || undefined,
+                        default: orgAttribute.default,
                         users: orgAttribute.user_id
                             ? [
                                   {
@@ -115,7 +118,6 @@ export class UserAttributesModel {
             },
             {},
         );
-
         return Object.values(results);
     }
 
@@ -159,6 +161,7 @@ export class UserAttributesModel {
                     name: orgAttribute.name,
                     description: orgAttribute.description,
                     organization_id: organization.organization_id,
+                    default: orgAttribute.default,
                 })
                 .returning('*');
 
@@ -197,6 +200,7 @@ export class UserAttributesModel {
                 .update({
                     name: orgAttribute.name,
                     description: orgAttribute.description,
+                    default: orgAttribute.default,
                 })
                 .where('user_attribute_uuid', orgAttributeUuid);
 

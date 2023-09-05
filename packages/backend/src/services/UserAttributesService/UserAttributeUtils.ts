@@ -1,20 +1,18 @@
-import {
-    CompiledTable,
-    Dimension,
-    Explore,
-    UserAttribute,
-} from '@lightdash/common';
+import { Explore, UserAttribute } from '@lightdash/common';
 
 export const hasUserAttribute = (
     userAttributes: UserAttribute[],
     attributeName: string,
     value: string,
 ) =>
-    userAttributes.some(
-        (ua) =>
-            ua.name === attributeName &&
-            ua.users.some((u) => u.value === value),
-    );
+    userAttributes.some((ua) => {
+        if (ua.name === attributeName) {
+            // If user does not have attributes, we will check default value
+            if (ua.users.length === 0) return ua.default === value;
+            return ua.users.some((u) => u.value === value);
+        }
+        return false;
+    });
 
 export const hasUserAttributes = (
     requiredAttributes: Record<string, string> | undefined,
