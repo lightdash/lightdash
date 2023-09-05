@@ -58,11 +58,15 @@ type DbtModelLightdashConfig = {
     sql_filter?: string;
     sql_where?: string; // alias for sql_filter
 };
+
+export type DbtModelJoinType = 'inner' | 'full' | 'left' | 'right';
+
 type DbtModelJoin = {
     join: string;
     sql_on: string;
     alias?: string;
     label?: string;
+    type?: DbtModelJoinType;
 
     fields?: string[];
 };

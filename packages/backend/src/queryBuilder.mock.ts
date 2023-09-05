@@ -132,21 +132,25 @@ export const EXPLORE_JOIN_CHAIN: Explore = {
             table: 'table2',
             sqlOn: '${table2.col} = ${table1.col}',
             compiledSqlOn: '("table2".col) = ("table1".col)',
+            type: 'left',
         },
         {
             table: 'table3',
             sqlOn: '${table3.col} = ${table2.col}',
             compiledSqlOn: '("table3".col) = ("table2".col)',
+            type: 'left',
         },
         {
             table: 'table4',
             sqlOn: '${table4.col} = ${table3.col}',
             compiledSqlOn: '("table4".col) = ("table3".col)',
+            type: 'left',
         },
         {
             table: 'table5',
             sqlOn: '${table5.col} = ${table4.col}',
             compiledSqlOn: '("table5".col) = ("table4".col)',
+            type: 'left',
         },
     ],
 };
@@ -162,6 +166,7 @@ export const EXPLORE: Explore = {
             table: 'table2',
             sqlOn: '${table1.shared} = ${table2.shared}',
             compiledSqlOn: '("table1".shared) = ("table2".shared)',
+            type: 'left',
         },
     ],
     tables: {
@@ -302,6 +307,7 @@ export const EXPLORE_BIGQUERY: Explore = {
             table: 'table2',
             sqlOn: '${table1.shared} = ${table2.shared}',
             compiledSqlOn: '(table1.shared) = (table2.shared)',
+            type: 'left',
         },
     ],
     tables: {
@@ -431,13 +437,13 @@ export const METRIC_QUERY_JOIN_CHAIN_SQL = `SELECT
   "table5".dim1 AS "table5_dim1",
   MAX("table5".number_column) AS "table5_metric1"
 FROM "db"."schema"."table1" AS "table1"
-LEFT JOIN "db"."schema"."table2" AS "table2"
+LEFT OUTER JOIN "db"."schema"."table2" AS "table2"
   ON ("table2".col) = ("table1".col)
-LEFT JOIN "db"."schema"."table3" AS "table3"
+LEFT OUTER JOIN "db"."schema"."table3" AS "table3"
   ON ("table3".col) = ("table2".col)
-LEFT JOIN "db"."schema"."table4" AS "table4"
+LEFT OUTER JOIN "db"."schema"."table4" AS "table4"
   ON ("table4".col) = ("table3".col)
-LEFT JOIN "db"."schema"."table5" AS "table5"
+LEFT OUTER JOIN "db"."schema"."table5" AS "table5"
   ON ("table5".col) = ("table4".col)
 
 GROUP BY 1
@@ -506,7 +512,7 @@ export const METRIC_QUERY_WITH_TABLE_REFERENCE: CompiledMetricQuery = {
 export const METRIC_QUERY_WITH_TABLE_REFERENCE_SQL = `SELECT
   "table1".dim1 + "table2".dim2 AS "table1_with_reference"
 FROM "db"."schema"."table1" AS "table1"
-LEFT JOIN "db"."schema"."table2" AS "table2"
+LEFT OUTER JOIN "db"."schema"."table2" AS "table2"
   ON ("table1".shared) = ("table2".shared)
 
 GROUP BY 1
@@ -919,7 +925,7 @@ SELECT
   "table1".dim1 AS "table1_dim1",
   MAX("table2".number_column) AS "table2_metric2"
 FROM "db"."schema"."table1" AS "table1"
-LEFT JOIN "db"."schema"."table2" AS "table2"
+LEFT OUTER JOIN "db"."schema"."table2" AS "table2"
   ON ("table1".shared) = ("table2".shared)
 
 GROUP BY 1
@@ -937,7 +943,7 @@ SELECT
   "table1".dim1 AS "table1_dim1",
   MAX("table2".number_column) AS "table2_additional_metric"
 FROM "db"."schema"."table1" AS "table1"
-LEFT JOIN "db"."schema"."table2" AS "table2"
+LEFT OUTER JOIN "db"."schema"."table2" AS "table2"
   ON ("table1".shared) = ("table2".shared)
 
 GROUP BY 1
@@ -953,7 +959,7 @@ LIMIT 10`;
 export const METRIC_QUERY_WITH_FILTER_SQL = `SELECT
   "table1".dim1 AS "table1_dim1"
 FROM "db"."schema"."table1" AS "table1"
-LEFT JOIN "db"."schema"."table2" AS "table2"
+LEFT OUTER JOIN "db"."schema"."table2" AS "table2"
   ON ("table1".shared) = ("table2".shared)
 WHERE ((
   ("table2".dim2) IN (0)
@@ -984,7 +990,7 @@ LIMIT 10`;
 export const METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL = `SELECT
   "table1".dim1 AS "table1_dim1"
 FROM "db"."schema"."table1" AS "table1"
-LEFT JOIN "db"."schema"."table2" AS "table2"
+LEFT OUTER JOIN "db"."schema"."table2" AS "table2"
   ON ("table1".shared) = ("table2".shared)
 WHERE ((
   ("table2".dim2) IN (0)
@@ -1016,7 +1022,7 @@ LIMIT 10`;
 export const METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL = `SELECT
   "table1".dim1 AS "table1_dim1"
 FROM "db"."schema"."table1" AS "table1"
-LEFT JOIN "db"."schema"."table2" AS "table2"
+LEFT OUTER JOIN "db"."schema"."table2" AS "table2"
   ON ("table1".shared) = ("table2".shared)
 WHERE (((
   ("table2".dim2) IN (0)
@@ -1051,7 +1057,7 @@ export const METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TAB
 SELECT
   MAX("table2".dim2) AS "table1_metric_that_references_dim_from_table2"
 FROM "db"."schema"."table1" AS "table1"
-LEFT JOIN "db"."schema"."table2" AS "table2"
+LEFT OUTER JOIN "db"."schema"."table2" AS "table2"
   ON ("table1".shared) = ("table2".shared)
 
 
@@ -1068,7 +1074,7 @@ LIMIT 10`;
 export const METRIC_QUERY_WITH_METRIC_FILTER_AND_ONE_DISABLED_SQL = `SELECT
   "table1".dim1 AS "table1_dim1"
 FROM "db"."schema"."table1" AS "table1"
-LEFT JOIN "db"."schema"."table2" AS "table2"
+LEFT OUTER JOIN "db"."schema"."table2" AS "table2"
   ON ("table1".shared) = ("table2".shared)
 WHERE ((
   ("table1".dim1) IN (1)
