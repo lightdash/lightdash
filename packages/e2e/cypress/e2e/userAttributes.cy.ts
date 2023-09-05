@@ -82,7 +82,7 @@ describe('User attributes sql_filter', () => {
     });
 });
 
-describe.only('User attributes dimension required_attribute', () => {
+describe('User attributes dimension required_attribute', () => {
     beforeEach(() => {
         cy.login();
     });
@@ -101,6 +101,7 @@ describe.only('User attributes dimension required_attribute', () => {
                         value: '30',
                     },
                 ],
+                default: undefined,
             },
             failOnStatusCode: false,
         });
