@@ -125,7 +125,7 @@ models:
 
 ### left
 
-A left join returns all rows from the left table, and the matching rows from the right table. Non-matching rows will have `NULL` for right table's columns. For example, if you have a `users` table and a `subscriptions` table, a left join would return all users, and the subscription information for users who have a subscription.
+A left join returns all rows from the left table (i.e. the model where you're adding the `join` to), and the matching rows from the right table (i.e. the model you've specified in `- join:`). Non-matching rows will have `NULL` for right table's columns. For example, if you have a `users` table and a `subscriptions` table, a left join would return all users, and the subscription information for users who have a subscription.
 
 Here's an example of how to specify a left join:
 
