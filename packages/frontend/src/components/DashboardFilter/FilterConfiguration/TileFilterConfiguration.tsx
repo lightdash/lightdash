@@ -93,10 +93,19 @@ const TileFilterConfiguration: FC<Props> = ({
     const tileTargetList = useMemo(() => {
         return sortedTileWithFilters.map(([tileUuid, filters], index) => {
             const tile = tiles.find((t) => t.uuid === tileUuid);
-            const tileConfig = filterRule.tileTargets?.[tileUuid];
 
-            const isFilterAvailable =
-                filters?.some(matchFieldByType(field)) ?? false;
+            // tileConfig overrides the default filter state for a tile
+            // if it is there, we set the selected field to its
+            // stored value. If not, we use the field default
+            const tileConfig = filterRule.tileTargets?.[tileUuid];
+            const fieldId = tileConfig?.fieldId || getFieldId(field);
+            const selectedField = filters?.find((f) => {
+                return getFieldId(f) === fieldId;
+            });
+
+            const filterApplies =
+                (!!selectedField && tileConfig?.fieldId !== '') ||
+                !!tileConfig?.fieldId;
 
             const sortedFilters = filters
                 ?.filter(matchFieldByType(field))
@@ -104,11 +113,6 @@ const TileFilterConfiguration: FC<Props> = ({
                     sortFieldsByMatch(matchFieldByTypeAndName, a, b),
                 )
                 .sort((a, b) => sortFieldsByMatch(matchFieldExact, a, b));
-
-            const fieldId = tileConfig?.fieldId;
-            const selectedFilter = filters?.find(
-                (f) => getFieldId(f) === fieldId,
-            );
 
             const tileWithoutTitle =
                 !tile?.properties.title || tile.properties.title.length === 0;
@@ -126,7 +130,7 @@ const TileFilterConfiguration: FC<Props> = ({
             return {
                 key: tileUuid + index,
                 label: tileLabel,
-                checked: isFilterAvailable && !!tileConfig,
+                checked: filterApplies,
                 tileUuid,
                 ...(tile &&
                     isDashboardChartTileType(tile) && {
@@ -134,7 +138,7 @@ const TileFilterConfiguration: FC<Props> = ({
                             tile.properties.lastVersionChartKind ?? undefined,
                     }),
                 sortedFilters,
-                selectedFilter,
+                selectedField,
             };
         });
     }, [filterRule, field, sortFieldsByMatch, sortedTileWithFilters, tiles]);
@@ -227,7 +231,7 @@ const TileFilterConfiguration: FC<Props> = ({
                                         },
                                     }}
                                     fields={value.sortedFilters}
-                                    activeField={value.selectedFilter}
+                                    activeField={value.selectedField}
                                     onChange={(newFilter) => {
                                         onChange(
                                             FilterActions.ADD,

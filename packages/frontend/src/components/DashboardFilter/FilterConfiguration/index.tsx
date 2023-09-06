@@ -52,6 +52,11 @@ export enum FilterActions {
     REMOVE = 'remove',
 }
 
+const DISABLE_FILTER_TILE_CONFIG = {
+    fieldId: '',
+    tableName: '',
+};
+
 interface Props {
     tiles: DashboardTile[];
     field?: FilterableField;
@@ -65,13 +70,6 @@ interface Props {
     isTemporary?: boolean;
     onSave: (value: DashboardFilterRule) => void;
 }
-
-const getExactFilter = (
-    filters: FilterableField[],
-    selectedField: FilterableField,
-) => {
-    return filters.find(matchFieldExact(selectedField));
-};
 
 const getDefaultFilter = (
     filters: FilterableField[],
@@ -191,7 +189,8 @@ const FilterConfiguration: FC<Props> = ({
                         return draftState;
 
                     case FilterActions.REMOVE:
-                        delete draftState.tileTargets[tileUuid];
+                        draftState.tileTargets[tileUuid] =
+                            DISABLE_FILTER_TILE_CONFIG;
                         return draftState;
 
                     default:
@@ -219,6 +218,13 @@ const FilterConfiguration: FC<Props> = ({
                     if (!draftState || !selectedField) return;
 
                     draftState.tileTargets = {};
+                    Object.entries(availableTileFilters).forEach(
+                        ([tileUuid]) => {
+                            if (!draftState.tileTargets) return;
+                            draftState.tileTargets[tileUuid] =
+                                DISABLE_FILTER_TILE_CONFIG;
+                        },
+                    );
                     return draftState;
                 });
 
@@ -226,29 +232,7 @@ const FilterConfiguration: FC<Props> = ({
             } else {
                 const newFilterRule = produce(draftFilterRule, (draftState) => {
                     if (!draftState || !selectedField) return;
-
-                    Object.entries(availableTileFilters).forEach(
-                        ([tileUuid, filters]) => {
-                            if (!filters) return;
-
-                            const filterableField = getExactFilter(
-                                filters,
-                                selectedField,
-                            );
-
-                            if (!filterableField) return;
-
-                            if (!draftState.tileTargets) {
-                                draftState.tileTargets = {};
-                            }
-
-                            draftState.tileTargets[tileUuid] = {
-                                fieldId: fieldId(filterableField),
-                                tableName: filterableField.table,
-                            };
-                        },
-                    );
-
+                    draftState.tileTargets = {};
                     return draftState;
                 });
 

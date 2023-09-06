@@ -22,16 +22,20 @@ const useDashboardFiltersForExplore = (
         (rules: DashboardFilterRule[]) =>
             rules
                 .filter((rule) => !rule.disabled)
-                .filter((f) => f.tileTargets?.[tileUuid] ?? true)
                 .map((filter) => {
-                    const { tileTargets, ...rest } = filter;
-                    if (!tileTargets) return filter;
+                    console.log('^^^^', tileUuid, filter);
 
-                    const tileConfig = tileTargets[tileUuid];
-                    if (!tileConfig) return null;
+                    // If the tile isn't in the tileTarget overrides,
+                    // we return the filter and don't treat this tile
+                    // differently.
+                    if (!filter.tileTargets?.[tileUuid]) {
+                        return filter;
+                    }
+
+                    const tileConfig = filter.tileTargets[tileUuid];
 
                     return {
-                        ...rest,
+                        ...filter,
                         target: {
                             fieldId: tileConfig.fieldId,
                             tableName: tileConfig.tableName,
