@@ -1245,13 +1245,13 @@ export class ProjectService {
             );
         }
 
-        const explore = await this.projectModel.getExploreFromCache(
+        const explore = await this.projectModel.findExploreByTableName(
             projectUuid,
             table,
         );
 
-        if (isExploreError(explore)) {
-            throw new NotExistsError(`Explore does not exist.`);
+        if (!explore || isExploreError(explore)) {
+            throw new NotExistsError(`Explore does not exist or has errors`);
         }
 
         const field = findFieldByIdInExplore(explore, fieldId);
