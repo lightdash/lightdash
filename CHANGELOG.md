@@ -1,3 +1,10 @@
+# [0.771.0](https://github.com/lightdash/lightdash/compare/0.770.0...0.771.0) (2023-09-06)
+
+
+### Features
+
+* cli set project non-interactively ([#6987](https://github.com/lightdash/lightdash/issues/6987)) ([f80ccc6](https://github.com/lightdash/lightdash/commit/f80ccc682e8eb43de8df8ca305055da0500e1984))
+
 # [0.770.0](https://github.com/lightdash/lightdash/compare/0.769.3...0.770.0) (2023-09-06)
 
 
