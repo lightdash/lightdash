@@ -204,8 +204,8 @@ export class CsvService {
         const timestamp = new Date().getTime();
         const sanitizedFileName = fileName
             .toLowerCase()
-            .replace(/[^a-z0-9]/gi, '_')
-            .replace(/_{2,}/g, '_');
+            .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
+            .replace(/_{2,}/g, '_'); // Replace multiple underscores with a single one
         const fileId = `csv-${sanitizedFileName}-${timestamp}.csv`;
         const writeStream = fs.createWriteStream(`/tmp/${fileId}`);
 
