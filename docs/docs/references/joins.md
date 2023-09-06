@@ -142,7 +142,7 @@ models:
 
 ### right
 
-A right join returns all rows from the right table, and the matching rows from the left table. Non-matching rows will have `NULL` for left table's columns. For example, if you have a `users` table and a `subscriptions` table, a right join would return all subscriptions, and the user information for users who have a subscription.
+A right join returns all rows from the right table (i.e. the model you've specified in `- join: `), and the matching rows from the left table (i.e. the model where you're adding the `join` to). Non-matching rows will have `NULL` for left table's columns. For example, if you have a `users` table and a `subscriptions` table, a right join would return all subscriptions, and the user information for users who have a subscription.
 
 Here's an example of how to specify a right join:
 
