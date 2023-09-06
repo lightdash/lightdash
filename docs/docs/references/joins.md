@@ -96,7 +96,6 @@ By default, if no `type` is specified, all joins are `LEFT OUTER` joins.
 
 :::
 
-
 Here's a table to help you understand what each join type means and how it translates to SQL:
 
 | Join Type              | Generated SQL      | Description                                                                                                                                                       |
@@ -105,7 +104,6 @@ Here's a table to help you understand what each join type means and how it trans
 | [`left`](#type-left)   | `LEFT OUTER JOIN`  | Returns all rows from the left table, and the matching rows from the right table. Non-matching rows will have `NULL` for right table's columns.                   |
 | [`right`](#type-right) | `RIGHT OUTER JOIN` | Returns all rows from the right table, and the matching rows from the left table. Non-matching rows will have `NULL` for left table's columns.                    |
 | [`full`](#type-full)   | `FULL OUTER JOIN`  | Returns all rows when there is a match in either the left or right table records. Non-matching rows will have `NULL` for columns of the table that lacks a match. |
-
 
 ### inner
 
