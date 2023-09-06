@@ -201,7 +201,7 @@ export class CsvService {
             `writeRowsToFile with ${rows.length} rows and ${selectedFieldIds.length} columns`,
         );
 
-        const timestamp = new Date().getTime();
+        const timestamp = moment().format('YYYY-MM-DD-HH-mm-ss-SSSS');
         const sanitizedFileName = fileName
             .toLowerCase()
             .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
