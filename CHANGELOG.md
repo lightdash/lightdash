@@ -1,3 +1,10 @@
+## [0.769.3](https://github.com/lightdash/lightdash/compare/0.769.2...0.769.3) (2023-09-06)
+
+
+### Bug Fixes
+
+* autocomplete for joined tables with alias ([#7018](https://github.com/lightdash/lightdash/issues/7018)) ([a8ecec4](https://github.com/lightdash/lightdash/commit/a8ecec4e073506cc1c81041e50593e7465911710))
+
 ## [0.769.2](https://github.com/lightdash/lightdash/compare/0.769.1...0.769.2) (2023-09-06)
 
 
