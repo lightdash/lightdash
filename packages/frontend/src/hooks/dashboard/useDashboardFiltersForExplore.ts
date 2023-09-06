@@ -23,8 +23,6 @@ const useDashboardFiltersForExplore = (
             rules
                 .filter((rule) => !rule.disabled)
                 .map((filter) => {
-                    console.log('^^^^', tileUuid, filter);
-
                     // If the tile isn't in the tileTarget overrides,
                     // we return the filter and don't treat this tile
                     // differently.

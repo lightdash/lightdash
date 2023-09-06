@@ -103,6 +103,8 @@ const TileFilterConfiguration: FC<Props> = ({
                 return getFieldId(f) === fieldId;
             });
 
+            // Filter applies if there is a relevant field AND it is not disabled
+            // OR there is a tile config to override the default
             const filterApplies =
                 (!!selectedField && tileConfig?.fieldId !== '') ||
                 !!tileConfig?.fieldId;
