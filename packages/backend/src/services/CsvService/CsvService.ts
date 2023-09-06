@@ -187,6 +187,7 @@ export class CsvService {
         metricQuery: MetricQuery,
         itemMap: Record<string, Field | TableCalculation>,
         showTableNames: boolean,
+        fileName: string,
         customLabels: Record<string, string> = {},
         columnOrder: string[] = [],
     ): Promise<string> {
@@ -200,7 +201,12 @@ export class CsvService {
             `writeRowsToFile with ${rows.length} rows and ${selectedFieldIds.length} columns`,
         );
 
-        const fileId = `csv-${nanoid()}.csv`;
+        const timestamp = new Date().getTime();
+        const sanitizedFileName = fileName
+            .toLowerCase()
+            .replace(/[^a-z0-9]/gi, '_')
+            .replace(/_{2,}/g, '_');
+        const fileId = `csv-${sanitizedFileName}-${timestamp}.csv`;
         const writeStream = fs.createWriteStream(`/tmp/${fileId}`);
 
         const sortedFieldIds = Object.keys(rows[0])
@@ -363,6 +369,7 @@ export class CsvService {
             metricQuery,
             itemMap,
             isTableChartConfig(config) ? config.showTableNames ?? false : true,
+            chart.name,
             getCustomLabelsFromTableConfig(config),
             chart.tableConfig.columnOrder,
         );
@@ -622,6 +629,7 @@ export class CsvService {
                 metricQuery,
                 itemMap,
                 showTableNames,
+                exploreId,
                 customLabels,
                 columnOrder || [],
             );
