@@ -8,10 +8,12 @@ import {
     bigqueryClientMock,
     COMPILED_DIMENSION,
     EXPLORE,
+    EXPLORE_ALL_JOIN_TYPES_CHAIN,
     EXPLORE_BIGQUERY,
     EXPLORE_JOIN_CHAIN,
     EXPLORE_WITH_SQL_FILTER,
     METRIC_QUERY,
+    METRIC_QUERY_ALL_JOIN_TYPES_CHAIN_SQL,
     METRIC_QUERY_JOIN_CHAIN,
     METRIC_QUERY_JOIN_CHAIN_SQL,
     METRIC_QUERY_SQL,
@@ -106,6 +108,16 @@ describe('Query builder', () => {
                 warehouseClient: warehouseClientMock,
             }).query,
         ).toStrictEqual(METRIC_QUERY_JOIN_CHAIN_SQL);
+    });
+
+    test('should join chain of intermediary tables', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE_ALL_JOIN_TYPES_CHAIN,
+                compiledMetricQuery: METRIC_QUERY_JOIN_CHAIN,
+                warehouseClient: warehouseClientMock,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_ALL_JOIN_TYPES_CHAIN_SQL);
     });
 
     test('Should build query with filter OR operator', () => {

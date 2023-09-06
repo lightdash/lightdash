@@ -191,6 +191,10 @@
                             },
                             "sql_on": {
                                 "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["inner", "left", "right", "full"]
                             }
                         }
                     }

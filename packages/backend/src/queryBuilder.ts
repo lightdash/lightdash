@@ -1,6 +1,8 @@
 import {
+    assertUnreachable,
     CompiledDimension,
     CompiledMetricQuery,
+    DbtModelJoinType,
     Explore,
     fieldId,
     FieldId,
@@ -112,6 +114,21 @@ export type BuildQueryProps = {
 
     warehouseClient: WarehouseClient;
     userAttributes?: UserAttribute[];
+};
+
+const getJoinType = (type: DbtModelJoinType = 'left') => {
+    switch (type) {
+        case 'inner':
+            return 'INNER JOIN';
+        case 'full':
+            return 'FULL OUTER JOIN';
+        case 'left':
+            return 'LEFT OUTER JOIN';
+        case 'right':
+            return 'RIGHT OUTER JOIN';
+        default:
+            return assertUnreachable(type, `Unknown join type: ${type}`);
+    }
 };
 
 export const buildQuery = ({
@@ -235,6 +252,8 @@ export const buildQuery = ({
         .filter((join) => joinedTables.has(join.table))
         .map((join) => {
             const joinTable = explore.tables[join.table].sqlTable;
+            const joinType = getJoinType(join.type);
+
             const alias = join.table;
             const parsedSqlOn = replaceUserAttributes(
                 join.compiledSqlOn,
@@ -242,7 +261,7 @@ export const buildQuery = ({
                 stringQuoteChar,
                 'sql_on',
             );
-            return `LEFT JOIN ${joinTable} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}\n  ON ${parsedSqlOn}`;
+            return `${joinType} ${joinTable} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}\n  ON ${parsedSqlOn}`;
         })
         .join('\n');
 

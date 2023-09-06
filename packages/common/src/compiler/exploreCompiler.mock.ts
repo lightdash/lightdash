@@ -666,6 +666,7 @@ export const compiledSimpleJoinedExplore: Explore = {
             table: 'b',
             sqlOn: '${a.dim1} = ${b.dim1}',
             compiledSqlOn: '("a".dim1) = ("b".dim1)',
+            type: undefined,
         },
     ],
     tables: {
@@ -829,6 +830,7 @@ export const compiledJoinedExploreOverridingJoinAlias: Explore = {
             table: 'custom_alias',
             sqlOn: '${a.dim1} = ${custom_alias.dim1}',
             compiledSqlOn: '("a".dim1) = ("custom_alias".dim1)',
+            type: undefined,
         },
     ],
     tables: {
@@ -870,6 +872,7 @@ export const compiledJoinedExploreOverridingAliasAndLabel: Explore = {
             table: 'custom_alias',
             sqlOn: '${a.dim1} = ${custom_alias.dim1}',
             compiledSqlOn: '("a".dim1) = ("custom_alias".dim1)',
+            type: undefined,
         },
     ],
     tables: {
