@@ -371,7 +371,7 @@ docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env
 
 To setup Development Environment without Docker you need following pre-requisits before running Lightdash:
 
-- node 14.x <= version <= 16.x
+- node version >= 20
 - yarn
 - postgres
 - dbt
@@ -386,9 +386,8 @@ eg. on MacOS you can follow this instructions:
 brew update 
 brew install nvm
 
-#3 install node 16x using NVM (https://github.com/nvm-sh/nvm)
-nvm install v16.17.0
-nvm alias default v16.17.0
+#3 use current node version with nvm (https://github.com/nvm-sh/nvm)
+nvm use
 
 #4 install postgres (https://wiki.postgresql.org/wiki/Homebrew)
 brew install postgresql@14
