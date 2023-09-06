@@ -52,7 +52,7 @@ export enum FilterActions {
     REMOVE = 'remove',
 }
 
-// TODO: add an 'disabled' field to tile config.
+// TODO: add a 'disabled' field to tileConfig.
 // For now we use this empty tile config to indicate that
 // a chart should not get the default filters applied to it.
 // A clearer solution would be to add a 'disabled' field we could
