@@ -132,25 +132,25 @@ export const EXPLORE_JOIN_CHAIN: Explore = {
             table: 'table2',
             sqlOn: '${table2.col} = ${table1.col}',
             compiledSqlOn: '("table2".col) = ("table1".col)',
-            type: 'left',
+            type: undefined,
         },
         {
             table: 'table3',
             sqlOn: '${table3.col} = ${table2.col}',
             compiledSqlOn: '("table3".col) = ("table2".col)',
-            type: 'left',
+            type: undefined,
         },
         {
             table: 'table4',
             sqlOn: '${table4.col} = ${table3.col}',
             compiledSqlOn: '("table4".col) = ("table3".col)',
-            type: 'left',
+            type: undefined,
         },
         {
             table: 'table5',
             sqlOn: '${table5.col} = ${table4.col}',
             compiledSqlOn: '("table5".col) = ("table4".col)',
-            type: 'left',
+            type: undefined,
         },
     ],
 };
@@ -238,7 +238,7 @@ export const EXPLORE: Explore = {
             table: 'table2',
             sqlOn: '${table1.shared} = ${table2.shared}',
             compiledSqlOn: '("table1".shared) = ("table2".shared)',
-            type: 'left',
+            type: undefined,
         },
     ],
     tables: {
@@ -379,7 +379,7 @@ export const EXPLORE_BIGQUERY: Explore = {
             table: 'table2',
             sqlOn: '${table1.shared} = ${table2.shared}',
             compiledSqlOn: '(table1.shared) = (table2.shared)',
-            type: 'left',
+            type: undefined,
         },
     ],
     tables: {
