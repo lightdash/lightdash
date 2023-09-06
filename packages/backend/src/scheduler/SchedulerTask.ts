@@ -826,6 +826,7 @@ export const sendEmailNotification = async (
                 schedulerTargetId: schedulerEmailTargetUuid,
                 type: 'email',
                 format,
+                withPdf: pdfFile !== undefined,
                 resourceType:
                     pageType === LightdashPage.CHART ? 'chart' : 'dashboard',
             },
