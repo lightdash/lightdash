@@ -46,6 +46,7 @@ describe('Csv service', () => {
             metricQuery,
             itemMap,
             false,
+            'explore',
             {},
             [],
         );
@@ -77,6 +78,7 @@ $4.00,value_4,2020-03-16
             metricQuery,
             itemMap,
             true,
+            'explore',
             {},
             [],
         );
