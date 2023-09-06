@@ -125,7 +125,7 @@ apiV1Router.get(
         scope: [
             'profile',
             'email',
-            'https://www.googleapis.com/auth/drive.metadata.readonly',
+            'https://www.googleapis.com/auth/drive.file',
             'https://www.googleapis.com/auth/spreadsheets',
         ],
         accessType: 'offline',
