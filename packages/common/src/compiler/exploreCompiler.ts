@@ -495,7 +495,7 @@ export class ExploreCompiler {
         return {
             table: join.alias || join.table,
             sqlOn: join.sqlOn,
-            type: join.type ?? 'left',
+            type: join.type,
             compiledSqlOn: this.compileExploreJoinSql(
                 {
                     table: join.alias || join.table,

@@ -18,8 +18,9 @@ export type ExploreJoin = {
     fields?: string[]; // Optional list of fields to include from the joined table
 };
 
-export type CompiledExploreJoin = Required<
-    Pick<ExploreJoin, 'table' | 'sqlOn' | 'type'>
+export type CompiledExploreJoin = Pick<
+    ExploreJoin,
+    'table' | 'sqlOn' | 'type'
 > & {
     compiledSqlOn: string; // Sql on clause with template variables resolved
 };

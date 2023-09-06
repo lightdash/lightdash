@@ -116,7 +116,7 @@ export type BuildQueryProps = {
     userAttributes?: UserAttribute[];
 };
 
-const getJoinType = (type: DbtModelJoinType) => {
+const getJoinType = (type: DbtModelJoinType = 'left') => {
     switch (type) {
         case 'inner':
             return 'INNER JOIN';
