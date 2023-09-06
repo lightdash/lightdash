@@ -1,3 +1,10 @@
+## [0.769.1](https://github.com/lightdash/lightdash/compare/0.769.0...0.769.1) (2023-09-06)
+
+
+### Bug Fixes
+
+* avoid filtering out hidden columns and set visibility on table provider ([#7013](https://github.com/lightdash/lightdash/issues/7013)) ([108a48a](https://github.com/lightdash/lightdash/commit/108a48aa532a07bda2d53e1d40ab916231409090))
+
 # [0.769.0](https://github.com/lightdash/lightdash/compare/0.768.0...0.769.0) (2023-09-06)
 
 
