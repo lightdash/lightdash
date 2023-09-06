@@ -1,3 +1,10 @@
+# [0.770.0](https://github.com/lightdash/lightdash/compare/0.769.3...0.770.0) (2023-09-06)
+
+
+### Features
+
+* join table types ([#7011](https://github.com/lightdash/lightdash/issues/7011)) ([9e41cf2](https://github.com/lightdash/lightdash/commit/9e41cf2dc1def87c38431e376c68429dde8a8da0))
+
 ## [0.769.3](https://github.com/lightdash/lightdash/compare/0.769.2...0.769.3) (2023-09-06)
 
 
