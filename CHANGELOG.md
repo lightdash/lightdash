@@ -1,3 +1,10 @@
+# [0.769.0](https://github.com/lightdash/lightdash/compare/0.768.0...0.769.0) (2023-09-06)
+
+
+### Features
+
+* change gdrive scope ([#7020](https://github.com/lightdash/lightdash/issues/7020)) ([bdd6a00](https://github.com/lightdash/lightdash/commit/bdd6a0037513d5aee85e1808127dd8b2c487cf92))
+
 # [0.768.0](https://github.com/lightdash/lightdash/compare/0.767.1...0.768.0) (2023-09-05)
 
 
