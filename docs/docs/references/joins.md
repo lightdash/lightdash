@@ -96,7 +96,6 @@ By default, if no `type` is specified, all joins are `LEFT OUTER` joins.
 
 :::
 
-## Join types
 
 Here's a table to help you understand what each join type means and how it translates to SQL:
 
