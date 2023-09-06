@@ -52,6 +52,11 @@ export enum FilterActions {
     REMOVE = 'remove',
 }
 
+// TODO: add an 'disabled' field to tile config.
+// For now we use this empty tile config to indicate that
+// a chart should not get the default filters applied to it.
+// A clearer solution would be to add a 'disabled' field we could
+// toggle to mark the filter as disabled for that tile.
 const DISABLE_FILTER_TILE_CONFIG = {
     fieldId: '',
     tableName: '',
