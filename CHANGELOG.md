@@ -1,3 +1,10 @@
+## [0.769.2](https://github.com/lightdash/lightdash/compare/0.769.1...0.769.2) (2023-09-06)
+
+
+### Bug Fixes
+
+* only pass onOpening and onClosing props ([#7026](https://github.com/lightdash/lightdash/issues/7026)) ([d5fca08](https://github.com/lightdash/lightdash/commit/d5fca0879294a8a3927d52a8ad24892821a3d481))
+
 ## [0.769.1](https://github.com/lightdash/lightdash/compare/0.769.0...0.769.1) (2023-09-06)
 
 
