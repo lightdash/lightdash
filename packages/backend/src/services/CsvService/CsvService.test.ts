@@ -1,4 +1,5 @@
 import * as fs from 'fs/promises';
+import moment from 'moment';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import {
     dashboardModel,
@@ -46,6 +47,7 @@ describe('Csv service', () => {
             metricQuery,
             itemMap,
             false,
+            'explore',
             {},
             [],
         );
@@ -77,6 +79,7 @@ $4.00,value_4,2020-03-16
             metricQuery,
             itemMap,
             true,
+            'explore',
             {},
             [],
         );
@@ -157,5 +160,37 @@ $4.00,value_4,2020-03-16
         ]);
 
         expect(csv).toEqual([undefined, 'value_1', '2020-03-16']);
+    });
+
+    it('Should generate csv file ids', async () => {
+        const time = moment('2023-09-07 12:13:45.123');
+        const timestamp = time.format('YYYY-MM-DD-HH-mm-ss-SSSS');
+
+        expect(timestamp).toEqual(`2023-09-07-12-13-45-1230`);
+
+        expect(CsvService.generateFileId('payment', time)).toEqual(
+            `csv-payment-${timestamp}.csv`,
+        );
+        expect(CsvService.generateFileId('MyTable', time)).toEqual(
+            `csv-mytable-${timestamp}.csv`,
+        );
+        expect(CsvService.generateFileId('my table', time)).toEqual(
+            `csv-my_table-${timestamp}.csv`,
+        );
+        expect(CsvService.generateFileId('table!', time)).toEqual(
+            `csv-table_-${timestamp}.csv`,
+        );
+        expect(
+            CsvService.generateFileId('this is a chart title', time),
+        ).toEqual(`csv-this_is_a_chart_title-${timestamp}.csv`);
+        expect(
+            CsvService.generateFileId('another table (for testing)', time),
+        ).toEqual(`csv-another_table_for_testing_-${timestamp}.csv`);
+        expect(CsvService.generateFileId('weird chars *!"()_-', time)).toEqual(
+            `csv-weird_chars_-${timestamp}.csv`,
+        );
+
+        // Test without time
+        expect(CsvService.generateFileId('payment')).toContain(`csv-payment-`);
     });
 });
