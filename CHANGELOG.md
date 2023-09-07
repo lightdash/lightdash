@@ -1,3 +1,10 @@
+# [0.772.0](https://github.com/lightdash/lightdash/compare/0.771.0...0.772.0) (2023-09-07)
+
+
+### Features
+
+* send pdf attachemnt with image ([#7012](https://github.com/lightdash/lightdash/issues/7012)) ([f2a1991](https://github.com/lightdash/lightdash/commit/f2a1991a9e099748bd04691d56fb576dcd5074f5))
+
 # [0.771.0](https://github.com/lightdash/lightdash/compare/0.770.0...0.771.0) (2023-09-06)
 
 
