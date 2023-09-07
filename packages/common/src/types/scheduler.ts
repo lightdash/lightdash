@@ -6,7 +6,9 @@ export type SchedulerCsvOptions = {
     limit: 'table' | 'all' | number;
 };
 
-export type SchedulerImageOptions = {};
+export type SchedulerImageOptions = {
+    withPdf?: boolean;
+};
 
 export type SchedulerGsheetsOptions = {
     gdriveId: string;
@@ -175,6 +177,13 @@ export const isSchedulerCsvOptions = (
         | SchedulerGsheetsOptions,
 ): options is SchedulerCsvOptions => options && 'limit' in options;
 
+export const isSchedulerImageOptions = (
+    options:
+        | SchedulerCsvOptions
+        | SchedulerImageOptions
+        | SchedulerGsheetsOptions,
+): options is SchedulerImageOptions => options && 'withPdf' in options;
+
 export const isSchedulerGsheetsOptions = (
     options:
         | SchedulerCsvOptions
@@ -242,6 +251,7 @@ export type NotificationPayloadBase = {
             filename: string;
             localPath: string;
         }[];
+        pdfFile?: string;
     };
 };
 

@@ -8,9 +8,9 @@ import { Button, Stack } from '@mantine/core';
 import { IconArrowLeft, IconFileTypeCsv } from '@tabler/icons-react';
 import { FC, memo, useState } from 'react';
 import { useQuery } from 'react-query';
+import { ExportToGoogleSheet } from '../../features/export';
 import useHealth from '../../hooks/health/useHealth';
 import MantineIcon from '../common/MantineIcon';
-import ExportGsheets from '../Explorer/ExportGsheets';
 import ExportCSV, { ExportCSVProps } from '../ExportCSV';
 
 const ExportSelector: FC<
@@ -59,7 +59,7 @@ const ExportSelector: FC<
                 >
                     csv
                 </Button>
-                <ExportGsheets getGsheetLink={getGsheetLink} />
+                <ExportToGoogleSheet getGsheetLink={getGsheetLink} />
             </Stack>
         );
     }

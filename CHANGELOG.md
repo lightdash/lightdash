@@ -1,3 +1,66 @@
+# [0.773.0](https://github.com/lightdash/lightdash/compare/0.772.0...0.773.0) (2023-09-07)
+
+
+### Features
+
+* rename CSV files ([#7025](https://github.com/lightdash/lightdash/issues/7025)) ([758b1e4](https://github.com/lightdash/lightdash/commit/758b1e41ad874f7656d8b5db15546593450fa08f))
+
+# [0.772.0](https://github.com/lightdash/lightdash/compare/0.771.0...0.772.0) (2023-09-07)
+
+
+### Features
+
+* send pdf attachemnt with image ([#7012](https://github.com/lightdash/lightdash/issues/7012)) ([f2a1991](https://github.com/lightdash/lightdash/commit/f2a1991a9e099748bd04691d56fb576dcd5074f5))
+
+# [0.771.0](https://github.com/lightdash/lightdash/compare/0.770.0...0.771.0) (2023-09-06)
+
+
+### Features
+
+* cli set project non-interactively ([#6987](https://github.com/lightdash/lightdash/issues/6987)) ([f80ccc6](https://github.com/lightdash/lightdash/commit/f80ccc682e8eb43de8df8ca305055da0500e1984))
+
+# [0.770.0](https://github.com/lightdash/lightdash/compare/0.769.3...0.770.0) (2023-09-06)
+
+
+### Features
+
+* join table types ([#7011](https://github.com/lightdash/lightdash/issues/7011)) ([9e41cf2](https://github.com/lightdash/lightdash/commit/9e41cf2dc1def87c38431e376c68429dde8a8da0))
+
+## [0.769.3](https://github.com/lightdash/lightdash/compare/0.769.2...0.769.3) (2023-09-06)
+
+
+### Bug Fixes
+
+* autocomplete for joined tables with alias ([#7018](https://github.com/lightdash/lightdash/issues/7018)) ([a8ecec4](https://github.com/lightdash/lightdash/commit/a8ecec4e073506cc1c81041e50593e7465911710))
+
+## [0.769.2](https://github.com/lightdash/lightdash/compare/0.769.1...0.769.2) (2023-09-06)
+
+
+### Bug Fixes
+
+* only pass onOpening and onClosing props ([#7026](https://github.com/lightdash/lightdash/issues/7026)) ([d5fca08](https://github.com/lightdash/lightdash/commit/d5fca0879294a8a3927d52a8ad24892821a3d481))
+
+## [0.769.1](https://github.com/lightdash/lightdash/compare/0.769.0...0.769.1) (2023-09-06)
+
+
+### Bug Fixes
+
+* avoid filtering out hidden columns and set visibility on table provider ([#7013](https://github.com/lightdash/lightdash/issues/7013)) ([108a48a](https://github.com/lightdash/lightdash/commit/108a48aa532a07bda2d53e1d40ab916231409090))
+
+# [0.769.0](https://github.com/lightdash/lightdash/compare/0.768.0...0.769.0) (2023-09-06)
+
+
+### Features
+
+* change gdrive scope ([#7020](https://github.com/lightdash/lightdash/issues/7020)) ([bdd6a00](https://github.com/lightdash/lightdash/commit/bdd6a0037513d5aee85e1808127dd8b2c487cf92))
+
+# [0.768.0](https://github.com/lightdash/lightdash/compare/0.767.1...0.768.0) (2023-09-05)
+
+
+### Features
+
+* metricflow sql card ([#7004](https://github.com/lightdash/lightdash/issues/7004)) ([7a1d923](https://github.com/lightdash/lightdash/commit/7a1d923b2fb1cb6dc7c7c7c73ca6b7aae58579c2))
+
 ## [0.767.1](https://github.com/lightdash/lightdash/compare/0.767.0...0.767.1) (2023-09-04)
 
 

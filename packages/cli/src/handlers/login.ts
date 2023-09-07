@@ -7,7 +7,7 @@ import { configFilePath, setContext, setDefaultUser } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { checkLightdashVersion } from './dbt/apiClient';
-import { setFirstProject, setProjectInteractively } from './setProject';
+import { setFirstProject, setProjectCommand } from './setProject';
 
 type LoginOptions = {
     token?: string;
@@ -150,9 +150,9 @@ export const login = async (url: string, options: LoginOptions) => {
         if (process.env.CI === 'true') {
             await setFirstProject();
         } else {
-            const project = await setProjectInteractively();
+            const project = await setProjectCommand();
 
-            if (!project) {
+            if (project === undefined) {
                 console.error(
                     'Now you can add your first project to lightdash by doing: ',
                 );

@@ -1,4 +1,4 @@
-import { LineageGraph, SupportedDbtAdapter } from './dbt';
+import { DbtModelJoinType, LineageGraph, SupportedDbtAdapter } from './dbt';
 import {
     CompiledDimension,
     CompiledMetric,
@@ -11,13 +11,17 @@ import { TableBase } from './table';
 export type ExploreJoin = {
     table: string; // Must match a tableName in containing Explore
     sqlOn: string; // Built sql
+    type?: DbtModelJoinType; // Optional join type
     alias?: string; // Optional alias for the joined tableName
     label?: string; // Optional UI label override for the underlying table
 
     fields?: string[]; // Optional list of fields to include from the joined table
 };
 
-export type CompiledExploreJoin = Pick<ExploreJoin, 'table' | 'sqlOn'> & {
+export type CompiledExploreJoin = Pick<
+    ExploreJoin,
+    'table' | 'sqlOn' | 'type'
+> & {
     compiledSqlOn: string; // Sql on clause with template variables resolved
 };
 
