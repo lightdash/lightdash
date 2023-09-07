@@ -1,3 +1,10 @@
+# [0.773.0](https://github.com/lightdash/lightdash/compare/0.772.0...0.773.0) (2023-09-07)
+
+
+### Features
+
+* rename CSV files ([#7025](https://github.com/lightdash/lightdash/issues/7025)) ([758b1e4](https://github.com/lightdash/lightdash/commit/758b1e41ad874f7656d8b5db15546593450fa08f))
+
 # [0.772.0](https://github.com/lightdash/lightdash/compare/0.771.0...0.772.0) (2023-09-07)
 
 
