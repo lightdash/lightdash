@@ -103,10 +103,10 @@ const TileFilterConfiguration: FC<Props> = ({
                 return getFieldId(f) === fieldId;
             });
 
-            // Filter applies if there is a relevant field AND it is not disabled
-            // OR there is a tile config to override the default
+            const isFilterAvailable =
+                filters?.some(matchFieldByType(field)) ?? false;
             const filterApplies =
-                (!!selectedField && tileConfig?.fieldId !== '') ||
+                (isFilterAvailable && tileConfig?.fieldId !== '') ||
                 !!tileConfig?.fieldId;
 
             const sortedFilters = filters
@@ -144,6 +144,8 @@ const TileFilterConfiguration: FC<Props> = ({
             };
         });
     }, [filterRule, field, sortFieldsByMatch, sortedTileWithFilters, tiles]);
+
+    console.log('---', availableTileFilters);
 
     const isAllChecked = tileTargetList.every(({ checked }) => checked);
     const isIndeterminate =
