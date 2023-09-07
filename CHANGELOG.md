@@ -1,3 +1,10 @@
+## [0.773.1](https://github.com/lightdash/lightdash/compare/0.773.0...0.773.1) (2023-09-07)
+
+
+### Bug Fixes
+
+* add loader on hover of information icon on chart list item ([#7006](https://github.com/lightdash/lightdash/issues/7006)) ([880a2ca](https://github.com/lightdash/lightdash/commit/880a2ca206ebf96f696a6d8002bdfa898c0f1440))
+
 # [0.773.0](https://github.com/lightdash/lightdash/compare/0.772.0...0.773.0) (2023-09-07)
 
 
