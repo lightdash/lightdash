@@ -48,6 +48,7 @@ describe('Csv service', () => {
             itemMap,
             false,
             'explore',
+            false,
             {},
             [],
         );
@@ -80,6 +81,7 @@ $4.00,value_4,2020-03-16
             itemMap,
             true,
             'explore',
+            false,
             {},
             [],
         );
@@ -168,29 +170,46 @@ $4.00,value_4,2020-03-16
 
         expect(timestamp).toEqual(`2023-09-07-12-13-45-1230`);
 
-        expect(CsvService.generateFileId('payment', time)).toEqual(
+        expect(CsvService.generateFileId('payment', false, time)).toEqual(
             `csv-payment-${timestamp}.csv`,
         );
-        expect(CsvService.generateFileId('MyTable', time)).toEqual(
+        expect(CsvService.generateFileId('MyTable', false, time)).toEqual(
             `csv-mytable-${timestamp}.csv`,
         );
-        expect(CsvService.generateFileId('my table', time)).toEqual(
+        expect(CsvService.generateFileId('my table', false, time)).toEqual(
             `csv-my_table-${timestamp}.csv`,
         );
-        expect(CsvService.generateFileId('table!', time)).toEqual(
+        expect(CsvService.generateFileId('table!', false, time)).toEqual(
             `csv-table_-${timestamp}.csv`,
         );
         expect(
-            CsvService.generateFileId('this is a chart title', time),
+            CsvService.generateFileId('this is a chart title', false, time),
         ).toEqual(`csv-this_is_a_chart_title-${timestamp}.csv`);
         expect(
-            CsvService.generateFileId('another table (for testing)', time),
+            CsvService.generateFileId(
+                'another table (for testing)',
+                false,
+                time,
+            ),
         ).toEqual(`csv-another_table_for_testing_-${timestamp}.csv`);
-        expect(CsvService.generateFileId('weird chars *!"()_-', time)).toEqual(
-            `csv-weird_chars_-${timestamp}.csv`,
-        );
+        expect(
+            CsvService.generateFileId('weird chars *!"()_-', false, time),
+        ).toEqual(`csv-weird_chars_-${timestamp}.csv`);
 
         // Test without time
         expect(CsvService.generateFileId('payment')).toContain(`csv-payment-`);
+    });
+
+    it('Should generate csv file for incomplete file', async () => {
+        const time = moment('2023-09-07 12:13:45.123');
+        const timestamp = time.format('YYYY-MM-DD-HH-mm-ss-SSSS');
+
+        expect(CsvService.generateFileId('payment', true, time)).toEqual(
+            `csv-incomplete_results-payment-${timestamp}.csv`,
+        );
+        // Test without time
+        expect(CsvService.generateFileId('payment', true)).toContain(
+            `csv-incomplete_results-payment-`,
+        );
     });
 });

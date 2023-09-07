@@ -192,8 +192,8 @@ export class CsvService {
             .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
             .replace(/_{2,}/g, '_'); // Replace multiple underscores with a single one
         const fileId = `csv-${
-            truncated ? 'incomplete_results' : ''
-        }-${sanitizedFileName}-${timestamp}.csv`;
+            truncated ? 'incomplete_results-' : ''
+        }${sanitizedFileName}-${timestamp}.csv`;
         return fileId;
     }
 
