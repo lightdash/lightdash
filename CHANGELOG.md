@@ -1,3 +1,10 @@
+## [0.773.2](https://github.com/lightdash/lightdash/compare/0.773.1...0.773.2) (2023-09-07)
+
+
+### Bug Fixes
+
+* opening dashboard links in popup in a new tab ([#7037](https://github.com/lightdash/lightdash/issues/7037)) ([228749b](https://github.com/lightdash/lightdash/commit/228749b06475d246fc302affb51d50ac12d75329))
+
 ## [0.773.1](https://github.com/lightdash/lightdash/compare/0.773.0...0.773.1) (2023-09-07)
 
 
