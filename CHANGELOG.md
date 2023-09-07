@@ -1,3 +1,10 @@
+## [0.773.3](https://github.com/lightdash/lightdash/compare/0.773.2...0.773.3) (2023-09-07)
+
+
+### Bug Fixes
+
+* make delete action consistent on settings page ([#7005](https://github.com/lightdash/lightdash/issues/7005)) ([1929ba7](https://github.com/lightdash/lightdash/commit/1929ba78b0f2d97cee41147892042939fc63877a))
+
 ## [0.773.2](https://github.com/lightdash/lightdash/compare/0.773.1...0.773.2) (2023-09-07)
 
 
