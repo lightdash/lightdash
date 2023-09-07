@@ -2,6 +2,7 @@ import { Button } from '@blueprintjs/core';
 import { ApiScheduledDownloadCsv } from '@lightdash/common';
 import { FC, memo } from 'react';
 import { pollCsvFileUrl } from '../../api/csv';
+import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
 
 type Props = {
@@ -11,6 +12,7 @@ type Props = {
 
 const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
     const { showToastError } = useToaster();
+    const health = useHealth();
 
     return (
         <Button
@@ -21,8 +23,15 @@ const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
                 getCsvLink()
                     .then((scheduledCsvResponse) => {
                         pollCsvFileUrl(scheduledCsvResponse)
-                            .then((url) => {
-                                window.location.href = url;
+                            .then((csvFile) => {
+                                window.location.href = csvFile.url;
+
+                                if (csvFile.truncated) {
+                                    showToastError({
+                                        title: `Your results might be truncated`,
+                                        subtitle: `Results are limited to ${health.data?.query.csvCellsLimit} cells for each file`,
+                                    });
+                                }
                             })
                             .catch((error) => {
                                 showToastError({

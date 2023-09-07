@@ -18,13 +18,14 @@ export type AttachmentUrl = {
     path: string;
     filename: string;
     localPath: string;
+    truncated: boolean;
 };
 type Dependencies = {
-    lightdashConfig: Pick<LightdashConfig, 'smtp' | 'siteUrl'>;
+    lightdashConfig: Pick<LightdashConfig, 'smtp' | 'siteUrl' | 'query'>;
 };
 
 export default class EmailClient {
-    lightdashConfig: Pick<LightdashConfig, 'smtp' | 'siteUrl'>;
+    lightdashConfig: Pick<LightdashConfig, 'smtp' | 'siteUrl' | 'query'>;
 
     transporter: nodemailer.Transporter | undefined;
 
@@ -241,6 +242,8 @@ export default class EmailClient {
                 frequency,
                 url,
                 csvUrl,
+                truncated: attachment.truncated,
+                maxCells: this.lightdashConfig.query.csvCellsLimit,
                 host: this.lightdashConfig.siteUrl,
                 schedulerUrl,
             },
@@ -312,6 +315,10 @@ export default class EmailClient {
                 date,
                 frequency,
                 csvUrls,
+                truncated: attachments.some(
+                    (attachment) => attachment.truncated,
+                ),
+                maxCells: this.lightdashConfig.query.csvCellsLimit,
                 url,
                 host: this.lightdashConfig.siteUrl,
                 schedulerUrl,

@@ -90,9 +90,17 @@ const ExportCSV: FC<ExportCSVProps> = memo(
                     },
                     onSuccess: (scheduledCsvResponse) => {
                         pollCsvFileUrl(scheduledCsvResponse)
-                            .then((url) => {
-                                if (url) window.location.href = url;
+                            .then((csvFile) => {
+                                if (csvFile.url)
+                                    window.location.href = csvFile.url;
                                 AppToaster.dismiss('exporting-csv');
+
+                                if (csvFile.truncated) {
+                                    showToastError({
+                                        title: `Your results might be truncated`,
+                                        subtitle: `Results are limited to ${health.data?.query.csvCellsLimit} cells for each file`,
+                                    });
+                                }
                             })
                             .catch((error) => {
                                 AppToaster.dismiss('exporting-csv');
