@@ -77,7 +77,7 @@ export class UserAttributesModel {
         if (filters.userUuid) {
             query
                 .where(`users.user_uuid`, filters.userUuid)
-                .orWhereNotNull(`default`);
+                .orWhereNotNull(`attribute_default`);
         }
 
         const orgAttributes = await query;
@@ -103,7 +103,7 @@ export class UserAttributesModel {
                         name: orgAttribute.name,
                         organizationUuid: orgAttribute.organization_uuid,
                         description: orgAttribute.description || undefined,
-                        attributeDefault: orgAttribute.attributeDefault,
+                        attributeDefault: orgAttribute.attribute_default,
                         users: orgAttribute.user_id
                             ? [
                                   {
@@ -161,7 +161,7 @@ export class UserAttributesModel {
                     name: orgAttribute.name,
                     description: orgAttribute.description,
                     organization_id: organization.organization_id,
-                    attributeDefault: orgAttribute.attributeDefault,
+                    attribute_default: orgAttribute.attributeDefault,
                 })
                 .returning('*');
 
@@ -200,7 +200,7 @@ export class UserAttributesModel {
                 .update({
                     name: orgAttribute.name,
                     description: orgAttribute.description,
-                    attributeDefault: orgAttribute.attributeDefault,
+                    attribute_default: orgAttribute.attributeDefault,
                 })
                 .where('user_attribute_uuid', orgAttributeUuid);
 

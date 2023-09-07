@@ -2235,7 +2235,7 @@ const models: TsoaRoute.Models = {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
+            nestedProperties: { withPdf: { dataType: 'boolean' } },
             validators: {},
         },
     },
@@ -2997,7 +2997,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                default: {
+                attributeDefault: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
@@ -3048,14 +3048,14 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_UserAttribute.name-or-description-or-default_': {
+    'Pick_UserAttribute.name-or-description-or-attributeDefault_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 name: { dataType: 'string', required: true },
                 description: { dataType: 'string' },
-                default: {
+                attributeDefault: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
@@ -3098,7 +3098,9 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'intersection',
             subSchemas: [
-                { ref: 'Pick_UserAttribute.name-or-description-or-default_' },
+                {
+                    ref: 'Pick_UserAttribute.name-or-description-or-attributeDefault_',
+                },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {

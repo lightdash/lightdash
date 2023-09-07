@@ -145,15 +145,18 @@ const UserAttributeModal: FC<{
                                         event.currentTarget.checked;
                                     setChecked(isChecked);
                                     if (!isChecked)
-                                        form.setFieldValue('default', null);
+                                        form.setFieldValue(
+                                            'attributeDefault',
+                                            null,
+                                        );
                                 }}
                             />
                             {checked && (
                                 <TextInput
-                                    name={`default`}
+                                    name={`attributeDefault`}
                                     placeholder="E.g. US"
                                     required
-                                    {...form.getInputProps('default')}
+                                    {...form.getInputProps('attributeDefault')}
                                 />
                             )}
                         </Group>
