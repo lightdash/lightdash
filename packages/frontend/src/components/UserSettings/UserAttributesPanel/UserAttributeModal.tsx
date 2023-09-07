@@ -33,7 +33,7 @@ const UserAttributeModal: FC<{
             name: userAttribute?.name || '',
             description: userAttribute?.description,
             users: userAttribute?.users || [],
-            default: userAttribute?.default || null,
+            attributeDefault: userAttribute?.attributeDefault || null,
         },
     });
     const [inputError, setInputError] = useState<string | undefined>();
@@ -46,10 +46,10 @@ const UserAttributeModal: FC<{
     useEffect(() => {
         //Reset checked on edit
         setChecked(
-            userAttribute?.default !== undefined &&
-                userAttribute?.default !== null,
+            userAttribute?.attributeDefault !== undefined &&
+                userAttribute?.attributeDefault !== null,
         );
-    }, [userAttribute?.default]);
+    }, [userAttribute?.attributeDefault]);
 
     const handleClose = () => {
         form.reset();

@@ -10,7 +10,7 @@ describe('hasUserAttribute', () => {
                         name: 'test',
                         createdAt: new Date(),
                         organizationUuid: '',
-                        default: null,
+                        attributeDefault: null,
                         users: [
                             {
                                 userUuid: '',
@@ -34,7 +34,7 @@ describe('hasUserAttribute', () => {
                         name: 'test',
                         createdAt: new Date(),
                         organizationUuid: '',
-                        default: null,
+                        attributeDefault: null,
                         users: [
                             {
                                 userUuid: '',
@@ -50,7 +50,7 @@ describe('hasUserAttribute', () => {
         ).toStrictEqual(false);
     });
 
-    test('should be false if attribute value does not match even if default is present', () => {
+    test('should be false if attribute value does not match even if attributeDefault is present', () => {
         expect(
             hasUserAttribute(
                 [
@@ -59,7 +59,7 @@ describe('hasUserAttribute', () => {
                         name: 'test',
                         createdAt: new Date(),
                         organizationUuid: '',
-                        default: '2',
+                        attributeDefault: '2',
                         users: [
                             {
                                 userUuid: '',
@@ -83,7 +83,7 @@ describe('hasUserAttribute', () => {
                         name: 'test',
                         createdAt: new Date(),
                         organizationUuid: '',
-                        default: null,
+                        attributeDefault: null,
                         users: [
                             {
                                 userUuid: '',
@@ -99,7 +99,7 @@ describe('hasUserAttribute', () => {
         ).toStrictEqual(true);
     });
 
-    test('should be true if user does not have value and default matches', () => {
+    test('should be true if user does not have value and attributeDefault matches', () => {
         expect(
             hasUserAttribute(
                 [
@@ -108,7 +108,7 @@ describe('hasUserAttribute', () => {
                         name: 'test',
                         createdAt: new Date(),
                         organizationUuid: '',
-                        default: '1',
+                        attributeDefault: '1',
                         users: [],
                     },
                 ],

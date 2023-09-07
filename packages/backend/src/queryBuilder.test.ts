@@ -241,7 +241,7 @@ describe('Query builder', () => {
                 name: 'country',
                 createdAt: new Date(),
                 organizationUuid: '',
-                default: null,
+                attributeDefault: null,
                 users: [
                     {
                         userUuid: '',
@@ -292,7 +292,7 @@ describe('replaceUserAttributes', () => {
                 name: 'test',
                 createdAt: new Date(),
                 organizationUuid: '',
-                default: null,
+                attributeDefault: null,
                 users: [
                     {
                         userUuid: '',
@@ -323,7 +323,7 @@ describe('replaceUserAttributes', () => {
                 name: 'test',
                 createdAt: new Date(),
                 organizationUuid: '',
-                default: null,
+                attributeDefault: null,
                 users: [
                     {
                         userUuid: '',
@@ -337,7 +337,7 @@ describe('replaceUserAttributes', () => {
                 name: 'another',
                 createdAt: new Date(),
                 organizationUuid: '',
-                default: null,
+                attributeDefault: null,
                 users: [
                     {
                         userUuid: '',
@@ -362,7 +362,7 @@ describe('replaceUserAttributes', () => {
                 name: 'test',
                 createdAt: new Date(),
                 organizationUuid: '',
-                default: null,
+                attributeDefault: null,
                 users: [
                     {
                         userUuid: '',
@@ -404,7 +404,7 @@ describe('replaceUserAttributes', () => {
                 name: 'test',
                 createdAt: new Date(),
                 organizationUuid: '',
-                default: 'default_value',
+                attributeDefault: 'default_value',
                 users: [
                     {
                         userUuid: '',
@@ -435,7 +435,7 @@ describe('replaceUserAttributes', () => {
                 name: 'test',
                 createdAt: new Date(),
                 organizationUuid: '',
-                default: 'default_value',
+                attributeDefault: 'default_value',
                 users: [],
             },
         ];
@@ -493,7 +493,7 @@ describe('assertValidDimensionRequiredAttribute', () => {
                         name: 'is_admin',
                         createdAt: new Date(),
                         organizationUuid: '',
-                        default: null,
+                        attributeDefault: null,
                         users: [
                             {
                                 userUuid: '',
@@ -522,7 +522,7 @@ describe('assertValidDimensionRequiredAttribute', () => {
                     name: 'is_admin',
                     createdAt: new Date(),
                     organizationUuid: '',
-                    default: null,
+                    attributeDefault: null,
                     users: [
                         {
                             userUuid: '',

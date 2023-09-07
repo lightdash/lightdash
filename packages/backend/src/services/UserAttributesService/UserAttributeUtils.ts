@@ -8,7 +8,7 @@ export const hasUserAttribute = (
     userAttributes.some((ua) => {
         if (ua.name === attributeName) {
             // If user does not have attributes, we will check default value
-            if (ua.users.length === 0) return ua.default === value;
+            if (ua.users.length === 0) return ua.attributeDefault === value;
             return ua.users.some((u) => u.value === value);
         }
         return false;

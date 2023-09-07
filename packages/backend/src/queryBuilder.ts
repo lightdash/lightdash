@@ -75,7 +75,10 @@ export const replaceUserAttributes = (
                 `Missing user attribute "${attribute}" on ${filter}: "${sqlFilter}"`,
             );
         }
-        if (userAttribute.users.length !== 1 && !userAttribute.default) {
+        if (
+            userAttribute.users.length !== 1 &&
+            userAttribute.attributeDefault === null
+        ) {
             throw new ForbiddenError(
                 `Invalid or missing user attribute "${attribute}" on ${filter}: "${sqlFilter}"`,
             );
@@ -84,7 +87,7 @@ export const replaceUserAttributes = (
         const userValue =
             userAttribute.users.length > 0
                 ? userAttribute.users[0].value
-                : userAttribute.default;
+                : userAttribute.attributeDefault;
         return acc.replace(
             sqlAttribute,
             `${stringQuoteChar}${userValue}${stringQuoteChar}`,

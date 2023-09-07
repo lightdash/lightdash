@@ -101,7 +101,7 @@ describe('User attributes dimension required_attribute', () => {
                         value: '30',
                     },
                 ],
-                default: undefined,
+                attributeDefault: undefined,
             },
             failOnStatusCode: false,
         });

@@ -103,7 +103,7 @@ export class UserAttributesModel {
                         name: orgAttribute.name,
                         organizationUuid: orgAttribute.organization_uuid,
                         description: orgAttribute.description || undefined,
-                        default: orgAttribute.default,
+                        attributeDefault: orgAttribute.attributeDefault,
                         users: orgAttribute.user_id
                             ? [
                                   {
@@ -161,7 +161,7 @@ export class UserAttributesModel {
                     name: orgAttribute.name,
                     description: orgAttribute.description,
                     organization_id: organization.organization_id,
-                    default: orgAttribute.default,
+                    attributeDefault: orgAttribute.attributeDefault,
                 })
                 .returning('*');
 
@@ -200,7 +200,7 @@ export class UserAttributesModel {
                 .update({
                     name: orgAttribute.name,
                     description: orgAttribute.description,
-                    default: orgAttribute.default,
+                    attributeDefault: orgAttribute.attributeDefault,
                 })
                 .where('user_attribute_uuid', orgAttributeUuid);
 
