@@ -181,6 +181,19 @@ export class CsvService {
         });
     }
 
+    static generateFileId(
+        fileName: string,
+        time: moment.Moment = moment(),
+    ): string {
+        const timestamp = time.format('YYYY-MM-DD-HH-mm-ss-SSSS');
+        const sanitizedFileName = fileName
+            .toLowerCase()
+            .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
+            .replace(/_{2,}/g, '_'); // Replace multiple underscores with a single one
+        const fileId = `csv-${sanitizedFileName}-${timestamp}.csv`;
+        return fileId;
+    }
+
     static async writeRowsToFile(
         rows: Record<string, any>[],
         onlyRaw: boolean,
@@ -201,12 +214,7 @@ export class CsvService {
             `writeRowsToFile with ${rows.length} rows and ${selectedFieldIds.length} columns`,
         );
 
-        const timestamp = moment().format('YYYY-MM-DD-HH-mm-ss-SSSS');
-        const sanitizedFileName = fileName
-            .toLowerCase()
-            .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
-            .replace(/_{2,}/g, '_'); // Replace multiple underscores with a single one
-        const fileId = `csv-${sanitizedFileName}-${timestamp}.csv`;
+        const fileId = CsvService.generateFileId(fileName);
         const writeStream = fs.createWriteStream(`/tmp/${fileId}`);
 
         const sortedFieldIds = Object.keys(rows[0])
