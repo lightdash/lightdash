@@ -11,7 +11,7 @@ type Props = {
 };
 
 const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
-    const { showToastError } = useToaster();
+    const { showToastError, showToastWarning } = useToaster();
     const health = useHealth();
 
     return (
@@ -27,9 +27,9 @@ const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
                                 window.location.href = csvFile.url;
 
                                 if (csvFile.truncated) {
-                                    showToastError({
-                                        title: `Your results might be truncated`,
-                                        subtitle: `Results are limited to ${health.data?.query.csvCellsLimit} cells for each file`,
+                                    showToastWarning({
+                                        title: `The results in this export have been limited.`,
+                                        subtitle: `The export limit is ${health.data?.query.csvCellsLimit} cells, but your file exceeded that limit.`,
                                     });
                                 }
                             })
