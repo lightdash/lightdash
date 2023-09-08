@@ -288,6 +288,38 @@ export default class EmailClient {
         </td></tr>
         `;
 
+    static dashboardCsvUrl = (attachment: AttachmentUrl) => `
+    <tr>
+      <td
+        class="t180"
+        style="
+overflow: hidden;
+text-align: center;
+line-height: 32px;
+mso-line-height-rule: exactly;
+mso-text-raise: 5px;
+padding: 0
+5px
+0
+5px;
+border-radius: 3px
+3px
+3px
+3px;
+"
+      >
+          <a class="t181"
+             style="display:block;font-family:BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif, 'Roboto';line-height:32px;font-weight:500;font-style:normal;font-size:14px;text-decoration:underline;direction:ltr;color:#7262FF;text-align:center;mso-line-height-rule:exactly;mso-text-raise:5px;"
+             target="_blank"
+             href="${attachment.path}">
+               ${attachment.filename}
+             </a>
+   
+     </td>
+     </tr>
+
+`;
+
     public async sendDashboardCsvNotificationEmail(
         recipient: string,
         subject: string,
@@ -307,47 +339,23 @@ export default class EmailClient {
         class="t179"
      >
             ${attachments
-                .map(
-                    (attachment) =>
-                        `
-                          <tr>
-                            <td
-                              class="t180"
-                              style="
-       overflow: hidden;
-       text-align: center;
-       line-height: 32px;
-       mso-line-height-rule: exactly;
-       mso-text-raise: 5px;
-       padding: 0
-       5px
-       0
-       5px;
-       border-radius: 3px
-       3px
-       3px
-       3px;
-       "
-                            >
-                                <a class="t181"
-                                   style="display:block;font-family:BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif, 'Roboto';line-height:32px;font-weight:500;font-style:normal;font-size:14px;text-decoration:underline;direction:ltr;color:#7262FF;text-align:center;mso-line-height-rule:exactly;mso-text-raise:5px;"
-                                   target="_blank"
-                                   href="${attachment.path}">
-                                     ${attachment.filename}
-                                   </a>
-                         
-                           </td>
-                           </tr>
-                           ${
-                               attachment.truncated
-                                   ? this.truncateEmailBlock()
-                                   : ''
-                           }
-
-`,
-                )
+                .filter((attachment) => !attachment.truncated)
+                .map(EmailClient.dashboardCsvUrl)
                 .join('')}
                 </table>`;
+
+        const truncatedCsvUrls = `<table
+                role="presentation"
+                width="100%"
+                cellpadding="0"
+                cellspacing="0"
+                class="t179"
+             >
+                    ${attachments
+                        .filter((attachment) => attachment.truncated)
+                        .map(EmailClient.dashboardCsvUrl)
+                        .join('')}
+                        </table>`;
         return this.sendEmail({
             to: recipient,
             subject,
@@ -358,6 +366,11 @@ export default class EmailClient {
                 date,
                 frequency,
                 csvUrls,
+                truncatedCsvUrls,
+                truncated: attachments.some(
+                    (attachment) => attachment.truncated,
+                ),
+                maxCells: this.lightdashConfig.query.csvCellsLimit,
                 url,
                 host: this.lightdashConfig.siteUrl,
                 schedulerUrl,

@@ -313,10 +313,10 @@ export class CsvService {
         const numberRows = rows.length;
         const numberColumns = Object.keys(rows[0]).length;
 
-        return (
-            numberRows * numberColumns >=
-            this.lightdashConfig.query?.csvCellsLimit
-        );
+        // we use floor when limiting the rows, so the  need to make sure we got the last row valid
+        const cellsLimit = this.lightdashConfig.query?.csvCellsLimit || 100000;
+
+        return numberRows * numberColumns >= cellsLimit - numberColumns;
     }
 
     async getCsvForChart(
