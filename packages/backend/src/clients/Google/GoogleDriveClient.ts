@@ -83,9 +83,11 @@ export class GoogleDriveClient {
             .catch((error: any) => {
                 if (
                     error.code === 400 &&
-                    error.errors[0]?.message.includes('already exists.')
+                    error.errors[0]?.message.includes(tabName)
                 ) {
-                    Logger.debug('tab already exist, we will overwrite it');
+                    Logger.debug(
+                        `Google sheet tab already exist, we will overwrite it: ${error.errors[0]?.message}`,
+                    );
                 } else {
                     throw new Error(error);
                 }
