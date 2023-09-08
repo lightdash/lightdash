@@ -253,6 +253,7 @@ describe('Query builder', () => {
                 name: 'country',
                 createdAt: new Date(),
                 organizationUuid: '',
+                attributeDefault: null,
                 users: [
                     {
                         userUuid: '',
@@ -303,6 +304,7 @@ describe('replaceUserAttributes', () => {
                 name: 'test',
                 createdAt: new Date(),
                 organizationUuid: '',
+                attributeDefault: null,
                 users: [
                     {
                         userUuid: '',
@@ -333,6 +335,7 @@ describe('replaceUserAttributes', () => {
                 name: 'test',
                 createdAt: new Date(),
                 organizationUuid: '',
+                attributeDefault: null,
                 users: [
                     {
                         userUuid: '',
@@ -346,6 +349,7 @@ describe('replaceUserAttributes', () => {
                 name: 'another',
                 createdAt: new Date(),
                 organizationUuid: '',
+                attributeDefault: null,
                 users: [
                     {
                         userUuid: '',
@@ -370,6 +374,7 @@ describe('replaceUserAttributes', () => {
                 name: 'test',
                 createdAt: new Date(),
                 organizationUuid: '',
+                attributeDefault: null,
                 users: [
                     {
                         userUuid: '',
@@ -402,6 +407,62 @@ describe('replaceUserAttributes', () => {
         expect(replaceUserAttributes('${lightdash.foo.test} > 1', [])).toEqual(
             '${lightdash.foo.test} > 1',
         );
+    });
+
+    it('method should replace sqlFilter with user value before default', async () => {
+        const userAttributes: UserAttribute[] = [
+            {
+                uuid: '',
+                name: 'test',
+                createdAt: new Date(),
+                organizationUuid: '',
+                attributeDefault: 'default_value',
+                users: [
+                    {
+                        userUuid: '',
+                        email: '',
+                        value: '1',
+                    },
+                ],
+            },
+        ];
+        const expected = "'1' > 1";
+
+        expect(
+            replaceUserAttributes(
+                '${lightdash.attribute.test} > 1',
+                userAttributes,
+            ),
+        ).toEqual(expected);
+
+        expect(
+            replaceUserAttributes('${ld.attr.test} > 1', userAttributes),
+        ).toEqual(expected);
+    });
+
+    it('method should replace sqlFilter with default value if user value is not available', async () => {
+        const userAttributes: UserAttribute[] = [
+            {
+                uuid: '',
+                name: 'test',
+                createdAt: new Date(),
+                organizationUuid: '',
+                attributeDefault: 'default_value',
+                users: [],
+            },
+        ];
+        const expected = "'default_value' > 1";
+
+        expect(
+            replaceUserAttributes(
+                '${lightdash.attribute.test} > 1',
+                userAttributes,
+            ),
+        ).toEqual(expected);
+
+        expect(
+            replaceUserAttributes('${ld.attr.test} > 1', userAttributes),
+        ).toEqual(expected);
     });
 });
 
@@ -444,6 +505,7 @@ describe('assertValidDimensionRequiredAttribute', () => {
                         name: 'is_admin',
                         createdAt: new Date(),
                         organizationUuid: '',
+                        attributeDefault: null,
                         users: [
                             {
                                 userUuid: '',
@@ -472,6 +534,7 @@ describe('assertValidDimensionRequiredAttribute', () => {
                     name: 'is_admin',
                     createdAt: new Date(),
                     organizationUuid: '',
+                    attributeDefault: null,
                     users: [
                         {
                             userUuid: '',

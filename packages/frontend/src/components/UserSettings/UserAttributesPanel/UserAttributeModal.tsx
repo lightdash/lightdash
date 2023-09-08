@@ -6,6 +6,7 @@ import {
     Modal,
     Select,
     Stack,
+    Switch,
     Text,
     Textarea,
     TextInput,
@@ -13,7 +14,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import {
     useCreateUserAtributesMutation,
@@ -32,6 +33,7 @@ const UserAttributeModal: FC<{
             name: userAttribute?.name || '',
             description: userAttribute?.description,
             users: userAttribute?.users || [],
+            attributeDefault: userAttribute?.attributeDefault || null,
         },
     });
     const [inputError, setInputError] = useState<string | undefined>();
@@ -39,10 +41,20 @@ const UserAttributeModal: FC<{
     const { mutate: updateUserAttribute } = useUpdateUserAtributesMutation(
         userAttribute?.uuid,
     );
+    const [checked, setChecked] = useState(false);
+
+    useEffect(() => {
+        //Reset checked on edit
+        setChecked(
+            userAttribute?.attributeDefault !== undefined &&
+                userAttribute?.attributeDefault !== null,
+        );
+    }, [userAttribute?.attributeDefault]);
 
     const handleClose = () => {
         form.reset();
         setInputError(undefined);
+        setChecked(false);
         if (onClose) onClose();
     };
     const handleSubmit = async (data: CreateUserAttribute) => {
@@ -99,7 +111,7 @@ const UserAttributeModal: FC<{
             size="lg"
         >
             <form
-                name="invite_user"
+                name="add_user_attribute"
                 onSubmit={form.onSubmit((values: CreateUserAttribute) =>
                     handleSubmit(values),
                 )}
@@ -122,6 +134,33 @@ const UserAttributeModal: FC<{
                         placeholder="E.g. The country where the user is querying data from."
                         {...form.getInputProps('description')}
                     />
+                    <Stack spacing="xxs">
+                        <Text fw={500}>Default value</Text>
+
+                        <Group h={36}>
+                            <Switch
+                                checked={checked}
+                                onChange={(event) => {
+                                    const isChecked =
+                                        event.currentTarget.checked;
+                                    setChecked(isChecked);
+                                    if (!isChecked)
+                                        form.setFieldValue(
+                                            'attributeDefault',
+                                            null,
+                                        );
+                                }}
+                            />
+                            {checked && (
+                                <TextInput
+                                    name={`attributeDefault`}
+                                    placeholder="E.g. US"
+                                    required
+                                    {...form.getInputProps('attributeDefault')}
+                                />
+                            )}
+                        </Group>
+                    </Stack>
                     <Stack>
                         <Text fw={500}>Assign to users</Text>
 

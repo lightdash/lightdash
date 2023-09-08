@@ -6,6 +6,7 @@ export type DbUserAttribute = {
     name: string;
     description?: string;
     organization_id: number;
+    attribute_default: string | null;
 };
 
 export type DbOrganizationMemberUserAttribute = {

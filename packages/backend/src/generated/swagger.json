@@ -2554,7 +2554,11 @@
                 "type": "object"
             },
             "SchedulerImageOptions": {
-                "properties": {},
+                "properties": {
+                    "withPdf": {
+                        "type": "boolean"
+                    }
+                },
                 "type": "object"
             },
             "SchedulerGsheetsOptions": {
@@ -3439,6 +3443,10 @@
             },
             "UserAttribute": {
                 "properties": {
+                    "attributeDefault": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "users": {
                         "items": {
                             "$ref": "#/components/schemas/UserAttributeValue"
@@ -3463,6 +3471,7 @@
                     }
                 },
                 "required": [
+                    "attributeDefault",
                     "users",
                     "organizationUuid",
                     "name",
@@ -3502,16 +3511,20 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_UserAttribute.name-or-description_": {
+            "Pick_UserAttribute.name-or-description-or-attributeDefault_": {
                 "properties": {
                     "name": {
                         "type": "string"
                     },
                     "description": {
                         "type": "string"
+                    },
+                    "attributeDefault": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
-                "required": ["name"],
+                "required": ["name", "attributeDefault"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -3538,7 +3551,7 @@
             "CreateUserAttribute": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_UserAttribute.name-or-description_"
+                        "$ref": "#/components/schemas/Pick_UserAttribute.name-or-description-or-attributeDefault_"
                     },
                     {
                         "properties": {
@@ -4054,7 +4067,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.768.0",
+        "version": "0.773.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
