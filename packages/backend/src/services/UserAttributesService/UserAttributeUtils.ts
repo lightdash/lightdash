@@ -1,6 +1,7 @@
 import { Explore, UserAttribute } from '@lightdash/common';
 
 export const hasUserAttribute = (
+    userUuid: string,
     userAttributes: UserAttribute[],
     attributeName: string,
     value: string,
@@ -8,13 +9,15 @@ export const hasUserAttribute = (
     userAttributes.some((ua) => {
         if (ua.name === attributeName) {
             // If user does not have attributes, we will check default value
-            if (ua.users.length === 0) return ua.attributeDefault === value;
-            return ua.users.some((u) => u.value === value);
+            const userAttribute = ua.users.find((u) => u.userUuid === userUuid);
+            if (userAttribute) return userAttribute.value === value;
+            return ua.attributeDefault === value;
         }
         return false;
     });
 
 export const hasUserAttributes = (
+    userUuid: string,
     requiredAttributes: Record<string, string> | undefined,
     userAttributes: UserAttribute[],
 ): boolean => {
@@ -24,7 +27,12 @@ export const hasUserAttributes = (
     const hasAttributes = Object.entries(requiredAttributes).map(
         (attribute) => {
             const [attributeName, value] = attribute;
-            return hasUserAttribute(userAttributes, attributeName, value);
+            return hasUserAttribute(
+                userUuid,
+                userAttributes,
+                attributeName,
+                value,
+            );
         },
     );
     return hasAttributes.every((attribute) => attribute === true);
@@ -38,6 +46,7 @@ export const exploreHasFilteredAttribute = (explore: Explore) =>
     );
 export const filterDimensionsFromExplore = (
     explore: Explore,
+    userUuid: string,
     userAttributes: UserAttribute[],
 ): Explore => ({
     ...explore,
@@ -53,6 +62,7 @@ export const filterDimensionsFromExplore = (
 
                         if (
                             hasUserAttributes(
+                                userUuid,
                                 dimension.requiredAttributes,
                                 userAttributes,
                             )

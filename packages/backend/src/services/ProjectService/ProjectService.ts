@@ -700,6 +700,7 @@ export class ProjectService {
         metricQuery: MetricQuery,
         explore: Explore,
         warehouseClient: WarehouseClient,
+        userUuid: string,
         userAttributes: UserAttribute[],
     ): Promise<{ query: string; hasExampleMetric: boolean }> {
         const compiledMetricQuery = compileMetricQuery({
@@ -711,6 +712,7 @@ export class ProjectService {
             explore,
             compiledMetricQuery,
             warehouseClient,
+            userUuid,
             userAttributes,
         });
     }
@@ -744,6 +746,7 @@ export class ProjectService {
             metricQuery,
             explore,
             warehouseClient,
+            user.userUuid,
             userAttributes,
         );
         await sshTunnel.disconnect();
@@ -1086,6 +1089,7 @@ export class ProjectService {
                             metricQueryWithLimit,
                             explore,
                             warehouseClient,
+                            user.userUuid,
                             userAttributes,
                         );
 
@@ -1312,6 +1316,7 @@ export class ProjectService {
             metricQuery,
             explore,
             warehouseClient,
+            user.userUuid,
             userAttributes,
         );
 
@@ -1736,7 +1741,11 @@ export class ProjectService {
                 userUuid: user.userUuid,
             });
 
-            return filterDimensionsFromExplore(explore, userAttributes);
+            return filterDimensionsFromExplore(
+                explore,
+                user.userUuid,
+                userAttributes,
+            );
         } finally {
             span?.finish();
         }

@@ -256,7 +256,7 @@ describe('Query builder', () => {
                 attributeDefault: null,
                 users: [
                     {
-                        userUuid: '',
+                        userUuid: 'user-uuid',
                         email: '',
                         value: 'EU',
                     },
@@ -268,6 +268,7 @@ describe('Query builder', () => {
                 explore: EXPLORE_WITH_SQL_FILTER,
                 compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
                 warehouseClient: warehouseClientMock,
+                userUuid: 'user-uuid',
                 userAttributes,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_SQL_FILTER);
@@ -469,6 +470,7 @@ describe('replaceUserAttributes', () => {
 describe('assertValidDimensionRequiredAttribute', () => {
     it('should not throw errors if no user attributes are required', async () => {
         const result = assertValidDimensionRequiredAttribute(
+            'user-uuid',
             COMPILED_DIMENSION,
             [],
             '',
@@ -480,6 +482,7 @@ describe('assertValidDimensionRequiredAttribute', () => {
     it('should throw errors if required attributes are required and user attributes are missing', async () => {
         expect(() =>
             assertValidDimensionRequiredAttribute(
+                'user-uuid',
                 {
                     ...COMPILED_DIMENSION,
                     requiredAttributes: {
@@ -493,6 +496,7 @@ describe('assertValidDimensionRequiredAttribute', () => {
 
         expect(() =>
             assertValidDimensionRequiredAttribute(
+                'user-uuid',
                 {
                     ...COMPILED_DIMENSION,
                     requiredAttributes: {
@@ -508,7 +512,7 @@ describe('assertValidDimensionRequiredAttribute', () => {
                         attributeDefault: null,
                         users: [
                             {
-                                userUuid: '',
+                                userUuid: 'user-uuid',
                                 email: '',
                                 value: 'false',
                             },
@@ -522,6 +526,7 @@ describe('assertValidDimensionRequiredAttribute', () => {
 
     it('should not throw errors if required attributes are required and user attributes exist', async () => {
         const result = assertValidDimensionRequiredAttribute(
+            'user-uuid',
             {
                 ...COMPILED_DIMENSION,
                 requiredAttributes: {
@@ -537,7 +542,7 @@ describe('assertValidDimensionRequiredAttribute', () => {
                     attributeDefault: null,
                     users: [
                         {
-                            userUuid: '',
+                            userUuid: 'user-uuid',
                             email: '',
                             value: 'true',
                         },
