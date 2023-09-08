@@ -33,6 +33,7 @@ export class UserAttributesService {
                 userIds: attribute.users.map((u) => u.userUuid),
                 values: attribute.users.map((u) => u.value),
             },
+            defaultValue: attribute.attributeDefault,
         };
     }
 

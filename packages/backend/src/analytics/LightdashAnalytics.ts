@@ -760,6 +760,7 @@ export type UserAttributeCreateAndUpdateEvent = BaseTrack & {
             userIds: string[];
             values: string[];
         };
+        defaultValue: string | null;
     };
 };
 
