@@ -251,6 +251,7 @@ export type NotificationPayloadBase = {
             path: string;
             filename: string;
             localPath: string;
+            truncated: boolean;
         }[];
         pdfFile?: string;
     };
