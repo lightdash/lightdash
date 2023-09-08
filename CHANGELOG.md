@@ -1,3 +1,10 @@
+## [0.773.4](https://github.com/lightdash/lightdash/compare/0.773.3...0.773.4) (2023-09-08)
+
+
+### Bug Fixes
+
+* fix gsheet add tab error ([#7046](https://github.com/lightdash/lightdash/issues/7046)) ([1e85b59](https://github.com/lightdash/lightdash/commit/1e85b59e1a9e118ed8ed1b069899803d1e4f22ea))
+
 ## [0.773.3](https://github.com/lightdash/lightdash/compare/0.773.2...0.773.3) (2023-09-07)
 
 
