@@ -130,7 +130,7 @@ export type BuildQueryProps = {
     compiledMetricQuery: CompiledMetricQuery;
 
     warehouseClient: WarehouseClient;
-    userUuid?: string;
+    userUuid: string;
     userAttributes?: UserAttribute[];
 };
 
@@ -171,13 +171,8 @@ export const buildQuery = ({
         const alias = field;
         const dimension = getDimensionFromId(field, explore);
 
-        if (userUuid === undefined && userAttributes.length > 0) {
-            throw new Error(
-                `Missing userUuid with userAttributes on buildQuery for dimension ${dimension.name}`,
-            );
-        }
         assertValidDimensionRequiredAttribute(
-            userUuid!,
+            userUuid,
             dimension,
             userAttributes,
             `dimension: "${field}"`,
@@ -204,14 +199,9 @@ export const buildQuery = ({
 
             const dimensionId = getCustomMetricDimensionId(metric);
             const dimension = getDimensionFromId(dimensionId, explore);
-            if (userUuid === undefined && userAttributes.length > 0) {
-                throw new Error(
-                    `Missing userUuid with userAttributes on buildQuery for dimension ${dimension.name}`,
-                );
-            }
 
             assertValidDimensionRequiredAttribute(
-                userUuid!,
+                userUuid,
                 dimension,
                 userAttributes,
                 `custom metric: "${metric.name}"`,
