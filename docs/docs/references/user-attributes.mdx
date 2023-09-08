@@ -3,6 +3,9 @@ tags:
  - role:admin
 ---
 
+import DefaultValue from './assets/user-attribute-default-value.png';
+
+
 # User Attributes
 
 User attributes provide a way to customise Lightdash charts, dashboards, and other behaviour depending on the user 
@@ -29,16 +32,24 @@ frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media
 ## Managing user attributes
 
 
-### 1. Creating user attributes
+### Creating user attributes
 
 
 User attributes can be created by navigating to **Organization Settings** > **User Attributes** and clicking on the 
 **Add attribute** button. This will create a new user attribute but it will not be assigned to any user.
 
-### 2. Assigning user attributes to users
+### Assigning user attributes to users
 
 User attributes can be assigned to users by navigating to **Organization Settings** > **User Attributes** and 
 clicking on the user attribute you'd like to assign. Select a user by email address and set their value.
+
+### Setting a default value for your user attribute
+
+You can add a default attribute that will be applied to all users who don't have their own value defined in this user attribute. 
+
+<img src={DefaultValue} width="683" height="936" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+If a user has an attribute defined, we will ignore the default for that user.
 
 ## Using user attributes in Lightdash
 
