@@ -1,3 +1,10 @@
+## [0.774.1](https://github.com/lightdash/lightdash/compare/0.774.0...0.774.1) (2023-09-08)
+
+
+### Bug Fixes
+
+* **MetricFlow:** get filtered dimensions and metrics ([#7047](https://github.com/lightdash/lightdash/issues/7047)) ([e78b8ee](https://github.com/lightdash/lightdash/commit/e78b8eed7f7455d4f7b559a8743e02e62c3bab97))
+
 # [0.774.0](https://github.com/lightdash/lightdash/compare/0.773.4...0.774.0) (2023-09-08)
 
 
