@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ActionIcon,
+    Badge,
     Flex,
     Group,
     Stack,
@@ -12,6 +13,7 @@ import { IconRefresh, IconTrashX } from '@tabler/icons-react';
 import React, { useCallback, useMemo, useState } from 'react';
 import { ChartDownloadMenu } from '../components/ChartDownload';
 import CollapsableCard from '../components/common/CollapsableCard';
+import LoadingState from '../components/common/LoadingState';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import VisualizationConfigPanel from '../components/Explorer/VisualizationCard/VisualizationConfigPanel';
@@ -19,8 +21,8 @@ import VisualizationCardOptions from '../components/Explorer/VisualizationCardOp
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
-import { LoadingPanel } from '../components/MetricQueryData/UnderlyingDataModal.styles';
 import MetricFlowFieldList from '../features/metricFlow/components/MetricFlowFieldList';
+import MetricFlowSqlCard from '../features/metricFlow/components/MetricFlowSqlCard';
 import MetricFlowResultsTable from '../features/metricFlow/components/ResultsTable';
 import RunQueryButton from '../features/metricFlow/components/RunQueryButton';
 import useMetricFlowFields from '../features/metricFlow/hooks/useMetricFlowFields';
@@ -149,8 +151,8 @@ const MetricFlowPage = () => {
         }),
     );
 
-    if (user.isLoading) {
-        return <LoadingPanel />;
+    if (user.isLoading || !activeProjectUuid) {
+        return <LoadingState title="Loading metricflow" />;
     }
     if (cannotViewProject) {
         return <ForbiddenPanel />;
@@ -168,14 +170,24 @@ const MetricFlowPage = () => {
                     sx={{ overflowY: 'hidden', flex: 1 }}
                 >
                     <Group position="apart">
-                        <PageBreadcrumbs
-                            items={[{ title: 'MetricFlow', active: true }]}
-                        />
                         <Flex gap="xs">
+                            <PageBreadcrumbs
+                                items={[{ title: 'MetricFlow', active: true }]}
+                            />
+                            <Tooltip
+                                label={`MetricFlow integration is in beta and may be unstable`}
+                            >
+                                <Badge size="sm" variant="light">
+                                    BETA
+                                </Badge>
+                            </Tooltip>
+                        </Flex>
+                        <Flex gap="xs" align="center">
                             <Tooltip label={'Refetch fields'}>
                                 <ActionIcon
                                     size="sm"
                                     variant="outline"
+                                    color="blue"
                                     loading={metricFlowFieldsQuery.isFetching}
                                     disabled={metricFlowFieldsQuery.isFetching}
                                     onClick={() =>
@@ -189,6 +201,7 @@ const MetricFlowPage = () => {
                                 <ActionIcon
                                     size="sm"
                                     variant="outline"
+                                    color="red"
                                     onClick={() => {
                                         setSelectedMetrics([]);
                                         setSelectedDimensions([]);
@@ -302,6 +315,19 @@ const MetricFlowPage = () => {
                         error={metricFlowQueryResultsQuery.error}
                     />
                 </CollapsableCard>
+                <MetricFlowSqlCard
+                    projectUuid={activeProjectUuid}
+                    status={metricFlowQueryResultsQuery.status}
+                    sql={metricFlowQueryResultsQuery.data?.query.sql}
+                    error={metricFlowQueryResultsQuery.error}
+                    canRedirectToSqlRunner={user.data?.ability?.can(
+                        'manage',
+                        subject('SqlRunner', {
+                            organizationUuid: user.data?.organizationUuid,
+                            projectUuid: activeProjectUuid,
+                        }),
+                    )}
+                />
             </Stack>
         </Page>
     );

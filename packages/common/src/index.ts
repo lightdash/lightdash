@@ -5,7 +5,6 @@ import {
     DashboardAvailableFilters,
     DashboardBasicDetails,
 } from './types/dashboard';
-import { convertAdditionalMetric } from './types/dbt';
 import { DbtCloudIntegration } from './types/dbtCloud';
 import { Explore, SummaryExplore } from './types/explore';
 import {
@@ -70,6 +69,7 @@ import {
     ApiJobScheduledResponse,
     ApiJobStatusResponse,
     SchedulerAndTargets,
+    SchedulerJobStatus,
     SchedulerWithLogs,
 } from './types/scheduler';
 import { SlackChannel } from './types/slack';
@@ -78,6 +78,7 @@ import { ApiSshKeyPairResponse } from './types/SshKeyPair';
 import { TableBase } from './types/table';
 import { LightdashUser, UserAllowedOrganization } from './types/user';
 import { ValidationResponse } from './types/validation';
+import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 
@@ -136,6 +137,7 @@ export * from './types/user';
 export * from './types/userAttributes';
 export * from './types/validation';
 export * from './types/warehouse';
+export * from './utils/additionalMetrics';
 export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/conditionalFormatting';
@@ -327,6 +329,7 @@ export type ApiScheduledDownloadCsv = {
 };
 export type ApiDownloadCsv = {
     url: string;
+    status: SchedulerJobStatus;
 };
 
 export type ProjectCatalog = {

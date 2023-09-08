@@ -665,6 +665,7 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
         resourceType?: 'dashboard' | 'chart';
         type: 'slack' | 'email' | 'gsheets';
         format?: SchedulerFormat;
+        withPdf?: boolean;
     };
 };
 
@@ -759,6 +760,7 @@ export type UserAttributeCreateAndUpdateEvent = BaseTrack & {
             userIds: string[];
             values: string[];
         };
+        defaultValue: string | null;
     };
 };
 

@@ -127,8 +127,15 @@ const MultiAutoComplete: FC<Props> = ({
             popoverProps={{
                 minimal: true,
                 matchTargetWidth: true,
-                onClosing: () => handleOnClose(search),
-                ...popoverProps,
+                onOpening: () => {
+                    if (popoverProps?.onOpening)
+                        popoverProps?.onOpening(null as unknown as HTMLElement);
+                },
+                onClosing: () => {
+                    if (popoverProps?.onClosing)
+                        popoverProps?.onClosing(null as unknown as HTMLElement);
+                    handleOnClose(search);
+                },
             }}
             resetOnSelect
             tagRenderer={(name) => name}

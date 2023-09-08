@@ -27,14 +27,14 @@ import {
     SavedChart,
     TableCalculation,
 } from '@lightdash/common';
+import { Box, Text, Tooltip } from '@mantine/core';
+import { IconFolders } from '@tabler/icons-react';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
-
-import { Box, Text, Tooltip } from '@mantine/core';
-import { IconFolders } from '@tabler/icons-react';
 import { downloadCsv } from '../../api/csv';
+import { ExportToGoogleSheet } from '../../features/export';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import useSavedQueryWithDashboardFilters from '../../hooks/dashboard/useSavedQueryWithDashboardFilters';
@@ -54,7 +54,6 @@ import ErrorState from '../common/ErrorState';
 import { getConditionalRuleLabel } from '../common/Filters/configs';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
-import ExportGsheets from '../Explorer/ExportGsheets';
 import ExportCSVModal from '../ExportCSV/ExportCSVModal';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
@@ -147,7 +146,7 @@ const ExportGoogleSheet: FC<{ savedChart: SavedChart; disabled?: boolean }> = ({
     };
 
     return (
-        <ExportGsheets
+        <ExportToGoogleSheet
             getGsheetLink={getGsheetLink}
             asMenuItem={true}
             disabled={disabled}

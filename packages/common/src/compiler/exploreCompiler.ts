@@ -294,6 +294,12 @@ export class ExploreCompiler {
             },
         );
         if (metric.filters !== undefined && metric.filters.length > 0) {
+            if (isNonAggregateMetric(metric)) {
+                throw new CompileError(
+                    `Error: ${metric.name} - metric filters cannot be used with non-aggregate metrics`,
+                );
+            }
+
             const conditions = metric.filters.map((filter) => {
                 const fieldRef =
                     // @ts-expect-error This fallback is to support old metric filters in yml. We can delete this after a few months since we can assume all projects have been redeployed
@@ -489,8 +495,12 @@ export class ExploreCompiler {
         return {
             table: join.alias || join.table,
             sqlOn: join.sqlOn,
+            type: join.type,
             compiledSqlOn: this.compileExploreJoinSql(
-                { table: join.alias || join.table, sqlOn: join.sqlOn },
+                {
+                    table: join.alias || join.table,
+                    sqlOn: join.sqlOn,
+                },
                 tables,
             ),
         };

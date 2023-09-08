@@ -20,9 +20,9 @@ import {
 } from '@mantine/core';
 import {
     IconAlertCircle,
-    IconCircleX,
     IconHelp,
     IconInfoCircle,
+    IconTrash,
 } from '@tabler/icons-react';
 import { capitalize } from 'lodash-es';
 import { FC, useState } from 'react';
@@ -188,15 +188,13 @@ const UserListItem: FC<{
                         <td>
                             <Group position="right">
                                 <Button
-                                    leftIcon={
-                                        <MantineIcon icon={IconCircleX} />
-                                    }
+                                    px="xs"
                                     variant="outline"
                                     onClick={() => setIsDeleteDialogOpen(true)}
                                     disabled={disabled}
                                     color="red"
                                 >
-                                    Delete
+                                    <MantineIcon icon={IconTrash} />
                                 </Button>
                             </Group>
                             <Modal

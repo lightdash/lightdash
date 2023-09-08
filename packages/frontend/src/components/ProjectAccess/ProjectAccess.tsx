@@ -1,8 +1,6 @@
 import {
-    Button,
     ButtonGroup,
     Classes,
-    Dialog,
     Intent,
     NonIdealState,
     Spinner,
@@ -16,7 +14,8 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
 } from '@lightdash/common';
-import { Stack } from '@mantine/core';
+import { Button, Group, Modal, Stack, Text, Title } from '@mantine/core';
+import { IconKey, IconTrash } from '@tabler/icons-react';
 import { FC, useMemo, useState } from 'react';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import {
@@ -26,6 +25,7 @@ import {
 } from '../../hooks/useProjectAccess';
 import { useApp } from '../../providers/AppProvider';
 import { useAbilityContext } from '../common/Authorization';
+import MantineIcon from '../common/MantineIcon';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import {
     ItemContent,
@@ -104,40 +104,44 @@ const UserListItem: FC<{
                         )}
                         {onDelete && (
                             <Button
-                                icon="delete"
-                                intent="danger"
-                                outlined
+                                variant="outline"
+                                size="xs"
+                                color="red"
+                                px="xs"
                                 onClick={() => setIsDeleteDialogOpen(true)}
-                                text="Delete"
-                            />
+                            >
+                                <MantineIcon icon={IconTrash} />
+                            </Button>
                         )}
                     </ButtonGroup>
                 </SectionWrapper>
             </ItemContent>
-            <Dialog
-                isOpen={isDeleteDialogOpen}
-                icon="key"
+            <Modal
+                opened={isDeleteDialogOpen}
                 onClose={() => setIsDeleteDialogOpen(false)}
-                title="Revoke project access"
-                lazy
+                title={
+                    <Group spacing="xs">
+                        <MantineIcon size="lg" icon={IconKey} color="red" />
+                        <Title order={4}>Revoke project access</Title>
+                    </Group>
+                }
             >
-                <div className={Classes.DIALOG_BODY}>
-                    <p>
-                        Are you sure you want to revoke project access this user{' '}
-                        {email} ?
-                    </p>
-                </div>
-                <div className={Classes.DIALOG_FOOTER}>
-                    <div className={Classes.DIALOG_FOOTER_ACTIONS}>
-                        <Button onClick={() => setIsDeleteDialogOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button intent="danger" onClick={onDelete}>
-                            Delete
-                        </Button>
-                    </div>
-                </div>
-            </Dialog>
+                <Text pb="md">
+                    Are you sure you want to revoke project access for this user{' '}
+                    {email} ?
+                </Text>
+                <Group spacing="xs" position="right">
+                    <Button
+                        variant="outline"
+                        onClick={() => setIsDeleteDialogOpen(false)}
+                    >
+                        Cancel
+                    </Button>
+                    <Button color="red" onClick={onDelete}>
+                        Delete
+                    </Button>
+                </Group>
+            </Modal>
         </SettingsCard>
     );
 };

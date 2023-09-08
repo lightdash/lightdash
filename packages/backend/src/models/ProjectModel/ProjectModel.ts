@@ -7,6 +7,7 @@ import {
     DbtProjectConfig,
     Explore,
     ExploreError,
+    isExploreError,
     NotExistsError,
     OrganizationProject,
     PreviewContentMapping,
@@ -41,7 +42,7 @@ import {
     DbProject,
     ProjectTableName,
 } from '../../database/entities/projects';
-import { DbSavedChart, InsertChart } from '../../database/entities/savedCharts';
+import { DbSavedChart } from '../../database/entities/savedCharts';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import Logger from '../../logging/logger';
@@ -471,7 +472,10 @@ export class ProjectModel {
         return undefined;
     }
 
-    static convertMetricFiltersFieldIdsToFieldRef = (explore: Explore) => {
+    static convertMetricFiltersFieldIdsToFieldRef = (
+        explore: Explore | ExploreError,
+    ) => {
+        if (isExploreError(explore)) return explore;
         const convertedExplore = { ...explore };
         if (convertedExplore.tables) {
             Object.values(convertedExplore.tables).forEach((table) => {
@@ -497,29 +501,56 @@ export class ProjectModel {
         return convertedExplore;
     };
 
-    async getExploreFromCache(
-        projectUuid: string,
-        exploreName: string,
-    ): Promise<Explore | ExploreError> {
-        const [row] = await this.database('cached_explores')
+    private getExploreQueryBuilder(projectUuid: string) {
+        return this.database('cached_explores')
             .select<{ explore: Explore | ExploreError }[]>(['explore'])
             .crossJoin(
                 this.database.raw('jsonb_array_elements(explores) as explore'),
             )
             .where('project_uuid', projectUuid)
-            .andWhereRaw(
-                this.database.raw("explore->>'name' = ?", [exploreName]),
-            );
+            .first();
+    }
+
+    async getExploreFromCache(
+        projectUuid: string,
+        exploreName: string,
+    ): Promise<Explore | ExploreError> {
+        const row = await this.getExploreQueryBuilder(projectUuid).andWhereRaw(
+            "explore->>'name' = ?",
+            [exploreName],
+        );
         if (row === undefined) {
             throw new NotExistsError(
                 `Explore "${exploreName}" does not exist.`,
             );
         }
+        return ProjectModel.convertMetricFiltersFieldIdsToFieldRef(row.explore);
+    }
 
-        const exploreFromCache: Explore =
-            ProjectModel.convertMetricFiltersFieldIdsToFieldRef(row.explore);
+    async findExploreByTableName(
+        projectUuid: string,
+        tableName: string,
+    ): Promise<Explore | ExploreError | undefined> {
+        // try finding explore via base table name
+        let explore = await this.getExploreQueryBuilder(
+            projectUuid,
+        ).andWhereRaw("explore->>'baseTable' = ?", [tableName]);
 
-        return exploreFromCache;
+        if (!explore) {
+            // try finding explore via joined table alias
+            // Note: there is an edge case where we return the wrong explore because join table aliases are not unique
+            explore = await this.getExploreQueryBuilder(
+                projectUuid,
+            ).andWhereRaw("(explore->>'tables')::json->? IS NOT NULL", [
+                tableName,
+            ]);
+        }
+
+        return explore
+            ? ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
+                  explore.explore,
+              )
+            : undefined;
     }
 
     async saveExploresToCache(

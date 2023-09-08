@@ -333,6 +333,8 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/ujwalkumar1995"><img src="https://avatars.githubusercontent.com/u/20976813?v=4?s=100" width="100px;" alt="Ujwal Kumar"/><br /><sub><b>Ujwal Kumar</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=ujwalkumar1995" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/nimit9"><img src="https://avatars.githubusercontent.com/u/37402791?v=4?s=100" width="100px;" alt="Nimit Haria"/><br /><sub><b>Nimit Haria</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=nimit9" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/tnightengale"><img src="https://avatars.githubusercontent.com/u/17347282?v=4?s=100" width="100px;" alt="Teghan Nightengale"/><br /><sub><b>Teghan Nightengale</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=tnightengale" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

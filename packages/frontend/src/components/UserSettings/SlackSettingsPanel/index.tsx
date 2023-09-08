@@ -80,11 +80,11 @@ const SlackSettingsPanel: FC = () => {
                                 Reinstall
                             </Button>
                             <Button
-                                leftIcon={<MantineIcon icon={IconTrash} />}
+                                px="xs"
                                 color="red"
                                 onClick={() => deleteSlack(undefined)}
                             >
-                                Remove
+                                <MantineIcon icon={IconTrash} />
                             </Button>
                         </Group>
 

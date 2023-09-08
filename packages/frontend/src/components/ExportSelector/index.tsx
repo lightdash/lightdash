@@ -1,10 +1,16 @@
-import { ApiScheduledDownloadCsv } from '@lightdash/common';
+import {
+    ApiDownloadCsv,
+    ApiError,
+    ApiScheduledDownloadCsv,
+    SchedulerJobStatus,
+} from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
 import { IconArrowLeft, IconFileTypeCsv } from '@tabler/icons-react';
 import { FC, memo, useState } from 'react';
+import { useQuery } from 'react-query';
+import { ExportToGoogleSheet } from '../../features/export';
 import useHealth from '../../hooks/health/useHealth';
 import MantineIcon from '../common/MantineIcon';
-import ExportGsheets from '../Explorer/ExportGsheets';
 import ExportCSV, { ExportCSVProps } from '../ExportCSV';
 
 const ExportSelector: FC<
@@ -18,6 +24,13 @@ const ExportSelector: FC<
         health.data?.auth.google.googleDriveApiKey !== undefined;
 
     const [exportType, setExportType] = useState<string | undefined>();
+
+    const { data } = useQuery<ApiDownloadCsv | undefined, ApiError>({
+        queryKey: [`google-sheets`],
+        enabled: false,
+    });
+
+    const isExportingGoogleSheets = data?.status === SchedulerJobStatus.STARTED;
 
     if (exportType === 'csv') {
         return (
@@ -42,10 +55,11 @@ const ExportSelector: FC<
                     variant="default"
                     onClick={() => setExportType('csv')}
                     leftIcon={<MantineIcon icon={IconFileTypeCsv} />}
+                    disabled={isExportingGoogleSheets}
                 >
                     csv
                 </Button>
-                <ExportGsheets getGsheetLink={getGsheetLink} />
+                <ExportToGoogleSheet getGsheetLink={getGsheetLink} />
             </Stack>
         );
     }

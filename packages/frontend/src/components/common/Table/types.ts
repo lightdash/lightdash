@@ -39,6 +39,7 @@ export type TableColumn = ColumnDef<ResultRow, ResultRow[0]> & {
         className?: string;
         style?: CSSProperties;
         frozen?: boolean;
+        isVisible?: boolean;
     };
 };
 

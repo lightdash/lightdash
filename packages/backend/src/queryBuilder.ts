@@ -1,6 +1,8 @@
 import {
+    assertUnreachable,
     CompiledDimension,
     CompiledMetricQuery,
+    DbtModelJoinType,
     Explore,
     fieldId,
     FieldId,
@@ -69,19 +71,28 @@ export const replaceUserAttributes = (
         const userAttribute = userAttributes.find(
             (ua) => ua.name === attribute,
         );
+
         if (userAttribute === undefined) {
             throw new ForbiddenError(
                 `Missing user attribute "${attribute}" on ${filter}: "${sqlFilter}"`,
             );
         }
-        if (userAttribute.users.length !== 1) {
+        if (
+            userAttribute.users.length !== 1 &&
+            userAttribute.attributeDefault === null
+        ) {
             throw new ForbiddenError(
                 `Invalid or missing user attribute "${attribute}" on ${filter}: "${sqlFilter}"`,
             );
         }
+
+        const userValue =
+            userAttribute.users.length > 0
+                ? userAttribute.users[0].value
+                : userAttribute.attributeDefault;
         return acc.replace(
             sqlAttribute,
-            `${stringQuoteChar}${userAttribute.users[0].value}${stringQuoteChar}`,
+            `${stringQuoteChar}${userValue}${stringQuoteChar}`,
         );
     }, sqlFilter);
 
@@ -89,6 +100,7 @@ export const replaceUserAttributes = (
 };
 
 export const assertValidDimensionRequiredAttribute = (
+    userUuid: string,
     dimension: CompiledDimension,
     userAttributes: UserAttribute[],
     field: string,
@@ -97,7 +109,14 @@ export const assertValidDimensionRequiredAttribute = (
     if (dimension.requiredAttributes)
         Object.entries(dimension.requiredAttributes).map((attribute) => {
             const [attributeName, value] = attribute;
-            if (!hasUserAttribute(userAttributes, attributeName, value)) {
+            if (
+                !hasUserAttribute(
+                    userUuid,
+                    userAttributes,
+                    attributeName,
+                    value,
+                )
+            ) {
                 throw new ForbiddenError(
                     `Invalid or missing user attribute "${attribute}" on ${field}`,
                 );
@@ -111,13 +130,30 @@ export type BuildQueryProps = {
     compiledMetricQuery: CompiledMetricQuery;
 
     warehouseClient: WarehouseClient;
+    userUuid: string;
     userAttributes?: UserAttribute[];
+};
+
+const getJoinType = (type: DbtModelJoinType = 'left') => {
+    switch (type) {
+        case 'inner':
+            return 'INNER JOIN';
+        case 'full':
+            return 'FULL OUTER JOIN';
+        case 'left':
+            return 'LEFT OUTER JOIN';
+        case 'right':
+            return 'RIGHT OUTER JOIN';
+        default:
+            return assertUnreachable(type, `Unknown join type: ${type}`);
+    }
 };
 
 export const buildQuery = ({
     explore,
     compiledMetricQuery,
     warehouseClient,
+    userUuid, // used to check permissions on user attributes
     userAttributes = [],
 }: BuildQueryProps): { query: string; hasExampleMetric: boolean } => {
     let hasExampleMetric: boolean = false;
@@ -136,6 +172,7 @@ export const buildQuery = ({
         const dimension = getDimensionFromId(field, explore);
 
         assertValidDimensionRequiredAttribute(
+            userUuid,
             dimension,
             userAttributes,
             `dimension: "${field}"`,
@@ -162,7 +199,9 @@ export const buildQuery = ({
 
             const dimensionId = getCustomMetricDimensionId(metric);
             const dimension = getDimensionFromId(dimensionId, explore);
+
             assertValidDimensionRequiredAttribute(
+                userUuid,
                 dimension,
                 userAttributes,
                 `custom metric: "${metric.name}"`,
@@ -235,6 +274,8 @@ export const buildQuery = ({
         .filter((join) => joinedTables.has(join.table))
         .map((join) => {
             const joinTable = explore.tables[join.table].sqlTable;
+            const joinType = getJoinType(join.type);
+
             const alias = join.table;
             const parsedSqlOn = replaceUserAttributes(
                 join.compiledSqlOn,
@@ -242,7 +283,7 @@ export const buildQuery = ({
                 stringQuoteChar,
                 'sql_on',
             );
-            return `LEFT JOIN ${joinTable} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}\n  ON ${parsedSqlOn}`;
+            return `${joinType} ${joinTable} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}\n  ON ${parsedSqlOn}`;
         })
         .join('\n');
 

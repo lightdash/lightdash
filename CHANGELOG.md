@@ -1,3 +1,185 @@
+## [0.774.1](https://github.com/lightdash/lightdash/compare/0.774.0...0.774.1) (2023-09-08)
+
+
+### Bug Fixes
+
+* **MetricFlow:** get filtered dimensions and metrics ([#7047](https://github.com/lightdash/lightdash/issues/7047)) ([e78b8ee](https://github.com/lightdash/lightdash/commit/e78b8eed7f7455d4f7b559a8743e02e62c3bab97))
+
+# [0.774.0](https://github.com/lightdash/lightdash/compare/0.773.4...0.774.0) (2023-09-08)
+
+
+### Features
+
+* default user attribute value ([#7008](https://github.com/lightdash/lightdash/issues/7008)) ([250367f](https://github.com/lightdash/lightdash/commit/250367f925bd4b5401b32438b2a75343ad1358d3))
+
+## [0.773.4](https://github.com/lightdash/lightdash/compare/0.773.3...0.773.4) (2023-09-08)
+
+
+### Bug Fixes
+
+* fix gsheet add tab error ([#7046](https://github.com/lightdash/lightdash/issues/7046)) ([1e85b59](https://github.com/lightdash/lightdash/commit/1e85b59e1a9e118ed8ed1b069899803d1e4f22ea))
+
+## [0.773.3](https://github.com/lightdash/lightdash/compare/0.773.2...0.773.3) (2023-09-07)
+
+
+### Bug Fixes
+
+* make delete action consistent on settings page ([#7005](https://github.com/lightdash/lightdash/issues/7005)) ([1929ba7](https://github.com/lightdash/lightdash/commit/1929ba78b0f2d97cee41147892042939fc63877a))
+
+## [0.773.2](https://github.com/lightdash/lightdash/compare/0.773.1...0.773.2) (2023-09-07)
+
+
+### Bug Fixes
+
+* opening dashboard links in popup in a new tab ([#7037](https://github.com/lightdash/lightdash/issues/7037)) ([228749b](https://github.com/lightdash/lightdash/commit/228749b06475d246fc302affb51d50ac12d75329))
+
+## [0.773.1](https://github.com/lightdash/lightdash/compare/0.773.0...0.773.1) (2023-09-07)
+
+
+### Bug Fixes
+
+* add loader on hover of information icon on chart list item ([#7006](https://github.com/lightdash/lightdash/issues/7006)) ([880a2ca](https://github.com/lightdash/lightdash/commit/880a2ca206ebf96f696a6d8002bdfa898c0f1440))
+
+# [0.773.0](https://github.com/lightdash/lightdash/compare/0.772.0...0.773.0) (2023-09-07)
+
+
+### Features
+
+* rename CSV files ([#7025](https://github.com/lightdash/lightdash/issues/7025)) ([758b1e4](https://github.com/lightdash/lightdash/commit/758b1e41ad874f7656d8b5db15546593450fa08f))
+
+# [0.772.0](https://github.com/lightdash/lightdash/compare/0.771.0...0.772.0) (2023-09-07)
+
+
+### Features
+
+* send pdf attachemnt with image ([#7012](https://github.com/lightdash/lightdash/issues/7012)) ([f2a1991](https://github.com/lightdash/lightdash/commit/f2a1991a9e099748bd04691d56fb576dcd5074f5))
+
+# [0.771.0](https://github.com/lightdash/lightdash/compare/0.770.0...0.771.0) (2023-09-06)
+
+
+### Features
+
+* cli set project non-interactively ([#6987](https://github.com/lightdash/lightdash/issues/6987)) ([f80ccc6](https://github.com/lightdash/lightdash/commit/f80ccc682e8eb43de8df8ca305055da0500e1984))
+
+# [0.770.0](https://github.com/lightdash/lightdash/compare/0.769.3...0.770.0) (2023-09-06)
+
+
+### Features
+
+* join table types ([#7011](https://github.com/lightdash/lightdash/issues/7011)) ([9e41cf2](https://github.com/lightdash/lightdash/commit/9e41cf2dc1def87c38431e376c68429dde8a8da0))
+
+## [0.769.3](https://github.com/lightdash/lightdash/compare/0.769.2...0.769.3) (2023-09-06)
+
+
+### Bug Fixes
+
+* autocomplete for joined tables with alias ([#7018](https://github.com/lightdash/lightdash/issues/7018)) ([a8ecec4](https://github.com/lightdash/lightdash/commit/a8ecec4e073506cc1c81041e50593e7465911710))
+
+## [0.769.2](https://github.com/lightdash/lightdash/compare/0.769.1...0.769.2) (2023-09-06)
+
+
+### Bug Fixes
+
+* only pass onOpening and onClosing props ([#7026](https://github.com/lightdash/lightdash/issues/7026)) ([d5fca08](https://github.com/lightdash/lightdash/commit/d5fca0879294a8a3927d52a8ad24892821a3d481))
+
+## [0.769.1](https://github.com/lightdash/lightdash/compare/0.769.0...0.769.1) (2023-09-06)
+
+
+### Bug Fixes
+
+* avoid filtering out hidden columns and set visibility on table provider ([#7013](https://github.com/lightdash/lightdash/issues/7013)) ([108a48a](https://github.com/lightdash/lightdash/commit/108a48aa532a07bda2d53e1d40ab916231409090))
+
+# [0.769.0](https://github.com/lightdash/lightdash/compare/0.768.0...0.769.0) (2023-09-06)
+
+
+### Features
+
+* change gdrive scope ([#7020](https://github.com/lightdash/lightdash/issues/7020)) ([bdd6a00](https://github.com/lightdash/lightdash/commit/bdd6a0037513d5aee85e1808127dd8b2c487cf92))
+
+# [0.768.0](https://github.com/lightdash/lightdash/compare/0.767.1...0.768.0) (2023-09-05)
+
+
+### Features
+
+* metricflow sql card ([#7004](https://github.com/lightdash/lightdash/issues/7004)) ([7a1d923](https://github.com/lightdash/lightdash/commit/7a1d923b2fb1cb6dc7c7c7c73ca6b7aae58579c2))
+
+## [0.767.1](https://github.com/lightdash/lightdash/compare/0.767.0...0.767.1) (2023-09-04)
+
+
+### Bug Fixes
+
+* additional metric date formatting ([#6940](https://github.com/lightdash/lightdash/issues/6940)) ([ed138df](https://github.com/lightdash/lightdash/commit/ed138dfb8ea8c879c6843f36dd4639d773c7509b))
+
+# [0.767.0](https://github.com/lightdash/lightdash/compare/0.766.0...0.767.0) (2023-09-04)
+
+
+### Features
+
+* disable csv while google sheets are exporting ([#6985](https://github.com/lightdash/lightdash/issues/6985)) ([7b26269](https://github.com/lightdash/lightdash/commit/7b2626936c04bbb48146cb36b6b5bbfd2e1f49c7))
+
+# [0.766.0](https://github.com/lightdash/lightdash/compare/0.765.9...0.766.0) (2023-09-04)
+
+
+### Features
+
+* resource view move to space sections ([#6999](https://github.com/lightdash/lightdash/issues/6999)) ([cfb00eb](https://github.com/lightdash/lightdash/commit/cfb00ebb2a91c1c58559d048adee5c3caa4b6088))
+
+## [0.765.9](https://github.com/lightdash/lightdash/compare/0.765.8...0.765.9) (2023-09-04)
+
+
+### Bug Fixes
+
+* validator item opens two tabs ([#6992](https://github.com/lightdash/lightdash/issues/6992)) ([df45d08](https://github.com/lightdash/lightdash/commit/df45d08d6419e2cfd9a803735c5a0adb626770c7))
+
+## [0.765.8](https://github.com/lightdash/lightdash/compare/0.765.7...0.765.8) (2023-09-04)
+
+
+### Bug Fixes
+
+* export dashboard with temporary filters ([#6984](https://github.com/lightdash/lightdash/issues/6984)) ([95b157c](https://github.com/lightdash/lightdash/commit/95b157c3f4631cc9d5fde7a2ef7a73b203c294a1))
+
+## [0.765.7](https://github.com/lightdash/lightdash/compare/0.765.6...0.765.7) (2023-09-04)
+
+
+### Bug Fixes
+
+* admins should see all spaces when moving items ([#6993](https://github.com/lightdash/lightdash/issues/6993)) ([f08b895](https://github.com/lightdash/lightdash/commit/f08b8956005f7e9c42523b8084f2d86f927c4bfe))
+
+## [0.765.6](https://github.com/lightdash/lightdash/compare/0.765.5...0.765.6) (2023-09-04)
+
+
+### Bug Fixes
+
+* fix total legend with multiple series ([#6994](https://github.com/lightdash/lightdash/issues/6994)) ([64ac3c7](https://github.com/lightdash/lightdash/commit/64ac3c7ffe6740122b70886cb9b901e87588ace5))
+
+## [0.765.5](https://github.com/lightdash/lightdash/compare/0.765.4...0.765.5) (2023-09-04)
+
+
+### Bug Fixes
+
+* remove feature flag for charts in dashboards ([#6986](https://github.com/lightdash/lightdash/issues/6986)) ([7a24ebf](https://github.com/lightdash/lightdash/commit/7a24ebf243953d573b004e1e166e44d32e40d7ef))
+
+## [0.765.4](https://github.com/lightdash/lightdash/compare/0.765.3...0.765.4) (2023-09-04)
+
+
+### Bug Fixes
+
+* add default suffix to metricflow time dimensions ([#6980](https://github.com/lightdash/lightdash/issues/6980)) ([35c3f57](https://github.com/lightdash/lightdash/commit/35c3f57d5d1269a46fbe29f8891dd00bf50902ac))
+
+## [0.765.3](https://github.com/lightdash/lightdash/compare/0.765.2...0.765.3) (2023-09-04)
+
+
+### Bug Fixes
+
+* fix total right axis ([#6989](https://github.com/lightdash/lightdash/issues/6989)) ([36c51d3](https://github.com/lightdash/lightdash/commit/36c51d3ba4e0925250707a6bf25a0efe23bdf09f))
+
+## [0.765.2](https://github.com/lightdash/lightdash/compare/0.765.1...0.765.2) (2023-09-04)
+
+
+### Bug Fixes
+
+* throw error when filtering on non aggregated metric ([#6978](https://github.com/lightdash/lightdash/issues/6978)) ([096304d](https://github.com/lightdash/lightdash/commit/096304dd040249c027be7d23a8f14bc16fafba3e))
+
 ## [0.765.1](https://github.com/lightdash/lightdash/compare/0.765.0...0.765.1) (2023-09-01)
 
 
