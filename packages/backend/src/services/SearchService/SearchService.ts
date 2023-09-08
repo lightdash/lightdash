@@ -104,7 +104,11 @@ export class SearchService {
                 userUuid: user.userUuid,
             });
             filteredFields = results.fields.filter((field) =>
-                hasUserAttributes(field.requiredAttributes, userAttributes),
+                hasUserAttributes(
+                    user.userUuid,
+                    field.requiredAttributes,
+                    userAttributes,
+                ),
             );
         }
 

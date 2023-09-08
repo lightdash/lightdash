@@ -56,6 +56,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY,
                 warehouseClient: warehouseClientMock,
+                userUuid: 'user-uuid',
             }).query,
         ).toStrictEqual(METRIC_QUERY_SQL);
     });
@@ -66,6 +67,7 @@ describe('Query builder', () => {
                 explore: EXPLORE_BIGQUERY,
                 compiledMetricQuery: METRIC_QUERY,
                 warehouseClient: bigqueryClientMock,
+                userUuid: 'user-uuid',
             }).query,
         ).toStrictEqual(METRIC_QUERY_SQL_BIGQUERY);
     });
@@ -76,6 +78,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_TWO_TABLES,
                 warehouseClient: warehouseClientMock,
+                userUuid: 'user-uuid',
             }).query,
         ).toStrictEqual(METRIC_QUERY_TWO_TABLES_SQL);
     });
@@ -86,6 +89,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_TABLE_REFERENCE,
                 warehouseClient: warehouseClientMock,
+                userUuid: 'user-uuid',
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_TABLE_REFERENCE_SQL);
     });
@@ -96,6 +100,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_FILTER,
                 warehouseClient: warehouseClientMock,
+                userUuid: 'user-uuid',
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_FILTER_SQL);
     });
@@ -106,6 +111,7 @@ describe('Query builder', () => {
                 explore: EXPLORE_JOIN_CHAIN,
                 compiledMetricQuery: METRIC_QUERY_JOIN_CHAIN,
                 warehouseClient: warehouseClientMock,
+                userUuid: 'user-uuid',
             }).query,
         ).toStrictEqual(METRIC_QUERY_JOIN_CHAIN_SQL);
     });
@@ -116,6 +122,7 @@ describe('Query builder', () => {
                 explore: EXPLORE_ALL_JOIN_TYPES_CHAIN,
                 compiledMetricQuery: METRIC_QUERY_JOIN_CHAIN,
                 warehouseClient: warehouseClientMock,
+                userUuid: 'user-uuid',
             }).query,
         ).toStrictEqual(METRIC_QUERY_ALL_JOIN_TYPES_CHAIN_SQL);
     });
@@ -126,6 +133,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_FILTER_OR_OPERATOR,
                 warehouseClient: warehouseClientMock,
+                userUuid: 'user-uuid',
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL);
     });
@@ -136,6 +144,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_DISABLED_FILTER,
                 warehouseClient: warehouseClientMock,
+                userUuid: 'user-uuid',
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_DISABLED_FILTER_SQL);
     });
@@ -147,6 +156,7 @@ describe('Query builder', () => {
                 compiledMetricQuery:
                     METRIC_QUERY_WITH_FILTER_AND_DISABLED_FILTER,
                 warehouseClient: warehouseClientMock,
+                userUuid: 'user-uuid',
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_METRIC_FILTER_AND_ONE_DISABLED_SQL);
     });
@@ -157,6 +167,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS,
                 warehouseClient: warehouseClientMock,
+                userUuid: 'user-uuid',
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL);
     });
@@ -167,6 +178,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_FILTER_GROUPS,
                 warehouseClient: warehouseClientMock,
+                userUuid: 'user-uuid',
             }).query,
         ).toStrictEqual(METRIC_QUERY_SQL);
     });
@@ -177,6 +189,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_METRIC_FILTER,
                 warehouseClient: warehouseClientMock,
+                userUuid: 'user-uuid',
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_METRIC_FILTER_SQL);
     });
@@ -188,6 +201,7 @@ describe('Query builder', () => {
                 compiledMetricQuery:
                     METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM,
                 warehouseClient: warehouseClientMock,
+                userUuid: 'user-uuid',
             }).query,
         ).toStrictEqual(
             METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM_SQL,
@@ -200,6 +214,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_NESTED_METRIC_FILTERS,
                 warehouseClient: warehouseClientMock,
+                userUuid: 'user-uuid',
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_NESTED_METRIC_FILTERS_SQL);
     });
@@ -210,6 +225,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_ADDITIONAL_METRIC,
                 warehouseClient: warehouseClientMock,
+                userUuid: 'user-uuid',
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_ADDITIONAL_METRIC_SQL);
     });
@@ -220,6 +236,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_FILTER,
                 warehouseClient: warehouseClientMock,
+                userUuid: 'user-uuid',
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_EMPTY_FILTER_SQL);
     });
@@ -230,6 +247,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
                 warehouseClient: warehouseClientMock,
+                userUuid: 'user-uuid',
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_EMPTY_METRIC_FILTER_SQL);
     });
@@ -241,6 +259,7 @@ describe('Query builder', () => {
                     explore: EXPLORE_WITH_SQL_FILTER,
                     compiledMetricQuery: METRIC_QUERY,
                     warehouseClient: warehouseClientMock,
+                    userUuid: 'user-uuid',
                     userAttributes: [],
                 }).query,
         ).toThrowError(ForbiddenError);
@@ -256,7 +275,7 @@ describe('Query builder', () => {
                 attributeDefault: null,
                 users: [
                     {
-                        userUuid: '',
+                        userUuid: 'user-uuid',
                         email: '',
                         value: 'EU',
                     },
@@ -268,6 +287,7 @@ describe('Query builder', () => {
                 explore: EXPLORE_WITH_SQL_FILTER,
                 compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
                 warehouseClient: warehouseClientMock,
+                userUuid: 'user-uuid',
                 userAttributes,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_SQL_FILTER);
@@ -469,6 +489,7 @@ describe('replaceUserAttributes', () => {
 describe('assertValidDimensionRequiredAttribute', () => {
     it('should not throw errors if no user attributes are required', async () => {
         const result = assertValidDimensionRequiredAttribute(
+            'user-uuid',
             COMPILED_DIMENSION,
             [],
             '',
@@ -480,6 +501,7 @@ describe('assertValidDimensionRequiredAttribute', () => {
     it('should throw errors if required attributes are required and user attributes are missing', async () => {
         expect(() =>
             assertValidDimensionRequiredAttribute(
+                'user-uuid',
                 {
                     ...COMPILED_DIMENSION,
                     requiredAttributes: {
@@ -493,6 +515,7 @@ describe('assertValidDimensionRequiredAttribute', () => {
 
         expect(() =>
             assertValidDimensionRequiredAttribute(
+                'user-uuid',
                 {
                     ...COMPILED_DIMENSION,
                     requiredAttributes: {
@@ -508,7 +531,7 @@ describe('assertValidDimensionRequiredAttribute', () => {
                         attributeDefault: null,
                         users: [
                             {
-                                userUuid: '',
+                                userUuid: 'user-uuid',
                                 email: '',
                                 value: 'false',
                             },
@@ -522,6 +545,7 @@ describe('assertValidDimensionRequiredAttribute', () => {
 
     it('should not throw errors if required attributes are required and user attributes exist', async () => {
         const result = assertValidDimensionRequiredAttribute(
+            'user-uuid',
             {
                 ...COMPILED_DIMENSION,
                 requiredAttributes: {
@@ -537,7 +561,7 @@ describe('assertValidDimensionRequiredAttribute', () => {
                     attributeDefault: null,
                     users: [
                         {
-                            userUuid: '',
+                            userUuid: 'user-uuid',
                             email: '',
                             value: 'true',
                         },
