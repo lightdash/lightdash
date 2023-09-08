@@ -41,7 +41,7 @@ export function getMetricFlowFields(
             metricsForDimensions(environmentId: $environmentId, dimensions: [${
                 selectedFields?.dimensions
                     .filter((dimension) => dimension !== 'metric_time') // TODO: remove this when dbt stops throwing error when filtering by "metric_time"
-                    .map((dimension) => `"${dimension}"`) ?? ''
+                    .map((dimension) => `{ name: "${dimension}" }`) ?? ''
             }]) {
                 name
                 description
@@ -53,7 +53,9 @@ export function getMetricFlowFields(
                 } 
             }
             dimensions(environmentId: $environmentId, metrics: [${
-                selectedFields?.metrics.map((metric) => `"${metric}"`) ?? ''
+                selectedFields?.metrics.map(
+                    (metric) => `{ name: "${metric}" }`,
+                ) ?? ''
             }]) {
                 name
                 description
