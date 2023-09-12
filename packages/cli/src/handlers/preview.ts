@@ -240,7 +240,10 @@ export const startPreviewHandler = async (
         const url = await projectUrl(previewProject);
         console.error(`Project updated on ${url}`);
         if (process.env.CI === 'true') {
-            console.info(`::set-output name=url::${url}`);
+            console.info(`url="${url}" >> "$GITHUB_OUTPUT"`);
+            console.info(
+                `project_uuid="${previewProject.projectUuid}" >> "$GITHUB_OUTPUT"`,
+            );
         }
     } else {
         const config = await getConfig();
@@ -288,7 +291,10 @@ export const startPreviewHandler = async (
 
         console.error(`New project created on ${url}`);
         if (process.env.CI === 'true') {
-            console.info(`::set-output name=url::${url}`);
+            console.info(`url="${url}" >> "$GITHUB_OUTPUT"`);
+            console.info(
+                `project_uuid="${project.projectUuid}" >> "$GITHUB_OUTPUT"`,
+            );
         }
     }
 };
