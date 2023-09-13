@@ -366,7 +366,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             bucket: process.env.S3_BUCKET,
             endpoint: process.env.S3_ENDPOINT,
             expirationTime: parseInt(
-                process.env.S3_EXPIRATION_TIME || '259200', // 3 days in seconds
+                process.env.S3_EXPIRATION_TIME || '604800', // 7 days in seconds
                 10,
             ),
         },
