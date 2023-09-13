@@ -387,41 +387,35 @@ const Dashboard: FC = () => {
         useState<string>();
 
     useEffect(() => {
-        const checkReload = (event: BeforeUnloadEvent) => {
-            if (isEditMode && (haveTilesChanged || haveFiltersChanged)) {
-                const message =
-                    'You have unsaved changes to your dashboard! Are you sure you want to leave without saving?';
-                event.returnValue = message;
-                return message;
-            }
-        };
-        window.addEventListener('beforeunload', checkReload);
-        return () => window.removeEventListener('beforeunload', checkReload);
-    }, [haveTilesChanged, haveFiltersChanged, isEditMode]);
+        // Check if in edit mode and changes have been made
+        if (isEditMode && (haveTilesChanged || haveFiltersChanged)) {
+            // Define the navigation block function
+            const navigationBlockFunction = (prompt: { pathname: string }) => {
+                // Check if the user is navigating away from the current dashboard
+                if (
+                    !prompt.pathname.includes(
+                        `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+                    )
+                ) {
+                    // Set the blocked navigation location to navigate on confirming from user
+                    setBlockedNavigationLocation(prompt.pathname);
+                    // Open a warning modal before blocking navigation
+                    setIsSaveWarningModalOpen(true);
+                    // Return false to block history navigation
+                    return false;
+                }
+                // Allow history navigation
+                return undefined;
+            };
 
-    useEffect(() => {
-        const createChartInDashboardFlow = sessionStorage.getItem(
-            'unsavedDashboardTiles',
-        );
-        history.block((prompt) => {
-            if (
-                isEditMode &&
-                (haveTilesChanged || haveFiltersChanged) &&
-                !prompt.pathname.includes(
-                    `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
-                ) &&
-                createChartInDashboardFlow
-            ) {
-                setBlockedNavigationLocation(prompt.pathname);
-                setIsSaveWarningModalOpen(true);
-                return false; // blocks history
-            }
-            return undefined; // allow history
-        });
+            // Set up navigation blocking
+            const unblockNavigation = history.block(navigationBlockFunction);
 
-        return () => {
-            history.block(() => {});
-        };
+            // Clean up navigation blocking when the component unmounts
+            return () => {
+                unblockNavigation();
+            };
+        }
     }, [
         isEditMode,
         history,
