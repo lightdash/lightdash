@@ -31,6 +31,7 @@ export default defineConfig(({ ...config }) => ({
     //     devSourcemap: true,
     // },
     build: {
+        cssMinify: 'lightningcss',
         outDir: 'build',
         target: 'es2015',
         minify: true,
