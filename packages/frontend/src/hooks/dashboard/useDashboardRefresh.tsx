@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
-import { Query, useIsFetching, useQueryClient } from 'react-query';
+import { Query, useIsFetching, useMutation, useQueryClient } from 'react-query';
+import { lightdashApi } from '../../api';
 
 const QUERIES_TO_REFRESH = [
     'savedChartResults',
@@ -18,16 +19,27 @@ const queryPredicate = (query: Query) => {
     });
 };
 
+const clearCache = async () => {
+    return lightdashApi<undefined>({
+        url: '/chartCache/clear',
+        method: 'POST',
+        body: undefined,
+    });
+};
+
 export const useDashboardRefresh = () => {
     const queryClient = useQueryClient();
 
+    const { mutateAsync } = useMutation(clearCache);
+
     const isFetching = useIsFetching({ predicate: queryPredicate });
 
-    const invalidateDashboardRelatedQueries = useCallback(() => {
+    const invalidateDashboardRelatedQueries = useCallback(async () => {
+        await mutateAsync();
         return queryClient.invalidateQueries({
             predicate: queryPredicate,
         });
-    }, [queryClient]);
+    }, [queryClient, mutateAsync]);
 
     return useMemo(
         () => ({
