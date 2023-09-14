@@ -19,6 +19,8 @@ const queryPredicate = (query: Query) => {
 };
 
 export const useDashboardRefresh = () => {
+    console.log('useDashboardRefresh');
+
     const queryClient = useQueryClient();
 
     const isFetching = useIsFetching({ predicate: queryPredicate });
