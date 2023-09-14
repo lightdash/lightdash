@@ -1,0 +1,1992 @@
+{
+    "status": "ok",
+    "results": {
+        "rows": [
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 88,
+                        "formatted": "88"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-90",
+                        "formatted": "-90"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 344,
+                        "formatted": "344"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 2,
+                        "formatted": "2"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-88",
+                        "formatted": "-88"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 346,
+                        "formatted": "346"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 59,
+                        "formatted": "59"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-84",
+                        "formatted": "-84"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 350,
+                        "formatted": "350"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 39,
+                        "formatted": "39"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-81",
+                        "formatted": "-81"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 353,
+                        "formatted": "353"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 64,
+                        "formatted": "64"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-79",
+                        "formatted": "-79"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 340,
+                        "formatted": "340"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "2",
+                        "formatted": "2"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 32,
+                        "formatted": "32"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-71",
+                        "formatted": "-71"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 363,
+                        "formatted": "363"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 94,
+                        "formatted": "94"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-70",
+                        "formatted": "-70"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 339,
+                        "formatted": "339"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "coupon",
+                        "formatted": "coupon"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 94,
+                        "formatted": "94"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-70",
+                        "formatted": "-70"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 339,
+                        "formatted": "339"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 16,
+                        "formatted": "16"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-66",
+                        "formatted": "-66"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 368,
+                        "formatted": "368"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 28,
+                        "formatted": "28"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-64",
+                        "formatted": "-64"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 370,
+                        "formatted": "370"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 80,
+                        "formatted": "80"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-60",
+                        "formatted": "-60"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 389,
+                        "formatted": "389"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 1,
+                        "formatted": "1"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-58",
+                        "formatted": "-58"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 336,
+                        "formatted": "336"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "2",
+                        "formatted": "2"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 33,
+                        "formatted": "33"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-55",
+                        "formatted": "-55"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 379,
+                        "formatted": "379"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 99,
+                        "formatted": "99"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-54",
+                        "formatted": "-54"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 360,
+                        "formatted": "360"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "2",
+                        "formatted": "2"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 92,
+                        "formatted": "92"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-52",
+                        "formatted": "-52"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 382,
+                        "formatted": "382"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "coupon",
+                        "formatted": "coupon"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 31,
+                        "formatted": "31"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-51",
+                        "formatted": "-51"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 383,
+                        "formatted": "383"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "gift_card",
+                        "formatted": "gift_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 50,
+                        "formatted": "50"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-48",
+                        "formatted": "-48"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 340,
+                        "formatted": "340"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "coupon",
+                        "formatted": "coupon"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 50,
+                        "formatted": "50"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-48",
+                        "formatted": "-48"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 340,
+                        "formatted": "340"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 51,
+                        "formatted": "51"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-45",
+                        "formatted": "-45"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 363,
+                        "formatted": "363"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "coupon",
+                        "formatted": "coupon"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 51,
+                        "formatted": "51"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-45",
+                        "formatted": "-45"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 363,
+                        "formatted": "363"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "3",
+                        "formatted": "3"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 71,
+                        "formatted": "71"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-44",
+                        "formatted": "-44"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 353,
+                        "formatted": "353"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "3",
+                        "formatted": "3"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 34,
+                        "formatted": "34"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-42",
+                        "formatted": "-42"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 392,
+                        "formatted": "392"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 18,
+                        "formatted": "18"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-41",
+                        "formatted": "-41"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 393,
+                        "formatted": "393"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 22,
+                        "formatted": "22"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-39",
+                        "formatted": "-39"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 361,
+                        "formatted": "361"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "coupon",
+                        "formatted": "coupon"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 22,
+                        "formatted": "22"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-39",
+                        "formatted": "-39"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 361,
+                        "formatted": "361"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "gift_card",
+                        "formatted": "gift_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "2",
+                        "formatted": "2"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 12,
+                        "formatted": "12"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-37",
+                        "formatted": "-37"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 397,
+                        "formatted": "397"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 57,
+                        "formatted": "57"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-35",
+                        "formatted": "-35"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 366,
+                        "formatted": "366"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "gift_card",
+                        "formatted": "gift_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 26,
+                        "formatted": "26"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-32",
+                        "formatted": "-32"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 377,
+                        "formatted": "377"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 36,
+                        "formatted": "36"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-30",
+                        "formatted": "-30"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 404,
+                        "formatted": "404"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 3,
+                        "formatted": "3"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-29",
+                        "formatted": "-29"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 337,
+                        "formatted": "337"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "coupon",
+                        "formatted": "coupon"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 3,
+                        "formatted": "3"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-29",
+                        "formatted": "-29"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 337,
+                        "formatted": "337"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "2",
+                        "formatted": "2"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 53,
+                        "formatted": "53"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-29",
+                        "formatted": "-29"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 347,
+                        "formatted": "347"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 53,
+                        "formatted": "53"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-29",
+                        "formatted": "-29"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 347,
+                        "formatted": "347"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "gift_card",
+                        "formatted": "gift_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 79,
+                        "formatted": "79"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-29",
+                        "formatted": "-29"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 394,
+                        "formatted": "394"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "2",
+                        "formatted": "2"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 8,
+                        "formatted": "8"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-28",
+                        "formatted": "-28"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 364,
+                        "formatted": "364"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 42,
+                        "formatted": "42"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-28",
+                        "formatted": "-28"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 370,
+                        "formatted": "370"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "2",
+                        "formatted": "2"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 30,
+                        "formatted": "30"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-26",
+                        "formatted": "-26"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 396,
+                        "formatted": "396"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 30,
+                        "formatted": "30"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-26",
+                        "formatted": "-26"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 396,
+                        "formatted": "396"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "gift_card",
+                        "formatted": "gift_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 9,
+                        "formatted": "9"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-23",
+                        "formatted": "-23"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 411,
+                        "formatted": "411"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 69,
+                        "formatted": "69"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-22",
+                        "formatted": "-22"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 368,
+                        "formatted": "368"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "2",
+                        "formatted": "2"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 25,
+                        "formatted": "25"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-20",
+                        "formatted": "-20"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 352,
+                        "formatted": "352"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "coupon",
+                        "formatted": "coupon"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "2",
+                        "formatted": "2"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 35,
+                        "formatted": "35"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-19",
+                        "formatted": "-19"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 387,
+                        "formatted": "387"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "3",
+                        "formatted": "3"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 11,
+                        "formatted": "11"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-17",
+                        "formatted": "-17"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 417,
+                        "formatted": "417"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "gift_card",
+                        "formatted": "gift_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 52,
+                        "formatted": "52"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-17",
+                        "formatted": "-17"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 417,
+                        "formatted": "417"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "2",
+                        "formatted": "2"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 76,
+                        "formatted": "76"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-17",
+                        "formatted": "-17"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 417,
+                        "formatted": "417"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "coupon",
+                        "formatted": "coupon"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 54,
+                        "formatted": "54"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-16",
+                        "formatted": "-16"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 342,
+                        "formatted": "342"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "3",
+                        "formatted": "3"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 54,
+                        "formatted": "54"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-16",
+                        "formatted": "-16"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 342,
+                        "formatted": "342"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "gift_card",
+                        "formatted": "gift_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 68,
+                        "formatted": "68"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-14",
+                        "formatted": "-14"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 420,
+                        "formatted": "420"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "coupon",
+                        "formatted": "coupon"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 70,
+                        "formatted": "70"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-14",
+                        "formatted": "-14"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 389,
+                        "formatted": "389"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 46,
+                        "formatted": "46"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-13",
+                        "formatted": "-13"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 418,
+                        "formatted": "418"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "2",
+                        "formatted": "2"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 46,
+                        "formatted": "46"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-13",
+                        "formatted": "-13"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 418,
+                        "formatted": "418"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "gift_card",
+                        "formatted": "gift_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 91,
+                        "formatted": "91"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-13",
+                        "formatted": "-13"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 410,
+                        "formatted": "410"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 47,
+                        "formatted": "47"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-9",
+                        "formatted": "-9"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 420,
+                        "formatted": "420"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 84,
+                        "formatted": "84"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-7",
+                        "formatted": "-7"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 352,
+                        "formatted": "352"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "coupon",
+                        "formatted": "coupon"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 84,
+                        "formatted": "84"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-7",
+                        "formatted": "-7"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 352,
+                        "formatted": "352"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 63,
+                        "formatted": "63"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-6",
+                        "formatted": "-6"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 397,
+                        "formatted": "397"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "coupon",
+                        "formatted": "coupon"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 66,
+                        "formatted": "66"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-6",
+                        "formatted": "-6"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 371,
+                        "formatted": "371"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "gift_card",
+                        "formatted": "gift_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "2",
+                        "formatted": "2"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 27,
+                        "formatted": "27"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-5",
+                        "formatted": "-5"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 387,
+                        "formatted": "387"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "coupon",
+                        "formatted": "coupon"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 90,
+                        "formatted": "90"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "-3",
+                        "formatted": "-3"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 417,
+                        "formatted": "417"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "gift_card",
+                        "formatted": "gift_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            },
+            {
+                "customers_customer_id": {
+                    "value": {
+                        "raw": 85,
+                        "formatted": "85"
+                    }
+                },
+                "customers_days_since_last_order": {
+                    "value": {
+                        "raw": "0",
+                        "formatted": "0"
+                    }
+                },
+                "customers_days_between_created_and_first_order": {
+                    "value": {
+                        "raw": 376,
+                        "formatted": "376"
+                    }
+                },
+                "payments_payment_method": {
+                    "value": {
+                        "raw": "credit_card",
+                        "formatted": "credit_card"
+                    }
+                },
+                "payments_unique_payment_count": {
+                    "value": {
+                        "raw": "1",
+                        "formatted": "1"
+                    }
+                }
+            }
+        ],
+        "metricQuery": {
+            "dimensions": [
+                "customers_customer_id",
+                "customers_days_since_last_order",
+                "customers_days_between_created_and_first_order",
+                "payments_payment_method"
+            ],
+            "metrics": ["payments_unique_payment_count"],
+            "filters": {
+                "dimensions": {
+                    "id": "and-dimensions",
+                    "and": [
+                        {
+                            "id": "8c816cd6-b03a-413b-b500-83f12a72f697",
+                            "and": [
+                                {
+                                    "id": "3cf51ddc-fa2b-4442-afaa-9eee4f348d7a",
+                                    "target": {
+                                        "fieldId": "payments_payment_method"
+                                    },
+                                    "values": ["bank_transfer"],
+                                    "operator": "notEquals"
+                                }
+                            ]
+                        },
+                        {
+                            "id": "yes",
+                            "and": [
+                                {
+                                    "id": "8c816cd6-b03a-413b-b500-83f12a72f697",
+                                    "and": [
+                                        {
+                                            "id": "3cf51ddc-fa2b-4442-afaa-9eee4f348d7a",
+                                            "target": {
+                                                "fieldId": "payments_payment_method"
+                                            },
+                                            "values": ["bank_transfer"],
+                                            "operator": "notEquals"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "metrics": {
+                    "id": "and-metrics",
+                    "and": [
+                        {
+                            "id": "no",
+                            "and": []
+                        }
+                    ]
+                }
+            },
+            "sorts": [
+                {
+                    "fieldId": "customers_days_since_last_order",
+                    "descending": false
+                }
+            ],
+            "limit": 500,
+            "tableCalculations": [],
+            "additionalMetrics": []
+        }
+    }
+}
