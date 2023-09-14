@@ -12,7 +12,7 @@ const mapManualChunks = (mapping: Record<string, string>) => (id: string) => {
     }
 };
 
-export default defineConfig({
+export default defineConfig(({ ...config }) => ({
     plugins: [
         reactPlugin(),
         svgrPlugin(),
@@ -34,7 +34,7 @@ export default defineConfig({
         outDir: 'build',
         target: 'es2015',
         minify: true,
-        sourcemap: true, 
+        sourcemap: config.command === 'serve' ? 'inline' : false,
         rollupOptions: {
             output: {
                 manualChunks: mapManualChunks({
@@ -64,4 +64,4 @@ export default defineConfig({
         },
     },
     clearScreen: false,
-});
+}));
