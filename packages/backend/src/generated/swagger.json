@@ -2597,24 +2597,8 @@
                     }
                 ]
             },
-            "ThresholdAlertOptions": {
-                "properties": {
-                    "value": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "fieldId": {
-                        "type": "string"
-                    }
-                },
-                "required": ["value", "fieldId"],
-                "type": "object"
-            },
             "SchedulerBase": {
                 "properties": {
-                    "threshold": {
-                        "$ref": "#/components/schemas/ThresholdAlertOptions"
-                    },
                     "options": {
                         "$ref": "#/components/schemas/SchedulerOptions"
                     },

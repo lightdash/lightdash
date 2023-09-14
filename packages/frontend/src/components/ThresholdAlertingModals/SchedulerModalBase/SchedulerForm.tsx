@@ -155,10 +155,6 @@ const SchedulerForm: FC<{
         (context) => context.queryResults.data,
     );*/
 
-    const [selectedField, setSelectedField] = useState<
-        Field | TableCalculation
-    >();
-
     const { data: exploreData } = useExplore(tableName);
     /*
 
@@ -178,6 +174,9 @@ const SchedulerForm: FC<{
         );
     }, [exploreData, savedChart]);
 
+    const [selectedField, setSelectedField] = useState<
+        Field | TableCalculation
+    >();
     // const fields = savedChart?.metricQuery.dimensions
     return (
         <Form name="scheduler" methods={methods}>
@@ -202,7 +201,13 @@ const SchedulerForm: FC<{
                         data={[
                             { value: 'greater_than', label: 'Is greater than' },
                             { value: 'less_than', label: 'Is less than' },
+                            { value: 'increase_by', label: 'Has increased by' },
+                            { value: 'decrease_by', label: 'Has decreased by' },
                         ]}
+                        {...methods.register('threshold.operator')}
+                        onChange={(s) => {
+                            if (s) methods.setValue('threshold.operator', s);
+                        }}
                     />
                     <TextInput
                         label="value"

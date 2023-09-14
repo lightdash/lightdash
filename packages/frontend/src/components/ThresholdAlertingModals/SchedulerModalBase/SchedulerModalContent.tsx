@@ -73,6 +73,9 @@ const CreateStateContent: FC<{
         defaultValues: {
             name: 'Threshold alerting',
             cron: '* * * * *',
+            threshold: {
+                operator: 'greater_than',
+            },
         },
     });
     useEffect(() => {

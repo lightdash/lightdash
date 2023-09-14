@@ -60,6 +60,7 @@ export type CreateSchedulerLog = Omit<SchedulerLog, 'createdAt'>;
 
 export type ThresholdAlertOptions = {
     fieldId: string;
+    operator: string; // TODO make enum
     value: number;
 };
 export type SchedulerBase = {

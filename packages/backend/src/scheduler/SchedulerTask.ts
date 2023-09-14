@@ -28,6 +28,7 @@ import {
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
 } from '@lightdash/common';
+import { KnownBlock } from '@slack/bolt';
 import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
 import {
@@ -1169,27 +1170,129 @@ export const handleScheduledDelivery = async (
                 null,
                 QueryExecutionContext.CSV,
             );
-            const lastRow = rows[rows.length - 1];
-            console.log('last row', lastRow);
+            // TODO handle less than 2 results
+            const isThresholdReached = (): boolean => {
+                if (scheduler.threshold === undefined) return false;
 
-            const lastValue = lastRow[scheduler.threshold.fieldId];
-            console.log('last value', lastValue);
+                const { fieldId } = scheduler.threshold;
+                const thresholdValue = scheduler.threshold.value;
+                const firstValue = parseFloat(rows[0][fieldId]);
 
-            if (scheduler.threshold.value > lastValue) {
+                switch (scheduler.threshold.operator) {
+                    case 'greater_than':
+                        console.log(
+                            'greater than',
+                            firstValue,
+                            thresholdValue,
+                            firstValue > thresholdValue,
+                            typeof firstValue,
+                            typeof thresholdValue,
+                        );
+                        return firstValue > thresholdValue;
+                    case 'less_than':
+                        return firstValue < thresholdValue;
+                    case 'increase_by':
+                    case 'decrease_by':
+                        const secondValue = parseFloat(rows[1][fieldId]);
+                        const increase = firstValue - secondValue;
+
+                        console.log(
+                            'scheduler.threshold.operator',
+                            firstValue,
+                            secondValue,
+                        );
+                        console.log(
+                            'increase / (secondValue * 100)',
+                            increase / (secondValue * 100),
+                        );
+
+                        if (scheduler.threshold.operator === 'increase_by') {
+                            return (
+                                thresholdValue < increase / (secondValue * 100)
+                            );
+                        }
+                        return thresholdValue > increase / (secondValue * 100);
+
+                    default:
+                        console.error(
+                            'undefined threshold operator',
+                            scheduler.threshold.operator,
+                        );
+                        return false;
+                }
+            };
+
+            const slackBlocks = (): KnownBlock[] => {
+                if (scheduler.threshold === undefined) return [];
+                const fieldId = scheduler.threshold?.fieldId;
+
+                const lastValue = rows[rows.length - 1][fieldId];
+
+                const change =
+                    scheduler.threshold.operator === 'greater_than' ||
+                    scheduler.threshold.operator === 'increased_by'
+                        ? 'exceeded'
+                        : 'fallen below';
+                const changeEmoji =
+                    scheduler.threshold.operator === 'greater_than' ||
+                    scheduler.threshold.operator === 'increased_by'
+                        ? '📈'
+                        : '📉';
+
+                return [
+                    {
+                        type: 'header',
+                        text: {
+                            type: 'plain_text',
+                            text: '🙀 Alert!',
+                            emoji: true,
+                        },
+                    },
+                    {
+                        type: 'divider',
+                    },
+                    {
+                        type: 'section',
+                        text: {
+                            type: 'mrkdwn',
+                            text: `${changeEmoji} *${fieldId}* has *${change}* your threshold`,
+                        },
+                    },
+                    {
+                        type: 'section',
+                        text: {
+                            type: 'mrkdwn',
+                            text: `🔢 Your threshold: ${scheduler.threshold.value}`,
+                        },
+                    },
+                    {
+                        type: 'section',
+                        text: {
+                            type: 'mrkdwn',
+                            text: `🔴 Value reached: ${lastValue}`,
+                        },
+                    },
+                ];
+            };
+            console.log('isThresholdReached()', isThresholdReached());
+            if (isThresholdReached()) {
                 console.log('threshold reached');
 
                 const slackTargets = scheduler.targets.filter(isSlackTarget);
+
                 slackTargets.map(async (target) => {
+                    console.log('sending email', target);
                     // TODO make this another scheduler task
                     await slackClient.postMessage({
                         organizationUuid: user.organizationUuid!,
                         text: 'Threshold reached',
                         channel: target.channel,
-                        blocks: [],
+                        blocks: slackBlocks(),
                     });
                 });
                 // TODO email
-                return;
+            } else {
+                console.log('threshold not reached');
             }
             return;
 
