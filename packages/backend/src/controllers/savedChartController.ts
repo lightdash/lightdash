@@ -12,9 +12,13 @@ import {
     SuccessResponse,
     Tags,
 } from 'tsoa';
+import chartData from '../mock/chart2.json';
+
 import { projectService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { ApiRunQueryResponse } from './runQueryController';
+
+const cache = {};
 
 @Route('/api/v1/saved/{chartUuid}')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -36,13 +40,31 @@ export class SavedChartController extends Controller {
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {
         this.setStatus(200);
+
+        console.log({ cache });
+
+        if (chartUuid in cache) {
+            console.log('--------------------- cache hit');
+
+            return {
+                status: 'ok',
+                // @ts-expect-error
+                results: cache[chartUuid],
+            };
+        }
+
+        const results = await projectService.runViewChartQuery(
+            req.user!,
+            chartUuid,
+            body.filters,
+        );
+        // @ts-expect-error
+        cache[chartUuid] = results;
+        console.log('cache after ->', { cache });
+
         return {
             status: 'ok',
-            results: await projectService.runViewChartQuery(
-                req.user!,
-                chartUuid,
-                body.filters,
-            ),
+            results,
         };
     }
 }
