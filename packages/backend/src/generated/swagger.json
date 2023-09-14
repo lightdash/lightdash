@@ -2597,8 +2597,24 @@
                     }
                 ]
             },
+            "ThresholdAlertOptions": {
+                "properties": {
+                    "value": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["value", "fieldId"],
+                "type": "object"
+            },
             "SchedulerBase": {
                 "properties": {
+                    "threshold": {
+                        "$ref": "#/components/schemas/ThresholdAlertOptions"
+                    },
                     "options": {
                         "$ref": "#/components/schemas/SchedulerOptions"
                     },
@@ -4067,7 +4083,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.773.0",
+        "version": "0.774.1",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

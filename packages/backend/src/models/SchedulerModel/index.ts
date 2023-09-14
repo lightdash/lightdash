@@ -63,6 +63,7 @@ export class SchedulerModel {
             dashboardUuid: scheduler.dashboard_uuid,
             format: scheduler.format,
             options: scheduler.options,
+            threshold: scheduler.threshold,
         } as Scheduler;
     }
 
@@ -209,6 +210,7 @@ export class SchedulerModel {
                     dashboard_uuid: newScheduler.dashboardUuid,
                     updated_at: new Date(),
                     options: newScheduler.options,
+                    threshold: newScheduler.threshold,
                 })
                 .returning('*');
             const targetPromises = newScheduler.targets.map(async (target) => {
@@ -244,6 +246,7 @@ export class SchedulerModel {
                     cron: scheduler.cron,
                     updated_at: new Date(),
                     options: scheduler.options,
+                    threshold: scheduler.threshold,
                 })
                 .where('scheduler_uuid', scheduler.schedulerUuid);
 

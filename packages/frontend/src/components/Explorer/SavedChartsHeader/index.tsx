@@ -11,6 +11,7 @@ import { subject } from '@casl/ability';
 import { Box, Tooltip } from '@mantine/core';
 import {
     IconArrowBack,
+    IconBell,
     IconCheck,
     IconCirclePlus,
     IconCirclesRelation,
@@ -62,6 +63,7 @@ import {
     getSchedulerUuidFromUrlParams,
     isSchedulerTypeSync,
 } from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
+import ThresholdAlertingModal from '../../ThresholdAlertingModals/ThresholdAlertingModal';
 import SaveChartButton from '../SaveChartButton';
 
 const SavedChartsHeader: FC = () => {
@@ -99,6 +101,8 @@ const SavedChartsHeader: FC = () => {
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isMovingChart, setIsMovingChart] = useState(false);
     const [isScheduledDeliveriesModalOpen, toggleScheduledDeliveriesModal] =
+        useToggle(false);
+    const [isThresholdAlertingModalOpen, toggleThresholdAlertingModal] =
         useToggle(false);
     const [
         isSyncWithGoogleSheetsModalOpen,
@@ -474,6 +478,13 @@ const SavedChartsHeader: FC = () => {
                                             }
                                         />
                                     )}
+                                    <MenuItem2
+                                        icon={<IconBell />}
+                                        text="Threshold alerting"
+                                        onClick={() =>
+                                            toggleThresholdAlertingModal(true)
+                                        }
+                                    />
                                     {userCanManageCharts &&
                                     hasGoogleDriveEnabled ? (
                                         <MenuItem2
@@ -569,6 +580,14 @@ const SavedChartsHeader: FC = () => {
                     name={savedChart.name}
                     isOpen={isScheduledDeliveriesModalOpen}
                     onClose={() => toggleScheduledDeliveriesModal(false)}
+                />
+            )}
+            {isThresholdAlertingModalOpen && savedChart?.uuid && (
+                <ThresholdAlertingModal
+                    chartUuid={savedChart.uuid}
+                    name={savedChart.name}
+                    isOpen={isThresholdAlertingModalOpen}
+                    onClose={() => toggleThresholdAlertingModal(false)}
                 />
             )}
             {savedChart && (

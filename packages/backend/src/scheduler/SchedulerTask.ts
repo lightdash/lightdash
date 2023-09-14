@@ -49,6 +49,7 @@ import {
 } from '../clients/Slack/SlackMessageBlocks';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
+import { SavedChartService } from '../services/SavedChartsService/SavedChartService';
 import {
     csvService,
     dashboardService,
@@ -1145,6 +1146,62 @@ export const handleScheduledDelivery = async (
             await schedulerService.schedulerModel.getSchedulerAndTargets(
                 schedulerUuid,
             );
+
+        if (scheduler.threshold !== undefined) {
+            console.log('Threshold alerting task', scheduler.threshold);
+
+            const user = await userService.getSessionByUserUuid(
+                scheduler.createdBy,
+            );
+
+            const chart = await schedulerService.savedChartModel.get(
+                scheduler.savedChartUuid!,
+            );
+            const {
+                metricQuery,
+                chartConfig: { config },
+            } = chart;
+            const rows = await projectService.runMetricQuery(
+                user,
+                metricQuery,
+                chart.projectUuid,
+                chart.tableName,
+                null,
+                QueryExecutionContext.CSV,
+            );
+            const lastRow = rows[rows.length - 1];
+            console.log('last row', lastRow);
+
+            const lastValue = lastRow[scheduler.threshold.fieldId];
+            console.log('last value', lastValue);
+
+            if (scheduler.threshold.value > lastValue) {
+                console.log('threshold reached');
+
+                const slackTargets = scheduler.targets.filter(isSlackTarget);
+                slackTargets.map(async (target) => {
+                    // TODO make this another scheduler task
+                    await slackClient.postMessage({
+                        organizationUuid: user.organizationUuid!,
+                        text: 'Threshold reached',
+                        channel: target.channel,
+                        blocks: [],
+                    });
+                });
+                // TODO email
+                return;
+            }
+            return;
+
+            /*            const user = await userService.getSessionByUserUuid(scheduler.createdBy);
+
+            const results = await projectService.runSqlQuery(user, 
+                    '3675b69e-8324-4110-bdca-059031aa8da3', //hardcoded
+                `
+                SELECT ${scheduler.threshold.fieldId} FROM 
+                LIMIT 1 
+            `) //TODo sort by chart sort desc */
+        }
 
         const page =
             scheduler.format === SchedulerFormat.GSHEETS

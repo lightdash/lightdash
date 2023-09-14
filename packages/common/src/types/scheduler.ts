@@ -58,6 +58,10 @@ export type SchedulerLog = {
 
 export type CreateSchedulerLog = Omit<SchedulerLog, 'createdAt'>;
 
+export type ThresholdAlertOptions = {
+    fieldId: string;
+    value: number;
+};
 export type SchedulerBase = {
     schedulerUuid: string;
     name: string;
@@ -69,6 +73,7 @@ export type SchedulerBase = {
     savedChartUuid: string | null;
     dashboardUuid: string | null;
     options: SchedulerOptions;
+    threshold?: ThresholdAlertOptions;
 };
 
 export type ChartScheduler = SchedulerBase & {
@@ -129,7 +134,7 @@ export type CreateSchedulerAndTargetsWithoutIds = Omit<
 
 export type UpdateSchedulerAndTargets = Pick<
     Scheduler,
-    'schedulerUuid' | 'name' | 'cron' | 'format' | 'options'
+    'schedulerUuid' | 'name' | 'cron' | 'format' | 'options' | 'threshold'
 > & {
     targets: Array<
         | CreateSchedulerTarget
