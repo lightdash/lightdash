@@ -1,11 +1,12 @@
 import { assertUnreachable } from '@lightdash/common';
 import { Box, BoxProps as BoxPropsBase, Tooltip } from '@mantine/core';
-import { useId } from '@mantine/hooks';
+import { getHotkeyHandler, useClipboard, useId } from '@mantine/hooks';
 import { PolymorphicComponentProps } from '@mantine/utils';
 import {
     createContext,
     FC,
     forwardRef,
+    useCallback,
     useContext,
     useEffect,
     useMemo,
@@ -36,6 +37,9 @@ type TableCellProps = PolymorphicComponentProps<'th' | 'td', BoxProps> & {
     withAlignRight?: boolean;
     withTooltip?: string | false;
     withBoldFont?: boolean;
+    withInteractions?: boolean;
+    withColor?: string | false;
+    withBackground?: string | false;
 };
 
 interface TableCompoundComponents {
@@ -281,11 +285,17 @@ const BaseCell = (cellType: CellType) => {
                 withAlignRight = false,
                 withTooltip = false,
                 withBoldFont = false,
+                withInteractions = false,
+                withColor = false,
+                withBackground = false,
                 ...rest
             },
             ref,
         ) => {
             const cellId = useId();
+            const clipboard = useClipboard({ timeout: 200 });
+
+            console.log(clipboard);
 
             const { selectedCell, setSelectedCell } = useTableContext();
             const { index } = useRowContext();
@@ -293,11 +303,30 @@ const BaseCell = (cellType: CellType) => {
 
             const isSelected = selectedCell === cellId;
 
+            const handleCopy = useCallback(() => {
+                if (isSelected) {
+                    clipboard.copy(children);
+                }
+            }, [clipboard, children, isSelected]);
+
+            useEffect(() => {
+                const handleKeyDown = getHotkeyHandler([['mod+C', handleCopy]]);
+                if (isSelected) {
+                    document.body.addEventListener('keydown', handleKeyDown);
+                }
+
+                return () => {
+                    document.body.removeEventListener('keydown', handleKeyDown);
+                };
+            }, [handleCopy, isSelected]);
+
             const { cx, classes } = useTableCellStyles({
                 sectionType,
                 cellType,
                 index,
                 isSelected,
+                withColor,
+                withBackground,
             });
 
             const component = useMemo(() => {
@@ -314,6 +343,40 @@ const BaseCell = (cellType: CellType) => {
                 }
             }, []);
 
+            const content = useMemo(() => {
+                return withTooltip ? (
+                    <Tooltip
+                        withinPortal
+                        label={withTooltip}
+                        multiline
+                        maw={400}
+                    >
+                        <span>{children}</span>
+                    </Tooltip>
+                ) : (
+                    children
+                );
+            }, [children, withTooltip]);
+
+            const floatingElement = useMemo(
+                () => (
+                    <Box
+                        className={cx(classes.floatingElement, {
+                            [classes.withInteractions]: withInteractions,
+                            [classes.withBackground]: withBackground,
+                            [classes.withCopying]: clipboard.copied,
+                        })}
+                    />
+                ),
+                [
+                    clipboard.copied,
+                    classes,
+                    withBackground,
+                    withInteractions,
+                    cx,
+                ],
+            );
+
             return (
                 <Box
                     component={component}
@@ -323,22 +386,19 @@ const BaseCell = (cellType: CellType) => {
                         [classes.withSticky]: withSticky,
                         [classes.withAlignRight]: withAlignRight,
                         [classes.withBoldFont]: withBoldFont,
+                        [classes.withColor]: withColor,
                     })}
-                    onClick={() =>
-                        isSelected
-                            ? setSelectedCell(null)
-                            : setSelectedCell(cellId)
+                    onClick={
+                        withInteractions
+                            ? () =>
+                                  isSelected
+                                      ? setSelectedCell(null)
+                                      : setSelectedCell(cellId)
+                            : undefined
                     }
                 >
-                    {withTooltip ? (
-                        <Tooltip withinPortal label={withTooltip}>
-                            <span>{children}</span>
-                        </Tooltip>
-                    ) : (
-                        children
-                    )}
-
-                    <Box className={classes.borders} />
+                    {floatingElement}
+                    {content}
                 </Box>
             );
         },

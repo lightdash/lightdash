@@ -1,41 +1,43 @@
 import {
     ConditionalFormattingConfig,
     Field,
-    fieldId,
     formatItemValue,
+    getConditionalFormattingColor,
+    getConditionalFormattingConfig,
+    getConditionalFormattingDescription,
     isField,
+    isNumericItem,
     PivotData,
     ResultValue,
     TableCalculation,
 } from '@lightdash/common';
-import { Table, TableProps } from '@mantine/core';
+import { BoxProps } from '@mantine/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import last from 'lodash-es/last';
-import React, { FC, useCallback, useMemo } from 'react';
-import { useScroll } from 'react-use';
+import { readableColor } from 'polished';
+import React, { FC, useCallback } from 'react';
 import { isSummable } from '../../../hooks/useColumnTotals';
-import Cell from './Cell';
-import { usePivotTableStyles } from './tableStyles';
-import ValueCell from './ValueCell';
+import { getColorFromRange } from '../../../utils/colorUtils';
+import Table from '../FancyTable';
+import { getConditionalRuleLabel } from '../Filters/configs';
 
 const ROW_HEIGHT_PX = 34;
 
-const VirtualizedArea: FC<{
-    cellCount: number;
-    height: number;
-}> = ({ cellCount, height }) => {
-    return (
-        <tr>
-            {[...Array(cellCount)].map((_, index) => (
-                <Cell key={index} h={height} />
-            ))}
-        </tr>
-    );
-};
+// const VirtualizedArea: FC<{
+//     cellCount: number;
+//     height: number;
+// }> = ({ cellCount, height }) => {
+//     return (
+//         <Table.Row>
+//             {[...Array(cellCount)].map((_, index) => (
+//                 <Table.Cell key={index} h={height} />
+//             ))}
+//         </Table.Row>
+//     );
+// };
 
-type PivotTableProps = TableProps &
+type PivotTableProps = BoxProps & // TODO: remove this
     React.RefAttributes<HTMLTableElement> & {
-        containerRef: React.RefObject<HTMLDivElement>;
         data: PivotData;
         conditionalFormattings: ConditionalFormattingConfig[];
         hideRowNumbers: boolean;
@@ -44,7 +46,6 @@ type PivotTableProps = TableProps &
     };
 
 const PivotTable: FC<PivotTableProps> = ({
-    containerRef,
     data,
     conditionalFormattings,
     hideRowNumbers = false,
@@ -53,30 +54,7 @@ const PivotTable: FC<PivotTableProps> = ({
     className,
     ...tableProps
 }) => {
-    const { cx, classes } = usePivotTableStyles();
-
-    const containerScroll = useScroll(containerRef);
-
-    const isAtTop = useMemo(() => {
-        if (!containerRef.current) return false;
-
-        const containerScrollPosY = containerScroll.y;
-
-        return containerScrollPosY === 0;
-    }, [containerScroll, containerRef]);
-
-    const isAtBottom = useMemo(() => {
-        if (!containerRef.current) return false;
-
-        const scrollHeight = containerRef.current.scrollHeight;
-        const containerHeight = containerRef.current.clientHeight;
-        const containerScrollPosY = containerScroll.y;
-
-        return (
-            Math.ceil(containerScrollPosY) + containerHeight === scrollHeight ||
-            Math.floor(containerScrollPosY) + containerHeight === scrollHeight
-        );
-    }, [containerScroll, containerRef]);
+    const containerRef = React.useRef<HTMLDivElement>(null);
 
     const getItemFromAxis = useCallback(
         (rowIndex: number, colIndex: number) => {
@@ -168,6 +146,7 @@ const PivotTable: FC<PivotTableProps> = ({
         [data.columnTotalFields, getField],
     );
 
+    /*
     const getUnderlyingFieldValues = useCallback(
         (rowIndex: number, colIndex: number) => {
             const item = getItemFromAxis(rowIndex, colIndex);
@@ -190,6 +169,7 @@ const PivotTable: FC<PivotTableProps> = ({
         },
         [data.indexValues, data.headerValues, data.dataValues, getItemFromAxis],
     );
+    */
 
     const hasColumnTotals = data.pivotConfig.columnTotals;
 
@@ -202,35 +182,17 @@ const PivotTable: FC<PivotTableProps> = ({
         overscan: 25,
     });
     const virtualRows = rowVirtualizer.getVirtualItems();
-    const paddingTop =
-        virtualRows.length > 0 ? virtualRows?.[0]?.start || 0 : 0;
-    const paddingBottom =
-        virtualRows.length > 0
-            ? rowVirtualizer.getTotalSize() -
-              (virtualRows?.[virtualRows.length - 1]?.end || 0)
-            : 0;
-    const cellsCountWithRowNumber = (hideRowNumbers ? 0 : 1) + data.cellsCount;
 
     return (
-        <Table
-            miw="100%"
-            cellSpacing={1}
-            unstyled
-            withBorder
-            withColumnBorders
-            className={cx(
-                classes.root,
-                classes.withStickyHeader,
-                classes.withStickyFooter,
-                className,
-            )}
-            {...tableProps}
-        >
-            <thead>
+        <Table miw="100%" className={className} {...tableProps}>
+            <Table.Head withSticky>
                 {data.headerValues.map((headerValues, headerRowIndex) => (
-                    <tr key={`header-row-${headerRowIndex}`}>
+                    <Table.Row
+                        key={`header-row-${headerRowIndex}`}
+                        index={headerRowIndex}
+                    >
                         {/* shows empty cell if row numbers are visible */}
-                        {hideRowNumbers ? null : <Cell />}
+                        {hideRowNumbers ? null : <Table.Cell />}
 
                         {/* renders the title labels */}
                         {data.titleFields[headerRowIndex].map(
@@ -244,14 +206,16 @@ const PivotTable: FC<PivotTableProps> = ({
                                 const isHeaderTitle =
                                     titleField?.direction === 'header';
 
-                                return (
-                                    <Cell
+                                return isEmpty ? (
+                                    <Table.Cell
                                         key={`title-${headerRowIndex}-${titleFieldIndex}`}
-                                        component="th"
-                                        withBolderFont
-                                        withGrayBackground={!isEmpty}
+                                    />
+                                ) : (
+                                    <Table.CellHead
+                                        key={`title-${headerRowIndex}-${titleFieldIndex}`}
                                         withAlignRight={isHeaderTitle}
-                                        tooltipContent={
+                                        withBoldFont
+                                        withTooltip={
                                             isField(field)
                                                 ? field.description
                                                 : undefined
@@ -260,7 +224,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                         {titleField?.fieldId
                                             ? getFieldLabel(titleField?.fieldId)
                                             : undefined}
-                                    </Cell>
+                                    </Table.CellHead>
                                 );
                             },
                         )}
@@ -276,13 +240,10 @@ const PivotTable: FC<PivotTableProps> = ({
                                     : undefined;
 
                             return isLabel || headerValue.colSpan > 0 ? (
-                                <Cell
+                                <Table.CellHead
                                     key={`header-${headerRowIndex}-${headerColIndex}`}
-                                    component="th"
-                                    withBolderFont={isLabel}
-                                    withLighterBoldFont={!isLabel}
-                                    withGrayBackground
-                                    tooltipContent={description}
+                                    withBoldFont={isLabel}
+                                    withTooltip={description}
                                     colSpan={
                                         isLabel
                                             ? undefined
@@ -292,7 +253,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     {isLabel
                                         ? getFieldLabel(headerValue.fieldId)
                                         : headerValue.value.formatted}
-                                </Cell>
+                                </Table.CellHead>
                             ) : null;
                         })}
 
@@ -301,60 +262,45 @@ const PivotTable: FC<PivotTableProps> = ({
                             ? data.rowTotalFields?.[headerRowIndex].map(
                                   (totalLabel, headerColIndex) =>
                                       totalLabel ? (
-                                          <Cell
+                                          <Table.CellHead
                                               key={`header-total-${headerRowIndex}-${headerColIndex}`}
-                                              withBolderFont
-                                              withMinimalWidth
-                                              withGrayBackground
+                                              withBoldFont
                                           >
                                               {totalLabel.fieldId
                                                   ? `Total ${getFieldLabel(
                                                         totalLabel.fieldId,
                                                     )}`
                                                   : `Total`}
-                                          </Cell>
+                                          </Table.CellHead>
                                       ) : (
-                                          <Cell
+                                          <Table.Cell
                                               key={`header-total-${headerRowIndex}-${headerColIndex}`}
-                                              withMinimalWidth
-                                              withAlignRight
                                           />
                                       ),
                               )
                             : null}
-                    </tr>
+                    </Table.Row>
                 ))}
+            </Table.Head>
 
-                <div className={classes.floatingHeader}>
-                    <div
-                        className={classes.floatingHeaderShadow}
-                        data-floating-header-shadow={!isAtTop}
-                    />
-                </div>
-            </thead>
-
-            <tbody>
-                {paddingTop > 0 && (
-                    <VirtualizedArea
-                        cellCount={cellsCountWithRowNumber}
-                        height={paddingTop}
-                    />
-                )}
-                {virtualRows.map(({ index: rowIndex }) => {
+            <Table.Body>
+                {virtualRows.map((virtualRow) => {
+                    const rowIndex = virtualRow.index;
                     const row = data.dataValues[rowIndex];
+
                     return (
-                        <tr key={`row-${rowIndex}`}>
+                        <Table.Row key={`row-${rowIndex}`} index={rowIndex}>
                             {!hideRowNumbers && (
-                                <Cell withAlignRight withMinimalWidth>
+                                <Table.Cell withAlignRight>
                                     {rowIndex + 1}
-                                </Cell>
+                                </Table.Cell>
                             )}
 
                             {/* renders empty rows if there are no index values but titles */}
                             {data.indexValueTypes.length === 0 &&
                                 data.titleFields[0].map(
                                     (_titleField, titleFieldIndex) => (
-                                        <Cell
+                                        <Table.Cell
                                             key={`empty-title-${rowIndex}-${titleFieldIndex}`}
                                         />
                                     ),
@@ -376,42 +322,83 @@ const PivotTable: FC<PivotTableProps> = ({
                                             : undefined;
 
                                     return (
-                                        <Cell
+                                        <Table.CellHead
                                             key={`index-${rowIndex}-${indexColIndex}`}
-                                            withBolderFont={isLabel}
-                                            withLighterBoldFont={!isLabel}
-                                            withGrayBackground
-                                            tooltipContent={description}
+                                            withBoldFont={isLabel}
+                                            withTooltip={description}
                                         >
                                             {isLabel
                                                 ? getFieldLabel(
                                                       indexValue.fieldId,
                                                   )
                                                 : indexValue.value.formatted}
-                                        </Cell>
+                                        </Table.CellHead>
                                     );
                                 },
                             )}
 
                             {/* renders the pivot values */}
                             {row.map((value, colIndex) => {
+                                const item = getItemFromAxis(
+                                    rowIndex,
+                                    colIndex,
+                                );
+
+                                const conditionalFormatting = (() => {
+                                    const conditionalFormattingConfig =
+                                        getConditionalFormattingConfig(
+                                            item,
+                                            value?.raw,
+                                            conditionalFormattings,
+                                        );
+
+                                    const tooltipContent =
+                                        getConditionalFormattingDescription(
+                                            item,
+                                            conditionalFormattingConfig,
+                                            getConditionalRuleLabel,
+                                        );
+
+                                    const conditionalFormattingColor =
+                                        getConditionalFormattingColor(
+                                            item,
+                                            value?.raw,
+                                            conditionalFormattingConfig,
+                                            getColorFromRange,
+                                        );
+
+                                    if (!conditionalFormattingColor) {
+                                        return undefined;
+                                    }
+
+                                    return {
+                                        tooltipContent,
+                                        color: readableColor(
+                                            conditionalFormattingColor,
+                                        ),
+                                        backgroundColor:
+                                            conditionalFormattingColor,
+                                    };
+                                })();
+
                                 return (
-                                    <ValueCell
+                                    <Table.Cell
                                         key={`value-${rowIndex}-${colIndex}`}
-                                        item={getItemFromAxis(
-                                            rowIndex,
-                                            colIndex,
-                                        )}
-                                        value={value}
-                                        colIndex={colIndex}
-                                        rowIndex={rowIndex}
-                                        getUnderlyingFieldValues={
-                                            getUnderlyingFieldValues
+                                        withAlignRight={isNumericItem(item)}
+                                        withInteractions={!!value?.formatted}
+                                        withColor={conditionalFormatting?.color}
+                                        withBackground={
+                                            conditionalFormatting?.backgroundColor
                                         }
-                                        conditionalFormattings={
-                                            conditionalFormattings
+                                        withTooltip={
+                                            conditionalFormatting?.tooltipContent
                                         }
-                                    />
+                                        // getUnderlyingFieldValues={
+                                        //     getUnderlyingFieldValues
+                                        // }
+                                    >
+                                        {value?.formatted}
+                                    </Table.Cell>
                                 );
                             })}
 
@@ -431,69 +418,52 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 );
 
                                           return value ? (
-                                              <ValueCell
+                                              <Table.CellHead
                                                   key={`index-total-${rowIndex}-${colIndex}`}
-                                                  value={value}
-                                                  withValue={!!value.formatted}
+                                                  withInteractions
                                                   withAlignRight
-                                                  withBolderFont
-                                                  withGrayBackground
                                               >
                                                   {value.formatted}
-                                              </ValueCell>
+                                              </Table.CellHead>
                                           ) : (
-                                              <Cell withGrayBackground />
+                                              <Table.Cell />
                                           );
                                       },
                                   )
                                 : null}
-                        </tr>
+                        </Table.Row>
                     );
                 })}
-                {paddingBottom > 0 && (
-                    <VirtualizedArea
-                        cellCount={cellsCountWithRowNumber}
-                        height={paddingBottom}
-                    />
-                )}
-            </tbody>
+            </Table.Body>
 
             {hasColumnTotals ? (
-                <tfoot>
-                    <div className={classes.floatingFooter}>
-                        <div
-                            className={classes.floatingFooterShadow}
-                            data-floating-footer-shadow={!isAtBottom}
-                        />
-                    </div>
-
+                <Table.Footer withSticky>
                     {data.columnTotals?.map((row, totalRowIndex) => (
-                        <tr key={`column-total-${totalRowIndex}`}>
+                        <Table.Row
+                            key={`column-total-${totalRowIndex}`}
+                            index={totalRowIndex}
+                        >
                             {/* shows empty cell if row numbers are visible */}
-                            {hideRowNumbers ? null : <Cell withMinimalWidth />}
+                            {hideRowNumbers ? null : <Table.Cell />}
 
                             {/* render the total label */}
                             {data.columnTotalFields?.[totalRowIndex].map(
                                 (totalLabel, totalColIndex) =>
                                     totalLabel ? (
-                                        <Cell
+                                        <Table.CellHead
                                             key={`footer-total-${totalRowIndex}-${totalColIndex}`}
                                             withAlignRight
-                                            withBolderFont
-                                            withGrayBackground
+                                            withBoldFont
                                         >
                                             {totalLabel.fieldId
                                                 ? `Total ${getFieldLabel(
                                                       totalLabel.fieldId,
                                                   )}`
                                                 : `Total`}
-                                        </Cell>
+                                        </Table.CellHead>
                                     ) : (
-                                        <Cell
+                                        <Table.Cell
                                             key={`footer-total-${totalRowIndex}-${totalColIndex}`}
-                                            component="th"
-                                            withAlignRight
-                                            withMinimalWidth
                                         />
                                     ),
                             )}
@@ -509,37 +479,31 @@ const PivotTable: FC<PivotTableProps> = ({
                                           totalColIndex,
                                       );
                                 return value ? (
-                                    <ValueCell
+                                    <Table.CellHead
                                         key={`column-total-${totalRowIndex}-${totalColIndex}`}
-                                        value={value}
-                                        component="th"
-                                        withValue={!!value.formatted}
+                                        withInteractions
                                         withAlignRight
-                                        withBolderFont
-                                        withGrayBackground
+                                        withBoldFont
                                     >
                                         {value.formatted}
-                                    </ValueCell>
+                                    </Table.CellHead>
                                 ) : (
-                                    <Cell
+                                    <Table.Cell
                                         key={`footer-total-${totalRowIndex}-${totalColIndex}`}
-                                        component="th"
-                                        withGrayBackground
                                     />
                                 );
                             })}
 
                             {hasRowTotals
                                 ? data.rowTotalFields?.[0].map((_, index) => (
-                                      <Cell
+                                      <Table.Cell
                                           key={`footer-empty-${totalRowIndex}-${index}`}
-                                          component="th"
                                       />
                                   ))
                                 : null}
-                        </tr>
+                        </Table.Row>
                     ))}
-                </tfoot>
+                </Table.Footer>
             ) : null}
         </Table>
     );
