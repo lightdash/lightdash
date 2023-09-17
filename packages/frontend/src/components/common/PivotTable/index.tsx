@@ -21,6 +21,7 @@ import { isSummable } from '../../../hooks/useColumnTotals';
 import { getColorFromRange } from '../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../Filters/configs';
 import Table from '../LightTable';
+import TotalCellMenu from './TotalCellMenu';
 import ValueCellMenu from './ValueCellMenu';
 
 const ROW_HEIGHT_PX = 34;
@@ -442,8 +443,24 @@ const PivotTable: FC<PivotTableProps> = ({
                                           return value ? (
                                               <Table.CellHead
                                                   key={`index-total-${rowIndex}-${colIndex}`}
-                                                  withInteractions
                                                   withAlignRight
+                                                  withInteractions
+                                                  withMenu={(
+                                                      {
+                                                          isOpen,
+                                                          onClose,
+                                                          onCopy,
+                                                      },
+                                                      render,
+                                                  ) => (
+                                                      <TotalCellMenu
+                                                          opened={isOpen}
+                                                          onClose={onClose}
+                                                          onCopy={onCopy}
+                                                      >
+                                                          {render()}
+                                                      </TotalCellMenu>
+                                                  )}
                                               >
                                                   {value.formatted}
                                               </Table.CellHead>
@@ -505,9 +522,21 @@ const PivotTable: FC<PivotTableProps> = ({
                                 return value ? (
                                     <Table.CellHead
                                         key={`column-total-${totalRowIndex}-${totalColIndex}`}
-                                        withInteractions
                                         withAlignRight
                                         withBoldFont
+                                        withInteractions
+                                        withMenu={(
+                                            { isOpen, onClose, onCopy },
+                                            render,
+                                        ) => (
+                                            <TotalCellMenu
+                                                opened={isOpen}
+                                                onClose={onClose}
+                                                onCopy={onCopy}
+                                            >
+                                                {render()}
+                                            </TotalCellMenu>
+                                        )}
                                     >
                                         {value.formatted}
                                     </Table.CellHead>
