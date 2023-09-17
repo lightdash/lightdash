@@ -142,10 +142,15 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
             withinPortal
             shadow="md"
             position="bottom-end"
-            radius="xs"
+            styles={(theme) => ({
+                dropdown: {
+                    borderColor: theme.colors.gray[5],
+                },
+            })}
+            radius={0}
             offset={{
-                mainAxis: 1,
-                crossAxis: 2,
+                mainAxis: 0,
+                crossAxis: 0,
             }}
         >
             <Menu.Target>{children}</Menu.Target>

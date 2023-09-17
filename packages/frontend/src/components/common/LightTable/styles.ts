@@ -1,19 +1,42 @@
 import { assertUnreachable } from '@lightdash/common';
-import { createStyles } from '@mantine/core';
-import { darken } from 'polished';
+import { createStyles, MantineTheme } from '@mantine/core';
+import { darken, rgba } from 'polished';
 import { CellType, SectionType } from '.';
 
 export const CELL_HEIGHT = 32;
 
-export const useTableStyles = createStyles(() => ({
-    root: {
-        borderCollapse: 'initial',
-        borderSpacing: 0,
+const getBorderColor = (theme: MantineTheme) => theme.colors.gray[3];
+const getShadowColor = (theme: MantineTheme) => rgba(theme.black, 0.075);
 
-        margin: 0,
-        padding: 0,
-    },
-}));
+export const useTableStyles = createStyles((theme) => {
+    const borderColor = getBorderColor(theme);
+
+    return {
+        root: {
+            borderCollapse: 'initial',
+            borderSpacing: 0,
+
+            margin: 0,
+            padding: 0,
+
+            'th, td': {
+                boxShadow: `inset -1px -1px 0 0 ${borderColor}`,
+            },
+
+            '& > *:first-child > *:first-child > *': {
+                boxShadow: `inset 0 1px 0 0 ${borderColor}, inset -1px -1px 0 0 ${borderColor}`,
+            },
+
+            '& > *:first-child > *:first-child > *:first-child': {
+                boxShadow: `inset 1px 1px 0 0 ${borderColor}, inset -1px -1px 0 0 ${borderColor}`,
+            },
+
+            '& > * > tr > *:first-child': {
+                boxShadow: `inset 1px 0 0 0 ${borderColor}, inset -1px -1px 0 0 ${borderColor}`,
+            },
+        },
+    };
+});
 
 export const useTableSectionStyles = createStyles<
     string,
@@ -24,7 +47,10 @@ export const useTableSectionStyles = createStyles<
             isAtBottom: boolean;
         };
     }
->((_theme, { sectionType, scrollPositions }) => {
+>((theme, { sectionType, scrollPositions }) => {
+    const borderColor = getBorderColor(theme);
+    const shadowColor = getShadowColor(theme);
+
     const stickyShadow = (() => {
         switch (sectionType) {
             case SectionType.Head:
@@ -33,7 +59,7 @@ export const useTableSectionStyles = createStyles<
                         transition: 'box-shadow 500ms ease',
                         boxShadow: scrollPositions.isAtTop
                             ? 'none'
-                            : `0 4px 4px 0 rgba(0, 0, 0, 0.075)`,
+                            : `0 4px 4px 0 ${shadowColor}`,
                     },
                 };
 
@@ -43,7 +69,7 @@ export const useTableSectionStyles = createStyles<
                         transition: 'box-shadow 500ms ease',
                         boxShadow: scrollPositions.isAtBottom
                             ? 'none'
-                            : `0 -4px 4px 0 rgba(0, 0, 0, 0.075)`,
+                            : `0 -4px 4px 0 ${shadowColor}, 0 -1px 0 0 ${borderColor}`,
                     },
                 };
 
@@ -68,25 +94,23 @@ export const useTableSectionStyles = createStyles<
 export const useTableRowStyles = createStyles<
     string,
     { sectionType: SectionType; index: number }
->((_theme, { sectionType, index }) => {
-    const withSticky = (() => {
+>((theme, { sectionType, index }) => {
+    const rowHoverBackground = rgba(theme.colors.gray[0], 0.5);
+
+    const getStickySectionStyles = () => {
         switch (sectionType) {
             case SectionType.Head:
                 return {
-                    position: 'sticky',
                     top: index * CELL_HEIGHT,
-                    zIndex: 1,
                 } as const;
 
             case SectionType.Footer:
                 return {
-                    position: 'sticky',
                     bottom: index * CELL_HEIGHT,
-                    zIndex: 1,
                 } as const;
 
             case SectionType.Body:
-                // we don't want to apply sticky styles to body cells
+                // we don't want to apply sticky styles to body rows
                 return null;
 
             default:
@@ -95,11 +119,25 @@ export const useTableRowStyles = createStyles<
                     `unknown section type: ${sectionType}`,
                 );
         }
-    })();
+    };
 
     return {
-        root: {},
-        ...(withSticky ? { withSticky } : {}),
+        root: {
+            backgroundColor: theme.white,
+
+            ':hover':
+                sectionType === SectionType.Body
+                    ? {
+                          backgroundColor: rowHoverBackground,
+                      }
+                    : {},
+        },
+
+        withSticky: {
+            position: 'sticky',
+            zIndex: 1,
+            ...getStickySectionStyles(),
+        },
     };
 });
 
@@ -125,20 +163,19 @@ export const useTableCellStyles = createStyles<
             withBackground = false,
         },
     ) => {
-        const withSticky = (() => {
+        const cellHeadBackground = theme.colors.gray[0];
+        const selectedCellBackground = theme.colors.blue[2];
+
+        const getStickySectionCellStyles = () => {
             switch (sectionType) {
                 case SectionType.Head:
                     return {
-                        position: 'sticky',
                         top: index * CELL_HEIGHT,
-                        zIndex: 1,
                     } as const;
 
                 case SectionType.Footer:
                     return {
-                        position: 'sticky',
                         bottom: index * CELL_HEIGHT,
-                        zIndex: 1,
                     } as const;
 
                 case SectionType.Body:
@@ -151,17 +188,21 @@ export const useTableCellStyles = createStyles<
                         `unknown section type: ${sectionType}`,
                     );
             }
-        })();
+        };
 
         return {
             root: {
                 position: 'relative',
-                zIndex: 0,
-
-                height: CELL_HEIGHT,
+                overflow: 'visible',
 
                 paddingLeft: theme.spacing.sm,
                 paddingRight: theme.spacing.sm,
+
+                height: CELL_HEIGHT,
+                maxWidth: '300px',
+
+                whiteSpace: 'nowrap',
+                textOverflow: 'ellipsis',
 
                 textAlign: 'left',
 
@@ -170,42 +211,31 @@ export const useTableCellStyles = createStyles<
                 fontWeight: cellType === CellType.Head ? 500 : 400,
                 fontSize: 13,
 
-                maxWidth: '300px',
-                whiteSpace: 'nowrap',
-                textOverflow: 'ellipsis',
-                overflow: 'hidden',
-
                 color: theme.colors.gray[9],
 
                 backgroundColor:
                     cellType === CellType.Head
-                        ? theme.colors.gray[0]
-                        : theme.white,
+                        ? cellHeadBackground
+                        : 'transparent',
             },
 
             floatingElement: {
+                pointerEvents: 'none',
                 position: 'absolute',
                 zIndex: -1,
-                top: -0.5,
-                left: -0.5,
-                right: -0.5,
-                bottom: -0.5,
 
-                transitionProperty:
-                    'background-color, border-color, box-shadow',
-                transitionDuration: '200ms',
-                transitionTimingFunction: 'ease-out',
+                top: -1,
+                left: -1,
+                right: 0,
+                bottom: 0,
 
-                borderStyle: 'solid',
-                borderWidth: 1,
-                borderColor: isSelected
-                    ? theme.colors.blue[6]
-                    : theme.colors.gray[3],
-                boxShadow: isSelected
-                    ? `inset 0 0 0 1.5px ${theme.colors.blue[6]}`
-                    : 'none',
+                backgroundColor: isSelected
+                    ? selectedCellBackground
+                    : undefined,
 
-                backgroundColor: isSelected ? theme.colors.blue[0] : 'none',
+                border: isSelected
+                    ? `1px solid ${theme.colors.blue[6]}`
+                    : undefined,
             },
 
             withAlignRight: {
@@ -216,20 +246,19 @@ export const useTableCellStyles = createStyles<
                 fontWeight: 600,
             },
 
-            withInteractions: !isSelected
-                ? {
-                      '&:hover': {
-                          borderColor: theme.colors.gray[6],
-                          boxShadow: `inset 0 0 0 0.5px ${theme.colors.gray[6]}`,
-                      },
-                  }
-                : {},
+            withInteractions: {
+                cursor: 'pointer',
 
-            withCopying: isSelected
-                ? {
-                      backgroundColor: theme.colors.blue[2],
-                  }
-                : {},
+                '&:hover': !isSelected
+                    ? {
+                          borderColor: theme.colors.gray[6],
+                      }
+                    : {},
+            },
+
+            withCopying: {
+                backgroundColor: theme.colors.blue[2],
+            },
 
             withColor: withColor
                 ? {
@@ -262,7 +291,11 @@ export const useTableCellStyles = createStyles<
                       }
                 : {},
 
-            ...(withSticky ? { withSticky } : {}),
+            withSticky: {
+                position: 'sticky',
+                zIndex: 1,
+                ...getStickySectionCellStyles(),
+            },
         };
     },
 );

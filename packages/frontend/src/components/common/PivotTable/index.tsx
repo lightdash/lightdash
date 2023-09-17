@@ -1,6 +1,7 @@
 import {
     ConditionalFormattingConfig,
     Field,
+    fieldId,
     formatItemValue,
     getConditionalFormattingColor,
     getConditionalFormattingConfig,
@@ -18,8 +19,9 @@ import { readableColor } from 'polished';
 import React, { FC, useCallback } from 'react';
 import { isSummable } from '../../../hooks/useColumnTotals';
 import { getColorFromRange } from '../../../utils/colorUtils';
-import Table from '../FancyTable';
 import { getConditionalRuleLabel } from '../Filters/configs';
+import Table from '../LightTable';
+import ValueCellMenu from './ValueCellMenu';
 
 const ROW_HEIGHT_PX = 34;
 
@@ -146,7 +148,6 @@ const PivotTable: FC<PivotTableProps> = ({
         [data.columnTotalFields, getField],
     );
 
-    /*
     const getUnderlyingFieldValues = useCallback(
         (rowIndex: number, colIndex: number) => {
             const item = getItemFromAxis(rowIndex, colIndex);
@@ -169,7 +170,6 @@ const PivotTable: FC<PivotTableProps> = ({
         },
         [data.indexValues, data.headerValues, data.dataValues, getItemFromAxis],
     );
-    */
 
     const hasColumnTotals = data.pivotConfig.columnTotals;
 
@@ -385,7 +385,6 @@ const PivotTable: FC<PivotTableProps> = ({
                                     <Table.Cell
                                         key={`value-${rowIndex}-${colIndex}`}
                                         withAlignRight={isNumericItem(item)}
-                                        withInteractions={!!value?.formatted}
                                         withColor={conditionalFormatting?.color}
                                         withBackground={
                                             conditionalFormatting?.backgroundColor
@@ -393,9 +392,26 @@ const PivotTable: FC<PivotTableProps> = ({
                                         withTooltip={
                                             conditionalFormatting?.tooltipContent
                                         }
-                                        // getUnderlyingFieldValues={
-                                        //     getUnderlyingFieldValues
-                                        // }
+                                        withInteractions={!!value?.formatted}
+                                        withMenu={(
+                                            { isOpen, onClose, onCopy },
+                                            render,
+                                        ) => (
+                                            <ValueCellMenu
+                                                opened={isOpen}
+                                                rowIndex={rowIndex}
+                                                colIndex={colIndex}
+                                                item={item}
+                                                value={value}
+                                                getUnderlyingFieldValues={
+                                                    getUnderlyingFieldValues
+                                                }
+                                                onClose={onClose}
+                                                onCopy={onCopy}
+                                            >
+                                                {render()}
+                                            </ValueCellMenu>
+                                        )}
                                     >
                                         {value?.formatted}
                                     </Table.Cell>
@@ -426,7 +442,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                                   {value.formatted}
                                               </Table.CellHead>
                                           ) : (
-                                              <Table.Cell />
+                                              <Table.CellHead
+                                                  key={`index-total-${rowIndex}-${colIndex}`}
+                                              />
                                           );
                                       },
                                   )
@@ -462,7 +480,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 : `Total`}
                                         </Table.CellHead>
                                     ) : (
-                                        <Table.Cell
+                                        <Table.CellHead
                                             key={`footer-total-${totalRowIndex}-${totalColIndex}`}
                                         />
                                     ),

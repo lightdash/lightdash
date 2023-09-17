@@ -1,7 +1,8 @@
 import { assertUnreachable } from '@lightdash/common';
-import { Box, BoxProps as BoxPropsBase, Tooltip } from '@mantine/core';
+import { Box, BoxProps as BoxPropsBase, Text, Tooltip } from '@mantine/core';
 import { getHotkeyHandler, useClipboard, useId } from '@mantine/hooks';
 import { PolymorphicComponentProps } from '@mantine/utils';
+import debounce from 'lodash-es/debounce';
 import {
     createContext,
     FC,
@@ -35,11 +36,21 @@ type TableRowProps = PolymorphicComponentProps<'tr', BoxProps> & {
 };
 type TableCellProps = PolymorphicComponentProps<'th' | 'td', BoxProps> & {
     withAlignRight?: boolean;
-    withTooltip?: string | false;
     withBoldFont?: boolean;
     withInteractions?: boolean;
-    withColor?: string | false;
-    withBackground?: string | false;
+    withColor?: false | string;
+    withBackground?: false | string;
+    withTooltip?: false | string;
+    withMenu?:
+        | false
+        | ((
+              props: {
+                  isOpen: boolean;
+                  onClose: () => void;
+                  onCopy: () => void;
+              },
+              renderFn: () => JSX.Element,
+          ) => JSX.Element);
 };
 
 interface TableCompoundComponents {
@@ -64,7 +75,7 @@ export enum CellType {
 
 type TableContextType = {
     selectedCell: string | null;
-    setSelectedCell: (cellId: string | null) => void;
+    toggleCell: (cellId: string | null) => void;
 
     scrollPositions: {
         isAtTop: boolean;
@@ -90,9 +101,28 @@ const TableProvider: FC<Pick<TableContextType, 'scrollPositions'>> = ({
 }) => {
     const [selectedCell, setSelectedCell] = useState<string | null>(null);
 
+    const handleToggleCell = useCallback(
+        (cellId: string | null) => {
+            setSelectedCell(cellId);
+        },
+        [setSelectedCell],
+    );
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const handleDebouncedToggleCell = useMemo(() => {
+        return debounce(handleToggleCell, 300, {
+            leading: true,
+            trailing: false,
+        });
+    }, [handleToggleCell]);
+
     return (
         <TableContext.Provider
-            value={{ selectedCell, setSelectedCell, scrollPositions }}
+            value={{
+                selectedCell,
+                toggleCell: handleDebouncedToggleCell,
+                scrollPositions,
+            }}
         >
             {children}
         </TableContext.Provider>
@@ -288,6 +318,7 @@ const BaseCell = (cellType: CellType) => {
                 withInteractions = false,
                 withColor = false,
                 withBackground = false,
+                withMenu = false,
                 ...rest
             },
             ref,
@@ -297,17 +328,16 @@ const BaseCell = (cellType: CellType) => {
 
             console.log(clipboard);
 
-            const { selectedCell, setSelectedCell } = useTableContext();
+            const { selectedCell, toggleCell } = useTableContext();
             const { index } = useRowContext();
             const { sectionType, withSticky } = useSectionContext();
 
             const isSelected = selectedCell === cellId;
 
             const handleCopy = useCallback(() => {
-                if (isSelected) {
-                    clipboard.copy(children);
-                }
-            }, [clipboard, children, isSelected]);
+                console.log('yolo ? ');
+                clipboard.copy(children);
+            }, [clipboard, children]);
 
             useEffect(() => {
                 const handleKeyDown = getHotkeyHandler([['mod+C', handleCopy]]);
@@ -343,39 +373,13 @@ const BaseCell = (cellType: CellType) => {
                 }
             }, []);
 
-            const content = useMemo(() => {
-                return withTooltip ? (
-                    <Tooltip
-                        withinPortal
-                        label={withTooltip}
-                        multiline
-                        maw={400}
-                    >
-                        <span>{children}</span>
-                    </Tooltip>
-                ) : (
-                    children
-                );
-            }, [children, withTooltip]);
+            const truncatedText = useMemo(() => {
+                return <Text truncate>{children}</Text>;
+            }, [children]);
 
-            const floatingElement = useMemo(
-                () => (
-                    <Box
-                        className={cx(classes.floatingElement, {
-                            [classes.withInteractions]: withInteractions,
-                            [classes.withBackground]: withBackground,
-                            [classes.withCopying]: clipboard.copied,
-                        })}
-                    />
-                ),
-                [
-                    clipboard.copied,
-                    classes,
-                    withBackground,
-                    withInteractions,
-                    cx,
-                ],
-            );
+            const floatingElement = useMemo(() => {
+                return <Box className={cx(classes.floatingElement, {})} />;
+            }, [cx, classes]);
 
             return (
                 <Box
@@ -387,18 +391,42 @@ const BaseCell = (cellType: CellType) => {
                         [classes.withAlignRight]: withAlignRight,
                         [classes.withBoldFont]: withBoldFont,
                         [classes.withColor]: withColor,
+                        [classes.withInteractions]: withInteractions,
+                        [classes.withBackground]: withBackground,
+                        [classes.withCopying]: clipboard.copied,
                     })}
                     onClick={
                         withInteractions
-                            ? () =>
-                                  isSelected
-                                      ? setSelectedCell(null)
-                                      : setSelectedCell(cellId)
+                            ? () => {
+                                  toggleCell(isSelected ? null : cellId);
+                              }
                             : undefined
                     }
                 >
-                    {floatingElement}
-                    {content}
+                    {withMenu
+                        ? withMenu(
+                              {
+                                  isOpen: isSelected,
+                                  onClose: () => toggleCell(null),
+                                  onCopy: handleCopy,
+                              },
+                              () => floatingElement,
+                          )
+                        : floatingElement}
+
+                    {withTooltip ? (
+                        <Tooltip
+                            position="top"
+                            withinPortal
+                            maw={400}
+                            multiline
+                            label={withTooltip}
+                        >
+                            {truncatedText}
+                        </Tooltip>
+                    ) : (
+                        truncatedText
+                    )}
                 </Box>
             );
         },
@@ -419,12 +447,12 @@ Table.Row = Row;
 Table.CellHead = CellHead;
 Table.Cell = Cell;
 
-Table.displayName = 'Table';
-Table.Head.displayName = 'Table.Head';
-Table.Body.displayName = 'Table.Body';
-Table.Footer.displayName = 'Table.Footer';
-Table.Row.displayName = 'Table.Row';
-Table.CellHead.displayName = 'Table.CellHead';
-Table.Cell.displayName = 'Table.Cell';
+Table.displayName = 'LightTable';
+Table.Head.displayName = 'LightTable.Head';
+Table.Body.displayName = 'LightTable.Body';
+Table.Footer.displayName = 'LightTable.Footer';
+Table.Row.displayName = 'LightTable.Row';
+Table.CellHead.displayName = 'LightTable.CellHead';
+Table.Cell.displayName = 'LightTable.Cell';
 
 export default Table;
