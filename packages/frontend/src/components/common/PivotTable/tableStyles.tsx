@@ -186,10 +186,6 @@ export const usePivotTableCellStyles = createStyles<
         textAlign: 'right',
     },
 
-    withMinimalWidth: {
-        width: '1%',
-    },
-
     withValue: {
         cursor: 'pointer',
         ':hover:not([data-expanded="true"]):not([data-copied="true"])': {

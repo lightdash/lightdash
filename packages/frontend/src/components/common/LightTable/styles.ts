@@ -199,10 +199,19 @@ export const useTableCellStyles = createStyles<
                 paddingRight: theme.spacing.sm,
 
                 height: CELL_HEIGHT,
-                maxWidth: '300px',
 
+                // TODO: expand large text
+                // ...(isSelected
+                //     ? {
+                //           wordBreak: 'break-all',
+                //           whiteSpace: 'normal',
+                //           minWidth: '300px',
+                //       }
+                //     : {
+                maxWidth: '300px',
                 whiteSpace: 'nowrap',
                 textOverflow: 'ellipsis',
+                //       }),
 
                 textAlign: 'left',
 
@@ -236,6 +245,10 @@ export const useTableCellStyles = createStyles<
                 border: isSelected
                     ? `1px solid ${theme.colors.blue[6]}`
                     : undefined,
+            },
+
+            withMinimalWidth: {
+                width: '1%',
             },
 
             withAlignRight: {

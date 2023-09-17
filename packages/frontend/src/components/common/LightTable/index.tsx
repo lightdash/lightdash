@@ -35,6 +35,7 @@ type TableRowProps = PolymorphicComponentProps<'tr', BoxProps> & {
     index: number;
 };
 type TableCellProps = PolymorphicComponentProps<'th' | 'td', BoxProps> & {
+    withMinimalWidth?: boolean;
     withAlignRight?: boolean;
     withBoldFont?: boolean;
     withInteractions?: boolean;
@@ -312,6 +313,7 @@ const BaseCell = (cellType: CellType) => {
         (
             {
                 children,
+                withMinimalWidth = false,
                 withAlignRight = false,
                 withTooltip = false,
                 withBoldFont = false,
@@ -325,8 +327,6 @@ const BaseCell = (cellType: CellType) => {
         ) => {
             const cellId = useId();
             const clipboard = useClipboard({ timeout: 200 });
-
-            console.log(clipboard);
 
             const { selectedCell, toggleCell } = useTableContext();
             const { index } = useRowContext();
@@ -388,6 +388,7 @@ const BaseCell = (cellType: CellType) => {
                     {...rest}
                     className={cx(classes.root, rest.className, {
                         [classes.withSticky]: withSticky,
+                        [classes.withMinimalWidth]: withMinimalWidth,
                         [classes.withAlignRight]: withAlignRight,
                         [classes.withBoldFont]: withBoldFont,
                         [classes.withColor]: withColor,

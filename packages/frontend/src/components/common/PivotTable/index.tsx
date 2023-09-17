@@ -192,7 +192,9 @@ const PivotTable: FC<PivotTableProps> = ({
                         index={headerRowIndex}
                     >
                         {/* shows empty cell if row numbers are visible */}
-                        {hideRowNumbers ? null : <Table.Cell />}
+                        {hideRowNumbers ? null : (
+                            <Table.Cell withMinimalWidth />
+                        )}
 
                         {/* renders the title labels */}
                         {data.titleFields[headerRowIndex].map(
@@ -209,11 +211,13 @@ const PivotTable: FC<PivotTableProps> = ({
                                 return isEmpty ? (
                                     <Table.Cell
                                         key={`title-${headerRowIndex}-${titleFieldIndex}`}
+                                        withMinimalWidth
                                     />
                                 ) : (
                                     <Table.CellHead
                                         key={`title-${headerRowIndex}-${titleFieldIndex}`}
                                         withAlignRight={isHeaderTitle}
+                                        withMinimalWidth
                                         withBoldFont
                                         withTooltip={
                                             isField(field)
@@ -265,6 +269,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                           <Table.CellHead
                                               key={`header-total-${headerRowIndex}-${headerColIndex}`}
                                               withBoldFont
+                                              withMinimalWidth
                                           >
                                               {totalLabel.fieldId
                                                   ? `Total ${getFieldLabel(
@@ -275,6 +280,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                       ) : (
                                           <Table.Cell
                                               key={`header-total-${headerRowIndex}-${headerColIndex}`}
+                                              withMinimalWidth
                                           />
                                       ),
                               )
