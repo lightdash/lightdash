@@ -53,6 +53,7 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                 return (
                     <SimpleChart
                         className={className}
+                        isInDashboard={!!isDashboard}
                         $shouldExpand
                         data-testid={props['data-testid']}
                         {...props}

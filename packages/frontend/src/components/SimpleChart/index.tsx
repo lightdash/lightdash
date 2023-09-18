@@ -70,6 +70,7 @@ const isSeriesClickEvent = (e: EchartClickEvent): e is EchartSeriesClickEvent =>
     e.componentType === 'series';
 
 type SimpleChartProps = Omit<EChartsReactProps, 'option'> & {
+    isInDashboard: boolean;
     $shouldExpand?: boolean;
     className?: string;
     'data-testid'?: string;
@@ -91,7 +92,10 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
         setSelectedLegendsUpdated(selectedLegends);
     }, [selectedLegends]);
 
-    const eChartsOptions = useEcharts(selectedLegendsUpdated);
+    const eChartsOptions = useEcharts(
+        selectedLegendsUpdated,
+        props.isInDashboard,
+    );
 
     useEffect(() => {
         const listener = () => {
