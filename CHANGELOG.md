@@ -1,3 +1,10 @@
+## [0.776.1](https://github.com/lightdash/lightdash/compare/0.776.0...0.776.1) (2023-09-18)
+
+
+### Bug Fixes
+
+* update label of sort on boolean value from yes-no to true-false ([#7060](https://github.com/lightdash/lightdash/issues/7060)) ([b9a0c4a](https://github.com/lightdash/lightdash/commit/b9a0c4a11efd12307bd8b5672763b316e4baa263))
+
 # [0.776.0](https://github.com/lightdash/lightdash/compare/0.775.1...0.776.0) (2023-09-18)
 
 
