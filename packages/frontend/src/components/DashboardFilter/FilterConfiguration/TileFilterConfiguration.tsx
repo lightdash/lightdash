@@ -15,6 +15,7 @@ import {
     Flex,
     Stack,
     Text,
+    Tooltip,
     useMantineTheme,
 } from '@mantine/core';
 import { FC, useCallback, useMemo } from 'react';
@@ -95,19 +96,21 @@ const TileFilterConfiguration: FC<Props> = ({
             const tile = tiles.find((t) => t.uuid === tileUuid);
 
             // tileConfig overrides the default filter state for a tile
-            // if it is there, we set the selected field to its
-            // stored value. If not, we use the field default
+            // if it is a field, we use that field for the filter.
+            // If it is the empty string, the filter is disabled.
             const tileConfig = filterRule.tileTargets?.[tileUuid];
-            const fieldId = tileConfig?.fieldId || getFieldId(field);
-            const selectedField = filters?.find((f) => {
-                return getFieldId(f) === fieldId;
-            });
+            const selectedField =
+                tileConfig?.fieldId !== ''
+                    ? filters?.find((f) => {
+                          return (
+                              tileConfig?.fieldId === getFieldId(f) ||
+                              matchFieldExact(f)(field)
+                          );
+                      })
+                    : undefined;
 
             const isFilterAvailable =
                 filters?.some(matchFieldByType(field)) ?? false;
-            const filterApplies =
-                (isFilterAvailable && tileConfig?.fieldId !== '') ||
-                !!tileConfig?.fieldId;
 
             const sortedFilters = filters
                 ?.filter(matchFieldByType(field))
@@ -132,7 +135,8 @@ const TileFilterConfiguration: FC<Props> = ({
             return {
                 key: tileUuid + index,
                 label: tileLabel,
-                checked: filterApplies,
+                checked: !!selectedField,
+                disabled: !isFilterAvailable,
                 tileUuid,
                 ...(tile &&
                     isDashboardChartTileType(tile) && {
@@ -144,8 +148,6 @@ const TileFilterConfiguration: FC<Props> = ({
             };
         });
     }, [filterRule, field, sortFieldsByMatch, sortedTileWithFilters, tiles]);
-
-    console.log('---', availableTileFilters);
 
     const isAllChecked = tileTargetList.every(({ checked }) => checked);
     const isIndeterminate =
@@ -183,33 +185,44 @@ const TileFilterConfiguration: FC<Props> = ({
             <Stack spacing="md">
                 {tileTargetList.map((value) => (
                     <Box key={value.key}>
-                        <Checkbox
-                            size="xs"
-                            fw={500}
-                            label={
-                                <Flex align="center" gap="xxs">
-                                    <MantineIcon
-                                        color="blue.8"
-                                        icon={getChartIcon(value.tileChartKind)}
-                                    />
-                                    {value.label}
-                                </Flex>
-                            }
-                            styles={{
-                                label: {
-                                    paddingLeft: theme.spacing.xs,
-                                },
-                            }}
-                            checked={value.checked}
-                            onChange={(event) => {
-                                onChange(
-                                    event.currentTarget.checked
-                                        ? FilterActions.ADD
-                                        : FilterActions.REMOVE,
-                                    value.tileUuid,
-                                );
-                            }}
-                        />
+                        <Tooltip
+                            label="No fields matching filter type"
+                            position="left"
+                            disabled={!value.disabled}
+                        >
+                            <Box>
+                                <Checkbox
+                                    size="xs"
+                                    fw={500}
+                                    disabled={value.disabled}
+                                    label={
+                                        <Flex align="center" gap="xxs">
+                                            <MantineIcon
+                                                color="blue.8"
+                                                icon={getChartIcon(
+                                                    value.tileChartKind,
+                                                )}
+                                            />
+                                            {value.label}
+                                        </Flex>
+                                    }
+                                    styles={{
+                                        label: {
+                                            paddingLeft: theme.spacing.xs,
+                                        },
+                                    }}
+                                    checked={value.checked}
+                                    onChange={(event) => {
+                                        onChange(
+                                            event.currentTarget.checked
+                                                ? FilterActions.ADD
+                                                : FilterActions.REMOVE,
+                                            value.tileUuid,
+                                        );
+                                    }}
+                                />
+                            </Box>
+                        </Tooltip>
 
                         {value.sortedFilters && (
                             <Box
