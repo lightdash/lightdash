@@ -329,8 +329,12 @@ export const jobError: Job = {
 
 export const lightdashConfigWithNoSMTP: Pick<
     LightdashConfig,
-    'smtp' | 'siteUrl'
+    'smtp' | 'siteUrl' | 'query'
 > = {
     smtp: undefined,
     siteUrl: 'https://test.lightdash.cloud',
+    query: {
+        maxLimit: 100,
+        csvCellsLimit: 100,
+    },
 };

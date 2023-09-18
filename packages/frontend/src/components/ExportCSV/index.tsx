@@ -54,7 +54,7 @@ export type ExportCSVProps = {
 
 const ExportCSV: FC<ExportCSVProps> = memo(
     ({ rows, getCsvLink, isDialogBody, renderDialogActions }) => {
-        const { showToastError, showToast } = useToaster();
+        const { showToastError, showToast, showToastWarning } = useToaster();
 
         const [limit, setLimit] = useState<string>(Limit.TABLE);
         const [customLimit, setCustomLimit] = useState<number>(1);
@@ -90,9 +90,17 @@ const ExportCSV: FC<ExportCSVProps> = memo(
                     },
                     onSuccess: (scheduledCsvResponse) => {
                         pollCsvFileUrl(scheduledCsvResponse)
-                            .then((url) => {
-                                if (url) window.location.href = url;
+                            .then((csvFile) => {
+                                if (csvFile.url)
+                                    window.location.href = csvFile.url;
                                 AppToaster.dismiss('exporting-csv');
+
+                                if (csvFile.truncated) {
+                                    showToastWarning({
+                                        title: `The results in this export have been limited.`,
+                                        subtitle: `The export limit is ${health.data?.query.csvCellsLimit} cells, but your file exceeded that limit.`,
+                                    });
+                                }
                             })
                             .catch((error) => {
                                 AppToaster.dismiss('exporting-csv');

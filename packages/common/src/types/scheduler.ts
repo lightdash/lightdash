@@ -245,11 +245,13 @@ export type NotificationPayloadBase = {
             path: string;
             filename: string;
             localPath: string;
+            truncated: boolean;
         };
         csvUrls?: {
             path: string;
             filename: string;
             localPath: string;
+            truncated: boolean;
         }[];
         pdfFile?: string;
     };
@@ -286,6 +288,7 @@ export type ApiCsvUrlResponse = {
     results: {
         url: string;
         status: string;
+        truncated: boolean;
     };
 };
 
