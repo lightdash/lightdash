@@ -1,3 +1,10 @@
+# [0.775.0](https://github.com/lightdash/lightdash/compare/0.774.1...0.775.0) (2023-09-18)
+
+
+### Features
+
+* truncated csv warning ([#7045](https://github.com/lightdash/lightdash/issues/7045)) ([88c11e8](https://github.com/lightdash/lightdash/commit/88c11e8081bbbf510e0f543a534fc4518a2a926c))
+
 ## [0.774.1](https://github.com/lightdash/lightdash/compare/0.774.0...0.774.1) (2023-09-08)
 
 
