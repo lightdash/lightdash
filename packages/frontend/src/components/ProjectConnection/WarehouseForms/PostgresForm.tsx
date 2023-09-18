@@ -198,6 +198,7 @@ const PostgresForm: FC<{
                             defaultValue="prefer"
                             render={({ field }) => (
                                 <Select
+                                    name={field.name}
                                     label="SSL mode"
                                     description={
                                         <p>

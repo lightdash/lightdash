@@ -67,7 +67,12 @@ const configurePostgresWarehouse = (
     cy.contains('a', 'Advanced configuration options').click();
 
     cy.get('input[name="warehouse.port"]').clear().type(config.port);
-    cy.get('select[name="warehouse.sslmode"]').select('disable'); // SSL mode
+    cy.get('input[name="warehouse.sslmode"]')
+        .parent()
+        .click() // open SSL mode dropdown
+        .parent('.mantine-Select-root')
+        .contains('disable')
+        .click();
 
     // DBT
     cy.get('select[name="dbt.type"]').select('dbt local server');
