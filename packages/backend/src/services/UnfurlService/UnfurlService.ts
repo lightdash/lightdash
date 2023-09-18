@@ -8,6 +8,7 @@ import {
     SessionUser,
     snakeCaseName,
 } from '@lightdash/common';
+import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import * as fsPromise from 'fs/promises';
 import { nanoid as useNanoid } from 'nanoid';
@@ -24,6 +25,19 @@ import { ShareModel } from '../../models/ShareModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { EncryptionService } from '../EncryptionService/EncryptionService';
+
+const meter = opentelemetry.metrics.getMeter('default');
+const tracer = opentelemetry.trace.getTracer('default');
+const taskDurationHistogram = meter.createHistogram<{
+    error: boolean;
+}>('screenshot.duration_ms', {
+    description: 'Duration of taking screenshot in milliseconds',
+    unit: 'milliseconds',
+});
+
+const meterErrorCount = meter.createCounter('screenshot.chart.error');
+const meterChartCount = meter.createCounter('screenshot.chart.count');
+const meterTimeoutCount = meter.createCounter('screenshot.timeout');
 
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuidRegex = new RegExp(uuid, 'g');
@@ -285,8 +299,6 @@ export class UnfurlService {
         lightdashPage: LightdashPage,
         chartType?: string,
     ): Promise<Buffer | undefined> {
-        let browser;
-
         if (this.lightdashConfig.headlessBrowser?.host === undefined) {
             Logger.error(
                 `Can't get screenshot if HEADLESS_BROWSER_HOST env variable is not defined`,
@@ -295,76 +307,168 @@ export class UnfurlService {
                 `Can't get screenshot if HEADLESS_BROWSER_HOST env variable is not defined`,
             );
         }
+        const startTime = Date.now();
+        let hasError = false;
 
-        try {
-            const browserWSEndpoint = `ws://${
-                this.lightdashConfig.headlessBrowser?.host
-            }:${this.lightdashConfig.headlessBrowser?.port || 3001}`;
-            browser = await puppeteer.connect({
-                browserWSEndpoint,
-            });
+        return tracer.startActiveSpan(
+            'UnfurlService.saveScreenshot',
+            async (span) => {
+                let browser;
 
-            const page = await browser.newPage();
+                try {
+                    const browserWSEndpoint = `ws://${
+                        this.lightdashConfig.headlessBrowser?.host
+                    }:${this.lightdashConfig.headlessBrowser?.port || 3001}`;
+                    browser = await puppeteer.connect({
+                        browserWSEndpoint,
+                    });
 
-            await page.setExtraHTTPHeaders({ cookie });
+                    const page = await browser.newPage();
 
-            if (chartType === ChartType.BIG_NUMBER) {
-                await page.setViewport(bigNumberViewport);
-            } else {
-                await page.setViewport(viewport);
-            }
+                    await page.setExtraHTTPHeaders({ cookie });
 
-            await page.setRequestInterception(true);
-            page.on('request', (request: any) => {
-                const requestUrl = request.url();
-                const parsedUrl = new URL(url);
-                // Only allow request to the same host
-                if (!requestUrl.includes(parsedUrl.hostname)) {
-                    request.abort();
-                    return;
+                    if (chartType === ChartType.BIG_NUMBER) {
+                        await page.setViewport(bigNumberViewport);
+                    } else {
+                        await page.setViewport(viewport);
+                    }
+                    await page.on('requestfailed', (request) => {
+                        console.error(
+                            `Headless browser request error url: ${request.url()}, errText: ${
+                                request.failure()?.errorText
+                            }, method: ${request.method()}`,
+                        );
+                    });
+                    await page.on('console', (msg) => {
+                        const type = msg.type();
+                        if (type === 'error') {
+                            console.error(
+                                `Headless browser console error: `,
+                                msg.type,
+                                msg.location(),
+                                msg.text(),
+                            );
+                        }
+                    });
+
+                    await page.setRequestInterception(true);
+                    await page.on(
+                        'request',
+                        (request: puppeteer.HTTPRequest) => {
+                            const requestUrl = request.url();
+                            const parsedUrl = new URL(url);
+                            // Only allow request to the same host
+                            if (!requestUrl.includes(parsedUrl.hostname)) {
+                                request.abort();
+                                return;
+                            }
+                            request.continue();
+                        },
+                    );
+
+                    let chartRequests = 0;
+                    let chartRequestErrors = 0;
+
+                    await page.on('response', (response) => {
+                        const responseUrl = response.url();
+                        if (responseUrl.match(/\/saved\/[a-f0-9-]+\/results/)) {
+                            chartRequests += 1;
+                            response.buffer().then(
+                                (buffer) => {
+                                    const status = response.status();
+                                    if (status >= 400) {
+                                        console.error(
+                                            `Headless browser response error ${responseUrl}: ${response.status()} ${buffer}`,
+                                        );
+                                        chartRequestErrors += 1;
+                                    }
+                                },
+                                (error) => {
+                                    console.error(
+                                        `Headless browser response buffer error ${error.message}`,
+                                    );
+                                    chartRequestErrors += 1;
+                                },
+                            );
+                        }
+                    });
+                    let timeout = false;
+                    try {
+                        await page.goto(url, {
+                            timeout: 150000, // Wait 2.5 mins for the page to load
+                            waitUntil: 'networkidle0',
+                        });
+                    } catch (e) {
+                        timeout = true;
+                        Logger.warn(
+                            `Got a timeout when waiting for the page to load, returning current content`,
+                        );
+                    }
+
+                    const path = `/tmp/${imageId}.png`;
+                    const selector =
+                        lightdashPage === LightdashPage.EXPLORE
+                            ? `.echarts-for-react, [data-testid="visualization"]`
+                            : 'body';
+
+                    const element = await page.waitForSelector(selector, {
+                        timeout: 30000,
+                    });
+
+                    if (!element) {
+                        Logger.warn(`Can't find element on page`);
+                        return undefined;
+                    }
+
+                    const box = await element.boundingBox();
+                    const pageMetrics = await page.metrics();
+
+                    meterErrorCount.add(chartRequestErrors);
+                    meterChartCount.add(chartRequests);
+                    if (timeout) meterTimeoutCount.add(1);
+
+                    span.setAttributes({
+                        'page.width': box?.width || 0,
+                        'page.height': box?.height || 0,
+                        'chart.requests.total': chartRequests,
+                        'chart.requests.error': chartRequestErrors,
+                        'page.metrics.task_duration': pageMetrics.TaskDuration,
+                        'page.metrics.heap_size': pageMetrics.JSHeapUsedSize,
+                        'page.metrics.total_size': pageMetrics.JSHeapTotalSize,
+                        'page.metrics.event_listeners':
+                            pageMetrics.JSEventListeners,
+                        timeout: timeout,
+                    });
+                    const imageBuffer = (await element.screenshot({
+                        path,
+                    })) as Buffer;
+
+                    return imageBuffer;
+                } catch (e) {
+                    Sentry.captureException(e);
+                    hasError = true;
+                    span.recordException(e);
+                    span.setStatus({
+                        code: SpanStatusCode.ERROR,
+                    });
+
+                    Logger.error(
+                        `Unable to fetch screenshots from headless chrome ${e.message}`,
+                    );
+                    throw e;
+                } finally {
+                    if (browser) await browser.close();
+
+                    span.end();
+
+                    const executionTime = Date.now() - startTime;
+
+                    taskDurationHistogram.record(executionTime, {
+                        error: hasError,
+                    });
                 }
-                request.continue();
-            });
-            try {
-                await page.goto(url, {
-                    timeout: 150000, // Wait 2.5 mins for the page to load
-                    waitUntil: 'networkidle0',
-                });
-            } catch (e) {
-                Logger.warn(
-                    `Got a timeout when waiting for the page to load, returning current content`,
-                );
-            }
-
-            const path = `/tmp/${imageId}.png`;
-            const selector =
-                lightdashPage === LightdashPage.EXPLORE
-                    ? `.echarts-for-react, [data-testid="visualization"]`
-                    : 'body';
-
-            const element = await page.waitForSelector(selector, {
-                timeout: 30000,
-            });
-
-            if (!element) {
-                Logger.warn(`Can't find element on page`);
-                return undefined;
-            }
-            const imageBuffer = (await element.screenshot({
-                path,
-            })) as Buffer;
-
-            return imageBuffer;
-        } catch (e) {
-            Sentry.captureException(e);
-
-            Logger.error(
-                `Unable to fetch screenshots from headless chrome ${e.message}`,
-            );
-            throw e;
-        } finally {
-            if (browser) await browser.close();
-        }
+            },
+        );
     }
 
     private async getSharedUrl(linkUrl: string): Promise<string> {
