@@ -27,14 +27,14 @@ export default defineConfig({
             enforce: 'post',
         },
     ],
-    // css: {
-    //     devSourcemap: true,
-    // },
+    css: {
+        transformer: 'lightningcss',
+    },
     build: {
         outDir: 'build',
         target: 'es2015',
         minify: true,
-        sourcemap: true, 
+        sourcemap: true,
         rollupOptions: {
             output: {
                 manualChunks: mapManualChunks({
