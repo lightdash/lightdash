@@ -338,7 +338,7 @@ export class UnfurlService {
                         await page.setViewport(viewport);
                     }
                     await page.on('requestfailed', (request) => {
-                        Logger.error(
+                        Logger.warn(
                             `Headless browser request error - method: ${request.method()}, url: ${request.url()}, text: ${
                                 request.failure()?.errorText
                             }`,
@@ -347,7 +347,7 @@ export class UnfurlService {
                     await page.on('console', (msg) => {
                         const type = msg.type();
                         if (type === 'error') {
-                            Logger.error(
+                            Logger.warn(
                                 `Headless browser console error - file: ${
                                     msg.location().url
                                 }, text ${msg.text()} `,
@@ -430,7 +430,7 @@ export class UnfurlService {
                     chartCounter.addCallback(async (result) => {
                         result.observe(chartRequests, {
                             errors: chartRequestErrors,
-                            timeout: timeout,
+                            timeout,
                         });
                     });
 
