@@ -16,7 +16,7 @@ import { BoxProps } from '@mantine/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import last from 'lodash-es/last';
 import { readableColor } from 'polished';
-import React, { FC, useCallback } from 'react';
+import React, { FC, useCallback, useMemo, useRef } from 'react';
 import { isSummable } from '../../../hooks/useColumnTotals';
 import { getColorFromRange } from '../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../Filters/configs';
@@ -25,18 +25,18 @@ import { CELL_HEIGHT } from '../LightTable/styles';
 import TotalCellMenu from './TotalCellMenu';
 import ValueCellMenu from './ValueCellMenu';
 
-// const VirtualizedArea: FC<{
-//     cellCount: number;
-//     height: number;
-// }> = ({ cellCount, height }) => {
-//     return (
-//         <Table.Row>
-//             {[...Array(cellCount)].map((_, index) => (
-//                 <Table.Cell key={index} h={height} />
-//             ))}
-//         </Table.Row>
-//     );
-// };
+const VirtualizedArea: FC<{
+    cellCount: number;
+    height: number;
+}> = ({ cellCount, height }) => {
+    return (
+        <Table.Row index={-1}>
+            {[...Array(cellCount)].map((_, index) => (
+                <Table.Cell key={index} h={height} />
+            ))}
+        </Table.Row>
+    );
+};
 
 type PivotTableProps = BoxProps & // TODO: remove this
     React.RefAttributes<HTMLTableElement> & {
@@ -56,7 +56,7 @@ const PivotTable: FC<PivotTableProps> = ({
     className,
     ...tableProps
 }) => {
-    const containerRef = React.useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const getItemFromAxis = useCallback(
         (rowIndex: number, colIndex: number) => {
@@ -183,8 +183,28 @@ const PivotTable: FC<PivotTableProps> = ({
     });
     const virtualRows = rowVirtualizer.getVirtualItems();
 
+    const paddingTop = useMemo(() => {
+        return virtualRows.length > 0 ? virtualRows?.[0]?.start || 0 : 0;
+    }, [virtualRows]);
+
+    const paddingBottom = useMemo(() => {
+        return virtualRows.length > 0
+            ? rowVirtualizer.getTotalSize() -
+                  (virtualRows?.[virtualRows.length - 1]?.end || 0)
+            : 0;
+    }, [virtualRows, rowVirtualizer]);
+
+    const cellsCountWithRowNumber = useMemo(() => {
+        return (hideRowNumbers ? 0 : 1) + data.cellsCount;
+    }, [hideRowNumbers, data.cellsCount]);
+
     return (
-        <Table miw="100%" className={className} {...tableProps}>
+        <Table
+            miw="100%"
+            className={className}
+            {...tableProps}
+            containerRef={containerRef}
+        >
             <Table.Head withSticky>
                 {data.headerValues.map((headerValues, headerRowIndex) => (
                     <Table.Row
@@ -290,6 +310,13 @@ const PivotTable: FC<PivotTableProps> = ({
             </Table.Head>
 
             <Table.Body>
+                {paddingTop > 0 && (
+                    <VirtualizedArea
+                        cellCount={cellsCountWithRowNumber}
+                        height={paddingTop}
+                    />
+                )}
+
                 {virtualRows.map((virtualRow) => {
                     const rowIndex = virtualRow.index;
                     const row = data.dataValues[rowIndex];
@@ -474,6 +501,13 @@ const PivotTable: FC<PivotTableProps> = ({
                         </Table.Row>
                     );
                 })}
+
+                {paddingBottom > 0 && (
+                    <VirtualizedArea
+                        cellCount={cellsCountWithRowNumber}
+                        height={paddingBottom}
+                    />
+                )}
             </Table.Body>
 
             {hasColumnTotals ? (

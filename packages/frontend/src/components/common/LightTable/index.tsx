@@ -11,7 +11,6 @@ import {
     useContext,
     useEffect,
     useMemo,
-    useRef,
     useState,
 } from 'react';
 import { useScroll } from 'react-use';
@@ -24,7 +23,9 @@ import {
 
 type BoxProps = Omit<BoxPropsBase, 'component' | 'children'>;
 
-type TableProps = PolymorphicComponentProps<'table', BoxProps>;
+type TableProps = PolymorphicComponentProps<'table', BoxProps> & {
+    containerRef: React.RefObject<HTMLDivElement>;
+};
 type TableSectionProps = PolymorphicComponentProps<
     'thead' | 'tbody' | 'tfoot',
     BoxProps
@@ -131,10 +132,9 @@ const TableProvider: FC<Pick<TableContextType, 'scrollPositions'>> = ({
 };
 
 const TableComponent = forwardRef<HTMLTableElement, TableProps>(
-    ({ children, component = 'table', ...rest }, ref) => {
+    ({ children, component = 'table', containerRef, ...rest }, ref) => {
         const { cx, classes } = useTableStyles();
 
-        const containerRef = useRef<HTMLTableElement>(null);
         const [isContainerInitialized, setIsContainerInitialized] =
             useState(false);
         const containerScroll = useScroll(containerRef);
@@ -162,8 +162,6 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
                     containerScrollPosY + clientHeight === scrollHeight,
             };
         }, [containerScroll, containerRef, isContainerInitialized]);
-
-        console.log({ isAtTop, isAtBottom });
 
         return (
             <Box
