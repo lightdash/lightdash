@@ -12,7 +12,7 @@ import {
     CreateSchedulerAndTargetsWithoutIds,
     SchedulerFormat,
 } from '@lightdash/common';
-import { Anchor, Box, Tooltip } from '@mantine/core';
+import { Anchor, Box, Switch, Tooltip } from '@mantine/core';
 import React, { FC, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import useHealth from '../../../hooks/health/useHealth';
@@ -192,6 +192,30 @@ const SchedulerOptions: FC<
     );
 };
 
+const SchedulerImageOptions: FC<
+    { disabled: boolean } & React.ComponentProps<typeof Form>
+> = ({ methods }) => {
+    const [withPdf, setWithPdf] = useState(
+        methods.getValues()?.options?.withPdf,
+    );
+
+    // TODO: This form is using useEffect to interact
+    // with the form library and it's not a great
+    // pattern. We should consider moving to a different
+    // form manager and not doing this
+    useEffect(() => {
+        methods.setValue('options.withPdf', withPdf);
+    }, [methods, withPdf]);
+
+    return (
+        <Switch
+            label="Also include image as PDF attachment"
+            checked={withPdf}
+            onChange={() => setWithPdf((old: boolean) => !old)}
+        />
+    );
+};
+
 const SchedulerForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
@@ -281,8 +305,13 @@ const SchedulerForm: FC<{
                                     const isCsvValue =
                                         e.currentTarget.value ===
                                         SchedulerFormat.CSV;
-                                    if (!isCsvValue)
+                                    if (!isCsvValue) {
+                                        methods.setValue('options', {
+                                            withPdf: false,
+                                        });
+                                    } else {
                                         methods.setValue('options', {});
+                                    }
                                 },
                             })}
                             options={[
@@ -324,6 +353,10 @@ const SchedulerForm: FC<{
                                 methods={methods}
                             />
                         </InlinedInputs>
+                    )}
+
+                    {format === SchedulerFormat.IMAGE && (
+                        <SchedulerImageOptions methods={methods} />
                     )}
                     <Title>4. Add destination(s)</Title>
 
