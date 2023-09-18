@@ -435,8 +435,8 @@ export class UnfurlService {
                     });
 
                     span.setAttributes({
-                        'page.width': box?.width || 0,
-                        'page.height': box?.height || 0,
+                        'page.width': box?.width,
+                        'page.height': box?.height,
                         'chart.requests.total': chartRequests,
                         'chart.requests.error': chartRequestErrors,
                         'page.metrics.task_duration': pageMetrics.TaskDuration,
