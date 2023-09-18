@@ -20,6 +20,10 @@ export const useTableStyles = createStyles((theme) => {
             padding: 0,
 
             'th, td': {
+                transitionDuration: '200ms',
+                transitionProperty: 'box-shadow, background-color',
+                transitionTimingFunction: 'ease-out',
+
                 boxShadow: `inset -1px -1px 0 0 ${borderColor}`,
             },
 
@@ -164,7 +168,18 @@ export const useTableCellStyles = createStyles<
         },
     ) => {
         const cellHeadBackground = theme.colors.gray[0];
-        const selectedCellBackground = theme.colors.blue[2];
+        const selectedDefaultBackground = theme.colors.blue[2];
+        const selectedDefaultBorder = theme.colors.blue[4];
+        const copyingBackground = theme.colors.blue[3];
+        const withBackgroundSelected = withBackground
+            ? darken(0.05, withBackground)
+            : undefined;
+        const withBackgroundBorderSelected = withBackground
+            ? darken(0.2, withBackground)
+            : undefined;
+        const withBackgroundBorder = withBackground
+            ? darken(0.03, withBackground)
+            : undefined;
 
         const getStickySectionCellStyles = () => {
             switch (sectionType) {
@@ -223,28 +238,7 @@ export const useTableCellStyles = createStyles<
                 color: theme.colors.gray[9],
 
                 backgroundColor:
-                    cellType === CellType.Head
-                        ? cellHeadBackground
-                        : 'transparent',
-            },
-
-            floatingElement: {
-                pointerEvents: 'none',
-                position: 'absolute',
-                zIndex: -1,
-
-                top: -1,
-                left: -1,
-                right: 0,
-                bottom: 0,
-
-                backgroundColor: isSelected
-                    ? selectedCellBackground
-                    : undefined,
-
-                border: isSelected
-                    ? `1px solid ${theme.colors.blue[6]}`
-                    : undefined,
+                    cellType === CellType.Head ? cellHeadBackground : undefined,
             },
 
             withMinimalWidth: {
@@ -259,18 +253,9 @@ export const useTableCellStyles = createStyles<
                 fontWeight: 600,
             },
 
-            withInteractions: {
-                cursor: 'pointer',
-
-                '&:hover': !isSelected
-                    ? {
-                          borderColor: theme.colors.gray[6],
-                      }
-                    : {},
-            },
-
             withCopying: {
-                backgroundColor: theme.colors.blue[2],
+                backgroundColor: copyingBackground,
+                boxShadow: `inset 0 0 0 1px ${selectedDefaultBorder}, inset 0 0 1px 0 ${selectedDefaultBorder} !important`,
             },
 
             withColor: withColor
@@ -279,27 +264,34 @@ export const useTableCellStyles = createStyles<
                   }
                 : {},
 
+            withInteractions: {
+                cursor: 'pointer',
+
+                ...(isSelected
+                    ? {
+                          backgroundColor: selectedDefaultBackground,
+                          boxShadow: `inset 0 0 0 1px ${selectedDefaultBorder}, inset 0 0 1px 0 ${selectedDefaultBorder} !important`,
+                      }
+                    : {
+                          '&:hover': {
+                              backgroundColor: selectedDefaultBackground,
+                              boxShadow: `inset 0 0 0 1px ${selectedDefaultBorder}, inset 0 0 1px 0 ${selectedDefaultBorder} !important`,
+                          },
+                      }),
+            },
+
             withBackground: withBackground
                 ? isSelected
                     ? {
-                          backgroundColor: darken(0.05, withBackground),
-                          borderColor: darken(0.2, withBackground),
-                          boxShadow: `inset 0 0 0 1.5px ${darken(
-                              0.2,
-                              withBackground,
-                          )}`,
+                          backgroundColor: withBackgroundSelected,
+                          boxShadow: `inset 0 0 0 1px ${withBackgroundBorderSelected}, inset 0 0 1px 0 ${withBackgroundBorderSelected} !important`,
                       }
                     : {
                           backgroundColor: withBackground,
-                          borderColor: darken(0.1, withBackground),
-
+                          boxShadow: `inset 0 0 0 1px ${withBackgroundBorder}, inset 0 0 1px 0 ${withBackgroundBorderSelected} !important`,
                           '&:hover': {
-                              backgroundColor: darken(0.05, withBackground),
-                              borderColor: darken(0.15, withBackground),
-                              boxShadow: `inset 0 0 0 0.5px ${darken(
-                                  0.1,
-                                  withBackground,
-                              )}`,
+                              backgroundColor: withBackgroundSelected,
+                              boxShadow: `inset 0 0 0 1px ${withBackgroundBorderSelected}, inset 0 0 1px 0 ${withBackgroundBorderSelected} !important`,
                           },
                       }
                 : {},

@@ -21,10 +21,9 @@ import { isSummable } from '../../../hooks/useColumnTotals';
 import { getColorFromRange } from '../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../Filters/configs';
 import Table from '../LightTable';
+import { CELL_HEIGHT } from '../LightTable/styles';
 import TotalCellMenu from './TotalCellMenu';
 import ValueCellMenu from './ValueCellMenu';
-
-const ROW_HEIGHT_PX = 34;
 
 // const VirtualizedArea: FC<{
 //     cellCount: number;
@@ -179,7 +178,7 @@ const PivotTable: FC<PivotTableProps> = ({
     const rowVirtualizer = useVirtualizer({
         getScrollElement: () => containerRef.current,
         count: data.dataValues.length,
-        estimateSize: () => ROW_HEIGHT_PX,
+        estimateSize: () => CELL_HEIGHT,
         overscan: 25,
     });
     const virtualRows = rowVirtualizer.getVirtualItems();

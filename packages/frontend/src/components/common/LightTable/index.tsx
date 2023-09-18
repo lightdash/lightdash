@@ -86,7 +86,7 @@ type TableContextType = {
 
 const TableContext = createContext<TableContextType | null>(null);
 
-export const useTableContext = () => {
+const useTableContext = () => {
     const context = useContext(TableContext);
     if (context === null) {
         throw new Error(
@@ -335,7 +335,6 @@ const BaseCell = (cellType: CellType) => {
             const isSelected = selectedCell === cellId;
 
             const handleCopy = useCallback(() => {
-                console.log('yolo ? ');
                 clipboard.copy(children);
             }, [clipboard, children]);
 
@@ -377,59 +376,78 @@ const BaseCell = (cellType: CellType) => {
                 return <Text truncate>{children}</Text>;
             }, [children]);
 
-            const floatingElement = useMemo(() => {
-                return <Box className={cx(classes.floatingElement, {})} />;
-            }, [cx, classes]);
-
-            return (
-                <Box
-                    component={component}
-                    ref={ref}
-                    {...rest}
-                    className={cx(classes.root, rest.className, {
-                        [classes.withSticky]: withSticky,
-                        [classes.withMinimalWidth]: withMinimalWidth,
-                        [classes.withAlignRight]: withAlignRight,
-                        [classes.withBoldFont]: withBoldFont,
-                        [classes.withColor]: withColor,
-                        [classes.withInteractions]: withInteractions,
-                        [classes.withBackground]: withBackground,
-                        [classes.withCopying]: clipboard.copied,
-                    })}
-                    onClick={
-                        withInteractions
-                            ? () => {
-                                  toggleCell(isSelected ? null : cellId);
-                              }
-                            : undefined
-                    }
-                >
-                    {withMenu
-                        ? withMenu(
-                              {
-                                  isOpen: isSelected,
-                                  onClose: () => toggleCell(null),
-                                  onCopy: handleCopy,
-                              },
-                              () => floatingElement,
-                          )
-                        : floatingElement}
-
-                    {withTooltip ? (
-                        <Tooltip
-                            position="top"
-                            withinPortal
-                            maw={400}
-                            multiline
-                            label={withTooltip}
-                        >
-                            {truncatedText}
-                        </Tooltip>
-                    ) : (
-                        truncatedText
-                    )}
-                </Box>
+            const cellElement = useMemo(
+                () => (
+                    <Box
+                        component={component}
+                        ref={ref}
+                        {...rest}
+                        className={cx(classes.root, rest.className, {
+                            [classes.withSticky]: withSticky,
+                            [classes.withMinimalWidth]: withMinimalWidth,
+                            [classes.withAlignRight]: withAlignRight,
+                            [classes.withBoldFont]: withBoldFont,
+                            [classes.withColor]: withColor,
+                            [classes.withInteractions]: withInteractions,
+                            [classes.withBackground]: withBackground,
+                            [classes.withCopying]: clipboard.copied,
+                        })}
+                        onClick={
+                            withInteractions
+                                ? () => {
+                                      toggleCell(isSelected ? null : cellId);
+                                  }
+                                : undefined
+                        }
+                    >
+                        {withTooltip ? (
+                            <Tooltip
+                                position="top"
+                                disabled={isSelected}
+                                withinPortal
+                                maw={400}
+                                multiline
+                                label={withTooltip}
+                            >
+                                {truncatedText}
+                            </Tooltip>
+                        ) : (
+                            truncatedText
+                        )}
+                    </Box>
+                ),
+                [
+                    component,
+                    ref,
+                    rest,
+                    cx,
+                    classes,
+                    withSticky,
+                    withMinimalWidth,
+                    withAlignRight,
+                    withBoldFont,
+                    withColor,
+                    withTooltip,
+                    withInteractions,
+                    withBackground,
+                    clipboard.copied,
+                    truncatedText,
+                    toggleCell,
+                    isSelected,
+                    cellId,
+                ],
             );
+
+            return withMenu
+                ? withMenu(
+                      {
+                          isOpen: isSelected,
+                          onClose: () => toggleCell(null),
+                          onCopy: handleCopy,
+                      },
+                      () => cellElement,
+                  )
+                : cellElement;
         },
     );
 };

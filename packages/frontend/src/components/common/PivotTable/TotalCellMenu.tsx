@@ -23,11 +23,6 @@ const TotalCellMenu: FC<TotalCellMenuProps> = ({
             withinPortal
             shadow="md"
             position="bottom-end"
-            styles={(theme) => ({
-                dropdown: {
-                    borderColor: theme.colors.gray[5],
-                },
-            })}
             radius={0}
             offset={{
                 mainAxis: 0,
