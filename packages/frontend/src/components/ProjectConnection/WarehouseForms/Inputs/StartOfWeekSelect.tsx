@@ -23,8 +23,10 @@ const StartOfWeekSelect: FC<{ disabled: boolean }> = ({ disabled }) => {
                     label="Start of week"
                     description="Will be taken into account when using 'WEEK' time interval"
                     data={daysOfWeekOptions}
-                    value={field.value}
-                    onChange={field.onChange}
+                    value={field.value?.toString()}
+                    onChange={(value) =>
+                        field.onChange(value ? parseInt(value) : null)
+                    }
                     disabled={disabled}
                     dropdownPosition="top"
                 />
