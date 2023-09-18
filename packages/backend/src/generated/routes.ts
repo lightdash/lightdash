@@ -82,6 +82,7 @@ const models: TsoaRoute.Models = {
                 results: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        truncated: { dataType: 'boolean', required: true },
                         status: { dataType: 'string', required: true },
                         url: { dataType: 'string', required: true },
                     },
@@ -5017,7 +5018,7 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.get(
-        '/api/v1/projects/:projectUuid/user/$:userUuid',
+        '/api/v1/projects/:projectUuid/user/:userUuid',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
         ...fetchMiddlewares<RequestHandler>(
             ProjectController.prototype.getProjectMember,
