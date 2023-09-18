@@ -215,19 +215,9 @@ export const useTableCellStyles = createStyles<
 
                 height: CELL_HEIGHT,
 
-                // TODO: expand large text
-                // ...(isSelected
-                //     ? {
-                //           wordBreak: 'break-all',
-                //           whiteSpace: 'normal',
-                //           minWidth: '300px',
-                //       }
-                //     : {
                 maxWidth: '300px',
                 whiteSpace: 'nowrap',
                 textOverflow: 'ellipsis',
-                //       }),
-
                 textAlign: 'left',
 
                 fontFamily: "'Inter', sans-serif",
@@ -243,6 +233,10 @@ export const useTableCellStyles = createStyles<
 
             withMinimalWidth: {
                 width: '1%',
+            },
+
+            withLargeContainer: {
+                minWidth: '300px',
             },
 
             withAlignRight: {
@@ -295,6 +289,20 @@ export const useTableCellStyles = createStyles<
                           },
                       }
                 : {},
+
+            withLargeText: {
+                ...(isSelected
+                    ? {
+                          wordBreak: 'break-all',
+                          whiteSpace: 'normal',
+                      }
+                    : {}),
+
+                '&:hover': {
+                    wordBreak: 'break-all',
+                    whiteSpace: 'normal',
+                },
+            },
 
             withSticky: {
                 position: 'sticky',

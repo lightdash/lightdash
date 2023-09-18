@@ -21,6 +21,8 @@ import {
     useTableStyles,
 } from './styles';
 
+const SMALL_TEXT_LENGTH = 20;
+
 type BoxProps = Omit<BoxPropsBase, 'component' | 'children'>;
 
 type TableProps = PolymorphicComponentProps<'table', BoxProps> & {
@@ -356,6 +358,13 @@ const BaseCell = (cellType: CellType) => {
                 withBackground,
             });
 
+            const hasLargeText = useMemo(() => {
+                return (
+                    typeof children === 'string' &&
+                    children.length > SMALL_TEXT_LENGTH
+                );
+            }, [children]);
+
             const component = useMemo(() => {
                 switch (cellType) {
                     case CellType.Head:
@@ -371,8 +380,17 @@ const BaseCell = (cellType: CellType) => {
             }, []);
 
             const truncatedText = useMemo(() => {
-                return <Text truncate>{children}</Text>;
-            }, [children]);
+                return (
+                    <Text
+                        truncate
+                        className={cx({
+                            [classes.withLargeText]: hasLargeText,
+                        })}
+                    >
+                        {children}
+                    </Text>
+                );
+            }, [children, cx, classes.withLargeText, hasLargeText]);
 
             const cellElement = useMemo(
                 () => (
@@ -382,6 +400,7 @@ const BaseCell = (cellType: CellType) => {
                         {...rest}
                         className={cx(classes.root, rest.className, {
                             [classes.withSticky]: withSticky,
+                            [classes.withLargeContainer]: hasLargeText,
                             [classes.withMinimalWidth]: withMinimalWidth,
                             [classes.withAlignRight]: withAlignRight,
                             [classes.withBoldFont]: withBoldFont,
@@ -419,19 +438,29 @@ const BaseCell = (cellType: CellType) => {
                     ref,
                     rest,
                     cx,
-                    classes,
+                    classes.root,
+                    classes.withSticky,
+                    classes.withLargeContainer,
+                    classes.withMinimalWidth,
+                    classes.withAlignRight,
+                    classes.withBoldFont,
+                    classes.withColor,
+                    classes.withInteractions,
+                    classes.withBackground,
+                    classes.withCopying,
                     withSticky,
+                    hasLargeText,
                     withMinimalWidth,
                     withAlignRight,
                     withBoldFont,
                     withColor,
-                    withTooltip,
                     withInteractions,
                     withBackground,
                     clipboard.copied,
+                    withTooltip,
+                    isSelected,
                     truncatedText,
                     toggleCell,
-                    isSelected,
                     cellId,
                 ],
             );

@@ -446,7 +446,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                             </ValueCellMenu>
                                         )}
                                     >
-                                        {value?.formatted}
+                                        {rowIndex === 12 && colIndex === 3
+                                            ? 'lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco'
+                                            : value?.formatted}
                                     </Table.Cell>
                                 );
                             })}
