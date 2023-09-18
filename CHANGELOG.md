@@ -1,3 +1,15 @@
+# [0.777.0](https://github.com/lightdash/lightdash/compare/0.776.3...0.777.0) (2023-09-18)
+
+
+### Bug Fixes
+
+* query generation with empty value on string and number filters ([#7081](https://github.com/lightdash/lightdash/issues/7081)) ([641cf7b](https://github.com/lightdash/lightdash/commit/641cf7b5e6c0fc30618082dbdb6edab61f294695))
+
+
+### Features
+
+* UI for pdf image delivery option ([#7048](https://github.com/lightdash/lightdash/issues/7048)) ([8daf2ae](https://github.com/lightdash/lightdash/commit/8daf2ae31eb454ab68d8f3d4c97d32d5a9b64f17))
+
 ## [0.776.3](https://github.com/lightdash/lightdash/compare/0.776.2...0.776.3) (2023-09-18)
 
 
