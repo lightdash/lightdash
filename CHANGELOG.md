@@ -1,3 +1,10 @@
+## [0.775.1](https://github.com/lightdash/lightdash/compare/0.775.0...0.775.1) (2023-09-18)
+
+
+### Bug Fixes
+
+* the deprecated GitHub Actions' outputs manner ([#7063](https://github.com/lightdash/lightdash/issues/7063)) ([0b2dbfa](https://github.com/lightdash/lightdash/commit/0b2dbfaac354fee1f3f0ca183f5117e19460a779))
+
 # [0.775.0](https://github.com/lightdash/lightdash/compare/0.774.1...0.775.0) (2023-09-18)
 
 
