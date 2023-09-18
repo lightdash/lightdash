@@ -1,4 +1,10 @@
-import { Explore, SEED_PROJECT, SummaryExplore } from '@lightdash/common';
+import {
+    Explore,
+    ProjectMemberProfile,
+    SEED_ORG_1_ADMIN,
+    SEED_PROJECT,
+    SummaryExplore,
+} from '@lightdash/common';
 
 const apiUrl = '/api/v1';
 
@@ -1422,6 +1428,41 @@ describe('Lightdash API tests for member user with NO project permissions', () =
                 expect(resp.status).to.eq(200);
                 expect(resp.body).to.have.property('status', 'ok');
             });
+        });
+    });
+});
+
+describe('Lightdash API tests for project members access', () => {
+    beforeEach(() => {
+        cy.login();
+    });
+    it('Should get project members access', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(`${apiUrl}/projects/${projectUuid}/access`).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body.results).to.not.have.length(0);
+            (resp.body.results as ProjectMemberProfile[]).forEach((member) => {
+                cy.request(
+                    `${apiUrl}/projects/${projectUuid}/user/${member.userUuid}`,
+                ).then((resp2) => {
+                    expect(resp2.status).to.eq(200);
+                    expect(resp2.body.results.userUuid).eq(member.userUuid);
+                    expect(resp2.body.results.projectUuid).eq(
+                        member.projectUuid,
+                    );
+                    expect(resp2.body.results.role).eq(member.role);
+                });
+            });
+        });
+    });
+    it('Should not get project member access for user that gets access via the org role', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request({
+            url: `${apiUrl}/projects/${projectUuid}/user/${SEED_ORG_1_ADMIN.user_uuid}`,
+            method: 'GET',
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(404);
         });
     });
 });

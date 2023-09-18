@@ -646,7 +646,7 @@ export class ProjectModel {
             )
             .select<QueryResult[]>()
             .where('project_uuid', projectUuid)
-            .where('users.user_id', userUuid)
+            .where('users.user_uuid', userUuid)
             .andWhere('is_primary', true);
 
         if (projectMemberProfile === undefined) {
