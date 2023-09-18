@@ -8,7 +8,7 @@ import {
     SessionUser,
     snakeCaseName,
 } from '@lightdash/common';
-import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
+import opentelemetry, { SpanStatusCode, ValueType } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import * as fsPromise from 'fs/promises';
 import { nanoid as useNanoid } from 'nanoid';
@@ -24,10 +24,11 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
+import { VERSION } from '../../version';
 import { EncryptionService } from '../EncryptionService/EncryptionService';
 
-const meter = opentelemetry.metrics.getMeter('default');
-const tracer = opentelemetry.trace.getTracer('default');
+const meter = opentelemetry.metrics.getMeter('lightdash-worker', VERSION);
+const tracer = opentelemetry.trace.getTracer('lightdash-worker', VERSION);
 const taskDurationHistogram = meter.createHistogram<{
     error: boolean;
 }>('screenshot.duration_ms', {
@@ -35,9 +36,13 @@ const taskDurationHistogram = meter.createHistogram<{
     unit: 'milliseconds',
 });
 
-const meterErrorCount = meter.createCounter('screenshot.chart.error');
-const meterChartCount = meter.createCounter('screenshot.chart.count');
-const meterTimeoutCount = meter.createCounter('screenshot.timeout');
+const chartCounter = meter.createObservableUpDownCounter<{
+    errors: number;
+    timeout: boolean;
+}>('screenshot.chart.count', {
+    description: 'Total number of chart requests on an unfurl job',
+    valueType: ValueType.INT,
+});
 
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuidRegex = new RegExp(uuid, 'g');
@@ -333,20 +338,19 @@ export class UnfurlService {
                         await page.setViewport(viewport);
                     }
                     await page.on('requestfailed', (request) => {
-                        console.error(
-                            `Headless browser request error url: ${request.url()}, errText: ${
+                        Logger.error(
+                            `Headless browser request error - method: ${request.method()}, url: ${request.url()}, text: ${
                                 request.failure()?.errorText
-                            }, method: ${request.method()}`,
+                            }`,
                         );
                     });
                     await page.on('console', (msg) => {
                         const type = msg.type();
                         if (type === 'error') {
-                            console.error(
-                                `Headless browser console error: `,
-                                msg.type,
-                                msg.location(),
-                                msg.text(),
+                            Logger.error(
+                                `Headless browser console error - file: ${
+                                    msg.location().url
+                                }, text ${msg.text()} `,
                             );
                         }
                     });
@@ -377,15 +381,15 @@ export class UnfurlService {
                                 (buffer) => {
                                     const status = response.status();
                                     if (status >= 400) {
-                                        console.error(
-                                            `Headless browser response error ${responseUrl}: ${response.status()} ${buffer}`,
+                                        Logger.error(
+                                            `Headless browser response error - url: ${responseUrl}, code: ${response.status()}, text: ${buffer}`,
                                         );
                                         chartRequestErrors += 1;
                                     }
                                 },
                                 (error) => {
-                                    console.error(
-                                        `Headless browser response buffer error ${error.message}`,
+                                    Logger.error(
+                                        `Headless browser response buffer error: ${error.message}`,
                                     );
                                     chartRequestErrors += 1;
                                 },
@@ -423,9 +427,12 @@ export class UnfurlService {
                     const box = await element.boundingBox();
                     const pageMetrics = await page.metrics();
 
-                    meterErrorCount.add(chartRequestErrors);
-                    meterChartCount.add(chartRequests);
-                    if (timeout) meterTimeoutCount.add(1);
+                    chartCounter.addCallback(async (result) => {
+                        result.observe(chartRequests, {
+                            errors: chartRequestErrors,
+                            timeout: timeout,
+                        });
+                    });
 
                     span.setAttributes({
                         'page.width': box?.width || 0,
@@ -437,7 +444,7 @@ export class UnfurlService {
                         'page.metrics.total_size': pageMetrics.JSHeapTotalSize,
                         'page.metrics.event_listeners':
                             pageMetrics.JSEventListeners,
-                        timeout: timeout,
+                        timeout,
                     });
                     const imageBuffer = (await element.screenshot({
                         path,
@@ -462,7 +469,9 @@ export class UnfurlService {
                     span.end();
 
                     const executionTime = Date.now() - startTime;
-
+                    Logger.info(
+                        `UnfurlService saveScreenshot took ${executionTime} ms`,
+                    );
                     taskDurationHistogram.record(executionTime, {
                         error: hasError,
                     });
