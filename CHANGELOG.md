@@ -1,3 +1,10 @@
+## [0.776.2](https://github.com/lightdash/lightdash/compare/0.776.1...0.776.2) (2023-09-18)
+
+
+### Bug Fixes
+
+* change default display value for boolean filter to False ([#7059](https://github.com/lightdash/lightdash/issues/7059)) ([64a66db](https://github.com/lightdash/lightdash/commit/64a66dbbf53c87a02451e371b406660a70d33c4e))
+
 ## [0.776.1](https://github.com/lightdash/lightdash/compare/0.776.0...0.776.1) (2023-09-18)
 
 
