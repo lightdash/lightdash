@@ -1,3 +1,10 @@
+# [0.776.0](https://github.com/lightdash/lightdash/compare/0.775.1...0.776.0) (2023-09-18)
+
+
+### Features
+
+* Show the dbt profile and target when compiling with the CLI ([#7062](https://github.com/lightdash/lightdash/issues/7062)) ([f5d2e4f](https://github.com/lightdash/lightdash/commit/f5d2e4f732611e5be1142bc30452f859678678a3))
+
 ## [0.775.1](https://github.com/lightdash/lightdash/compare/0.775.0...0.775.1) (2023-09-18)
 
 
