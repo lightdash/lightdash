@@ -1,3 +1,10 @@
+## [0.776.3](https://github.com/lightdash/lightdash/compare/0.776.2...0.776.3) (2023-09-18)
+
+
+### Bug Fixes
+
+* **api:** get project member access ([#7109](https://github.com/lightdash/lightdash/issues/7109)) ([8a6e7ff](https://github.com/lightdash/lightdash/commit/8a6e7ff710ede64901dbf861c097b1421a29e03e))
+
 ## [0.776.2](https://github.com/lightdash/lightdash/compare/0.776.1...0.776.2) (2023-09-18)
 
 
