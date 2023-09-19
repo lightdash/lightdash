@@ -20,6 +20,7 @@ models:
       joins:
         - join: web_sessions
           sql_on: ${web_sessions.user_id} = ${users.user_id}
+          fields: [user_id, email, name]
         - join: subscriptions
           sql_on: ${subscriptions.user_id} = ${users.user_id} AND ${subscriptions.is_active}
           type: inner
