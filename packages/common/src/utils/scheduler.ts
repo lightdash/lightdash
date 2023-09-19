@@ -5,5 +5,9 @@ export function getHumanReadableCronExpression(cronExpression: string) {
         verbose: true,
         throwExceptionOnParseError: false,
     });
-    return value[0].toLowerCase() + value.slice(1);
+    const valueWithUTC = value
+        .replaceAll(' PM', ' PM (UTC)')
+        .replaceAll(' AM', ' AM (UTC)');
+
+    return valueWithUTC[0].toLowerCase() + valueWithUTC.slice(1);
 }
