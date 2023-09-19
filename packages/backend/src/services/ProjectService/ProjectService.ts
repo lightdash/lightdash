@@ -1013,17 +1013,26 @@ export class ProjectService {
         user: SessionUser,
         chartUuid: string,
     ): Promise<Record<string, any>[]> {
-        const chart = await this.savedChartModel.get(chartUuid);
-        const { metricQuery } = chart;
-        const exploreId = chart.tableName;
+        const rows = await wrapSentryTransaction(
+            'getResultsForChartWithWarehouseQuery',
+            {
+                user,
+                chartUuid,
+            },
+            async () => {
+                const chart = await this.savedChartModel.get(chartUuid);
+                const { metricQuery } = chart;
+                const exploreId = chart.tableName;
 
-        const rows = await this.runMetricQuery(
-            user,
-            metricQuery,
-            chart.projectUuid,
-            exploreId,
-            undefined,
-            QueryExecutionContext.GSHEETS,
+                return this.runMetricQuery(
+                    user,
+                    metricQuery,
+                    chart.projectUuid,
+                    exploreId,
+                    undefined,
+                    QueryExecutionContext.GSHEETS,
+                );
+            },
         );
 
         return rows;
@@ -1166,9 +1175,14 @@ export class ProjectService {
                         'warehouse.type',
                         warehouseClient.credentials.type,
                     );
-                    const { rows } = await warehouseClient.runQuery(
-                        query,
-                        queryTags,
+                    const { rows } = await wrapSentryTransaction(
+                        'runWarehouseQuery',
+                        {
+                            query,
+                            queryTags,
+                            type: warehouseClient.credentials.type,
+                        },
+                        async () => warehouseClient.runQuery(query, queryTags),
                     );
                     await sshTunnel.disconnect();
                     return rows;
