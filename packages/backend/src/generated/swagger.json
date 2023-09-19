@@ -44,6 +44,9 @@
                 "properties": {
                     "results": {
                         "properties": {
+                            "truncated": {
+                                "type": "boolean"
+                            },
                             "status": {
                                 "type": "string"
                             },
@@ -51,7 +54,7 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["status", "url"],
+                        "required": ["truncated", "status", "url"],
                         "type": "object"
                     },
                     "status": {
@@ -4067,7 +4070,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.773.0",
+        "version": "0.776.1",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -5509,7 +5512,7 @@
                 }
             }
         },
-        "/api/v1/projects/{projectUuid}/user/${userUuid}": {
+        "/api/v1/projects/{projectUuid}/user/{userUuid}": {
             "get": {
                 "operationId": "GetProjectMemberAccess",
                 "responses": {
@@ -5534,7 +5537,7 @@
                         }
                     }
                 },
-                "description": "Get a project member's access for a project.\n\nNOTE:\nWe don't use the API on the frontend. Instead, we can call the API\nso that we make sure of the user's access to the project.",
+                "description": "Get a project explicit member's access.\nThere may be users that have access to the project via their organization membership.\n\nNOTE:\nWe don't use the API on the frontend. Instead, we can call the API\nso that we make sure of the user's access to the project.",
                 "tags": ["Roles & Permissions", "Projects"],
                 "security": [],
                 "parameters": [

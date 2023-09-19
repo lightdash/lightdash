@@ -1,7 +1,7 @@
 import { WarehouseTypes } from '@lightdash/common';
+import { Select } from '@mantine/core';
 import React, { FC, useEffect } from 'react';
-import { useWatch } from 'react-hook-form';
-import SelectField from '../ReactHookForm/Select';
+import { Controller, useWatch } from 'react-hook-form';
 import BigQueryForm from './WarehouseForms/BigQueryForm';
 import DatabricksForm from './WarehouseForms/DatabricksForm';
 import PostgresForm from './WarehouseForms/PostgresForm';
@@ -61,20 +61,24 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
         >
             {isProjectUpdate && (
-                <SelectField
+                <Controller
                     name="warehouse.type"
-                    label="Type"
-                    options={Object.entries(WarehouseTypeLabels).map(
-                        ([value, label]) => ({
-                            value,
-                            label,
-                        }),
-                    )}
-                    rules={{
-                        required: 'Required field',
-                    }}
-                    disabled={disabled}
                     defaultValue={WarehouseTypes.BIGQUERY}
+                    render={({ field }) => (
+                        <Select
+                            label="Type"
+                            data={Object.entries(WarehouseTypeLabels).map(
+                                ([value, label]) => ({
+                                    value,
+                                    label,
+                                }),
+                            )}
+                            required
+                            value={field.value}
+                            onChange={field.onChange}
+                            disabled={disabled}
+                        />
+                    )}
                 />
             )}
             <WarehouseForm disabled={disabled} />

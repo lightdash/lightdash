@@ -330,6 +330,7 @@ export type ApiScheduledDownloadCsv = {
 export type ApiDownloadCsv = {
     url: string;
     status: SchedulerJobStatus;
+    truncated: boolean;
 };
 
 export type ProjectCatalog = {

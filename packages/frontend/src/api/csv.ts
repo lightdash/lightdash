@@ -1,4 +1,5 @@
 import {
+    ApiCsvUrlResponse,
     ApiDownloadCsv,
     ApiScheduledDownloadCsv,
     MetricQuery,
@@ -51,12 +52,12 @@ export const getCsvFileUrl = async ({ jobId }: ApiScheduledDownloadCsv) =>
     });
 
 export const pollCsvFileUrl = async ({ jobId }: ApiScheduledDownloadCsv) =>
-    new Promise<string>((resolve, reject) => {
+    new Promise<ApiCsvUrlResponse['results']>((resolve, reject) => {
         const poll = () => {
             getCsvFileUrl({ jobId })
                 .then((data) => {
                     if (data.url) {
-                        resolve(data.url);
+                        resolve(data);
                     } else {
                         setTimeout(poll, 2000);
                     }

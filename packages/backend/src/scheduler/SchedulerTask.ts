@@ -605,10 +605,17 @@ export const downloadCsv = async (
             status: SchedulerJobStatus.STARTED,
         });
 
-        const fileUrl = await csvService.downloadCsv(jobId, payload);
+        const { fileUrl, truncated } = await csvService.downloadCsv(
+            jobId,
+            payload,
+        );
         await schedulerService.logSchedulerJob({
             ...baseLog,
-            details: { fileUrl, createdByUserUuid: payload.userUuid },
+            details: {
+                fileUrl,
+                createdByUserUuid: payload.userUuid,
+                truncated,
+            },
             status: SchedulerJobStatus.COMPLETED,
         });
     } catch (e) {
@@ -684,12 +691,14 @@ export const uploadGsheetFromQuery = async (
             spreadsheetId,
             rows,
         );
+        const truncated = csvService.couldBeTruncated(rows);
 
         schedulerService.logSchedulerJob({
             ...baseLog,
             details: {
                 fileUrl: spreadsheetUrl,
                 createdByUserUuid: payload.userUuid,
+                truncated,
             },
             status: SchedulerJobStatus.COMPLETED,
         });

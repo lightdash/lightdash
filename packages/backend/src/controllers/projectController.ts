@@ -121,7 +121,8 @@ export class ProjectController extends Controller {
     }
 
     /**
-     * Get a project member's access for a project.
+     * Get a project explicit member's access.
+     * There may be users that have access to the project via their organization membership.
      *
      * NOTE:
      * We don't use the API on the frontend. Instead, we can call the API
@@ -129,7 +130,7 @@ export class ProjectController extends Controller {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('{projectUuid}/user/${userUuid}')
+    @Get('{projectUuid}/user/{userUuid}')
     @OperationId('GetProjectMemberAccess')
     @Tags('Roles & Permissions')
     async getProjectMember(

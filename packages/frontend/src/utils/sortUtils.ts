@@ -43,8 +43,8 @@ enum DateSortLabels {
 }
 
 enum BooleanSortLabels {
-    ASC = 'No-Yes',
-    DESC = 'Yes-No',
+    ASC = 'False-True',
+    DESC = 'True-False',
 }
 
 export const getSortLabel = (

@@ -41,7 +41,7 @@ export const renderStringFilterSql = (
     switch (filter.operator) {
         case FilterOperator.EQUALS:
             return !escapedFilterValues || escapedFilterValues.length === 0
-                ? 'false'
+                ? 'true'
                 : `(${dimensionSql}) IN (${escapedFilterValues
                       .map((v) => `${stringQuoteChar}${v}${stringQuoteChar}`)
                       .join(',')})`;
@@ -92,7 +92,7 @@ export const renderNumberFilterSql = (
     switch (filter.operator) {
         case FilterOperator.EQUALS:
             return !filter.values || filter.values.length === 0
-                ? 'false'
+                ? 'true'
                 : `(${dimensionSql}) IN (${filter.values.join(',')})`;
         case FilterOperator.NOT_EQUALS:
             return !filter.values || filter.values.length === 0

@@ -39,6 +39,7 @@ export class CsvController extends Controller {
             results: {
                 url: csvDetails.details?.fileUrl,
                 status: csvDetails.status,
+                truncated: !!csvDetails.details?.truncated,
             },
         };
     }

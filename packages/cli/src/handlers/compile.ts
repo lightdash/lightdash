@@ -81,6 +81,10 @@ export const compile = async (options: CompileHandlerOptions) => {
         profileName,
         targetName: options.target,
     });
+
+    GlobalState.debug(`> Compiling with profile ${profileName}`);
+    GlobalState.debug(`> Compiling with target ${target}`);
+
     const credentials = await warehouseCredentialsFromDbtTarget(target);
     const warehouseClient = warehouseClientFromCredentials({
         ...credentials,

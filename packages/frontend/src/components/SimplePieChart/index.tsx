@@ -30,6 +30,7 @@ const LoadingChart = () => (
 );
 
 type SimplePieChartProps = Omit<EChartsReactProps, 'option'> & {
+    isInDashboard: boolean;
     $shouldExpand?: boolean;
     className?: string;
     tileUuid?: string;
@@ -40,7 +41,7 @@ const EchartOptions: Opts = { renderer: 'svg' };
 
 const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
     const { chartRef, isLoading } = useVisualizationContext();
-    const pieChartOptions = useEchartsPieConfig();
+    const pieChartOptions = useEchartsPieConfig(props.isInDashboard);
     const [isOpen, { open, close }] = useDisclosure();
     const [menuProps, setMenuProps] = useState<{
         position: PieChartContextMenuProps['menuPosition'];

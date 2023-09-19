@@ -1,3 +1,78 @@
+## [0.778.2](https://github.com/lightdash/lightdash/compare/0.778.1...0.778.2) (2023-09-19)
+
+
+### Bug Fixes
+
+* add utc to cron expressions ([#7119](https://github.com/lightdash/lightdash/issues/7119)) ([9e84009](https://github.com/lightdash/lightdash/commit/9e840095411734c53980e8426d838e3162efd590))
+
+## [0.778.1](https://github.com/lightdash/lightdash/compare/0.778.0...0.778.1) (2023-09-19)
+
+
+### Bug Fixes
+
+* pin postgres 15.4 version on docker-compose ([#7118](https://github.com/lightdash/lightdash/issues/7118)) ([99ee0ed](https://github.com/lightdash/lightdash/commit/99ee0ed49b8958f796b6fc86d82f237eaa86d3f4))
+
+# [0.778.0](https://github.com/lightdash/lightdash/compare/0.777.0...0.778.0) (2023-09-18)
+
+
+### Features
+
+* Migrate project settings forms to use Mantine ([#6988](https://github.com/lightdash/lightdash/issues/6988)) ([a8d1748](https://github.com/lightdash/lightdash/commit/a8d1748cc3487afc7aa2bc00849f555f31c68198))
+
+# [0.777.0](https://github.com/lightdash/lightdash/compare/0.776.3...0.777.0) (2023-09-18)
+
+
+### Bug Fixes
+
+* query generation with empty value on string and number filters ([#7081](https://github.com/lightdash/lightdash/issues/7081)) ([641cf7b](https://github.com/lightdash/lightdash/commit/641cf7b5e6c0fc30618082dbdb6edab61f294695))
+
+
+### Features
+
+* UI for pdf image delivery option ([#7048](https://github.com/lightdash/lightdash/issues/7048)) ([8daf2ae](https://github.com/lightdash/lightdash/commit/8daf2ae31eb454ab68d8f3d4c97d32d5a9b64f17))
+
+## [0.776.3](https://github.com/lightdash/lightdash/compare/0.776.2...0.776.3) (2023-09-18)
+
+
+### Bug Fixes
+
+* **api:** get project member access ([#7109](https://github.com/lightdash/lightdash/issues/7109)) ([8a6e7ff](https://github.com/lightdash/lightdash/commit/8a6e7ff710ede64901dbf861c097b1421a29e03e))
+
+## [0.776.2](https://github.com/lightdash/lightdash/compare/0.776.1...0.776.2) (2023-09-18)
+
+
+### Bug Fixes
+
+* change default display value for boolean filter to False ([#7059](https://github.com/lightdash/lightdash/issues/7059)) ([64a66db](https://github.com/lightdash/lightdash/commit/64a66dbbf53c87a02451e371b406660a70d33c4e))
+
+## [0.776.1](https://github.com/lightdash/lightdash/compare/0.776.0...0.776.1) (2023-09-18)
+
+
+### Bug Fixes
+
+* update label of sort on boolean value from yes-no to true-false ([#7060](https://github.com/lightdash/lightdash/issues/7060)) ([b9a0c4a](https://github.com/lightdash/lightdash/commit/b9a0c4a11efd12307bd8b5672763b316e4baa263))
+
+# [0.776.0](https://github.com/lightdash/lightdash/compare/0.775.1...0.776.0) (2023-09-18)
+
+
+### Features
+
+* Show the dbt profile and target when compiling with the CLI ([#7062](https://github.com/lightdash/lightdash/issues/7062)) ([f5d2e4f](https://github.com/lightdash/lightdash/commit/f5d2e4f732611e5be1142bc30452f859678678a3))
+
+## [0.775.1](https://github.com/lightdash/lightdash/compare/0.775.0...0.775.1) (2023-09-18)
+
+
+### Bug Fixes
+
+* the deprecated GitHub Actions' outputs manner ([#7063](https://github.com/lightdash/lightdash/issues/7063)) ([0b2dbfa](https://github.com/lightdash/lightdash/commit/0b2dbfaac354fee1f3f0ca183f5117e19460a779))
+
+# [0.775.0](https://github.com/lightdash/lightdash/compare/0.774.1...0.775.0) (2023-09-18)
+
+
+### Features
+
+* truncated csv warning ([#7045](https://github.com/lightdash/lightdash/issues/7045)) ([88c11e8](https://github.com/lightdash/lightdash/commit/88c11e8081bbbf510e0f543a534fc4518a2a926c))
+
 ## [0.774.1](https://github.com/lightdash/lightdash/compare/0.774.0...0.774.1) (2023-09-08)
 
 

@@ -81,12 +81,24 @@ const useToaster = () => {
         [showToast],
     );
 
+    const showToastWarning = useCallback(
+        (props: Message) => {
+            showToast({
+                intent: Intent.NONE,
+                icon: 'warning-sign',
+                ...props,
+            });
+        },
+        [showToast],
+    );
+
     return {
         showToast,
         showToastSuccess,
         showToastError,
         showToastInfo,
         showToastPrimary,
+        showToastWarning,
     };
 };
 

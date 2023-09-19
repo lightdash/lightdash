@@ -43,7 +43,7 @@ services:
       - ${PORT:-8080}:${PORT:-8080}
 
   db:
-    image: postgres
+    image: postgres:15.4
     restart: always
     environment:
       POSTGRES_PASSWORD: ${PGPASSWORD}

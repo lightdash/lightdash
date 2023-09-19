@@ -1165,6 +1165,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "dmattia",
+      "name": "David Mattia",
+      "avatar_url": "https://avatars.githubusercontent.com/u/8922077?v=4",
+      "profile": "https://github.com/dmattia",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,

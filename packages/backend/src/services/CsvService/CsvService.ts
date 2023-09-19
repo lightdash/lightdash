@@ -183,6 +183,7 @@ export class CsvService {
 
     static generateFileId(
         fileName: string,
+        truncated: boolean = false,
         time: moment.Moment = moment(),
     ): string {
         const timestamp = time.format('YYYY-MM-DD-HH-mm-ss-SSSS');
@@ -190,7 +191,9 @@ export class CsvService {
             .toLowerCase()
             .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
             .replace(/_{2,}/g, '_'); // Replace multiple underscores with a single one
-        const fileId = `csv-${sanitizedFileName}-${timestamp}.csv`;
+        const fileId = `csv-${
+            truncated ? 'incomplete_results-' : ''
+        }${sanitizedFileName}-${timestamp}.csv`;
         return fileId;
     }
 
@@ -201,6 +204,7 @@ export class CsvService {
         itemMap: Record<string, Field | TableCalculation>,
         showTableNames: boolean,
         fileName: string,
+        truncated: boolean,
         customLabels: Record<string, string> = {},
         columnOrder: string[] = [],
     ): Promise<string> {
@@ -214,7 +218,7 @@ export class CsvService {
             `writeRowsToFile with ${rows.length} rows and ${selectedFieldIds.length} columns`,
         );
 
-        const fileId = CsvService.generateFileId(fileName);
+        const fileId = CsvService.generateFileId(fileName, truncated);
         const writeStream = fs.createWriteStream(`/tmp/${fileId}`);
 
         const sortedFieldIds = Object.keys(rows[0])
@@ -303,6 +307,18 @@ export class CsvService {
         return convertSqlToCsv(results, customLabels);
     }
 
+    couldBeTruncated(rows: Record<string, any>[]) {
+        if (rows.length === 0) return false;
+
+        const numberRows = rows.length;
+        const numberColumns = Object.keys(rows[0]).length;
+
+        // we use floor when limiting the rows, so the  need to make sure we got the last row valid
+        const cellsLimit = this.lightdashConfig.query?.csvCellsLimit || 100000;
+
+        return numberRows * numberColumns >= cellsLimit - numberColumns;
+    }
+
     async getCsvForChart(
         user: SessionUser,
         chartUuid: string,
@@ -358,6 +374,7 @@ export class CsvService {
                 path: '#no-results',
                 filename: `${chart.name} (empty)`,
                 localPath: '',
+                truncated: true,
             };
 
         const explore = await this.projectService.getExplore(
@@ -370,6 +387,7 @@ export class CsvService {
             metricQuery.additionalMetrics,
             metricQuery.tableCalculations,
         );
+        const truncated = this.couldBeTruncated(rows);
 
         const fileId = await CsvService.writeRowsToFile(
             rows,
@@ -378,6 +396,7 @@ export class CsvService {
             itemMap,
             isTableChartConfig(config) ? config.showTableNames ?? false : true,
             chart.name,
+            truncated,
             getCustomLabelsFromTableConfig(config),
             chart.tableConfig.columnOrder,
         );
@@ -404,6 +423,7 @@ export class CsvService {
                 filename: `${chart.name}`,
                 path: s3Url,
                 localPath: `/tmp/${fileId}`,
+                truncated,
             };
         }
         // storing locally
@@ -412,6 +432,7 @@ export class CsvService {
             filename: `${chart.name}`,
             path: localUrl,
             localPath: `/tmp/${fileId}`,
+            truncated,
         };
     }
 
@@ -630,6 +651,7 @@ export class CsvService {
                 metricQuery.additionalMetrics,
                 metricQuery.tableCalculations,
             );
+            const truncated = this.couldBeTruncated(rows);
 
             const fileId = await CsvService.writeRowsToFile(
                 rows,
@@ -638,6 +660,7 @@ export class CsvService {
                 itemMap,
                 showTableNames,
                 exploreId,
+                truncated,
                 customLabels,
                 columnOrder || [],
             );
@@ -664,7 +687,7 @@ export class CsvService {
                 },
             });
 
-            return fileUrl;
+            return { fileUrl, truncated };
         } catch (e) {
             analytics.track({
                 event: 'download_results.error',
