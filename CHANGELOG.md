@@ -1,3 +1,10 @@
+## [0.778.4](https://github.com/lightdash/lightdash/compare/0.778.3...0.778.4) (2023-09-19)
+
+
+### Bug Fixes
+
+* validator table ui issues ([#7073](https://github.com/lightdash/lightdash/issues/7073)) ([4e87d73](https://github.com/lightdash/lightdash/commit/4e87d737f0f451c307689a4502980f9b56a6cf54))
+
 ## [0.778.3](https://github.com/lightdash/lightdash/compare/0.778.2...0.778.3) (2023-09-19)
 
 
