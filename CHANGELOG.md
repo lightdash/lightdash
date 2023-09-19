@@ -1,3 +1,10 @@
+## [0.778.3](https://github.com/lightdash/lightdash/compare/0.778.2...0.778.3) (2023-09-19)
+
+
+### Bug Fixes
+
+* warning users before navigating away from dashboard when there are unsaved changes ([#7075](https://github.com/lightdash/lightdash/issues/7075)) ([#7075](https://github.com/lightdash/lightdash/issues/7075)) ([8767976](https://github.com/lightdash/lightdash/commit/87679763a9a42d8d1cddce2d1dc40559ce038e32))
+
 ## [0.778.2](https://github.com/lightdash/lightdash/compare/0.778.1...0.778.2) (2023-09-19)
 
 
