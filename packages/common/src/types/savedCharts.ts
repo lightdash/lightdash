@@ -80,6 +80,8 @@ export type PieChart = {
     groupValueOptionOverrides?: Record<string, Partial<PieChartValueOptions>>;
     groupSortOverrides?: string[];
     showLegend?: boolean;
+    orientLegend?: string;
+    setOrientLegend: (value: string) => {};
 };
 
 export type PieChartConfig = {

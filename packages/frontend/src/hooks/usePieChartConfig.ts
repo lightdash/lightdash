@@ -145,6 +145,10 @@ const usePieChartConfig: PieChartConfigFn = (
         pieChartConfig?.showLegend ?? true,
     );
 
+    const [orientLegend, setOrientLegend] = useState(
+        pieChartConfig?.orientLegend ?? 'horizontal',
+    )
+
     const defaultColors = useMemo(
         () => org?.chartColors ?? ECHARTS_DEFAULT_COLORS,
         [org],
@@ -411,6 +415,8 @@ const usePieChartConfig: PieChartConfigFn = (
                 groupLabels.includes(label),
             ),
             showLegend,
+            orientLegend,
+            setOrientLegend,
         }),
         [
             groupFieldIds,
@@ -425,6 +431,7 @@ const usePieChartConfig: PieChartConfigFn = (
             groupValueOptionOverrides,
             groupSortOverrides,
             showLegend,
+            orientLegend,
         ],
     );
 
