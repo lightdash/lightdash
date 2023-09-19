@@ -12,7 +12,7 @@ export type PieSeriesDataPoint = NonNullable<
     };
 };
 
-const useEchartsPieConfig = () => {
+const useEchartsPieConfig = (isInDashboard: boolean) => {
     const context = useVisualizationContext();
     const {
         pieChartConfig: {
@@ -145,8 +145,9 @@ const useEchartsPieConfig = () => {
                 trigger: 'item',
             },
             series: [pieSeriesOption],
+            animation: !isInDashboard,
         };
-    }, [showLegend, pieSeriesOption]);
+    }, [showLegend, pieSeriesOption, isInDashboard]);
 
     if (!explore || !data || data.length === 0) {
         return undefined;
