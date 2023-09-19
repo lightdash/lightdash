@@ -229,7 +229,7 @@ const Dashboard: FC = () => {
             setHaveFiltersChanged(false);
             setDashboardTemporaryFilters({ dimensions: [], metrics: [] });
             reset();
-            history.push(
+            history.replace(
                 `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
             );
         }
@@ -341,7 +341,7 @@ const Dashboard: FC = () => {
         setHaveTilesChanged(false);
         if (dashboard) setDashboardFilters(dashboard.filters);
         setHaveFiltersChanged(false);
-        history.push(
+        history.replace(
             `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
         );
     }, [
