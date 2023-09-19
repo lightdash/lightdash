@@ -1,8 +1,4 @@
-import { SupportedDbtAdapter } from '../types/dbt';
-import { DimensionType } from '../types/field';
-import { TimeFrames } from '../types/timeFrames';
 import { getHumanReadableCronExpression } from './scheduler';
-import { timeFrameConfigs, WeekDay } from './timeFrames';
 
 describe('Scheduler utils', () => {
     describe('getHumanReadableCronExpression', () => {
