@@ -1193,7 +1193,10 @@ const getStackTotalSeries = (
     );
 };
 
-const useEcharts = (validCartesianConfigLegend?: LegendValues) => {
+const useEcharts = (
+    validCartesianConfigLegend?: LegendValues,
+    isInDashboard?: boolean,
+) => {
     const context = useVisualizationContext();
 
     const {
@@ -1408,6 +1411,7 @@ const useEcharts = (validCartesianConfigLegend?: LegendValues) => {
             yAxis: axis.yAxis,
             useUTC: true,
             series: stackedSeries,
+            animation: !isInDashboard,
             legend: mergeLegendSettings(
                 validCartesianConfig?.eChartsConfig.legend,
                 validCartesianConfigLegend,
@@ -1435,13 +1439,16 @@ const useEcharts = (validCartesianConfigLegend?: LegendValues) => {
             color: colors,
         }),
         [
-            axis,
-            colors,
-            series,
+            axis.xAxis,
+            axis.yAxis,
             stackedSeries,
-            validCartesianConfig,
-            sortedResults,
+            isInDashboard,
+            validCartesianConfig?.eChartsConfig.legend,
+            validCartesianConfig?.eChartsConfig.grid,
             validCartesianConfigLegend,
+            series,
+            sortedResults,
+            colors,
         ],
     );
     if (
