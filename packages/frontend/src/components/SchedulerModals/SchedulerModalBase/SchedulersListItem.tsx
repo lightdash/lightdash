@@ -6,9 +6,11 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
-import { SchedulerAndTargets } from '@lightdash/common';
-import cronstrue from 'cronstrue';
-import React, { FC } from 'react';
+import {
+    getHumanReadableCronExpression,
+    SchedulerAndTargets,
+} from '@lightdash/common';
+import { FC } from 'react';
 import {
     InfoContainer,
     PageDetailsContainer,
@@ -65,10 +67,7 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
             </SchedulerDetailsContainer>
             <PageDetailsContainer>
                 <UpdatedInfoLabel>
-                    {cronstrue.toString(scheduler.cron, {
-                        verbose: true,
-                        throwExceptionOnParseError: false,
-                    })}
+                    {getHumanReadableCronExpression(scheduler.cron)}
                 </UpdatedInfoLabel>
 
                 <SeparatorDot icon="dot" size={6} />
