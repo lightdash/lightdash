@@ -1859,10 +1859,19 @@ export class ProjectService {
             description: 'Gets all filters available for a single query',
         });
         try {
-            const savedChart = await this.savedChartModel.get(savedChartUuid);
+            const savedChart =
+                await this.savedChartModel.getInfoForAvailableFilters(
+                    savedChartUuid,
+                );
 
             if (
-                user.ability.cannot('view', subject('SavedChart', savedChart))
+                user.ability.cannot(
+                    'view',
+                    subject('SavedChart', {
+                        ...savedChart,
+                        organizationUuid: user.organizationUuid,
+                    }),
+                )
             ) {
                 throw new ForbiddenError();
             }
