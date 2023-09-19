@@ -1,3 +1,10 @@
+## [0.778.1](https://github.com/lightdash/lightdash/compare/0.778.0...0.778.1) (2023-09-19)
+
+
+### Bug Fixes
+
+* pin postgres 15.4 version on docker-compose ([#7118](https://github.com/lightdash/lightdash/issues/7118)) ([99ee0ed](https://github.com/lightdash/lightdash/commit/99ee0ed49b8958f796b6fc86d82f237eaa86d3f4))
+
 # [0.778.0](https://github.com/lightdash/lightdash/compare/0.777.0...0.778.0) (2023-09-18)
 
 
