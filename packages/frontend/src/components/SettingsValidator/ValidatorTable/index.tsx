@@ -7,6 +7,7 @@ import {
     ValidationResponse,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Anchor,
     Box,
     Flex,
@@ -17,11 +18,7 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { mergeRefs, useHover } from '@mantine/hooks';
-import {
-    IconCircleX,
-    IconLayoutDashboard,
-    IconTable,
-} from '@tabler/icons-react';
+import { IconLayoutDashboard, IconTable, IconX } from '@tabler/icons-react';
 import { createRef, FC, forwardRef, RefObject, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
@@ -151,9 +148,9 @@ const TableValidationItem = forwardRef<
                                         {getViews(validationError) === 1
                                             ? ''
                                             : 's'}
-                                        {' • '}
                                         {validationError.lastUpdatedBy ? (
                                             <>
+                                                {' • '}
                                                 Last edited by{' '}
                                                 <Text span fw={500}>
                                                     {
@@ -175,17 +172,20 @@ const TableValidationItem = forwardRef<
                 <Tooltip label="Dismiss error" position="top">
                     <Box w={24}>
                         {hovered && (
-                            <MantineIcon
-                                icon={IconCircleX}
-                                color="gray.6"
-                                size="lg"
+                            <ActionIcon
                                 onClick={(e) => {
                                     deleteValidation(
                                         validationError.validationId,
                                     );
                                     e.stopPropagation();
                                 }}
-                            />
+                            >
+                                <MantineIcon
+                                    icon={IconX}
+                                    size="lg"
+                                    color="gray.6"
+                                />
+                            </ActionIcon>
                         )}
                     </Box>
                 </Tooltip>
@@ -221,6 +221,7 @@ export const ValidatorTable: FC<{
                 classes.root,
                 classes.smallPadding,
                 classes.stickyHeader,
+                classes.noRoundedCorners,
             )}
             fontSize="xs"
             highlightOnHover

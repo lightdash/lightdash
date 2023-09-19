@@ -13,6 +13,7 @@ import {
     useValidationMutation,
 } from '../../hooks/validation/useValidation';
 import MantineIcon from '../common/MantineIcon';
+import { formatTime } from '../SchedulersView/SchedulersViewUtils';
 import { ValidatorTable } from './ValidatorTable';
 
 const MIN_ROWS_TO_ENABLE_SCROLLING = 6;
@@ -47,7 +48,9 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                 >
                     <Text fw={500} fz="xs" c="gray.6">
                         {!!data?.length
-                            ? `Last validated at: ${data[0].createdAt}`
+                            ? `Last validated at: ${formatTime(
+                                  data[0].createdAt,
+                              )}`
                             : null}
                     </Text>
                     <Button

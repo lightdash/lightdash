@@ -43,4 +43,9 @@ export const useTableStyles = createStyles((theme) => ({
             top: 0,
         },
     },
+    noRoundedCorners: {
+        '& thead tr th': {
+            borderRadius: 0,
+        },
+    },
 }));
