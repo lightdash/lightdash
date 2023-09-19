@@ -1,3 +1,10 @@
+## [0.778.2](https://github.com/lightdash/lightdash/compare/0.778.1...0.778.2) (2023-09-19)
+
+
+### Bug Fixes
+
+* add utc to cron expressions ([#7119](https://github.com/lightdash/lightdash/issues/7119)) ([9e84009](https://github.com/lightdash/lightdash/commit/9e840095411734c53980e8426d838e3162efd590))
+
 ## [0.778.1](https://github.com/lightdash/lightdash/compare/0.778.0...0.778.1) (2023-09-19)
 
 
