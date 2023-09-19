@@ -720,7 +720,6 @@ export class SavedChartModel {
                 'organizations.organization_id',
                 'projects.organization_id',
             )
-
             .leftJoin(
                 PinnedChartTableName,
                 `${PinnedChartTableName}.saved_chart_uuid`,
@@ -731,5 +730,50 @@ export class SavedChartModel {
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedChartTableName}.pinned_list_uuid`,
             );
+    }
+
+    async getInfoForAvailableFilters(savedChartUuid: string): Promise<{
+        uuid: string;
+        name: string;
+        spaceUuid: string;
+        tableName: string;
+        projectUuid: string;
+    }> {
+        const [chart] = await this.database('saved_queries')
+            .where(`${SavedChartsTableName}.saved_query_uuid`, savedChartUuid)
+            .select({
+                uuid: 'saved_queries.saved_query_uuid',
+                name: 'saved_queries.name',
+                spaceUuid: 'spaces.space_uuid',
+                tableName: 'saved_queries_versions.explore_name',
+                projectUuid: 'projects.project_uuid',
+            })
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
+            .innerJoin(SpaceTableName, function spaceJoin() {
+                this.on(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${DashboardsTableName}.space_id`,
+                ).orOn(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SavedChartsTableName}.space_id`,
+                );
+            })
+            .innerJoin(
+                'saved_queries_versions',
+                `${SavedChartsTableName}.saved_query_id`,
+                'saved_queries_versions.saved_query_id',
+            )
+            .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
+            .limit(1);
+        if (chart === undefined) {
+            throw new NotFoundError('Saved query not found');
+        }
+        return chart;
     }
 }
