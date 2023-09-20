@@ -1,6 +1,7 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { Anchor } from '@mantine/core';
+import { Anchor, PasswordInput, Stack, TextInput } from '@mantine/core';
 import React, { FC } from 'react';
+import { useFormContext } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import {
     hasNoWhiteSpaces,
@@ -9,8 +10,6 @@ import {
 } from '../../../utils/fieldValidators';
 import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
-import Input from '../../ReactHookForm/Input';
-import PasswordInput from '../../ReactHookForm/PasswordInput';
 import {
     AdvancedButton,
     AdvancedButtonWrapper,
@@ -21,17 +20,17 @@ import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 export const SnowflakeSchemaInput: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const { register } = useFormContext();
     return (
-        <Input
-            name="warehouse.schema"
+        <TextInput
             label="Schema"
-            labelHelp="This is the schema name."
-            rules={{
-                required: 'Required field',
+            description="This is the schema name."
+            required
+            {...register('warehouse.schema', {
                 validate: {
                     hasNoWhiteSpaces: hasNoWhiteSpaces('Schema'),
                 },
-            }}
+            })}
             disabled={disabled}
         />
     );
@@ -42,157 +41,166 @@ const SnowflakeForm: FC<{
 }> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
+    const { register } = useFormContext();
+
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE;
     return (
         <>
-            <Input
-                name="warehouse.account"
-                label="Account"
-                labelHelp="This is the account to connect to."
-                rules={{
-                    required: 'Required field',
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Account'),
-                    },
-                }}
-                disabled={disabled}
-            />
-            <Input
-                name="warehouse.user"
-                label="User"
-                labelHelp="This is the database user name."
-                rules={{
-                    required: requireSecrets ? 'Required field' : undefined,
-                }}
-                placeholder={
-                    disabled || !requireSecrets ? '**************' : undefined
-                }
-                disabled={disabled}
-            />
-            <PasswordInput
-                name="warehouse.password"
-                label="Password"
-                labelHelp="This is the database user password."
-                rules={{
-                    required: requireSecrets ? 'Required field' : undefined,
-                }}
-                placeholder={
-                    disabled || !requireSecrets ? '**************' : undefined
-                }
-                disabled={disabled}
-            />
-            <Input
-                name="warehouse.role"
-                label="Role"
-                labelHelp="This is the role to assume when running queries as the specified user."
-                rules={{
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Role'),
-                    },
-                }}
-                disabled={disabled}
-            />
-            <Input
-                name="warehouse.database"
-                label="Database"
-                labelHelp="This is the database name."
-                rules={{
-                    required: 'Required field',
-                    validate: {
-                        isUppercase: isUppercase('Database'),
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Database'),
-                    },
-                }}
-                disabled={disabled}
-            />
-            <Input
-                name="warehouse.warehouse"
-                label="Warehouse"
-                labelHelp="This is the warehouse name."
-                rules={{
-                    required: 'Required field',
-                    validate: {
-                        isUppercase: isUppercase('Warehouse'),
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Warehouse'),
-                    },
-                }}
-                disabled={disabled}
-            />
-
-            <FormSection isOpen={isOpen} name="advanced">
-                <BooleanSwitch
-                    name="warehouse.clientSessionKeepAlive"
-                    label="Keep client session alive"
-                    labelHelp={
-                        <p>
-                            This is intended to keep Snowflake sessions alive
-                            beyond the typical 4 hour timeout limit You can see
-                            more details in{' '}
-                            <Anchor
-                                target="_blank"
-                                href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive"
-                                rel="noreferrer"
-                            >
-                                dbt documentation
-                            </Anchor>
-                            .
-                        </p>
-                    }
-                    disabled={disabled}
-                    defaultValue={false}
-                />
-                <Input
-                    name="warehouse.queryTag"
-                    label="Query tag"
-                    labelHelp={
-                        <p>
-                            This is Snowflake query tags parameter. You can see
-                            more details in{' '}
-                            <Anchor
-                                target="_blank"
-                                href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#query_tag"
-                                rel="noreferrer"
-                            >
-                                dbt documentation
-                            </Anchor>
-                            .
-                        </p>
-                    }
-                    disabled={disabled}
-                />
-                <Input
-                    name="warehouse.accessUrl"
-                    label="Snowflake URL override"
-                    labelHelp={
-                        <p>
-                            Usually Lightdash would connect to a default url:
-                            account.snowflakecomputing.com. If you'd like to
-                            override this (e.g. for the dbt server) you can
-                            specify a full custom URL here.
-                        </p>
-                    }
-                    disabled={disabled}
-                    rules={{
+            <Stack style={{ marginTop: '8px' }}>
+                <TextInput
+                    label="Account"
+                    description="This is the account to connect to."
+                    required
+                    {...register('warehouse.account', {
                         validate: {
-                            hasNoWhiteSpaces: hasNoWhiteSpaces(
-                                'Snowflake URL override',
-                            ),
-                            startWithHTTPSProtocol: startWithHTTPSProtocol(
-                                'Snowflake URL override',
-                            ),
+                            hasNoWhiteSpaces: hasNoWhiteSpaces('Account'),
                         },
-                    }}
+                    })}
+                    disabled={disabled}
+                    labelProps={{ style: { marginTop: '8px' } }}
                 />
-                <StartOfWeekSelect disabled={disabled} />
-            </FormSection>
-            <AdvancedButtonWrapper>
-                <AdvancedButton
-                    icon={isOpen ? 'chevron-up' : 'chevron-down'}
-                    text={`Advanced configuration options`}
-                    onClick={toggleOpen}
+                <TextInput
+                    label="User"
+                    description="This is the database user name."
+                    required={requireSecrets}
+                    {...register('warehouse.user', {
+                        validate: {
+                            hasNoWhiteSpaces: hasNoWhiteSpaces('User'),
+                        },
+                    })}
+                    placeholder={
+                        disabled || !requireSecrets
+                            ? '**************'
+                            : undefined
+                    }
+                    disabled={disabled}
                 />
-            </AdvancedButtonWrapper>
+                <PasswordInput
+                    label="Password"
+                    description="This is the database user password."
+                    required={requireSecrets}
+                    placeholder={
+                        disabled || !requireSecrets
+                            ? '**************'
+                            : undefined
+                    }
+                    {...register('warehouse.password')}
+                    disabled={disabled}
+                />
+                <TextInput
+                    label="Role"
+                    description="This is the role to assume when running queries as the specified user."
+                    {...register('warehouse.role', {
+                        validate: {
+                            hasNoWhiteSpaces: hasNoWhiteSpaces('Role'),
+                        },
+                    })}
+                    disabled={disabled}
+                />
+                <TextInput
+                    label="Database"
+                    description="This is the database name."
+                    required
+                    {...register('warehouse.database', {
+                        validate: {
+                            isUppercase: isUppercase('Database'),
+                            hasNoWhiteSpaces: hasNoWhiteSpaces('Database'),
+                        },
+                    })}
+                    disabled={disabled}
+                />
+                <TextInput
+                    label="Warehouse"
+                    description="This is the warehouse name."
+                    required
+                    {...register('warehouse.warehouse', {
+                        validate: {
+                            isUppercase: isUppercase('Warehouse'),
+                            hasNoWhiteSpaces: hasNoWhiteSpaces('Warehouse'),
+                        },
+                    })}
+                    disabled={disabled}
+                />
+
+                <FormSection isOpen={isOpen} name="advanced">
+                    <Stack style={{ marginTop: '8px' }}>
+                        <BooleanSwitch
+                            name="warehouse.clientSessionKeepAlive"
+                            label="Keep client session alive"
+                            labelHelp={
+                                <p>
+                                    This is intended to keep Snowflake sessions
+                                    alive beyond the typical 4 hour timeout
+                                    limit You can see more details in{' '}
+                                    <Anchor
+                                        target="_blank"
+                                        href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive"
+                                        rel="noreferrer"
+                                    >
+                                        dbt documentation
+                                    </Anchor>
+                                    .
+                                </p>
+                            }
+                            disabled={disabled}
+                            defaultValue={false}
+                        />
+
+                        <TextInput
+                            {...register('warehouse.queryTag')}
+                            label="Query tag"
+                            description={
+                                <p>
+                                    This is Snowflake query tags parameter. You
+                                    can see more details in{' '}
+                                    <Anchor
+                                        target="_blank"
+                                        href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#query_tag"
+                                        rel="noreferrer"
+                                    >
+                                        dbt documentation
+                                    </Anchor>
+                                    .
+                                </p>
+                            }
+                            disabled={disabled}
+                        />
+                        <TextInput
+                            label="Snowflake URL override"
+                            description={
+                                <p>
+                                    Usually Lightdash would connect to a default
+                                    url: account.snowflakecomputing.com. If
+                                    you'd like to override this (e.g. for the
+                                    dbt server) you can specify a full custom
+                                    URL here.
+                                </p>
+                            }
+                            disabled={disabled}
+                            {...register('warehouse.accessUrl', {
+                                validate: {
+                                    startWithHTTPSProtocol:
+                                        startWithHTTPSProtocol(
+                                            'Snowflake URL override',
+                                        ),
+                                    hasNoWhiteSpaces: hasNoWhiteSpaces(
+                                        'Snowflake URL override',
+                                    ),
+                                },
+                            })}
+                        />
+                        <StartOfWeekSelect disabled={disabled} />
+                    </Stack>
+                </FormSection>
+                <AdvancedButtonWrapper>
+                    <AdvancedButton
+                        icon={isOpen ? 'chevron-up' : 'chevron-down'}
+                        text={`Advanced configuration options`}
+                        onClick={toggleOpen}
+                    />
+                </AdvancedButtonWrapper>
+            </Stack>
         </>
     );
 };
