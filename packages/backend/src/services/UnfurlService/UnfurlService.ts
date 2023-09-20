@@ -14,7 +14,7 @@ import * as fsPromise from 'fs/promises';
 import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
 import { PDFDocument } from 'pdf-lib';
-import puppeteer from 'puppeteer';
+import puppeteer, { HTTPRequest } from 'puppeteer';
 import { S3Service } from '../../clients/Aws/s3';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
@@ -356,19 +356,16 @@ export class UnfurlService {
                     });
 
                     await page.setRequestInterception(true);
-                    await page.on(
-                        'request',
-                        (request: puppeteer.HTTPRequest) => {
-                            const requestUrl = request.url();
-                            const parsedUrl = new URL(url);
-                            // Only allow request to the same host
-                            if (!requestUrl.includes(parsedUrl.hostname)) {
-                                request.abort();
-                                return;
-                            }
-                            request.continue();
-                        },
-                    );
+                    await page.on('request', (request: HTTPRequest) => {
+                        const requestUrl = request.url();
+                        const parsedUrl = new URL(url);
+                        // Only allow request to the same host
+                        if (!requestUrl.includes(parsedUrl.hostname)) {
+                            request.abort();
+                            return;
+                        }
+                        request.continue();
+                    });
 
                     let chartRequests = 0;
                     let chartRequestErrors = 0;
