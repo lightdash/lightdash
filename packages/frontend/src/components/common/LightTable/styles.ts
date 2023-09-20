@@ -50,12 +50,13 @@ export const useTableSectionStyles = createStyles<
             isAtTop: boolean;
             isAtBottom: boolean;
         };
+        withSticky: boolean;
     }
 >((theme, { sectionType, scrollPositions }) => {
     const borderColor = getBorderColor(theme);
     const shadowColor = getShadowColor(theme);
 
-    const stickyShadow = (() => {
+    const getStickyCellShadowStyles = () => {
         switch (sectionType) {
             case SectionType.Head:
                 return {
@@ -86,12 +87,41 @@ export const useTableSectionStyles = createStyles<
                     `unknown section type: ${sectionType}`,
                 );
         }
-    })();
+    };
+
+    const getStickySectionStyles = () => {
+        switch (sectionType) {
+            case SectionType.Head:
+                return {
+                    top: 0,
+                    position: 'sticky',
+                    zIndex: 1,
+                } as const;
+
+            case SectionType.Footer:
+                return {
+                    bottom: 0,
+                    position: 'sticky',
+                    zIndex: 1,
+                } as const;
+
+            case SectionType.Body:
+                return {};
+
+            default:
+                return assertUnreachable(
+                    sectionType,
+                    `unknown section type: ${sectionType}`,
+                );
+        }
+    };
 
     return {
         root: {
-            ...stickyShadow,
+            ...getStickyCellShadowStyles(),
         },
+
+        withSticky: getStickySectionStyles(),
     };
 });
 
