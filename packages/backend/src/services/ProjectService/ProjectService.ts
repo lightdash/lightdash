@@ -1180,6 +1180,8 @@ export class ProjectService {
                         {
                             query,
                             queryTags,
+                            context,
+                            metricQuery: JSON.stringify(metricQuery),
                             type: warehouseClient.credentials.type,
                         },
                         async () => warehouseClient.runQuery(query, queryTags),
