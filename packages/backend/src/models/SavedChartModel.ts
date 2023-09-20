@@ -10,9 +10,11 @@ import {
     getChartType,
     isFormat,
     NotFoundError,
+    Project,
     SavedChart,
     SessionUser,
     SortField,
+    Space,
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
@@ -732,18 +734,17 @@ export class SavedChartModel {
             );
     }
 
-    async getInfoForAvailableFilters(savedChartUuid: string): Promise<{
-        uuid: string;
-        name: string;
-        spaceUuid: string;
-        tableName: string;
-        projectUuid: string;
-    }> {
+    async getInfoForAvailableFilters(savedChartUuid: string): Promise<
+        {
+            spaceUuid: Space['uuid'];
+        } & Pick<SavedChart, 'uuid' | 'name' | 'tableName'> &
+            Pick<Project, 'projectUuid'>
+    > {
         const [chart] = await this.database('saved_queries')
             .where(`${SavedChartsTableName}.saved_query_uuid`, savedChartUuid)
             .select({
                 uuid: 'saved_queries.saved_query_uuid',
-                name: 'saved_queries.name',
+                name: 'saved_queries.names',
                 spaceUuid: 'spaces.space_uuid',
                 tableName: 'saved_queries_versions.explore_name',
                 projectUuid: 'projects.project_uuid',
