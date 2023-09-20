@@ -27,7 +27,11 @@ export default defineConfig({
             apply: 'serve',
             enforce: 'post',
         },
-        compression({ deleteOriginalAssets: true }),
+        compression({
+            exclude: [/\.(br)$/, /\.(gz)$/],
+            include: /\.js$/,
+            deleteOriginalAssets: true,
+        }),
     ],
     css: {
         transformer: 'lightningcss',
