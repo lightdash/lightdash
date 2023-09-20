@@ -217,6 +217,9 @@ export type ApiSchedulerLogsResponse = {
     status: 'ok';
     results: SchedulerWithLogs;
 };
+export type ApiTestSchedulerResponse = {
+    status: 'ok';
+};
 
 // Scheduler task types
 

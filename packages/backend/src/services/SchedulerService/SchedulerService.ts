@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ChartSummary,
+    CreateSchedulerAndTargetsWithoutIds,
     CreateSchedulerLog,
     Dashboard,
     ForbiddenError,
@@ -241,5 +242,53 @@ export class SchedulerService {
     async getJobStatus(jobId: string): Promise<string> {
         const job = await this.schedulerModel.getJobStatus(jobId);
         return job.status;
+    }
+
+    async sendScheduler(user: SessionUser, scheduler: Scheduler) {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        const resource = await this.getSchedulerResource(scheduler);
+
+        // TODO
+        /*
+        analytics.track({
+            userId: user.userUuid,
+            event: 'scheduler.updated',
+            properties: {
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+                schedulerId: scheduler.schedulerUuid,
+                resourceType: isChartScheduler(scheduler)
+                    ? 'chart'
+                    : 'dashboard',
+                cronExpression: scheduler.cron,
+                format: scheduler.format,
+                cronString: cronstrue.toString(scheduler.cron, {
+                    verbose: true,
+                    throwExceptionOnParseError: false,
+                }),
+                resourceId: isChartScheduler(scheduler)
+                    ? scheduler.savedChartUuid
+                    : scheduler.dashboardUuid,
+                targets:
+                    scheduler.format === SchedulerFormat.GSHEETS
+                        ? []
+                        : scheduler.targets.map(getSchedulerTargetType),
+            },
+        }); */
+
+        // TODO
+        /*
+        await slackClient.joinChannels(
+            user.organizationUuid,
+            SchedulerModel.getSlackChannels(scheduler.targets),
+        ); */
+
+        // TODO
+        // await schedulerClient.sendNow(scheduler)
+
+        return 'ok';
     }
 }
