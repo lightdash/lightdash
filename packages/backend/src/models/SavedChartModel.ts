@@ -469,21 +469,18 @@ export class SavedChartModel {
             if (savedQuery === undefined) {
                 throw new NotFoundError('Saved query not found');
             }
-            const fields = await this.database('saved_queries_version_fields')
+            const savedQueriesVersionId = savedQuery.saved_queries_version_id;
+
+            const fieldsQuery = this.database('saved_queries_version_fields')
                 .select(['name', 'field_type', 'order'])
-                .where(
-                    'saved_queries_version_id',
-                    savedQuery.saved_queries_version_id,
-                )
+                .where('saved_queries_version_id', savedQueriesVersionId)
                 .orderBy('order', 'asc');
-            const sorts = await this.database('saved_queries_version_sorts')
+
+            const sortsQuery = this.database('saved_queries_version_sorts')
                 .select(['field_name', 'descending'])
-                .where(
-                    'saved_queries_version_id',
-                    savedQuery.saved_queries_version_id,
-                )
+                .where('saved_queries_version_id', savedQueriesVersionId)
                 .orderBy('order', 'asc');
-            const tableCalculations = await this.database(
+            const tableCalculationsQuery = this.database(
                 'saved_queries_version_table_calculations',
             )
                 .select([
@@ -493,12 +490,9 @@ export class SavedChartModel {
                     'order',
                     'format',
                 ])
-                .where(
-                    'saved_queries_version_id',
-                    savedQuery.saved_queries_version_id,
-                );
+                .where('saved_queries_version_id', savedQueriesVersionId);
 
-            const additionalMetricsRows = await this.database(
+            const additionalMetricsQuery = this.database(
                 SavedChartAdditionalMetricTableName,
             )
                 .select([
@@ -517,10 +511,15 @@ export class SavedChartModel {
                     'uuid',
                     'compact',
                 ])
-                .where(
-                    'saved_queries_version_id',
-                    savedQuery.saved_queries_version_id,
-                );
+                .where('saved_queries_version_id', savedQueriesVersionId);
+
+            const [fields, sorts, tableCalculations, additionalMetricsRows] =
+                await Promise.all([
+                    fieldsQuery,
+                    sortsQuery,
+                    tableCalculationsQuery,
+                    additionalMetricsQuery,
+                ]);
 
             // Filters out "null" fields
             const additionalMetricsFiltered: DBFilteredAdditionalMetrics[] =
