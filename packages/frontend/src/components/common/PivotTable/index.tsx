@@ -561,19 +561,15 @@ const PivotTable: FC<PivotTableProps> = ({
                                         withMenu={(
                                             { isOpen, onClose, onCopy },
                                             render,
-                                        ) =>
-                                            isOpen ? (
-                                                <TotalCellMenu
-                                                    opened={isOpen}
-                                                    onClose={onClose}
-                                                    onCopy={onCopy}
-                                                >
-                                                    {render()}
-                                                </TotalCellMenu>
-                                            ) : (
-                                                <>{render()}</>
-                                            )
-                                        }
+                                        ) => (
+                                            <TotalCellMenu
+                                                opened={isOpen}
+                                                onClose={onClose}
+                                                onCopy={onCopy}
+                                            >
+                                                {render()}
+                                            </TotalCellMenu>
+                                        )}
                                     >
                                         {value.formatted}
                                     </Table.CellHead>
