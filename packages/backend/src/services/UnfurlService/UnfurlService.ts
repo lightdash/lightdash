@@ -408,6 +408,18 @@ export class UnfurlService {
                             `Got a timeout when waiting for the page to load, returning current content`,
                         );
                     }
+                    // Wait until the page is fully loaded
+                    await page
+                        .waitForSelector('.loading_chart', {
+                            hidden: true,
+                            timeout: 30000,
+                        })
+                        .catch(() => {
+                            timeout = true;
+                            Logger.warn(
+                                `Got a timeout when waiting for all charts to be loaded, returning current content`,
+                            );
+                        });
 
                     const path = `/tmp/${imageId}.png`;
                     const selector =
