@@ -1,3 +1,10 @@
+## [0.778.5](https://github.com/lightdash/lightdash/compare/0.778.4...0.778.5) (2023-09-20)
+
+
+### Bug Fixes
+
+* fix pdf attachment resolution ([#7138](https://github.com/lightdash/lightdash/issues/7138)) ([8b5534f](https://github.com/lightdash/lightdash/commit/8b5534f1d7c2973c6fb37a9a90d874be4f39990d))
+
 ## [0.778.4](https://github.com/lightdash/lightdash/compare/0.778.3...0.778.4) (2023-09-19)
 
 
