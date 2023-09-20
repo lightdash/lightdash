@@ -50,10 +50,12 @@ export interface FilterRule<
 export interface MetricFilterRule
     extends FilterRule<ConditionalOperator, { fieldRef: string }> {}
 
-export type DashboardFieldTarget = {
-    fieldId: string;
-    tableName: string;
-};
+export type DashboardFieldTarget =
+    | {
+          fieldId: string;
+          tableName: string;
+      }
+    | false;
 
 export type DashboardFilterRule<
     O = ConditionalOperator,
@@ -161,29 +163,24 @@ export enum FilterGroupOperator {
     or = 'or',
 }
 
-export const convertDashboardFiltersToFilters = (
-    dashboardFilters: DashboardFilters,
-): Filters => {
-    const { dimensions, metrics } = dashboardFilters;
-    const filters: Filters = {};
-    if (dimensions.length > 0) {
-        filters.dimensions = {
-            id: 'dashboard_dimension_filters',
-            and: dimensions.map((dimension) => dimension),
-        };
-    }
-    if (metrics.length > 0) {
-        filters.metrics = {
-            id: 'dashboard_dimension_metrics',
-            and: metrics.map((metric) => metric),
-        };
-    }
-    return filters;
-};
+export const dashboardFiltersToFieldFilters = (
+    filters: DashboardFilterRule[],
+): FilterRule[] =>
+    filters.reduce<FilterRule[]>((res, f) => {
+        if (f.target !== false) {
+            const newRule = {
+                ...f,
+                target: f.target as FieldTarget,
+            };
+            return [...res, newRule];
+        }
+        return res;
+    }, []);
 
 const isDashboardTileTargetFilterOverride = (
     filter: string | Record<string, DashboardFieldTarget>,
-): filter is Record<string, DashboardFieldTarget> => typeof filter === 'object';
+): filter is Record<string, DashboardFieldTarget> =>
+    typeof filter === 'object' || typeof filter === 'boolean';
 
 export const convertDashboardFiltersParamToDashboardFilters = (
     dashboardFilters: DashboardFiltersFromSearchParam,
@@ -196,31 +193,17 @@ export const convertDashboardFiltersParamToDashboardFilters = (
                 ...(f.tileTargets && {
                     tileTargets: f.tileTargets.reduce<
                         Record<string, DashboardFieldTarget>
-                    >(
-                        (tileTargetsResult, tileTarget) => ({
-                            ...tileTargetsResult,
-                            ...(isDashboardTileTargetFilterOverride(tileTarget)
-                                ? {
-                                      [Object.keys(tileTarget)[0]]: {
-                                          fieldId:
-                                              tileTarget[
-                                                  Object.keys(tileTarget)[0]
-                                              ].fieldId,
-                                          tableName:
-                                              tileTarget[
-                                                  Object.keys(tileTarget)[0]
-                                              ].tableName,
-                                      },
-                                  }
-                                : {
-                                      [tileTarget]: {
-                                          fieldId: f.target.fieldId,
-                                          tableName: f.target.tableName,
-                                      },
-                                  }),
-                        }),
-                        {},
-                    ),
+                    >((tileTargetsResult, tileTarget) => {
+                        const targetName = Object.keys(tileTarget)[0];
+                        const targetValue = Object.values(tileTarget)[0];
+                        if (isDashboardTileTargetFilterOverride(tileTarget)) {
+                            return {
+                                ...tileTargetsResult,
+                                ...{ [targetName]: targetValue },
+                            };
+                        }
+                        return tileTargetsResult;
+                    }, {}),
                 }),
             })),
         }),
@@ -236,12 +219,33 @@ export const compressDashboardFiltersToParam = (
             [key]: value.map((f) => ({
                 ...f,
                 ...(f.tileTargets && {
-                    tileTargets: Object.entries(f.tileTargets).map(
-                        ([tileTargetKey, tileTargetValue]) =>
-                            tileTargetValue.fieldId === f.target.fieldId &&
-                            tileTargetValue.tableName === f.target.tableName
-                                ? tileTargetKey
-                                : { [tileTargetKey]: tileTargetValue },
+                    tileTargets: Object.entries(f.tileTargets).reduce(
+                        (
+                            tileTargetsResult: Array<{
+                                [tile: string]: DashboardFieldTarget;
+                            }>,
+                            [tileTargetKey, tileTargetValue],
+                        ) => {
+                            // If the filter is not disabled for this tile
+                            // AND the table and field match, we omit it.
+                            // The filter will be automatically applied there
+                            if (
+                                tileTargetValue !== false &&
+                                f.target !== false &&
+                                tileTargetValue.fieldId === f.target.fieldId &&
+                                tileTargetValue.tableName === f.target.tableName
+                            ) {
+                                return tileTargetsResult;
+                            }
+
+                            return [
+                                ...tileTargetsResult,
+                                {
+                                    [tileTargetKey]: tileTargetValue,
+                                },
+                            ];
+                        },
+                        [],
                     ),
                 }),
             })),

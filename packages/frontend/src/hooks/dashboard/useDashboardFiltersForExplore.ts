@@ -23,14 +23,19 @@ const useDashboardFiltersForExplore = (
             rules
                 .filter((rule) => !rule.disabled)
                 .map((filter) => {
+                    const tileConfig = filter.tileTargets?.[tileUuid];
+
+                    // If the config is false, we remove this filter
+                    if (tileConfig === false) {
+                        return null;
+                    }
+
                     // If the tile isn't in the tileTarget overrides,
                     // we return the filter and don't treat this tile
                     // differently.
-                    if (!filter.tileTargets?.[tileUuid]) {
+                    if (tileConfig === undefined) {
                         return filter;
                     }
-
-                    const tileConfig = filter.tileTargets[tileUuid];
 
                     return {
                         ...filter,
@@ -41,7 +46,11 @@ const useDashboardFiltersForExplore = (
                     };
                 })
                 .filter((f): f is DashboardFilterRule => f !== null)
-                .filter((f) => tables.includes(f.target.tableName)),
+                .filter(
+                    (f) =>
+                        f.target !== false &&
+                        tables.includes(f.target.tableName),
+                ),
         [tables, tileUuid],
     );
 

@@ -99,15 +99,15 @@ const TileFilterConfiguration: FC<Props> = ({
             // if it is a field, we use that field for the filter.
             // If it is the empty string, the filter is disabled.
             const tileConfig = filterRule.tileTargets?.[tileUuid];
-            const selectedField =
-                tileConfig?.fieldId !== ''
-                    ? filters?.find((f) => {
-                          return (
-                              tileConfig?.fieldId === getFieldId(f) ||
-                              matchFieldExact(f)(field)
-                          );
-                      })
-                    : undefined;
+
+            let selectedField;
+            if (tileConfig !== false) {
+                selectedField = tileConfig?.fieldId
+                    ? filters?.find(
+                          (f) => tileConfig?.fieldId === getFieldId(f),
+                      )
+                    : filters?.find((f) => matchFieldExact(f)(field));
+            }
 
             const isFilterAvailable =
                 filters?.some(matchFieldByType(field)) ?? false;

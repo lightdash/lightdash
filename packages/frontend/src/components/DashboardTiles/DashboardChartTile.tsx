@@ -437,7 +437,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         (filterRule: DashboardFilterRule) => {
             const fields: Field[] = explore ? getVisibleFields(explore) : [];
             const field = fields.find(
-                (f) => fieldId(f) === filterRule.target.fieldId,
+                (f) =>
+                    filterRule.target !== false &&
+                    fieldId(f) === filterRule.target.fieldId,
             );
             if (field && isFilterableField(field)) {
                 const filterRuleLabels = getConditionalRuleLabel(
@@ -462,7 +464,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     </div>
                 );
             }
-            return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
+            return `Tried to reference field with unknown id: ${
+                filterRule.target !== false && filterRule.target.fieldId
+            }`;
         },
         [explore],
     );
@@ -682,8 +686,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                     <MenuItem2
                                                         key={filter.id}
                                                         text={`${friendlyName(
-                                                            filter.target
-                                                                .fieldId,
+                                                            filter.target !==
+                                                                false
+                                                                ? filter.target
+                                                                      .fieldId
+                                                                : '',
                                                         )} is ${
                                                             filter.values &&
                                                             filter.values[0]
@@ -707,12 +714,14 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                             const field =
                                                                 fields.find(
                                                                     (f) =>
+                                                                        filter.target !==
+                                                                            false &&
                                                                         fieldId(
                                                                             f,
                                                                         ) ===
-                                                                        filter
-                                                                            .target
-                                                                            .fieldId,
+                                                                            filter
+                                                                                .target
+                                                                                .fieldId,
                                                                 );
 
                                                             track({
