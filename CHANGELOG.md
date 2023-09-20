@@ -1,3 +1,10 @@
+# [0.780.0](https://github.com/lightdash/lightdash/compare/0.779.0...0.780.0) (2023-09-20)
+
+
+### Features
+
+* light table ([#7089](https://github.com/lightdash/lightdash/issues/7089)) ([0ea1483](https://github.com/lightdash/lightdash/commit/0ea1483ec5baf9a0861289a16cad98fbe2ef5135))
+
 # [0.779.0](https://github.com/lightdash/lightdash/compare/0.778.5...0.779.0) (2023-09-20)
 
 
