@@ -31,6 +31,7 @@ export default defineConfig({
             exclude: [/\.(br)$/, /\.(gz)$/],
             include: /\.js$/,
             deleteOriginalAssets: true,
+            filename: '[path][base].gzip',
         }),
     ],
     css: {
