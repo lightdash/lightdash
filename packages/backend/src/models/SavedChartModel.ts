@@ -10,6 +10,7 @@ import {
     getChartType,
     isFormat,
     NotFoundError,
+    Organization,
     Project,
     SavedChart,
     SessionUser,
@@ -738,16 +739,18 @@ export class SavedChartModel {
         {
             spaceUuid: Space['uuid'];
         } & Pick<SavedChart, 'uuid' | 'name' | 'tableName'> &
-            Pick<Project, 'projectUuid'>
+            Pick<Project, 'projectUuid'> &
+            Pick<Organization, 'organizationUuid'>
     > {
         const [chart] = await this.database('saved_queries')
             .where(`${SavedChartsTableName}.saved_query_uuid`, savedChartUuid)
             .select({
                 uuid: 'saved_queries.saved_query_uuid',
-                name: 'saved_queries.names',
+                name: 'saved_queries.name',
                 spaceUuid: 'spaces.space_uuid',
                 tableName: 'saved_queries_versions.explore_name',
                 projectUuid: 'projects.project_uuid',
+                organizationUuid: 'organizations.organization_uuid',
             })
             .leftJoin(
                 DashboardsTableName,
@@ -771,6 +774,11 @@ export class SavedChartModel {
                 'saved_queries_versions.saved_query_id',
             )
             .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
+            .leftJoin(
+                OrganizationTableName,
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
             .limit(1);
         if (chart === undefined) {
             throw new NotFoundError('Saved query not found');

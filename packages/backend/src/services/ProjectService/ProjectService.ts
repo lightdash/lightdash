@@ -1859,19 +1859,32 @@ export class ProjectService {
             description: 'Gets all filters available for a single query',
         });
         try {
+            console.log(`for chart ${savedChartUuid}`);
+
+            const startTime1 = Date.now();
+            const savedChart2 = await this.savedChartModel.get(savedChartUuid);
+            const endTime1 = Date.now();
+            console.log(`get took ${endTime1 - startTime1} ms`);
+
+            const startTime2 = Date.now();
+            const savedChart3 = await this.savedChartModel.getSummary(
+                savedChartUuid,
+            );
+            const endTime2 = Date.now();
+            console.log(`getSummary took ${endTime2 - startTime2} ms`);
+
+            const startTime3 = Date.now();
             const savedChart =
                 await this.savedChartModel.getInfoForAvailableFilters(
                     savedChartUuid,
                 );
+            const endTime3 = Date.now();
+            console.log(
+                `getInfoForAvailableFilters took ${endTime3 - startTime3} ms`,
+            );
 
             if (
-                user.ability.cannot(
-                    'view',
-                    subject('SavedChart', {
-                        ...savedChart,
-                        organizationUuid: user.organizationUuid,
-                    }),
-                )
+                user.ability.cannot('view', subject('SavedChart', savedChart))
             ) {
                 throw new ForbiddenError();
             }
