@@ -6,6 +6,7 @@ env:
 
 jobs:
   files-changed:
+    if: github.ref != 'refs/heads/main'
     name: Detect what files changed
     runs-on: ubuntu-latest
     # Map a step output to a job output
@@ -19,14 +20,11 @@ jobs:
         with:
           base: 'HEAD'
           token: ${{ github.token }}
-          filters: |
-            cli:
-              - 'packages/cli/**'
-              - 'packages/e2e/cypress/cli/**'
+          filters: .github/file-filters.yml
 
   prepare-preview:
     # Only trigger for correct environment and status and if CLI files changed
-    if: github.ref != 'refs/heads/main' && needs.files-changed.outputs.cli == 'true'
+    if: needs.files-changed.outputs.cli == 'true'
     needs: files-changed
     runs-on: ubuntu-latest
     outputs:

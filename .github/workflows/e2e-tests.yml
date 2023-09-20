@@ -1,10 +1,29 @@
 name: End-to-end tests
 on: [ deployment_status ]
 jobs:
+  files-changed:
+    if: github.ref != 'refs/heads/main'
+    name: Detect what files changed
+    runs-on: ubuntu-latest
+    # Map a step output to a job output
+    outputs:
+      frontend: ${{ steps.changes.outputs.frontend }}
+      backend: ${{ steps.changes.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Check for backend file changes
+        uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          base: 'HEAD'
+          token: ${{ github.token }}
+          filters: .github/file-filters.yml
+
   prepare-preview:
     # Only trigger for correct environment and status
     runs-on: ubuntu-latest
-    if: github.ref != 'refs/heads/main'
+    if: needs.files-changed.outputs.frontend == 'true' || needs.files-changed.outputs.backend == 'true'
+    needs: files-changed
     outputs:
       url: ${{ github.event.deployment_status.environment_url }}
     steps:
