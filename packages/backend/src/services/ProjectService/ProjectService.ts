@@ -1901,7 +1901,7 @@ export class ProjectService {
             const endTime4 = Date.now();
             console.log(
                 `getSummaryWithExploreName for chart ${savedChartUuid} took ${
-                    startTime4 - endTime4
+                    endTime4 - startTime4
                 } ms`,
             );
 
