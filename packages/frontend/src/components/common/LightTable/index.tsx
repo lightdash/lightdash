@@ -242,6 +242,7 @@ const SectionBase = (sectionType: SectionType) => {
         ({ children, withSticky = false, ...rest }, ref) => {
             const { scrollPositions } = useTableContext();
             const { cx, classes } = useTableSectionStyles({
+                withSticky,
                 sectionType,
                 scrollPositions,
             });

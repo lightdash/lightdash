@@ -52,11 +52,13 @@ export const useTableSectionStyles = createStyles<
         };
         withSticky: boolean;
     }
->((theme, { sectionType, scrollPositions }) => {
+>((theme, { withSticky, sectionType, scrollPositions }) => {
     const borderColor = getBorderColor(theme);
     const shadowColor = getShadowColor(theme);
 
     const getStickyCellShadowStyles = () => {
+        if (!withSticky) return {};
+
         switch (sectionType) {
             case SectionType.Head:
                 return {
@@ -90,6 +92,8 @@ export const useTableSectionStyles = createStyles<
     };
 
     const getStickySectionStyles = () => {
+        if (!withSticky) return {};
+
         switch (sectionType) {
             case SectionType.Head:
                 return {
