@@ -424,10 +424,20 @@ export class ValidationService {
                         containsFieldId({
                             acc,
                             fieldIds: existingFieldIds,
-                            fieldId: filter.target.fieldId,
-                            error: `Filter error: the field '${filter.target.fieldId}' no longer exists`,
+                            fieldId:
+                                filter.target !== false
+                                    ? filter.target.fieldId
+                                    : '',
+                            error: `Filter error: the field '${
+                                filter.target !== false
+                                    ? filter.target.fieldId
+                                    : 'unknown'
+                            }' no longer exists`,
                             errorType: ValidationErrorType.Filter,
-                            fieldName: filter.target.fieldId,
+                            fieldName:
+                                filter.target !== false
+                                    ? filter.target.fieldId
+                                    : '',
                         }),
                     [],
                 );
