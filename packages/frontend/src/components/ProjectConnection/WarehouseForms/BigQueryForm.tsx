@@ -1,3 +1,4 @@
+import { WarehouseTypes } from '@lightdash/common';
 import {
     Anchor,
     FileInput,
@@ -6,7 +7,7 @@ import {
     Stack,
     TextInput,
 } from '@mantine/core';
-import { FC } from 'react';
+import { FC, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
@@ -16,6 +17,7 @@ import {
     AdvancedButton,
     AdvancedButtonWrapper,
 } from '../ProjectConnection.styles';
+import { useProjectFormContext } from '../ProjectFormProvider';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 
 export const BigQuerySchemaInput: FC<{
@@ -58,6 +60,10 @@ const BigQueryForm: FC<{
 }> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     const { register } = useFormContext();
+    const [temporaryFile, setTemporaryFile] = useState<File>();
+    const { savedProject } = useProjectFormContext();
+    const requireSecrets: boolean =
+        savedProject?.warehouseConnection?.type !== WarehouseTypes.BIGQUERY;
 
     return (
         <>
@@ -106,7 +112,11 @@ const BigQueryForm: FC<{
                         <FileInput
                             {...field}
                             label="Key File"
-                            placeholder="Choose file..."
+                            placeholder={
+                                !requireSecrets
+                                    ? '**************'
+                                    : 'Choose file...'
+                            }
                             description={
                                 <p>
                                     This is the JSON key file. You can see{' '}
@@ -121,10 +131,27 @@ const BigQueryForm: FC<{
                                 </p>
                             }
                             {...register('warehouse.keyfileContents')}
-                            required
+                            required={requireSecrets}
                             accept="application/json"
-                            value={field.value}
-                            onChange={field.onChange}
+                            value={temporaryFile}
+                            onChange={(file) => {
+                                if (file) {
+                                    const fileReader = new FileReader();
+                                    fileReader.onload = function (event) {
+                                        const contents = event.target?.result;
+                                        if (typeof contents === 'string') {
+                                            setTemporaryFile(file);
+                                            field.onChange(
+                                                JSON.parse(contents),
+                                            );
+                                        } else {
+                                            field.onChange(null);
+                                        }
+                                    };
+                                    fileReader.readAsText(file);
+                                }
+                                field.onChange(null);
+                            }}
                             disabled={disabled}
                         />
                     )}
