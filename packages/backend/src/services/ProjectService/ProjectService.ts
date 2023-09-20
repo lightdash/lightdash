@@ -1016,7 +1016,7 @@ export class ProjectService {
         const rows = await wrapSentryTransaction(
             'getResultsForChartWithWarehouseQuery',
             {
-                user,
+                userUuid: user.userUuid,
                 chartUuid,
             },
             async () => {
