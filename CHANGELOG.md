@@ -1,3 +1,11 @@
+# [0.779.0](https://github.com/lightdash/lightdash/compare/0.778.5...0.779.0) (2023-09-20)
+
+
+### Features
+
+* migrate Bigquery settings forms to use Mantine ([#7139](https://github.com/lightdash/lightdash/issues/7139)) ([97bfd9d](https://github.com/lightdash/lightdash/commit/97bfd9d85e65f2f8d6078989d073abf196dfc55e))
+* Migrate project settings forms to use Mantine ([#7140](https://github.com/lightdash/lightdash/issues/7140)) ([b17b127](https://github.com/lightdash/lightdash/commit/b17b12754e5d97c3502b4d40baeba54505419d84))
+
 ## [0.778.5](https://github.com/lightdash/lightdash/compare/0.778.4...0.778.5) (2023-09-20)
 
 
