@@ -1,13 +1,17 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { Anchor } from '@mantine/core';
+import {
+    Anchor,
+    NumberInput,
+    PasswordInput,
+    Select,
+    Stack,
+    TextInput,
+} from '@mantine/core';
 import React, { FC } from 'react';
+import { Controller, useFormContext } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import FormSection from '../../ReactHookForm/FormSection';
-import Input from '../../ReactHookForm/Input';
-import NumericInput from '../../ReactHookForm/NumericInput';
-import PasswordInput from '../../ReactHookForm/PasswordInput';
-import Select from '../../ReactHookForm/Select';
 import {
     AdvancedButton,
     AdvancedButtonWrapper,
@@ -18,17 +22,18 @@ import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 export const TrinoSchemaInput: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const { register } = useFormContext();
+
     return (
-        <Input
-            name="warehouse.schema"
+        <TextInput
             label="Schema"
-            labelHelp="This is the schema name."
-            rules={{
-                required: 'Required field',
+            description="This is the schema name."
+            required
+            {...register('warehouse.schema', {
                 validate: {
                     hasNoWhiteSpaces: hasNoWhiteSpaces('Schema'),
                 },
-            }}
+            })}
             disabled={disabled}
         />
     );
@@ -41,104 +46,120 @@ const TrinoForm: FC<{
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.TRINO;
+    const { register } = useFormContext();
     return (
         <>
-            <Input
-                name="warehouse.host"
-                label="Host"
-                labelHelp="This is the host where the database is running."
-                rules={{
-                    required: 'Required field',
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Host'),
-                    },
-                }}
-                disabled={disabled}
-            />
-            <Input
-                name="warehouse.user"
-                label="User"
-                labelHelp="This is the database user name."
-                rules={{
-                    required: requireSecrets ? 'Required field' : undefined,
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('User'),
-                    },
-                }}
-                placeholder={
-                    disabled || !requireSecrets ? '**************' : undefined
-                }
-                disabled={disabled}
-            />
-            <PasswordInput
-                name="warehouse.password"
-                label="Password"
-                labelHelp="This is the database user password."
-                rules={{
-                    required: requireSecrets ? 'Required field' : undefined,
-                }}
-                placeholder={
-                    disabled || !requireSecrets ? '**************' : undefined
-                }
-                disabled={disabled}
-            />
-            <Input
-                name="warehouse.dbname"
-                label="DB name"
-                labelHelp="This is the database name."
-                rules={{
-                    required: 'Required field',
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('DB name'),
-                    },
-                }}
-                disabled={disabled}
-            />
-
-            <FormSection isOpen={isOpen} name="advanced">
-                <NumericInput
-                    name="warehouse.port"
-                    label="Port"
-                    labelHelp="This is the database name."
-                    rules={{
-                        required: 'Required field',
-                    }}
+            <Stack style={{ marginTop: '8px' }}>
+                <TextInput
+                    label="Host"
+                    description="This is the host where the database is running."
+                    required
+                    {...register('warehouse.host', {
+                        validate: {
+                            hasNoWhiteSpaces: hasNoWhiteSpaces('Host'),
+                        },
+                    })}
                     disabled={disabled}
-                    defaultValue={443}
+                    labelProps={{ style: { marginTop: '8px' } }}
                 />
-                <Select
-                    name="warehouse.http_scheme"
-                    label="SSL mode"
-                    labelHelp={
-                        <p>
-                            This controls how dbt connects to Trino database
-                            using SSL. You can see more details in
-                            <Anchor
-                                target="_blank"
-                                href="https://docs.getdbt.com/reference/warehouse-setups/trino-setup#configuration"
-                                rel="noreferrer"
-                            >
-                                dbt documentation
-                            </Anchor>
-                            .
-                        </p>
+                <TextInput
+                    label="User"
+                    description="This is the database user name."
+                    required={requireSecrets}
+                    {...register('warehouse.user', {
+                        validate: {
+                            hasNoWhiteSpaces: hasNoWhiteSpaces('User'),
+                        },
+                    })}
+                    placeholder={
+                        disabled || !requireSecrets
+                            ? '**************'
+                            : undefined
                     }
-                    options={['http', 'https'].map((x) => ({
-                        value: x,
-                        label: x,
-                    }))}
-                    defaultValue="https"
                     disabled={disabled}
                 />
-                <StartOfWeekSelect disabled={disabled} />
-            </FormSection>
-            <AdvancedButtonWrapper>
-                <AdvancedButton
-                    icon={isOpen ? 'chevron-up' : 'chevron-down'}
-                    text={`Advanced configuration options`}
-                    onClick={toggleOpen}
+                <PasswordInput
+                    label="Password"
+                    description="This is the database user password."
+                    required={requireSecrets}
+                    placeholder={
+                        disabled || !requireSecrets
+                            ? '**************'
+                            : undefined
+                    }
+                    {...register('warehouse.password')}
+                    disabled={disabled}
                 />
-            </AdvancedButtonWrapper>
+                <TextInput
+                    label="DB name"
+                    description="This is the database name."
+                    required
+                    {...register('warehouse.dbname', {
+                        validate: {
+                            hasNoWhiteSpaces: hasNoWhiteSpaces('DB name'),
+                        },
+                    })}
+                    disabled={disabled}
+                />
+
+                <FormSection isOpen={isOpen} name="advanced">
+                    <Stack style={{ marginTop: '8px' }}>
+                        <Controller
+                            name="warehouse.port"
+                            defaultValue={443}
+                            render={({ field }) => (
+                                <NumberInput
+                                    {...field}
+                                    label="Port"
+                                    description="This is the database name."
+                                    required
+                                    disabled={disabled}
+                                />
+                            )}
+                        />
+                        <Controller
+                            name="warehouse.http_scheme"
+                            defaultValue="https"
+                            render={({ field }) => (
+                                <Select
+                                    label="SSL mode"
+                                    description={
+                                        <p>
+                                            This controls how dbt connects to
+                                            Trino database using SSL. You can
+                                            see more details in
+                                            <Anchor
+                                                target="_blank"
+                                                href="https://docs.getdbt.com/reference/warehouse-setups/trino-setup#configuration"
+                                                rel="noreferrer"
+                                            >
+                                                dbt documentation
+                                            </Anchor>
+                                            .
+                                        </p>
+                                    }
+                                    data={['http', 'https'].map((x) => ({
+                                        value: x,
+                                        label: x,
+                                    }))}
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    disabled={disabled}
+                                />
+                            )}
+                        />
+
+                        <StartOfWeekSelect disabled={disabled} />
+                    </Stack>
+                </FormSection>
+                <AdvancedButtonWrapper>
+                    <AdvancedButton
+                        icon={isOpen ? 'chevron-up' : 'chevron-down'}
+                        text={`Advanced configuration options`}
+                        onClick={toggleOpen}
+                    />
+                </AdvancedButtonWrapper>
+            </Stack>
         </>
     );
 };
