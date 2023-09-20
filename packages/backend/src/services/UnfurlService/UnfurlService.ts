@@ -212,21 +212,15 @@ export class UnfurlService {
         imageId: string,
         buffer: Buffer,
     ): Promise<string> {
+        // Converts an image to PDF format,
+        // The PDF has the size of the image, not DIN A4
         const pdfDoc = await PDFDocument.create();
         const pngImage = await pdfDoc.embedPng(buffer);
-        const page = pdfDoc.addPage();
-        const { width, height } = page.getSize();
-        const scaled = pngImage.scaleToFit(width, height);
-        page.drawImage(pngImage, {
-            x: 0,
-            y: 0,
-            width: scaled.width,
-            height: scaled.height,
-        });
+        const page = pdfDoc.addPage([pngImage.width, pngImage.height]);
+        page.drawImage(pngImage);
         const path = `/tmp/${imageId}.pdf`;
         const pdfBytes = await pdfDoc.save();
         await fsPromise.writeFile(path, pdfBytes);
-
         return path;
     }
 
