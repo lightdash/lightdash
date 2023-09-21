@@ -4,10 +4,12 @@ import {
     Anchor,
     Button,
     CopyButton,
+    Group,
     NumberInput,
     PasswordInput,
     Select,
     Stack,
+    Switch,
     TextInput,
     Tooltip,
 } from '@mantine/core';
@@ -17,7 +19,6 @@ import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import MantineIcon from '../../common/MantineIcon';
-import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import {
     AdvancedButton,
@@ -137,7 +138,7 @@ const RedshiftForm: FC<{
                                 <NumberInput
                                     {...field}
                                     label="Port"
-                                    description="This is the database name."
+                                    description="This is the port where the database is running."
                                     required
                                     disabled={disabled}
                                 />
@@ -177,15 +178,16 @@ const RedshiftForm: FC<{
                             defaultValue="prefer"
                             render={({ field }) => (
                                 <Select
+                                    name={field.name}
                                     label="SSL mode"
                                     description={
                                         <p>
                                             This controls how dbt connects to
-                                            Postgres databases using SSL. You
+                                            Redshift databases using SSL. You
                                             can see more details in{' '}
                                             <Anchor
                                                 target="_blank"
-                                                href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#sslmode"
+                                                href="https://docs.getdbt.com/docs/core/connect-data-platform/redshift-setup#sslmode-change"
                                                 rel="noreferrer"
                                             >
                                                 dbt documentation
@@ -208,19 +210,51 @@ const RedshiftForm: FC<{
                                 />
                             )}
                         />
-
-                        <BooleanSwitch
+                        <Controller
                             name="warehouse.ra3Node"
-                            label="Use RA3 node"
-                            labelHelp="Allow dbt to use cross-database-resources."
-                            defaultValue
-                            disabled={disabled}
+                            render={({ field }) => (
+                                <Switch.Group
+                                    label="Use RA3 node"
+                                    description="Allow dbt to use cross-database-resources."
+                                    value={field.value ? ['true'] : []}
+                                    onChange={(values) =>
+                                        field.onChange(values.length > 0)
+                                    }
+                                    size="md"
+                                >
+                                    <Group mt="xs">
+                                        <Switch
+                                            onLabel="Yes"
+                                            offLabel="No"
+                                            value="true"
+                                            disabled={disabled}
+                                        />
+                                    </Group>
+                                </Switch.Group>
+                            )}
                         />
                         <StartOfWeekSelect disabled={disabled} />
-                        <BooleanSwitch
+                        <Controller
                             name="warehouse.useSshTunnel"
-                            label="Use SSH tunnel"
-                            disabled={disabled}
+                            render={({ field }) => (
+                                <Switch.Group
+                                    label="Use SSH tunnel"
+                                    value={field.value ? ['true'] : []}
+                                    onChange={(values) =>
+                                        field.onChange(values.length > 0)
+                                    }
+                                    size="md"
+                                >
+                                    <Group mt="xs">
+                                        <Switch
+                                            onLabel="Yes"
+                                            offLabel="No"
+                                            value="true"
+                                            disabled={disabled}
+                                        />
+                                    </Group>
+                                </Switch.Group>
+                            )}
                         />
                         <FormSection
                             isOpen={showSshTunnelConfiguration}
