@@ -1,3 +1,4 @@
+import { type } from 'os';
 import { ConditionalOperator, ConditionalRule } from './conditionalRule';
 
 export enum FilterType {
@@ -50,12 +51,12 @@ export interface FilterRule<
 export interface MetricFilterRule
     extends FilterRule<ConditionalOperator, { fieldRef: string }> {}
 
-export type DashboardFieldTarget =
-    | {
-          fieldId: string;
-          tableName: string;
-      }
-    | false;
+export type DashboardFieldTarget = {
+    fieldId: string;
+    tableName: string;
+};
+
+type DashboardTileTarget = DashboardFieldTarget | false;
 
 export type DashboardFilterRule<
     O = ConditionalOperator,
@@ -63,7 +64,7 @@ export type DashboardFilterRule<
     V = any,
     S = any,
 > = FilterRule<O, T, V, S> & {
-    tileTargets?: Record<string, DashboardFieldTarget>;
+    tileTargets?: Record<string, DashboardTileTarget>;
     label: undefined | string;
 };
 
