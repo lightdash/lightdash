@@ -7,8 +7,8 @@ import {
     getSchedulerTargetUuid,
     getSchedulerUuid,
     GsheetsNotificationPayload,
+    isCreateScheduler,
     isCreateSchedulerSlackTarget,
-    isSavedScheduler,
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
     ScheduledJobs,
@@ -174,6 +174,7 @@ export class SchedulerClient {
                 schedulerTargetId: undefined,
                 type: 'gsheets',
                 format: scheduler.format,
+                sendNow: scheduler.schedulerUuid === undefined,
             },
         });
         return { jobId: id };
@@ -304,13 +305,13 @@ export class SchedulerClient {
 
         try {
             if (scheduler.format === SchedulerFormat.GSHEETS) {
-                if (!isSavedScheduler(scheduler)) {
+                if (isCreateScheduler(scheduler)) {
                     throw Error(
                         'Unable to run Google sheet delivery on unsaved scheduled delivery',
                     );
                 }
                 Logger.info(
-                    `Creating gsheet notification jobs for scheduler ${scheduler.schedulerUuid}`,
+                    `Creating gsheet notification jobs for scheduler ${schedulerUuid}`,
                 );
                 const job = await this.addGsheetsUploadJob(
                     scheduledTime,
