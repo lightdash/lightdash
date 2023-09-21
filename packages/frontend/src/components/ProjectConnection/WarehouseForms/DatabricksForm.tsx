@@ -136,7 +136,7 @@ const DatabricksForm: FC<{
                     label="Catalog name"
                     description="This is the catalog name."
                     required
-                    {...register('warehouse.serverHostName', {
+                    {...register('warehouse.catalog', {
                         validate: {
                             hasNoWhiteSpaces: hasNoWhiteSpaces('Catalog name'),
                         },
