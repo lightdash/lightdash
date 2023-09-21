@@ -405,6 +405,55 @@ export const buildQuery = ({
     );
     const sqlLimit = `LIMIT ${limit}`;
 
+    if (compiledMetricQuery.periodOverPeriod) {
+        const t = [sqlSelect, sqlFrom, sqlJoins, sqlWhere, sqlGroupBy].join(
+            '\n',
+        );
+        const mq1 = `WITH metrics1 AS (\n${t}\n)`;
+        const mq2 = `, metrics2 AS (\n${t}\n)`;
+        const popCte = `, popcte AS (
+        SELECT
+            metrics1.*,
+            ${compiledMetricQuery.metrics
+                .map((m) => `metrics2.${m} as ${m}_period`)
+                .join(',')} 
+            FROM metrics1
+            LEFT JOIN metrics2
+            ON metrics1.${compiledMetricQuery.periodOverPeriod.dateDimension} = 
+              metrics2.${
+                  compiledMetricQuery.periodOverPeriod.dateDimension
+              } + INTERVAL '${
+            compiledMetricQuery.periodOverPeriod.periodCount
+        } ${compiledMetricQuery.periodOverPeriod.periodGrain}'
+        )`;
+
+        const tableCalculationSelects =
+            compiledMetricQuery.compiledTableCalculations.map(
+                (tableCalculation) => {
+                    const alias = tableCalculation.name;
+                    return `  ${tableCalculation.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
+                },
+            );
+        const finalSelect = `SELECT\n${['  *', ...tableCalculationSelects].join(
+            ',\n',
+        )}`;
+
+        const finalSql = [
+            mq1,
+            mq2,
+            popCte,
+            finalSelect,
+            `FROM popcte`,
+            sqlOrderBy,
+            sqlLimit,
+        ].join('\n');
+
+        return {
+            hasExampleMetric: false,
+            query: finalSql,
+        };
+    }
+
     if (
         compiledMetricQuery.compiledTableCalculations.length > 0 ||
         whereMetricFilters

@@ -146,6 +146,7 @@ projectRouter.post(
                 limit: body.limit,
                 tableCalculations: body.tableCalculations,
                 additionalMetrics: body.additionalMetrics,
+                periodOverPeriod: body.periodOverPeriod,
             };
             const results: ApiCompiledQueryResults = (
                 await projectService.compileQuery(

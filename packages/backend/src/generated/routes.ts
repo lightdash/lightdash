@@ -2162,11 +2162,31 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PeriodOverPeriodConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                periodGrain: { dataType: 'string', required: true },
+                periodCount: { dataType: 'double', required: true },
+                dateDimension: { ref: 'FieldId', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     RunQueryRequest: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                periodOverPeriod: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'PeriodOverPeriodConfig' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 csvLimit: { dataType: 'double' },
                 additionalMetrics: {
                     dataType: 'array',

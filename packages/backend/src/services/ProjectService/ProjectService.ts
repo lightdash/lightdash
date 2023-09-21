@@ -708,13 +708,15 @@ export class ProjectService {
             metricQuery,
             warehouseClient,
         });
-        return buildQuery({
+        const done = buildQuery({
             explore,
             compiledMetricQuery,
             warehouseClient,
             userUuid,
             userAttributes,
         });
+        console.log(done.query);
+        return done;
     }
 
     async compileQuery(

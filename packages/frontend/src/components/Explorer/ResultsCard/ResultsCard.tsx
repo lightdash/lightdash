@@ -1,7 +1,8 @@
 import { subject } from '@casl/ability';
-import { Button, Popover } from '@mantine/core';
-import { IconShare2 } from '@tabler/icons-react';
-import { FC, memo, useCallback, useMemo } from 'react';
+import { Button, Modal, NumberInput, Popover, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { IconPlus, IconShare2 } from '@tabler/icons-react';
+import { FC, memo, useCallback, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { downloadCsv } from '../../../api/csv';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
@@ -57,6 +58,9 @@ const ResultsCard: FC = memo(() => {
     const columnOrder = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableConfig.columnOrder,
     );
+    const setPeriodOverPeriodConfig = useExplorerContext(
+        (context) => context.actions.setPeriodOverPeriodConfig,
+    );
 
     const disabled = !resultsData || resultsData.rows.length <= 0;
 
@@ -95,6 +99,16 @@ const ResultsCard: FC = memo(() => {
         [toggleExpandedSection],
     );
     const { user } = useApp();
+
+    const form = useForm({
+        initialValues: {
+            dateDimension: '',
+            periodCount: 1,
+            periodGrain: 'YEAR',
+        },
+    });
+
+    const [popIsOpen, setPopIsOpen] = useState(false);
     return (
         <CollapsableCard
             title="Results"
@@ -120,6 +134,17 @@ const ResultsCard: FC = memo(() => {
                 resultsIsOpen &&
                 tableName && (
                     <>
+                        <Button
+                            leftIcon={<MantineIcon icon={IconPlus} />}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setPopIsOpen(true);
+                            }}
+                            variant="default"
+                            size="xs"
+                        >
+                            Add Period-over-Period
+                        </Button>
                         {isEditMode && <AddColumnButton />}
 
                         <Can
@@ -162,6 +187,35 @@ const ResultsCard: FC = memo(() => {
             }
         >
             <ExplorerResults />
+            <Modal
+                title="Lets analyse"
+                size="lg"
+                opened={popIsOpen}
+                onClose={() => setPopIsOpen(false)}
+            >
+                <form
+                    onSubmit={form.onSubmit((vals) => {
+                        setPeriodOverPeriodConfig(vals);
+                        setPopIsOpen(false);
+                    })}
+                >
+                    <TextInput
+                        label="Date dimension"
+                        {...form.getInputProps('dateDimension')}
+                    />
+                    <NumberInput
+                        label="Periods"
+                        {...form.getInputProps('periodCount')}
+                    />
+                    <TextInput
+                        label="Period grain"
+                        {...form.getInputProps('periodGrain')}
+                    />
+                    <Button type="submit">
+                        Add period over period analysis
+                    </Button>
+                </form>
+            </Modal>
         </CollapsableCard>
     );
 });

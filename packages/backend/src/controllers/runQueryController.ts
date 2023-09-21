@@ -5,6 +5,7 @@ import {
     FieldId,
     MetricQuery,
     MetricQueryResponse,
+    PeriodOverPeriodConfig,
     SortField,
     TableCalculation,
 } from '@lightdash/common';
@@ -45,6 +46,7 @@ type RunQueryRequest = {
     tableCalculations: TableCalculation[]; // calculations to append to results
     additionalMetrics?: AdditionalMetric[]; // existing metric type
     csvLimit?: number;
+    periodOverPeriod?: PeriodOverPeriodConfig | undefined;
 };
 
 @Route('/api/v1/projects/{projectUuid}')
@@ -118,6 +120,7 @@ export class RunViewChartQueryController extends Controller {
             limit: body.limit,
             tableCalculations: body.tableCalculations,
             additionalMetrics: body.additionalMetrics,
+            periodOverPeriod: body.periodOverPeriod,
         };
         const results: ApiQueryResults = await projectService.runExploreQuery(
             req.user!,

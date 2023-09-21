@@ -14,6 +14,7 @@ import {
     isTableChartConfig,
     MetricQuery,
     MetricType,
+    PeriodOverPeriodConfig,
     removeEmptyProperties,
     SavedChart,
     SortField,
@@ -68,6 +69,7 @@ export enum ActionType {
     SET_CHART_TYPE,
     SET_CHART_CONFIG,
     TOGGLE_EXPANDED_SECTION,
+    SET_POP,
 }
 
 type Action =
@@ -160,6 +162,10 @@ type Action =
     | {
           type: ActionType.SET_CHART_CONFIG;
           payload: ChartConfig['config'] | undefined;
+      }
+    | {
+          type: ActionType.SET_POP;
+          payload: PeriodOverPeriodConfig | undefined;
       };
 
 export interface ExplorerReduceState {
@@ -235,6 +241,7 @@ export interface ExplorerContext {
         ) => void;
         fetchResults: () => void;
         toggleExpandedSection: (section: ExplorerSection) => void;
+        setPeriodOverPeriodConfig: (config: PeriodOverPeriodConfig) => void;
     };
 }
 
@@ -853,6 +860,33 @@ function reducer(
                 },
             };
         }
+        case ActionType.SET_POP: {
+            if (
+                action.payload == undefined ||
+                action.payload.dateDimension === ''
+            ) {
+                return {
+                    ...state,
+                    unsavedChartVersion: {
+                        ...state.unsavedChartVersion,
+                        metricQuery: {
+                            ...state.unsavedChartVersion.metricQuery,
+                            periodOverPeriod: undefined,
+                        },
+                    },
+                };
+            }
+            return {
+                ...state,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        periodOverPeriod: action.payload,
+                    },
+                },
+            };
+        }
         default: {
             return assertUnreachable(
                 action,
@@ -1101,6 +1135,16 @@ export const ExplorerProvider: FC<{
         });
     }, []);
 
+    const setPeriodOverPeriodConfig = useCallback(
+        (config: PeriodOverPeriodConfig) => {
+            dispatch({
+                type: ActionType.SET_POP,
+                payload: config,
+            });
+        },
+        [],
+    );
+
     const addTableCalculation = useCallback(
         (tableCalculation: TableCalculation) => {
             if (
@@ -1293,6 +1337,7 @@ export const ExplorerProvider: FC<{
             setChartConfig,
             fetchResults,
             toggleExpandedSection,
+            setPeriodOverPeriodConfig,
         }),
         [
             clearExplore,
@@ -1321,6 +1366,7 @@ export const ExplorerProvider: FC<{
             setChartConfig,
             fetchResults,
             toggleExpandedSection,
+            setPeriodOverPeriodConfig,
         ],
     );
 

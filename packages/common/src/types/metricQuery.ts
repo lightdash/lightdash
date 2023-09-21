@@ -34,6 +34,12 @@ export const isAdditionalMetric = (value: any): value is AdditionalMetric =>
 export const getCustomMetricDimensionId = (metric: AdditionalMetric) =>
     `${metric.table}_${metric.baseDimensionName}`;
 
+export type PeriodOverPeriodConfig = {
+    dateDimension: FieldId;
+    periodCount: number;
+    periodGrain: string;
+};
+
 // Object used to query an explore. Queries only happen within a single explore
 export type MetricQuery = {
     dimensions: FieldId[]; // Dimensions to group by in the explore
@@ -43,6 +49,7 @@ export type MetricQuery = {
     limit: number; // Max number of rows to return from query
     tableCalculations: TableCalculation[]; // calculations to append to results
     additionalMetrics?: AdditionalMetric[]; // existing metric type
+    periodOverPeriod?: PeriodOverPeriodConfig;
 };
 export type CompiledMetricQuery = MetricQuery & {
     compiledTableCalculations: CompiledTableCalculation[];

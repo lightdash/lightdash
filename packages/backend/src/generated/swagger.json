@@ -2470,8 +2470,27 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "PeriodOverPeriodConfig": {
+                "properties": {
+                    "periodGrain": {
+                        "type": "string"
+                    },
+                    "periodCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dateDimension": {
+                        "$ref": "#/components/schemas/FieldId"
+                    }
+                },
+                "required": ["periodGrain", "periodCount", "dateDimension"],
+                "type": "object"
+            },
             "RunQueryRequest": {
                 "properties": {
+                    "periodOverPeriod": {
+                        "$ref": "#/components/schemas/PeriodOverPeriodConfig"
+                    },
                     "csvLimit": {
                         "type": "number",
                         "format": "double"
@@ -4067,7 +4086,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.773.0",
+        "version": "0.774.1",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
