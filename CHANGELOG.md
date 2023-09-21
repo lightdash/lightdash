@@ -1,3 +1,10 @@
+## [0.780.1](https://github.com/lightdash/lightdash/compare/0.780.0...0.780.1) (2023-09-21)
+
+
+### Bug Fixes
+
+* wait until all charts finish loading before taking screenshot ([#7143](https://github.com/lightdash/lightdash/issues/7143)) ([6770799](https://github.com/lightdash/lightdash/commit/67707990195a9d261f913a2eb2ee8c9dc021bcd7))
+
 # [0.780.0](https://github.com/lightdash/lightdash/compare/0.779.0...0.780.0) (2023-09-20)
 
 
