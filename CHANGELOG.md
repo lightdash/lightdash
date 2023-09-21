@@ -1,3 +1,10 @@
+## [0.780.2](https://github.com/lightdash/lightdash/compare/0.780.1...0.780.2) (2023-09-21)
+
+
+### Bug Fixes
+
+* prevent to go back to edit mode after saving or canelling and hitting the back button on Dashboard ([#7134](https://github.com/lightdash/lightdash/issues/7134)) ([60661db](https://github.com/lightdash/lightdash/commit/60661dbaa0b75603cbe494fab1c4152d3e33b700))
+
 ## [0.780.1](https://github.com/lightdash/lightdash/compare/0.780.0...0.780.1) (2023-09-21)
 
 
