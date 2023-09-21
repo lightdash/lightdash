@@ -3002,6 +3002,17 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiTestSchedulerResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
             "ShareUrl": {
                 "properties": {
                     "host": {
@@ -4070,7 +4081,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.776.1",
+        "version": "0.778.4",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -6173,6 +6184,48 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/schedulers/send": {
+            "post": {
+                "operationId": "sendScheduler",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiTestSchedulerResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Send a test scheduler",
+                "tags": ["Schedulers"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "the unsaved scheduler data",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "description": "the unsaved scheduler data"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/share/{nanoId}": {

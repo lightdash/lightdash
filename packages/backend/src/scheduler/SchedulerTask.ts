@@ -1,16 +1,19 @@
 import {
     assertUnreachable,
     CompileProjectPayload,
+    CreateSchedulerAndTargets,
     CreateSchedulerLog,
+    CreateSchedulerTarget,
     DownloadCsvPayload,
     EmailNotificationPayload,
     getHumanReadableCronExpression,
     getRequestMethod,
     GsheetsNotificationPayload,
     isChartValidationError,
+    isCreateSchedulerSlackTarget,
     isDashboardChartTileType,
     isDashboardValidationError,
-    isEmailTarget,
+    isSavedScheduler,
     isSchedulerCsvOptions,
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
@@ -18,7 +21,7 @@ import {
     LightdashPage,
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
-    Scheduler,
+    SchedulerAndTargets,
     SchedulerEmailTarget,
     SchedulerFormat,
     SchedulerJobStatus,
@@ -102,7 +105,7 @@ const getChartOrDashboard = async (
 };
 
 export const getNotificationPageData = async (
-    scheduler: Scheduler,
+    scheduler: CreateSchedulerAndTargets,
     jobId: string,
 ): Promise<NotificationPayloadBase['page']> => {
     const {
@@ -239,8 +242,13 @@ export const sendSlackNotification = async (
     jobId: string,
     notification: SlackNotificationPayload,
 ) => {
-    const { schedulerUuid, schedulerSlackTargetUuid, scheduledTime } =
-        notification;
+    const {
+        schedulerUuid,
+        schedulerSlackTargetUuid,
+        channel,
+        scheduledTime,
+        scheduler,
+    } = notification;
     analytics.track({
         event: 'scheduler_notification_job.started',
         anonymousId: LightdashAnalytics.anonymousId,
@@ -257,23 +265,8 @@ export const sendSlackNotification = async (
             throw new Error('Slack app is not configured');
         }
 
-        const scheduler =
-            await schedulerService.schedulerModel.getSchedulerAndTargets(
-                schedulerUuid,
-            );
-        const { format, savedChartUuid, dashboardUuid, name, targets, cron } =
-            scheduler;
+        const { format, savedChartUuid, dashboardUuid, name, cron } = scheduler;
 
-        const target = targets
-            .filter(isSlackTarget)
-            .find(
-                (t) => t.schedulerSlackTargetUuid === schedulerSlackTargetUuid,
-            );
-
-        if (!target) {
-            throw new Error('Slack destination not found');
-        }
-        const { channel } = target;
         await schedulerService.logSchedulerJob({
             task: 'sendSlackNotification',
             schedulerUuid,
@@ -306,9 +299,12 @@ export const sendSlackNotification = async (
                 details.description ? ` - ${details.description}` : ''
             }`,
             ctaUrl: url,
-            footerMarkdown: `This is a <${url}?scheduler_uuid=${schedulerUuid}|scheduled delivery> ${getHumanReadableCronExpression(
-                cron,
-            )} from Lightdash`,
+            footerMarkdown:
+                schedulerUuid !== undefined
+                    ? `This is a <${url}?scheduler_uuid=${schedulerUuid}|scheduled delivery> ${getHumanReadableCronExpression(
+                          cron,
+                      )} from Lightdash`
+                    : `This is a scheduled delivery triggered manually from Lightdash`,
         };
 
         if (format === SchedulerFormat.IMAGE) {
@@ -726,8 +722,13 @@ export const sendEmailNotification = async (
     jobId: string,
     notification: EmailNotificationPayload,
 ) => {
-    const { schedulerUuid, schedulerEmailTargetUuid, scheduledTime } =
-        notification;
+    const {
+        schedulerUuid,
+        schedulerEmailTargetUuid,
+        recipient,
+        scheduledTime,
+        scheduler,
+    } = notification;
 
     analytics.track({
         event: 'scheduler_notification_job.started',
@@ -741,23 +742,8 @@ export const sendEmailNotification = async (
     });
 
     try {
-        const scheduler =
-            await schedulerService.schedulerModel.getSchedulerAndTargets(
-                schedulerUuid,
-            );
-        const { format, savedChartUuid, dashboardUuid, name, targets } =
-            scheduler;
+        const { format, savedChartUuid, dashboardUuid, name } = scheduler;
 
-        const target = targets
-            .filter(isEmailTarget)
-            .find(
-                (t) => t.schedulerEmailTargetUuid === schedulerEmailTargetUuid,
-            );
-
-        if (!target) {
-            throw new Error('Email destination not found');
-        }
-        const { recipient } = target;
         await schedulerService.logSchedulerJob({
             task: 'sendEmailNotification',
             schedulerUuid,
@@ -1074,9 +1060,9 @@ export const uploadGsheets = async (
 
 const logScheduledTarget = async (
     format: SchedulerFormat,
-    target: SchedulerSlackTarget | SchedulerEmailTarget | undefined,
+    target: CreateSchedulerTarget | undefined,
     targetJobId: string,
-    schedulerUuid: string,
+    schedulerUuid: string | undefined,
     jobId: string,
     scheduledTime: Date,
 ) => {
@@ -1101,7 +1087,7 @@ const logScheduledTarget = async (
         CreateSchedulerLog,
         'task' | 'target' | 'targetType'
     > => {
-        if (isSlackTarget(target)) {
+        if (isCreateSchedulerSlackTarget(target)) {
             return {
                 task: 'sendSlackNotification',
                 target: target.channel,
@@ -1130,15 +1116,27 @@ const logScheduledTarget = async (
 export const handleScheduledDelivery = async (
     jobId: string,
     scheduledTime: Date,
-    { schedulerUuid }: ScheduledDeliveryPayload,
+    schedulerPayload: ScheduledDeliveryPayload,
 ) => {
+    const schedulerUuid = isSavedScheduler(schedulerPayload)
+        ? schedulerPayload.schedulerUuid
+        : undefined;
+
     try {
+        const scheduler: SchedulerAndTargets | CreateSchedulerAndTargets =
+            isSavedScheduler(schedulerPayload)
+                ? await schedulerService.schedulerModel.getSchedulerAndTargets(
+                      schedulerPayload.schedulerUuid,
+                  )
+                : schedulerPayload;
+
         analytics.track({
             event: 'scheduler_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
             properties: {
                 jobId,
                 schedulerId: schedulerUuid,
+                sendNow: schedulerUuid === undefined,
             },
         });
         await schedulerService.logSchedulerJob({
@@ -1149,11 +1147,6 @@ export const handleScheduledDelivery = async (
             scheduledTime,
             status: SchedulerJobStatus.STARTED,
         });
-
-        const scheduler =
-            await schedulerService.schedulerModel.getSchedulerAndTargets(
-                schedulerUuid,
-            );
 
         const page =
             scheduler.format === SchedulerFormat.GSHEETS

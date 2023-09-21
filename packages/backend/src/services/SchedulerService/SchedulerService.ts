@@ -1,11 +1,13 @@
 import { subject } from '@casl/ability';
 import {
     ChartSummary,
+    CreateSchedulerAndTargets,
     CreateSchedulerAndTargetsWithoutIds,
     CreateSchedulerLog,
     Dashboard,
     ForbiddenError,
     isChartScheduler,
+    isCreateSchedulerSlackTarget,
     isSlackTarget,
     isUserWithOrg,
     ScheduledJobs,
@@ -244,50 +246,20 @@ export class SchedulerService {
         return job.status;
     }
 
-    async sendScheduler(user: SessionUser, scheduler: Scheduler) {
+    static async sendScheduler(
+        user: SessionUser,
+        scheduler: CreateSchedulerAndTargets,
+    ) {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
 
-        const resource = await this.getSchedulerResource(scheduler);
+        const slackChannels = scheduler.targets
+            .filter(isCreateSchedulerSlackTarget)
+            .map((target) => target.channel);
+        await slackClient.joinChannels(user.organizationUuid, slackChannels);
 
-        // TODO
-        /*
-        analytics.track({
-            userId: user.userUuid,
-            event: 'scheduler.updated',
-            properties: {
-                projectId: projectUuid,
-                organizationId: organizationUuid,
-                schedulerId: scheduler.schedulerUuid,
-                resourceType: isChartScheduler(scheduler)
-                    ? 'chart'
-                    : 'dashboard',
-                cronExpression: scheduler.cron,
-                format: scheduler.format,
-                cronString: cronstrue.toString(scheduler.cron, {
-                    verbose: true,
-                    throwExceptionOnParseError: false,
-                }),
-                resourceId: isChartScheduler(scheduler)
-                    ? scheduler.savedChartUuid
-                    : scheduler.dashboardUuid,
-                targets:
-                    scheduler.format === SchedulerFormat.GSHEETS
-                        ? []
-                        : scheduler.targets.map(getSchedulerTargetType),
-            },
-        }); */
-
-        // TODO
-        /*
-        await slackClient.joinChannels(
-            user.organizationUuid,
-            SchedulerModel.getSlackChannels(scheduler.targets),
-        ); */
-
-        // TODO
-        // await schedulerClient.sendNow(scheduler)
+        schedulerClient.addScheduledDeliveryJob(new Date(), scheduler);
 
         return 'ok';
     }

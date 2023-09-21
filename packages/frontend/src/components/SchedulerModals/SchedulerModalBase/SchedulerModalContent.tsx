@@ -10,6 +10,7 @@ import {
     ApiError,
     CreateSchedulerAndTargetsWithoutIds,
     SchedulerAndTargets,
+    UnsavedSchedulerAndTargets,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
 import { FC, useEffect, useState } from 'react';
@@ -19,8 +20,12 @@ import {
     UseQueryResult,
 } from 'react-query/types/react/types';
 import { useHistory, useLocation } from 'react-router-dom';
-import { useScheduler } from '../../../hooks/scheduler/useScheduler';
+import {
+    sendNowScheduler,
+    useScheduler,
+} from '../../../hooks/scheduler/useScheduler';
 import { useSchedulersUpdateMutation } from '../../../hooks/scheduler/useSchedulersUpdateMutation';
+import useUser from '../../../hooks/user/useUser';
 import ErrorState from '../../common/ErrorState';
 import SchedulerForm from './SchedulerForm';
 import SchedulersList from './SchedulersList';
@@ -66,8 +71,9 @@ const CreateStateContent: FC<{
         ApiError,
         { resourceUuid: string; data: CreateSchedulerAndTargetsWithoutIds }
     >;
+    isChart: boolean;
     onBack: () => void;
-}> = ({ resourceUuid, createMutation, onBack }) => {
+}> = ({ resourceUuid, createMutation, isChart, onBack }) => {
     const methods = useForm<CreateSchedulerAndTargetsWithoutIds>({
         mode: 'onSubmit',
     });
@@ -80,6 +86,8 @@ const CreateStateContent: FC<{
     const handleSubmit = (data: CreateSchedulerAndTargetsWithoutIds) => {
         createMutation.mutate({ resourceUuid, data });
     };
+    const { data: user } = useUser(true);
+
     return (
         <>
             <DialogBody>
@@ -91,6 +99,29 @@ const CreateStateContent: FC<{
                 actions={
                     <>
                         <Button onClick={onBack}>Back</Button>
+                        <Button
+                            onClick={() => {
+                                const schedulerData = methods.getValues();
+                                const resource = isChart
+                                    ? {
+                                          savedChartUuid: resourceUuid,
+                                          dashboardUuid: null,
+                                      }
+                                    : {
+                                          dashboardUuid: resourceUuid,
+                                          savedChartUuid: null,
+                                      };
+                                const unsavedScheduler: UnsavedSchedulerAndTargets =
+                                    {
+                                        ...schedulerData,
+                                        ...resource,
+                                        createdBy: user?.userUuid,
+                                    };
+                                sendNowScheduler(unsavedScheduler);
+                            }}
+                        >
+                            Send now
+                        </Button>
                         <Button
                             intent="primary"
                             loading={createMutation.isLoading}
@@ -163,6 +194,7 @@ const UpdateStateContent: FC<{
                 actions={
                     <>
                         <Button onClick={onBack}>Back</Button>
+
                         <Button
                             intent="primary"
                             loading={mutation.isLoading}
@@ -185,6 +217,7 @@ interface Props extends DialogProps {
         ApiError,
         { resourceUuid: string; data: CreateSchedulerAndTargetsWithoutIds }
     >;
+    isChart: boolean;
 }
 
 export const getSchedulerUuidFromUrlParams = (
@@ -203,6 +236,7 @@ const SchedulersModalContent: FC<Omit<Props, 'name'>> = ({
     resourceUuid,
     schedulersQuery,
     createMutation,
+    isChart,
     ...modalProps
 }) => {
     const [state, setState] = useState<States>(States.LIST);
@@ -244,12 +278,14 @@ const SchedulersModalContent: FC<Omit<Props, 'name'>> = ({
                 <CreateStateContent
                     resourceUuid={resourceUuid}
                     createMutation={createMutation}
+                    isChart={isChart}
                     onBack={() => setState(States.LIST)}
                 />
             )}
             {state === States.EDIT && schedulerUuid && (
                 <UpdateStateContent
                     schedulerUuid={schedulerUuid}
+                    isChart={isChart}
                     onBack={() => setState(States.LIST)}
                 />
             )}

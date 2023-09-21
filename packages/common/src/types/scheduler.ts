@@ -105,6 +105,19 @@ export type SchedulerEmailTarget = {
 export type CreateSchedulerTarget =
     | Pick<SchedulerSlackTarget, 'channel'>
     | Pick<SchedulerEmailTarget, 'recipient'>;
+
+export const getSchedulerTargetUuid = (
+    target: SchedulerSlackTarget | SchedulerEmailTarget | CreateSchedulerTarget,
+): string | undefined => {
+    if ('schedulerSlackTargetUuid' in target) {
+        return target.schedulerSlackTargetUuid;
+    }
+    if ('schedulerEmailTargetUuid' in target) {
+        return target.schedulerEmailTargetUuid;
+    }
+    return undefined;
+};
+
 export type UpdateSchedulerSlackTarget = Pick<
     SchedulerSlackTarget,
     'schedulerSlackTargetUuid' | 'channel'
@@ -222,8 +235,17 @@ export type ApiTestSchedulerResponse = {
 };
 
 // Scheduler task types
-
-export type ScheduledDeliveryPayload = { schedulerUuid: string };
+export type ScheduledDeliveryPayload =
+    | { schedulerUuid: string }
+    | CreateSchedulerAndTargets;
+export const isSavedScheduler = (
+    data: ScheduledDeliveryPayload,
+): data is { schedulerUuid: string } =>
+    'schedulerUuid' in data && !!data.schedulerUuid;
+export const getSchedulerUuid = (
+    data: ScheduledDeliveryPayload,
+): string | undefined =>
+    isSavedScheduler(data) ? data.schedulerUuid : undefined;
 
 export enum LightdashPage {
     DASHBOARD = 'dashboard',
@@ -232,7 +254,7 @@ export enum LightdashPage {
 }
 
 export type NotificationPayloadBase = {
-    schedulerUuid: string;
+    schedulerUuid?: string;
     scheduledTime: Date;
     jobGroup: string;
     page: {
@@ -258,14 +280,17 @@ export type NotificationPayloadBase = {
         }[];
         pdfFile?: string;
     };
+    scheduler: CreateSchedulerAndTargets;
 };
 
 export type SlackNotificationPayload = NotificationPayloadBase & {
-    schedulerSlackTargetUuid: string;
+    schedulerSlackTargetUuid?: string;
+    channel: string;
 };
 
 export type EmailNotificationPayload = NotificationPayloadBase & {
-    schedulerEmailTargetUuid: string;
+    schedulerEmailTargetUuid?: string;
+    recipient: string;
 };
 
 export type GsheetsNotificationPayload = {

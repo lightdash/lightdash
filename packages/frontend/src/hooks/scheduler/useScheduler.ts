@@ -1,6 +1,7 @@
 import {
     ApiError,
     ApiJobStatusResponse,
+    CreateSchedulerAndTargets,
     SchedulerAndTargets,
     SchedulerJobStatus,
     SchedulerWithLogs,
@@ -20,6 +21,13 @@ const getSchedulerLogs = async (projectUuid: string) =>
         url: `/schedulers/${projectUuid}/logs`,
         method: 'GET',
         body: undefined,
+    });
+
+export const sendNowScheduler = async (scheduler: CreateSchedulerAndTargets) =>
+    lightdashApi<undefined>({
+        url: `/schedulers/send`,
+        method: 'POST',
+        body: JSON.stringify(scheduler),
     });
 
 export const useScheduler = (

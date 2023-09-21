@@ -22,6 +22,7 @@ import {
     SuccessResponse,
     Tags,
 } from 'tsoa';
+import { SchedulerService } from '../services/SchedulerService/SchedulerService';
 import { schedulerService } from '../services/services';
 import {
     allowApiKeyAuthentication,
@@ -182,9 +183,9 @@ export class SchedulerController extends Controller {
     }
 
     /**
-     * Send a test scheduler
+     * Send a scheduler now before saving it
      * @param req express request
-     * @param body the unsaved scheduler data
+     * @param body the create scheduler data
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -196,10 +197,10 @@ export class SchedulerController extends Controller {
     @OperationId('sendScheduler')
     async post(
         @Request() req: express.Request,
-        @Body() body: any, // TODO: It should be UpdateSchedulerAndTargetsWithoutId but tsoa returns an error
+        @Body() body: any, // TODO: It should be CreateSchedulerAndTargets but tsoa returns an error
     ): Promise<ApiTestSchedulerResponse> {
         this.setStatus(200);
-        await schedulerService.testScheduler(req.user!, body);
+        await SchedulerService.sendScheduler(req.user!, body);
         return {
             status: 'ok',
         };
