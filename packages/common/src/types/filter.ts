@@ -1,4 +1,3 @@
-import { type } from 'os';
 import { ConditionalOperator, ConditionalRule } from './conditionalRule';
 
 export enum FilterType {
@@ -105,10 +104,10 @@ export type DashboardFilters = {
 
 export type DashboardFiltersFromSearchParam = {
     dimensions: (Omit<DashboardFilterRule, 'tileTargets'> & {
-        tileTargets?: (string | Record<string, DashboardFieldTarget>)[];
+        tileTargets?: (string | Record<string, DashboardTileTarget>)[];
     })[];
     metrics: (Omit<DashboardFilterRule, 'tileTargets'> & {
-        tileTargets?: (string | Record<string, DashboardFieldTarget>)[];
+        tileTargets?: (string | Record<string, DashboardTileTarget>)[];
     })[];
 };
 
@@ -164,23 +163,9 @@ export enum FilterGroupOperator {
     or = 'or',
 }
 
-export const dashboardFiltersToFieldFilters = (
-    filters: DashboardFilterRule[],
-): FilterRule[] =>
-    filters.reduce<FilterRule[]>((res, f) => {
-        if (f.target !== false) {
-            const newRule = {
-                ...f,
-                target: f.target as FieldTarget,
-            };
-            return [...res, newRule];
-        }
-        return res;
-    }, []);
-
 const isDashboardTileTargetFilterOverride = (
-    filter: string | Record<string, DashboardFieldTarget>,
-): filter is Record<string, DashboardFieldTarget> =>
+    filter: string | Record<string, DashboardTileTarget>,
+): filter is Record<string, DashboardTileTarget> =>
     typeof filter === 'object' || typeof filter === 'boolean';
 
 export const convertDashboardFiltersParamToDashboardFilters = (
@@ -193,7 +178,7 @@ export const convertDashboardFiltersParamToDashboardFilters = (
                 ...f,
                 ...(f.tileTargets && {
                     tileTargets: f.tileTargets.reduce<
-                        Record<string, DashboardFieldTarget>
+                        Record<string, DashboardTileTarget>
                     >((tileTargetsResult, tileTarget) => {
                         const targetName = Object.keys(tileTarget)[0];
                         const targetValue = Object.values(tileTarget)[0];
@@ -223,7 +208,7 @@ export const compressDashboardFiltersToParam = (
                     tileTargets: Object.entries(f.tileTargets).reduce(
                         (
                             tileTargetsResult: Array<{
-                                [tile: string]: DashboardFieldTarget;
+                                [tile: string]: DashboardTileTarget;
                             }>,
                             [tileTargetKey, tileTargetValue],
                         ) => {
@@ -232,7 +217,6 @@ export const compressDashboardFiltersToParam = (
                             // The filter will be automatically applied there
                             if (
                                 tileTargetValue !== false &&
-                                f.target !== false &&
                                 tileTargetValue.fieldId === f.target.fieldId &&
                                 tileTargetValue.tableName === f.target.tableName
                             ) {

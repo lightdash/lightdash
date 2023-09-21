@@ -46,11 +46,7 @@ const useDashboardFiltersForExplore = (
                     };
                 })
                 .filter((f): f is DashboardFilterRule => f !== null)
-                .filter(
-                    (f) =>
-                        f.target !== false &&
-                        tables.includes(f.target.tableName),
-                ),
+                .filter((f) => tables.includes(f.target.tableName)),
         [tables, tileUuid],
     );
 

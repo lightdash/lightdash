@@ -169,9 +169,6 @@ const DashboardCellContextMenu: FC<
             {filters.length > 0 && (
                 <MenuItem2 icon="filter" text="Filter dashboard to...">
                     {filters.map((filter) => {
-                        if (filter.target === false) {
-                            return null;
-                        }
                         return (
                             <MenuItem2
                                 key={filter.id}
