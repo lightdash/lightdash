@@ -805,6 +805,17 @@
                                                                                     </div>
                                                                                 </td>
                                                                             </tr>
+                                                                            {{#if expirationDays}}
+                                                                            <tr><td>
+                                                                                <table class="m_-2374100189728625140hm" role="presentation" cellpadding="0" cellspacing="0" align="center"><tbody><tr>
+                                                                                <td class="m_-2374100189728625140hm" style="width:856px">
+                                                                                
+                                                                                <p class="m_-2374100189728625140hm" style="margin-bottom:0;Margin-bottom:20px;font-family:BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif,'Roboto';line-height:21px;font-weight:500;font-style:normal;font-size:12px;text-decoration:none;text-transform:none;direction:ltr;color:#95959e;text-align:center">
+                                                                                    Delivered {{date}}. For security reasons, delivered files expire after {{expirationDays}} days.&nbsp;
+                                                                                    <a href="https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries" style="margin-bottom:0;Margin-bottom:0;color:#6178c2">See more information.</a></p></td>
+                                                                                </tr></tbody></table>
+                                                                                </td></tr>
+                                                                                {{/if}}
                                                                             <tr>
                                                                                 <td>
                                                                                     <table

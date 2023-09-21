@@ -103,6 +103,9 @@ export class HealthService {
                     enabled: !!this.lightdashConfig.auth.azuread.oauth2ClientId,
                 },
             },
+            s3Expiration: this.lightdashConfig.s3?.bucket
+                ? this.lightdashConfig.s3?.expirationTime
+                : undefined,
             hasEmailClient: !!this.lightdashConfig.smtp,
             hasHeadlessBrowser:
                 this.lightdashConfig.headlessBrowser?.host !== undefined,

@@ -624,6 +624,7 @@ export type HealthState = {
         maxLimit: number;
         csvCellsLimit: number;
     };
+    s3Expiration?: number;
     hasSlack: boolean;
     hasHeadlessBrowser: boolean;
 };

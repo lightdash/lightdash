@@ -191,6 +191,7 @@ export default class EmailClient {
         url: string,
         schedulerUrl: string,
         pdfFile?: string,
+        expirationDays?: number,
     ) {
         return this.sendEmail({
             to: recipient,
@@ -205,6 +206,7 @@ export default class EmailClient {
                 url,
                 host: this.lightdashConfig.siteUrl,
                 schedulerUrl,
+                expirationDays,
             },
             text: title,
             attachments: pdfFile
@@ -229,6 +231,7 @@ export default class EmailClient {
         attachment: AttachmentUrl,
         url: string,
         schedulerUrl: string,
+        expirationDays?: number,
     ) {
         const csvUrl = attachment.path;
         return this.sendEmail({
@@ -246,6 +249,7 @@ export default class EmailClient {
                 maxCells: this.lightdashConfig.query.csvCellsLimit,
                 host: this.lightdashConfig.siteUrl,
                 schedulerUrl,
+                expirationDays,
             },
             text: title,
         });
@@ -330,6 +334,7 @@ border-radius: 3px
         attachments: AttachmentUrl[],
         url: string,
         schedulerUrl: string,
+        expirationDays?: number,
     ) {
         const csvUrls = `<table
         role="presentation"
@@ -374,6 +379,7 @@ border-radius: 3px
                 url,
                 host: this.lightdashConfig.siteUrl,
                 schedulerUrl,
+                expirationDays,
             },
             text: title,
         });
