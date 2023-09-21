@@ -10,6 +10,8 @@ import {
     isCreateSchedulerSlackTarget,
     isSlackTarget,
     isUserWithOrg,
+    NotFoundError,
+    ParameterError,
     ScheduledJobs,
     Scheduler,
     SchedulerAndTargets,
@@ -252,6 +254,16 @@ export class SchedulerService {
     ) {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
+        }
+        if (!scheduler.name) {
+            throw new ParameterError(
+                'You must give a name to this scheduled delivery',
+            );
+        }
+        if (scheduler.targets.length === 0) {
+            throw new ParameterError(
+                'You must specify at least 1 destination before sending a scheduled delivery',
+            );
         }
 
         const slackChannels = scheduler.targets

@@ -18,16 +18,13 @@ import {
     isSchedulerCsvOptions,
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
-    isSlackTarget,
     LightdashPage,
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
     SchedulerAndTargets,
-    SchedulerEmailTarget,
     SchedulerFormat,
     SchedulerJobStatus,
     SchedulerLog,
-    SchedulerSlackTarget,
     SlackNotificationPayload,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
@@ -258,6 +255,7 @@ export const sendSlackNotification = async (
             schedulerId: schedulerUuid,
             schedulerTargetId: schedulerSlackTargetUuid,
             type: 'slack',
+            sendNow: schedulerUuid === undefined,
         },
     });
 
@@ -365,6 +363,7 @@ export const sendSlackNotification = async (
                 format,
                 resourceType:
                     pageType === LightdashPage.CHART ? 'chart' : 'dashboard',
+                sendNow: schedulerUuid === undefined,
             },
         });
         await schedulerService.logSchedulerJob({
@@ -388,6 +387,7 @@ export const sendSlackNotification = async (
                 schedulerId: schedulerUuid,
                 schedulerTargetId: schedulerSlackTargetUuid,
                 type: 'slack',
+                sendNow: schedulerUuid === undefined,
             },
         });
         await schedulerService.logSchedulerJob({
@@ -739,6 +739,7 @@ export const sendEmailNotification = async (
             schedulerId: schedulerUuid,
             schedulerTargetId: schedulerEmailTargetUuid,
             type: 'email',
+            sendNow: schedulerUuid === undefined,
         },
     });
 
@@ -825,6 +826,7 @@ export const sendEmailNotification = async (
                 withPdf: pdfFile !== undefined,
                 resourceType:
                     pageType === LightdashPage.CHART ? 'chart' : 'dashboard',
+                sendNow: schedulerUuid === undefined,
             },
         });
         await schedulerService.logSchedulerJob({
@@ -848,6 +850,7 @@ export const sendEmailNotification = async (
                 schedulerId: schedulerUuid,
                 schedulerTargetId: schedulerEmailTargetUuid,
                 type: 'email',
+                sendNow: schedulerUuid === undefined,
             },
         });
         await schedulerService.logSchedulerJob({
@@ -879,6 +882,7 @@ export const uploadGsheets = async (
             schedulerId: schedulerUuid,
             schedulerTargetId: undefined,
             type: 'gsheets',
+            sendNow: schedulerUuid === undefined,
         },
     });
 
@@ -1020,6 +1024,7 @@ export const uploadGsheets = async (
                 type: 'gsheets',
                 format,
                 resourceType: savedChartUuid ? 'chart' : 'dashboard',
+                sendNow: schedulerUuid === undefined,
             },
         });
         await schedulerService.logSchedulerJob({
@@ -1042,6 +1047,7 @@ export const uploadGsheets = async (
                 schedulerId: schedulerUuid,
                 schedulerTargetId: undefined,
                 type: 'gsheets',
+                sendNow: schedulerUuid === undefined,
             },
         });
         await schedulerService.logSchedulerJob({

@@ -23,9 +23,12 @@ import { useHistory, useLocation } from 'react-router-dom';
 import {
     sendNowScheduler,
     useScheduler,
+    useSendNowScheduler,
 } from '../../../hooks/scheduler/useScheduler';
 import { useSchedulersUpdateMutation } from '../../../hooks/scheduler/useSchedulersUpdateMutation';
 import useUser from '../../../hooks/user/useUser';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 import ErrorState from '../../common/ErrorState';
 import SchedulerForm from './SchedulerForm';
 import SchedulersList from './SchedulersList';
@@ -87,7 +90,8 @@ const CreateStateContent: FC<{
         createMutation.mutate({ resourceUuid, data });
     };
     const { data: user } = useUser(true);
-
+    const { track } = useTracking();
+    const { mutate: sendNow } = useSendNowScheduler();
     return (
         <>
             <DialogBody>
@@ -118,7 +122,10 @@ const CreateStateContent: FC<{
                                         ...resource,
                                         createdBy: user.userUuid,
                                     };
-                                sendNowScheduler(unsavedScheduler);
+                                track({
+                                    name: EventName.SCHEDULER_SEND_NOW_BUTTON,
+                                });
+                                sendNow(unsavedScheduler);
                             }}
                         >
                             Send now
@@ -162,6 +169,7 @@ const UpdateStateContent: FC<{
         mutation.mutate(data);
     };
     const { data: user } = useUser(true);
+    const { track } = useTracking();
 
     if (scheduler.isLoading || scheduler.error) {
         return (
@@ -213,6 +221,10 @@ const UpdateStateContent: FC<{
                                             scheduler.data.dashboardUuid,
                                         createdBy: user.userUuid,
                                     };
+
+                                track({
+                                    name: EventName.SCHEDULER_SEND_NOW_BUTTON,
+                                });
                                 sendNowScheduler(unsavedScheduler);
                             }}
                         >

@@ -666,7 +666,7 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
         type: 'slack' | 'email' | 'gsheets';
         format?: SchedulerFormat;
         withPdf?: boolean;
-        sendNow?: boolean;
+        sendNow: boolean;
     };
 };
 
