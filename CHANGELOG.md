@@ -1,3 +1,11 @@
+# [0.782.0](https://github.com/lightdash/lightdash/compare/0.781.0...0.782.0) (2023-09-21)
+
+
+### Features
+
+* migrate Databricks settings forms to use Mantine ([#7156](https://github.com/lightdash/lightdash/issues/7156)) ([8c89dd0](https://github.com/lightdash/lightdash/commit/8c89dd059f60549ea901d38f33f8bde5bd89f054))
+* migrate Snowflake settings forms to use Mantine ([#7158](https://github.com/lightdash/lightdash/issues/7158)) ([7029555](https://github.com/lightdash/lightdash/commit/702955516e49d093aad12b285db5719ec0e1f9d9))
+
 # [0.781.0](https://github.com/lightdash/lightdash/compare/0.780.2...0.781.0) (2023-09-21)
 
 
