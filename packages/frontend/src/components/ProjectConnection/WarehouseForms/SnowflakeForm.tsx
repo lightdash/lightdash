@@ -1,14 +1,20 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { Anchor, PasswordInput, Stack, TextInput } from '@mantine/core';
+import {
+    Anchor,
+    Group,
+    PasswordInput,
+    Stack,
+    Switch,
+    TextInput,
+} from '@mantine/core';
 import React, { FC } from 'react';
-import { useFormContext } from 'react-hook-form';
+import { Controller, useFormContext } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import {
     hasNoWhiteSpaces,
     isUppercase,
     startWithHTTPSProtocol,
 } from '../../../utils/fieldValidators';
-import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import {
     AdvancedButton,
@@ -125,26 +131,43 @@ const SnowflakeForm: FC<{
 
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack style={{ marginTop: '8px' }}>
-                        <BooleanSwitch
+                        <Controller
                             name="warehouse.clientSessionKeepAlive"
-                            label="Keep client session alive"
-                            labelHelp={
-                                <p>
-                                    This is intended to keep Snowflake sessions
-                                    alive beyond the typical 4 hour timeout
-                                    limit You can see more details in{' '}
-                                    <Anchor
-                                        target="_blank"
-                                        href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive"
-                                        rel="noreferrer"
-                                    >
-                                        dbt documentation
-                                    </Anchor>
-                                    .
-                                </p>
-                            }
-                            disabled={disabled}
-                            defaultValue={false}
+                            render={({ field }) => (
+                                <Switch.Group
+                                    label="Keep client session alive"
+                                    description={
+                                        <p>
+                                            This is intended to keep Snowflake
+                                            sessions alive beyond the typical 4
+                                            hour timeout limit You can see more
+                                            details in{' '}
+                                            <Anchor
+                                                target="_blank"
+                                                href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive"
+                                                rel="noreferrer"
+                                            >
+                                                dbt documentation
+                                            </Anchor>
+                                            .
+                                        </p>
+                                    }
+                                    value={field.value ? ['true'] : []}
+                                    onChange={(values) =>
+                                        field.onChange(values.length > 0)
+                                    }
+                                    size="md"
+                                >
+                                    <Group mt="xs">
+                                        <Switch
+                                            onLabel="Yes"
+                                            offLabel="No"
+                                            value="true"
+                                            disabled={disabled}
+                                        />
+                                    </Group>
+                                </Switch.Group>
+                            )}
                         />
 
                         <TextInput
