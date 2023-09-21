@@ -1,3 +1,10 @@
+# [0.781.0](https://github.com/lightdash/lightdash/compare/0.780.2...0.781.0) (2023-09-21)
+
+
+### Features
+
+* migrate Redshift settings forms to use Mantine ([#7157](https://github.com/lightdash/lightdash/issues/7157)) ([69bd1d9](https://github.com/lightdash/lightdash/commit/69bd1d92cad5bed364c498829169311306a46b97))
+
 ## [0.780.2](https://github.com/lightdash/lightdash/compare/0.780.1...0.780.2) (2023-09-21)
 
 
