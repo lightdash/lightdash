@@ -17,11 +17,8 @@ export const RefreshButton = memo(() => {
     const fetchResults = useExplorerContext(
         (context) => context.actions.fetchResults,
     );
-    const hasUnfetchedChanges = useExplorerContext(
-        (context) => context.hasUnfetchedChanges,
-    );
 
-    const canRunQuery = !isLoading && isValidQuery && hasUnfetchedChanges;
+    const canRunQuery = !isLoading && isValidQuery;
 
     const { track } = useTracking();
 
@@ -36,13 +33,7 @@ export const RefreshButton = memo(() => {
 
     return (
         <Tooltip2
-            content={
-                !hasUnfetchedChanges ? (
-                    'You need to make some changes before running a query'
-                ) : (
-                    <KeyCombo combo="mod+enter" />
-                )
-            }
+            content={<KeyCombo combo="mod+enter" />}
             position="bottom"
             disabled={isLoading || !isValidQuery}
         >
