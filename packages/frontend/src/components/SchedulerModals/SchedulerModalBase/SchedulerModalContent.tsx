@@ -8,9 +8,9 @@ import {
 } from '@blueprintjs/core';
 import {
     ApiError,
+    CreateSchedulerAndTargets,
     CreateSchedulerAndTargetsWithoutIds,
     SchedulerAndTargets,
-    UnsavedSchedulerAndTargets,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
 import { FC, useEffect, useState } from 'react';
@@ -101,6 +101,7 @@ const CreateStateContent: FC<{
                         <Button onClick={onBack}>Back</Button>
                         <Button
                             onClick={() => {
+                                if (user?.userUuid === undefined) return;
                                 const schedulerData = methods.getValues();
                                 const resource = isChart
                                     ? {
@@ -111,11 +112,11 @@ const CreateStateContent: FC<{
                                           dashboardUuid: resourceUuid,
                                           savedChartUuid: null,
                                       };
-                                const unsavedScheduler: UnsavedSchedulerAndTargets =
+                                const unsavedScheduler: CreateSchedulerAndTargets =
                                     {
                                         ...schedulerData,
                                         ...resource,
-                                        createdBy: user?.userUuid,
+                                        createdBy: user.userUuid,
                                     };
                                 sendNowScheduler(unsavedScheduler);
                             }}
@@ -160,6 +161,8 @@ const UpdateStateContent: FC<{
     const handleSubmit = (data: UpdateSchedulerAndTargetsWithoutId) => {
         mutation.mutate(data);
     };
+    const { data: user } = useUser(true);
+
     if (scheduler.isLoading || scheduler.error) {
         return (
             <>
@@ -194,7 +197,27 @@ const UpdateStateContent: FC<{
                 actions={
                     <>
                         <Button onClick={onBack}>Back</Button>
+                        <Button
+                            disabled={scheduler.data === undefined}
+                            onClick={() => {
+                                if (scheduler.data === undefined) return;
+                                if (user?.userUuid === undefined) return;
 
+                                const schedulerData = methods.getValues();
+                                const unsavedScheduler: CreateSchedulerAndTargets =
+                                    {
+                                        ...schedulerData,
+                                        savedChartUuid:
+                                            scheduler.data.savedChartUuid,
+                                        dashboardUuid:
+                                            scheduler.data.dashboardUuid,
+                                        createdBy: user.userUuid,
+                                    };
+                                sendNowScheduler(unsavedScheduler);
+                            }}
+                        >
+                            Send now
+                        </Button>
                         <Button
                             intent="primary"
                             loading={mutation.isLoading}
@@ -285,7 +308,6 @@ const SchedulersModalContent: FC<Omit<Props, 'name'>> = ({
             {state === States.EDIT && schedulerUuid && (
                 <UpdateStateContent
                     schedulerUuid={schedulerUuid}
-                    isChart={isChart}
                     onBack={() => setState(States.LIST)}
                 />
             )}

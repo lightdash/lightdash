@@ -8,12 +8,13 @@ import {
     EmailNotificationPayload,
     getHumanReadableCronExpression,
     getRequestMethod,
+    getSchedulerUuid,
     GsheetsNotificationPayload,
     isChartValidationError,
+    isCreateScheduler,
     isCreateSchedulerSlackTarget,
     isDashboardChartTileType,
     isDashboardValidationError,
-    isSavedScheduler,
     isSchedulerCsvOptions,
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
@@ -1118,17 +1119,15 @@ export const handleScheduledDelivery = async (
     scheduledTime: Date,
     schedulerPayload: ScheduledDeliveryPayload,
 ) => {
-    const schedulerUuid = isSavedScheduler(schedulerPayload)
-        ? schedulerPayload.schedulerUuid
-        : undefined;
+    const schedulerUuid = getSchedulerUuid(schedulerPayload);
 
     try {
         const scheduler: SchedulerAndTargets | CreateSchedulerAndTargets =
-            isSavedScheduler(schedulerPayload)
-                ? await schedulerService.schedulerModel.getSchedulerAndTargets(
+            isCreateScheduler(schedulerPayload)
+                ? schedulerPayload
+                : await schedulerService.schedulerModel.getSchedulerAndTargets(
                       schedulerPayload.schedulerUuid,
-                  )
-                : schedulerPayload;
+                  );
 
         analytics.track({
             event: 'scheduler_job.started',

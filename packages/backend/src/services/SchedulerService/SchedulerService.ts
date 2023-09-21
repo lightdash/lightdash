@@ -259,7 +259,11 @@ export class SchedulerService {
             .map((target) => target.channel);
         await slackClient.joinChannels(user.organizationUuid, slackChannels);
 
-        schedulerClient.addScheduledDeliveryJob(new Date(), scheduler);
+        schedulerClient.addScheduledDeliveryJob(
+            new Date(),
+            scheduler,
+            undefined,
+        );
 
         return 'ok';
     }

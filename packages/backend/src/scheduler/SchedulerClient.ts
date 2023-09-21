@@ -119,12 +119,13 @@ export class SchedulerClient {
     async addScheduledDeliveryJob(
         date: Date,
         scheduler: Scheduler | CreateSchedulerAndTargets,
+        schedulerUuid: string | undefined,
     ) {
         const graphileClient = await this.graphileUtils;
 
-        const payload: ScheduledDeliveryPayload = isSavedScheduler(scheduler)
+        const payload: ScheduledDeliveryPayload = schedulerUuid
             ? {
-                  schedulerUuid: scheduler.schedulerUuid,
+                  schedulerUuid,
               }
             : scheduler;
         const { id } = await graphileClient.addJob(
@@ -140,7 +141,7 @@ export class SchedulerClient {
             anonymousId: LightdashAnalytics.anonymousId,
             properties: {
                 jobId: id,
-                schedulerId: getSchedulerUuid(scheduler),
+                schedulerId: schedulerUuid,
             },
         });
 
@@ -263,7 +264,11 @@ export class SchedulerClient {
         const dates = getDailyDatesFromCron(scheduler.cron);
         try {
             const promises = dates.map((date: Date) =>
-                this.addScheduledDeliveryJob(date, scheduler),
+                this.addScheduledDeliveryJob(
+                    date,
+                    scheduler,
+                    scheduler.schedulerUuid,
+                ),
             );
 
             Logger.info(
