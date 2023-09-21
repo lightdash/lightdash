@@ -14,7 +14,7 @@ import * as fsPromise from 'fs/promises';
 import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
 import { PDFDocument } from 'pdf-lib';
-import puppeteer from 'puppeteer';
+import puppeteer, { HTTPRequest } from 'puppeteer';
 import { S3Service } from '../../clients/Aws/s3';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
@@ -350,19 +350,16 @@ export class UnfurlService {
                     });
 
                     await page.setRequestInterception(true);
-                    await page.on(
-                        'request',
-                        (request: puppeteer.HTTPRequest) => {
-                            const requestUrl = request.url();
-                            const parsedUrl = new URL(url);
-                            // Only allow request to the same host
-                            if (!requestUrl.includes(parsedUrl.hostname)) {
-                                request.abort();
-                                return;
-                            }
-                            request.continue();
-                        },
-                    );
+                    await page.on('request', (request: HTTPRequest) => {
+                        const requestUrl = request.url();
+                        const parsedUrl = new URL(url);
+                        // Only allow request to the same host
+                        if (!requestUrl.includes(parsedUrl.hostname)) {
+                            request.abort();
+                            return;
+                        }
+                        request.continue();
+                    });
 
                     let chartRequests = 0;
                     let chartRequestErrors = 0;
@@ -402,6 +399,18 @@ export class UnfurlService {
                             `Got a timeout when waiting for the page to load, returning current content`,
                         );
                     }
+                    // Wait until the page is fully loaded
+                    await page
+                        .waitForSelector('.loading_chart', {
+                            hidden: true,
+                            timeout: 30000,
+                        })
+                        .catch(() => {
+                            timeout = true;
+                            Logger.warn(
+                                `Got a timeout when waiting for all charts to be loaded, returning current content`,
+                            );
+                        });
 
                     const path = `/tmp/${imageId}.png`;
                     const selector =
