@@ -2,15 +2,12 @@ import { subject } from '@casl/ability';
 import {
     ChartSummary,
     CreateSchedulerAndTargets,
-    CreateSchedulerAndTargetsWithoutIds,
     CreateSchedulerLog,
     Dashboard,
     ForbiddenError,
     isChartScheduler,
     isCreateSchedulerSlackTarget,
-    isSlackTarget,
     isUserWithOrg,
-    NotFoundError,
     ParameterError,
     ScheduledJobs,
     Scheduler,
@@ -27,6 +24,8 @@ import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
+import { SpaceModel } from '../../models/SpaceModel';
+import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type ServiceDependencies = {
     lightdashConfig: LightdashConfig;
@@ -35,6 +34,8 @@ type ServiceDependencies = {
     dashboardModel: DashboardModel;
 
     savedChartModel: SavedChartModel;
+
+    spaceModel: SpaceModel;
 };
 
 export class SchedulerService {
@@ -46,16 +47,20 @@ export class SchedulerService {
 
     savedChartModel: SavedChartModel;
 
+    spaceModel: SpaceModel;
+
     constructor({
         lightdashConfig,
         schedulerModel,
         dashboardModel,
         savedChartModel,
+        spaceModel,
     }: ServiceDependencies) {
         this.lightdashConfig = lightdashConfig;
         this.schedulerModel = schedulerModel;
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
+        this.spaceModel = spaceModel;
     }
 
     private async getSchedulerResource(
@@ -90,6 +95,43 @@ export class SchedulerService {
             throw new ForbiddenError();
         }
         return { scheduler, resource };
+    }
+
+    private async checkViewResource(
+        user: SessionUser,
+        scheduler: CreateSchedulerAndTargets,
+    ) {
+        if (scheduler.savedChartUuid) {
+            const { organizationUuid, spaceUuid, projectUuid } =
+                await this.savedChartModel.getSummary(scheduler.savedChartUuid);
+
+            const [space] = await this.spaceModel.find({ spaceUuid });
+            if (
+                user.ability.cannot(
+                    'view',
+                    subject('SavedChart', { organizationUuid, projectUuid }),
+                ) ||
+                !hasSpaceAccess(user, space)
+            )
+                throw new ForbiddenError();
+        } else if (scheduler.dashboardUuid) {
+            const { organizationUuid, spaceUuid, projectUuid } =
+                await this.dashboardModel.getById(scheduler.dashboardUuid);
+            const [space] = await this.spaceModel.find({ spaceUuid });
+
+            if (
+                user.ability.cannot(
+                    'view',
+                    subject('Dashboard', { organizationUuid, projectUuid }),
+                ) ||
+                !hasSpaceAccess(user, space)
+            )
+                throw new ForbiddenError();
+        } else {
+            throw new ParameterError(
+                'Missing savedChartUuid and dashboardUuid on scheduler',
+            );
+        }
     }
 
     async getAllSchedulers(): Promise<SchedulerAndTargets[]> {
@@ -248,7 +290,7 @@ export class SchedulerService {
         return job.status;
     }
 
-    static async sendScheduler(
+    async sendScheduler(
         user: SessionUser,
         scheduler: CreateSchedulerAndTargets,
     ) {
@@ -265,6 +307,8 @@ export class SchedulerService {
                 'You must specify at least 1 destination before sending a scheduled delivery',
             );
         }
+
+        this.checkViewResource(user, scheduler);
 
         const slackChannels = scheduler.targets
             .filter(isCreateSchedulerSlackTarget)

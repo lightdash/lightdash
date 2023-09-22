@@ -200,7 +200,7 @@ export class SchedulerController extends Controller {
         @Body() body: any, // TODO: It should be CreateSchedulerAndTargets but tsoa returns an error
     ): Promise<ApiTestSchedulerResponse> {
         this.setStatus(200);
-        await SchedulerService.sendScheduler(req.user!, body);
+        await schedulerService.sendScheduler(req.user!, body);
         return {
             status: 'ok',
         };
