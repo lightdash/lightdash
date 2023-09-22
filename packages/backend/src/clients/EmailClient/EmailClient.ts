@@ -6,6 +6,7 @@ import {
     SessionUser,
     SmptError,
 } from '@lightdash/common';
+import { marked } from 'marked';
 import * as nodemailer from 'nodemailer';
 import hbs from 'nodemailer-express-handlebars';
 import Mail from 'nodemailer/lib/mailer';
@@ -200,7 +201,7 @@ export default class EmailClient {
             template: 'imageNotification',
             context: {
                 title,
-                message,
+                message: message && marked(message),
                 imageUrl,
                 description,
                 date,
@@ -244,7 +245,7 @@ export default class EmailClient {
             context: {
                 title,
                 description,
-                message,
+                message: message && marked(message),
                 date,
                 frequency,
                 url,
@@ -373,7 +374,7 @@ border-radius: 3px
             context: {
                 title,
                 description,
-                message,
+                message: message && marked(message),
                 date,
                 frequency,
                 csvUrls,
