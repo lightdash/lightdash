@@ -23,6 +23,8 @@ jobs:
         id: overrides
         run: |
           echo "PR ${{ steps.PR.outputs.number }}"
+          echo "Frontend override: ${{contains(steps.PR.outputs.pr_body, 'test-frontend')}}"
+          echo "Backend override: ${{contains(steps.PR.outputs.pr_body, 'test-backend')}}"
           echo "frontend=${{ contains(steps.PR.outputs.pr_body, 'test-frontend') }}" >> "$GITHUB_OUTPUT"
           echo "backend=${{ contains(steps.PR.outputs.pr_body, 'test-backend') }}" >> "$GITHUB_OUTPUT"
 
