@@ -4,7 +4,7 @@ const SchedulerTableName = 'scheduler';
 
 export async function up(knex: Knex): Promise<void> {
     await knex.schema.alterTable(SchedulerTableName, (table) => {
-        table.string('message');
+        table.text('message');
     });
 }
 
