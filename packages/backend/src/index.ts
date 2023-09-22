@@ -1,7 +1,6 @@
 // organize-imports-ignore
 // eslint-disable-next-line import/order
-import otelSdk from './otel'; // must be imported first
-
+import fs from 'fs';
 import { LightdashMode, SessionUser } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
@@ -16,6 +15,7 @@ import passport from 'passport';
 import refresh from 'passport-oauth2-refresh';
 import path from 'path';
 import reDoc from 'redoc-express';
+import otelSdk from './otel'; // must be imported first
 import apiSpec from './generated/swagger.json';
 import { analytics } from './analytics/client';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
@@ -169,6 +169,21 @@ if (
 // frontend assets - immutable because vite appends hash to filenames
 app.use(
     '/assets',
+    (req, res, next) => {
+        const gzipped = path.join(
+            __dirname,
+            '../../frontend/build/assets',
+            `${req.path}.gzip`,
+        );
+
+        // Serve gzipped file if it exists in the build folder
+        if (fs.existsSync(gzipped)) {
+            res.set('Content-Encoding', 'gzip');
+            req.url += '.gzip';
+        }
+
+        next();
+    },
     express.static(path.join(__dirname, '../../frontend/build/assets'), {
         immutable: true,
         maxAge: '1y',
