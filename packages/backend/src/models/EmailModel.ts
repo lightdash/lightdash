@@ -6,7 +6,7 @@ import { DbEmailOneTimePasscode } from '../database/entities/email_one_time_pass
 
 type DbEmailStatus = Pick<DbEmail, 'email' | 'is_verified'> &
     Partial<DbEmailOneTimePasscode>;
-// test change in backend
+
 const convertEmailStatusRow = (row: DbEmailStatus): EmailStatus => {
     const emailStatus: EmailStatus = {
         email: row.email,

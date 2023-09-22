@@ -7,8 +7,8 @@ jobs:
     runs-on: ubuntu-latest
     # Map a step output to a job output
     outputs:
-      frontend: ${{ steps.changes.outputs.frontend }}
-      backend: ${{ steps.changes.outputs.backend }}
+      frontend: ${{ steps.changes.outputs.frontend || contains(steps.PR.outputs.pr_body, 'test-frontend')}}
+      backend: ${{ steps.changes.outputs.backend || contains(steps.PR.outputs.pr_body, 'test-backend') }}
     steps:
       - uses: actions/checkout@v3
       - name: Check for files changes
@@ -17,6 +17,8 @@ jobs:
         with:
           token: ${{ github.token }}
           filters: .github/file-filters.yml
+      - uses: 8BitJonny/gh-get-current-pr@2.2.0
+        id: PR
 
   prepare-preview:
     # Only trigger for correct environment and status

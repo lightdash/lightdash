@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     # Map a step output to a job output
     outputs:
-      cli: ${{ steps.changes.outputs.cli }}
+      cli: ${{ steps.changes.outputs.cli || contains(steps.PR.outputs.pr_body, 'test-cli')}}
     steps:
       - uses: actions/checkout@v3
       - name: Check for files changes
@@ -20,6 +20,8 @@ jobs:
         with:
           token: ${{ github.token }}
           filters: .github/file-filters.yml
+      - uses: 8BitJonny/gh-get-current-pr@2.2.0
+        id: PR
 
   prepare-preview:
     # Only trigger for correct environment and status and if CLI files changed
