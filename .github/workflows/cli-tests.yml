@@ -18,7 +18,6 @@ jobs:
         uses: dorny/paths-filter@v2
         id: changes
         with:
-          base: 'HEAD'
           token: ${{ github.token }}
           filters: .github/file-filters.yml
 
