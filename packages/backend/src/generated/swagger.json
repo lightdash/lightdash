@@ -2631,8 +2631,7 @@
                         "format": "date-time"
                     },
                     "message": {
-                        "type": "string",
-                        "nullable": true
+                        "type": "string"
                     },
                     "name": {
                         "type": "string"

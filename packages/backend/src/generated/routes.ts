@@ -2295,13 +2295,7 @@ const models: TsoaRoute.Models = {
                 createdBy: { dataType: 'string', required: true },
                 updatedAt: { dataType: 'datetime', required: true },
                 createdAt: { dataType: 'datetime', required: true },
-                message: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                },
+                message: { dataType: 'string' },
                 name: { dataType: 'string', required: true },
                 schedulerUuid: { dataType: 'string', required: true },
             },
