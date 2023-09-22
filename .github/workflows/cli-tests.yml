@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     # Map a step output to a job output
     outputs:
-      cli: ${{ steps.changes.outputs.cli || steps.overrides.outputs.cli}}
+      cli: ${{ steps.changes.outputs.cli == "true" || steps.overrides.outputs.cli }}
     steps:
       - uses: actions/checkout@v3
       - name: Check for files changes
@@ -28,7 +28,7 @@ jobs:
 
   prepare-preview:
     # Only trigger for correct environment and status and if CLI files changed
-    if: needs.files-changed.outputs.cli == 'true'
+    if: needs.files-changed.outputs.cli
     needs: files-changed
     runs-on: ubuntu-latest
     outputs:
