@@ -191,7 +191,7 @@ export class UserController extends Controller {
      * Delete user
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([isAuthenticated])
     @Delete('/me')
     @OperationId('DeleteMe')
     async deleteUser(
