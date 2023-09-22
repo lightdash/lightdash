@@ -2630,6 +2630,10 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "message": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "name": {
                         "type": "string"
                     },
