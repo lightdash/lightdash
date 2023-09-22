@@ -61,6 +61,7 @@ export type CreateSchedulerLog = Omit<SchedulerLog, 'createdAt'>;
 export type SchedulerBase = {
     schedulerUuid: string;
     name: string;
+    message?: string | null;
     createdAt: Date;
     updatedAt: Date;
     createdBy: string;
@@ -142,7 +143,7 @@ export type CreateSchedulerAndTargetsWithoutIds = Omit<
 
 export type UpdateSchedulerAndTargets = Pick<
     Scheduler,
-    'schedulerUuid' | 'name' | 'cron' | 'format' | 'options'
+    'schedulerUuid' | 'name' | 'message' | 'cron' | 'format' | 'options'
 > & {
     targets: Array<
         | CreateSchedulerTarget
