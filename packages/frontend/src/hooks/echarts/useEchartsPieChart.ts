@@ -29,6 +29,7 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
                 groupColorOverrides,
                 groupValueOptionOverrides,
                 showLegend,
+                legend,
             },
         },
         explore,
@@ -137,8 +138,11 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
         return {
             legend: {
                 show: showLegend,
-                orient: 'horizontal',
-                left: 'center',
+                orient: legend?.orient,
+                left: legend?.left,
+                right: legend?.right,
+                top: legend?.top,
+                bottom: legend?.bottom,
                 type: 'scroll',
             },
             tooltip: {
@@ -147,7 +151,7 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
             series: [pieSeriesOption],
             animation: !isInDashboard,
         };
-    }, [showLegend, pieSeriesOption, isInDashboard]);
+    }, [showLegend, pieSeriesOption, isInDashboard, legend]);
 
     if (!explore || !data || data.length === 0) {
         return undefined;

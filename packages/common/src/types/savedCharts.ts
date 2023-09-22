@@ -80,6 +80,7 @@ export type PieChart = {
     groupValueOptionOverrides?: Record<string, Partial<PieChartValueOptions>>;
     groupSortOverrides?: string[];
     showLegend?: boolean;
+    legend?: EchartsLegend;
 };
 
 export type PieChartConfig = {

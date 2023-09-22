@@ -1,6 +1,7 @@
 import {
     ApiQueryResults,
     ECHARTS_DEFAULT_COLORS,
+    EchartsLegend,
     Explore,
     Field,
     fieldId,
@@ -67,6 +68,8 @@ type PieChartConfig = {
 
     showLegend: boolean;
     toggleShowLegend: () => void;
+
+    setLegend: (legends: EchartsLegend) => void;
 
     data: {
         name: string;
@@ -144,6 +147,8 @@ const usePieChartConfig: PieChartConfigFn = (
     const [showLegend, setShowLegend] = useState(
         pieChartConfig?.showLegend ?? true,
     );
+
+    const [legend, setLegendsConfig] = useState<EchartsLegend>({ orient: 'horizontal' });
 
     const defaultColors = useMemo(
         () => org?.chartColors ?? ECHARTS_DEFAULT_COLORS,
@@ -387,6 +392,15 @@ const usePieChartConfig: PieChartConfigFn = (
         [groupLabels],
     );
 
+    const setLegend = useCallback((legend: EchartsLegend) => {
+        setLegendsConfig((prevState) => {
+            return {
+                ...prevState,
+                ...legend,
+            };
+        });
+    }, []);
+
     const validPieChartConfig: PieChart = useMemo(
         () => ({
             groupFieldIds,
@@ -411,6 +425,7 @@ const usePieChartConfig: PieChartConfigFn = (
                 groupLabels.includes(label),
             ),
             showLegend,
+            legend,
         }),
         [
             groupFieldIds,
@@ -425,6 +440,7 @@ const usePieChartConfig: PieChartConfigFn = (
             groupValueOptionOverrides,
             groupSortOverrides,
             showLegend,
+            legend,
         ],
     );
 
@@ -470,6 +486,8 @@ const usePieChartConfig: PieChartConfigFn = (
 
             showLegend,
             toggleShowLegend: () => setShowLegend((prev) => !prev),
+
+            setLegend,
 
             data,
         }),
