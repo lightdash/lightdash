@@ -29,7 +29,6 @@ export default defineConfig({
         },
         compression({
             include: [/\.(js)$/, /\.(css)$/],
-            // filename: '[path][base].gzip',
         }),
     ],
     css: {
