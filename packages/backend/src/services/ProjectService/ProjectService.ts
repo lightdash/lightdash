@@ -1859,51 +1859,10 @@ export class ProjectService {
             description: 'Gets all filters available for a single query',
         });
         try {
-            console.log(`for chart ${savedChartUuid}`);
-
-            const startTime1 = Date.now();
-            const savedChart2 = await this.savedChartModel.get(savedChartUuid);
-            const endTime1 = Date.now();
-            console.log(
-                `get for chart ${savedChartUuid} took ${
-                    endTime1 - startTime1
-                } ms`,
-            );
-
-            const startTime2 = Date.now();
-            const savedChart3 = await this.savedChartModel.getSummary(
-                savedChartUuid,
-            );
-            const endTime2 = Date.now();
-            console.log(
-                `getSummary for chart ${savedChartUuid} took ${
-                    endTime2 - startTime2
-                } ms`,
-            );
-
-            const startTime3 = Date.now();
             const savedChart =
                 await this.savedChartModel.getInfoForAvailableFilters(
                     savedChartUuid,
                 );
-            const endTime3 = Date.now();
-            console.log(
-                `getInfoForAvailableFilters for chart ${savedChartUuid} took ${
-                    endTime3 - startTime3
-                } ms`,
-            );
-
-            const startTime4 = Date.now();
-            const savedChart4 =
-                await this.savedChartModel.getSummaryWithExploreName(
-                    savedChartUuid,
-                );
-            const endTime4 = Date.now();
-            console.log(
-                `getSummaryWithExploreName for chart ${savedChartUuid} took ${
-                    endTime4 - startTime4
-                } ms`,
-            );
 
             if (
                 user.ability.cannot('view', subject('SavedChart', savedChart))
