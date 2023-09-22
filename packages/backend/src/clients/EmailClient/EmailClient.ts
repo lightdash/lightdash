@@ -185,6 +185,7 @@ export default class EmailClient {
         subject: string,
         title: string,
         description: string,
+        message: string | undefined,
         date: string,
         frequency: string,
         imageUrl: string,
@@ -199,6 +200,7 @@ export default class EmailClient {
             template: 'imageNotification',
             context: {
                 title,
+                message,
                 imageUrl,
                 description,
                 date,
@@ -226,6 +228,7 @@ export default class EmailClient {
         subject: string,
         title: string,
         description: string,
+        message: string | undefined,
         date: string,
         frequency: string,
         attachment: AttachmentUrl,
@@ -241,6 +244,7 @@ export default class EmailClient {
             context: {
                 title,
                 description,
+                message,
                 date,
                 frequency,
                 url,
@@ -270,13 +274,13 @@ export default class EmailClient {
             <td class="t483" style="overflow:hidden;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tbody><tr><td>
             <table class="t488" role="presentation" cellpadding="0" cellspacing="0" align="center"><tbody><tr>
             <td class="t489" style="width:600px;">
-            
+
             <p class="t495" style="margin-bottom:0;Margin-bottom:0;font-family:BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif,'Roboto';line-height:22px;font-weight:700;font-style:normal;font-size:14px;text-decoration:none;text-transform:none;direction:ltr;color:#222222;text-align:center;mso-line-height-rule:exactly;mso-text-raise:2px;">⚠️ The results in the exports below have been limited.</p></td>
             </tr></tbody></table>
             </td></tr><tr><td>
             <table class="t498" role="presentation" cellpadding="0" cellspacing="0" align="center"><tbody><tr>
             <td class="t499" style="width:600px;">
-            
+
             <p class="t505" style="margin-bottom:0;Margin-bottom:0;font-family:BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif,'Roboto';line-height:18px;font-weight:400;font-style:normal;font-size:14px;text-decoration:none;text-transform:none;direction:ltr;color:#777777;text-align:center;mso-line-height-rule:exactly;mso-text-raise:1px;">
             The export limit for a file is ${this.lightdashConfig.query.csvCellsLimit} cells, but the files below exceeded that limit. You should update your scheduled delivery to include fewer results.
             </p></td>
@@ -284,7 +288,7 @@ export default class EmailClient {
             </td></tr></tbody></table></td>
             </tr></tbody></table>
             </div></div>
-            
+
             </div></td>
             </tr></tbody></table>
             </td></tr></tbody></table></td>
@@ -318,7 +322,7 @@ border-radius: 3px
              href="${attachment.path}">
                ${attachment.filename}
              </a>
-   
+
      </td>
      </tr>
 
@@ -329,6 +333,7 @@ border-radius: 3px
         subject: string,
         title: string,
         description: string,
+        message: string | undefined,
         date: string,
         frequency: string,
         attachments: AttachmentUrl[],
@@ -368,6 +373,7 @@ border-radius: 3px
             context: {
                 title,
                 description,
+                message,
                 date,
                 frequency,
                 csvUrls,

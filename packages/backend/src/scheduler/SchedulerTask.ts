@@ -283,6 +283,7 @@ export const sendSlackNotification = async (
         const notificationPageData =
             notification.page ??
             (await getNotificationPageData(scheduler, jobId));
+
         const {
             url,
             details,
@@ -591,6 +592,7 @@ export const validateProject = async (
         });
     }
 };
+
 export const downloadCsv = async (
     jobId: string,
     scheduledTime: Date,
@@ -765,9 +767,13 @@ export const sendEmailNotification = async (
         });
 
         // Backwards compatibility for old scheduled deliveries
-        const { url, details, pageType, imageUrl, csvUrl, csvUrls, pdfFile } =
+        const notificationPageData =
             notification.page ??
             (await getNotificationPageData(scheduler, jobId));
+
+        const { url, details, pageType, imageUrl, csvUrl, csvUrls, pdfFile } =
+            notificationPageData;
+
         const schedulerUrl = `${url}?scheduler_uuid=${schedulerUuid}`;
 
         if (format === SchedulerFormat.IMAGE) {
@@ -779,6 +785,7 @@ export const sendEmailNotification = async (
                 name,
                 details.name,
                 details.description || '',
+                scheduler.message,
                 new Date().toLocaleDateString('en-GB'),
                 getHumanReadableCronExpression(scheduler.cron),
                 imageUrl,
@@ -796,6 +803,7 @@ export const sendEmailNotification = async (
                 name,
                 details.name,
                 details.description || '',
+                scheduler.message,
                 new Date().toLocaleDateString('en-GB'),
                 getHumanReadableCronExpression(scheduler.cron),
                 csvUrl,
@@ -812,6 +820,7 @@ export const sendEmailNotification = async (
                 name,
                 details.name,
                 details.description || '',
+                scheduler.message,
                 new Date().toLocaleDateString('en-GB'),
                 getHumanReadableCronExpression(scheduler.cron),
                 csvUrls,
@@ -1129,6 +1138,7 @@ const logScheduledTarget = async (
         status: SchedulerJobStatus.SCHEDULED,
     });
 };
+
 export const handleScheduledDelivery = async (
     jobId: string,
     scheduledTime: Date,
