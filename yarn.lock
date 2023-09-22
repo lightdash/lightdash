@@ -19519,6 +19519,13 @@ vite-plugin-chunk-split@^0.4.7:
     es-module-lexer "^1.0.3"
     magic-string "^0.26.3"
 
+vite-plugin-compression2@^0.10.4:
+  version "0.10.4"
+  resolved "https://registry.yarnpkg.com/vite-plugin-compression2/-/vite-plugin-compression2-0.10.4.tgz#34574380dd059cd15cd35d97eed88f9dcda213ac"
+  integrity sha512-9YcESw0n1j8KxxY1NJKEcItlT0bLS+K/NKa/xPqZGEHW/qwgigIeRF/bCTUdZ/bn/mg2+PeERWgRmK8G1L0tyg==
+  dependencies:
+    "@rollup/pluginutils" "^5.0.2"
+
 vite-plugin-eslint@^1.8.1:
   version "1.8.1"
   resolved "https://registry.npmjs.org/vite-plugin-eslint/-/vite-plugin-eslint-1.8.1.tgz"
