@@ -111,11 +111,9 @@ jobs:
         with:
           browser: chrome
           project: ./packages/e2e
-          spec: packages/e2e/cypress/e2e/app/**/*
           # Set the PR deployment url
-          config: 'baseUrl=${{needs.prepare-preview.outputs.url}}'
+          config: 'baseUrl=${{needs.prepare-preview.outputs.url}},specPattern=packages/e2e/cypress/e2e/app/**/*'
         env:
-          SPEC: 'packages/e2e/cypress/e2e/app/**/*' # the cypress-split needs this. https://github.com/bahmutov/cypress-split#list-of-specs
           SPLIT: ${{ strategy.job-total }}
           SPLIT_INDEX: ${{ strategy.job-index }}
           CYPRESS_PGHOST: ${{secrets.PGHOST}}
