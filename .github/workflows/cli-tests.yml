@@ -14,7 +14,7 @@ jobs:
       cli: ${{ steps.changes.outputs.cli }}
     steps:
       - uses: actions/checkout@v3
-      - name: Check for backend file changes
+      - name: Check for files changes
         uses: dorny/paths-filter@v2
         id: changes
         with:

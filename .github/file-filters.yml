@@ -1,15 +1,15 @@
 # This is used by the action https://github.com/dorny/paths-filter
 
 cli:
-  - 'packages/cli/**'
-  - 'packages/e2e/cypress/cli/**'
+  - 'packages/cli/**/*'
+  - 'packages/e2e/cypress/cli/**/*'
 
 frontend:
-  - 'packages/frontend/**'
-  - 'packages/e2e/cypress/e2e/!(api)/**'
+  - 'packages/frontend/**/*'
+  - 'packages/e2e/cypress/e2e/!(api)/**/*'
 
 backend:
-  - 'packages/backend/**'
-  - 'packages/warehouses/**'
-  - 'packages/e2e/cypress/e2e/api/**'
+  - 'packages/backend/**/*'
+  - 'packages/warehouses/**/*'
+  - 'packages/e2e/cypress/e2e/api/**/*'
 
