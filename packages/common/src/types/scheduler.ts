@@ -61,7 +61,7 @@ export type CreateSchedulerLog = Omit<SchedulerLog, 'createdAt'>;
 export type SchedulerBase = {
     schedulerUuid: string;
     name: string;
-    message?: string | null;
+    message?: string;
     createdAt: Date;
     updatedAt: Date;
     createdBy: string;

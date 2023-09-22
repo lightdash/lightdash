@@ -16,7 +16,7 @@ export const SchedulerLogTableName = 'scheduler_log';
 export type SchedulerDb = {
     scheduler_uuid: string;
     name: string;
-    message?: string | null;
+    message?: string;
     format: string;
     created_at: Date;
     updated_at: Date;
