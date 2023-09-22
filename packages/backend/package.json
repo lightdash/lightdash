@@ -96,6 +96,7 @@
         "puppeteer": "^21.3.1",
         "redoc-express": "^1.0.0",
         "simple-git": "^3.16.0",
+        "slackify-markdown": "^4.4.0",
         "sshpk": "^1.17.0",
         "tempy": "^1.0.1",
         "tsoa": "^4.1.3",
