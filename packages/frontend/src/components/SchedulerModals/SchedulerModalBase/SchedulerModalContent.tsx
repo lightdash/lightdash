@@ -153,6 +153,9 @@ const UpdateStateContent: FC<{
         mode: 'onSubmit',
         defaultValues: scheduler.data,
     });
+
+    console.log({ scheduler });
+
     useEffect(() => {
         if (scheduler.isSuccess) {
             methods.reset(scheduler.data);

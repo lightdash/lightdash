@@ -1,6 +1,7 @@
 import {
     Button,
     Classes,
+    Collapse,
     Colors,
     FormGroup,
     NumericInput,
@@ -14,10 +15,11 @@ import {
 } from '@lightdash/common';
 import { Anchor, Box, Switch, Tooltip } from '@mantine/core';
 import React, { FC, useEffect, useMemo, useState } from 'react';
-import { useFormContext } from 'react-hook-form';
+import { Controller, useFormContext } from 'react-hook-form';
 import useHealth from '../../../hooks/health/useHealth';
 
 import { IconInfoCircle } from '@tabler/icons-react';
+import MDEditor from '@uiw/react-md-editor';
 import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
 import { useGetSlack } from '../../../hooks/useSlack';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
@@ -189,6 +191,43 @@ const SchedulerOptions: FC<
                 </i>
             )}
         </Form>
+    );
+};
+
+const SchedulerAdvancedOptions: FC = () => {
+    const form = useFormContext<CreateSchedulerAndTargetsWithoutIds>();
+
+    const [isAdvanced, setIsAdvanced] = useState(false);
+
+    return (
+        <>
+            <Button
+                minimal
+                small
+                icon={isAdvanced ? 'chevron-down' : 'chevron-right'}
+                onClick={() => setIsAdvanced(!isAdvanced)}
+            >
+                Advanced options
+            </Button>
+
+            <Collapse isOpen={isAdvanced}>
+                <Box pt="lg">
+                    <Controller
+                        name="message"
+                        control={form.control}
+                        render={({ field }) => (
+                            <MDEditor
+                                preview="edit"
+                                value={field.value ?? ''}
+                                onChange={(value) =>
+                                    field.onChange(value ?? '')
+                                }
+                            />
+                        )}
+                    />
+                </Box>
+            </Collapse>
+        </>
     );
 };
 
@@ -595,6 +634,10 @@ const SchedulerForm: FC<{
                         />
                     </InlinedInputs>
                 </InputGroupWrapper>
+            </FormGroup>
+
+            <FormGroup>
+                <SchedulerAdvancedOptions />
             </FormGroup>
         </Form>
     );
