@@ -308,7 +308,7 @@ export class SchedulerService {
             );
         }
 
-        this.checkViewResource(user, scheduler);
+        await this.checkViewResource(user, scheduler);
 
         const slackChannels = scheduler.targets
             .filter(isCreateSchedulerSlackTarget)
