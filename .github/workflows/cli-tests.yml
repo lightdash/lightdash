@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     # Map a step output to a job output
     outputs:
-      cli: ${{ steps.changes.outputs.cli == "true" || steps.overrides.outputs.cli }}
+      cli: ${{ steps.changes.outputs.cli == 'true' || steps.overrides.outputs.cli == 'true }}
     steps:
       - uses: actions/checkout@v3
       - name: Check for files changes
@@ -22,13 +22,16 @@ jobs:
           filters: .github/file-filters.yml
       - uses: 8BitJonny/gh-get-current-pr@2.2.0
         id: PR
-      - name: Check for keyword overrides
+      - name: Get result with overides
         id: overrides
-        run: echo "cli=${{contains(steps.PR.outputs.pr_body, 'test-cli')}}" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "PR ${{ steps.PR.outputs.number }} with body:"
+          echo ${{ steps.PR.outputs.pr_body }}
+          echo "cli=${{contains(steps.PR.outputs.pr_body, 'test-cli')}}" >> "$GITHUB_OUTPUT"
 
   prepare-preview:
     # Only trigger for correct environment and status and if CLI files changed
-    if: needs.files-changed.outputs.cli
+    if: needs.files-changed.outputs.cli == 'true'
     needs: files-changed
     runs-on: ubuntu-latest
     outputs:

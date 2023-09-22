@@ -7,8 +7,8 @@ jobs:
     runs-on: ubuntu-latest
     # Map a step output to a job output
     outputs:
-      frontend: ${{ steps.changes.outputs.frontend == 'true' || steps.overrides.outputs.frontend }}
-      backend: ${{ steps.changes.outputs.backend == 'true' || steps.overrides.outputs.backend }}
+      frontend: ${{ steps.changes.outputs.frontend == 'true || steps.overrides.outputs.frontend == 'true }}
+      backend: ${{ steps.changes.outputs.backend == 'true || steps.overrides.outputs.backend == 'true }}
     steps:
       - uses: actions/checkout@v3
       - name: Check for files changes
@@ -22,13 +22,15 @@ jobs:
       - name: Check for keyword overrides
         id: overrides
         run: |
-          echo "frontend=${{contains(steps.PR.outputs.body, 'test-frontend')}}" >> "$GITHUB_OUTPUT"
-          echo "backend=${{contains(steps.PR.outputs.body, 'test-backend')}}" >> "$GITHUB_OUTPUT"
+          echo "PR ${{ steps.PR.outputs.number }} with body:"
+          echo ${{ steps.PR.outputs.pr_body }}
+          echo "frontend=${{ contains(steps.PR.outputs.body, 'test-frontend') }}" >> "$GITHUB_OUTPUT"
+          echo "backend=${{ contains(steps.PR.outputs.body, 'test-backend') }}" >> "$GITHUB_OUTPUT"
 
   prepare-preview:
     # Only trigger for correct environment and status
     runs-on: ubuntu-latest
-    if: needs.files-changed.outputs.frontend || needs.files-changed.outputs.backend
+    if: needs.files-changed.outputs.frontend == 'true' || needs.files-changed.outputs.backend == 'true'
     needs: files-changed
     outputs:
       url: ${{ github.event.deployment_status.environment_url }}
