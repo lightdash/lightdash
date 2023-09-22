@@ -7,8 +7,8 @@ jobs:
     runs-on: ubuntu-latest
     # Map a step output to a job output
     outputs:
-      frontend: ${{ steps.changes.outputs.frontend || contains(steps.PR.outputs.body, 'test-frontend')}}
-      backend: ${{ steps.changes.outputs.backend || contains(steps.PR.outputs.body, 'test-backend') }}
+      frontend: ${{ steps.changes.outputs.frontend || steps.overrides.outputs.frontend }}
+      backend: ${{ steps.changes.outputs.backend || steps.overrides.outputs.backend }}
     steps:
       - uses: actions/checkout@v3
       - name: Check for files changes
@@ -17,13 +17,13 @@ jobs:
         with:
           token: ${{ github.token }}
           filters: .github/file-filters.yml
-      - uses: jwalton/gh-find-current-pr@v1
+      - uses: 8BitJonny/gh-get-current-pr@2.2.0
         id: PR
-        with:
-          state: open
-      - name: PR description
+      - name: Check for keyword overrides
+        id: overrides
         run: |
-          echo "PR number ${{ steps.PR.outputs.pr }} with description ${{ steps.PR.outputs.body }} "
+          echo "frontend=${{contains(steps.PR.outputs.body, 'test-frontend')}}" >> "$GITHUB_OUTPUT"
+          echo "backend=${{contains(steps.PR.outputs.body, 'test-backend')}}" >> "$GITHUB_OUTPUT"
 
   prepare-preview:
     # Only trigger for correct environment and status
