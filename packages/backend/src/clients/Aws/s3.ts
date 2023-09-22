@@ -104,4 +104,17 @@ export class S3Service {
     isEnabled(): boolean {
         return this.s3 !== undefined;
     }
+
+    getExpirationWarning() {
+        if (this.isEnabled()) {
+            const timeInSeconds =
+                this.lightdashConfig.s3?.expirationTime || 259200;
+            const expirationDays = Math.floor(timeInSeconds / 60 / 60 / 24);
+            return {
+                slack: `For security reasons, delivered files expire after *${expirationDays}* days.`,
+                days: expirationDays,
+            };
+        }
+        return undefined;
+    }
 }

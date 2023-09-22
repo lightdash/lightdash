@@ -30,7 +30,10 @@ import {
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
 import { LightdashConfig } from '../../config/parseConfig';
-import { DbDashboard } from '../../database/entities/dashboards';
+import {
+    DashboardViewsTableName,
+    DbDashboard,
+} from '../../database/entities/dashboards';
 import { OrganizationTableName } from '../../database/entities/organizations';
 import { PinnedListTableName } from '../../database/entities/pinnedList';
 import { DbProjectMembership } from '../../database/entities/projectMemberships';
@@ -1207,6 +1210,27 @@ export class ProjectModel {
                 id: c.dashboard_version_id,
                 newId: newDashboardVersions[i].dashboard_version_id,
             }));
+
+            const dashboardViews = await trx(DashboardViewsTableName).whereIn(
+                'dashboard_version_id',
+                dashboardVersionIds,
+            );
+
+            Logger.debug(
+                `Duplicating ${dashboardViews.length} dashboard views on ${previewProjectUuid}`,
+            );
+
+            if (dashboardViews.length > 0) {
+                await trx(DashboardViewsTableName).insert(
+                    dashboardViews.map((d) => ({
+                        ...d,
+                        dashboard_view_uuid: undefined,
+                        dashboard_version_id: dashboardVersionsMapping.find(
+                            (m) => m.id === d.dashboard_version_id,
+                        )?.newId!,
+                    })),
+                );
+            }
 
             const dashboardTiles = await trx('dashboard_tiles').whereIn(
                 'dashboard_version_id',

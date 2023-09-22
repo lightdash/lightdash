@@ -302,7 +302,8 @@ export const sendSlackNotification = async (
                 schedulerUuid !== undefined
                     ? `This is a <${url}?scheduler_uuid=${schedulerUuid}|scheduled delivery> ${getHumanReadableCronExpression(
                           cron,
-                      )} from Lightdash`
+                      )} from Lightdash\n${
+                s3Service.getExpirationWarning()?.slack || ''`
                     : `This is a scheduled delivery triggered manually from Lightdash`,
         };
 
@@ -779,6 +780,7 @@ export const sendEmailNotification = async (
                 url,
                 schedulerUrl,
                 pdfFile,
+                s3Service.getExpirationWarning()?.days,
             );
         } else if (savedChartUuid) {
             if (csvUrl === undefined) {
@@ -794,6 +796,7 @@ export const sendEmailNotification = async (
                 csvUrl,
                 url,
                 schedulerUrl,
+                s3Service.getExpirationWarning()?.days,
             );
         } else if (dashboardUuid) {
             if (csvUrls === undefined) {
@@ -809,6 +812,7 @@ export const sendEmailNotification = async (
                 csvUrls,
                 url,
                 schedulerUrl,
+                s3Service.getExpirationWarning()?.days,
             );
         } else {
             throw new Error('Not implemented');

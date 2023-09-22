@@ -1,3 +1,17 @@
+## [0.783.2](https://github.com/lightdash/lightdash/compare/0.783.1...0.783.2) (2023-09-22)
+
+
+### Bug Fixes
+
+* add expiration days on slack and email footer ([#7173](https://github.com/lightdash/lightdash/issues/7173)) ([903a6ec](https://github.com/lightdash/lightdash/commit/903a6ec42b553350e410ee7506ed22b7fbdd02a4))
+
+## [0.783.1](https://github.com/lightdash/lightdash/compare/0.783.0...0.783.1) (2023-09-22)
+
+
+### Bug Fixes
+
+* copy dashboard filters to preview ([#7174](https://github.com/lightdash/lightdash/issues/7174)) ([ca7b99c](https://github.com/lightdash/lightdash/commit/ca7b99cdefaf098af3039e31b8ae15542ca00336))
+
 # [0.783.0](https://github.com/lightdash/lightdash/compare/0.782.0...0.783.0) (2023-09-22)
 
 
