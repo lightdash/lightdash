@@ -1,3 +1,10 @@
+# [0.783.0](https://github.com/lightdash/lightdash/compare/0.782.0...0.783.0) (2023-09-22)
+
+
+### Features
+
+* Keep run query enabled in explore even when underlying metrics/dimensions have not changed ([#7176](https://github.com/lightdash/lightdash/issues/7176)) ([45d71cb](https://github.com/lightdash/lightdash/commit/45d71cb9b2c73efae484678506c54d518b33c5cd))
+
 # [0.782.0](https://github.com/lightdash/lightdash/compare/0.781.0...0.782.0) (2023-09-21)
 
 
