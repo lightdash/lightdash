@@ -6,6 +6,7 @@ import {
     ApiQueryResults,
     ApiSqlQueryResults,
     ChartSummary,
+    CompiledDimension,
     countTotalFilterRules,
     CreateDbtCloudIntegration,
     CreateJob,
@@ -1859,10 +1860,10 @@ export class ProjectService {
             description: 'Gets all filters available for a single query',
         });
         try {
-            const savedChart =
-                await this.savedChartModel.getInfoForAvailableFilters(
+            const [savedChart] =
+                await this.savedChartModel.getInfoForAvailableFilters([
                     savedChartUuid,
-                );
+                ]);
 
             if (
                 user.ability.cannot('view', subject('SavedChart', savedChart))
@@ -1895,31 +1896,70 @@ export class ProjectService {
         user: SessionUser,
         savedQueryUuids: string[],
     ): Promise<DashboardAvailableFilters> {
-        const allFilters = await Promise.all(
-            savedQueryUuids.map(async (savedQueryUuid) => {
-                try {
-                    return await this.getAvailableFiltersForSavedQuery(
-                        user,
-                        savedQueryUuid,
-                    );
-                } catch (e: unknown) {
-                    if (e instanceof ForbiddenError) {
-                        return null;
-                    }
+        const transaction = Sentry.getCurrentHub()
+            ?.getScope()
+            ?.getTransaction();
+        const span = transaction?.startChild({
+            op: 'projectService.getAvailableFiltersForSavedQueries',
+            description: 'Gets all filters available for several queries',
+        });
 
-                    throw e;
+        let allFilters: {
+            uuid: string;
+            filters: CompiledDimension[];
+        }[] = [];
+
+        try {
+            const savedCharts =
+                await this.savedChartModel.getInfoForAvailableFilters(
+                    savedQueryUuids,
+                );
+
+            const filterPromises = savedCharts.map(async (savedChart) => {
+                if (
+                    user.ability.cannot(
+                        'view',
+                        subject('SavedChart', savedChart),
+                    )
+                ) {
+                    return { uuid: savedChart.uuid, filters: [] };
                 }
-            }),
-        );
+
+                const space = await this.spaceModel.getSpaceSummary(
+                    savedChart.spaceUuid,
+                );
+                if (!hasSpaceAccess(user, space)) {
+                    return { uuid: savedChart.uuid, filters: [] };
+                }
+
+                const explore = await this.getExplore(
+                    user,
+                    savedChart.projectUuid,
+                    savedChart.tableName,
+                );
+
+                const filters = getDimensions(explore).filter(
+                    (field) => isFilterableDimension(field) && !field.hidden,
+                );
+
+                return { uuid: savedChart.uuid, filters };
+            });
+
+            allFilters = await Promise.all(filterPromises);
+        } finally {
+            span?.finish();
+        }
 
         return savedQueryUuids.reduce<DashboardAvailableFilters>(
-            (acc, savedQueryUuid, index) => {
-                const filters = allFilters[index];
-                if (!filters) return acc;
+            (acc, savedQueryUuid) => {
+                const filterResult = allFilters.find(
+                    (result) => result.uuid === savedQueryUuid,
+                );
+                if (!filterResult || !filterResult.filters.length) return acc;
 
                 return {
                     ...acc,
-                    [savedQueryUuid]: filters,
+                    [savedQueryUuid]: filterResult.filters,
                 };
             },
             {},

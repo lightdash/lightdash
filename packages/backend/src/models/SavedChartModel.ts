@@ -735,15 +735,18 @@ export class SavedChartModel {
             );
     }
 
-    async getInfoForAvailableFilters(savedChartUuid: string): Promise<
-        {
+    async getInfoForAvailableFilters(savedChartUuids: string[]): Promise<
+        ({
             spaceUuid: Space['uuid'];
         } & Pick<SavedChart, 'uuid' | 'name' | 'tableName'> &
             Pick<Project, 'projectUuid'> &
-            Pick<Organization, 'organizationUuid'>
+            Pick<Organization, 'organizationUuid'>)[]
     > {
-        const [chart] = await this.database('saved_queries')
-            .where(`${SavedChartsTableName}.saved_query_uuid`, savedChartUuid)
+        const charts = await this.database('saved_queries')
+            .whereIn(
+                `${SavedChartsTableName}.saved_query_uuid`,
+                savedChartUuids,
+            )
             .select({
                 uuid: 'saved_queries.saved_query_uuid',
                 name: 'saved_queries.name',
@@ -780,9 +783,9 @@ export class SavedChartModel {
                 'projects.organization_id',
             )
             .limit(1);
-        if (chart === undefined) {
-            throw new NotFoundError('Saved query not found');
+        if (charts.length === 0) {
+            throw new NotFoundError('Saved queries not found');
         }
-        return chart;
+        return charts;
     }
 }
