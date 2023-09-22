@@ -13,6 +13,7 @@ import connectSessionKnex from 'connect-session-knex';
 import cookieParser from 'cookie-parser';
 import express, { NextFunction, Request, Response } from 'express';
 import expressSession from 'express-session';
+import expressStaticGzip from 'express-static-gzip';
 import passport from 'passport';
 import refresh from 'passport-oauth2-refresh';
 import path from 'path';
@@ -170,24 +171,11 @@ if (
 // frontend assets - immutable because vite appends hash to filenames
 app.use(
     '/assets',
-    (req, res, next) => {
-        const gzipped = path.join(
-            __dirname,
-            '../../frontend/build/assets',
-            `${req.path}.gzip`,
-        );
-
-        // Serve gzipped file if it exists in the build folder
-        if (fs.existsSync(gzipped)) {
-            res.set('Content-Encoding', 'gzip');
-            req.url += '.gzip';
-        }
-
-        next();
-    },
-    express.static(path.join(__dirname, '../../frontend/build/assets'), {
-        immutable: true,
-        maxAge: '1y',
+    expressStaticGzip(path.join(__dirname, '../../frontend/build/assets'), {
+        serveStatic: {
+            immutable: true,
+            maxAge: '1y',
+        },
     }),
 );
 

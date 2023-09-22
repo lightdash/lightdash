@@ -66,6 +66,7 @@
         "execa": "^5.0.0",
         "express": "^4.17.3",
         "express-session": "^1.17.2",
+        "express-static-gzip": "^2.1.7",
         "express-winston": "^4.2.0",
         "fs-extra": "^10.0.0",
         "fuse.js": "^6.4.6",
