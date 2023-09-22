@@ -22,7 +22,6 @@ import {
 } from '@lightdash/common';
 import produce from 'immer';
 import cloneDeep from 'lodash-es/cloneDeep';
-import isEqual from 'lodash-es/isEqual';
 import { FC, useCallback, useEffect, useMemo, useReducer } from 'react';
 import { useHistory } from 'react-router-dom';
 import { createContext, useContextSelector } from 'use-context-selector';
@@ -188,7 +187,6 @@ export interface ExplorerState extends ExplorerReduceState {
 export interface ExplorerContext {
     state: ExplorerState;
     queryResults: ReturnType<typeof useQueryResults>;
-    hasUnfetchedChanges: boolean;
     actions: {
         clearExplore: () => void;
         clearQuery: () => void;
@@ -1212,13 +1210,6 @@ export const ExplorerProvider: FC<{
         unsavedChartVersion.metricQuery,
     ]);
 
-    const hasUnfetchedChanges = useMemo(() => {
-        return !isEqual(
-            state.unsavedChartVersion.metricQuery,
-            state.previouslyFetchedState,
-        );
-    }, [state.unsavedChartVersion.metricQuery, state.previouslyFetchedState]);
-
     useEffect(() => {
         if (!state.shouldFetchResults) return;
 
@@ -1328,10 +1319,9 @@ export const ExplorerProvider: FC<{
         () => ({
             state,
             queryResults,
-            hasUnfetchedChanges,
             actions,
         }),
-        [actions, queryResults, state, hasUnfetchedChanges],
+        [actions, queryResults, state],
     );
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };

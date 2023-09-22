@@ -1013,17 +1013,26 @@ export class ProjectService {
         user: SessionUser,
         chartUuid: string,
     ): Promise<Record<string, any>[]> {
-        const chart = await this.savedChartModel.get(chartUuid);
-        const { metricQuery } = chart;
-        const exploreId = chart.tableName;
+        const rows = await wrapSentryTransaction(
+            'getResultsForChartWithWarehouseQuery',
+            {
+                userUuid: user.userUuid,
+                chartUuid,
+            },
+            async () => {
+                const chart = await this.savedChartModel.get(chartUuid);
+                const { metricQuery } = chart;
+                const exploreId = chart.tableName;
 
-        const rows = await this.runMetricQuery(
-            user,
-            metricQuery,
-            chart.projectUuid,
-            exploreId,
-            undefined,
-            QueryExecutionContext.GSHEETS,
+                return this.runMetricQuery(
+                    user,
+                    metricQuery,
+                    chart.projectUuid,
+                    exploreId,
+                    undefined,
+                    QueryExecutionContext.GSHEETS,
+                );
+            },
         );
 
         return rows;
@@ -1166,9 +1175,16 @@ export class ProjectService {
                         'warehouse.type',
                         warehouseClient.credentials.type,
                     );
-                    const { rows } = await warehouseClient.runQuery(
-                        query,
-                        queryTags,
+                    const { rows } = await wrapSentryTransaction(
+                        'runWarehouseQuery',
+                        {
+                            query,
+                            queryTags,
+                            context,
+                            metricQuery: JSON.stringify(metricQuery),
+                            type: warehouseClient.credentials.type,
+                        },
+                        async () => warehouseClient.runQuery(query, queryTags),
                     );
                     await sshTunnel.disconnect();
                     return rows;
@@ -1843,7 +1859,10 @@ export class ProjectService {
             description: 'Gets all filters available for a single query',
         });
         try {
-            const savedChart = await this.savedChartModel.get(savedChartUuid);
+            const savedChart =
+                await this.savedChartModel.getInfoForAvailableFilters(
+                    savedChartUuid,
+                );
 
             if (
                 user.ability.cannot('view', subject('SavedChart', savedChart))

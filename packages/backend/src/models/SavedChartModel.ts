@@ -10,9 +10,12 @@ import {
     getChartType,
     isFormat,
     NotFoundError,
+    Organization,
+    Project,
     SavedChart,
     SessionUser,
     SortField,
+    Space,
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
@@ -469,21 +472,18 @@ export class SavedChartModel {
             if (savedQuery === undefined) {
                 throw new NotFoundError('Saved query not found');
             }
-            const fields = await this.database('saved_queries_version_fields')
+            const savedQueriesVersionId = savedQuery.saved_queries_version_id;
+
+            const fieldsQuery = this.database('saved_queries_version_fields')
                 .select(['name', 'field_type', 'order'])
-                .where(
-                    'saved_queries_version_id',
-                    savedQuery.saved_queries_version_id,
-                )
+                .where('saved_queries_version_id', savedQueriesVersionId)
                 .orderBy('order', 'asc');
-            const sorts = await this.database('saved_queries_version_sorts')
+
+            const sortsQuery = this.database('saved_queries_version_sorts')
                 .select(['field_name', 'descending'])
-                .where(
-                    'saved_queries_version_id',
-                    savedQuery.saved_queries_version_id,
-                )
+                .where('saved_queries_version_id', savedQueriesVersionId)
                 .orderBy('order', 'asc');
-            const tableCalculations = await this.database(
+            const tableCalculationsQuery = this.database(
                 'saved_queries_version_table_calculations',
             )
                 .select([
@@ -493,12 +493,9 @@ export class SavedChartModel {
                     'order',
                     'format',
                 ])
-                .where(
-                    'saved_queries_version_id',
-                    savedQuery.saved_queries_version_id,
-                );
+                .where('saved_queries_version_id', savedQueriesVersionId);
 
-            const additionalMetricsRows = await this.database(
+            const additionalMetricsQuery = this.database(
                 SavedChartAdditionalMetricTableName,
             )
                 .select([
@@ -517,10 +514,15 @@ export class SavedChartModel {
                     'uuid',
                     'compact',
                 ])
-                .where(
-                    'saved_queries_version_id',
-                    savedQuery.saved_queries_version_id,
-                );
+                .where('saved_queries_version_id', savedQueriesVersionId);
+
+            const [fields, sorts, tableCalculations, additionalMetricsRows] =
+                await Promise.all([
+                    fieldsQuery,
+                    sortsQuery,
+                    tableCalculationsQuery,
+                    additionalMetricsQuery,
+                ]);
 
             // Filters out "null" fields
             const additionalMetricsFiltered: DBFilteredAdditionalMetrics[] =
@@ -721,7 +723,6 @@ export class SavedChartModel {
                 'organizations.organization_id',
                 'projects.organization_id',
             )
-
             .leftJoin(
                 PinnedChartTableName,
                 `${PinnedChartTableName}.saved_chart_uuid`,
@@ -732,5 +733,56 @@ export class SavedChartModel {
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedChartTableName}.pinned_list_uuid`,
             );
+    }
+
+    async getInfoForAvailableFilters(savedChartUuid: string): Promise<
+        {
+            spaceUuid: Space['uuid'];
+        } & Pick<SavedChart, 'uuid' | 'name' | 'tableName'> &
+            Pick<Project, 'projectUuid'> &
+            Pick<Organization, 'organizationUuid'>
+    > {
+        const [chart] = await this.database('saved_queries')
+            .where(`${SavedChartsTableName}.saved_query_uuid`, savedChartUuid)
+            .select({
+                uuid: 'saved_queries.saved_query_uuid',
+                name: 'saved_queries.name',
+                spaceUuid: 'spaces.space_uuid',
+                tableName: 'saved_queries_versions.explore_name',
+                projectUuid: 'projects.project_uuid',
+                organizationUuid: 'organizations.organization_uuid',
+            })
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
+            .innerJoin(SpaceTableName, function spaceJoin() {
+                this.on(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${DashboardsTableName}.space_id`,
+                ).orOn(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SavedChartsTableName}.space_id`,
+                );
+            })
+            .innerJoin(
+                'saved_queries_versions',
+                `${SavedChartsTableName}.saved_query_id`,
+                'saved_queries_versions.saved_query_id',
+            )
+            .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
+            .leftJoin(
+                OrganizationTableName,
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
+            .limit(1);
+        if (chart === undefined) {
+            throw new NotFoundError('Saved query not found');
+        }
+        return chart;
     }
 }

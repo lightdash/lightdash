@@ -1,10 +1,10 @@
 import { WarehouseTypes } from '@lightdash/common';
+import { Anchor, PasswordInput, Stack, TextInput } from '@mantine/core';
 import React, { FC } from 'react';
+import { useFormContext } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import FormSection from '../../ReactHookForm/FormSection';
-import Input from '../../ReactHookForm/Input';
-import PasswordInput from '../../ReactHookForm/PasswordInput';
 import {
     AdvancedButton,
     AdvancedButtonWrapper,
@@ -15,18 +15,32 @@ import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 export const DatabricksSchemaInput: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const { register } = useFormContext();
+
     return (
-        <Input
+        <TextInput
             // this supposed to be a `schema` but changing it will break for existing customers
-            name="warehouse.database"
+
             label="Schema"
-            documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#database-1"
-            rules={{
-                required: 'Required field',
+            description={
+                <p>
+                    Check out for more details in{' '}
+                    <Anchor
+                        target="_blank"
+                        href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#database-1"
+                        rel="noreferrer"
+                    >
+                        given documentation
+                    </Anchor>
+                    .
+                </p>
+            }
+            required
+            {...register('warehouse.database', {
                 validate: {
                     hasNoWhiteSpaces: hasNoWhiteSpaces('Schema'),
                 },
-            }}
+            })}
             disabled={disabled}
         />
     );
@@ -39,68 +53,107 @@ const DatabricksForm: FC<{
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.DATABRICKS;
+    const { register } = useFormContext();
 
     return (
         <>
-            <Input
-                name="warehouse.serverHostName"
-                label="Server host name"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#server-hostname"
-                rules={{
-                    required: 'Required field',
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Server host name'),
-                    },
-                }}
-                disabled={disabled}
-                placeholder="xxxx.gcp.databricks.com"
-            />
-            <Input
-                name="warehouse.httpPath"
-                label="HTTP Path"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#http-path"
-                rules={{
-                    required: 'Required field',
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('HTTP Path'),
-                    },
-                }}
-                disabled={disabled}
-                placeholder="/sql/protocolv1/o/xxxx/xxxx"
-            />
-            <PasswordInput
-                name="warehouse.personalAccessToken"
-                label="Personal access token"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#personal-access-token"
-                rules={{
-                    required: requireSecrets ? 'Required field' : undefined,
-                }}
-                placeholder={
-                    disabled || !requireSecrets ? '**************' : undefined
-                }
-                disabled={disabled}
-            />
-            <Input
-                name="warehouse.catalog"
-                label="Catalog name"
-                labelHelp="This is the catalog name."
-                rules={{
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Catalog name'),
-                    },
-                }}
-                disabled={disabled}
-            />
-            <FormSection isOpen={isOpen} name="advanced">
-                <StartOfWeekSelect disabled={disabled} />
-            </FormSection>
-            <AdvancedButtonWrapper>
-                <AdvancedButton
-                    icon={isOpen ? 'chevron-up' : 'chevron-down'}
-                    text={`Advanced configuration options`}
-                    onClick={toggleOpen}
+            <Stack style={{ marginTop: '8px' }}>
+                <TextInput
+                    label="Server host name"
+                    description={
+                        <p>
+                            Check out for more details in{' '}
+                            <Anchor
+                                target="_blank"
+                                href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#server-hostname"
+                                rel="noreferrer"
+                            >
+                                given documentation
+                            </Anchor>
+                            .
+                        </p>
+                    }
+                    required
+                    {...register('warehouse.serverHostName', {
+                        validate: {
+                            hasNoWhiteSpaces:
+                                hasNoWhiteSpaces('Server host name'),
+                        },
+                    })}
+                    disabled={disabled}
+                    placeholder="xxxx.gcp.databricks.com"
+                    labelProps={{ style: { marginTop: '8px' } }}
                 />
-            </AdvancedButtonWrapper>
+                <TextInput
+                    label="HTTP Path"
+                    description={
+                        <p>
+                            Check out for more details in{' '}
+                            <Anchor
+                                target="_blank"
+                                href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#http-path"
+                                rel="noreferrer"
+                            >
+                                given documentation
+                            </Anchor>
+                            .
+                        </p>
+                    }
+                    required
+                    {...register('warehouse.httpPath', {
+                        validate: {
+                            hasNoWhiteSpaces: hasNoWhiteSpaces('HTTP Path'),
+                        },
+                    })}
+                    disabled={disabled}
+                    placeholder="/sql/protocolv1/o/xxxx/xxxx"
+                />
+                <PasswordInput
+                    {...register('warehouse.personalAccessToken')}
+                    label="Personal access token"
+                    description={
+                        <p>
+                            Check out for more details in{' '}
+                            <Anchor
+                                target="_blank"
+                                href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#personal-access-token"
+                                rel="noreferrer"
+                            >
+                                given documentation
+                            </Anchor>
+                            .
+                        </p>
+                    }
+                    required={requireSecrets}
+                    placeholder={
+                        disabled || !requireSecrets
+                            ? '**************'
+                            : undefined
+                    }
+                    disabled={disabled}
+                />
+                <TextInput
+                    label="Catalog name"
+                    description="This is the catalog name."
+                    required
+                    {...register('warehouse.catalog', {
+                        validate: {
+                            hasNoWhiteSpaces: hasNoWhiteSpaces('Catalog name'),
+                        },
+                    })}
+                    disabled={disabled}
+                />
+                <FormSection isOpen={isOpen} name="advanced">
+                    <StartOfWeekSelect disabled={disabled} />
+                </FormSection>
+                <AdvancedButtonWrapper>
+                    <AdvancedButton
+                        icon={isOpen ? 'chevron-up' : 'chevron-down'}
+                        text={`Advanced configuration options`}
+                        onClick={toggleOpen}
+                    />
+                </AdvancedButtonWrapper>
+            </Stack>
         </>
     );
 };

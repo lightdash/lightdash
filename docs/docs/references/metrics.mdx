@@ -582,23 +582,6 @@ models:
 
 These filters do not appear in the `Filters` tab in the Explore view, instead, they are applied automatically in the SQL query that fetches your results. That means filters added using the `filter` parameter can't be removed in the UI and won't be visible to users unless they look at the SQL query.
 
-### Available filter types
-
-| Type                        | Example (in English)                           | Example (as code)     |
-|-----------------------------|------------------------------------------------|-----------------------|
-| is                          | User name is equal to katie                    | `user_name: katie`    |
-| is not                      | User name is not equal to katie                | `user_name: "!katie"`   |
-| contains                    | User name contains katie                       | `user_name: %katie%`  |
-| does not contain            | User name does not contain katie               | `user_name: "!%katie%"` |
-| starts with                 | User name starts with katie                    | `user_name: katie%`   |
-| ends with                   | User name ends with katie                      | `user_name: %katie`   |
-| is greater than             | Number of orders is greater than 4             | `num_orders: '> 4'`   |
-| is greater than or equal to | Number of orders is greater than or equal to 4 | `num_orders: '>= 4'`  |
-| is less than                | Number of orders is less than 4                | `num_orders: '< 4'`   |
-| is less than or equal to    | Number of orders is less than or equal to 4    | `num_orders: '<= 4'`  |
-| is null                     | Status is `NULL`                               | `status: null`         |
-| is not null                 | Status is not `NULL`                           | `status: '!null'`     |
-
 :::info
 
 To use special characters such as `%!_>` in your filter value you must escape them with a backslash `\`. For example,
@@ -617,6 +600,23 @@ columns:
 ```
 
 :::
+
+### Available filter types
+
+| Type                        | Example (in English)                           | Example (as code)     |
+|-----------------------------|------------------------------------------------|-----------------------|
+| is                          | User name is equal to katie                    | `user_name: "katie"`    |
+| is not                      | User name is not equal to katie                | `user_name: "!katie"`   |
+| contains                    | User name contains katie                       | `user_name: "%katie%"`  |
+| does not contain            | User name does not contain katie               | `user_name: "!%katie%"` |
+| starts with                 | User name starts with katie                    | `user_name: "katie%"`   |
+| ends with                   | User name ends with katie                      | `user_name: "%katie"`   |
+| is greater than             | Number of orders is greater than 4             | `num_orders: "> 4"`   |
+| is greater than or equal to | Number of orders is greater than or equal to 4 | `num_orders: ">= 4"`  |
+| is less than                | Number of orders is less than 4                | `num_orders: "< 4"`   |
+| is less than or equal to    | Number of orders is less than or equal to 4    | `num_orders: "<= 4"`  |
+| is null                     | Status is `NULL`                               | `status: "null"`         |
+| is not null                 | Status is not `NULL`                           | `status: "!null"`     |
 
 ### If you have many filters in your list, they will be joined using `AND`.
 

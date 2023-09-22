@@ -366,7 +366,7 @@ describe('Create projects', () => {
             testPercentile(projectUuid);
         });
     });
-    it.skip('Should create a Redshift project', () => {
+    it('Should create a Redshift project', () => {
         // https://docs.aws.amazon.com/redshift/latest/dg/c_redshift-and-postgres-sql.html
         // Amazon Redshift is based on PostgreSQL
         // So we can use our own PostgreSQL local instance to test the connection against Redshift

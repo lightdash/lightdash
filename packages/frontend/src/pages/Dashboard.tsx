@@ -229,7 +229,7 @@ const Dashboard: FC = () => {
             setHaveFiltersChanged(false);
             setDashboardTemporaryFilters({ dimensions: [], metrics: [] });
             reset();
-            history.push(
+            history.replace(
                 `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
             );
         }
@@ -341,7 +341,7 @@ const Dashboard: FC = () => {
         setHaveTilesChanged(false);
         if (dashboard) setDashboardFilters(dashboard.filters);
         setHaveFiltersChanged(false);
-        history.push(
+        history.replace(
             `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
         );
     }, [
@@ -400,28 +400,37 @@ const Dashboard: FC = () => {
     }, [haveTilesChanged, haveFiltersChanged, isEditMode]);
 
     useEffect(() => {
-        const createChartInDashboardFlow = sessionStorage.getItem(
-            'unsavedDashboardTiles',
-        );
-        history.block((prompt) => {
-            if (
-                isEditMode &&
-                (haveTilesChanged || haveFiltersChanged) &&
-                !prompt.pathname.includes(
-                    `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
-                ) &&
-                createChartInDashboardFlow
-            ) {
-                setBlockedNavigationLocation(prompt.pathname);
-                setIsSaveWarningModalOpen(true);
-                return false; // blocks history
-            }
-            return undefined; // allow history
-        });
+        // Check if in edit mode and changes have been made
+        if (isEditMode && (haveTilesChanged || haveFiltersChanged)) {
+            // Define the navigation block function
+            const navigationBlockFunction = (prompt: { pathname: string }) => {
+                // Check if the user is navigating away from the current dashboard
+                if (
+                    !prompt.pathname.includes(
+                        `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+                    ) &&
+                    // Allow user to add a new table
+                    !sessionStorage.getItem('unsavedDashboardTiles')
+                ) {
+                    // Set the blocked navigation location to navigate on confirming from user
+                    setBlockedNavigationLocation(prompt.pathname);
+                    // Open a warning modal before blocking navigation
+                    setIsSaveWarningModalOpen(true);
+                    // Return false to block history navigation
+                    return false;
+                }
+                // Allow history navigation
+                return undefined;
+            };
 
-        return () => {
-            history.block(() => {});
-        };
+            // Set up navigation blocking
+            const unblockNavigation = history.block(navigationBlockFunction);
+
+            // Clean up navigation blocking when the component unmounts
+            return () => {
+                unblockNavigation();
+            };
+        }
     }, [
         isEditMode,
         history,

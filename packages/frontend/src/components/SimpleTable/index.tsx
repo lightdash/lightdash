@@ -1,6 +1,6 @@
 import { NonIdealState } from '@blueprintjs/core';
 import { Box } from '@mantine/core';
-import { FC, useRef } from 'react';
+import { FC } from 'react';
 import PivotTable from '../common/PivotTable';
 import Table from '../common/Table';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
@@ -42,7 +42,6 @@ const SimpleTable: FC<SimpleTableProps> = ({
         isSqlRunner,
         explore,
     } = useVisualizationContext();
-    const scrollableContainerRef = useRef<HTMLDivElement>(null);
     if (isLoading) return <LoadingChart />;
 
     if (error) {
@@ -66,26 +65,18 @@ const SimpleTable: FC<SimpleTableProps> = ({
     } else if (pivotTableData.loading || pivotTableData.data) {
         return (
             <Box p="xs" pb="xl" miw="100%" h="100%">
-                <Box
-                    ref={scrollableContainerRef}
-                    miw="inherit"
-                    h="inherit"
-                    sx={{ overflow: 'auto' }}
-                >
-                    {pivotTableData.data ? (
-                        <PivotTable
-                            className={className}
-                            containerRef={scrollableContainerRef}
-                            data={pivotTableData.data}
-                            conditionalFormattings={conditionalFormattings}
-                            getFieldLabel={getFieldLabel}
-                            getField={getField}
-                            hideRowNumbers={hideRowNumbers}
-                        />
-                    ) : (
-                        <LoadingChart />
-                    )}
-                </Box>
+                {pivotTableData.data ? (
+                    <PivotTable
+                        className={className}
+                        data={pivotTableData.data}
+                        conditionalFormattings={conditionalFormattings}
+                        getFieldLabel={getFieldLabel}
+                        getField={getField}
+                        hideRowNumbers={hideRowNumbers}
+                    />
+                ) : (
+                    <LoadingChart />
+                )}
             </Box>
         );
     }

@@ -11,7 +11,7 @@ import { FC, ReactNode } from 'react';
 const CustomMark: FC<{ children: ReactNode }> = ({ children }) => (
     <Mark
         color="gray"
-        p={2}
+        px={2}
         fw={500}
         fz="xs"
         sx={{
