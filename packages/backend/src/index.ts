@@ -1,5 +1,7 @@
 // organize-imports-ignore
 // eslint-disable-next-line import/order
+import otelSdk from './otel'; // must be imported first
+
 import fs from 'fs';
 import { LightdashMode, SessionUser } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -15,7 +17,6 @@ import passport from 'passport';
 import refresh from 'passport-oauth2-refresh';
 import path from 'path';
 import reDoc from 'redoc-express';
-import otelSdk from './otel'; // must be imported first
 import apiSpec from './generated/swagger.json';
 import { analytics } from './analytics/client';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
