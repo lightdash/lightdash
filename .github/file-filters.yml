@@ -10,5 +10,6 @@ frontend:
 
 backend:
   - 'packages/backend/**'
+  - 'packages/warehouses/**'
   - 'packages/e2e/cypress/e2e/api/**'
 
