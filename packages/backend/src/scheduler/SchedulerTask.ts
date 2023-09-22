@@ -303,7 +303,8 @@ export const sendSlackNotification = async (
                     ? `This is a <${url}?scheduler_uuid=${schedulerUuid}|scheduled delivery> ${getHumanReadableCronExpression(
                           cron,
                       )} from Lightdash\n${
-                s3Service.getExpirationWarning()?.slack || ''`
+                          s3Service.getExpirationWarning()?.slack || ''
+                      }`
                     : `This is a scheduled delivery triggered manually from Lightdash`,
         };
 
