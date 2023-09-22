@@ -30,6 +30,7 @@ import {
     ValidateProjectPayload,
 } from '@lightdash/common';
 import { nanoid } from 'nanoid';
+import slackifyMarkdown from 'slackify-markdown';
 import { analytics } from '../analytics/client';
 import {
     DownloadCsv,
@@ -279,6 +280,9 @@ export const sendSlackNotification = async (
         });
 
         // Backwards compatibility for old scheduled deliveries
+        const notificationPageData =
+            notification.page ??
+            (await getNotificationPageData(scheduler, jobId));
         const {
             url,
             details,
@@ -287,16 +291,14 @@ export const sendSlackNotification = async (
             imageUrl,
             csvUrl,
             csvUrls,
-            pdfFile, // TODO add pdf to slack
-        } =
-            notification.page ??
-            (await getNotificationPageData(scheduler, jobId));
+            // pdfFile, // TODO: add pdf to slack
+        } = notificationPageData;
 
         const getBlocksArgs = {
             title: name,
-            description: `${details.name}${
-                details.description ? ` - ${details.description}` : ''
-            }`,
+            name: details.name,
+            description: details.description,
+            message: scheduler.message && slackifyMarkdown(scheduler.message),
             ctaUrl: url,
             footerMarkdown:
                 schedulerUuid !== undefined
@@ -336,6 +338,8 @@ export const sendSlackNotification = async (
                     csvUrl:
                         csvUrl.path !== '#no-results' ? csvUrl.path : undefined,
                 });
+
+                console.log(blocks);
             } else if (dashboardUuid) {
                 if (csvUrls === undefined) {
                     throw new Error('Missing CSV URLS');
