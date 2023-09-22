@@ -7,8 +7,8 @@ jobs:
     runs-on: ubuntu-latest
     # Map a step output to a job output
     outputs:
-      frontend: ${{ steps.changes.outputs.frontend == 'true || steps.overrides.outputs.frontend == 'true }}
-      backend: ${{ steps.changes.outputs.backend == 'true || steps.overrides.outputs.backend == 'true }}
+      frontend: ${{ steps.changes.outputs.frontend == 'true' || steps.overrides.outputs.frontend == 'true' }}
+      backend: ${{ steps.changes.outputs.backend == 'true' || steps.overrides.outputs.backend == 'true' }}
     steps:
       - uses: actions/checkout@v3
       - name: Check for files changes

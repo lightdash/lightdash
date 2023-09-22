@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     # Map a step output to a job output
     outputs:
-      cli: ${{ steps.changes.outputs.cli == 'true' || steps.overrides.outputs.cli == 'true }}
+      cli: ${{ steps.changes.outputs.cli == 'true' || steps.overrides.outputs.cli == 'true' }}
     steps:
       - uses: actions/checkout@v3
       - name: Check for files changes
