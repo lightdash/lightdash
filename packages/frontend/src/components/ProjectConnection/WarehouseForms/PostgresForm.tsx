@@ -139,7 +139,7 @@ const PostgresForm: FC<{
                                 <NumberInput
                                     {...field}
                                     label="Port"
-                                    description="This is the database name."
+                                    description="This is the port where the database is running."
                                     required
                                     disabled={disabled}
                                 />

@@ -1,3 +1,61 @@
+# [0.783.0](https://github.com/lightdash/lightdash/compare/0.782.0...0.783.0) (2023-09-22)
+
+
+### Features
+
+* Keep run query enabled in explore even when underlying metrics/dimensions have not changed ([#7176](https://github.com/lightdash/lightdash/issues/7176)) ([45d71cb](https://github.com/lightdash/lightdash/commit/45d71cb9b2c73efae484678506c54d518b33c5cd))
+
+# [0.782.0](https://github.com/lightdash/lightdash/compare/0.781.0...0.782.0) (2023-09-21)
+
+
+### Features
+
+* migrate Databricks settings forms to use Mantine ([#7156](https://github.com/lightdash/lightdash/issues/7156)) ([8c89dd0](https://github.com/lightdash/lightdash/commit/8c89dd059f60549ea901d38f33f8bde5bd89f054))
+* migrate Snowflake settings forms to use Mantine ([#7158](https://github.com/lightdash/lightdash/issues/7158)) ([7029555](https://github.com/lightdash/lightdash/commit/702955516e49d093aad12b285db5719ec0e1f9d9))
+
+# [0.781.0](https://github.com/lightdash/lightdash/compare/0.780.2...0.781.0) (2023-09-21)
+
+
+### Features
+
+* migrate Redshift settings forms to use Mantine ([#7157](https://github.com/lightdash/lightdash/issues/7157)) ([69bd1d9](https://github.com/lightdash/lightdash/commit/69bd1d92cad5bed364c498829169311306a46b97))
+
+## [0.780.2](https://github.com/lightdash/lightdash/compare/0.780.1...0.780.2) (2023-09-21)
+
+
+### Bug Fixes
+
+* prevent to go back to edit mode after saving or canelling and hitting the back button on Dashboard ([#7134](https://github.com/lightdash/lightdash/issues/7134)) ([60661db](https://github.com/lightdash/lightdash/commit/60661dbaa0b75603cbe494fab1c4152d3e33b700))
+
+## [0.780.1](https://github.com/lightdash/lightdash/compare/0.780.0...0.780.1) (2023-09-21)
+
+
+### Bug Fixes
+
+* wait until all charts finish loading before taking screenshot ([#7143](https://github.com/lightdash/lightdash/issues/7143)) ([6770799](https://github.com/lightdash/lightdash/commit/67707990195a9d261f913a2eb2ee8c9dc021bcd7))
+
+# [0.780.0](https://github.com/lightdash/lightdash/compare/0.779.0...0.780.0) (2023-09-20)
+
+
+### Features
+
+* light table ([#7089](https://github.com/lightdash/lightdash/issues/7089)) ([0ea1483](https://github.com/lightdash/lightdash/commit/0ea1483ec5baf9a0861289a16cad98fbe2ef5135))
+
+# [0.779.0](https://github.com/lightdash/lightdash/compare/0.778.5...0.779.0) (2023-09-20)
+
+
+### Features
+
+* migrate Bigquery settings forms to use Mantine ([#7139](https://github.com/lightdash/lightdash/issues/7139)) ([97bfd9d](https://github.com/lightdash/lightdash/commit/97bfd9d85e65f2f8d6078989d073abf196dfc55e))
+* Migrate project settings forms to use Mantine ([#7140](https://github.com/lightdash/lightdash/issues/7140)) ([b17b127](https://github.com/lightdash/lightdash/commit/b17b12754e5d97c3502b4d40baeba54505419d84))
+
+## [0.778.5](https://github.com/lightdash/lightdash/compare/0.778.4...0.778.5) (2023-09-20)
+
+
+### Bug Fixes
+
+* fix pdf attachment resolution ([#7138](https://github.com/lightdash/lightdash/issues/7138)) ([8b5534f](https://github.com/lightdash/lightdash/commit/8b5534f1d7c2973c6fb37a9a90d874be4f39990d))
+
 ## [0.778.4](https://github.com/lightdash/lightdash/compare/0.778.3...0.778.4) (2023-09-19)
 
 

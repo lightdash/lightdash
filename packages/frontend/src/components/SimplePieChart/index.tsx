@@ -25,7 +25,11 @@ const EmptyChart = () => (
 
 const LoadingChart = () => (
     <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
-        <NonIdealState title="Loading chart" icon={<Spinner />} />
+        <NonIdealState
+            title="Loading pie chart"
+            icon={<Spinner />}
+            className="loading_chart"
+        />
     </div>
 );
 
