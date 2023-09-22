@@ -3208,6 +3208,18 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
+"@nolyfill/es-aggregate-error@^1.0.21":
+  version "1.0.21"
+  resolved "https://registry.yarnpkg.com/@nolyfill/es-aggregate-error/-/es-aggregate-error-1.0.21.tgz#4ded25795a5b43c78b7c553052462a7da48e4873"
+  integrity sha512-1P+7535ZSQAD/BoSmeu+xv9eOZA5oCQ3e40rO5ZVbFZBafWR+WoZJsoEwlzUDsZz9iFFIKQiMsrSsN4HbUMtTQ==
+  dependencies:
+    "@nolyfill/shared" "1.0.21"
+
+"@nolyfill/shared@1.0.21":
+  version "1.0.21"
+  resolved "https://registry.yarnpkg.com/@nolyfill/shared/-/shared-1.0.21.tgz#0aeec134d6448a519dda21e122901b5f034b82f8"
+  integrity sha512-qDc/NoaFU23E0hhiDPeUrvWzTXIPE+RbvRQtRWSeHHNmCIgYI9HS1jKzNYNJxv4jvZ/1VmM3L6rNVxbj+LBMNA==
+
 "@opentelemetry/api-logs@0.39.1":
   version "0.39.1"
   resolved "https://registry.npmjs.org/@opentelemetry/api-logs/-/api-logs-0.39.1.tgz"
@@ -19519,11 +19531,12 @@ vite-plugin-chunk-split@^0.4.7:
     es-module-lexer "^1.0.3"
     magic-string "^0.26.3"
 
-vite-plugin-compression2@^0.10.4:
-  version "0.10.4"
-  resolved "https://registry.yarnpkg.com/vite-plugin-compression2/-/vite-plugin-compression2-0.10.4.tgz#34574380dd059cd15cd35d97eed88f9dcda213ac"
-  integrity sha512-9YcESw0n1j8KxxY1NJKEcItlT0bLS+K/NKa/xPqZGEHW/qwgigIeRF/bCTUdZ/bn/mg2+PeERWgRmK8G1L0tyg==
+vite-plugin-compression2@^0.10.5:
+  version "0.10.5"
+  resolved "https://registry.yarnpkg.com/vite-plugin-compression2/-/vite-plugin-compression2-0.10.5.tgz#013ed2fe8471487dca7173a971668a74e0f308fa"
+  integrity sha512-IaZUzl9pmZXSAwX3XA6LiB9S7vWK/+4P1r5hT/NlygFWjF6OXNbXJq2/jtkh4HzsxILa0+kwmihTYbJRR406Uw==
   dependencies:
+    "@nolyfill/es-aggregate-error" "^1.0.21"
     "@rollup/pluginutils" "^5.0.2"
 
 vite-plugin-eslint@^1.8.1:
