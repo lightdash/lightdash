@@ -1,0 +1,1 @@
+select * from "postgres"."jaffle"."stg_payments"
