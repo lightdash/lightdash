@@ -13048,6 +13048,11 @@ markdown-table@^3.0.0:
   resolved "https://registry.npmjs.org/markdown-table/-/markdown-table-3.0.1.tgz"
   integrity sha512-CBbaYXKSGnE1uLRpKA1SWgIRb2PQrpkllNWpZtZe6VojOJ4ysqiq7/2glYcmKsOYN09QgH/HEBX5hIshAeiK6A==
 
+marked@^9.0.3:
+  version "9.0.3"
+  resolved "https://registry.yarnpkg.com/marked/-/marked-9.0.3.tgz#95be5e8cba93f2c2ca1d6503794c4f02d81c97d9"
+  integrity sha512-pI/k4nzBG1PEq1J3XFEHxVvjicfjl8rgaMaqclouGSMPhk7Q3Ejb2ZRxx/ZQOcQ1909HzVoWCFYq6oLgtL4BpQ==
+
 match-sorter@^6.0.2:
   version "6.3.0"
   resolved "https://registry.npmjs.org/match-sorter/-/match-sorter-6.3.0.tgz"
