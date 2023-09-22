@@ -60,3 +60,6 @@ credentials.json
 # dbt
 /target
 packages/backend/target/
+venv/
+dbt_modules/
+logs/
