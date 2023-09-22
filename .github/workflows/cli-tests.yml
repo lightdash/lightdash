@@ -22,6 +22,9 @@ jobs:
           filters: .github/file-filters.yml
       - uses: 8BitJonny/gh-get-current-pr@2.2.0
         id: PR
+      - name: PR description
+        run: |
+          echo "PR number ${{ steps.PR.outputs.number }} with description ${{ steps.PR.outputs.pr_body }} "
 
   prepare-preview:
     # Only trigger for correct environment and status and if CLI files changed
