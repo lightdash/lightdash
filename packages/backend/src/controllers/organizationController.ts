@@ -232,7 +232,11 @@ export class OrganizationController extends Controller {
      * @param req express request
      * @param userUuid the uuid of the user to delete
      */
-    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @Delete('/user/{userUuid}')
     @OperationId('DeleteOrganizationMember')
     async deleteUser(
