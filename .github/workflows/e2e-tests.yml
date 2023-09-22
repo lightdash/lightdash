@@ -111,9 +111,9 @@ jobs:
         with:
           browser: chrome
           project: ./packages/e2e
-          spec: packages/e2e/cypress/e2e/(!api)/*
+          spec: packages/e2e/cypress/e2e/**/*
           # Set the PR deployment url
-          config: 'baseUrl=${{needs.prepare-preview.outputs.url}}'
+          config: '{"e2e": { "baseUrl"="${{needs.prepare-preview.outputs.url}}", "excludeSpecPattern": "packages/e2e/cypress/e2e/api/**/*" } }'
         env:
           SPLIT: ${{ strategy.job-total }}
           SPLIT_INDEX: ${{ strategy.job-index }}
