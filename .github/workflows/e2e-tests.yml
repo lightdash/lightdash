@@ -111,9 +111,9 @@ jobs:
         with:
           browser: chrome
           project: ./packages/e2e
-          spec: packages/e2e/cypress/e2e/**/*
+          spec: packages/e2e/cypress/e2e/app/**/*
           # Set the PR deployment url
-          config: 'baseUrl=${{needs.prepare-preview.outputs.url}},excludeSpecPattern=["packages/e2e/cypress/e2e/api/**/*"]'
+          config: 'baseUrl=${{needs.prepare-preview.outputs.url}}'
         env:
           SPLIT: ${{ strategy.job-total }}
           SPLIT_INDEX: ${{ strategy.job-index }}
@@ -181,7 +181,7 @@ jobs:
         uses: cypress-io/github-action@v5
         with:
           project: ./packages/e2e
-          spec: packages/e2e/cypress/e2e/dates.cy.ts
+          spec: packages/e2e/cypress/e2e/app/dates.cy.ts
           # Set the PR deployment url
           config: 'baseUrl=${{needs.prepare-preview.outputs.url}}'
         env:
