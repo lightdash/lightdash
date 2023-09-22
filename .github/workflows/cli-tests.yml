@@ -25,8 +25,7 @@ jobs:
       - name: Get result with overides
         id: overrides
         run: |
-          echo "PR ${{ steps.PR.outputs.number }} with body:"
-          echo ${{ steps.PR.outputs.pr_body }}
+          echo "PR ${{ steps.PR.outputs.number }}"
           echo "cli=${{contains(steps.PR.outputs.pr_body, 'test-cli')}}" >> "$GITHUB_OUTPUT"
 
   prepare-preview:

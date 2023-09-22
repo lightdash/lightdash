@@ -22,10 +22,9 @@ jobs:
       - name: Check for keyword overrides
         id: overrides
         run: |
-          echo "PR ${{ steps.PR.outputs.number }} with body:"
-          echo ${{ steps.PR.outputs.pr_body }}
-          echo "frontend=${{ contains(steps.PR.outputs.body, 'test-frontend') }}" >> "$GITHUB_OUTPUT"
-          echo "backend=${{ contains(steps.PR.outputs.body, 'test-backend') }}" >> "$GITHUB_OUTPUT"
+          echo "PR ${{ steps.PR.outputs.number }}"
+          echo "frontend=${{ contains(steps.PR.outputs.pr_body, 'test-frontend') }}" >> "$GITHUB_OUTPUT"
+          echo "backend=${{ contains(steps.PR.outputs.pr_body, 'test-backend') }}" >> "$GITHUB_OUTPUT"
 
   prepare-preview:
     # Only trigger for correct environment and status
