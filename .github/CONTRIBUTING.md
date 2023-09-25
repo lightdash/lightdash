@@ -530,7 +530,7 @@ Then headless browser should be able to reach lightdash on `http://lightdash-dev
 So make sure to configure the following ENV variables:
 
 ```
-export HEADLESS_BROWSER_HOST='lightdash'
+export HEADLESS_BROWSER_HOST='localhost'
 export HEADLESS_BROWSER_PORT=3001
 export SITE_URL=http://lightdash-dev:3000
 ```
