@@ -1,3 +1,10 @@
+## [0.786.1](https://github.com/lightdash/lightdash/compare/0.786.0...0.786.1) (2023-09-25)
+
+
+### Bug Fixes
+
+* dont allow row limit to got below 1 ([#7202](https://github.com/lightdash/lightdash/issues/7202)) ([b7a8bb1](https://github.com/lightdash/lightdash/commit/b7a8bb16f03fc779e50fb5daf5f7b5c663d46611))
+
 # [0.786.0](https://github.com/lightdash/lightdash/compare/0.785.1...0.786.0) (2023-09-25)
 
 
