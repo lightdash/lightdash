@@ -1,3 +1,10 @@
+## [0.784.1-alpha.1](https://github.com/lightdash/lightdash/compare/0.784.0...0.784.1-alpha.1) (2023-09-25)
+
+
+### Bug Fixes
+
+* trigger alpha release ([6850a4e](https://github.com/lightdash/lightdash/commit/6850a4e645ae3dd8d77666e3d93656d28c625db5))
+
 # [0.784.0](https://github.com/lightdash/lightdash/compare/0.783.2...0.784.0) (2023-09-25)
 
 
