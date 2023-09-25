@@ -1,3 +1,10 @@
+## [0.786.2-alpha.2](https://github.com/lightdash/lightdash/compare/0.786.2-alpha.1...0.786.2-alpha.2) (2023-09-25)
+
+
+### Bug Fixes
+
+* pre compress and troubleshoot ([#7213](https://github.com/lightdash/lightdash/issues/7213)) ([df256c1](https://github.com/lightdash/lightdash/commit/df256c14cbc63ebc7436016d695d350da1802eb3))
+
 ## [0.786.2-alpha.1](https://github.com/lightdash/lightdash/compare/0.786.1...0.786.2-alpha.1) (2023-09-25)
 
 
