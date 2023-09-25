@@ -455,23 +455,25 @@
                                                                     <!--[if !mso]><!-->
                                                                     <td
                                                                         class="t15"
-                                                                        style="
-                                                                            background-color: #7262ff;
-                                                                            background-image: url({{host}}/banner.jpg);
-                                                                            background-repeat: no-repeat;
-                                                                            background-size: contain;
-                                                                            background-position: right
-                                                                                top;
-                                                                            overflow: hidden;
-                                                                            width: 770px;
-                                                                            padding: 16px
-                                                                                15px
-                                                                                16px
-                                                                                15px;
-                                                                        "
+                                                                        style="background-color: #7262ff;
+                                                                               background-image: url({{host}}/banner.jpg);
+                                                                               background-repeat: no-repeat;
+                                                                               background-size: contain;
+                                                                               background-position: right top;
+                                                                               overflow: hidden;
+                                                                               width: 770px;
+                                                                               padding: 16px 15px 16px 15px"
                                                                     >
                                                                         <!--<![endif]-->
-                                                                        <!--[if mso]><td class=t15 style="background-color:#7262FF;background-image:url({{host}}/banner.jpg);background-repeat:no-repeat;background-size:contain;background-position:right top;overflow:hidden;width:800px;padding:16px 15px 16px 15px;"><![endif]-->
+                                                                        <!--[if mso]><td class="t15"
+    style="background-color:#7262FF;
+           background-image:url({{host}}/banner.jpg);
+           background-repeat:no-repeat;
+           background-size:contain;
+           background-position:right top;
+           overflow:hidden;
+           width:800px;
+           padding:16px 15px 16px 15px"><![endif]-->
                                                                         <div
                                                                             class="t21"
                                                                             style="
@@ -573,7 +575,11 @@
                                                                         "
                                                                     >
                                                                         <!--<![endif]-->
-                                                                        <!--[if mso]><td class=t30 style="background-color:#F7F7F9;overflow:hidden;width:418px;padding:8px 16px 49px 16px;"><![endif]-->
+                                                                        <!--[if mso]><td class="t30"
+    style="background-color:#F7F7F9;
+           overflow:hidden;
+           width:418px;
+           padding:8px 16px 49px 16px"><![endif]-->
                                                                         <table
                                                                             role="presentation"
                                                                             width="100%"
@@ -650,6 +656,9 @@
                                                                                     </table>
                                                                                 </td>
                                                                             </tr>
+                                                                            {{#if
+                                                                            message
+                                                                            }}
                                                                             <tr>
                                                                                 <td>
                                                                                     <div
@@ -666,7 +675,6 @@
                                                                                     </div>
                                                                                 </td>
                                                                             </tr>
-                                                                            {{#if message}}
                                                                             <tr>
                                                                                 <td>
                                                                                     <table
@@ -689,29 +697,43 @@
                                                                                                 <div>
                                                                                                     class="t164"
                                                                                                     style="
-                                                                                                        margin-bottom: 0;
-                                                                                                        margin-bottom: 0;
-                                                                                                        font-family: BlinkMacSystemFont,
-                                                                                                            Segoe
-                                                                                                                UI,
-                                                                                                            Helvetica
-                                                                                                                Neue,
-                                                                                                            Arial,
-                                                                                                            sans-serif,
-                                                                                                            'Inter';
-                                                                                                        line-height: 16px;
-                                                                                                        font-weight: 400;
-                                                                                                        font-style: normal;
-                                                                                                        font-size: 12px;
-                                                                                                        text-decoration: none;
-                                                                                                        text-transform: none;
-                                                                                                        direction: ltr;
-                                                                                                        color: #5f5f73;
-                                                                                                        text-align: left;
-                                                                                                        mso-line-height-rule: exactly;
-                                                                                                        mso-text-raise: 1px;
+                                                                                                    margin-bottom:
+                                                                                                    0;
+                                                                                                    margin-bottom:
+                                                                                                    0;
+                                                                                                    font-family:
+                                                                                                    BlinkMacSystemFont,
+                                                                                                    Segoe
+                                                                                                    UI,
+                                                                                                    Helvetica
+                                                                                                    Neue,
+                                                                                                    Arial,
+                                                                                                    sans-serif,
+                                                                                                    'Inter';
+                                                                                                    line-height:
+                                                                                                    16px;
+                                                                                                    font-weight:
+                                                                                                    400;
+                                                                                                    font-style:
+                                                                                                    normal;
+                                                                                                    font-size:
+                                                                                                    12px;
+                                                                                                    text-decoration:
+                                                                                                    none;
+                                                                                                    text-transform:
+                                                                                                    none;
+                                                                                                    direction:
+                                                                                                    ltr;
+                                                                                                    color:
+                                                                                                    #5f5f73;
+                                                                                                    text-align:
+                                                                                                    left;
+                                                                                                    mso-line-height-rule:
+                                                                                                    exactly;
+                                                                                                    mso-text-raise:
+                                                                                                    1px;
                                                                                                     "
-                                                                                                >
+                                                                                                    >
                                                                                                     {{{message}}}
                                                                                                 </div>
                                                                                             </td>
@@ -767,7 +789,13 @@
                                                                                                 "
                                                                                             >
                                                                                                 <!--<![endif]-->
-                                                                                                <!--[if mso]><td class=t76 style="background-color:#FFFFFF;border:1px solid #E6E6E6;overflow:hidden;width:385px;padding:8px 8px 8px 8px;border-radius:4px 4px 4px 4px;"><![endif]-->
+                                                                                                <!--[if mso]><td class="t76"
+    style="background-color:#FFFFFF;
+           border:1px solid #E6E6E6;
+           overflow:hidden;
+           width:385px;
+           padding:8px 8px 8px 8px;
+           border-radius:4px 4px 4px 4px"><![endif]-->
                                                                                                 <div
                                                                                                     style="
                                                                                                         font-size: 0px;
@@ -910,8 +938,7 @@
                                                                                             >
                                                                                                 <!--<![endif]-->
                                                                                                 <!--[if mso]>
-                                            <td class="t34 hm"
-                                                style="background-color:#7262FF;overflow:hidden;width:198px;text-align:center;line-height:40px;mso-line-height-rule:exactly;mso-text-raise:8px;border-radius:3px 3px 3px 3px;">
+                                            <td class="t34 hm" style="background-color:#7262FF;overflow:hidden;width:198px;text-align:center;line-height:40px;mso-line-height-rule:exactly;mso-text-raise:8px;border-radius:3px 3px 3px 3px;">
                                             <![endif]-->
                                                                                                 <a
                                                                                                     class="t40 hm"
@@ -1098,8 +1125,7 @@
                                                                                                     "
                                                                                                 >
                                                                                                     <!--[if mso]>
-                                              <table role="presentation" cellpadding="0" cellspacing="0" align="center"
-                                                     valign="top">
+                                              <table role="presentation" cellpadding="0" cellspacing="0" align="center" valign="top">
                                                 <tr>
                                                   <td class="t116" style="width:10px;" width="10"></td>
                                                   <td width="24" valign="top"><![endif]-->
@@ -1138,7 +1164,8 @@
                                                                                                                             style="
                                                                                                                                 font-size: 0px;
                                                                                                                             "
-                                                                                                                            ><img
+                                                                                                                        >
+                                                                                                                            <img
                                                                                                                                 class="t121"
                                                                                                                                 style="
                                                                                                                                     display: block;
@@ -1150,7 +1177,8 @@
                                                                                                                                 "
                                                                                                                                 width="24"
                                                                                                                                 src="{{host}}/twitter.png"
-                                                                                                                        /></a>
+                                                                                                                            />
+                                                                                                                        </a>
                                                                                                                     </td>
                                                                                                                 </tr>
                                                                                                             </table>
@@ -1196,7 +1224,8 @@
                                                                                                                             style="
                                                                                                                                 font-size: 0px;
                                                                                                                             "
-                                                                                                                            ><img
+                                                                                                                        >
+                                                                                                                            <img
                                                                                                                                 class="t131"
                                                                                                                                 style="
                                                                                                                                     display: block;
@@ -1208,7 +1237,8 @@
                                                                                                                                 "
                                                                                                                                 width="24"
                                                                                                                                 src="{{host}}/github.png"
-                                                                                                                        /></a>
+                                                                                                                            />
+                                                                                                                        </a>
                                                                                                                     </td>
                                                                                                                 </tr>
                                                                                                             </table>
@@ -1254,7 +1284,8 @@
                                                                                                                             style="
                                                                                                                                 font-size: 0px;
                                                                                                                             "
-                                                                                                                            ><img
+                                                                                                                        >
+                                                                                                                            <img
                                                                                                                                 class="t141"
                                                                                                                                 style="
                                                                                                                                     display: block;
@@ -1266,7 +1297,8 @@
                                                                                                                                 "
                                                                                                                                 width="24"
                                                                                                                                 src="{{host}}/linkedin.png"
-                                                                                                                        /></a>
+                                                                                                                            />
+                                                                                                                        </a>
                                                                                                                     </td>
                                                                                                                 </tr>
                                                                                                             </table>
@@ -1391,8 +1423,7 @@
                                                                                                         mso-text-raise: 3px;
                                                                                                     "
                                                                                                 >
-                                                                                                      
-                                                                                                     <a
+                                                                                                    <a
                                                                                                         class="t152"
                                                                                                         href="https://www.lightdash.com/privacy-policy"
                                                                                                         style="
@@ -1407,7 +1438,7 @@
                                                                                                         >Privacy
                                                                                                         policy</a
                                                                                                     >  •
-                                                                                                     <a
+                                                                                                    <a
                                                                                                         class="t153"
                                                                                                         href="https://lightdash-community.slack.com/ssb/redirect"
                                                                                                         style="
