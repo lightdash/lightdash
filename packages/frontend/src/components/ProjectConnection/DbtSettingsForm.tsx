@@ -162,6 +162,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                             label="Type"
                             data={options}
                             required
+                            name={field.name}
                             value={field.value}
                             onChange={field.onChange}
                             disabled={disabled}

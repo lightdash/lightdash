@@ -130,7 +130,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 />
                 <TextInput
                     label="Host domain (for Github Enterprise)"
-                    description="If you've customized the domain for your Bitbucket server, you can add the custom domain for your project in here."
+                    description="If you've customized the domain for your Github, you can add the custom domain for your project in here."
                     disabled={disabled}
                     defaultValue="github.com"
                     {...register('dbt.host_domain')}
