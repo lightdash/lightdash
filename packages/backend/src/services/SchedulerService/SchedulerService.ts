@@ -1,12 +1,14 @@
 import { subject } from '@casl/ability';
 import {
     ChartSummary,
+    CreateSchedulerAndTargets,
     CreateSchedulerLog,
     Dashboard,
     ForbiddenError,
     isChartScheduler,
-    isSlackTarget,
+    isCreateSchedulerSlackTarget,
     isUserWithOrg,
+    ParameterError,
     ScheduledJobs,
     Scheduler,
     SchedulerAndTargets,
@@ -22,6 +24,8 @@ import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
+import { SpaceModel } from '../../models/SpaceModel';
+import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type ServiceDependencies = {
     lightdashConfig: LightdashConfig;
@@ -30,6 +34,8 @@ type ServiceDependencies = {
     dashboardModel: DashboardModel;
 
     savedChartModel: SavedChartModel;
+
+    spaceModel: SpaceModel;
 };
 
 export class SchedulerService {
@@ -41,16 +47,20 @@ export class SchedulerService {
 
     savedChartModel: SavedChartModel;
 
+    spaceModel: SpaceModel;
+
     constructor({
         lightdashConfig,
         schedulerModel,
         dashboardModel,
         savedChartModel,
+        spaceModel,
     }: ServiceDependencies) {
         this.lightdashConfig = lightdashConfig;
         this.schedulerModel = schedulerModel;
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
+        this.spaceModel = spaceModel;
     }
 
     private async getSchedulerResource(
@@ -85,6 +95,43 @@ export class SchedulerService {
             throw new ForbiddenError();
         }
         return { scheduler, resource };
+    }
+
+    private async checkViewResource(
+        user: SessionUser,
+        scheduler: CreateSchedulerAndTargets,
+    ) {
+        if (scheduler.savedChartUuid) {
+            const { organizationUuid, spaceUuid, projectUuid } =
+                await this.savedChartModel.getSummary(scheduler.savedChartUuid);
+
+            const [space] = await this.spaceModel.find({ spaceUuid });
+            if (
+                user.ability.cannot(
+                    'view',
+                    subject('SavedChart', { organizationUuid, projectUuid }),
+                ) ||
+                !hasSpaceAccess(user, space)
+            )
+                throw new ForbiddenError();
+        } else if (scheduler.dashboardUuid) {
+            const { organizationUuid, spaceUuid, projectUuid } =
+                await this.dashboardModel.getById(scheduler.dashboardUuid);
+            const [space] = await this.spaceModel.find({ spaceUuid });
+
+            if (
+                user.ability.cannot(
+                    'view',
+                    subject('Dashboard', { organizationUuid, projectUuid }),
+                ) ||
+                !hasSpaceAccess(user, space)
+            )
+                throw new ForbiddenError();
+        } else {
+            throw new ParameterError(
+                'Missing savedChartUuid and dashboardUuid on scheduler',
+            );
+        }
     }
 
     async getAllSchedulers(): Promise<SchedulerAndTargets[]> {
@@ -241,5 +288,39 @@ export class SchedulerService {
     async getJobStatus(jobId: string): Promise<string> {
         const job = await this.schedulerModel.getJobStatus(jobId);
         return job.status;
+    }
+
+    async sendScheduler(
+        user: SessionUser,
+        scheduler: CreateSchedulerAndTargets,
+    ) {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        if (!scheduler.name) {
+            throw new ParameterError(
+                'You must give a name to this scheduled delivery',
+            );
+        }
+        if (scheduler.targets.length === 0) {
+            throw new ParameterError(
+                'You must specify at least 1 destination before sending a scheduled delivery',
+            );
+        }
+
+        await this.checkViewResource(user, scheduler);
+
+        const slackChannels = scheduler.targets
+            .filter(isCreateSchedulerSlackTarget)
+            .map((target) => target.channel);
+        await slackClient.joinChannels(user.organizationUuid, slackChannels);
+
+        schedulerClient.addScheduledDeliveryJob(
+            new Date(),
+            scheduler,
+            undefined,
+        );
+
+        return 'ok';
     }
 }

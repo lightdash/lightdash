@@ -24,6 +24,7 @@ const ChartSchedulersModal: FC<Props> = ({
             name={name}
             schedulersQuery={chartSchedulersQuery}
             createMutation={createMutation}
+            isChart
             {...modalProps}
         />
     );

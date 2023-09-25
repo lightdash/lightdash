@@ -289,9 +289,6 @@ Alternatively you can create a developer environment using docker compose:
 ```shell
 # Clone the Lightdash repo
 git clone https://github.com/lightdash/lightdash
-
-# Update submodules
-git submodule update --init --recursive
 ```
 
 Copy `.env.development` into a new file called `.env.development.local` 
@@ -402,13 +399,10 @@ brew install dbt-postgres
 git clone https://github.com/lightdash/lightdash.git
 cd lightdash
 
-#7 Update submodules
-git submodule update --init --recursive
-
-#8 Copy `.env.development` to `.env.development.local`
+#7 Copy `.env.development` to `.env.development.local`
 cp .env.development .env.development.local
 
-#9 Edit some environment variables to match your setup
+#8 Edit some environment variables to match your setup
 open .env.development.local -t
 
 # here is some variables that you might need to edit:
@@ -420,10 +414,10 @@ PGDATABASE=postgres
 DBT_DEMO_DIR=$PWD/examples/full-jaffle-shop-demo
 LIGHTDASH_CONFIG_FILE=$PWD/lightdash.yml
 
-#10 install packages
+#9 install packages
 yarn
 
-#11 build / migrate / seed
+#10 build / migrate / seed
 yarn load:env ./scripts/build.sh
 yarn load:env ./scripts/seed-jaffle.sh
 yarn load:env ./scripts/migrate.sh
@@ -489,6 +483,53 @@ then registered in `packages/backend/src/index.ts` but in order to be made avail
 
 ```shell
 yarn workspace backend run tsoa routes
+```
+
+### Running headless browser locally
+
+Headless browser is used to generate images we use for Slack unfurls or on scheduled deliveries, 
+you can find more about headless browser on [our docs] https://docs.lightdash.com/self-host/customize-deployment/enable-headless-browser-for-lightdash
+
+If you want to debug some of these features, you should run headless browser locally on docker.
+
+#### Running Lightdash on docker and headless browser
+
+If you are running both Lightdash and Headless browser using our docker-compose you should be ok, and everything should work as expected. 
+
+#### Running Lightdash without docker and headless browser on Linux
+
+If you are running lightdash without docker, you will have to run headless browser in a way that it is able to connect 
+to your lightdash endpoint in localhost. YOu can achive this on Linux by doing: 
+
+``` 
+docker run -e PORT=3001 --network 'host'  browserless/chrome
+```
+
+Then make sure to configure the following ENV variables:
+
+```
+export HEADLESS_BROWSER_HOST='localhost'
+export HEADLESS_BROWSER_PORT=3001
+export SITE_URL=http://localhost:3000
+```
+
+#### Running Lighdtash without docker and headless browser on Mac
+
+If you are running Lightdash without docker on Mac, you will have to run docker and create an special host to reach 
+lightdash because it can't use localhost.
+
+```
+docker run -e PORT=3001 -p 3001:3001 --add-host=lightdash-dev:host-gateway browserless/chrome
+```
+
+Then headless browser should be able to reach lightdash on `http://lightdash-dev:3000`
+
+So make sure to configure the following ENV variables:
+
+```
+export HEADLESS_BROWSER_HOST='localhost'
+export HEADLESS_BROWSER_PORT=3001
+export SITE_URL=http://lightdash-dev:3000
 ```
 
 ## Join The Lightdash Team

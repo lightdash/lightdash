@@ -647,7 +647,8 @@ export type SchedulerJobEvent = BaseTrack & {
     anonymousId: string;
     properties: {
         jobId: string;
-        schedulerId: string;
+        schedulerId: string | undefined;
+        sendNow?: boolean;
     };
 };
 
@@ -660,12 +661,12 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
     anonymousId: string;
     properties: {
         jobId: string;
-        schedulerId: string;
-        schedulerTargetId?: string;
+        schedulerId?: string;
         resourceType?: 'dashboard' | 'chart';
         type: 'slack' | 'email' | 'gsheets';
         format?: SchedulerFormat;
         withPdf?: boolean;
+        sendNow: boolean;
     };
 };
 

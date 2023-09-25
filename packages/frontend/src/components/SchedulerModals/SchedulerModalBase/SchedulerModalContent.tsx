@@ -8,6 +8,7 @@ import {
 } from '@blueprintjs/core';
 import {
     ApiError,
+    CreateSchedulerAndTargets,
     CreateSchedulerAndTargetsWithoutIds,
     SchedulerAndTargets,
     UpdateSchedulerAndTargetsWithoutId,
@@ -19,8 +20,15 @@ import {
     UseQueryResult,
 } from 'react-query/types/react/types';
 import { useHistory, useLocation } from 'react-router-dom';
-import { useScheduler } from '../../../hooks/scheduler/useScheduler';
+import {
+    sendNowScheduler,
+    useScheduler,
+    useSendNowScheduler,
+} from '../../../hooks/scheduler/useScheduler';
 import { useSchedulersUpdateMutation } from '../../../hooks/scheduler/useSchedulersUpdateMutation';
+import useUser from '../../../hooks/user/useUser';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 import ErrorState from '../../common/ErrorState';
 import SchedulerForm from './SchedulerForm';
 import SchedulersList from './SchedulersList';
@@ -66,8 +74,9 @@ const CreateStateContent: FC<{
         ApiError,
         { resourceUuid: string; data: CreateSchedulerAndTargetsWithoutIds }
     >;
+    isChart: boolean;
     onBack: () => void;
-}> = ({ resourceUuid, createMutation, onBack }) => {
+}> = ({ resourceUuid, createMutation, isChart, onBack }) => {
     const methods = useForm<CreateSchedulerAndTargetsWithoutIds>({
         mode: 'onSubmit',
     });
@@ -80,6 +89,9 @@ const CreateStateContent: FC<{
     const handleSubmit = (data: CreateSchedulerAndTargetsWithoutIds) => {
         createMutation.mutate({ resourceUuid, data });
     };
+    const { data: user } = useUser(true);
+    const { track } = useTracking();
+    const { mutate: sendNow } = useSendNowScheduler();
     return (
         <>
             <DialogBody>
@@ -91,6 +103,33 @@ const CreateStateContent: FC<{
                 actions={
                     <>
                         <Button onClick={onBack}>Back</Button>
+                        <Button
+                            onClick={() => {
+                                if (user?.userUuid === undefined) return;
+                                const schedulerData = methods.getValues();
+                                const resource = isChart
+                                    ? {
+                                          savedChartUuid: resourceUuid,
+                                          dashboardUuid: null,
+                                      }
+                                    : {
+                                          dashboardUuid: resourceUuid,
+                                          savedChartUuid: null,
+                                      };
+                                const unsavedScheduler: CreateSchedulerAndTargets =
+                                    {
+                                        ...schedulerData,
+                                        ...resource,
+                                        createdBy: user.userUuid,
+                                    };
+                                track({
+                                    name: EventName.SCHEDULER_SEND_NOW_BUTTON,
+                                });
+                                sendNow(unsavedScheduler);
+                            }}
+                        >
+                            Send now
+                        </Button>
                         <Button
                             intent="primary"
                             loading={createMutation.isLoading}
@@ -129,6 +168,9 @@ const UpdateStateContent: FC<{
     const handleSubmit = (data: UpdateSchedulerAndTargetsWithoutId) => {
         mutation.mutate(data);
     };
+    const { data: user } = useUser(true);
+    const { track } = useTracking();
+
     if (scheduler.isLoading || scheduler.error) {
         return (
             <>
@@ -164,6 +206,31 @@ const UpdateStateContent: FC<{
                     <>
                         <Button onClick={onBack}>Back</Button>
                         <Button
+                            disabled={scheduler.data === undefined}
+                            onClick={() => {
+                                if (scheduler.data === undefined) return;
+                                if (user?.userUuid === undefined) return;
+
+                                const schedulerData = methods.getValues();
+                                const unsavedScheduler: CreateSchedulerAndTargets =
+                                    {
+                                        ...schedulerData,
+                                        savedChartUuid:
+                                            scheduler.data.savedChartUuid,
+                                        dashboardUuid:
+                                            scheduler.data.dashboardUuid,
+                                        createdBy: user.userUuid,
+                                    };
+
+                                track({
+                                    name: EventName.SCHEDULER_SEND_NOW_BUTTON,
+                                });
+                                sendNowScheduler(unsavedScheduler);
+                            }}
+                        >
+                            Send now
+                        </Button>
+                        <Button
                             intent="primary"
                             loading={mutation.isLoading}
                             onClick={methods.handleSubmit(handleSubmit)}
@@ -185,6 +252,7 @@ interface Props extends DialogProps {
         ApiError,
         { resourceUuid: string; data: CreateSchedulerAndTargetsWithoutIds }
     >;
+    isChart: boolean;
 }
 
 export const getSchedulerUuidFromUrlParams = (
@@ -203,6 +271,7 @@ const SchedulersModalContent: FC<Omit<Props, 'name'>> = ({
     resourceUuid,
     schedulersQuery,
     createMutation,
+    isChart,
     ...modalProps
 }) => {
     const [state, setState] = useState<States>(States.LIST);
@@ -244,6 +313,7 @@ const SchedulersModalContent: FC<Omit<Props, 'name'>> = ({
                 <CreateStateContent
                     resourceUuid={resourceUuid}
                     createMutation={createMutation}
+                    isChart={isChart}
                     onBack={() => setState(States.LIST)}
                 />
             )}

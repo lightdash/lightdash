@@ -1,12 +1,14 @@
 import {
     ApiError,
     ApiJobStatusResponse,
+    CreateSchedulerAndTargets,
     SchedulerAndTargets,
     SchedulerJobStatus,
     SchedulerWithLogs,
 } from '@lightdash/common';
-import { useQuery, UseQueryOptions } from 'react-query';
+import { useMutation, useQuery, UseQueryOptions } from 'react-query';
 import { lightdashApi } from '../../api';
+import useToaster from '../toaster/useToaster';
 
 const getScheduler = async (uuid: string) =>
     lightdashApi<SchedulerAndTargets>({
@@ -21,6 +23,33 @@ const getSchedulerLogs = async (projectUuid: string) =>
         method: 'GET',
         body: undefined,
     });
+
+export const sendNowScheduler = async (scheduler: CreateSchedulerAndTargets) =>
+    lightdashApi<undefined>({
+        url: `/schedulers/send`,
+        method: 'POST',
+        body: JSON.stringify(scheduler),
+    });
+
+export const useSendNowScheduler = () => {
+    const { showToastSuccess, showToastError } = useToaster();
+    return useMutation<undefined, ApiError, CreateSchedulerAndTargets>(
+        (data) => sendNowScheduler(data),
+        {
+            onSuccess: async () => {
+                showToastSuccess({
+                    title: 'Scheduled delivery sent successfully',
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to send scheduled delivery`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
+};
 
 export const useScheduler = (
     uuid: string,

@@ -1,3 +1,25 @@
+## [0.785.1](https://github.com/lightdash/lightdash/compare/0.785.0...0.785.1) (2023-09-25)
+
+
+### Bug Fixes
+
+* compress static assets and serve ([#7200](https://github.com/lightdash/lightdash/issues/7200)) ([f107a3e](https://github.com/lightdash/lightdash/commit/f107a3e851e82ce141ca9cdca507fe2f479b2c9e))
+
+# [0.785.0](https://github.com/lightdash/lightdash/compare/0.784.0...0.785.0) (2023-09-25)
+
+
+### Features
+
+* dashboard filters apply to new charts ([#7032](https://github.com/lightdash/lightdash/issues/7032)) ([08ffd25](https://github.com/lightdash/lightdash/commit/08ffd259b7c8f82ecac148e7ada285e89c3560d1))
+
+# [0.784.0](https://github.com/lightdash/lightdash/compare/0.783.2...0.784.0) (2023-09-25)
+
+
+### Features
+
+* enable api-key auth for deleting users ([#7184](https://github.com/lightdash/lightdash/issues/7184)) ([8569c2c](https://github.com/lightdash/lightdash/commit/8569c2c95494a499b4402b351a6f571baaf43cc7))
+* send now scheduler ([#7146](https://github.com/lightdash/lightdash/issues/7146)) ([ef30952](https://github.com/lightdash/lightdash/commit/ef30952cc95a373fd25a6d82776d01eef8c4782f))
+
 ## [0.783.2](https://github.com/lightdash/lightdash/compare/0.783.1...0.783.2) (2023-09-22)
 
 

@@ -157,6 +157,7 @@ export const schedulerService = new SchedulerService({
     schedulerModel,
     savedChartModel,
     dashboardModel,
+    spaceModel,
 });
 
 export const csvService = new CsvService({
