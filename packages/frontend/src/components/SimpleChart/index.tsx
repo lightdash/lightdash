@@ -63,7 +63,7 @@ export const EmptyChart = () => (
 export const LoadingChart = () => (
     <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
         <NonIdealState
-            title="Loading simple chart"
+            title="Loading chart"
             icon={<Spinner />}
             className="loading_chart"
         />
