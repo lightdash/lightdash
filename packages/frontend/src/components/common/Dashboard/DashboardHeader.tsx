@@ -123,6 +123,9 @@ const DashboardHeader = ({
         'Dashboard',
     );
 
+    // Proxy for 'Interactive Viewer'
+    const userCanExportData = user.data?.ability.can('manage', 'ExportCsv');
+
     const isOneAtLeastFetching = isFetching > 0;
 
     return (
@@ -228,123 +231,143 @@ const DashboardHeader = ({
                         Cancel
                     </Button>
                 </PageActionsContainer>
-            ) : userCanManageDashboard ? (
+            ) : (
                 <PageActionsContainer>
-                    <Button
-                        size="xs"
-                        loading={isOneAtLeastFetching}
-                        leftIcon={<MantineIcon icon={IconRefresh} />}
-                        onClick={invalidateDashboardRelatedQueries}
-                    >
-                        Refresh
-                    </Button>
-
-                    <Tooltip
-                        label="Edit dashboard"
-                        withinPortal
-                        position="bottom"
-                    >
-                        <ActionIcon
-                            variant="default"
-                            onClick={() => {
-                                history.replace(
-                                    `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
-                                );
-                            }}
+                    {!!userCanExportData && (
+                        <Button
+                            size="xs"
+                            loading={isOneAtLeastFetching}
+                            leftIcon={<MantineIcon icon={IconRefresh} />}
+                            onClick={invalidateDashboardRelatedQueries}
                         >
-                            <MantineIcon icon={IconPencil} />
-                        </ActionIcon>
-                    </Tooltip>
+                            Refresh
+                        </Button>
+                    )}
 
-                    <ShareLinkButton url={`${window.location.href}`} />
+                    {!!userCanManageDashboard && (
+                        <Tooltip
+                            label="Edit dashboard"
+                            withinPortal
+                            position="bottom"
+                        >
+                            <ActionIcon
+                                variant="default"
+                                onClick={() => {
+                                    history.replace(
+                                        `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+                                    );
+                                }}
+                            >
+                                <MantineIcon icon={IconPencil} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+
+                    {!!userCanExportData && (
+                        <ShareLinkButton url={`${window.location.href}`} />
+                    )}
 
                     <Popover2
                         placement="bottom"
                         content={
                             <Menu>
-                                <MenuItem2
-                                    icon={<IconCopy />}
-                                    text="Duplicate"
-                                    onClick={onDuplicate}
-                                />
+                                {!!userCanManageDashboard && (
+                                    <>
+                                        <MenuItem2
+                                            icon={<IconCopy />}
+                                            text="Duplicate"
+                                            onClick={onDuplicate}
+                                        />
 
-                                <MenuItem2
-                                    icon={<IconFolders />}
-                                    text="Move to space"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                    }}
-                                >
-                                    {spaces?.map((spaceToMove) => {
-                                        const isDisabled =
-                                            dashboardSpaceUuid ===
-                                            spaceToMove.uuid;
-                                        return (
+                                        <MenuItem2
+                                            icon={<IconFolders />}
+                                            text="Move to space"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                            }}
+                                        >
+                                            {spaces?.map((spaceToMove) => {
+                                                const isDisabled =
+                                                    dashboardSpaceUuid ===
+                                                    spaceToMove.uuid;
+                                                return (
+                                                    <MenuItem2
+                                                        key={spaceToMove.uuid}
+                                                        text={spaceToMove.name}
+                                                        icon={
+                                                            isDisabled ? (
+                                                                <IconCheck />
+                                                            ) : undefined
+                                                        }
+                                                        className={
+                                                            isDisabled
+                                                                ? 'bp4-disabled'
+                                                                : ''
+                                                        }
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            if (
+                                                                dashboardSpaceUuid !==
+                                                                spaceToMove.uuid
+                                                            ) {
+                                                                onMoveToSpace(
+                                                                    spaceToMove.uuid,
+                                                                );
+                                                            }
+                                                        }}
+                                                    />
+                                                );
+                                            })}
+                                            <Divider />
                                             <MenuItem2
-                                                key={spaceToMove.uuid}
-                                                text={spaceToMove.name}
-                                                icon={
-                                                    isDisabled ? (
-                                                        <IconCheck />
-                                                    ) : undefined
-                                                }
-                                                className={
-                                                    isDisabled
-                                                        ? 'bp4-disabled'
-                                                        : ''
-                                                }
+                                                icon={<IconPlus />}
+                                                text="Create new"
                                                 onClick={(e) => {
                                                     e.preventDefault();
                                                     e.stopPropagation();
-                                                    if (
-                                                        dashboardSpaceUuid !==
-                                                        spaceToMove.uuid
-                                                    ) {
-                                                        onMoveToSpace(
-                                                            spaceToMove.uuid,
-                                                        );
-                                                    }
+                                                    setIsCreatingNewSpace(true);
                                                 }}
                                             />
-                                        );
-                                    })}
-                                    <Divider />
+                                        </MenuItem2>
+                                        <MenuItem2
+                                            icon={<IconSend />}
+                                            text="Scheduled deliveries"
+                                            onClick={() => {
+                                                toggleScheduledDeliveriesModal(
+                                                    true,
+                                                );
+                                            }}
+                                        />
+                                    </>
+                                )}
+                                {!!userCanExportData && (
                                     <MenuItem2
-                                        icon={<IconPlus />}
-                                        text="Create new"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            setIsCreatingNewSpace(true);
-                                        }}
+                                        icon={<IconUpload />}
+                                        text="Export dashboard"
+                                        onClick={onExport}
                                     />
-                                </MenuItem2>
-                                <MenuItem2
-                                    icon={<IconSend />}
-                                    text="Scheduled deliveries"
-                                    onClick={() => {
-                                        toggleScheduledDeliveriesModal(true);
-                                    }}
-                                />
-                                <MenuItem2
-                                    icon={<IconUpload />}
-                                    text="Export dashboard"
-                                    onClick={onExport}
-                                />
-                                <Divider />
-                                <MenuItem2
-                                    icon={<IconTrash />}
-                                    text="Delete"
-                                    intent="danger"
-                                    onClick={onDelete}
-                                />
+                                )}
+                                {!!userCanManageDashboard && (
+                                    <>
+                                        <Divider />
+                                        <MenuItem2
+                                            icon={<IconTrash />}
+                                            text="Delete"
+                                            intent="danger"
+                                            onClick={onDelete}
+                                        />
+                                    </>
+                                )}
                             </Menu>
                         }
                     >
-                        <ActionIcon variant="default">
-                            <MantineIcon icon={IconDots} />
-                        </ActionIcon>
+                        {!!userCanExportData && (
+                            <ActionIcon variant="default">
+                                <MantineIcon icon={IconDots} />
+                            </ActionIcon>
+                        )}
                     </Popover2>
 
                     {isCreatingNewSpace && (
@@ -371,7 +394,7 @@ const DashboardHeader = ({
                         />
                     )}
                 </PageActionsContainer>
-            ) : null}
+            )}
         </PageHeader>
     );
 };
