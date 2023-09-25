@@ -28,7 +28,7 @@ export default defineConfig({
             enforce: 'post',
         },
         compression({
-            include: [/\.(js)$/, /\.(css)$/],
+            include: [/\.(js)$/, /\.(css)$/, /\.js\.map$/],
             filename: '[path][base].gzip',
         }),
     ],
