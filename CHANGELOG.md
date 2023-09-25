@@ -1,3 +1,12 @@
+# [0.786.0](https://github.com/lightdash/lightdash/compare/0.785.1...0.786.0) (2023-09-25)
+
+
+### Features
+
+* migrate Bitbucket forms to use mantine ([#7193](https://github.com/lightdash/lightdash/issues/7193)) ([2b1ec44](https://github.com/lightdash/lightdash/commit/2b1ec44e461620776f35e9ec047b3609b935a1de))
+* migrate dbt connection Github forms to use mantine ([#7190](https://github.com/lightdash/lightdash/issues/7190)) ([fd98f8a](https://github.com/lightdash/lightdash/commit/fd98f8a43ef17cad8f7582038774aac97c1e6e93))
+* migrate Gitlab forms to use mantine ([#7192](https://github.com/lightdash/lightdash/issues/7192)) ([be0721d](https://github.com/lightdash/lightdash/commit/be0721d519d48c6265bfae981c47a5bb2bf39014))
+
 ## [0.785.1](https://github.com/lightdash/lightdash/compare/0.785.0...0.785.1) (2023-09-25)
 
 
