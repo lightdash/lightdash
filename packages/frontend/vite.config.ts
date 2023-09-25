@@ -1,5 +1,6 @@
 import reactPlugin from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { compression } from 'vite-plugin-compression2';
 import eslintPlugin from 'vite-plugin-eslint';
 import svgrPlugin from 'vite-plugin-svgr';
 import tsconfigPathsPlugin from 'vite-tsconfig-paths';
@@ -26,6 +27,10 @@ export default defineConfig({
             apply: 'serve',
             enforce: 'post',
         },
+        compression({
+            include: [/\.(js)$/, /\.(css)$/],
+            filename: '[path][base].gzip',
+        }),
     ],
     css: {
         transformer: 'lightningcss',

@@ -3208,6 +3208,18 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
+"@nolyfill/es-aggregate-error@^1.0.21":
+  version "1.0.21"
+  resolved "https://registry.yarnpkg.com/@nolyfill/es-aggregate-error/-/es-aggregate-error-1.0.21.tgz#4ded25795a5b43c78b7c553052462a7da48e4873"
+  integrity sha512-1P+7535ZSQAD/BoSmeu+xv9eOZA5oCQ3e40rO5ZVbFZBafWR+WoZJsoEwlzUDsZz9iFFIKQiMsrSsN4HbUMtTQ==
+  dependencies:
+    "@nolyfill/shared" "1.0.21"
+
+"@nolyfill/shared@1.0.21":
+  version "1.0.21"
+  resolved "https://registry.yarnpkg.com/@nolyfill/shared/-/shared-1.0.21.tgz#0aeec134d6448a519dda21e122901b5f034b82f8"
+  integrity sha512-qDc/NoaFU23E0hhiDPeUrvWzTXIPE+RbvRQtRWSeHHNmCIgYI9HS1jKzNYNJxv4jvZ/1VmM3L6rNVxbj+LBMNA==
+
 "@opentelemetry/api-logs@0.39.1":
   version "0.39.1"
   resolved "https://registry.npmjs.org/@opentelemetry/api-logs/-/api-logs-0.39.1.tgz"
@@ -9560,6 +9572,13 @@ express-session@^1.17.2:
     parseurl "~1.3.3"
     safe-buffer "5.2.1"
     uid-safe "~2.1.5"
+
+express-static-gzip@^2.1.7:
+  version "2.1.7"
+  resolved "https://registry.yarnpkg.com/express-static-gzip/-/express-static-gzip-2.1.7.tgz#5904824a07950ba741ec3a23a21839dd04c63506"
+  integrity sha512-QOCZUC+lhPPCjIJKpQGu1Oa61Axg9Mq09Qvit8Of7kzpMuwDeMSqjjQteQS3OVw/GkENBoSBheuQDWPlngImvw==
+  dependencies:
+    serve-static "^1.14.1"
 
 express-winston@^4.2.0:
   version "4.2.0"
@@ -17444,7 +17463,7 @@ serve-static@1.14.2:
     parseurl "~1.3.3"
     send "0.17.2"
 
-serve-static@1.15.0:
+serve-static@1.15.0, serve-static@^1.14.1:
   version "1.15.0"
   resolved "https://registry.npmjs.org/serve-static/-/serve-static-1.15.0.tgz"
   integrity sha512-XGuRDNjXUijsUL0vl6nSD7cwURuzEgglbOaFuZM9g3kwDXOWVTck0jLzjPzGD+TazWbboZYu52/9/XPdUgne9g==
@@ -19543,6 +19562,14 @@ vite-plugin-chunk-split@^0.4.7:
   dependencies:
     es-module-lexer "^1.0.3"
     magic-string "^0.26.3"
+
+vite-plugin-compression2@^0.10.5:
+  version "0.10.5"
+  resolved "https://registry.yarnpkg.com/vite-plugin-compression2/-/vite-plugin-compression2-0.10.5.tgz#013ed2fe8471487dca7173a971668a74e0f308fa"
+  integrity sha512-IaZUzl9pmZXSAwX3XA6LiB9S7vWK/+4P1r5hT/NlygFWjF6OXNbXJq2/jtkh4HzsxILa0+kwmihTYbJRR406Uw==
+  dependencies:
+    "@nolyfill/es-aggregate-error" "^1.0.21"
+    "@rollup/pluginutils" "^5.0.2"
 
 vite-plugin-eslint@^1.8.1:
   version "1.8.1"
