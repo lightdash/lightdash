@@ -19,7 +19,7 @@ import { Controller, useFormContext } from 'react-hook-form';
 import useHealth from '../../../hooks/health/useHealth';
 
 import { IconInfoCircle } from '@tabler/icons-react';
-import MDEditor from '@uiw/react-md-editor';
+import MDEditor, { commands } from '@uiw/react-md-editor';
 import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
 import { useGetSlack } from '../../../hooks/useSlack';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
@@ -218,6 +218,13 @@ const SchedulerAdvancedOptions: FC = () => {
                         render={({ field }) => (
                             <MDEditor
                                 preview="edit"
+                                commands={[
+                                    commands.bold,
+                                    commands.italic,
+                                    commands.strikethrough,
+                                    commands.divider,
+                                    commands.link,
+                                ]}
                                 value={field.value ?? ''}
                                 onChange={(value) =>
                                     field.onChange(value ?? '')
