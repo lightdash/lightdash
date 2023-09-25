@@ -10,9 +10,9 @@ import bodyParser from 'body-parser';
 import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
 import cookieParser from 'cookie-parser';
-import compression from 'compression';
 import express, { NextFunction, Request, Response } from 'express';
 import expressSession from 'express-session';
+import expressStaticGzip from 'express-static-gzip';
 import passport from 'passport';
 import refresh from 'passport-oauth2-refresh';
 import path from 'path';
@@ -170,10 +170,26 @@ if (
 // frontend assets - immutable because vite appends hash to filenames
 app.use(
     '/assets',
-    compression(), // Apply compression only to the assets route
-    express.static(path.join(__dirname, '../../frontend/build/assets'), {
-        immutable: true,
-        maxAge: '1y',
+    expressStaticGzip(path.join(__dirname, '../../frontend/build/assets'), {
+        index: false,
+        customCompressions: [
+            {
+                encodingName: 'gzip',
+                fileExtension: 'gzip',
+            },
+        ],
+        serveStatic: {
+            setHeaders: (res, resPath, stat) => {
+                Logger.info('res for assets in path', resPath, res);
+
+                if (resPath.endsWith('.js.gz') || resPath.endsWith('.css.gz')) {
+                    Logger.info('setting headers for gzipped file');
+
+                    res.setHeader('Vary', 'Accept-Encoding');
+                    res.setHeader('Content-Encoding', 'gzip');
+                } else Logger.info('not setting headers for gzipped file');
+            },
+        },
     }),
 );
 
