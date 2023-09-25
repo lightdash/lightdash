@@ -47,6 +47,7 @@ package-lock.json
 *.tsbuildinfo
 
 # examples
+/examples/full-jaffle-shop-demo/dbt/target
 /dbt
 /profile*
 

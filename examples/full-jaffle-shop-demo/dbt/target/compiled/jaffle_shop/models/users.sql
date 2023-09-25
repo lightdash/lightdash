@@ -1,1 +1,0 @@
-SELECT * FROM "postgres"."jaffle"."stg_customers"
