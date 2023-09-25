@@ -67,15 +67,10 @@ const configurePostgresWarehouse = (
     cy.contains('a', 'Advanced configuration options').click();
 
     cy.get('input[name="warehouse.port"]').clear().type(config.port);
-    cy.get('input[name="warehouse.sslmode"]')
-        .parent()
-        .click() // open SSL mode dropdown
-        .parent('.mantine-Select-root')
-        .contains('disable')
-        .click();
+    cy.selectMantine('warehouse.sslmode', 'disable');
 
     // DBT
-    cy.get('select[name="dbt.type"]').select('dbt local server');
+    cy.selectMantine('dbt.type', 'dbt local server');
     cy.get('input[name="dbt.target"]').type('test');
     cy.get('input[name="warehouse.schema"]').type(config.schema);
 };
@@ -92,7 +87,7 @@ const configureBigqueryWarehouse = (
     cy.get('[type="file"]').attachFile(warehouseConfig.bigQuery.keyFile);
 
     // DBT
-    cy.get('select[name="dbt.type"]').select('dbt local server');
+    cy.selectMantine('dbt.type', 'dbt local server');
     cy.get('input[name="dbt.target"]').type('test');
     cy.get('input[name="warehouse.dataset"]').type(config.dataset);
 };
@@ -110,7 +105,7 @@ const configureTrinoWarehouse = (config: typeof warehouseConfig['trino']) => {
     cy.get('select[name="warehouse.http_scheme"]').select('https');
 
     // DBT
-    cy.get('select[name="dbt.type"]').select('dbt local server');
+    cy.selectMantine('dbt.type', 'dbt local server');
     cy.get('input[name="dbt.target"]').type('test');
     cy.get('input[name="warehouse.schema"]').type(config.schema);
 };
@@ -129,7 +124,7 @@ const configureDatabricksWarehouse = (
     });
 
     // DBT
-    cy.get('select[name="dbt.type"]').select('dbt local server');
+    cy.selectMantine('dbt.type', 'dbt local server');
     cy.get('input[name="dbt.target"]').type('test');
     cy.get('input[name="warehouse.database"]').type(config.schema);
 };
@@ -149,7 +144,7 @@ const configureSnowflakeWarehouse = (
     cy.get('input[name="warehouse.warehouse"]').type(config.warehouse);
 
     // DBT
-    cy.get('select[name="dbt.type"]').select('dbt local server');
+    cy.selectMantine('dbt.type', 'dbt local server');
     cy.get('input[name="dbt.target"]').type('test');
     cy.get('input[name="warehouse.schema"]').type(config.schema);
 };

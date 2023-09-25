@@ -39,6 +39,11 @@ import 'cypress-file-upload';
 declare global {
     namespace Cypress {
         interface Chainable {
+            selectMantine(
+                inputName: string,
+                optionLabel: string,
+            ): Chainable<Element>;
+
             login(): Chainable<Element>;
 
             anotherLogin(): Chainable<Element>;
@@ -72,6 +77,18 @@ declare global {
         }
     }
 }
+
+Cypress.Commands.add(
+    'selectMantine',
+    (inputName: string, optionLabel: string) => {
+        cy.get(`input[name="${inputName}"]`)
+            .parent()
+            .click() // open dropdown
+            .parent('.mantine-Select-root')
+            .contains(optionLabel)
+            .click(); // click option
+    },
+);
 
 Cypress.Commands.add('login', () => {
     cy.session(
