@@ -179,8 +179,16 @@ app.use(
             },
         ],
         serveStatic: {
-            immutable: true,
-            maxAge: '1y',
+            setHeaders: (res, resPath, stat) => {
+                Logger.info('res for assets in path', resPath, res);
+
+                if (resPath.endsWith('.js.gz') || resPath.endsWith('.css.gz')) {
+                    Logger.info('setting headers for gzipped file');
+
+                    res.setHeader('Vary', 'Accept-Encoding');
+                    res.setHeader('Content-Encoding', 'gzip');
+                } else Logger.info('not setting headers for gzipped file');
+            },
         },
     }),
 );
