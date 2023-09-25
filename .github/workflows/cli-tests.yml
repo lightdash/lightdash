@@ -29,9 +29,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-          submodules: recursive  # Download DBT submodule
-
       ## Install pip
       - uses: actions/setup-python@v4
         with:

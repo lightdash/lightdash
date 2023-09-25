@@ -289,9 +289,6 @@ Alternatively you can create a developer environment using docker compose:
 ```shell
 # Clone the Lightdash repo
 git clone https://github.com/lightdash/lightdash
-
-# Update submodules
-git submodule update --init --recursive
 ```
 
 Copy `.env.development` into a new file called `.env.development.local` 
@@ -402,13 +399,10 @@ brew install dbt-postgres
 git clone https://github.com/lightdash/lightdash.git
 cd lightdash
 
-#7 Update submodules
-git submodule update --init --recursive
-
-#8 Copy `.env.development` to `.env.development.local`
+#7 Copy `.env.development` to `.env.development.local`
 cp .env.development .env.development.local
 
-#9 Edit some environment variables to match your setup
+#8 Edit some environment variables to match your setup
 open .env.development.local -t
 
 # here is some variables that you might need to edit:
@@ -420,10 +414,10 @@ PGDATABASE=postgres
 DBT_DEMO_DIR=$PWD/examples/full-jaffle-shop-demo
 LIGHTDASH_CONFIG_FILE=$PWD/lightdash.yml
 
-#10 install packages
+#9 install packages
 yarn
 
-#11 build / migrate / seed
+#10 build / migrate / seed
 yarn load:env ./scripts/build.sh
 yarn load:env ./scripts/seed-jaffle.sh
 yarn load:env ./scripts/migrate.sh
