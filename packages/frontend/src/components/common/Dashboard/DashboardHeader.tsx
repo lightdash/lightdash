@@ -1,5 +1,6 @@
 import { Classes, Divider, Menu } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import { Dashboard, SpaceSummary, UpdatedByUser } from '@lightdash/common';
 import {
     ActionIcon,
@@ -92,9 +93,10 @@ const DashboardHeader = ({
     onExport,
 }: DashboardHeaderProps) => {
     const { search } = useLocation();
-    const { projectUuid, dashboardUuid } = useParams<{
+    const { projectUuid, dashboardUuid, organizationUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
+        organizationUuid: string;
     }>();
     const { isFetching, invalidateDashboardRelatedQueries } =
         useDashboardRefresh();
@@ -123,9 +125,10 @@ const DashboardHeader = ({
         'Dashboard',
     );
 
-    // Proxy for 'Interactive Viewer'
-    const userCanExportData = user.data?.ability.can('manage', 'ExportCsv');
-
+    const userCanExportData = user.data?.ability.can(
+        'manage',
+        subject('ExportCsv', { organizationUuid, projectUuid }),
+    );
     const isOneAtLeastFetching = isFetching > 0;
 
     return (
