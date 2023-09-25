@@ -1,3 +1,10 @@
+## [0.785.1](https://github.com/lightdash/lightdash/compare/0.785.0...0.785.1) (2023-09-25)
+
+
+### Bug Fixes
+
+* compress static assets and serve ([#7200](https://github.com/lightdash/lightdash/issues/7200)) ([f107a3e](https://github.com/lightdash/lightdash/commit/f107a3e851e82ce141ca9cdca507fe2f479b2c9e))
+
 # [0.785.0](https://github.com/lightdash/lightdash/compare/0.784.0...0.785.0) (2023-09-25)
 
 
