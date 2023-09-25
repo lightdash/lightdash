@@ -1,3 +1,10 @@
+## [0.786.2-alpha.1](https://github.com/lightdash/lightdash/compare/0.786.1...0.786.2-alpha.1) (2023-09-25)
+
+
+### Bug Fixes
+
+* compress in express server instead ([#7211](https://github.com/lightdash/lightdash/issues/7211)) ([e5bb2fe](https://github.com/lightdash/lightdash/commit/e5bb2fe68d0f55f9caf7d7cf45f7ff99440d4434))
+
 ## [0.786.1](https://github.com/lightdash/lightdash/compare/0.786.0...0.786.1) (2023-09-25)
 
 
