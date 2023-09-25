@@ -1,7 +1,7 @@
 # Configuration for probot-stale - https://github.com/probot/stale
 
 # If a PR or issue is untoched for 60 days, it becomes stale
-daysUntilStale: 60
+daysUntilStale: 666
 
 # Don't automatically close issues ever
 daysUntilClose: false
@@ -26,7 +26,7 @@ staleLabel: stale
 
 # Comment to post when marking as stale. Set to `false` to disable
 markComment: >
-  Is this issue still relevant? There have been no updates for 60 days, please close the issue or keep the conversation going! 
+  Is this issue still relevant? There have been no updates for 666 days, please close the issue or keep the conversation going! 
 
 # Comment to post when removing the stale label.
 # unmarkComment: >
