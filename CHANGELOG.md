@@ -1,3 +1,10 @@
+# [0.785.0](https://github.com/lightdash/lightdash/compare/0.784.0...0.785.0) (2023-09-25)
+
+
+### Features
+
+* dashboard filters apply to new charts ([#7032](https://github.com/lightdash/lightdash/issues/7032)) ([08ffd25](https://github.com/lightdash/lightdash/commit/08ffd259b7c8f82ecac148e7ada285e89c3560d1))
+
 # [0.784.0](https://github.com/lightdash/lightdash/compare/0.783.2...0.784.0) (2023-09-25)
 
 
