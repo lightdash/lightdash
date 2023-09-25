@@ -1,3 +1,11 @@
+# [0.784.0](https://github.com/lightdash/lightdash/compare/0.783.2...0.784.0) (2023-09-25)
+
+
+### Features
+
+* enable api-key auth for deleting users ([#7184](https://github.com/lightdash/lightdash/issues/7184)) ([8569c2c](https://github.com/lightdash/lightdash/commit/8569c2c95494a499b4402b351a6f571baaf43cc7))
+* send now scheduler ([#7146](https://github.com/lightdash/lightdash/issues/7146)) ([ef30952](https://github.com/lightdash/lightdash/commit/ef30952cc95a373fd25a6d82776d01eef8c4782f))
+
 ## [0.783.2](https://github.com/lightdash/lightdash/compare/0.783.1...0.783.2) (2023-09-22)
 
 
