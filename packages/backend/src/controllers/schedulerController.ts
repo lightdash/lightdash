@@ -4,8 +4,9 @@ import {
     ApiScheduledJobsResponse,
     ApiSchedulerAndTargetsResponse,
     ApiSchedulerLogsResponse,
+    ApiTestSchedulerResponse,
 } from '@lightdash/common';
-import { Delete } from '@tsoa/runtime';
+import { Delete, Post } from '@tsoa/runtime';
 import express from 'express';
 import {
     Body,
@@ -21,6 +22,7 @@ import {
     SuccessResponse,
     Tags,
 } from 'tsoa';
+import { SchedulerService } from '../services/SchedulerService/SchedulerService';
 import { schedulerService } from '../services/services';
 import {
     allowApiKeyAuthentication,
@@ -177,6 +179,30 @@ export class SchedulerController extends Controller {
         return {
             status: 'ok',
             results: { status: await schedulerService.getJobStatus(jobId) },
+        };
+    }
+
+    /**
+     * Send a scheduler now before saving it
+     * @param req express request
+     * @param body the create scheduler data
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('send')
+    @OperationId('sendScheduler')
+    async post(
+        @Request() req: express.Request,
+        @Body() body: any, // TODO: It should be CreateSchedulerAndTargets but tsoa returns an error
+    ): Promise<ApiTestSchedulerResponse> {
+        this.setStatus(200);
+        await schedulerService.sendScheduler(req.user!, body);
+        return {
+            status: 'ok',
         };
     }
 }

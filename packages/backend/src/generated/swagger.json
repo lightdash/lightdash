@@ -3002,6 +3002,17 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiTestSchedulerResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
             "ShareUrl": {
                 "properties": {
                     "host": {
@@ -6173,6 +6184,48 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/schedulers/send": {
+            "post": {
+                "operationId": "sendScheduler",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiTestSchedulerResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Send a scheduler now before saving it",
+                "tags": ["Schedulers"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "the create scheduler data",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "description": "the create scheduler data"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/share/{nanoId}": {

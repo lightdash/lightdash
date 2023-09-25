@@ -96,4 +96,5 @@ export enum EventName {
     USAGE_ANALYTICS_CLICKED = 'usage_analytics_clicked',
     VIEW_UNDERLYING_DATA_CLICKED = 'view_underlying_data.clicked',
     DRILL_BY_CLICKED = 'drill_by.clicked',
+    SCHEDULER_SEND_NOW_BUTTON = 'send_now_button.clicked',
 }
