@@ -154,8 +154,6 @@ const UpdateStateContent: FC<{
         defaultValues: scheduler.data,
     });
 
-    console.log({ scheduler });
-
     useEffect(() => {
         if (scheduler.isSuccess) {
             methods.reset(scheduler.data);

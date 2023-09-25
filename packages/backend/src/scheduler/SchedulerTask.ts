@@ -339,8 +339,6 @@ export const sendSlackNotification = async (
                     csvUrl:
                         csvUrl.path !== '#no-results' ? csvUrl.path : undefined,
                 });
-
-                console.log(blocks);
             } else if (dashboardUuid) {
                 if (csvUrls === undefined) {
                     throw new Error('Missing CSV URLS');
