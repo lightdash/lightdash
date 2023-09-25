@@ -5,9 +5,34 @@ env:
   NODE_ENV: 'development'
 
 jobs:
-  prepare-preview:
-    # Only trigger for correct environment and status
+  files-changed:
     if: github.ref != 'refs/heads/main'
+    name: Detect what files changed
+    runs-on: ubuntu-latest
+    # Map a step output to a job output
+    outputs:
+      cli: ${{ steps.changes.outputs.cli == 'true' || steps.overrides.outputs.cli == 'true' }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Check for files changes
+        uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          token: ${{ github.token }}
+          filters: .github/file-filters.yml
+      - uses: 8BitJonny/gh-get-current-pr@2.2.0
+        id: PR
+      - name: Get result with overides
+        id: overrides
+        run: |
+          echo "PR ${{ steps.PR.outputs.number }}"
+          echo "CLI override: ${{contains(steps.PR.outputs.pr_body, 'test-cli')}}"
+          echo "cli=${{contains(steps.PR.outputs.pr_body, 'test-cli')}}" >> "$GITHUB_OUTPUT"
+
+  prepare-preview:
+    # Only trigger for correct environment and status and if CLI files changed
+    if: needs.files-changed.outputs.cli == 'true'
+    needs: files-changed
     runs-on: ubuntu-latest
     outputs:
       url: ${{ github.event.deployment_status.environment_url }}
