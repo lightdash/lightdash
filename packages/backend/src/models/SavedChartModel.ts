@@ -742,6 +742,13 @@ export class SavedChartModel {
             Pick<Project, 'projectUuid'> &
             Pick<Organization, 'organizationUuid'>)[]
     > {
+        const getLatestQueryVersionSubQuery = this.database(
+            'saved_queries_versions',
+        )
+            .select('saved_query_id', 'explore_name')
+            .max('created_at as latest')
+            .groupBy('saved_query_id', 'explore_name');
+
         const charts = await this.database('saved_queries')
             .whereIn(
                 `${SavedChartsTableName}.saved_query_uuid`,
@@ -751,7 +758,7 @@ export class SavedChartModel {
                 uuid: 'saved_queries.saved_query_uuid',
                 name: 'saved_queries.name',
                 spaceUuid: 'spaces.space_uuid',
-                tableName: 'saved_queries_versions.explore_name',
+                tableName: 'latest_saved_query.explore_name',
                 projectUuid: 'projects.project_uuid',
                 organizationUuid: 'organizations.organization_uuid',
             })
@@ -772,17 +779,22 @@ export class SavedChartModel {
                 );
             })
             .innerJoin(
-                'saved_queries_versions',
-                `${SavedChartsTableName}.saved_query_id`,
-                'saved_queries_versions.saved_query_id',
+                getLatestQueryVersionSubQuery.as('latest_saved_query'),
+                function latestSavedQueryJoin() {
+                    this.on(
+                        `${SavedChartsTableName}.saved_query_id`,
+                        '=',
+                        'latest_saved_query.saved_query_id',
+                    );
+                },
             )
             .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
             .leftJoin(
                 OrganizationTableName,
                 'organizations.organization_id',
                 'projects.organization_id',
-            )
-            .limit(1);
+            );
+
         if (charts.length === 0) {
             throw new NotFoundError('Saved queries not found');
         }
