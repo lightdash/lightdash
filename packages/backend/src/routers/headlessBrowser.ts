@@ -68,14 +68,8 @@ if (
             });
 
             const page = await browser.newPage();
-            const hostname =
-                process.env.NODE_ENV === 'development'
-                    ? 'lightdash-dev'
-                    : process.env.RENDER_SERVICE_NAME;
 
-            const testUrl = `http://${hostname}:${
-                process.env.PORT || 3000
-            }/api/v1/headless-browser/callback/${req.params.flag}`;
+            const testUrl = `${lightdashConfig.siteUrl}/api/v1/headless-browser/callback/${req.params.flag}`;
             console.debug(`Fetching headless chrome URL: ${testUrl}`);
 
             const response = await page.goto(testUrl, {});
