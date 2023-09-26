@@ -1,3 +1,10 @@
+# [0.787.0](https://github.com/lightdash/lightdash/compare/0.786.2...0.787.0) (2023-09-26)
+
+
+### Features
+
+* vertical legend option for pie charts ([#7191](https://github.com/lightdash/lightdash/issues/7191)) ([11e5f7d](https://github.com/lightdash/lightdash/commit/11e5f7df87aa77780cb544f956a5aa0834acef41))
+
 ## [0.786.2](https://github.com/lightdash/lightdash/compare/0.786.1...0.786.2) (2023-09-26)
 
 
