@@ -83,6 +83,7 @@ export default class EmailClient {
                     viewEngine: {
                         partialsDir: path.join(__dirname, './templates/'),
                         defaultLayout: false,
+                        extname: '.hbs',
                     },
                     viewPath: path.join(__dirname, './templates/'),
                     extName: '.hbs',
