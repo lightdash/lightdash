@@ -1,3 +1,10 @@
+## [0.787.4](https://github.com/lightdash/lightdash/compare/0.787.3...0.787.4) (2023-09-26)
+
+
+### Bug Fixes
+
+* allow interactive viewers to export dashboard ([#7201](https://github.com/lightdash/lightdash/issues/7201)) ([85f434d](https://github.com/lightdash/lightdash/commit/85f434d14b477f3dedcaf2234e63b48b847c4c53))
+
 ## [0.787.3](https://github.com/lightdash/lightdash/compare/0.787.2...0.787.3) (2023-09-26)
 
 
