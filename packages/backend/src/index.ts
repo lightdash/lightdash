@@ -2,7 +2,6 @@
 // eslint-disable-next-line import/order
 import otelSdk from './otel'; // must be imported first
 
-import fs from 'fs';
 import { LightdashMode, SessionUser } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
@@ -172,10 +171,13 @@ if (
 app.use(
     '/assets',
     expressStaticGzip(path.join(__dirname, '../../frontend/build/assets'), {
-        serveStatic: {
-            immutable: true,
-            maxAge: '1y',
-        },
+        index: false,
+        customCompressions: [
+            {
+                encodingName: 'gzip',
+                fileExtension: 'gzip',
+            },
+        ],
     }),
 );
 
