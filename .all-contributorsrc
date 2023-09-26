@@ -1174,6 +1174,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "ayush117",
+      "name": "Ayush Trivedi",
+      "avatar_url": "https://avatars.githubusercontent.com/u/25580209?v=4",
+      "profile": "https://github.com/ayush117",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
