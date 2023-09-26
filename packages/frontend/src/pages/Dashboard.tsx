@@ -40,6 +40,7 @@ import {
 } from '../hooks/dashboard/useDashboard';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import useSavedQueryWithDashboardFilters from '../hooks/dashboard/useSavedQueryWithDashboardFilters';
+import { useOrganization } from '../hooks/organization/useOrganization';
 import { deleteSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import {
@@ -157,6 +158,8 @@ const Dashboard: FC = () => {
         setDashboardFilters,
         setDashboardTemporaryFilters,
     } = useDashboardContext();
+
+    const { data: organization } = useOrganization();
     const hasTemporaryFilters = useMemo(
         () =>
             dashboardTemporaryFilters.dimensions.length > 0 ||
@@ -489,6 +492,7 @@ const Dashboard: FC = () => {
                         dashboardSpaceUuid={dashboard.spaceUuid}
                         dashboardViews={dashboard.views}
                         dashboardFirstViewedAt={dashboard.firstViewedAt}
+                        organizationUuid={organization?.organizationUuid}
                         isEditMode={isEditMode}
                         isSaving={isSaving}
                         hasDashboardChanged={

@@ -59,6 +59,7 @@ type DashboardHeaderProps = {
     dashboardViews: number;
     dashboardFirstViewedAt: Date | string | null;
     dashboardUpdatedByUser?: UpdatedByUser;
+    organizationUuid?: string;
     hasDashboardChanged: boolean;
     isEditMode: boolean;
     isSaving: boolean;
@@ -81,6 +82,7 @@ const DashboardHeader = ({
     dashboardFirstViewedAt,
     dashboardUpdatedAt,
     dashboardUpdatedByUser,
+    organizationUuid,
     hasDashboardChanged,
     isEditMode,
     isSaving,
@@ -93,7 +95,7 @@ const DashboardHeader = ({
     onExport,
 }: DashboardHeaderProps) => {
     const { search } = useLocation();
-    const { projectUuid, dashboardUuid, organizationUuid } = useParams<{
+    const { projectUuid, dashboardUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
         organizationUuid: string;
@@ -129,6 +131,7 @@ const DashboardHeader = ({
         'manage',
         subject('ExportCsv', { organizationUuid, projectUuid }),
     );
+
     const isOneAtLeastFetching = isFetching > 0;
 
     return (
@@ -236,7 +239,7 @@ const DashboardHeader = ({
                 </PageActionsContainer>
             ) : (
                 <PageActionsContainer>
-                    {!!userCanExportData && (
+                    {userCanExportData && (
                         <Button
                             size="xs"
                             loading={isOneAtLeastFetching}
@@ -247,7 +250,7 @@ const DashboardHeader = ({
                         </Button>
                     )}
 
-                    {!!userCanManageDashboard && (
+                    {userCanManageDashboard && (
                         <Tooltip
                             label="Edit dashboard"
                             withinPortal
@@ -266,7 +269,7 @@ const DashboardHeader = ({
                         </Tooltip>
                     )}
 
-                    {!!userCanExportData && (
+                    {userCanExportData && (
                         <ShareLinkButton url={`${window.location.href}`} />
                     )}
 
@@ -345,14 +348,15 @@ const DashboardHeader = ({
                                         />
                                     </>
                                 )}
-                                {!!userCanExportData && (
+                                {(userCanExportData ||
+                                    userCanManageDashboard) && (
                                     <MenuItem2
                                         icon={<IconUpload />}
                                         text="Export dashboard"
                                         onClick={onExport}
                                     />
                                 )}
-                                {!!userCanManageDashboard && (
+                                {userCanManageDashboard && (
                                     <>
                                         <Divider />
                                         <MenuItem2
@@ -366,7 +370,7 @@ const DashboardHeader = ({
                             </Menu>
                         }
                     >
-                        {!!userCanExportData && (
+                        {userCanExportData && (
                             <ActionIcon variant="default">
                                 <MantineIcon icon={IconDots} />
                             </ActionIcon>
