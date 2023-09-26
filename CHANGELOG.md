@@ -1,3 +1,10 @@
+## [0.786.2](https://github.com/lightdash/lightdash/compare/0.786.1...0.786.2) (2023-09-26)
+
+
+### Bug Fixes
+
+* disable move-to-space option for viewers ([#7204](https://github.com/lightdash/lightdash/issues/7204)) ([de8630f](https://github.com/lightdash/lightdash/commit/de8630fc678eb3f70cb71e18f4cc10025f288bb9))
+
 ## [0.786.1](https://github.com/lightdash/lightdash/compare/0.786.0...0.786.1) (2023-09-25)
 
 
