@@ -1,6 +1,8 @@
 import { subject } from '@casl/ability';
 import {
+    addDashboardFiltersToMetricQuery,
     ApiSqlQueryResults,
+    DashboardFilters,
     DimensionType,
     DownloadCsvPayload,
     DownloadMetricCsv,
@@ -324,6 +326,8 @@ export class CsvService {
         chartUuid: string,
         options: SchedulerCsvOptions | undefined,
         jobId?: string,
+        tileUuid?: string,
+        dashboardFilters?: DashboardFilters,
     ): Promise<AttachmentUrl> {
         const chart = await this.savedChartModel.get(chartUuid);
         const {
@@ -359,9 +363,23 @@ export class CsvService {
             });
         }
 
+        const explore = await this.projectService.getExplore(
+            user,
+            chart.projectUuid,
+            exploreId,
+        );
+
+        const metricQueryWithDashboardFilters =
+            addDashboardFiltersToMetricQuery(
+                explore,
+                metricQuery,
+                tileUuid,
+                dashboardFilters,
+            );
+
         const rows = await this.projectService.runMetricQuery(
             user,
-            metricQuery,
+            metricQueryWithDashboardFilters,
             chart.projectUuid,
             exploreId,
             getSchedulerCsvLimit(options),
@@ -377,22 +395,17 @@ export class CsvService {
                 truncated: true,
             };
 
-        const explore = await this.projectService.getExplore(
-            user,
-            chart.projectUuid,
-            exploreId,
-        );
         const itemMap = getItemMap(
             explore,
-            metricQuery.additionalMetrics,
-            metricQuery.tableCalculations,
+            metricQueryWithDashboardFilters.additionalMetrics,
+            metricQueryWithDashboardFilters.tableCalculations,
         );
         const truncated = this.couldBeTruncated(rows);
 
         const fileId = await CsvService.writeRowsToFile(
             rows,
             onlyRaw,
-            metricQuery,
+            metricQueryWithDashboardFilters,
             itemMap,
             isTableChartConfig(config) ? config.showTableNames ?? false : true,
             chart.name,
@@ -442,21 +455,28 @@ export class CsvService {
         options: SchedulerCsvOptions | undefined,
     ) {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
-        const chartUuids = dashboard.tiles.reduce<string[]>((acc, tile) => {
-            if (
-                isDashboardChartTileType(tile) &&
-                tile.properties.savedChartUuid
-            ) {
-                return [...acc, tile.properties.savedChartUuid];
-            }
-            return acc;
-        }, []);
 
-        const csvUrls = await Promise.all(
-            chartUuids.map((chartUuid) =>
-                this.getCsvForChart(user, chartUuid, options),
-            ),
+        const chartTileUuidsWithChartUuids = dashboard.tiles
+            .filter(isDashboardChartTileType)
+            .filter((tile) => tile.properties.savedChartUuid)
+            .map((tile) => ({
+                tileUuid: tile.uuid,
+                chartUuid: tile.properties.savedChartUuid!,
+            }));
+
+        const csvForChartPromises = chartTileUuidsWithChartUuids.map(
+            ({ tileUuid, chartUuid }) =>
+                this.getCsvForChart(
+                    user,
+                    chartUuid,
+                    options,
+                    undefined,
+                    tileUuid,
+                    dashboard.filters,
+                ),
         );
+
+        const csvUrls = await Promise.all(csvForChartPromises);
         return csvUrls;
     }
 
