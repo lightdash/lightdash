@@ -1,13 +1,14 @@
 import {
     ApiQueryResults,
     ECHARTS_DEFAULT_COLORS,
-    EchartsLegend,
     Explore,
     Field,
     fieldId,
     formatItemValue,
     isField,
     PieChart,
+    PieChartLegendPosition,
+    PieChartLegendPositionDefault,
     PieChartValueOptions,
     ResultRow,
     ResultValue,
@@ -68,8 +69,8 @@ type PieChartConfig = {
 
     showLegend: boolean;
     toggleShowLegend: () => void;
-
-    setLegend: (legends: EchartsLegend) => void;
+    legendPosition: PieChartLegendPosition;
+    legendPositionChange: (position: PieChartLegendPosition) => void;
 
     data: {
         name: string;
@@ -148,7 +149,9 @@ const usePieChartConfig: PieChartConfigFn = (
         pieChartConfig?.showLegend ?? true,
     );
 
-    const [legend, setLegendsConfig] = useState<EchartsLegend>({ orient: 'horizontal' });
+    const [legendPosition, setLegendPosition] = useState(
+        pieChartConfig?.legendPosition ?? PieChartLegendPositionDefault,
+    );
 
     const defaultColors = useMemo(
         () => org?.chartColors ?? ECHARTS_DEFAULT_COLORS,
@@ -392,14 +395,12 @@ const usePieChartConfig: PieChartConfigFn = (
         [groupLabels],
     );
 
-    const setLegend = useCallback((legend: EchartsLegend) => {
-        setLegendsConfig((prevState) => {
-            return {
-                ...prevState,
-                ...legend,
-            };
-        });
-    }, []);
+    const handleLegendPositionChange = useCallback(
+        (position: PieChartLegendPosition) => {
+            setLegendPosition(position);
+        },
+        [],
+    );
 
     const validPieChartConfig: PieChart = useMemo(
         () => ({
@@ -425,7 +426,7 @@ const usePieChartConfig: PieChartConfigFn = (
                 groupLabels.includes(label),
             ),
             showLegend,
-            legend,
+            legendPosition,
         }),
         [
             groupFieldIds,
@@ -440,7 +441,7 @@ const usePieChartConfig: PieChartConfigFn = (
             groupValueOptionOverrides,
             groupSortOverrides,
             showLegend,
-            legend,
+            legendPosition,
         ],
     );
 
@@ -486,8 +487,8 @@ const usePieChartConfig: PieChartConfigFn = (
 
             showLegend,
             toggleShowLegend: () => setShowLegend((prev) => !prev),
-
-            setLegend,
+            legendPosition,
+            legendPositionChange: handleLegendPositionChange,
 
             data,
         }),
@@ -529,6 +530,8 @@ const usePieChartConfig: PieChartConfigFn = (
             handleGroupSortChange,
 
             showLegend,
+            legendPosition,
+            handleLegendPositionChange,
 
             data,
         ],

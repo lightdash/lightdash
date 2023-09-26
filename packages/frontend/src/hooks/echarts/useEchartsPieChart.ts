@@ -29,7 +29,7 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
                 groupColorOverrides,
                 groupValueOptionOverrides,
                 showLegend,
-                legend,
+                legendPosition,
             },
         },
         explore,
@@ -105,12 +105,14 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
             data: seriesData,
             radius: isDonut ? ['30%', '70%'] : '70%',
             center:
-                showLegend &&
-                valueLabelDefault === 'outside' &&
-                (showValueDefault || showPercentageDefault)
-                    ? ['50%', '55%']
-                    : showLegend
-                    ? ['50%', '52%']
+                legendPosition === 'horizontal'
+                    ? showLegend &&
+                      valueLabelDefault === 'outside' &&
+                      (showValueDefault || showPercentageDefault)
+                        ? ['50%', '55%']
+                        : showLegend
+                        ? ['50%', '52%']
+                        : ['50%', '50%']
                     : ['50%', '50%'],
             tooltip: {
                 trigger: 'item',
@@ -132,18 +134,26 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
         showValueDefault,
         showPercentageDefault,
         selectedMetric,
+        legendPosition,
     ]);
 
     const eChartsOption: EChartsOption = useMemo(() => {
         return {
             legend: {
                 show: showLegend,
-                orient: legend?.orient,
-                left: legend?.left,
-                right: legend?.right,
-                top: legend?.top,
-                bottom: legend?.bottom,
+                orient: legendPosition,
                 type: 'scroll',
+                ...(legendPosition === 'vertical'
+                    ? {
+                          left: 'left',
+                          top: 'middle',
+                          align: 'left',
+                      }
+                    : {
+                          left: 'center',
+                          top: 'top',
+                          align: 'auto',
+                      }),
             },
             tooltip: {
                 trigger: 'item',
@@ -151,7 +161,7 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
             series: [pieSeriesOption],
             animation: !isInDashboard,
         };
-    }, [showLegend, pieSeriesOption, isInDashboard, legend]);
+    }, [showLegend, pieSeriesOption, legendPosition, isInDashboard]);
 
     if (!explore || !data || data.length === 0) {
         return undefined;

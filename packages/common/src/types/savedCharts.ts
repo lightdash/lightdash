@@ -68,6 +68,16 @@ export type PieChartValueOptions = {
     showPercentage: boolean;
 };
 
+export const PieChartLegendPositions = {
+    horizontal: 'Horizontal',
+    vertical: 'Vertical',
+} as const;
+
+export type PieChartLegendPosition = keyof typeof PieChartLegendPositions;
+export const PieChartLegendPositionDefault = Object.keys(
+    PieChartLegendPositions,
+)[0] as PieChartLegendPosition;
+
 export type PieChart = {
     groupFieldIds?: string[];
     metricId?: string;
@@ -80,7 +90,7 @@ export type PieChart = {
     groupValueOptionOverrides?: Record<string, Partial<PieChartValueOptions>>;
     groupSortOverrides?: string[];
     showLegend?: boolean;
-    legend?: EchartsLegend;
+    legendPosition?: PieChartLegendPosition;
 };
 
 export type PieChartConfig = {
