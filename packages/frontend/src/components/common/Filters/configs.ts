@@ -239,7 +239,6 @@ export const getFilterRuleTables = (
             (tables, tileTarget) => {
                 const targetField = filterableFields.find(
                     (f) =>
-                        tileTarget !== false &&
                         f.table === tileTarget.tableName &&
                         getItemId(f) === tileTarget.fieldId,
                 );

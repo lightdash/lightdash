@@ -15,7 +15,6 @@ import {
     Flex,
     Stack,
     Text,
-    Tooltip,
     useMantineTheme,
 } from '@mantine/core';
 import { FC, useCallback, useMemo } from 'react';
@@ -94,20 +93,7 @@ const TileFilterConfiguration: FC<Props> = ({
     const tileTargetList = useMemo(() => {
         return sortedTileWithFilters.map(([tileUuid, filters], index) => {
             const tile = tiles.find((t) => t.uuid === tileUuid);
-
-            // tileConfig overrides the default filter state for a tile
-            // if it is a field, we use that field for the filter.
-            // If it is the empty string, the filter is disabled.
             const tileConfig = filterRule.tileTargets?.[tileUuid];
-
-            let selectedField;
-            if (tileConfig !== false) {
-                selectedField = tileConfig?.fieldId
-                    ? filters?.find(
-                          (f) => tileConfig?.fieldId === getFieldId(f),
-                      )
-                    : filters?.find((f) => matchFieldExact(f)(field));
-            }
 
             const isFilterAvailable =
                 filters?.some(matchFieldByType(field)) ?? false;
@@ -118,6 +104,11 @@ const TileFilterConfiguration: FC<Props> = ({
                     sortFieldsByMatch(matchFieldByTypeAndName, a, b),
                 )
                 .sort((a, b) => sortFieldsByMatch(matchFieldExact, a, b));
+
+            const fieldId = tileConfig?.fieldId;
+            const selectedFilter = filters?.find(
+                (f) => getFieldId(f) === fieldId,
+            );
 
             const tileWithoutTitle =
                 !tile?.properties.title || tile.properties.title.length === 0;
@@ -135,8 +126,7 @@ const TileFilterConfiguration: FC<Props> = ({
             return {
                 key: tileUuid + index,
                 label: tileLabel,
-                checked: !!selectedField,
-                disabled: !isFilterAvailable,
+                checked: isFilterAvailable && !!tileConfig,
                 tileUuid,
                 ...(tile &&
                     isDashboardChartTileType(tile) && {
@@ -144,7 +134,7 @@ const TileFilterConfiguration: FC<Props> = ({
                             tile.properties.lastVersionChartKind ?? undefined,
                     }),
                 sortedFilters,
-                selectedField,
+                selectedFilter,
             };
         });
     }, [filterRule, field, sortFieldsByMatch, sortedTileWithFilters, tiles]);
@@ -185,44 +175,33 @@ const TileFilterConfiguration: FC<Props> = ({
             <Stack spacing="md">
                 {tileTargetList.map((value) => (
                     <Box key={value.key}>
-                        <Tooltip
-                            label="No fields matching filter type"
-                            position="left"
-                            disabled={!value.disabled}
-                        >
-                            <Box>
-                                <Checkbox
-                                    size="xs"
-                                    fw={500}
-                                    disabled={value.disabled}
-                                    label={
-                                        <Flex align="center" gap="xxs">
-                                            <MantineIcon
-                                                color="blue.8"
-                                                icon={getChartIcon(
-                                                    value.tileChartKind,
-                                                )}
-                                            />
-                                            {value.label}
-                                        </Flex>
-                                    }
-                                    styles={{
-                                        label: {
-                                            paddingLeft: theme.spacing.xs,
-                                        },
-                                    }}
-                                    checked={value.checked}
-                                    onChange={(event) => {
-                                        onChange(
-                                            event.currentTarget.checked
-                                                ? FilterActions.ADD
-                                                : FilterActions.REMOVE,
-                                            value.tileUuid,
-                                        );
-                                    }}
-                                />
-                            </Box>
-                        </Tooltip>
+                        <Checkbox
+                            size="xs"
+                            fw={500}
+                            label={
+                                <Flex align="center" gap="xxs">
+                                    <MantineIcon
+                                        color="blue.8"
+                                        icon={getChartIcon(value.tileChartKind)}
+                                    />
+                                    {value.label}
+                                </Flex>
+                            }
+                            styles={{
+                                label: {
+                                    paddingLeft: theme.spacing.xs,
+                                },
+                            }}
+                            checked={value.checked}
+                            onChange={(event) => {
+                                onChange(
+                                    event.currentTarget.checked
+                                        ? FilterActions.ADD
+                                        : FilterActions.REMOVE,
+                                    value.tileUuid,
+                                );
+                            }}
+                        />
 
                         {value.sortedFilters && (
                             <Box
@@ -248,7 +227,7 @@ const TileFilterConfiguration: FC<Props> = ({
                                         },
                                     }}
                                     fields={value.sortedFilters}
-                                    activeField={value.selectedField}
+                                    activeField={value.selectedFilter}
                                     onChange={(newFilter) => {
                                         onChange(
                                             FilterActions.ADD,
