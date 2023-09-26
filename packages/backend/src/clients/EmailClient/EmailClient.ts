@@ -83,10 +83,10 @@ export default class EmailClient {
                     viewEngine: {
                         partialsDir: path.join(__dirname, './templates/'),
                         defaultLayout: false,
-                        extname: '.hbs',
+                        extname: '.html',
                     },
                     viewPath: path.join(__dirname, './templates/'),
-                    extName: '.hbs',
+                    extName: '.html',
                 }),
             );
         }
@@ -202,6 +202,7 @@ export default class EmailClient {
             template: 'imageNotification',
             context: {
                 title,
+                hasMessage: !!message,
                 message: message && marked(message),
                 imageUrl,
                 description,
@@ -246,6 +247,7 @@ export default class EmailClient {
             context: {
                 title,
                 description,
+                hasMessage: !!message,
                 message: message && marked(message),
                 date,
                 frequency,
@@ -289,6 +291,7 @@ export default class EmailClient {
             context: {
                 title,
                 description,
+                hasMessage: !!message,
                 message: message && marked(message),
                 date,
                 frequency,

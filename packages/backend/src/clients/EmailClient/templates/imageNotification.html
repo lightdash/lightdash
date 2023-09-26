@@ -9,9 +9,9 @@
         <meta name="x-apple-disable-message-reformatting" />
         <meta http-equiv="X-UA-Compatible" />
         <meta charset="utf-8" />
-        <meta name="viewport" content="target-densitydpi" ="device-dpi" />
+        <meta name="viewport" content="target-densitydpi=device-dpi" />
         <meta content="true" name="HandheldFriendly" />
-        <meta content="width" ="device-width" name="viewport" />
+        <meta content="width=device-width" name="viewport" />
         <style type="text/css">
             table {
                 border-collapse: separate;
@@ -662,7 +662,7 @@
                                                                                 </td>
                                                                             </tr>
                                                                             {{#if
-                                                                            message}}
+                                                                            hasMessage}}
                                                                             <tr>
                                                                                 <td>
                                                                                     <div
@@ -698,7 +698,7 @@
                                                                                             >
                                                                                                 <!--<![endif]-->
                                                                                                 <!--[if mso]><td class="t148" style="width:966px;"><![endif]-->
-                                                                                                <p
+                                                                                                <div
                                                                                                     class="t154"
                                                                                                     style="
                                                                                                         margin-bottom: 0;
@@ -725,7 +725,7 @@
                                                                                                     "
                                                                                                 >
                                                                                                     {{{message}}}
-                                                                                                </p>
+                                                                                                </div>
                                                                                             </td>
                                                                                         </tr>
                                                                                     </table>
@@ -805,7 +805,8 @@
                                                                                     </table>
                                                                                 </td>
                                                                             </tr>
-                                                                            {{#expirationDays}}
+                                                                            {{#if
+                                                                            expirationDays}}
                                                                             <tr>
                                                                                 <td>
                                                                                     <div
@@ -923,7 +924,7 @@
                                                                                     </table>
                                                                                 </td>
                                                                             </tr>
-                                                                            {{/expirationDays}}
+                                                                            {{/if}}
                                                                             <tr>
                                                                                 <td>
                                                                                     <div
