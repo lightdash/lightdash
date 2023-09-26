@@ -1,3 +1,10 @@
+## [0.787.2](https://github.com/lightdash/lightdash/compare/0.787.1...0.787.2) (2023-09-26)
+
+
+### Bug Fixes
+
+* remove limit and get all available filters per chart ([#7226](https://github.com/lightdash/lightdash/issues/7226)) ([0142532](https://github.com/lightdash/lightdash/commit/0142532172a42b4cf1805cec053c21548c776601))
+
 ## [0.787.1](https://github.com/lightdash/lightdash/compare/0.787.0...0.787.1) (2023-09-26)
 
 
