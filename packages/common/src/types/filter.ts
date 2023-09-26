@@ -55,13 +55,15 @@ export type DashboardFieldTarget = {
     tableName: string;
 };
 
+type DashboardTileTarget = DashboardFieldTarget | false;
+
 export type DashboardFilterRule<
     O = ConditionalOperator,
     T extends DashboardFieldTarget = DashboardFieldTarget,
     V = any,
     S = any,
 > = FilterRule<O, T, V, S> & {
-    tileTargets?: Record<string, DashboardFieldTarget>;
+    tileTargets?: Record<string, DashboardTileTarget>;
     label: undefined | string;
 };
 
@@ -102,10 +104,10 @@ export type DashboardFilters = {
 
 export type DashboardFiltersFromSearchParam = {
     dimensions: (Omit<DashboardFilterRule, 'tileTargets'> & {
-        tileTargets?: (string | Record<string, DashboardFieldTarget>)[];
+        tileTargets?: (string | Record<string, DashboardTileTarget>)[];
     })[];
     metrics: (Omit<DashboardFilterRule, 'tileTargets'> & {
-        tileTargets?: (string | Record<string, DashboardFieldTarget>)[];
+        tileTargets?: (string | Record<string, DashboardTileTarget>)[];
     })[];
 };
 
@@ -161,29 +163,10 @@ export enum FilterGroupOperator {
     or = 'or',
 }
 
-export const convertDashboardFiltersToFilters = (
-    dashboardFilters: DashboardFilters,
-): Filters => {
-    const { dimensions, metrics } = dashboardFilters;
-    const filters: Filters = {};
-    if (dimensions.length > 0) {
-        filters.dimensions = {
-            id: 'dashboard_dimension_filters',
-            and: dimensions.map((dimension) => dimension),
-        };
-    }
-    if (metrics.length > 0) {
-        filters.metrics = {
-            id: 'dashboard_dimension_metrics',
-            and: metrics.map((metric) => metric),
-        };
-    }
-    return filters;
-};
-
 const isDashboardTileTargetFilterOverride = (
-    filter: string | Record<string, DashboardFieldTarget>,
-): filter is Record<string, DashboardFieldTarget> => typeof filter === 'object';
+    filter: string | Record<string, DashboardTileTarget>,
+): filter is Record<string, DashboardTileTarget> =>
+    typeof filter === 'object' || typeof filter === 'boolean';
 
 export const convertDashboardFiltersParamToDashboardFilters = (
     dashboardFilters: DashboardFiltersFromSearchParam,
@@ -195,32 +178,18 @@ export const convertDashboardFiltersParamToDashboardFilters = (
                 ...f,
                 ...(f.tileTargets && {
                     tileTargets: f.tileTargets.reduce<
-                        Record<string, DashboardFieldTarget>
-                    >(
-                        (tileTargetsResult, tileTarget) => ({
-                            ...tileTargetsResult,
-                            ...(isDashboardTileTargetFilterOverride(tileTarget)
-                                ? {
-                                      [Object.keys(tileTarget)[0]]: {
-                                          fieldId:
-                                              tileTarget[
-                                                  Object.keys(tileTarget)[0]
-                                              ].fieldId,
-                                          tableName:
-                                              tileTarget[
-                                                  Object.keys(tileTarget)[0]
-                                              ].tableName,
-                                      },
-                                  }
-                                : {
-                                      [tileTarget]: {
-                                          fieldId: f.target.fieldId,
-                                          tableName: f.target.tableName,
-                                      },
-                                  }),
-                        }),
-                        {},
-                    ),
+                        Record<string, DashboardTileTarget>
+                    >((tileTargetsResult, tileTarget) => {
+                        const targetName = Object.keys(tileTarget)[0];
+                        const targetValue = Object.values(tileTarget)[0];
+                        if (isDashboardTileTargetFilterOverride(tileTarget)) {
+                            return {
+                                ...tileTargetsResult,
+                                ...{ [targetName]: targetValue },
+                            };
+                        }
+                        return tileTargetsResult;
+                    }, {}),
                 }),
             })),
         }),
@@ -236,12 +205,32 @@ export const compressDashboardFiltersToParam = (
             [key]: value.map((f) => ({
                 ...f,
                 ...(f.tileTargets && {
-                    tileTargets: Object.entries(f.tileTargets).map(
-                        ([tileTargetKey, tileTargetValue]) =>
-                            tileTargetValue.fieldId === f.target.fieldId &&
-                            tileTargetValue.tableName === f.target.tableName
-                                ? tileTargetKey
-                                : { [tileTargetKey]: tileTargetValue },
+                    tileTargets: Object.entries(f.tileTargets).reduce(
+                        (
+                            tileTargetsResult: Array<{
+                                [tile: string]: DashboardTileTarget;
+                            }>,
+                            [tileTargetKey, tileTargetValue],
+                        ) => {
+                            // If the filter is not disabled for this tile
+                            // AND the table and field match, we omit it.
+                            // The filter will be automatically applied there
+                            if (
+                                tileTargetValue !== false &&
+                                tileTargetValue.fieldId === f.target.fieldId &&
+                                tileTargetValue.tableName === f.target.tableName
+                            ) {
+                                return tileTargetsResult;
+                            }
+
+                            return [
+                                ...tileTargetsResult,
+                                {
+                                    [tileTargetKey]: tileTargetValue,
+                                },
+                            ];
+                        },
+                        [],
                     ),
                 }),
             })),
