@@ -2,7 +2,6 @@
 // eslint-disable-next-line import/order
 import otelSdk from './otel'; // must be imported first
 
-import fs from 'fs';
 import { LightdashMode, SessionUser } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
