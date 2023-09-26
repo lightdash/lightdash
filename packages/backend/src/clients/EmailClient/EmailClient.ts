@@ -85,7 +85,7 @@ export default class EmailClient {
                         defaultLayout: false,
                     },
                     viewPath: path.join(__dirname, './templates/'),
-                    extName: '.html',
+                    extName: '.hbs',
                 }),
             );
         }
