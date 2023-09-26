@@ -1,3 +1,10 @@
+## [0.786.3-alpha.1](https://github.com/lightdash/lightdash/compare/0.786.2...0.786.3-alpha.1) (2023-09-26)
+
+
+### Bug Fixes
+
+* rename gz to gzip files ([#7219](https://github.com/lightdash/lightdash/issues/7219)) ([e22913d](https://github.com/lightdash/lightdash/commit/e22913dbfa54950e9c6e3c06d5195d26c577dd44))
+
 ## [0.786.2](https://github.com/lightdash/lightdash/compare/0.786.1...0.786.2) (2023-09-26)
 
 
