@@ -172,10 +172,13 @@ if (
 app.use(
     '/assets',
     expressStaticGzip(path.join(__dirname, '../../frontend/build/assets'), {
-        serveStatic: {
-            immutable: true,
-            maxAge: '1y',
-        },
+        index: false,
+        customCompressions: [
+            {
+                encodingName: 'gzip',
+                fileExtension: 'gzip',
+            },
+        ],
     }),
 );
 
