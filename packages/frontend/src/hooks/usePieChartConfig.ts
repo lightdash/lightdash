@@ -7,6 +7,8 @@ import {
     formatItemValue,
     isField,
     PieChart,
+    PieChartLegendPosition,
+    PieChartLegendPositionDefault,
     PieChartValueOptions,
     ResultRow,
     ResultValue,
@@ -67,6 +69,8 @@ type PieChartConfig = {
 
     showLegend: boolean;
     toggleShowLegend: () => void;
+    legendPosition: PieChartLegendPosition;
+    legendPositionChange: (position: PieChartLegendPosition) => void;
 
     data: {
         name: string;
@@ -143,6 +147,10 @@ const usePieChartConfig: PieChartConfigFn = (
 
     const [showLegend, setShowLegend] = useState(
         pieChartConfig?.showLegend ?? true,
+    );
+
+    const [legendPosition, setLegendPosition] = useState(
+        pieChartConfig?.legendPosition ?? PieChartLegendPositionDefault,
     );
 
     const defaultColors = useMemo(
@@ -387,6 +395,13 @@ const usePieChartConfig: PieChartConfigFn = (
         [groupLabels],
     );
 
+    const handleLegendPositionChange = useCallback(
+        (position: PieChartLegendPosition) => {
+            setLegendPosition(position);
+        },
+        [],
+    );
+
     const validPieChartConfig: PieChart = useMemo(
         () => ({
             groupFieldIds,
@@ -411,6 +426,7 @@ const usePieChartConfig: PieChartConfigFn = (
                 groupLabels.includes(label),
             ),
             showLegend,
+            legendPosition,
         }),
         [
             groupFieldIds,
@@ -425,6 +441,7 @@ const usePieChartConfig: PieChartConfigFn = (
             groupValueOptionOverrides,
             groupSortOverrides,
             showLegend,
+            legendPosition,
         ],
     );
 
@@ -470,6 +487,8 @@ const usePieChartConfig: PieChartConfigFn = (
 
             showLegend,
             toggleShowLegend: () => setShowLegend((prev) => !prev),
+            legendPosition,
+            legendPositionChange: handleLegendPositionChange,
 
             data,
         }),
@@ -511,6 +530,8 @@ const usePieChartConfig: PieChartConfigFn = (
             handleGroupSortChange,
 
             showLegend,
+            legendPosition,
+            handleLegendPositionChange,
 
             data,
         ],
