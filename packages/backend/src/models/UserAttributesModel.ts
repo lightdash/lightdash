@@ -83,7 +83,6 @@ export class UserAttributesModel {
             {},
         );
 
-        console.log('allValues', filters.userUuid, allValues);
         return allValues;
     }
 
