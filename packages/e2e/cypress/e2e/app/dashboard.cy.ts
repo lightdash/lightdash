@@ -206,6 +206,7 @@ describe('Dashboard', () => {
         cy.findByText('Markdown').click();
         cy.findByLabelText('Title').type('Title');
         cy.get('textarea').type('Content');
+        cy.findByText('Add').click();
 
         cy.findByText('Save').click();
 
