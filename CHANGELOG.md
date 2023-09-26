@@ -1,3 +1,15 @@
+## [0.787.1](https://github.com/lightdash/lightdash/compare/0.787.0...0.787.1) (2023-09-26)
+
+
+### Bug Fixes
+
+* revert "feat: dashboard filters apply to new charts ([#7032](https://github.com/lightdash/lightdash/issues/7032))" ([#7224](https://github.com/lightdash/lightdash/issues/7224)) ([6feb156](https://github.com/lightdash/lightdash/commit/6feb1569370b52c17ba7e5e53a594aef81927324))
+
+
+### Reverts
+
+* Revert "feat: dashboard filters apply to new charts (#7032)" (#7222) ([00bf0e5](https://github.com/lightdash/lightdash/commit/00bf0e5021587043238996bdb57c641b82bbc506)), closes [#7032](https://github.com/lightdash/lightdash/issues/7032) [#7222](https://github.com/lightdash/lightdash/issues/7222)
+
 # [0.787.0](https://github.com/lightdash/lightdash/compare/0.786.2...0.787.0) (2023-09-26)
 
 
