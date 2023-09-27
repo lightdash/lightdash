@@ -1,3 +1,10 @@
+# [0.789.0](https://github.com/lightdash/lightdash/compare/0.788.0...0.789.0) (2023-09-27)
+
+
+### Features
+
+* scheduled deliveries message body ([#7189](https://github.com/lightdash/lightdash/issues/7189)) ([44fbb91](https://github.com/lightdash/lightdash/commit/44fbb91aa1c4fe2324fd6d386161ad77f5c2d046))
+
 # [0.788.0](https://github.com/lightdash/lightdash/compare/0.787.4...0.788.0) (2023-09-27)
 
 
