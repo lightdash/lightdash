@@ -1,3 +1,4 @@
+import * as core from '@actions/core';
 import { Project, ProjectType } from '@lightdash/common';
 import chokidar from 'chokidar';
 import inquirer from 'inquirer';
@@ -240,10 +241,8 @@ export const startPreviewHandler = async (
         const url = await projectUrl(previewProject);
         console.error(`Project updated on ${url}`);
         if (process.env.CI === 'true') {
-            console.info(`url="${url}" >> "$GITHUB_OUTPUT"`);
-            console.info(
-                `project_uuid="${previewProject.projectUuid}" >> "$GITHUB_OUTPUT"`,
-            );
+            core.setOutput('url', url.toString());
+            core.setOutput('project_uuid', previewProject.projectUuid);
         }
     } else {
         const config = await getConfig();
@@ -291,10 +290,8 @@ export const startPreviewHandler = async (
 
         console.error(`New project created on ${url}`);
         if (process.env.CI === 'true') {
-            console.info(`url="${url}" >> "$GITHUB_OUTPUT"`);
-            console.info(
-                `project_uuid="${project.projectUuid}" >> "$GITHUB_OUTPUT"`,
-            );
+            core.setOutput('url', url.toString());
+            core.setOutput('project_uuid', project.projectUuid);
         }
     }
 };
