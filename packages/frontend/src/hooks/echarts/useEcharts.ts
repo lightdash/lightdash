@@ -34,6 +34,7 @@ import {
     TableCalculation,
     timeFrameConfigs,
 } from '@lightdash/common';
+import { EChartsOption } from 'echarts';
 import groupBy from 'lodash-es/groupBy';
 import toNumber from 'lodash-es/toNumber';
 import moment from 'moment';
@@ -1405,6 +1406,109 @@ const useEcharts = (
         explore,
     ]);
 
+    const tooltip = useMemo<EChartsOption['tooltip']>(
+        () =>
+            // {
+            //     show: true,
+            //     confine: true,
+            //     trigger: 'item',
+            //     triggerOn: 'click',
+            // },
+            ({
+                show: true,
+                confine: true,
+                trigger: 'axis',
+                enterable: true,
+                extraCssText: 'overflow-y: scroll; max-height:200px;',
+                axisPointer: {
+                    type: 'shadow',
+                    label: { show: true },
+                },
+                // position: 'inside',
+                // formatter: function (params, u, v) {
+                //     // if (!Array.isArray(params))
+                //     //     return (
+                //     //         '<b>' +
+                //     //         params.marker +
+                //     //         params.seriesName +
+                //     //         ': ' +
+                //     //         '<b>' +
+                //     //         params.value +
+                //     //         '</b>'
+                //     //     );
+
+                //     //     // Start of the Tooltip HTML String
+                //     //     let tooltipHtml = '';
+
+                //     //     // Adding the date (axisValueLabel from the first series item)
+                //     //     tooltipHtml += `<div> ${params[0].axisValueLabel}</div>`;
+
+                //     //     // Iterating through each series item
+                //     //     params.forEach((item, index) => {
+                //     //         // Extracting relevant information from the series item
+                //     //         const { seriesName, color, axisValueLabel, value } =
+                //     //             item;
+
+                //     //         // Find the key that contains the seriesName
+                //     //         const relevantKey = Object.keys(value).find((key) =>
+                //     //             key.includes(seriesName),
+                //     //         );
+
+                //     //         // If a relevant key is found, add a line for the series name and value
+                //     //         if (relevantKey) {
+                //     //             tooltipHtml += `<div style="margin-bottom:8px;">
+                //     //       <span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${color};"></span>
+                //     //       <b>${seriesName}:</b> ${value[relevantKey]}
+                //     //   </div>`;
+                //     //         }
+                //     //     });
+
+                //     //     // End of the Tooltip HTML String
+                //     //     tooltipHtml += '';
+
+                //     //     // Returning the complete Tooltip HTML String
+                //     //     return tooltipHtml;
+
+                //     let output = '<b>' + params[0].axisValueLabel + '</b><br/>';
+                //     for (let i = 0; i < params.length; i++) {
+                //         let dim =
+                //             params[i].dimensionNames[params[i].encode.y[0]];
+                //         if (dim in params[i].value) {
+                //             output +=
+                //                 params[i].marker +
+                //                 params[i].seriesName +
+                //                 ': ' +
+                //                 '<b>' +
+                //                 params[i].value[dim] +
+                //                 '</b>';
+                //             if (i != params.length - 1) {
+                //                 // Append a <br/> tag if not last in loop
+                //                 output += '<br/>';
+                //             }
+                //         }
+                //     }
+
+                //     for (let i = 0; i < params.length; i++) {
+                //         let dim =
+                //             params[i].dimensionNames[params[i].encode.y[0]];
+                //         if (!(dim in params[i].value)) {
+                //             output +=
+                //                 params[i].marker +
+                //                 params[i].seriesName +
+                //                 ': ' +
+                //                 '-';
+                //             if (i != params.length - 1) {
+                //                 // Append a <br/> tag if not last in loop
+                //                 output += '<br/>';
+                //             }
+                //         }
+                //     }
+                //     return output;
+                // },
+            }),
+        [],
+    );
+
     const eChartsOptions = useMemo(
         () => ({
             xAxis: axis.xAxis,
@@ -1421,15 +1525,7 @@ const useEcharts = (
                 id: 'lightdashResults',
                 source: sortedResults,
             },
-            tooltip: {
-                show: true,
-                confine: true,
-                trigger: 'axis',
-                axisPointer: {
-                    type: 'shadow',
-                    label: { show: true },
-                },
-            },
+            tooltip,
             grid: {
                 ...defaultGrid,
                 ...removeEmptyProperties(
@@ -1448,9 +1544,13 @@ const useEcharts = (
             validCartesianConfigLegend,
             series,
             sortedResults,
+            tooltip,
             colors,
         ],
     );
+
+    console.log({ eChartsOptions: eChartsOptions.tooltip });
+
     if (
         !explore ||
         series.length <= 0 ||
