@@ -1,3 +1,10 @@
+# [0.790.0](https://github.com/lightdash/lightdash/compare/0.789.0...0.790.0) (2023-09-27)
+
+
+### Features
+
+* migrate AzureDevOps forms to use mantine ([#7212](https://github.com/lightdash/lightdash/issues/7212)) ([5289425](https://github.com/lightdash/lightdash/commit/528942552f0afe82c2cbc0924e1556eff883037b))
+
 # [0.789.0](https://github.com/lightdash/lightdash/compare/0.788.0...0.789.0) (2023-09-27)
 
 
