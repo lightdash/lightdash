@@ -54,7 +54,6 @@ import {
     ProjectType,
     RequestMethod,
     ResultRow,
-    SchedulerCsvOptions,
     SessionUser,
     SpaceSummary,
     SummaryExplore,
@@ -63,7 +62,6 @@ import {
     TableSelectionType,
     UpdateProject,
     UpdateProjectMember,
-    UserAttribute,
     WarehouseClient,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -701,8 +699,7 @@ export class ProjectService {
         metricQuery: MetricQuery,
         explore: Explore,
         warehouseClient: WarehouseClient,
-        userUuid: string,
-        userAttributes: UserAttribute[],
+        userAttributes: Record<string, string | null>,
     ): Promise<{ query: string; hasExampleMetric: boolean }> {
         const compiledMetricQuery = compileMetricQuery({
             explore,
@@ -713,7 +710,6 @@ export class ProjectService {
             explore,
             compiledMetricQuery,
             warehouseClient,
-            userUuid,
             userAttributes,
         });
     }
@@ -739,15 +735,15 @@ export class ProjectService {
             projectUuid,
         );
         const explore = await this.getExplore(user, projectUuid, exploreName);
-        const userAttributes = await this.userAttributesModel.find({
-            organizationUuid,
-            userUuid: user.userUuid,
-        });
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
         const compiledQuery = ProjectService._compileQuery(
             metricQuery,
             explore,
             warehouseClient,
-            user.userUuid,
             userAttributes,
         );
         await sshTunnel.disconnect();
@@ -1089,17 +1085,19 @@ export class ProjectService {
                         projectUuid,
                         exploreName,
                     );
-                    const userAttributes = await this.userAttributesModel.find({
-                        organizationUuid,
-                        userUuid: user.userUuid,
-                    });
+                    const userAttributes =
+                        await this.userAttributesModel.getAttributeValuesForOrgMember(
+                            {
+                                organizationUuid,
+                                userUuid: user.userUuid,
+                            },
+                        );
 
                     const { query, hasExampleMetric } =
                         await ProjectService._compileQuery(
                             metricQueryWithLimit,
                             explore,
                             warehouseClient,
-                            user.userUuid,
                             userAttributes,
                         );
 
@@ -1325,15 +1323,15 @@ export class ProjectService {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
         );
-        const userAttributes = await this.userAttributesModel.find({
-            organizationUuid,
-            userUuid: user.userUuid,
-        });
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
         const { query } = await ProjectService._compileQuery(
             metricQuery,
             explore,
             warehouseClient,
-            user.userUuid,
             userAttributes,
         );
 
@@ -1753,16 +1751,13 @@ export class ProjectService {
             if (!exploreHasFilteredAttribute(explore)) {
                 return explore;
             }
-            const userAttributes = await this.userAttributesModel.find({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
+            const userAttributes =
+                await this.userAttributesModel.getAttributeValuesForOrgMember({
+                    organizationUuid,
+                    userUuid: user.userUuid,
+                });
 
-            return filterDimensionsFromExplore(
-                explore,
-                user.userUuid,
-                userAttributes,
-            );
+            return filterDimensionsFromExplore(explore, userAttributes);
         } finally {
             span?.finish();
         }

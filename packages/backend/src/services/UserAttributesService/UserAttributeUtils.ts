@@ -1,41 +1,22 @@
-import { Explore, UserAttribute } from '@lightdash/common';
+import { Explore } from '@lightdash/common';
 
 export const hasUserAttribute = (
-    userUuid: string,
-    userAttributes: UserAttribute[],
+    userAttributes: Record<string, string | null>,
     attributeName: string,
     value: string,
-) =>
-    userAttributes.some((ua) => {
-        if (ua.name === attributeName) {
-            // If user does not have attributes, we will check default value
-            const userAttribute = ua.users.find((u) => u.userUuid === userUuid);
-            if (userAttribute) return userAttribute.value === value;
-            return ua.attributeDefault === value;
-        }
-        return false;
-    });
+) => userAttributes[attributeName] === value;
 
 export const hasUserAttributes = (
-    userUuid: string,
     requiredAttributes: Record<string, string> | undefined,
-    userAttributes: UserAttribute[],
+    userAttributes: Record<string, string | null>,
 ): boolean => {
     if (requiredAttributes === undefined) return true; // No required attributes
 
     // Check all required attributes conditions for dimension
-    const hasAttributes = Object.entries(requiredAttributes).map(
-        (attribute) => {
-            const [attributeName, value] = attribute;
-            return hasUserAttribute(
-                userUuid,
-                userAttributes,
-                attributeName,
-                value,
-            );
-        },
-    );
-    return hasAttributes.every((attribute) => attribute === true);
+    return Object.entries(requiredAttributes).every((attribute) => {
+        const [attributeName, value] = attribute;
+        return hasUserAttribute(userAttributes, attributeName, value);
+    });
 };
 
 export const exploreHasFilteredAttribute = (explore: Explore) =>
@@ -46,8 +27,7 @@ export const exploreHasFilteredAttribute = (explore: Explore) =>
     );
 export const filterDimensionsFromExplore = (
     explore: Explore,
-    userUuid: string,
-    userAttributes: UserAttribute[],
+    userAttributes: Record<string, string | null>,
 ): Explore => ({
     ...explore,
     tables: Object.entries(explore.tables).reduce((at, exploreTable) => {
@@ -62,7 +42,6 @@ export const filterDimensionsFromExplore = (
 
                         if (
                             hasUserAttributes(
-                                userUuid,
                                 dimension.requiredAttributes,
                                 userAttributes,
                             )
