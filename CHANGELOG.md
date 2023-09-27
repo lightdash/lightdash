@@ -1,3 +1,10 @@
+## [0.790.1](https://github.com/lightdash/lightdash/compare/0.790.0...0.790.1) (2023-09-27)
+
+
+### Bug Fixes
+
+* user attribute default value ([#7232](https://github.com/lightdash/lightdash/issues/7232)) ([60227b9](https://github.com/lightdash/lightdash/commit/60227b9afc5154979d78a9558fd4f09e36bf7eaf))
+
 # [0.790.0](https://github.com/lightdash/lightdash/compare/0.789.0...0.790.0) (2023-09-27)
 
 
