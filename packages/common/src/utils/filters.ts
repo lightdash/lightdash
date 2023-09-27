@@ -380,48 +380,55 @@ export const getFilterRulesByFieldType = (
         },
     );
 
-// TODO: reuse this function in useDashboardFiltersForExplore
-const getDashboardFiltersForTile = (
-    explore: Explore,
+export const getDashboardFilterRulesForTile = (
     tileUuid: string,
+    tables: string[],
+    rules: DashboardFilterRule[],
+): DashboardFilterRule[] =>
+    rules
+        .filter((rule) => !rule.disabled)
+        .map((filter) => {
+            const tileConfig = filter.tileTargets?.[tileUuid];
+
+            // If the config is false, we remove this filter
+            if (tileConfig === false) {
+                return null;
+            }
+
+            // If the tile isn't in the tileTarget overrides,
+            // we return the filter and don't treat this tile
+            // differently.
+            if (tileConfig === undefined) {
+                return filter;
+            }
+
+            return {
+                ...filter,
+                target: {
+                    fieldId: tileConfig.fieldId,
+                    tableName: tileConfig.tableName,
+                },
+            };
+        })
+        .filter((f): f is DashboardFilterRule => f !== null)
+        .filter((f) => tables.includes(f.target.tableName));
+
+export const getDashboardFiltersForTile = (
+    tileUuid: string,
+    tables: string[],
     dashboardFilters: DashboardFilters,
-): DashboardFilters => {
-    const overrideTileFilters = (rules: DashboardFilterRule[]) =>
-        rules
-            .filter((rule) => !rule.disabled)
-            .map((filter) => {
-                const tileConfig = filter.tileTargets?.[tileUuid];
-
-                // If the config is false, we remove this filter
-                if (tileConfig === false) {
-                    return null;
-                }
-
-                // If the tile isn't in the tileTarget overrides,
-                // we return the filter and don't treat this tile
-                // differently.
-                if (tileConfig === undefined) {
-                    return filter;
-                }
-
-                return {
-                    ...filter,
-                    target: {
-                        fieldId: tileConfig.fieldId,
-                        tableName: tileConfig.tableName,
-                    },
-                };
-            })
-            .filter((f): f is DashboardFilterRule => f !== null)
-            .filter((f) =>
-                Object.keys(explore.tables).includes(f.target.tableName),
-            );
-
-    return {
-        dimensions: overrideTileFilters(dashboardFilters.dimensions),
-        metrics: overrideTileFilters(dashboardFilters.metrics),
-    };
-};
+): DashboardFilters => ({
+    dimensions: getDashboardFilterRulesForTile(
+        tileUuid,
+        tables,
+        dashboardFilters.dimensions,
+    ),
+    metrics: getDashboardFilterRulesForTile(
+        tileUuid,
+        tables,
+        dashboardFilters.metrics,
+    ),
+});
 
 export const addDashboardFiltersToMetricQuery = (
     explore: Explore,
@@ -429,9 +436,11 @@ export const addDashboardFiltersToMetricQuery = (
     tileUuid: string | undefined,
     dashboardFilters: DashboardFilters | undefined,
 ): MetricQuery => {
+    const tables = Object.keys(explore.tables);
+
     const dashboardFiltersForTile =
         tileUuid && dashboardFilters
-            ? getDashboardFiltersForTile(explore, tileUuid, dashboardFilters)
+            ? getDashboardFiltersForTile(tileUuid, tables, dashboardFilters)
             : undefined;
 
     const dimensionFilters: FilterGroup | undefined =
@@ -450,7 +459,7 @@ export const addDashboardFiltersToMetricQuery = (
     const metricFilters: FilterGroup | undefined =
         dashboardFiltersForTile && dashboardFiltersForTile.metrics.length > 0
             ? {
-                  id: 'yes',
+                  id: 'no',
                   and: [
                       ...(metricQuery.filters.metrics
                           ? [metricQuery.filters.metrics]
