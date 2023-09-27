@@ -1,5 +1,6 @@
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
+import { Explore } from '../types/explore';
 import {
     Dimension,
     DimensionType,
@@ -16,6 +17,7 @@ import {
 import {
     DashboardFieldTarget,
     DashboardFilterRule,
+    DashboardFilters,
     DateFilterRule,
     FilterGroup,
     FilterGroupItem,
@@ -27,6 +29,7 @@ import {
     isFilterGroup,
     UnitOfTime,
 } from '../types/filter';
+import { MetricQuery } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { formatDate } from './formatting';
@@ -376,3 +379,103 @@ export const getFilterRulesByFieldType = (
             metrics: [],
         },
     );
+
+export const getDashboardFilterRulesForTile = (
+    tileUuid: string,
+    tables: string[],
+    rules: DashboardFilterRule[],
+): DashboardFilterRule[] =>
+    rules
+        .filter((rule) => !rule.disabled)
+        .map((filter) => {
+            const tileConfig = filter.tileTargets?.[tileUuid];
+
+            // If the config is false, we remove this filter
+            if (tileConfig === false) {
+                return null;
+            }
+
+            // If the tile isn't in the tileTarget overrides,
+            // we return the filter and don't treat this tile
+            // differently.
+            if (tileConfig === undefined) {
+                return filter;
+            }
+
+            return {
+                ...filter,
+                target: {
+                    fieldId: tileConfig.fieldId,
+                    tableName: tileConfig.tableName,
+                },
+            };
+        })
+        .filter((f): f is DashboardFilterRule => f !== null)
+        .filter((f) => tables.includes(f.target.tableName));
+
+export const getDashboardFiltersForTile = (
+    tileUuid: string,
+    tables: string[],
+    dashboardFilters: DashboardFilters,
+): DashboardFilters => ({
+    dimensions: getDashboardFilterRulesForTile(
+        tileUuid,
+        tables,
+        dashboardFilters.dimensions,
+    ),
+    metrics: getDashboardFilterRulesForTile(
+        tileUuid,
+        tables,
+        dashboardFilters.metrics,
+    ),
+});
+
+export const addDashboardFiltersToMetricQuery = (
+    explore: Explore,
+    metricQuery: MetricQuery,
+    tileUuid: string | undefined,
+    dashboardFilters: DashboardFilters | undefined,
+): MetricQuery => {
+    const tables = Object.keys(explore.tables);
+
+    const dashboardFiltersForTile =
+        tileUuid && dashboardFilters
+            ? getDashboardFiltersForTile(tileUuid, tables, dashboardFilters)
+            : undefined;
+
+    const dimensionFilters: FilterGroup | undefined =
+        dashboardFiltersForTile && dashboardFiltersForTile.dimensions.length > 0
+            ? {
+                  id: 'yes',
+                  and: [
+                      ...(metricQuery.filters.dimensions
+                          ? [metricQuery.filters.dimensions]
+                          : []),
+                      ...dashboardFiltersForTile.dimensions,
+                  ],
+              }
+            : metricQuery.filters.dimensions;
+
+    const metricFilters: FilterGroup | undefined =
+        dashboardFiltersForTile && dashboardFiltersForTile.metrics.length > 0
+            ? {
+                  id: 'no',
+                  and: [
+                      ...(metricQuery.filters.metrics
+                          ? [metricQuery.filters.metrics]
+                          : []),
+                      ...dashboardFiltersForTile.metrics,
+                  ],
+              }
+            : metricQuery.filters.metrics;
+
+    return dashboardFiltersForTile
+        ? {
+              ...metricQuery,
+              filters: {
+                  dimensions: dimensionFilters,
+                  metrics: metricFilters,
+              },
+          }
+        : metricQuery;
+};

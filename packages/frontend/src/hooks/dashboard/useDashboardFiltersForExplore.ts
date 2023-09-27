@@ -1,9 +1,9 @@
 import {
-    DashboardFilterRule,
     DashboardFilters,
     Explore,
+    getDashboardFilterRulesForTile,
 } from '@lightdash/common';
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 
 const useDashboardFiltersForExplore = (
@@ -18,50 +18,19 @@ const useDashboardFiltersForExplore = (
         [explore],
     );
 
-    const overrideTileFilters = useCallback(
-        (rules: DashboardFilterRule[]) =>
-            rules
-                .filter((rule) => !rule.disabled)
-                .map((filter) => {
-                    const tileConfig = filter.tileTargets?.[tileUuid];
-
-                    // If the config is false, we remove this filter
-                    if (tileConfig === false) {
-                        return null;
-                    }
-
-                    // If the tile isn't in the tileTarget overrides,
-                    // we return the filter and don't treat this tile
-                    // differently.
-                    if (tileConfig === undefined) {
-                        return filter;
-                    }
-
-                    return {
-                        ...filter,
-                        target: {
-                            fieldId: tileConfig.fieldId,
-                            tableName: tileConfig.tableName,
-                        },
-                    };
-                })
-                .filter((f): f is DashboardFilterRule => f !== null)
-                .filter((f) => tables.includes(f.target.tableName)),
-        [tables, tileUuid],
-    );
-
-    return useMemo(() => {
-        return {
-            dimensions: overrideTileFilters([
+    return useMemo(
+        () => ({
+            dimensions: getDashboardFilterRulesForTile(tileUuid, tables, [
                 ...dashboardFilters.dimensions,
                 ...(dashboardTemporaryFilters?.dimensions ?? []),
             ]),
-            metrics: overrideTileFilters([
+            metrics: getDashboardFilterRulesForTile(tileUuid, tables, [
                 ...dashboardFilters.metrics,
                 ...(dashboardTemporaryFilters?.metrics ?? []),
             ]),
-        };
-    }, [dashboardFilters, dashboardTemporaryFilters, overrideTileFilters]);
+        }),
+        [tileUuid, tables, dashboardFilters, dashboardTemporaryFilters],
+    );
 };
 
 export default useDashboardFiltersForExplore;
