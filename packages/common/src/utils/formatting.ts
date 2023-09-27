@@ -389,6 +389,9 @@ export function formatTableCalculationValue(
         return { compactValue, compactSuffix };
     };
     if (value === '') return '';
+    if (value instanceof Date) {
+        return formatTimestamp(value, undefined, false);
+    }
     if (valueIsNaN(value) || value === null) {
         return formatValue(value);
     }
