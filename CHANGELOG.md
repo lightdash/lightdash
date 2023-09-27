@@ -1,3 +1,10 @@
+# [0.791.0](https://github.com/lightdash/lightdash/compare/0.790.2...0.791.0) (2023-09-27)
+
+
+### Features
+
+* migrate CLI to use mantine ([#7214](https://github.com/lightdash/lightdash/issues/7214)) ([6a87ec1](https://github.com/lightdash/lightdash/commit/6a87ec13c8f787e5a6ff29328d78f927a093a63f))
+
 ## [0.790.2](https://github.com/lightdash/lightdash/compare/0.790.1...0.790.2) (2023-09-27)
 
 
