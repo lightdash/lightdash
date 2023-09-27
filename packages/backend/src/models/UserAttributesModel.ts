@@ -76,18 +76,18 @@ export class UserAttributesModel {
             )
             .where(`${UserTableName}.user_uuid`, filters.userUuid);
 
+        const userValuesMap = userValues.reduce<Record<string, string>>(
+            (acc, row) => ({ ...acc, [row.name]: row.value }),
+            {},
+        );
         // combine user values and default values
-        const allValues = attributeValues.reduce<Record<string, string | null>>(
+        return attributeValues.reduce<UserAttributeValueMap>(
             (acc, row) => ({
                 ...acc,
-                [row.name]:
-                    userValues.find(({ name }) => name === row.name)?.value ??
-                    row.attribute_default,
+                [row.name]: userValuesMap[row.name] || row.attribute_default,
             }),
             {},
         );
-
-        return allValues;
     }
 
     async find(filters: {
