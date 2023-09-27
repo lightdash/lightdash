@@ -1,23 +1,41 @@
 import { LightdashPage } from '@lightdash/common';
-import { KnownBlock, LinkUnfurls } from '@slack/bolt';
+import { KnownBlock, LinkUnfurls, SectionBlock } from '@slack/bolt';
 import { Unfurl } from '../../services/UnfurlService/UnfurlService';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
 
 type GetChartAndDashboardBlocksArgs = {
     title: string;
-    description: string;
+    name?: string;
+    description?: string;
+    message?: string;
     ctaUrl: string;
     imageUrl?: string;
     footerMarkdown?: string;
 };
+
+const getSectionFields = (
+    fields: [string, string | undefined][],
+): SectionBlock['fields'] =>
+    fields
+        .filter(([, text]) => Boolean(text))
+        .map(([title, text]) => ({
+            type: 'mrkdwn',
+            text: `*${title}*: \n${text}`,
+        }));
+
+const getBlocks = (blocks: (KnownBlock | undefined)[]): KnownBlock[] =>
+    blocks.filter((block): block is KnownBlock => Boolean(block));
+
 export const getChartAndDashboardBlocks = ({
     title,
+    name,
     description,
+    message,
     imageUrl,
     ctaUrl,
     footerMarkdown,
-}: GetChartAndDashboardBlocksArgs): KnownBlock[] => {
-    const blocks: KnownBlock[] = [
+}: GetChartAndDashboardBlocksArgs): KnownBlock[] =>
+    getBlocks([
         {
             type: 'header',
             text: {
@@ -25,12 +43,21 @@ export const getChartAndDashboardBlocks = ({
                 text: title,
             },
         },
+        message
+            ? {
+                  type: 'section',
+                  text: {
+                      type: 'mrkdwn',
+                      text: message,
+                  },
+              }
+            : undefined,
         {
             type: 'section',
-            text: {
-                type: 'mrkdwn',
-                text: `${description || ' '}`,
-            },
+            fields: getSectionFields([
+                ['name', name],
+                ['description', description],
+            ]),
             accessory: {
                 type: 'button',
                 text: {
@@ -42,45 +69,45 @@ export const getChartAndDashboardBlocks = ({
                 action_id: 'button-action',
             },
         },
-    ];
-
-    if (imageUrl) {
-        blocks.push({
-            type: 'image',
-            image_url: imageUrl,
-            alt_text: title,
-        });
-    }
-
-    if (footerMarkdown) {
-        blocks.push({
-            type: 'context',
-            elements: [
-                {
-                    type: 'mrkdwn',
-                    text: footerMarkdown,
-                },
-            ],
-        });
-    }
-    return blocks;
-};
+        imageUrl
+            ? {
+                  type: 'image',
+                  image_url: imageUrl,
+                  alt_text: title,
+              }
+            : undefined,
+        footerMarkdown
+            ? {
+                  type: 'context',
+                  elements: [
+                      {
+                          type: 'mrkdwn',
+                          text: footerMarkdown,
+                      },
+                  ],
+              }
+            : undefined,
+    ]);
 
 type GetChartCsvResultsBlocksArgs = {
+    name: string;
     title: string;
     description: string | undefined;
+    message?: string;
     ctaUrl: string;
     csvUrl?: string;
     footerMarkdown?: string;
 };
 export const getChartCsvResultsBlocks = ({
+    name,
     title,
     description,
+    message,
     csvUrl,
     ctaUrl,
     footerMarkdown,
-}: GetChartCsvResultsBlocksArgs): KnownBlock[] => {
-    const blocks: KnownBlock[] = [
+}: GetChartCsvResultsBlocksArgs): KnownBlock[] =>
+    getBlocks([
         {
             type: 'header',
             text: {
@@ -88,12 +115,21 @@ export const getChartCsvResultsBlocks = ({
                 text: title,
             },
         },
+        message
+            ? {
+                  type: 'section',
+                  text: {
+                      type: 'mrkdwn',
+                      text: message,
+                  },
+              }
+            : undefined,
         {
             type: 'section',
-            text: {
-                type: 'mrkdwn',
-                text: `${description || ' '}`,
-            },
+            fields: getSectionFields([
+                ['name', name],
+                ['description', description],
+            ]),
             accessory: {
                 type: 'button',
                 text: {
@@ -105,61 +141,63 @@ export const getChartCsvResultsBlocks = ({
                 action_id: 'button-action',
             },
         },
-    ];
-    if (csvUrl) {
-        blocks.push({
-            type: 'actions',
-            elements: [
-                {
-                    type: 'button',
-                    text: {
-                        type: 'plain_text',
-                        text: 'Download results',
-                        emoji: true,
-                    },
-                    url: csvUrl,
-                    action_id: 'download-results',
-                },
-            ],
-        });
-    } else {
-        blocks.push({
-            type: 'section',
-            text: {
-                type: 'mrkdwn',
-                text: '*_This query returned no results_*',
-            },
-        });
-    }
-    if (footerMarkdown) {
-        blocks.push({
-            type: 'context',
-            elements: [
-                {
-                    type: 'mrkdwn',
-                    text: footerMarkdown,
-                },
-            ],
-        });
-    }
-    return blocks;
-};
+
+        csvUrl
+            ? {
+                  type: 'actions',
+                  elements: [
+                      {
+                          type: 'button',
+                          text: {
+                              type: 'plain_text',
+                              text: 'Download results',
+                              emoji: true,
+                          },
+                          url: csvUrl,
+                          action_id: 'download-results',
+                      },
+                  ],
+              }
+            : {
+                  type: 'section',
+                  text: {
+                      type: 'mrkdwn',
+                      text: '*_This query returned no results_*',
+                  },
+              },
+
+        footerMarkdown
+            ? {
+                  type: 'context',
+                  elements: [
+                      {
+                          type: 'mrkdwn',
+                          text: footerMarkdown,
+                      },
+                  ],
+              }
+            : undefined,
+    ]);
 
 type GetDashboardCsvResultsBlocksArgs = {
     title: string;
+    name: string;
     description: string | undefined;
+    message?: string;
     ctaUrl: string;
     csvUrls: AttachmentUrl[];
     footerMarkdown?: string;
 };
 export const getDashboardCsvResultsBlocks = ({
     title,
+    name,
     description,
+    message,
     csvUrls,
     footerMarkdown,
     ctaUrl,
-}: GetDashboardCsvResultsBlocksArgs): KnownBlock[] => {
-    const blocks: KnownBlock[] = [
+}: GetDashboardCsvResultsBlocksArgs): KnownBlock[] =>
+    getBlocks([
         {
             type: 'header',
             text: {
@@ -167,12 +205,21 @@ export const getDashboardCsvResultsBlocks = ({
                 text: title,
             },
         },
+        message
+            ? {
+                  type: 'section',
+                  text: {
+                      type: 'mrkdwn',
+                      text: message,
+                  },
+              }
+            : undefined,
         {
             type: 'section',
-            text: {
-                type: 'mrkdwn',
-                text: `${description || ''}`,
-            },
+            fields: getSectionFields([
+                ['name', name],
+                ['description', description],
+            ]),
             accessory: {
                 type: 'button',
                 text: {
@@ -184,7 +231,6 @@ export const getDashboardCsvResultsBlocks = ({
                 action_id: 'button-action',
             },
         },
-
         ...csvUrls.map<KnownBlock>((csvUrl, index) => ({
             type: 'section',
             text: {
@@ -202,27 +248,25 @@ export const getDashboardCsvResultsBlocks = ({
                 action_id: `download-results-${index}`,
             },
         })),
-    ];
-    if (footerMarkdown) {
-        blocks.push({
-            type: 'context',
-            elements: [
-                {
-                    type: 'mrkdwn',
-                    text: footerMarkdown,
-                },
-            ],
-        });
-    }
-    return blocks;
-};
+        footerMarkdown
+            ? {
+                  type: 'context',
+                  elements: [
+                      {
+                          type: 'mrkdwn',
+                          text: footerMarkdown,
+                      },
+                  ],
+              }
+            : undefined,
+    ]);
 
 const getExploreBlocks = (
     title: string,
     ctaUrl: string,
     imageUrl: string | undefined,
-): KnownBlock[] => {
-    const blocks: KnownBlock[] = [
+): KnownBlock[] =>
+    getBlocks([
         {
             type: 'section',
             text: {
@@ -240,17 +284,14 @@ const getExploreBlocks = (
                 action_id: 'button-action',
             },
         },
-    ];
-    if (imageUrl) {
-        blocks.push({
-            type: 'image',
-            image_url: imageUrl,
-            alt_text: title,
-        });
-    }
-
-    return blocks;
-};
+        imageUrl
+            ? {
+                  type: 'image',
+                  image_url: imageUrl,
+                  alt_text: title,
+              }
+            : undefined,
+    ]);
 
 export const getUnfurlBlocks = (
     originalUrl: string,
@@ -262,7 +303,7 @@ export const getUnfurlBlocks = (
                 ? getExploreBlocks(unfurl.title, originalUrl, unfurl.imageUrl)
                 : getChartAndDashboardBlocks({
                       title: unfurl.title,
-                      description: unfurl.description || '',
+                      description: unfurl.description,
                       imageUrl: unfurl.imageUrl,
                       ctaUrl: originalUrl,
                   }),

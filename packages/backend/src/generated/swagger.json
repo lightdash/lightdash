@@ -2630,6 +2630,9 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "message": {
+                        "type": "string"
+                    },
                     "name": {
                         "type": "string"
                     },
