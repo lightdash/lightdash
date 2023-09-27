@@ -1,3 +1,11 @@
+## [0.791.1](https://github.com/lightdash/lightdash/compare/0.791.0...0.791.1) (2023-09-27)
+
+
+### Bug Fixes
+
+* clear filters when creating new dashboard ([#7243](https://github.com/lightdash/lightdash/issues/7243)) ([5503ca9](https://github.com/lightdash/lightdash/commit/5503ca9a5b5d06bef860b1e234e21d27bb0317ad))
+* csv export dashboard filters ([#7233](https://github.com/lightdash/lightdash/issues/7233)) ([ac6ba03](https://github.com/lightdash/lightdash/commit/ac6ba03b34075cc10194d4f65a78a44cf0b8f8f3))
+
 # [0.791.0](https://github.com/lightdash/lightdash/compare/0.790.2...0.791.0) (2023-09-27)
 
 
