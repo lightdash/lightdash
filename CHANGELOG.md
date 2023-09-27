@@ -1,3 +1,10 @@
+## [0.790.2](https://github.com/lightdash/lightdash/compare/0.790.1...0.790.2) (2023-09-27)
+
+
+### Bug Fixes
+
+* space inherit project permission ([#7240](https://github.com/lightdash/lightdash/issues/7240)) ([a3879b8](https://github.com/lightdash/lightdash/commit/a3879b8da08fb1ac0bb12853acc1140ad0771d83))
+
 ## [0.790.1](https://github.com/lightdash/lightdash/compare/0.790.0...0.790.1) (2023-09-27)
 
 
