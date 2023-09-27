@@ -14,6 +14,8 @@ export type UserAttributeValue = {
     value: string;
 };
 
+export type UserAttributeValueMap = Record<string, string | null>;
+
 export type CreateUserAttributeValue = Omit<UserAttributeValue, 'email'>;
 export type CreateUserAttribute = Pick<
     UserAttribute,

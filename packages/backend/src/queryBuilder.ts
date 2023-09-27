@@ -20,6 +20,7 @@ import {
     parseAllReferences,
     renderFilterRuleSql,
     SupportedDbtAdapter,
+    UserAttributeValueMap,
     WarehouseClient,
 } from '@lightdash/common';
 import { hasUserAttribute } from './services/UserAttributesService/UserAttributeUtils';
@@ -53,7 +54,7 @@ const getMetricFromId = (
 
 export const replaceUserAttributes = (
     sqlFilter: string,
-    userAttributes: Record<string, string | null>,
+    userAttributes: UserAttributeValueMap,
     stringQuoteChar: string = "'",
     filter: string = 'sql_filter',
 ): string => {
@@ -89,7 +90,7 @@ export const replaceUserAttributes = (
 
 export const assertValidDimensionRequiredAttribute = (
     dimension: CompiledDimension,
-    userAttributes: Record<string, string | null>,
+    userAttributes: UserAttributeValueMap,
     field: string,
 ) => {
     // Throw error if user does not have the right requiredAttribute for this dimension
@@ -109,7 +110,7 @@ export type BuildQueryProps = {
     explore: Explore;
     compiledMetricQuery: CompiledMetricQuery;
     warehouseClient: WarehouseClient;
-    userAttributes?: Record<string, string | null>;
+    userAttributes?: UserAttributeValueMap;
 };
 
 const getJoinType = (type: DbtModelJoinType = 'left') => {

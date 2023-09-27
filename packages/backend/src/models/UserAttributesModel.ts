@@ -1,5 +1,9 @@
-import { CreateUserAttribute, UserAttribute } from '@lightdash/common';
-import knex, { Knex } from 'knex';
+import {
+    CreateUserAttribute,
+    UserAttribute,
+    UserAttributeValueMap,
+} from '@lightdash/common';
+import { Knex } from 'knex';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
     DbOrganizationMemberUserAttribute,
@@ -23,7 +27,7 @@ export class UserAttributesModel {
     async getAttributeValuesForOrgMember(filters: {
         organizationUuid: string;
         userUuid: string;
-    }): Promise<Record<string, string | null>> {
+    }): Promise<UserAttributeValueMap> {
         const attributeValues = await this.database(UserAttributesTable)
             .leftJoin(
                 OrganizationTableName,
