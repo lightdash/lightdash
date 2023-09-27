@@ -31,7 +31,7 @@ describe('Dashboard', () => {
         });
     });
 
-    it.only('Should use dashboard filters, should clear them for new dashboards', () => {
+    it('Should use dashboard filters, should clear them for new dashboards', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
         // wiat for the dashboard to load
