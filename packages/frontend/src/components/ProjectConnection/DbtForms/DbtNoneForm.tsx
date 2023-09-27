@@ -1,7 +1,7 @@
 import { Callout } from '@blueprintjs/core';
-import { Anchor } from '@mantine/core';
+import { Anchor, Group, Switch } from '@mantine/core';
 import { FC } from 'react';
-import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
+import { Controller } from 'react-hook-form';
 
 const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => (
     <>
@@ -39,26 +39,40 @@ const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             </Anchor>
             ) from your command line.
         </Callout>
-        <BooleanSwitch
+        <Controller
             name="dbt.hideRefreshButton"
-            label="Hide refresh dbt button in the app"
-            labelHelp={
-                <p>
-                    This will hide the refresh dbt button from the explore page.
-                    Read more about your{' '}
-                    <Anchor
-                        href={
-                            'https://docs.lightdash.com/references/syncing_your_dbt_changes#2-in-the-ui-syncing-your-dbt-changes-using-refresh-dbt'
-                        }
-                        target="_blank"
-                        rel="noreferrer"
-                    >
-                        options for refreshing dbt here
-                    </Anchor>
-                </p>
-            }
-            disabled={disabled}
-            defaultValue={false}
+            render={({ field }) => (
+                <Switch.Group
+                    label="Hide refresh dbt button in the app"
+                    description={
+                        <p>
+                            This will hide the refresh dbt button from the
+                            explore page. Read more about your{' '}
+                            <Anchor
+                                href={
+                                    'https://docs.lightdash.com/references/syncing_your_dbt_changes#2-in-the-ui-syncing-your-dbt-changes-using-refresh-dbt'
+                                }
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                options for refreshing dbt here
+                            </Anchor>
+                        </p>
+                    }
+                    value={field.value ? ['true'] : []}
+                    onChange={(values) => field.onChange(values.length > 0)}
+                    size="md"
+                >
+                    <Group mt="xs">
+                        <Switch
+                            onLabel="Yes"
+                            offLabel="No"
+                            value="true"
+                            disabled={disabled}
+                        />
+                    </Group>
+                </Switch.Group>
+            )}
         />
     </>
 );
