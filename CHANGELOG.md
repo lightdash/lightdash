@@ -1,3 +1,10 @@
+# [0.788.0](https://github.com/lightdash/lightdash/compare/0.787.4...0.788.0) (2023-09-27)
+
+
+### Features
+
+* cli to use github actions core package ([#7236](https://github.com/lightdash/lightdash/issues/7236)) ([3be8a3a](https://github.com/lightdash/lightdash/commit/3be8a3afc2bb2a1b1d10a71f9f59b8d2d64a3872))
+
 ## [0.787.4](https://github.com/lightdash/lightdash/compare/0.787.3...0.787.4) (2023-09-26)
 
 
