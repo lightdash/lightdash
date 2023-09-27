@@ -31,7 +31,7 @@ describe('Dashboard', () => {
         });
     });
 
-    it('Should use dashboard filters', () => {
+    it('Should use dashboard filters, should clear them for new dashboards', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
         // wiat for the dashboard to load
@@ -58,6 +58,22 @@ describe('Dashboard', () => {
         cy.contains('button', 'Apply').click();
 
         cy.contains('bank_transfer').should('have.length', 0);
+
+        // Check url includes filters
+        cy.url().should('include', 'filters=');
+        cy.url().should('include', 'dimensions');
+        cy.url().should('include', 'credit_card');
+
+        // Create a new dashboard
+        cy.get('[data-testid="ExploreMenu/NewButton"]').click();
+        cy.get('[data-testid="ExploreMenu/NewDashboardButton"]').click();
+
+        cy.findByLabelText('Name your dashboard *').type('Title');
+        cy.findByText('Create').click();
+
+        // Check url has no filters
+        cy.url().should('not.include', 'filters=');
+        cy.url().should('not.include', '?');
     });
 
     it('Should create dashboard with saved chart + charts within dashboard + filters + tile targets', () => {
