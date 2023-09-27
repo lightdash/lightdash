@@ -161,12 +161,24 @@ const Routes: FC = () => {
                                         </TrackPage>
                                     </Route>
 
-                                    <Route path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?">
-                                        <NavBar />
-                                        <TrackPage name={PageName.DASHBOARD}>
-                                            <Dashboard />
-                                        </TrackPage>
-                                    </Route>
+                                    <Route
+                                        path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?"
+                                        render={(props) => (
+                                            <>
+                                                <NavBar />
+                                                <TrackPage
+                                                    name={PageName.DASHBOARD}
+                                                >
+                                                    <Dashboard
+                                                        key={
+                                                            props.match.params
+                                                                .dashboardUuid
+                                                        }
+                                                    />
+                                                </TrackPage>
+                                            </>
+                                        )}
+                                    />
 
                                     <Route path="/projects/:projectUuid/dashboards">
                                         <NavBar />
