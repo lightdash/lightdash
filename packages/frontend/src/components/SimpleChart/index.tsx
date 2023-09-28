@@ -81,7 +81,6 @@ type SimpleChartProps = Omit<EChartsReactProps, 'option'> & {
 };
 
 const SimpleChart: FC<SimpleChartProps> = memo((props) => {
-    const [isHoveringOnItem, setIsHoveringOnItem] = useState(false);
     const { chartRef, isLoading, onSeriesContextMenu } =
         useVisualizationContext();
 
@@ -101,18 +100,6 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
         selectedLegendsUpdated,
         props.isInDashboard,
     );
-
-    const eChartsOptionsModified = useMemo(() => {
-        if (eChartsOptions) {
-            return {
-                ...eChartsOptions,
-                tooltip: {
-                    ...eChartsOptions.tooltip,
-                    trigger: isHoveringOnItem ? 'item' : 'axis',
-                },
-            };
-        }
-    }, [eChartsOptions, isHoveringOnItem]);
 
     useEffect(() => {
         const listener = () => {
@@ -147,13 +134,6 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
 
     const opts = useMemo<Opts>(() => ({ renderer: 'svg' }), []);
 
-    const handleOnMouseOver = useCallback(() => {
-        setIsHoveringOnItem(true);
-    }, []);
-    const handleOnMouseOut = useCallback(() => {
-        setIsHoveringOnItem(false);
-    }, []);
-
     if (isLoading) return <LoadingChart />;
     if (!eChartsOptions) return <EmptyChart />;
 
@@ -175,14 +155,12 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
                       }
             }
             ref={chartRef}
-            option={{ ...eChartsOptionsModified }}
+            option={{ ...eChartsOptions }}
             notMerge
             opts={opts}
             onEvents={{
                 contextmenu: onChartContextMenu,
                 click: onChartContextMenu,
-                mouseover: handleOnMouseOver,
-                mouseout: handleOnMouseOut,
                 legendselectchanged: onLegendChange,
             }}
             {...props}

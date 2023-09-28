@@ -1426,34 +1426,34 @@ const useEcharts = (
                 },
                 // position: 'inside',
                 formatter: function (params) {
-                    console.log({ params });
+                    // console.log({ params });
 
-                    if (!Array.isArray(params)) {
-                        let output =
-                            '<b>' +
-                            // @ts-expect-error testing
-                            params.value[
-                                // @ts-expect-error testing
-                                params.dimensionNames[params.encode?.x[0]]
-                            ] +
-                            '</b> <br>';
-                        // @ts-expect-error testing
-                        let dim = params.dimensionNames[params.encode?.y[0]];
-                        // @ts-expect-error testing
-                        if (dim in params.value) {
-                            output +=
-                                // @ts-expect-error testing
-                                params.marker +
-                                // @ts-expect-error testing
-                                params.seriesName +
-                                ': ' +
-                                '<b>' +
-                                // @ts-expect-error testing
-                                params.value[dim] +
-                                '</b>';
-                            return output;
-                        }
-                    }
+                    // if (!Array.isArray(params)) {
+                    //     let output =
+                    //         '<b>' +
+                    //         // @ts-expect-error testing
+                    //         params.value[
+                    //             // @ts-expect-error testing
+                    //             params.dimensionNames[params.encode?.x[0]]
+                    //         ] +
+                    //         '</b> <br>';
+                    //     // @ts-expect-error testing
+                    //     let dim = params.dimensionNames[params.encode?.y[0]];
+                    //     // @ts-expect-error testing
+                    //     if (dim in params.value) {
+                    //         output +=
+                    //             // @ts-expect-error testing
+                    //             params.marker +
+                    //             // @ts-expect-error testing
+                    //             params.seriesName +
+                    //             ': ' +
+                    //             '<b>' +
+                    //             // @ts-expect-error testing
+                    //             params.value[dim] +
+                    //             '</b>';
+                    //         return output;
+                    //     }
+                    // }
 
                     //     // Start of the Tooltip HTML String
                     //     let tooltipHtml = '';
@@ -1486,8 +1486,11 @@ const useEcharts = (
 
                     //     // Returning the complete Tooltip HTML String
                     //     return tooltipHtml;
-                    // @ts-expect-error testing
-                    let output = '<b>' + params[0].axisValueLabel + '</b><br/>';
+                    let output =
+                        // @ts-expect-error testing
+                        '<b>' + params[0].axisValueLabel + '</b> </br>';
+                    let output1 = '';
+                    let output2 = '';
                     // @ts-expect-error testing
                     for (let i = 0; i < params.length; i++) {
                         let dim =
@@ -1495,7 +1498,7 @@ const useEcharts = (
                             params[i].dimensionNames[params[i].encode.y[0]];
                         // @ts-expect-error testing
                         if (dim in params[i].value) {
-                            output +=
+                            output1 +=
                                 // @ts-expect-error testing
                                 params[i].marker +
                                 // @ts-expect-error testing
@@ -1504,12 +1507,17 @@ const useEcharts = (
                                 '<b>' +
                                 // @ts-expect-error testing
                                 params[i].value[dim] +
-                                '</b>';
+                                '</b> <br>';
                             // @ts-expect-error testing
-                            if (i != params.length - 1) {
-                                // Append a <br/> tag if not last in loop
-                                output += '<br/>';
-                            }
+                        } else if (params[i].marker && params[i].seriesName) {
+                            output2 +=
+                                // @ts-expect-error testing
+                                params[i].marker +
+                                // @ts-expect-error testing
+                                params[i].seriesName +
+                                ': ' +
+                                '-' +
+                                '<br/>';
                         }
                     }
 
@@ -1528,7 +1536,10 @@ const useEcharts = (
                     //         }
                     //     }
                     // }
-                    return output;
+
+                    console.log(output, output1);
+
+                    return output + output1 + output2;
                 },
             }),
         [],
