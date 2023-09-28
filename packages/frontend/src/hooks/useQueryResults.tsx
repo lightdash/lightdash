@@ -175,3 +175,26 @@ export const useChartResults = (chartUuid: string, filters?: Filters) => {
         refetchOnMount: false,
     });
 };
+
+const getChartVersionResults = async (
+    chartUuid: string,
+    versionUuid: string,
+) => {
+    return lightdashApi<ApiQueryResults>({
+        url: `/saved/${chartUuid}/version/${versionUuid}/results`,
+        method: 'POST',
+        body: undefined,
+    });
+};
+export const useChartVersionResults = (
+    chartUuid: string,
+    versionUuid?: string,
+) => {
+    return useQuery<ApiQueryResults, ApiError>({
+        queryKey: ['chartVersionResults', chartUuid, versionUuid],
+        queryFn: () => getChartVersionResults(chartUuid, versionUuid!),
+        enabled: !!versionUuid,
+        retry: false,
+        refetchOnMount: false,
+    });
+};

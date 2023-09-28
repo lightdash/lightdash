@@ -36,7 +36,12 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
 } from './types/projectMemberProfile';
-import { SavedChart, Series } from './types/savedCharts';
+import {
+    ChartHistory,
+    ChartVersion,
+    SavedChart,
+    Series,
+} from './types/savedCharts';
 import { SearchResults } from './types/search';
 import { ShareUrl } from './types/share';
 import { SlackSettings } from './types/slackSettings';
@@ -526,6 +531,8 @@ type ApiResults =
     | ViewStatistics
     | SchedulerWithLogs
     | ValidationResponse[]
+    | ChartHistory
+    | ChartVersion
     | ApiJobStatusResponse['results']
     | ApiJobScheduledResponse['results']
     | ApiSshKeyPairResponse['results'];
