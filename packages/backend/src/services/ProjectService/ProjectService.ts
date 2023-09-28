@@ -62,6 +62,7 @@ import {
     TableSelectionType,
     UpdateProject,
     UpdateProjectMember,
+    UserAttributeValueMap,
     WarehouseClient,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -699,7 +700,7 @@ export class ProjectService {
         metricQuery: MetricQuery,
         explore: Explore,
         warehouseClient: WarehouseClient,
-        userAttributes: Record<string, string | null>,
+        userAttributes: UserAttributeValueMap,
     ): Promise<{ query: string; hasExampleMetric: boolean }> {
         const compiledMetricQuery = compileMetricQuery({
             explore,

@@ -1,14 +1,14 @@
-import { Explore } from '@lightdash/common';
+import { Explore, UserAttributeValueMap } from '@lightdash/common';
 
 export const hasUserAttribute = (
-    userAttributes: Record<string, string | null>,
+    userAttributes: UserAttributeValueMap,
     attributeName: string,
     value: string,
 ) => userAttributes[attributeName] === value;
 
 export const hasUserAttributes = (
     requiredAttributes: Record<string, string> | undefined,
-    userAttributes: Record<string, string | null>,
+    userAttributes: UserAttributeValueMap,
 ): boolean => {
     if (requiredAttributes === undefined) return true; // No required attributes
 
@@ -27,7 +27,7 @@ export const exploreHasFilteredAttribute = (explore: Explore) =>
     );
 export const filterDimensionsFromExplore = (
     explore: Explore,
-    userAttributes: Record<string, string | null>,
+    userAttributes: UserAttributeValueMap,
 ): Explore => ({
     ...explore,
     tables: Object.entries(explore.tables).reduce((at, exploreTable) => {
