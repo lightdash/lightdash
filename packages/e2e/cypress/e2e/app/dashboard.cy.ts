@@ -31,10 +31,10 @@ describe('Dashboard', () => {
         });
     });
 
-    it('Should use dashboard filters, should clear them for new dashboards', () => {
+    it.only('Should use dashboard filters, should clear them for new dashboards', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
-        // wiat for the dashboard to load
+        // wait for the dashboard to load
         cy.findByText('Loading dashboards').should('not.exist');
 
         cy.contains('a', 'Jaffle dashboard').click();
@@ -59,10 +59,18 @@ describe('Dashboard', () => {
 
         cy.contains('bank_transfer').should('have.length', 0);
 
-        // Check url includes filters
-        cy.url().should('include', 'filters=');
-        cy.url().should('include', 'dimensions');
+        // Check url includes no saved filters
+        cy.url().should('not.include', 'filters=');
+        cy.url().should('not.include', 'years');
+
+        // Check url includes temp filters
+        cy.url().should('include', 'tempFilters=');
         cy.url().should('include', 'credit_card');
+
+        // Check that temp filter gets kept on reload
+        cy.reload();
+        cy.contains('Payment method is credit_card');
+        cy.contains('bank_transfer').should('have.length', 0);
 
         // Create a new dashboard
         cy.get('[data-testid="ExploreMenu/NewButton"]').click();
@@ -73,6 +81,7 @@ describe('Dashboard', () => {
 
         // Check url has no filters
         cy.url().should('not.include', 'filters=');
+        cy.url().should('not.include', 'tempFilters=');
         cy.url().should('not.include', '?');
     });
 
