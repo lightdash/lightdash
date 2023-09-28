@@ -147,10 +147,10 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
 
     const opts = useMemo<Opts>(() => ({ renderer: 'svg' }), []);
 
-    const handleOnMouseOver = useCallback((e: EchartClickEvent, t) => {
+    const handleOnMouseOver = useCallback(() => {
         setIsHoveringOnItem(true);
     }, []);
-    const handleOnMouseOut = useCallback((e: EchartClickEvent, t) => {
+    const handleOnMouseOut = useCallback(() => {
         setIsHoveringOnItem(false);
     }, []);
 
