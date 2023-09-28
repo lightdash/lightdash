@@ -1,3 +1,15 @@
+# [0.792.0](https://github.com/lightdash/lightdash/compare/0.791.1...0.792.0) (2023-09-28)
+
+
+### Bug Fixes
+
+* format table calculation dates ([#7248](https://github.com/lightdash/lightdash/issues/7248)) ([93c9756](https://github.com/lightdash/lightdash/commit/93c9756ec8f554fc2e8d9c3ff87caf18f9fc0e0a))
+
+
+### Features
+
+* Migrate Boolean Filter input to Mantine ([#7234](https://github.com/lightdash/lightdash/issues/7234)) ([c28e889](https://github.com/lightdash/lightdash/commit/c28e889b5795a202f3bc71409e337e0628a20b75))
+
 ## [0.791.1](https://github.com/lightdash/lightdash/compare/0.791.0...0.791.1) (2023-09-27)
 
 
