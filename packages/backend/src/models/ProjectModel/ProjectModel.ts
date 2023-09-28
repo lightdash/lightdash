@@ -34,6 +34,7 @@ import {
     DashboardViewsTableName,
     DbDashboard,
 } from '../../database/entities/dashboards';
+import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
 import { OrganizationTableName } from '../../database/entities/organizations';
 import { PinnedListTableName } from '../../database/entities/pinnedList';
 import { DbProjectMembership } from '../../database/entities/projectMemberships';
@@ -704,13 +705,22 @@ export class ProjectModel {
     ): Promise<void> {
         try {
             const [project] = await this.database('projects')
-                .select('project_id')
+                .select('project_id', 'organization_id')
                 .where('project_uuid', projectUuid);
 
             const [user] = await this.database('users')
                 .leftJoin('emails', 'emails.user_id', 'users.user_id')
+                .leftJoin(
+                    OrganizationMembershipsTableName,
+                    `${OrganizationMembershipsTableName}.user_id`,
+                    'users.user_id',
+                )
                 .select('users.user_id')
-                .where('email', email);
+                .where('email', email)
+                .andWhere(
+                    `${OrganizationMembershipsTableName}.organization_id`,
+                    project.organization_id,
+                );
             if (user === undefined) {
                 throw new NotExistsError(
                     `Can't find user with email ${email} in the organization`,
