@@ -79,6 +79,9 @@ type DashboardContext = {
 const Context = createContext<DashboardContext | undefined>(undefined);
 
 export const DashboardProvider: React.FC = ({ children }) => {
+    const { search, pathname } = useLocation();
+    const history = useHistory();
+
     const { dashboardUuid } = useParams<{
         dashboardUuid: string;
     }>();
@@ -88,7 +91,16 @@ export const DashboardProvider: React.FC = ({ children }) => {
     const [dashboardTiles, setDashboardTiles] = useState<Dashboard['tiles']>(
         [],
     );
+
     const [haveTilesChanged, setHaveTilesChanged] = useState<boolean>(false);
+    const [fieldsWithSuggestions, setFieldsWithSuggestions] =
+        useState<FieldsWithSuggestions>({});
+    const [dashboardTemporaryFilters, setDashboardTemporaryFilters] =
+        useState<DashboardFilters>(emptyFilters);
+    const [dashboardFilters, setDashboardFilters] =
+        useState<DashboardFilters>(emptyFilters);
+    const [haveFiltersChanged, setHaveFiltersChanged] =
+        useState<boolean>(false);
 
     const tileSavedChartUuids = useMemo(() => {
         return dashboardTiles
@@ -96,6 +108,59 @@ export const DashboardProvider: React.FC = ({ children }) => {
             .map((tile) => tile.properties.savedChartUuid)
             .filter((uuid): uuid is string => !!uuid);
     }, [dashboardTiles]);
+
+    useMount(() => {
+        const searchParams = new URLSearchParams(search);
+        const tempFilterSearchParam = searchParams.get('tempFilters');
+        const unsavedDashboardFiltersRaw = sessionStorage.getItem(
+            'unsavedDashboardFilters',
+        );
+        sessionStorage.removeItem('unsavedDashboardFilters');
+        if (unsavedDashboardFiltersRaw) {
+            const unsavedDashboardFilters = JSON.parse(
+                unsavedDashboardFiltersRaw,
+            );
+            setDashboardFilters(unsavedDashboardFilters);
+        }
+        if (tempFilterSearchParam) {
+            setDashboardTemporaryFilters(
+                convertDashboardFiltersParamToDashboardFilters(
+                    JSON.parse(tempFilterSearchParam),
+                ),
+            );
+        }
+    });
+
+    // Set filters to filters from database
+    useEffect(() => {
+        if (dashboard && dashboardFilters === emptyFilters) {
+            setDashboardFilters(dashboard.filters);
+            setHaveFiltersChanged(false);
+        }
+    }, [dashboardFilters, dashboard]);
+
+    // Updates url with temp filters
+    useEffect(() => {
+        const newParams = new URLSearchParams(search);
+        if (
+            dashboardTemporaryFilters?.dimensions?.length === 0 &&
+            dashboardTemporaryFilters?.metrics?.length === 0
+        ) {
+            newParams.delete('tempFilters');
+        } else {
+            newParams.set(
+                'tempFilters',
+                JSON.stringify(
+                    compressDashboardFiltersToParam(dashboardTemporaryFilters),
+                ),
+            );
+        }
+
+        history.replace({
+            pathname,
+            search: newParams.toString(),
+        });
+    }, [dashboardTemporaryFilters, history, pathname, search]);
 
     const {
         isLoading: isLoadingDashboardFilters,
@@ -133,22 +198,44 @@ export const DashboardProvider: React.FC = ({ children }) => {
         return uniqBy(allFilters, (f) => fieldId(f));
     }, [isLoadingDashboardFilters, filterableFieldsBySavedQueryUuid]);
 
-    const [fieldsWithSuggestions, setFieldsWithSuggestions] =
-        useState<FieldsWithSuggestions>({});
-    const [dashboardTemporaryFilters, setDashboardTemporaryFilters] =
-        useState<DashboardFilters>(emptyFilters);
-    const [dashboardFilters, setDashboardFilters] =
-        useState<DashboardFilters>(emptyFilters);
-    const [haveFiltersChanged, setHaveFiltersChanged] =
-        useState<boolean>(false);
+    const allFilters = useMemo(() => {
+        return {
+            dimensions: [
+                ...dashboardFilters.dimensions,
+                ...dashboardTemporaryFilters?.dimensions,
+            ],
+            metrics: [
+                ...dashboardFilters.metrics,
+                ...dashboardTemporaryFilters?.metrics,
+            ],
+        };
+    }, [dashboardFilters, dashboardTemporaryFilters]);
 
-    // Set filters to filters from database
-    useEffect(() => {
-        if (dashboard && dashboardFilters === emptyFilters) {
-            setDashboardFilters(dashboard.filters);
-            setHaveFiltersChanged(false);
+    const hasChartTiles = useMemo(
+        () =>
+            dashboardTiles.filter(
+                (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
+            ).length >= 1,
+        [dashboardTiles],
+    );
+
+    useMemo(() => {
+        if (allFilterableFields && allFilterableFields.length > 0) {
+            setFieldsWithSuggestions((prev) => {
+                return allFilterableFields.reduce<FieldsWithSuggestions>(
+                    (sum, field) => ({
+                        ...sum,
+                        [fieldId(field)]: {
+                            ...field,
+                            suggestions:
+                                prev[fieldId(field)]?.suggestions || [],
+                        },
+                    }),
+                    {},
+                );
+            });
         }
-    }, [dashboardFilters, dashboard]);
+    }, [allFilterableFields]);
 
     const addDimensionDashboardFilter = useCallback(
         (filter: DashboardFilterRule, isTemporary: boolean) => {
@@ -211,24 +298,6 @@ export const DashboardProvider: React.FC = ({ children }) => {
         [],
     );
 
-    useEffect(() => {
-        if (allFilterableFields && allFilterableFields.length > 0) {
-            setFieldsWithSuggestions((prev) =>
-                allFilterableFields.reduce<FieldsWithSuggestions>(
-                    (sum, field) => ({
-                        ...sum,
-                        [fieldId(field)]: {
-                            ...field,
-                            suggestions:
-                                prev[fieldId(field)]?.suggestions || [],
-                        },
-                    }),
-                    {},
-                ),
-            );
-        }
-    }, [allFilterableFields]);
-
     const addSuggestions = useCallback(
         (newSuggestionsMap: Record<string, string[]>) => {
             setFieldsWithSuggestions((prev) => {
@@ -246,75 +315,6 @@ export const DashboardProvider: React.FC = ({ children }) => {
             });
         },
         [],
-    );
-
-    const { search, pathname } = useLocation();
-    const history = useHistory();
-
-    useMount(() => {
-        const searchParams = new URLSearchParams(search);
-        const tempFilterSearchParam = searchParams.get('tempFilters');
-        const unsavedDashboardFiltersRaw = sessionStorage.getItem(
-            'unsavedDashboardFilters',
-        );
-        sessionStorage.removeItem('unsavedDashboardFilters');
-        if (unsavedDashboardFiltersRaw) {
-            const unsavedDashboardFilters = JSON.parse(
-                unsavedDashboardFiltersRaw,
-            );
-            setDashboardFilters(unsavedDashboardFilters);
-        }
-        if (tempFilterSearchParam) {
-            setDashboardTemporaryFilters(
-                convertDashboardFiltersParamToDashboardFilters(
-                    JSON.parse(tempFilterSearchParam),
-                ),
-            );
-        }
-    });
-
-    // Updates url with temp filters
-    useEffect(() => {
-        const newParams = new URLSearchParams(search);
-        if (
-            dashboardTemporaryFilters?.dimensions?.length === 0 &&
-            dashboardTemporaryFilters?.metrics?.length === 0
-        ) {
-            newParams.delete('tempFilters');
-        } else {
-            newParams.set(
-                'tempFilters',
-                JSON.stringify(
-                    compressDashboardFiltersToParam(dashboardTemporaryFilters),
-                ),
-            );
-        }
-
-        history.replace({
-            pathname,
-            search: newParams.toString(),
-        });
-    }, [dashboardTemporaryFilters, history, pathname, search]);
-
-    const allFilters = useMemo(() => {
-        return {
-            dimensions: [
-                ...dashboardFilters.dimensions,
-                ...dashboardTemporaryFilters?.dimensions,
-            ],
-            metrics: [
-                ...dashboardFilters.metrics,
-                ...dashboardTemporaryFilters?.metrics,
-            ],
-        };
-    }, [dashboardFilters, dashboardTemporaryFilters]);
-
-    const hasChartTiles = useMemo(
-        () =>
-            dashboardTiles.filter(
-                (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
-            ).length >= 1,
-        [dashboardTiles],
     );
 
     const value = {
