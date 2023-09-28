@@ -337,6 +337,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/tnightengale"><img src="https://avatars.githubusercontent.com/u/17347282?v=4?s=100" width="100px;" alt="Teghan Nightengale"/><br /><sub><b>Teghan Nightengale</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=tnightengale" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/dmattia"><img src="https://avatars.githubusercontent.com/u/8922077?v=4?s=100" width="100px;" alt="David Mattia"/><br /><sub><b>David Mattia</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=dmattia" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/ayush117"><img src="https://avatars.githubusercontent.com/u/25580209?v=4?s=100" width="100px;" alt="Ayush Trivedi"/><br /><sub><b>Ayush Trivedi</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=ayush117" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/zoltan-kski"><img src="https://avatars.githubusercontent.com/u/2300833?v=4?s=100" width="100px;" alt="Zoltan K."/><br /><sub><b>Zoltan K.</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=zoltan-kski" title="Documentation">📖</a></td>
     </tr>
   </tbody>
 </table>
