@@ -207,7 +207,7 @@ const SchedulerAdvancedOptions: FC = () => {
                 icon={isAdvanced ? 'chevron-down' : 'chevron-right'}
                 onClick={() => setIsAdvanced(!isAdvanced)}
             >
-                Advanced options
+                Customize body message
             </Button>
 
             <Collapse isOpen={isAdvanced}>
