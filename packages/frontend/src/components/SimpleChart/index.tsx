@@ -81,7 +81,6 @@ type SimpleChartProps = Omit<EChartsReactProps, 'option'> & {
 };
 
 const SimpleChart: FC<SimpleChartProps> = memo((props) => {
-    const [isHoveringOnItem, setIsHoveringOnItem] = useState(false);
     const { chartRef, isLoading, onSeriesContextMenu } =
         useVisualizationContext();
 
@@ -101,18 +100,6 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
         selectedLegendsUpdated,
         props.isInDashboard,
     );
-
-    const eChartsOptionsModified = useMemo(() => {
-        if (eChartsOptions) {
-            return {
-                ...eChartsOptions,
-                tooltip: {
-                    ...eChartsOptions.tooltip,
-                    trigger: isHoveringOnItem ? 'item' : 'axis',
-                },
-            };
-        }
-    }, [eChartsOptions, isHoveringOnItem]);
 
     useEffect(() => {
         const listener = () => {
@@ -147,12 +134,44 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
 
     const opts = useMemo<Opts>(() => ({ renderer: 'svg' }), []);
 
-    const handleOnMouseOver = useCallback(() => {
-        setIsHoveringOnItem(true);
-    }, []);
+    const handleOnMouseOver = useCallback(
+        (params) => {
+            const eCharts = chartRef.current?.getEchartsInstance();
+
+            if (eCharts) {
+                eCharts.setOption({
+                    tooltip: {
+                        trigger: 'item',
+                    },
+                });
+
+                // Wait for tooltip to change from `axis` to `item` and keep hovered on item highlighted
+                setTimeout(() => {
+                    eCharts.dispatchAction({
+                        type: 'highlight',
+                        seriesIndex: params.seriesIndex,
+                    });
+                }, 100);
+            }
+        },
+        [chartRef],
+    );
+
     const handleOnMouseOut = useCallback(() => {
-        setIsHoveringOnItem(false);
-    }, []);
+        const eCharts = chartRef.current?.getEchartsInstance();
+
+        if (eCharts) {
+            eCharts.setOption(
+                {
+                    tooltip: {
+                        trigger: 'axis',
+                    },
+                },
+                false,
+                true, // lazy update
+            );
+        }
+    }, [chartRef]);
 
     if (isLoading) return <LoadingChart />;
     if (!eChartsOptions) return <EmptyChart />;
@@ -175,7 +194,7 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
                       }
             }
             ref={chartRef}
-            option={{ ...eChartsOptionsModified }}
+            option={eChartsOptions}
             notMerge
             opts={opts}
             onEvents={{
