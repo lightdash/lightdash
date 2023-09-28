@@ -1,3 +1,10 @@
+## [0.792.1](https://github.com/lightdash/lightdash/compare/0.792.0...0.792.1) (2023-09-28)
+
+
+### Bug Fixes
+
+* update semantic layer API hostname ([#7257](https://github.com/lightdash/lightdash/issues/7257)) ([767d313](https://github.com/lightdash/lightdash/commit/767d3133dfc922444c707bf90dde38eef7eb4397))
+
 # [0.792.0](https://github.com/lightdash/lightdash/compare/0.791.1...0.792.0) (2023-09-28)
 
 
