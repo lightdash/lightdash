@@ -139,11 +139,15 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
             const eCharts = chartRef.current?.getEchartsInstance();
 
             if (eCharts) {
-                eCharts.setOption({
-                    tooltip: {
-                        trigger: 'item',
+                eCharts.setOption(
+                    {
+                        tooltip: {
+                            trigger: 'item',
+                        },
                     },
-                });
+                    false,
+                    true, // lazy update
+                );
 
                 // Wait for tooltip to change from `axis` to `item` and keep hovered on item highlighted
                 setTimeout(() => {
