@@ -1407,130 +1407,18 @@ const useEcharts = (
     ]);
 
     const tooltip = useMemo<EChartsOption['tooltip']>(
-        () =>
-            // {
-            //     show: true,
-            //     confine: true,
-            //     trigger: 'item',
-            //     triggerOn: 'click',
-            // },
-            ({
-                show: true,
-                confine: true,
-                trigger: 'axis',
-                enterable: true,
-                extraCssText: 'overflow-y: scroll; max-height:400px;',
-                axisPointer: {
-                    type: 'shadow',
-                    label: { show: true },
-                },
-                // position: 'inside',
-                formatter: function (params) {
-                    console.log({ params });
-
-                    if (!Array.isArray(params)) {
-                        let output =
-                            '<b>' +
-                            // @ts-expect-error testing
-                            params.value[
-                                // @ts-expect-error testing
-                                params.dimensionNames[params.encode?.x[0]]
-                            ] +
-                            '</b> <br>';
-                        // @ts-expect-error testing
-                        let dim = params.dimensionNames[params.encode?.y[0]];
-                        // @ts-expect-error testing
-                        if (dim in params.value) {
-                            output +=
-                                // @ts-expect-error testing
-                                params.marker +
-                                // @ts-expect-error testing
-                                params.seriesName +
-                                ': ' +
-                                '<b>' +
-                                // @ts-expect-error testing
-                                params.value[dim] +
-                                '</b>';
-                            return output;
-                        }
-                    }
-
-                    //     // Start of the Tooltip HTML String
-                    //     let tooltipHtml = '';
-
-                    //     // Adding the date (axisValueLabel from the first series item)
-                    //     tooltipHtml += `<div> ${params[0].axisValueLabel}</div>`;
-
-                    //     // Iterating through each series item
-                    //     params.forEach((item, index) => {
-                    //         // Extracting relevant information from the series item
-                    //         const { seriesName, color, axisValueLabel, value } =
-                    //             item;
-
-                    //         // Find the key that contains the seriesName
-                    //         const relevantKey = Object.keys(value).find((key) =>
-                    //             key.includes(seriesName),
-                    //         );
-
-                    //         // If a relevant key is found, add a line for the series name and value
-                    //         if (relevantKey) {
-                    //             tooltipHtml += `<div style="margin-bottom:8px;">
-                    //       <span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${color};"></span>
-                    //       <b>${seriesName}:</b> ${value[relevantKey]}
-                    //   </div>`;
-                    //         }
-                    //     });
-
-                    //     // End of the Tooltip HTML String
-                    //     tooltipHtml += '';
-
-                    //     // Returning the complete Tooltip HTML String
-                    //     return tooltipHtml;
-                    // @ts-expect-error testing
-                    let output = '<b>' + params[0].axisValueLabel + '</b><br/>';
-                    // @ts-expect-error testing
-                    for (let i = 0; i < params.length; i++) {
-                        let dim =
-                            // @ts-expect-error testing
-                            params[i].dimensionNames[params[i].encode.y[0]];
-                        // @ts-expect-error testing
-                        if (dim in params[i].value) {
-                            output +=
-                                // @ts-expect-error testing
-                                params[i].marker +
-                                // @ts-expect-error testing
-                                params[i].seriesName +
-                                ': ' +
-                                '<b>' +
-                                // @ts-expect-error testing
-                                params[i].value[dim] +
-                                '</b>';
-                            // @ts-expect-error testing
-                            if (i != params.length - 1) {
-                                // Append a <br/> tag if not last in loop
-                                output += '<br/>';
-                            }
-                        }
-                    }
-
-                    // for (let i = 0; i < params.length; i++) {
-                    //     let dim =
-                    //         params[i].dimensionNames[params[i].encode.y[0]];
-                    //     if (!(dim in params[i].value)) {
-                    //         output +=
-                    //             params[i].marker +
-                    //             params[i].seriesName +
-                    //             ': ' +
-                    //             '-';
-                    //         if (i != params.length - 1) {
-                    //             // Append a <br/> tag if not last in loop
-                    //             output += '<br/>';
-                    //         }
-                    //     }
-                    // }
-                    return output;
-                },
-            }),
+        () => ({
+            show: true,
+            confine: true,
+            trigger: 'axis',
+            enterable: true,
+            extraCssText: 'overflow-y: scroll; max-height:360px;',
+            axisPointer: {
+                type: 'shadow',
+                label: { show: true },
+            },
+            order: 'valueAsc',
+        }),
         [],
     );
 
