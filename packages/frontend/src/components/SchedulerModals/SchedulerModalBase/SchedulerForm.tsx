@@ -422,10 +422,12 @@ const SchedulerForm: FC<{
                                     methods.getValues()?.targets?.[index];
 
                                 if (isSlack(target)) {
-                                    const isPrivateChannel = slackChannels.some(
-                                        (channel) =>
-                                            channel.label !== target.channel,
-                                    );
+                                    const isPrivateChannel =
+                                        !slackChannels.find(
+                                            (channel) =>
+                                                channel.value ===
+                                                target.channel,
+                                        );
                                     const allChannels =
                                         isPrivateChannel &&
                                         target.channel !== ''

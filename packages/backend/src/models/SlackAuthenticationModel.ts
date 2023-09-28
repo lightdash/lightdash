@@ -112,6 +112,9 @@ export class SlackAuthenticationModel {
             )
             .select<(DbSlackAuthTokens & DbOrganization)[]>('*')
             .where('organization_uuid', organizationUuid);
+        if (row === undefined) {
+            throw new Error(`Could not find slack installation`);
+        }
         return {
             createdAt: row.created_at,
             slackTeamName: row.installation?.team?.name || 'Slack',
