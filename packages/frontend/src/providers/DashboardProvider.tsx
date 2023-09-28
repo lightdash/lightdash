@@ -109,28 +109,6 @@ export const DashboardProvider: React.FC = ({ children }) => {
             .filter((uuid): uuid is string => !!uuid);
     }, [dashboardTiles]);
 
-    useMount(() => {
-        const searchParams = new URLSearchParams(search);
-        const tempFilterSearchParam = searchParams.get('tempFilters');
-        const unsavedDashboardFiltersRaw = sessionStorage.getItem(
-            'unsavedDashboardFilters',
-        );
-        sessionStorage.removeItem('unsavedDashboardFilters');
-        if (unsavedDashboardFiltersRaw) {
-            const unsavedDashboardFilters = JSON.parse(
-                unsavedDashboardFiltersRaw,
-            );
-            setDashboardFilters(unsavedDashboardFilters);
-        }
-        if (tempFilterSearchParam) {
-            setDashboardTemporaryFilters(
-                convertDashboardFiltersParamToDashboardFilters(
-                    JSON.parse(tempFilterSearchParam),
-                ),
-            );
-        }
-    });
-
     // Set filters to filters from database
     useEffect(() => {
         if (dashboard && dashboardFilters === emptyFilters) {
@@ -161,6 +139,32 @@ export const DashboardProvider: React.FC = ({ children }) => {
             search: newParams.toString(),
         });
     }, [dashboardTemporaryFilters, history, pathname, search]);
+
+    // Gets filters from storage after redirect
+    useMount(() => {
+        const searchParams = new URLSearchParams(search);
+        const tempFilterSearchParam = searchParams.get('tempFilters');
+        const unsavedDashboardFiltersRaw = sessionStorage.getItem(
+            'unsavedDashboardFilters',
+        );
+        sessionStorage.removeItem('unsavedDashboardFilters');
+        if (unsavedDashboardFiltersRaw) {
+            const unsavedDashboardFilters = JSON.parse(
+                unsavedDashboardFiltersRaw,
+            );
+            // TODO: this should probably merge with the filters
+            // from the database. This will break if they diverge,
+            // meaning there is a subtle rage condition here
+            setDashboardFilters(unsavedDashboardFilters);
+        }
+        if (tempFilterSearchParam) {
+            setDashboardTemporaryFilters(
+                convertDashboardFiltersParamToDashboardFilters(
+                    JSON.parse(tempFilterSearchParam),
+                ),
+            );
+        }
+    });
 
     const {
         isLoading: isLoadingDashboardFilters,
