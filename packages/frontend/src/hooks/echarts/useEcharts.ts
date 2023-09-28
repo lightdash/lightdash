@@ -1508,16 +1508,6 @@ const useEcharts = (
                                 // @ts-expect-error testing
                                 params[i].value[dim] +
                                 '</b> <br>';
-                            // @ts-expect-error testing
-                        } else if (params[i].marker && params[i].seriesName) {
-                            output2 +=
-                                // @ts-expect-error testing
-                                params[i].marker +
-                                // @ts-expect-error testing
-                                params[i].seriesName +
-                                ': ' +
-                                '-' +
-                                '<br/>';
                         }
                     }
 
