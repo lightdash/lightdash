@@ -11,6 +11,7 @@ import {
     formatItemValue,
     friendlyName,
     getCustomLabelsFromTableConfig,
+    getDashboardFiltersForTile,
     getItemLabel,
     getItemLabelWithoutTableName,
     getItemMap,
@@ -369,13 +370,21 @@ export class CsvService {
             exploreId,
         );
 
-        const metricQueryWithDashboardFilters =
-            addDashboardFiltersToMetricQuery(
-                explore,
-                metricQuery,
-                tileUuid,
-                dashboardFilters,
-            );
+        const dashboardFiltersForTile =
+            tileUuid && dashboardFilters
+                ? getDashboardFiltersForTile(
+                      tileUuid,
+                      Object.keys(explore.tables),
+                      dashboardFilters,
+                  )
+                : undefined;
+
+        const metricQueryWithDashboardFilters = dashboardFiltersForTile
+            ? addDashboardFiltersToMetricQuery(
+                  metricQuery,
+                  dashboardFiltersForTile,
+              )
+            : metricQuery;
 
         const rows = await this.projectService.runMetricQuery(
             user,

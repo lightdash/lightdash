@@ -430,52 +430,52 @@ export const getDashboardFiltersForTile = (
     ),
 });
 
-export const addDashboardFiltersToMetricQuery = (
-    explore: Explore,
+const combineFilterGroups = (
+    a: FilterGroup | undefined,
+    b: FilterGroup | undefined,
+): FilterGroup => ({
+    id: uuidv4(),
+    and: [a, b].filter((f): f is FilterGroup => !!f),
+});
+
+export const addFiltersToMetricQuery = (
     metricQuery: MetricQuery,
-    tileUuid: string | undefined,
-    dashboardFilters: DashboardFilters | undefined,
-): MetricQuery => {
-    const tables = Object.keys(explore.tables);
+    filters: Filters,
+): MetricQuery => ({
+    ...metricQuery,
+    filters: {
+        dimensions: combineFilterGroups(
+            metricQuery.filters?.dimensions,
+            filters.dimensions,
+        ),
+        metrics: combineFilterGroups(
+            metricQuery.filters?.metrics,
+            filters.metrics,
+        ),
+    },
+});
 
-    const dashboardFiltersForTile =
-        tileUuid && dashboardFilters
-            ? getDashboardFiltersForTile(tileUuid, tables, dashboardFilters)
-            : undefined;
+const combineFilterGroupWithFilterRules = (
+    filterGroup: FilterGroup | undefined,
+    filterRules: FilterRule[],
+): FilterGroup => ({
+    id: uuidv4(),
+    and: [...(filterGroup ? [filterGroup] : []), ...filterRules],
+});
 
-    const dimensionFilters: FilterGroup | undefined =
-        dashboardFiltersForTile && dashboardFiltersForTile.dimensions.length > 0
-            ? {
-                  id: 'yes',
-                  and: [
-                      ...(metricQuery.filters.dimensions
-                          ? [metricQuery.filters.dimensions]
-                          : []),
-                      ...dashboardFiltersForTile.dimensions,
-                  ],
-              }
-            : metricQuery.filters.dimensions;
-
-    const metricFilters: FilterGroup | undefined =
-        dashboardFiltersForTile && dashboardFiltersForTile.metrics.length > 0
-            ? {
-                  id: 'no',
-                  and: [
-                      ...(metricQuery.filters.metrics
-                          ? [metricQuery.filters.metrics]
-                          : []),
-                      ...dashboardFiltersForTile.metrics,
-                  ],
-              }
-            : metricQuery.filters.metrics;
-
-    return dashboardFiltersForTile
-        ? {
-              ...metricQuery,
-              filters: {
-                  dimensions: dimensionFilters,
-                  metrics: metricFilters,
-              },
-          }
-        : metricQuery;
-};
+export const addDashboardFiltersToMetricQuery = (
+    metricQuery: MetricQuery,
+    dashboardFilters: DashboardFilters,
+): MetricQuery => ({
+    ...metricQuery,
+    filters: {
+        dimensions: combineFilterGroupWithFilterRules(
+            metricQuery.filters?.dimensions,
+            dashboardFilters.dimensions,
+        ),
+        metrics: combineFilterGroupWithFilterRules(
+            metricQuery.filters?.metrics,
+            dashboardFilters.metrics,
+        ),
+    },
+});

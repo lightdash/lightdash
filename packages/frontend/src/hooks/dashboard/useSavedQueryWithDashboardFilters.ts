@@ -1,4 +1,8 @@
-import { DashboardFilters, FilterGroup, SavedChart } from '@lightdash/common';
+import {
+    addDashboardFiltersToMetricQuery,
+    DashboardFilters,
+    SavedChart,
+} from '@lightdash/common';
 import { useExplore } from '../useExplore';
 import { useSavedQuery } from '../useSavedQuery';
 import useDashboardFiltersForExplore from './useDashboardFiltersForExplore';
@@ -59,33 +63,12 @@ const useSavedQueryWithDashboardFilters = (
         };
     }
 
-    const dimensionFilters: FilterGroup = {
-        id: 'yes',
-        and: [
-            ...(savedQuery.metricQuery.filters.dimensions
-                ? [savedQuery.metricQuery.filters.dimensions]
-                : []),
-            ...dashboardFilters.dimensions,
-        ],
-    };
-    const metricFilters: FilterGroup = {
-        id: 'no',
-        and: [
-            ...(savedQuery.metricQuery.filters.metrics
-                ? [savedQuery.metricQuery.filters.metrics]
-                : []),
-            ...dashboardFilters.metrics,
-        ],
-    };
     const savedQueryWithDashboardFilters = {
         ...savedQuery,
-        metricQuery: {
-            ...savedQuery.metricQuery,
-            filters: {
-                dimensions: dimensionFilters,
-                metrics: metricFilters,
-            },
-        },
+        metricQuery: addDashboardFiltersToMetricQuery(
+            savedQuery.metricQuery,
+            dashboardFilters,
+        ),
     };
 
     return {
