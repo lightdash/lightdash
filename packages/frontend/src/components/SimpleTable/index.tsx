@@ -63,17 +63,28 @@ const SimpleTable: FC<SimpleTableProps> = ({
             />
         );
     } else if (pivotTableData.loading || pivotTableData.data) {
+        console.log({ pivotTableData });
+
         return (
             <Box p="xs" pb="xl" miw="100%" h="100%">
                 {pivotTableData.data ? (
-                    <PivotTable
-                        className={className}
-                        data={pivotTableData.data}
-                        conditionalFormattings={conditionalFormattings}
-                        getFieldLabel={getFieldLabel}
-                        getField={getField}
-                        hideRowNumbers={hideRowNumbers}
-                    />
+                    <>
+                        <PivotTable
+                            className={className}
+                            data={pivotTableData.data}
+                            conditionalFormattings={conditionalFormattings}
+                            getFieldLabel={getFieldLabel}
+                            getField={getField}
+                            hideRowNumbers={hideRowNumbers}
+                        />
+                        <>
+                            {pivotTableData.data.dataValues.length === 0
+                                ? null
+                                : pivotTableData.data.dataValues.length === 1
+                                ? '1 result'
+                                : `${pivotTableData.data.dataValues.length} results`}
+                        </>
+                    </>
                 ) : (
                     <LoadingChart />
                 )}
