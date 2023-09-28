@@ -25,7 +25,7 @@ describe('UserAttributesModel', () => {
         tracker.reset();
     });
 
-    test('should get dashboard by uuid', async () => {
+    test('should combine attributes default values and org member values', async () => {
         tracker.on
             .select(UserAttributesTable)
             .responseOnce(MOCK_USER_ATTRIBUTES_NAME_DEFAULT_VALUE);
