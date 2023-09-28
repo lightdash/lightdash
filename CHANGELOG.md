@@ -1,3 +1,10 @@
+## [0.792.2](https://github.com/lightdash/lightdash/compare/0.792.1...0.792.2) (2023-09-28)
+
+
+### Bug Fixes
+
+* throw error when giving project access to a user that is not a org member ([#7256](https://github.com/lightdash/lightdash/issues/7256)) ([1a23a2e](https://github.com/lightdash/lightdash/commit/1a23a2e1e77a871b0cf3a2e6c3cd9bc640f0e935))
+
 ## [0.792.1](https://github.com/lightdash/lightdash/compare/0.792.0...0.792.1) (2023-09-28)
 
 
