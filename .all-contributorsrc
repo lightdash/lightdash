@@ -1183,6 +1183,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "zoltan-kski",
+      "name": "Zoltan K.",
+      "avatar_url": "https://avatars.githubusercontent.com/u/2300833?v=4",
+      "profile": "https://github.com/zoltan-kski",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
