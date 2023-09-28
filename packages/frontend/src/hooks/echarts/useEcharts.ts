@@ -1419,92 +1419,117 @@ const useEcharts = (
                 confine: true,
                 trigger: 'axis',
                 enterable: true,
-                extraCssText: 'overflow-y: scroll; max-height:200px;',
+                extraCssText: 'overflow-y: scroll; max-height:400px;',
                 axisPointer: {
                     type: 'shadow',
                     label: { show: true },
                 },
                 // position: 'inside',
-                // formatter: function (params, u, v) {
-                //     // if (!Array.isArray(params))
-                //     //     return (
-                //     //         '<b>' +
-                //     //         params.marker +
-                //     //         params.seriesName +
-                //     //         ': ' +
-                //     //         '<b>' +
-                //     //         params.value +
-                //     //         '</b>'
-                //     //     );
+                formatter: function (params) {
+                    console.log({ params });
 
-                //     //     // Start of the Tooltip HTML String
-                //     //     let tooltipHtml = '';
+                    if (!Array.isArray(params)) {
+                        let output =
+                            '<b>' +
+                            // @ts-expect-error testing
+                            params.value[
+                                // @ts-expect-error testing
+                                params.dimensionNames[params.encode?.x[0]]
+                            ] +
+                            '</b> <br>';
+                        // @ts-expect-error testing
+                        let dim = params.dimensionNames[params.encode?.y[0]];
+                        // @ts-expect-error testing
+                        if (dim in params.value) {
+                            output +=
+                                // @ts-expect-error testing
+                                params.marker +
+                                // @ts-expect-error testing
+                                params.seriesName +
+                                ': ' +
+                                '<b>' +
+                                // @ts-expect-error testing
+                                params.value[dim] +
+                                '</b>';
+                            return output;
+                        }
+                    }
 
-                //     //     // Adding the date (axisValueLabel from the first series item)
-                //     //     tooltipHtml += `<div> ${params[0].axisValueLabel}</div>`;
+                    //     // Start of the Tooltip HTML String
+                    //     let tooltipHtml = '';
 
-                //     //     // Iterating through each series item
-                //     //     params.forEach((item, index) => {
-                //     //         // Extracting relevant information from the series item
-                //     //         const { seriesName, color, axisValueLabel, value } =
-                //     //             item;
+                    //     // Adding the date (axisValueLabel from the first series item)
+                    //     tooltipHtml += `<div> ${params[0].axisValueLabel}</div>`;
 
-                //     //         // Find the key that contains the seriesName
-                //     //         const relevantKey = Object.keys(value).find((key) =>
-                //     //             key.includes(seriesName),
-                //     //         );
+                    //     // Iterating through each series item
+                    //     params.forEach((item, index) => {
+                    //         // Extracting relevant information from the series item
+                    //         const { seriesName, color, axisValueLabel, value } =
+                    //             item;
 
-                //     //         // If a relevant key is found, add a line for the series name and value
-                //     //         if (relevantKey) {
-                //     //             tooltipHtml += `<div style="margin-bottom:8px;">
-                //     //       <span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${color};"></span>
-                //     //       <b>${seriesName}:</b> ${value[relevantKey]}
-                //     //   </div>`;
-                //     //         }
-                //     //     });
+                    //         // Find the key that contains the seriesName
+                    //         const relevantKey = Object.keys(value).find((key) =>
+                    //             key.includes(seriesName),
+                    //         );
 
-                //     //     // End of the Tooltip HTML String
-                //     //     tooltipHtml += '';
+                    //         // If a relevant key is found, add a line for the series name and value
+                    //         if (relevantKey) {
+                    //             tooltipHtml += `<div style="margin-bottom:8px;">
+                    //       <span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${color};"></span>
+                    //       <b>${seriesName}:</b> ${value[relevantKey]}
+                    //   </div>`;
+                    //         }
+                    //     });
 
-                //     //     // Returning the complete Tooltip HTML String
-                //     //     return tooltipHtml;
+                    //     // End of the Tooltip HTML String
+                    //     tooltipHtml += '';
 
-                //     let output = '<b>' + params[0].axisValueLabel + '</b><br/>';
-                //     for (let i = 0; i < params.length; i++) {
-                //         let dim =
-                //             params[i].dimensionNames[params[i].encode.y[0]];
-                //         if (dim in params[i].value) {
-                //             output +=
-                //                 params[i].marker +
-                //                 params[i].seriesName +
-                //                 ': ' +
-                //                 '<b>' +
-                //                 params[i].value[dim] +
-                //                 '</b>';
-                //             if (i != params.length - 1) {
-                //                 // Append a <br/> tag if not last in loop
-                //                 output += '<br/>';
-                //             }
-                //         }
-                //     }
+                    //     // Returning the complete Tooltip HTML String
+                    //     return tooltipHtml;
+                    // @ts-expect-error testing
+                    let output = '<b>' + params[0].axisValueLabel + '</b><br/>';
+                    // @ts-expect-error testing
+                    for (let i = 0; i < params.length; i++) {
+                        let dim =
+                            // @ts-expect-error testing
+                            params[i].dimensionNames[params[i].encode.y[0]];
+                        // @ts-expect-error testing
+                        if (dim in params[i].value) {
+                            output +=
+                                // @ts-expect-error testing
+                                params[i].marker +
+                                // @ts-expect-error testing
+                                params[i].seriesName +
+                                ': ' +
+                                '<b>' +
+                                // @ts-expect-error testing
+                                params[i].value[dim] +
+                                '</b>';
+                            // @ts-expect-error testing
+                            if (i != params.length - 1) {
+                                // Append a <br/> tag if not last in loop
+                                output += '<br/>';
+                            }
+                        }
+                    }
 
-                //     for (let i = 0; i < params.length; i++) {
-                //         let dim =
-                //             params[i].dimensionNames[params[i].encode.y[0]];
-                //         if (!(dim in params[i].value)) {
-                //             output +=
-                //                 params[i].marker +
-                //                 params[i].seriesName +
-                //                 ': ' +
-                //                 '-';
-                //             if (i != params.length - 1) {
-                //                 // Append a <br/> tag if not last in loop
-                //                 output += '<br/>';
-                //             }
-                //         }
-                //     }
-                //     return output;
-                // },
+                    // for (let i = 0; i < params.length; i++) {
+                    //     let dim =
+                    //         params[i].dimensionNames[params[i].encode.y[0]];
+                    //     if (!(dim in params[i].value)) {
+                    //         output +=
+                    //             params[i].marker +
+                    //             params[i].seriesName +
+                    //             ': ' +
+                    //             '-';
+                    //         if (i != params.length - 1) {
+                    //             // Append a <br/> tag if not last in loop
+                    //             output += '<br/>';
+                    //         }
+                    //     }
+                    // }
+                    return output;
+                },
             }),
         [],
     );
@@ -1548,8 +1573,6 @@ const useEcharts = (
             colors,
         ],
     );
-
-    console.log({ eChartsOptions: eChartsOptions.tooltip });
 
     if (
         !explore ||
