@@ -1,3 +1,10 @@
+# [0.795.0](https://github.com/lightdash/lightdash/compare/0.794.0...0.795.0) (2023-09-29)
+
+
+### Features
+
+* chart rollback ([#7276](https://github.com/lightdash/lightdash/issues/7276)) ([29cfbd5](https://github.com/lightdash/lightdash/commit/29cfbd5600a492a8ca6313f7ca1420be7dd8a1b0))
+
 # [0.794.0](https://github.com/lightdash/lightdash/compare/0.793.0...0.794.0) (2023-09-29)
 
 
