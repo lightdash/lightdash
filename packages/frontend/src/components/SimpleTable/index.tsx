@@ -1,8 +1,9 @@
 import { NonIdealState } from '@blueprintjs/core';
-import { Box } from '@mantine/core';
+import { Box, Flex } from '@mantine/core';
 import { FC } from 'react';
 import PivotTable from '../common/PivotTable';
 import Table from '../common/Table';
+import { ResultCount } from '../common/Table/TablePagination';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
 import CellContextMenu from './CellContextMenu';
@@ -63,10 +64,13 @@ const SimpleTable: FC<SimpleTableProps> = ({
             />
         );
     } else if (pivotTableData.loading || pivotTableData.data) {
-        console.log({ pivotTableData });
-
         return (
-            <Box p="xs" pb="xl" miw="100%" h="100%">
+            <Box
+                p="xs"
+                pb={showResultsTotal ? 'xxl' : 'xl'}
+                miw="100%"
+                h="100%"
+            >
                 {pivotTableData.data ? (
                     <>
                         <PivotTable
@@ -77,13 +81,13 @@ const SimpleTable: FC<SimpleTableProps> = ({
                             getField={getField}
                             hideRowNumbers={hideRowNumbers}
                         />
-                        <>
-                            {pivotTableData.data.dataValues.length === 0
-                                ? null
-                                : pivotTableData.data.dataValues.length === 1
-                                ? '1 result'
-                                : `${pivotTableData.data.dataValues.length} results`}
-                        </>
+                        {showResultsTotal && (
+                            <Flex justify="flex-end" pt="xxs" align="center">
+                                <ResultCount
+                                    count={pivotTableData.data.rowsCount}
+                                />
+                            </Flex>
+                        )}
                     </>
                 ) : (
                     <LoadingChart />

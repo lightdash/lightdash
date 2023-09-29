@@ -8,13 +8,11 @@ interface ResultCountProps {
     count: number;
 }
 
-const ResultCount: FC<ResultCountProps> = ({ count }) => {
-    return (
-        <PageCount>
-            {count === 0 ? null : count === 1 ? '1 result' : `${count} results`}
-        </PageCount>
-    );
-};
+export const ResultCount: FC<ResultCountProps> = ({ count }) => (
+    <PageCount>
+        {count === 0 ? null : count === 1 ? '1 result' : `${count} results`}
+    </PageCount>
+);
 
 const TablePagination = () => {
     const { table, data, pagination } = useTableContext();
