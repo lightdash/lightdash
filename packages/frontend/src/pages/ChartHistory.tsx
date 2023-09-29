@@ -10,7 +10,7 @@ import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import Explorer from '../components/Explorer';
-import { useChartVersionResults } from '../hooks/useQueryResults';
+import { useChartVersionResultsMutation } from '../hooks/useQueryResults';
 import { useChartHistory, useChartVersion } from '../hooks/useSavedQuery';
 import {
     ExplorerProvider,
@@ -32,7 +32,7 @@ const ChartHistory = () => {
         selectedVersionUuid,
     );
 
-    const queryResults = useChartVersionResults(
+    const queryResults = useChartVersionResultsMutation(
         savedQueryUuid,
         selectedVersionUuid,
     );
@@ -107,9 +107,9 @@ const ChartHistory = () => {
             {chartVersionQuery.data && (
                 <ExplorerProvider
                     key={selectedVersionUuid}
-                    queryResults={queryResults as any}
+                    queryResults={queryResults}
                     initialState={{
-                        shouldFetchResults: false,
+                        shouldFetchResults: true,
                         previouslyFetchedState: undefined,
                         expandedSections: [ExplorerSection.VISUALIZATION],
                         unsavedChartVersion: chartVersionQuery.data.chart,

@@ -186,15 +186,41 @@ const getChartVersionResults = async (
         body: undefined,
     });
 };
-export const useChartVersionResults = (
+
+export const useChartVersionResultsMutation = (
     chartUuid: string,
     versionUuid?: string,
 ) => {
-    return useQuery<ApiQueryResults, ApiError>({
-        queryKey: ['chartVersionResults', chartUuid, versionUuid],
-        queryFn: () => getChartVersionResults(chartUuid, versionUuid!),
-        enabled: !!versionUuid,
-        retry: false,
-        refetchOnMount: false,
-    });
+    const { showToastError } = useToaster();
+    const mutation = useMutation<ApiQueryResults, ApiError>(
+        () => getChartVersionResults(chartUuid, versionUuid!),
+        {
+            mutationKey: ['chartVersionResults', chartUuid, versionUuid],
+            onError: useCallback(
+                (result) => {
+                    showToastError({
+                        title: 'Error running query',
+                        subtitle: result.error.message,
+                    });
+                },
+                [showToastError],
+            ),
+        },
+    );
+    const { mutateAsync } = mutation;
+    // needs these args to work with ExplorerProvider
+    const mutateAsyncOverride = useCallback(
+        async (_tableName: string, _metricQuery: MetricQuery) => {
+            await mutateAsync();
+        },
+        [mutateAsync],
+    );
+
+    return useMemo(
+        () => ({
+            ...mutation,
+            mutateAsync: mutateAsyncOverride,
+        }),
+        [mutation, mutateAsyncOverride],
+    );
 };
