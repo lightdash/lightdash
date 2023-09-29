@@ -1,3 +1,10 @@
+## [0.792.3](https://github.com/lightdash/lightdash/compare/0.792.2...0.792.3) (2023-09-29)
+
+
+### Bug Fixes
+
+* slack channel label ([#7260](https://github.com/lightdash/lightdash/issues/7260)) ([04e3af9](https://github.com/lightdash/lightdash/commit/04e3af9b1f4cce8a89d79087e22633365938d944))
+
 ## [0.792.2](https://github.com/lightdash/lightdash/compare/0.792.1...0.792.2) (2023-09-28)
 
 
