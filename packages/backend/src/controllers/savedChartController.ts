@@ -19,7 +19,11 @@ import {
     Tags,
 } from 'tsoa';
 import { projectService, savedChartsService } from '../services/services';
-import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import {
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+} from './authentication';
 import { ApiRunQueryResponse } from './runQueryController';
 
 @Route('/api/v1/saved/{chartUuid}')
@@ -131,7 +135,11 @@ export class SavedChartController extends Controller {
      * @param versionUuid versionUuid for the chart version
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/rollback/{versionUuid}/')
     @OperationId('postChartVersionRollback')
