@@ -33,6 +33,10 @@ const ProjectStatusCallout: FC<
                 <MDEditor.Markdown
                     source={error.error.message.replaceAll('\n', '\n\n')}
                     linkTarget="_blank"
+                    style={{
+                        background: 'transparent',
+                        fontSize: '12px',
+                    }}
                 />
             ) : null,
         };
