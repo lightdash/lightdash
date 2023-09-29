@@ -358,14 +358,13 @@ export class SavedChartModel {
 
     async getLatestVersionSummaries(
         chartUuid: string,
-        sinceDaysDiff: number,
     ): Promise<ChartVersionSummary[]> {
         const chartVersions = await this.getVersionSummaryQuery()
             .where(`${SavedChartsTableName}.saved_query_uuid`, chartUuid)
             .andWhere(
                 `${SavedChartVersionsTableName}.created_at`,
                 '>=',
-                moment().subtract(sinceDaysDiff, 'days'),
+                moment().subtract(60, 'days'),
             )
             .orderBy(`${SavedChartVersionsTableName}.created_at`, 'asc');
 

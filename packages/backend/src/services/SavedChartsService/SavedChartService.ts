@@ -685,10 +685,8 @@ export class SavedChartService {
                 "You don't have access to the space this chart belongs to",
             );
         }
-        const sinceDaysDiff = 60;
         const versions = await this.savedChartModel.getLatestVersionSummaries(
             chartUuid,
-            sinceDaysDiff,
         );
         analytics.track({
             event: 'saved_chart_history.view',
@@ -697,7 +695,6 @@ export class SavedChartService {
                 projectId: chart.projectUuid,
                 savedQueryId: chart.uuid,
                 versionCount: versions.length,
-                sinceDaysDiff,
             },
         });
         return {

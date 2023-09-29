@@ -262,13 +262,11 @@ const ChartHistory = () => {
                         <Button
                             variant="outline"
                             disabled={rollbackMutation.isLoading}
-                            loading={rollbackMutation.isLoading}
                             onClick={() => setIsRollbackModalOpen(false)}
                         >
                             Cancel
                         </Button>
                         <Button
-                            disabled={rollbackMutation.isLoading}
                             loading={rollbackMutation.isLoading}
                             onClick={() =>
                                 selectedVersionUuid &&

@@ -243,7 +243,6 @@ type ChartHistoryEvent = BaseTrack & {
         projectId: string;
         savedQueryId: string;
         versionCount: number;
-        sinceDaysDiff: number;
     };
 };
 
