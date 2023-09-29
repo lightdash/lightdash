@@ -1,9 +1,23 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
+import { subject } from '@casl/ability';
 import { formatTimestamp, TimeFrames } from '@lightdash/common';
-import { NavLink, Stack, Text } from '@mantine/core';
-import { IconFileAnalytics } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Badge,
+    Button,
+    Group,
+    Menu,
+    Modal,
+    NavLink,
+    Stack,
+    Text,
+    Title,
+    Tooltip,
+} from '@mantine/core';
+import { IconDots, IconFileAnalytics, IconHistory } from '@tabler/icons-react';
 import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
+import { Can } from '../components/common/Authorization';
 import { EmptyState } from '../components/common/EmptyState';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -11,7 +25,12 @@ import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import Explorer from '../components/Explorer';
 import { useChartVersionResultsMutation } from '../hooks/useQueryResults';
-import { useChartHistory, useChartVersion } from '../hooks/useSavedQuery';
+import {
+    useChartHistory,
+    useChartVersion,
+    useChartVersionRollbackMutation,
+} from '../hooks/useSavedQuery';
+import { useApp } from '../providers/AppProvider';
 import {
     ExplorerProvider,
     ExplorerSection,
@@ -19,12 +38,14 @@ import {
 import { ReactComponent as NoTableIcon } from '../svgs/emptystate-no-table.svg';
 
 const ChartHistory = () => {
+    const history = useHistory();
+    const { user } = useApp();
     const { savedQueryUuid, projectUuid } = useParams<{
         savedQueryUuid: string;
         projectUuid: string;
     }>();
     const [selectedVersionUuid, selectVersionUuid] = useState<string>();
-
+    const [isRollbackModalOpen, setIsRollbackModalOpen] = useState(false);
     const historyQuery = useChartHistory(savedQueryUuid);
 
     const chartVersionQuery = useChartVersion(
@@ -36,6 +57,14 @@ const ChartHistory = () => {
         savedQueryUuid,
         selectedVersionUuid,
     );
+
+    const rollbackMutation = useChartVersionRollbackMutation(savedQueryUuid, {
+        onSuccess: () => {
+            history.push(
+                `/projects/${projectUuid}/saved/${savedQueryUuid}/view`,
+            );
+        },
+    });
 
     if (historyQuery.isLoading) {
         return (
@@ -70,7 +99,7 @@ const ChartHistory = () => {
                         ]}
                     />
                     <Stack spacing="xs" sx={{ flexGrow: 1, overflowY: 'auto' }}>
-                        {historyQuery.data?.history.map((version) => (
+                        {historyQuery.data?.history.map((version, index) => (
                             <NavLink
                                 key={version.versionUuid}
                                 active={
@@ -87,6 +116,93 @@ const ChartHistory = () => {
                                         {version.createdBy?.firstName}{' '}
                                         {version.createdBy?.lastName}
                                     </Text>
+                                }
+                                rightSection={
+                                    <>
+                                        {index === 0 && (
+                                            <Tooltip
+                                                label={`This is the current version.`}
+                                            >
+                                                <Badge
+                                                    size="xs"
+                                                    variant="light"
+                                                    color="green"
+                                                >
+                                                    current
+                                                </Badge>
+                                            </Tooltip>
+                                        )}
+                                        {index !== 0 &&
+                                            version.versionUuid ===
+                                                selectedVersionUuid && (
+                                                <Can
+                                                    I="manage"
+                                                    this={subject(
+                                                        'SavedChart',
+                                                        {
+                                                            organizationUuid:
+                                                                user.data
+                                                                    ?.organizationUuid,
+                                                            projectUuid,
+                                                        },
+                                                    )}
+                                                >
+                                                    <Menu
+                                                        withinPortal
+                                                        position="bottom-start"
+                                                        withArrow
+                                                        arrowPosition="center"
+                                                        shadow="md"
+                                                        offset={-4}
+                                                        closeOnItemClick
+                                                        closeOnClickOutside
+                                                    >
+                                                        <Menu.Target>
+                                                            <ActionIcon
+                                                                sx={(
+                                                                    theme,
+                                                                ) => ({
+                                                                    ':hover': {
+                                                                        backgroundColor:
+                                                                            theme
+                                                                                .colors
+                                                                                .gray[1],
+                                                                    },
+                                                                })}
+                                                            >
+                                                                <IconDots
+                                                                    size={16}
+                                                                />
+                                                            </ActionIcon>
+                                                        </Menu.Target>
+
+                                                        <Menu.Dropdown
+                                                            maw={320}
+                                                        >
+                                                            <Menu.Item
+                                                                component="button"
+                                                                role="menuitem"
+                                                                icon={
+                                                                    <IconHistory
+                                                                        size={
+                                                                            18
+                                                                        }
+                                                                    />
+                                                                }
+                                                                onClick={() => {
+                                                                    setIsRollbackModalOpen(
+                                                                        true,
+                                                                    );
+                                                                }}
+                                                            >
+                                                                Restore this
+                                                                version
+                                                            </Menu.Item>
+                                                        </Menu.Dropdown>
+                                                    </Menu>
+                                                </Can>
+                                            )}
+                                    </>
                                 }
                                 onClick={() =>
                                     selectVersionUuid(version.versionUuid)
@@ -124,6 +240,47 @@ const ChartHistory = () => {
                     <Explorer hideHeader={true} />
                 </ExplorerProvider>
             )}
+
+            <Modal
+                opened={isRollbackModalOpen}
+                onClose={() => setIsRollbackModalOpen(false)}
+                withCloseButton={false}
+                title={
+                    <Group spacing="xs">
+                        <MantineIcon icon={IconHistory} size="lg" />
+                        <Title order={4}>Restore chart version</Title>
+                    </Group>
+                }
+            >
+                <Stack>
+                    <Text>
+                        If you restore this version, a new version will be
+                        created and applied as the current version. We'll keep
+                        all existing versions.
+                    </Text>
+                    <Group position="right" spacing="xs">
+                        <Button
+                            variant="outline"
+                            disabled={rollbackMutation.isLoading}
+                            loading={rollbackMutation.isLoading}
+                            onClick={() => setIsRollbackModalOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            disabled={rollbackMutation.isLoading}
+                            loading={rollbackMutation.isLoading}
+                            onClick={() =>
+                                selectedVersionUuid &&
+                                rollbackMutation.mutate(selectedVersionUuid)
+                            }
+                            type="submit"
+                        >
+                            Restore
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
         </Page>
     );
 };

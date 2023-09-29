@@ -685,10 +685,23 @@ export class SavedChartService {
                 "You don't have access to the space this chart belongs to",
             );
         }
+        const sinceDaysDiff = 60;
+        const versions = await this.savedChartModel.getLatestVersionSummaries(
+            chartUuid,
+            sinceDaysDiff,
+        );
+        analytics.track({
+            event: 'saved_chart_history.view',
+            userId: user.userUuid,
+            properties: {
+                projectId: chart.projectUuid,
+                savedQueryId: chart.uuid,
+                versionCount: versions.length,
+                sinceDaysDiff,
+            },
+        });
         return {
-            history: await this.savedChartModel.getLatestVersionSummaries(
-                chartUuid,
-            ),
+            history: versions,
         };
     }
 
@@ -706,12 +719,56 @@ export class SavedChartService {
                 "You don't have access to the space this chart belongs to",
             );
         }
+
+        const [chartVersionSummary, savedChart] = await Promise.all([
+            this.savedChartModel.getVersionSummary(chartUuid, versionUuid),
+            this.savedChartModel.get(chartUuid, versionUuid),
+        ]);
+
+        analytics.track({
+            event: 'saved_chart_version.view',
+            userId: user.userUuid,
+            properties: {
+                projectId: chart.projectUuid,
+                savedQueryId: chart.uuid,
+                versionId: versionUuid,
+            },
+        });
+
         return {
-            ...(await this.savedChartModel.getVersionSummary(
-                chartUuid,
-                versionUuid,
-            )),
-            chart: await this.savedChartModel.get(chartUuid, versionUuid),
+            ...chartVersionSummary,
+            chart: savedChart,
         };
+    }
+
+    async rollback(
+        user: SessionUser,
+        chartUuid: string,
+        versionUuid: string,
+    ): Promise<void> {
+        await this.checkUpdateAccess(user, chartUuid);
+        const chartVersion = await this.savedChartModel.get(
+            chartUuid,
+            versionUuid,
+        );
+        const savedChart = await this.savedChartModel.createVersion(
+            chartUuid,
+            chartVersion,
+            user,
+        );
+        analytics.track({
+            event: 'saved_chart_version.rollback',
+            userId: user.userUuid,
+            properties: {
+                projectId: savedChart.projectUuid,
+                savedQueryId: savedChart.uuid,
+                versionId: versionUuid,
+            },
+        });
+        analytics.track({
+            event: 'saved_chart_version.created',
+            userId: user.userUuid,
+            properties: SavedChartService.getCreateEventProperties(savedChart),
+        });
     }
 }

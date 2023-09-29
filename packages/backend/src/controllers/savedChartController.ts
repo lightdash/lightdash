@@ -2,6 +2,7 @@ import {
     ApiErrorPayload,
     ApiGetChartHistoryResponse,
     ApiGetChartVersionResponse,
+    ApiSuccessEmpty,
     FiltersResponse,
 } from '@lightdash/common';
 import { Body, Get, Post } from '@tsoa/runtime';
@@ -121,6 +122,29 @@ export class SavedChartController extends Controller {
                 undefined,
                 versionUuid,
             ),
+        };
+    }
+
+    /**
+     * Rollback chart to version
+     * @param chartUuid chartUuid for the chart to run
+     * @param versionUuid versionUuid for the chart version
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/rollback/{versionUuid}/')
+    @OperationId('getChartVersionResults')
+    async postChartVersionRollback(
+        @Path() chartUuid: string,
+        @Path() versionUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await savedChartsService.rollback(req.user!, chartUuid, versionUuid);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 }
