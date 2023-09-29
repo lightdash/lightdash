@@ -858,12 +858,16 @@ export class ProjectService {
         user: SessionUser,
         chartUuid: string,
         filters?: Filters,
+        versionUuid?: string,
     ): Promise<ApiQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
 
-        const savedChart = await this.savedChartModel.get(chartUuid);
+        const savedChart = await this.savedChartModel.get(
+            chartUuid,
+            versionUuid,
+        );
         const { organizationUuid, projectUuid } = savedChart;
 
         if (

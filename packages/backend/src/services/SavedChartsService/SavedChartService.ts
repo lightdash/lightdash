@@ -1,8 +1,10 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
+    ChartHistory,
     ChartSummary,
     ChartType,
+    ChartVersion,
     countTotalFilterRules,
     CreateSavedChart,
     CreateSavedChartVersion,
@@ -668,5 +670,48 @@ export class SavedChartService {
         await schedulerClient.generateDailyJobsForScheduler(scheduler);
 
         return scheduler;
+    }
+
+    async getHistory(
+        user: SessionUser,
+        chartUuid: string,
+    ): Promise<ChartHistory> {
+        const chart = await this.savedChartModel.getSummary(chartUuid);
+        if (user.ability.cannot('view', subject('SavedChart', chart))) {
+            throw new ForbiddenError();
+        }
+        if (!(await this.hasChartSpaceAccess(user, chart.spaceUuid))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this chart belongs to",
+            );
+        }
+        return {
+            history: await this.savedChartModel.getLatestVersionSummaries(
+                chartUuid,
+            ),
+        };
+    }
+
+    async getVersion(
+        user: SessionUser,
+        chartUuid: string,
+        versionUuid: string,
+    ): Promise<ChartVersion> {
+        const chart = await this.savedChartModel.getSummary(chartUuid);
+        if (user.ability.cannot('view', subject('SavedChart', chart))) {
+            throw new ForbiddenError();
+        }
+        if (!(await this.hasChartSpaceAccess(user, chart.spaceUuid))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this chart belongs to",
+            );
+        }
+        return {
+            ...(await this.savedChartModel.getVersionSummary(
+                chartUuid,
+                versionUuid,
+            )),
+            chart: await this.savedChartModel.get(chartUuid, versionUuid),
+        };
     }
 }

@@ -13,6 +13,7 @@ import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
 import UserCompletionModal from './components/UserCompletionModal';
 
+import ChartHistory from './pages/ChartHistory';
 import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
 import Dashboard from './pages/Dashboard';
@@ -143,6 +144,14 @@ const Routes: FC = () => {
                         <Switch>
                             <ProjectRoute path="/projects/:projectUuid">
                                 <Switch>
+                                    <Route path="/projects/:projectUuid/saved/:savedQueryUuid/history">
+                                        <NavBar />
+                                        <TrackPage
+                                            name={PageName.CHART_HISTORY}
+                                        >
+                                            <ChartHistory />
+                                        </TrackPage>
+                                    </Route>
                                     <Route path="/projects/:projectUuid/saved/:savedQueryUuid/:mode?">
                                         <NavBar />
                                         <TrackPage

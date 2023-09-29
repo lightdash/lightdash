@@ -26,7 +26,10 @@ import { FC, useCallback, useEffect, useMemo, useReducer } from 'react';
 import { useHistory } from 'react-router-dom';
 import { createContext, useContextSelector } from 'use-context-selector';
 import useDefaultSortField from '../hooks/useDefaultSortField';
-import { useQueryResults } from '../hooks/useQueryResults';
+import {
+    useChartVersionResultsMutation,
+    useQueryResults,
+} from '../hooks/useQueryResults';
 
 export enum ExplorerSection {
     FILTERS = 'FILTERS',
@@ -186,7 +189,9 @@ export interface ExplorerState extends ExplorerReduceState {
 
 export interface ExplorerContext {
     state: ExplorerState;
-    queryResults: ReturnType<typeof useQueryResults>;
+    queryResults: ReturnType<
+        typeof useQueryResults | typeof useChartVersionResultsMutation
+    >;
     actions: {
         clearExplore: () => void;
         clearQuery: () => void;
@@ -864,7 +869,9 @@ export const ExplorerProvider: FC<{
     isEditMode?: boolean;
     initialState?: ExplorerReduceState;
     savedChart?: SavedChart;
-    queryResults: ReturnType<typeof useQueryResults>;
+    queryResults: ReturnType<
+        typeof useQueryResults | typeof useChartVersionResultsMutation
+    >;
 }> = ({
     isEditMode = false,
     initialState,

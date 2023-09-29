@@ -2531,6 +2531,1057 @@
                 ],
                 "type": "object"
             },
+            "Pick_LightdashUser.userUuid-or-firstName-or-lastName_": {
+                "properties": {
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["userUuid", "firstName", "lastName"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_ChartVersion.chartUuid-or-versionUuid-or-createdAt-or-createdBy_": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "chartUuid": {
+                        "type": "string"
+                    },
+                    "versionUuid": {
+                        "type": "string"
+                    },
+                    "createdBy": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName_"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "chartUuid",
+                    "versionUuid",
+                    "createdBy"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ChartVersionSummary": {
+                "$ref": "#/components/schemas/Pick_ChartVersion.chartUuid-or-versionUuid-or-createdAt-or-createdBy_"
+            },
+            "ChartHistory": {
+                "properties": {
+                    "history": {
+                        "items": {
+                            "$ref": "#/components/schemas/ChartVersionSummary"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["history"],
+                "type": "object"
+            },
+            "ApiGetChartHistoryResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ChartHistory"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "FilterGroup": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/OrFilterGroup"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AndFilterGroup"
+                    }
+                ]
+            },
+            "FieldTarget": {
+                "properties": {
+                    "fieldId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fieldId"],
+                "type": "object"
+            },
+            "FilterRule": {
+                "properties": {
+                    "values": {
+                        "items": {},
+                        "type": "array"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/ConditionalOperator"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "target": {
+                        "$ref": "#/components/schemas/FieldTarget"
+                    },
+                    "settings": {},
+                    "disabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["operator", "id", "target"],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "FilterGroupItem": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/FilterGroup"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FilterRule"
+                    }
+                ]
+            },
+            "OrFilterGroup": {
+                "properties": {
+                    "or": {
+                        "items": {
+                            "$ref": "#/components/schemas/FilterGroupItem"
+                        },
+                        "type": "array"
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["or", "id"],
+                "type": "object"
+            },
+            "AndFilterGroup": {
+                "properties": {
+                    "and": {
+                        "items": {
+                            "$ref": "#/components/schemas/FilterGroupItem"
+                        },
+                        "type": "array"
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["and", "id"],
+                "type": "object"
+            },
+            "Filters": {
+                "properties": {
+                    "metrics": {
+                        "$ref": "#/components/schemas/FilterGroup"
+                    },
+                    "dimensions": {
+                        "$ref": "#/components/schemas/FilterGroup"
+                    }
+                },
+                "type": "object"
+            },
+            "MetricQuery": {
+                "properties": {
+                    "additionalMetrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/AdditionalMetric"
+                        },
+                        "type": "array"
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/TableCalculation"
+                        },
+                        "type": "array"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sorts": {
+                        "items": {
+                            "$ref": "#/components/schemas/SortField"
+                        },
+                        "type": "array"
+                    },
+                    "filters": {
+                        "$ref": "#/components/schemas/Filters"
+                    },
+                    "metrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array"
+                    },
+                    "dimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "tableCalculations",
+                    "limit",
+                    "sorts",
+                    "filters",
+                    "metrics",
+                    "dimensions"
+                ],
+                "type": "object"
+            },
+            "ChartType.PIE": {
+                "enum": ["pie"],
+                "type": "string"
+            },
+            "PieChartValueLabel": {
+                "type": "string",
+                "enum": ["hidden", "inside", "outside"],
+                "nullable": false
+            },
+            "Record_string.string_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "Record_string.Partial_PieChartValueOptions__": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "PieChartLegendPosition": {
+                "type": "string",
+                "enum": ["horizontal", "vertical"],
+                "nullable": false
+            },
+            "PieChart": {
+                "properties": {
+                    "legendPosition": {
+                        "$ref": "#/components/schemas/PieChartLegendPosition"
+                    },
+                    "showLegend": {
+                        "type": "boolean"
+                    },
+                    "groupSortOverrides": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "groupValueOptionOverrides": {
+                        "$ref": "#/components/schemas/Record_string.Partial_PieChartValueOptions__"
+                    },
+                    "groupColorOverrides": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "groupLabelOverrides": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "showPercentage": {
+                        "type": "boolean"
+                    },
+                    "showValue": {
+                        "type": "boolean"
+                    },
+                    "valueLabel": {
+                        "$ref": "#/components/schemas/PieChartValueLabel"
+                    },
+                    "isDonut": {
+                        "type": "boolean"
+                    },
+                    "metricId": {
+                        "type": "string"
+                    },
+                    "groupFieldIds": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object"
+            },
+            "PieChartConfig": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/PieChart"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.PIE"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
+            "ChartType.BIG_NUMBER": {
+                "enum": ["big_number"],
+                "type": "string"
+            },
+            "ComparisonFormatTypes": {
+                "enum": ["raw", "percentage"],
+                "type": "string"
+            },
+            "BigNumber": {
+                "properties": {
+                    "comparisonLabel": {
+                        "type": "string"
+                    },
+                    "flipColors": {
+                        "type": "boolean"
+                    },
+                    "comparisonFormat": {
+                        "$ref": "#/components/schemas/ComparisonFormatTypes"
+                    },
+                    "showComparison": {
+                        "type": "boolean"
+                    },
+                    "showBigNumberLabel": {
+                        "type": "boolean"
+                    },
+                    "selectedField": {
+                        "type": "string"
+                    },
+                    "style": {
+                        "$ref": "#/components/schemas/CompactOrAlias"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "BigNumberConfig": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/BigNumber"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.BIG_NUMBER"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
+            "ChartType.TABLE": {
+                "enum": ["table"],
+                "type": "string"
+            },
+            "Record_string.ColumnProperties_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ConditionalRule_ConditionalOperator.number_": {
+                "properties": {
+                    "values": {
+                        "items": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "type": "array"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/ConditionalOperator"
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["operator", "id"],
+                "type": "object"
+            },
+            "ConditionalFormattingWithConditionalOperator": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ConditionalRule_ConditionalOperator.number_"
+                    },
+                    {
+                        "properties": {
+                            "values": {
+                                "items": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["values"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ConditionalFormattingConfigWithSingleColor": {
+                "properties": {
+                    "rules": {
+                        "items": {
+                            "$ref": "#/components/schemas/ConditionalFormattingWithConditionalOperator"
+                        },
+                        "type": "array"
+                    },
+                    "color": {
+                        "type": "string"
+                    },
+                    "target": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FieldTarget"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["rules", "color", "target"],
+                "type": "object"
+            },
+            "ConditionalFormattingWithRange": {
+                "properties": {
+                    "max": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "min": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["max", "min"],
+                "type": "object"
+            },
+            "ConditionalFormattingConfigWithColorRange": {
+                "properties": {
+                    "rule": {
+                        "$ref": "#/components/schemas/ConditionalFormattingWithRange"
+                    },
+                    "color": {
+                        "properties": {
+                            "steps": {
+                                "type": "number",
+                                "enum": [5],
+                                "nullable": false
+                            },
+                            "end": {
+                                "type": "string"
+                            },
+                            "start": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["steps", "end", "start"],
+                        "type": "object"
+                    },
+                    "target": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FieldTarget"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["rule", "color", "target"],
+                "type": "object"
+            },
+            "ConditionalFormattingConfig": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ConditionalFormattingConfigWithSingleColor"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ConditionalFormattingConfigWithColorRange"
+                    }
+                ]
+            },
+            "TableChart": {
+                "properties": {
+                    "metricsAsRows": {
+                        "type": "boolean"
+                    },
+                    "conditionalFormattings": {
+                        "items": {
+                            "$ref": "#/components/schemas/ConditionalFormattingConfig"
+                        },
+                        "type": "array"
+                    },
+                    "columns": {
+                        "$ref": "#/components/schemas/Record_string.ColumnProperties_"
+                    },
+                    "showResultsTotal": {
+                        "type": "boolean"
+                    },
+                    "hideRowNumbers": {
+                        "type": "boolean"
+                    },
+                    "showTableNames": {
+                        "type": "boolean"
+                    },
+                    "showRowCalculation": {
+                        "type": "boolean"
+                    },
+                    "showColumnCalculation": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "TableChartConfig": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/TableChart"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.TABLE"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
+            "ChartType.CARTESIAN": {
+                "enum": ["cartesian"],
+                "type": "string"
+            },
+            "Partial_CompleteCartesianChartLayout_": {
+                "properties": {
+                    "xField": {
+                        "type": "string"
+                    },
+                    "yField": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "flipAxes": {
+                        "type": "boolean"
+                    },
+                    "showGridX": {
+                        "type": "boolean"
+                    },
+                    "showGridY": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "CartesianChartLayout": {
+                "$ref": "#/components/schemas/Partial_CompleteCartesianChartLayout_"
+            },
+            "EchartsLegend": {
+                "properties": {
+                    "icon": {
+                        "type": "string",
+                        "enum": [
+                            "circle",
+                            "rect",
+                            "roundRect",
+                            "triangle",
+                            "diamond",
+                            "pin",
+                            "arrow",
+                            "none"
+                        ]
+                    },
+                    "align": {
+                        "type": "string",
+                        "enum": ["auto", "left", "right"]
+                    },
+                    "height": {
+                        "type": "string"
+                    },
+                    "width": {
+                        "type": "string"
+                    },
+                    "left": {
+                        "type": "string"
+                    },
+                    "bottom": {
+                        "type": "string"
+                    },
+                    "right": {
+                        "type": "string"
+                    },
+                    "top": {
+                        "type": "string"
+                    },
+                    "orient": {
+                        "type": "string",
+                        "enum": ["horizontal", "vertical"]
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["plain", "scroll"]
+                    },
+                    "show": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "EchartsGrid": {
+                "properties": {
+                    "height": {
+                        "type": "string"
+                    },
+                    "width": {
+                        "type": "string"
+                    },
+                    "left": {
+                        "type": "string"
+                    },
+                    "bottom": {
+                        "type": "string"
+                    },
+                    "right": {
+                        "type": "string"
+                    },
+                    "top": {
+                        "type": "string"
+                    },
+                    "containLabel": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "PivotValue": {
+                "properties": {
+                    "value": {},
+                    "field": {
+                        "type": "string"
+                    }
+                },
+                "required": ["value", "field"],
+                "type": "object"
+            },
+            "PivotReference": {
+                "properties": {
+                    "pivotValues": {
+                        "items": {
+                            "$ref": "#/components/schemas/PivotValue"
+                        },
+                        "type": "array"
+                    },
+                    "field": {
+                        "type": "string"
+                    }
+                },
+                "required": ["field"],
+                "type": "object"
+            },
+            "CartesianSeriesType": {
+                "enum": ["line", "bar", "scatter", "area"],
+                "type": "string"
+            },
+            "MarkLineData": {
+                "properties": {
+                    "label": {
+                        "properties": {
+                            "formatter": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "lineStyle": {
+                        "properties": {
+                            "color": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["color"],
+                        "type": "object"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "xAxis": {
+                        "type": "string"
+                    },
+                    "yAxis": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name"],
+                "type": "object"
+            },
+            "MarkLine": {
+                "properties": {
+                    "label": {
+                        "properties": {
+                            "formatter": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "lineStyle": {
+                        "properties": {
+                            "type": {
+                                "type": "string"
+                            },
+                            "width": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "color": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["type", "width", "color"],
+                        "type": "object"
+                    },
+                    "symbol": {
+                        "type": "string"
+                    },
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/MarkLineData"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "Series": {
+                "properties": {
+                    "markLine": {
+                        "$ref": "#/components/schemas/MarkLine"
+                    },
+                    "smooth": {
+                        "type": "boolean"
+                    },
+                    "showSymbol": {
+                        "type": "boolean"
+                    },
+                    "areaStyle": {
+                        "properties": {},
+                        "type": "object"
+                    },
+                    "hidden": {
+                        "type": "boolean"
+                    },
+                    "label": {
+                        "properties": {
+                            "position": {
+                                "type": "string",
+                                "enum": [
+                                    "left",
+                                    "top",
+                                    "right",
+                                    "bottom",
+                                    "inside"
+                                ]
+                            },
+                            "show": {
+                                "type": "boolean"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "yAxisIndex": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "color": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "stackLabel": {
+                        "properties": {
+                            "show": {
+                                "type": "boolean"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "stack": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/CartesianSeriesType"
+                    },
+                    "encode": {
+                        "properties": {
+                            "y": {
+                                "type": "string"
+                            },
+                            "x": {
+                                "type": "string"
+                            },
+                            "yRef": {
+                                "$ref": "#/components/schemas/PivotReference"
+                            },
+                            "xRef": {
+                                "$ref": "#/components/schemas/PivotReference"
+                            }
+                        },
+                        "required": ["yRef", "xRef"],
+                        "type": "object"
+                    }
+                },
+                "required": ["type", "encode"],
+                "type": "object"
+            },
+            "Axis": {
+                "properties": {
+                    "inverse": {
+                        "type": "boolean"
+                    },
+                    "max": {
+                        "type": "string"
+                    },
+                    "min": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "Partial_CompleteEChartsConfig_": {
+                "properties": {
+                    "legend": {
+                        "$ref": "#/components/schemas/EchartsLegend"
+                    },
+                    "grid": {
+                        "$ref": "#/components/schemas/EchartsGrid"
+                    },
+                    "series": {
+                        "items": {
+                            "$ref": "#/components/schemas/Series"
+                        },
+                        "type": "array"
+                    },
+                    "xAxis": {
+                        "items": {
+                            "$ref": "#/components/schemas/Axis"
+                        },
+                        "type": "array"
+                    },
+                    "yAxis": {
+                        "items": {
+                            "$ref": "#/components/schemas/Axis"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "EChartsConfig": {
+                "$ref": "#/components/schemas/Partial_CompleteEChartsConfig_"
+            },
+            "CartesianChart": {
+                "properties": {
+                    "eChartsConfig": {
+                        "$ref": "#/components/schemas/EChartsConfig"
+                    },
+                    "layout": {
+                        "$ref": "#/components/schemas/CartesianChartLayout"
+                    }
+                },
+                "required": ["eChartsConfig", "layout"],
+                "type": "object"
+            },
+            "CartesianChartConfig": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/CartesianChart"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.CARTESIAN"
+                    }
+                },
+                "required": ["config", "type"],
+                "type": "object"
+            },
+            "ChartConfig": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/PieChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/BigNumberConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/TableChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CartesianChartConfig"
+                    }
+                ]
+            },
+            "SavedChart": {
+                "properties": {
+                    "dashboardName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "spaceName": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "updatedByUser": {
+                        "$ref": "#/components/schemas/UpdatedByUser"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "tableConfig": {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object"
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig"
+                    },
+                    "pivotConfig": {
+                        "properties": {
+                            "columns": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columns"],
+                        "type": "object"
+                    },
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQuery"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "dashboardName",
+                    "dashboardUuid",
+                    "pinnedListOrder",
+                    "pinnedListUuid",
+                    "spaceName",
+                    "spaceUuid",
+                    "organizationUuid",
+                    "updatedAt",
+                    "tableConfig",
+                    "chartConfig",
+                    "metricQuery",
+                    "tableName",
+                    "name",
+                    "projectUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "ChartVersion": {
+                "properties": {
+                    "chart": {
+                        "$ref": "#/components/schemas/SavedChart"
+                    },
+                    "createdBy": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "versionUuid": {
+                        "type": "string"
+                    },
+                    "chartUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "chart",
+                    "createdBy",
+                    "createdAt",
+                    "versionUuid",
+                    "chartUuid"
+                ],
+                "type": "object"
+            },
+            "ApiGetChartVersionResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ChartVersion"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "SchedulerFormat": {
                 "enum": ["csv", "image", "gsheets"],
                 "type": "string"
@@ -4084,7 +5135,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.783.0",
+        "version": "0.792.2",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -5926,6 +6977,147 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/saved/{chartUuid}/history": {
+            "get": {
+                "operationId": "get",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetChartHistoryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get chart version history from last 30 days",
+                "tags": ["Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "chartUuid for the chart",
+                        "in": "path",
+                        "name": "chartUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/saved/{chartUuid}/version/{versionUuid}": {
+            "get": {
+                "operationId": "get",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetChartVersionResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get chart version",
+                "tags": ["Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "chartUuid for the chart",
+                        "in": "path",
+                        "name": "chartUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "versionUuid for the chart version",
+                        "in": "path",
+                        "name": "versionUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/saved/{chartUuid}/version/{versionUuid}/results": {
+            "post": {
+                "operationId": "getChartVersionResults",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRunQueryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Run a query for a chart version",
+                "tags": ["Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "chartUuid for the chart to run",
+                        "in": "path",
+                        "name": "chartUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "versionUuid for the chart version",
+                        "in": "path",
+                        "name": "versionUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/schedulers/{projectUuid}/logs": {
