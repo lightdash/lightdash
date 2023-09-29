@@ -1,3 +1,10 @@
+# [0.794.0](https://github.com/lightdash/lightdash/compare/0.793.0...0.794.0) (2023-09-29)
+
+
+### Features
+
+* chart history ([#7265](https://github.com/lightdash/lightdash/issues/7265)) ([7c34b76](https://github.com/lightdash/lightdash/commit/7c34b7680c8e05971924de8336bfd072b3a8d6f7))
+
 # [0.793.0](https://github.com/lightdash/lightdash/compare/0.792.3...0.793.0) (2023-09-29)
 
 
