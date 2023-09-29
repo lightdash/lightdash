@@ -142,6 +142,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
     const [haveFiltersChanged, setHaveFiltersChanged] =
         useState<boolean>(false);
 
+    // Set filters to filters from database
     useEffect(() => {
         if (dashboard && dashboardFilters === emptyFilters) {
             setDashboardFilters(dashboard.filters);
@@ -253,7 +254,6 @@ export const DashboardProvider: React.FC = ({ children }) => {
     useMount(() => {
         const searchParams = new URLSearchParams(search);
         const tempFilterSearchParam = searchParams.get('tempFilters');
-        const filtersSearchParam = searchParams.get('filters');
         const unsavedDashboardFiltersRaw = sessionStorage.getItem(
             'unsavedDashboardFilters',
         );
@@ -271,15 +271,9 @@ export const DashboardProvider: React.FC = ({ children }) => {
                 ),
             );
         }
-        if (filtersSearchParam) {
-            setDashboardFilters(
-                convertDashboardFiltersParamToDashboardFilters(
-                    JSON.parse(filtersSearchParam),
-                ),
-            );
-        }
     });
 
+    // Updates url with temp filters
     useEffect(() => {
         const newParams = new URLSearchParams(search);
         if (
@@ -296,31 +290,11 @@ export const DashboardProvider: React.FC = ({ children }) => {
             );
         }
 
-        if (
-            dashboardFilters?.dimensions?.length === 0 &&
-            dashboardFilters?.metrics?.length === 0
-        ) {
-            newParams.delete('filters');
-        } else {
-            newParams.set(
-                'filters',
-                JSON.stringify(
-                    compressDashboardFiltersToParam(dashboardFilters),
-                ),
-            );
-        }
-
         history.replace({
             pathname,
             search: newParams.toString(),
         });
-    }, [
-        dashboardTemporaryFilters,
-        dashboardFilters,
-        history,
-        pathname,
-        search,
-    ]);
+    }, [dashboardTemporaryFilters, history, pathname, search]);
 
     const allFilters = useMemo(() => {
         return {
