@@ -1,3 +1,10 @@
+# [0.793.0](https://github.com/lightdash/lightdash/compare/0.792.3...0.793.0) (2023-09-29)
+
+
+### Features
+
+* 6564 dashboard links should more generically include saved filters and this should be dynamic ([#7261](https://github.com/lightdash/lightdash/issues/7261)) ([991a0ae](https://github.com/lightdash/lightdash/commit/991a0ae373df688dbb7545080ebbf07e3242c066))
+
 ## [0.792.3](https://github.com/lightdash/lightdash/compare/0.792.2...0.792.3) (2023-09-29)
 
 
