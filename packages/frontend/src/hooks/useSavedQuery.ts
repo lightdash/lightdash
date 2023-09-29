@@ -144,6 +144,41 @@ export const useChartVersion = (chartUuid: string, versionUuid?: string) =>
         retry: false,
     });
 
+const rollbackChartQuery = async (
+    chartUuid: string,
+    versionUuid: string,
+): Promise<undefined> =>
+    lightdashApi<undefined>({
+        url: `/saved/${chartUuid}/rollback/${versionUuid}`,
+        method: 'POST',
+        body: undefined,
+    });
+export const useChartVersionRollbackMutation = (
+    chartUuid: string,
+    useQueryOptions?: UseQueryOptions<undefined, ApiError>,
+) => {
+    const { showToastSuccess, showToastError } = useToaster();
+    return useMutation<undefined, ApiError, string>(
+        (versionUuid: string) => rollbackChartQuery(chartUuid, versionUuid),
+        {
+            mutationKey: ['saved_query_rollback'],
+            ...useQueryOptions,
+            onSuccess: async (data) => {
+                showToastSuccess({
+                    title: `Success! Chart was reverted.`,
+                });
+                useQueryOptions?.onSuccess?.(data);
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to revert chart`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
+};
+
 export const useSavedQueryDeleteMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();

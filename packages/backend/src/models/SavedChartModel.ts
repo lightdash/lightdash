@@ -364,7 +364,7 @@ export class SavedChartModel {
             .andWhere(
                 `${SavedChartVersionsTableName}.created_at`,
                 '>=',
-                moment().subtract(30, 'days'),
+                moment().subtract(60, 'days'),
             )
             .orderBy(`${SavedChartVersionsTableName}.created_at`, 'asc');
 
