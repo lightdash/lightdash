@@ -28,6 +28,7 @@ const AddTileButton: FC<Props> = ({
     const {
         dashboardTiles,
         dashboardFilters,
+        dashboardTemporaryFilters,
         haveTilesChanged,
         haveFiltersChanged,
         dashboard,
@@ -77,6 +78,7 @@ const AddTileButton: FC<Props> = ({
                                 storeDashboard(
                                     dashboardTiles,
                                     dashboardFilters,
+                                    dashboardTemporaryFilters,
                                     haveTilesChanged,
                                     haveFiltersChanged,
                                     dashboard?.uuid,

@@ -257,12 +257,21 @@ export const DashboardProvider: React.FC = ({ children }) => {
         const unsavedDashboardFiltersRaw = sessionStorage.getItem(
             'unsavedDashboardFilters',
         );
+        const unsavedDashboardTemporaryFiltersRaw = sessionStorage.getItem(
+            'unsavedDashboardTemporaryFilters',
+        );
         sessionStorage.removeItem('unsavedDashboardFilters');
         if (unsavedDashboardFiltersRaw) {
             const unsavedDashboardFilters = JSON.parse(
                 unsavedDashboardFiltersRaw,
             );
             setDashboardFilters(unsavedDashboardFilters);
+        }
+        if (unsavedDashboardTemporaryFiltersRaw) {
+            const unsavedDashboardTemporaryFilters = JSON.parse(
+                unsavedDashboardTemporaryFiltersRaw,
+            );
+            setDashboardTemporaryFilters(unsavedDashboardTemporaryFilters);
         }
         if (tempFilterSearchParam) {
             setDashboardTemporaryFilters(

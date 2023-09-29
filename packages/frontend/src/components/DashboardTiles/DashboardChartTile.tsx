@@ -302,7 +302,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         addDimensionDashboardFilter,
         setDashboardTiles,
         dashboardTiles,
-        dashboardFilters: filtersFromCOntext,
+        dashboardFilters: filtersFromContext,
+        dashboardTemporaryFilters: tempFiltersFromContext,
         haveTilesChanged,
         haveFiltersChanged,
         dashboard,
@@ -529,7 +530,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                             if (belongsToDashboard) {
                                                 storeDashboard(
                                                     dashboardTiles,
-                                                    filtersFromCOntext,
+                                                    filtersFromContext,
+                                                    tempFiltersFromContext,
                                                     haveTilesChanged,
                                                     haveFiltersChanged,
                                                     dashboard?.uuid,

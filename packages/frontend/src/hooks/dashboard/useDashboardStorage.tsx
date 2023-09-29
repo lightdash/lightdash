@@ -32,6 +32,7 @@ const useDashboardStorage = () => {
         sessionStorage.removeItem('dashboardUuid');
         sessionStorage.removeItem('unsavedDashboardTiles');
         sessionStorage.removeItem('unsavedDashboardFilters');
+        sessionStorage.removeItem('unsavedDashboardTemporaryFilters');
         sessionStorage.removeItem('hasDashboardChanges');
     }, []);
 
@@ -39,6 +40,7 @@ const useDashboardStorage = () => {
         (
             dashboardTiles: DashboardTile[],
             dashboardFilters: DashboardFilters,
+            dashboardTemporaryFilters: DashboardFilters,
             haveTilesChanged: boolean,
             haveFiltersChanged: boolean,
             dashboardUuid?: string,
@@ -57,6 +59,15 @@ const useDashboardStorage = () => {
                 sessionStorage.setItem(
                     'unsavedDashboardFilters',
                     JSON.stringify(dashboardFilters),
+                );
+            }
+            if (
+                dashboardTemporaryFilters.dimensions.length > 0 ||
+                dashboardTemporaryFilters.metrics.length > 0
+            ) {
+                sessionStorage.setItem(
+                    'unsavedDashboardTemporaryFilters',
+                    JSON.stringify(dashboardTemporaryFilters),
                 );
             }
             sessionStorage.setItem(
