@@ -121,7 +121,7 @@ const ChartHistory = () => {
                     }}
                     savedChart={chartVersionQuery.data?.chart}
                 >
-                    <Explorer />
+                    <Explorer hideHeader={true} />
                 </ExplorerProvider>
             )}
         </Page>

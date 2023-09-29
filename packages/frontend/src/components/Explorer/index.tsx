@@ -13,37 +13,39 @@ import ResultsCard from './ResultsCard/ResultsCard';
 import SqlCard from './SqlCard/SqlCard';
 import VisualizationCard from './VisualizationCard/VisualizationCard';
 
-const Explorer: FC = memo(() => {
-    const unsavedChartVersionTableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
-    const unsavedChartVersionMetricQuery = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery,
-    );
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+const Explorer: FC<{ hideHeader?: boolean }> = memo(
+    ({ hideHeader = false }) => {
+        const unsavedChartVersionTableName = useExplorerContext(
+            (context) => context.state.unsavedChartVersion.tableName,
+        );
+        const unsavedChartVersionMetricQuery = useExplorerContext(
+            (context) => context.state.unsavedChartVersion.metricQuery,
+        );
+        const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    return (
-        <MetricQueryDataProvider
-            metricQuery={unsavedChartVersionMetricQuery}
-            tableName={unsavedChartVersionTableName}
-        >
-            <Stack sx={{ flexGrow: 1 }}>
-                <ExplorerHeader />
+        return (
+            <MetricQueryDataProvider
+                metricQuery={unsavedChartVersionMetricQuery}
+                tableName={unsavedChartVersionTableName}
+            >
+                <Stack sx={{ flexGrow: 1 }}>
+                    {!hideHeader && <ExplorerHeader />}
 
-                <FiltersCard />
+                    <FiltersCard />
 
-                <VisualizationCard projectUuid={projectUuid} />
+                    <VisualizationCard projectUuid={projectUuid} />
 
-                <ResultsCard />
+                    <ResultsCard />
 
-                <SqlCard projectUuid={projectUuid} />
-            </Stack>
+                    <SqlCard projectUuid={projectUuid} />
+                </Stack>
 
-            <UnderlyingDataModal />
-            <DrillDownModal />
-            <CustomMetricModal />
-        </MetricQueryDataProvider>
-    );
-});
+                <UnderlyingDataModal />
+                <DrillDownModal />
+                <CustomMetricModal />
+            </MetricQueryDataProvider>
+        );
+    },
+);
 
 export default Explorer;
