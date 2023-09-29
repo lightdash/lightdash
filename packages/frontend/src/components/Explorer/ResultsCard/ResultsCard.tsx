@@ -161,7 +161,7 @@ const ResultsCard: FC = memo(() => {
                 )
             }
         >
-            {/* <ExplorerResults /> */}
+            <ExplorerResults />
         </CollapsableCard>
     );
 });
