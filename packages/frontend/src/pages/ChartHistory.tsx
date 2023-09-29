@@ -5,6 +5,7 @@ import {
     ActionIcon,
     Badge,
     Button,
+    Flex,
     Group,
     Menu,
     Modal,
@@ -89,15 +90,20 @@ const ChartHistory = () => {
                     mah="100%"
                     sx={{ overflowY: 'hidden', flex: 1 }}
                 >
-                    <PageBreadcrumbs
-                        items={[
-                            {
-                                title: 'Chart',
-                                to: `/projects/${projectUuid}/saved/${savedQueryUuid}/view`,
-                            },
-                            { title: 'History', active: true },
-                        ]}
-                    />
+                    <Flex gap="xs">
+                        <PageBreadcrumbs
+                            items={[
+                                {
+                                    title: 'Chart',
+                                    to: `/projects/${projectUuid}/saved/${savedQueryUuid}/view`,
+                                },
+                                { title: 'History', active: true },
+                            ]}
+                        />
+                        <Badge size="sm" variant="light">
+                            BETA
+                        </Badge>
+                    </Flex>
                     <Stack spacing="xs" sx={{ flexGrow: 1, overflowY: 'auto' }}>
                         {historyQuery.data?.history.map((version, index) => (
                             <NavLink
@@ -254,9 +260,9 @@ const ChartHistory = () => {
             >
                 <Stack>
                     <Text>
-                        If you restore this version, a new version will be
-                        created and applied as the current version. We'll keep
-                        all existing versions.
+                        By restoring to this chart version, a new version will
+                        be generated and saved. All previous versions are still
+                        safely stored and can be restored at any time.
                     </Text>
                     <Group position="right" spacing="xs">
                         <Button

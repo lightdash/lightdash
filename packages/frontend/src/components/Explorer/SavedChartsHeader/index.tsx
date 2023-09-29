@@ -17,7 +17,6 @@ import {
     IconCopy,
     IconDots,
     IconFolders,
-    IconHistory,
     IconLayoutGridAdd,
     IconPencil,
     IconSend,
@@ -381,13 +380,6 @@ const SavedChartsHeader: FC = () => {
                                             onClick={() => {
                                                 setIsQueryModalOpen(true);
                                             }}
-                                        />
-                                    )}
-                                    {!hasUnsavedChanges && (
-                                        <MenuItem2
-                                            icon={<IconHistory />}
-                                            text="History"
-                                            href={`/projects/${projectUuid}/saved/${chartId}/history`}
                                         />
                                     )}
                                     {!hasUnsavedChanges &&
