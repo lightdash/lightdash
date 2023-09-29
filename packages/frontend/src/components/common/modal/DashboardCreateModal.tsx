@@ -11,7 +11,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconArrowLeft, IconPlus } from '@tabler/icons-react';
+import { IconArrowLeft, IconFolder, IconPlus } from '@tabler/icons-react';
 import { FC, useCallback, useEffect, useState } from 'react';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import {
@@ -68,6 +68,13 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
             }
         },
     });
+    const [spacesData] = useState(
+        spaces?.map((space) => ({
+            value: space.uuid,
+            label: space.name,
+        })) ?? [],
+    );
+
     const showNewSpaceInput = isCreatingNewSpace || spaces?.length === 0;
 
     const handleClose = () => {
@@ -143,28 +150,31 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                             {...form.getInputProps('dashboardDescription')}
                         />
                         {!isLoadingSpaces && spaces && !showNewSpaceInput ? (
-                            <>
+                            <Stack spacing="xs">
                                 <Select
+                                    withinPortal
                                     label="Select a space"
-                                    data={spaces?.map((space) => ({
-                                        value: space.uuid,
-                                        label: space.name,
-                                    }))}
+                                    data={spacesData}
+                                    icon={<MantineIcon icon={IconFolder} />}
                                     required
+                                    placeholder="Select space"
+                                    nothingFound="Nothing found"
                                     {...form.getInputProps('spaceUuid')}
                                 />
                                 <Button
                                     leftIcon={<MantineIcon icon={IconPlus} />}
-                                    variant="outline"
+                                    variant="subtle"
+                                    mr="auto"
                                     size="xs"
                                     onClick={() => setIsCreatingNewSpace(true)}
                                 >
                                     Create new space
                                 </Button>
-                            </>
+                            </Stack>
                         ) : (
-                            <>
+                            <Stack spacing="xs">
                                 <TextInput
+                                    icon={<MantineIcon icon={IconFolder} />}
                                     label="Name your space"
                                     placeholder="eg. KPIs"
                                     required
@@ -175,13 +185,14 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                                         <MantineIcon icon={IconArrowLeft} />
                                     }
                                     onClick={() => setIsCreatingNewSpace(false)}
-                                    variant="outline"
+                                    variant="subtle"
                                     color="gray"
+                                    mr="auto"
                                     size="xs"
                                 >
                                     Save to existing space instead
                                 </Button>
-                            </>
+                            </Stack>
                         )}
                     </Stack>
 
