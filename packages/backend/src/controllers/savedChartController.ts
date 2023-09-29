@@ -134,7 +134,7 @@ export class SavedChartController extends Controller {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/rollback/{versionUuid}/')
-    @OperationId('getChartVersionResults')
+    @OperationId('postChartVersionRollback')
     async postChartVersionRollback(
         @Path() chartUuid: string,
         @Path() versionUuid: string,

@@ -5135,7 +5135,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.792.2",
+        "version": "0.794.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -7122,7 +7122,7 @@
         },
         "/api/v1/saved/{chartUuid}/rollback/{versionUuid}": {
             "post": {
-                "operationId": "getChartVersionResults",
+                "operationId": "postChartVersionRollback",
                 "responses": {
                     "200": {
                         "description": "Success",
