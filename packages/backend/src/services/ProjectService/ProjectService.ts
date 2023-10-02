@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    addFiltersToMetricQuery,
     AdditionalMetric,
     AlreadyProcessingError,
     AndFilterGroup,
@@ -824,36 +825,6 @@ export class ProjectService {
         );
     }
 
-    private static combineFilters(
-        metricQuery: MetricQuery,
-        filters: Filters,
-    ): MetricQuery {
-        return {
-            ...metricQuery,
-            filters: {
-                dimensions: {
-                    id: 'and-dimensions',
-                    and: [
-                        metricQuery.filters?.dimensions,
-                        filters.dimensions,
-                    ].reduce<FilterGroup[]>((acc, val) => {
-                        if (val) return [...acc, val];
-                        return acc;
-                    }, []),
-                },
-                metrics: {
-                    id: 'and-metrics',
-                    and: [metricQuery.filters?.metrics, filters.metrics].reduce<
-                        FilterGroup[]
-                    >((acc, val) => {
-                        if (val) return [...acc, val];
-                        return acc;
-                    }, []),
-                },
-            },
-        };
-    }
-
     async runViewChartQuery(
         user: SessionUser,
         chartUuid: string,
@@ -888,7 +859,7 @@ export class ProjectService {
         }
 
         const metricQuery: MetricQuery = filters
-            ? ProjectService.combineFilters(savedChart.metricQuery, filters)
+            ? addFiltersToMetricQuery(savedChart.metricQuery, filters)
             : savedChart.metricQuery;
 
         const queryTags: RunQueryTags = {
