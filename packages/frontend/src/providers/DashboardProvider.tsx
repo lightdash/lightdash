@@ -154,7 +154,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
             );
             // TODO: this should probably merge with the filters
             // from the database. This will break if they diverge,
-            // meaning there is a subtle rage condition here
+            // meaning there is a subtle race condition here
             setDashboardFilters(unsavedDashboardFilters);
         }
         if (tempFilterSearchParam) {
