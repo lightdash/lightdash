@@ -380,7 +380,8 @@ eg. on MacOS you can follow this instructions:
 brew update
 brew install nvm
 
-#3 install node 16x using NVM (https://github.com/nvm-sh/nvm)
+#3 install specified node version using NVM (https://github.com/nvm-sh/nvm)
+
 nvm install v20.8.0
 nvm alias default v20.8.0
 
