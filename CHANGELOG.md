@@ -1,3 +1,10 @@
+## [0.795.2](https://github.com/lightdash/lightdash/compare/0.795.1...0.795.2) (2023-10-02)
+
+
+### Bug Fixes
+
+* change series tooltip and improve ux ([#7247](https://github.com/lightdash/lightdash/issues/7247)) ([f35ea0b](https://github.com/lightdash/lightdash/commit/f35ea0bec0a892b47ec302e9d436c487fa556f4e))
+
 ## [0.795.1](https://github.com/lightdash/lightdash/compare/0.795.0...0.795.1) (2023-10-02)
 
 
