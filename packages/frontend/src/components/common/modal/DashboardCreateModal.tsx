@@ -146,7 +146,6 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                             label="Dashboard description"
                             placeholder="A few words to give your team some context"
                             disabled={isCreatingDashboard}
-                            required
                             {...form.getInputProps('dashboardDescription')}
                         />
                         {!isLoadingSpaces && spaces && !showNewSpaceInput ? (
