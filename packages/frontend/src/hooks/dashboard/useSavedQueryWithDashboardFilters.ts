@@ -3,6 +3,7 @@ import {
     DashboardFilters,
     SavedChart,
 } from '@lightdash/common';
+import { useMemo } from 'react';
 import { useExplore } from '../useExplore';
 import { useSavedQuery } from '../useSavedQuery';
 import useDashboardFiltersForExplore from './useDashboardFiltersForExplore';
@@ -12,13 +13,14 @@ const useSavedQueryWithDashboardFilters = (
     savedChartUuid: string | null,
 ): {
     isLoading: boolean;
+    isError: boolean;
     data: SavedChart | undefined;
     dashboardFilters: DashboardFilters | undefined;
-} & Pick<ReturnType<typeof useSavedQuery>, 'isError' | 'isLoading'> => {
+} => {
     const {
         data: savedQuery,
-        isLoading,
-        isFetching,
+        isLoading: isLoadingSavedQuery,
+        isFetching: isFetchingSavedQuery,
         isError,
     } = useSavedQuery({
         id: savedChartUuid || undefined,
@@ -29,54 +31,58 @@ const useSavedQueryWithDashboardFilters = (
         savedQuery?.tableName,
     );
 
-    const dashboardFilters = useDashboardFiltersForExplore(tileUuid, explore);
-
-    if (isError)
-        return {
-            data: undefined,
-            dashboardFilters: undefined,
-            isLoading,
-            isError,
-        };
-
-    if (savedChartUuid === null) {
-        return {
-            data: undefined,
-            dashboardFilters,
-            isLoading: false,
-            isError,
-        };
-    }
-
-    if (
-        isLoading ||
-        isFetching ||
+    const isLoadingOrFetching =
+        isLoadingSavedQuery ||
+        isFetchingSavedQuery ||
         isLoadingExplore ||
         !savedQuery ||
-        !explore
-    ) {
+        !explore;
+
+    const dashboardFilters = useDashboardFiltersForExplore(tileUuid, explore);
+
+    const savedQueryWithDashboardFilters = useMemo(() => {
+        if (isLoadingOrFetching) return undefined;
+
         return {
-            data: undefined,
-            dashboardFilters: undefined,
-            isLoading: isLoading || isFetching,
-            isError,
+            ...savedQuery,
+            metricQuery: addDashboardFiltersToMetricQuery(
+                savedQuery.metricQuery,
+                dashboardFilters,
+            ),
         };
-    }
+    }, [isLoadingOrFetching, savedQuery, dashboardFilters]);
 
-    const savedQueryWithDashboardFilters = {
-        ...savedQuery,
-        metricQuery: addDashboardFiltersToMetricQuery(
-            savedQuery.metricQuery,
+    return useMemo(() => {
+        if (isError) {
+            return {
+                isLoading: false,
+                isError: true,
+                data: undefined,
+                dashboardFilters: undefined,
+            };
+        }
+
+        if (isLoadingOrFetching) {
+            return {
+                isLoading: true,
+                isError: false,
+                data: undefined,
+                dashboardFilters: undefined,
+            };
+        }
+
+        return {
+            isLoading: false,
+            isError: false,
+            data: savedQueryWithDashboardFilters,
             dashboardFilters,
-        ),
-    };
-
-    return {
-        isLoading,
+        };
+    }, [
         isError,
-        data: savedQueryWithDashboardFilters,
+        isLoadingOrFetching,
+        savedQueryWithDashboardFilters,
         dashboardFilters,
-    };
+    ]);
 };
 
 export default useSavedQueryWithDashboardFilters;
