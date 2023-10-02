@@ -68,12 +68,6 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
             }
         },
     });
-    const [spacesData] = useState(
-        spaces?.map((space) => ({
-            value: space.uuid,
-            label: space.name,
-        })) ?? [],
-    );
 
     const showNewSpaceInput = isCreatingNewSpace || spaces?.length === 0;
 
@@ -153,7 +147,10 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                                 <Select
                                     withinPortal
                                     label="Select a space"
-                                    data={spacesData}
+                                    data={spaces?.map((space) => ({
+                                        value: space.uuid,
+                                        label: space.name,
+                                    }))}
                                     icon={<MantineIcon icon={IconFolder} />}
                                     required
                                     placeholder="Select space"
