@@ -1,3 +1,10 @@
+# [0.797.0](https://github.com/lightdash/lightdash/compare/0.796.0...0.797.0) (2023-10-02)
+
+
+### Features
+
+* upgrade node ([#7280](https://github.com/lightdash/lightdash/issues/7280)) ([334579c](https://github.com/lightdash/lightdash/commit/334579c5c5051b009d306133f73e271522c42335))
+
 # [0.796.0](https://github.com/lightdash/lightdash/compare/0.795.2...0.796.0) (2023-10-02)
 
 
