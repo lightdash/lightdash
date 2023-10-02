@@ -1,6 +1,5 @@
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
-import { Explore } from '../types/explore';
 import {
     Dimension,
     DimensionType,
