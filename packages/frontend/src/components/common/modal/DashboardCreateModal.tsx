@@ -12,7 +12,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconArrowLeft, IconFolder, IconPlus } from '@tabler/icons-react';
-import { FC, useCallback, useEffect, useState } from 'react';
+import { FC, useCallback, useEffect } from 'react';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import {
     useCreateMutation as useSpaceCreateMutation,
@@ -39,10 +39,10 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     const { mutateAsync: createSpace, isLoading: isCreatingSpace } =
         useSpaceCreateMutation(projectUuid);
     const { user } = useApp();
-    const [isCreatingNewSpace, setIsCreatingNewSpace] = useState(false);
 
     const form = useForm({
         initialValues: {
+            isCreatingNewSpace: false,
             dashboardName: '',
             dashboardDescription: '',
             spaceUuid: '',
@@ -64,12 +64,13 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                     ? form.setFieldValue('spaceUuid', currentSpace?.uuid)
                     : null;
             } else {
-                setIsCreatingNewSpace(true);
+                form.setFieldValue('setIsCreatingNewSpace', true);
             }
         },
     });
 
-    const showNewSpaceInput = isCreatingNewSpace || spaces?.length === 0;
+    const showNewSpaceInput =
+        form.values.isCreatingNewSpace || spaces?.length === 0;
 
     const handleClose = () => {
         form.reset();
@@ -93,7 +94,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
         async (data: typeof form.values) => {
             let newSpace: Space | undefined;
 
-            if (isCreatingNewSpace) {
+            if (form.values.isCreatingNewSpace) {
                 newSpace = await createSpace({
                     name: data.newSpaceName,
                     isPrivate: false,
@@ -110,7 +111,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
             onConfirm?.(dashboard);
             form.reset();
         },
-        [createDashboard, createSpace, onConfirm, form, isCreatingNewSpace],
+        [createDashboard, createSpace, onConfirm, form],
     );
 
     if (user.data?.ability?.cannot('manage', 'Dashboard')) return null;
@@ -162,7 +163,12 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                                     variant="subtle"
                                     mr="auto"
                                     size="xs"
-                                    onClick={() => setIsCreatingNewSpace(true)}
+                                    onClick={() =>
+                                        form.setFieldValue(
+                                            'isCreatingNewSpace',
+                                            true,
+                                        )
+                                    }
                                 >
                                     Create new space
                                 </Button>
@@ -180,7 +186,12 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                                     leftIcon={
                                         <MantineIcon icon={IconArrowLeft} />
                                     }
-                                    onClick={() => setIsCreatingNewSpace(false)}
+                                    onClick={() =>
+                                        form.setFieldValue(
+                                            'isCreatingNewSpace',
+                                            false,
+                                        )
+                                    }
                                     variant="subtle"
                                     color="gray"
                                     mr="auto"
