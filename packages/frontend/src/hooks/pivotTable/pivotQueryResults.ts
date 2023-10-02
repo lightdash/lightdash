@@ -571,7 +571,7 @@ export const pivotQueryResults = ({
         dataValues[0].length +
         (pivotConfig.rowTotals && rowTotals ? rowTotals[0].length : 0);
 
-    const rowsCount = dataValues?.length || 0;
+    const rowsCount = dataValues.length || 0;
 
     return {
         titleFields,
