@@ -138,7 +138,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
 
             <DashboardCreateModal
                 projectUuid={projectUuid}
-                isOpen={isCreateDashboardOpen}
+                opened={isCreateDashboardOpen}
                 onClose={() => setIsCreateDashboardOpen(false)}
                 onConfirm={(dashboard) => {
                     history.push(

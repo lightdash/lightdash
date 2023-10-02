@@ -1,24 +1,27 @@
+import { Dashboard, Space } from '@lightdash/common';
 import {
     Button,
-    Dialog,
-    DialogBody,
-    DialogFooter,
-    DialogProps,
-} from '@blueprintjs/core';
-import { Dashboard, Space } from '@lightdash/common';
-import { FC, useCallback, useState } from 'react';
-import { useForm } from 'react-hook-form';
+    Group,
+    MantineProvider,
+    Modal,
+    ModalProps,
+    Select,
+    Stack,
+    TextInput,
+    Title,
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { IconArrowLeft, IconFolder, IconPlus } from '@tabler/icons-react';
+import { FC, useCallback, useEffect } from 'react';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,
 } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
-import Form from '../../ReactHookForm/Form';
-import Input from '../../ReactHookForm/Input';
-import Select from '../../ReactHookForm/Select';
+import MantineIcon from '../MantineIcon';
 
-interface DashboardCreateModalProps extends DialogProps {
+interface DashboardCreateModalProps extends ModalProps {
     projectUuid: string;
     defaultSpaceUuid?: string;
     onConfirm?: (dashboard: Dashboard) => void;
@@ -36,11 +39,10 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     const { mutateAsync: createSpace, isLoading: isCreatingSpace } =
         useSpaceCreateMutation(projectUuid);
     const { user } = useApp();
-    const [isCreatingNewSpace, setIsCreatingNewSpace] = useState(false);
 
     const form = useForm({
-        mode: 'onChange',
-        defaultValues: {
+        initialValues: {
+            isCreatingNewSpace: false,
             dashboardName: '',
             dashboardDescription: '',
             spaceUuid: '',
@@ -48,36 +50,51 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
         },
     });
 
-    const { data: spaces, isLoading: isLoadingSpaces } = useSpaceSummaries(
-        projectUuid,
-        true,
-        {
-            onSuccess: (data) => {
-                if (data.length > 0) {
-                    const currentSpace = defaultSpaceUuid
-                        ? data.find((space) => space.uuid === defaultSpaceUuid)
-                        : data[0];
-                    return currentSpace?.uuid
-                        ? form.setValue('spaceUuid', currentSpace?.uuid)
-                        : null;
-                } else {
-                    setIsCreatingNewSpace(true);
-                }
-            },
+    const {
+        data: spaces,
+        isLoading: isLoadingSpaces,
+        isSuccess,
+    } = useSpaceSummaries(projectUuid, true, {
+        onSuccess: (data) => {
+            if (data.length > 0) {
+                const currentSpace = defaultSpaceUuid
+                    ? data.find((space) => space.uuid === defaultSpaceUuid)
+                    : data[0];
+                return currentSpace?.uuid
+                    ? form.setFieldValue('spaceUuid', currentSpace?.uuid)
+                    : null;
+            } else {
+                form.setFieldValue('setIsCreatingNewSpace', true);
+            }
         },
-    );
-    const showNewSpaceInput = isCreatingNewSpace || spaces?.length === 0;
+    });
 
-    const handleClose: DashboardCreateModalProps['onClose'] = (event) => {
+    const showNewSpaceInput =
+        form.values.isCreatingNewSpace || spaces?.length === 0;
+
+    const handleClose = () => {
         form.reset();
-        onClose?.(event);
+        onClose?.();
     };
 
+    const { setFieldValue } = form;
+
+    useEffect(() => {
+        if (isSuccess && modalProps.opened) {
+            setFieldValue(
+                'spaceUuid',
+                spaces.find((space) => space.uuid === defaultSpaceUuid)?.uuid ??
+                    spaces[0].uuid ??
+                    '',
+            );
+        }
+    }, [defaultSpaceUuid, isSuccess, modalProps.opened, setFieldValue, spaces]);
+
     const handleConfirm = useCallback(
-        async (data) => {
+        async (data: typeof form.values) => {
             let newSpace: Space | undefined;
 
-            if (isCreatingNewSpace) {
+            if (form.values.isCreatingNewSpace) {
                 newSpace = await createSpace({
                     name: data.newSpaceName,
                     isPrivate: false,
@@ -94,7 +111,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
             onConfirm?.(dashboard);
             form.reset();
         },
-        [createDashboard, createSpace, onConfirm, form, isCreatingNewSpace],
+        [createDashboard, createSpace, onConfirm, form],
     );
 
     if (user.data?.ability?.cannot('manage', 'Dashboard')) return null;
@@ -102,87 +119,111 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     if (isLoadingSpaces || !spaces) return null;
 
     return (
-        <Dialog
-            lazy
-            title="Create dashboard"
-            icon="control"
-            {...modalProps}
-            onClose={handleClose}
-        >
-            <Form
-                title="Create Dashboard"
-                methods={form}
-                onSubmit={handleConfirm}
+        <MantineProvider inherit theme={{ colorScheme: 'light' }}>
+            <Modal
+                title={<Title order={5}>Create dashboard</Title>}
+                onClose={() => handleClose()}
+                {...modalProps}
             >
-                <DialogBody>
-                    <Input
-                        label="Name your dashboard"
-                        placeholder="eg. KPI Dashboards"
-                        disabled={isCreatingDashboard}
-                        rules={{ required: 'Name field is required' }}
-                        {...form.register('dashboardName')}
-                    />
-                    <Input
-                        label="Dashboard description"
-                        placeholder="A few words to give your team some context"
-                        disabled={isCreatingDashboard}
-                        {...form.register('dashboardDescription')}
-                    />
-                    {!isLoadingSpaces && !showNewSpaceInput ? (
-                        <>
-                            <Select
-                                label="Select a space"
-                                options={spaces?.map((space) => ({
-                                    value: space.uuid,
-                                    label: space.name,
-                                }))}
-                                {...form.register('spaceUuid')}
-                            />
-                            <Button
-                                minimal
-                                icon="plus"
-                                intent="primary"
-                                onClick={() => setIsCreatingNewSpace(true)}
-                            >
-                                Create new space
-                            </Button>
-                        </>
-                    ) : (
-                        <>
-                            <Input
-                                label="Name your space"
-                                placeholder="eg. KPIs"
-                                rules={{ required: 'Name field is required' }}
-                                {...form.register('newSpaceName')}
-                            />
-                            <Button
-                                minimal
-                                icon="arrow-left"
-                                intent="primary"
-                                onClick={() => setIsCreatingNewSpace(false)}
-                            >
-                                Save to existing space
-                            </Button>
-                        </>
-                    )}
-                </DialogBody>
-                <DialogFooter
-                    actions={
-                        <>
-                            <Button onClick={handleClose}>Cancel</Button>
-                            <Button
-                                disabled={!form.formState.isValid}
-                                loading={isCreatingDashboard || isCreatingSpace}
-                                intent="primary"
-                                type="submit"
-                            >
-                                Create
-                            </Button>
-                        </>
-                    }
-                />
-            </Form>
-        </Dialog>
+                <form
+                    title="Create Dashboard"
+                    onSubmit={form.onSubmit((values) => handleConfirm(values))}
+                >
+                    <Stack mb="sm">
+                        <TextInput
+                            label="Name your dashboard"
+                            placeholder="eg. KPI Dashboard"
+                            disabled={isCreatingDashboard}
+                            required
+                            {...form.getInputProps('dashboardName')}
+                        />
+                        <TextInput
+                            label="Dashboard description"
+                            placeholder="A few words to give your team some context"
+                            disabled={isCreatingDashboard}
+                            {...form.getInputProps('dashboardDescription')}
+                        />
+                        {!isLoadingSpaces && spaces && !showNewSpaceInput ? (
+                            <Stack spacing="xs">
+                                <Select
+                                    withinPortal
+                                    label="Select a space"
+                                    data={spaces?.map((space) => ({
+                                        value: space.uuid,
+                                        label: space.name,
+                                    }))}
+                                    icon={<MantineIcon icon={IconFolder} />}
+                                    required
+                                    placeholder="Select space"
+                                    nothingFound="Nothing found"
+                                    {...form.getInputProps('spaceUuid')}
+                                />
+                                <Button
+                                    leftIcon={<MantineIcon icon={IconPlus} />}
+                                    variant="subtle"
+                                    mr="auto"
+                                    size="xs"
+                                    onClick={() =>
+                                        form.setFieldValue(
+                                            'isCreatingNewSpace',
+                                            true,
+                                        )
+                                    }
+                                >
+                                    Create new space
+                                </Button>
+                            </Stack>
+                        ) : (
+                            <Stack spacing="xs">
+                                <TextInput
+                                    icon={<MantineIcon icon={IconFolder} />}
+                                    label="Name your space"
+                                    placeholder="eg. KPIs"
+                                    required
+                                    {...form.getInputProps('newSpaceName')}
+                                />
+                                <Button
+                                    leftIcon={
+                                        <MantineIcon icon={IconArrowLeft} />
+                                    }
+                                    onClick={() =>
+                                        form.setFieldValue(
+                                            'isCreatingNewSpace',
+                                            false,
+                                        )
+                                    }
+                                    variant="subtle"
+                                    color="gray"
+                                    mr="auto"
+                                    size="xs"
+                                >
+                                    Save to existing space instead
+                                </Button>
+                            </Stack>
+                        )}
+                    </Stack>
+
+                    <Group position="right">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            color="gray"
+                            onClick={handleClose}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            size="sm"
+                            disabled={!form.isValid}
+                            loading={isCreatingDashboard || isCreatingSpace}
+                            type="submit"
+                        >
+                            Create
+                        </Button>
+                    </Group>
+                </form>
+            </Modal>
+        </MantineProvider>
     );
 };
 

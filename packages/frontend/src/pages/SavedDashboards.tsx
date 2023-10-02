@@ -116,7 +116,7 @@ const SavedDashboards = () => {
             <DashboardCreateModal
                 projectUuid={projectUuid}
                 defaultSpaceUuid={spaces?.[0]?.uuid}
-                isOpen={isCreateDashboardOpen}
+                opened={isCreateDashboardOpen}
                 onClose={() => setIsCreateDashboardOpen(false)}
                 onConfirm={(dashboard) => {
                     history.push(
