@@ -34,7 +34,11 @@ import {
     TableCalculation,
     timeFrameConfigs,
 } from '@lightdash/common';
-import { EChartsOption } from 'echarts';
+import {
+    DefaultLabelFormatterCallbackParams,
+    TooltipComponentFormatterCallback,
+    TooltipComponentOption,
+} from 'echarts';
 import groupBy from 'lodash-es/groupBy';
 import toNumber from 'lodash-es/toNumber';
 import moment from 'moment';
@@ -44,6 +48,23 @@ import { defaultGrid } from '../../components/VisualizationConfigs/ChartConfigPa
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import { useOrganization } from '../organization/useOrganization';
 import usePlottedData from '../plottedData/usePlottedData';
+
+// NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
+type TooltipFormatterParams = DefaultLabelFormatterCallbackParams & {
+    axisId: string;
+    axisIndex: number;
+    axisType: string;
+    axisValue: string | number;
+    axisValueLabel: string;
+};
+
+type TooltipOption = Omit<TooltipComponentOption, 'formatter'> & {
+    formatter?:
+        | string
+        | TooltipComponentFormatterCallback<
+              TooltipFormatterParams | TooltipFormatterParams[]
+          >;
+};
 
 const getLabelFromField = (
     fields: Array<Field | TableCalculation>,
@@ -1406,20 +1427,56 @@ const useEcharts = (
         explore,
     ]);
 
-    const tooltip = useMemo<EChartsOption['tooltip']>(
+    const tooltip = useMemo<TooltipOption>(
         () => ({
             show: true,
             confine: true,
             trigger: 'axis',
             enterable: true,
-            extraCssText: 'overflow-y: scroll; max-height:360px;',
+            extraCssText: 'overflow-y: auto; max-height:360px;',
             axisPointer: {
                 type: 'shadow',
                 label: { show: true },
             },
-            order: 'valueAsc',
+            formatter: (params) => {
+                if (!Array.isArray(params)) return '';
+
+                const tooltipRows = params
+                    .map((param) => {
+                        const {
+                            marker,
+                            seriesName,
+                            dimensionNames,
+                            encode,
+                            value,
+                        } = param;
+                        if (dimensionNames) {
+                            const dim = encode?.y[0]
+                                ? dimensionNames[encode?.y[0]]
+                                : '';
+
+                            if (typeof value === 'object' && dim in value) {
+                                return `
+                            <tr>
+                                <td>${marker}</td>
+                                <td>${seriesName}</td>
+                                <td><b>${getFormattedValue(
+                                    (value as Record<string, unknown>)[dim],
+                                    dim.split('.')[0],
+                                    items,
+                                )}</b></td>
+                            </tr>
+                        `;
+                            }
+                        }
+                        return '';
+                    })
+                    .join('');
+
+                return `${params[0].axisValueLabel}<br/><table>${tooltipRows}</table>`;
+            },
         }),
-        [],
+        [items],
     );
 
     const eChartsOptions = useMemo(
