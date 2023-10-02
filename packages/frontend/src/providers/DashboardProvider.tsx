@@ -223,7 +223,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
         [dashboardTiles],
     );
 
-    useMemo(() => {
+    useEffect(() => {
         if (allFilterableFields && allFilterableFields.length > 0) {
             setFieldsWithSuggestions((prev) => {
                 return allFilterableFields.reduce<FieldsWithSuggestions>(
