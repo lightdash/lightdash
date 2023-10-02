@@ -143,6 +143,7 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
                     {
                         tooltip: {
                             trigger: 'item',
+                            formatter: undefined,
                         },
                     },
                     false,
@@ -167,15 +168,13 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
         if (eCharts) {
             eCharts.setOption(
                 {
-                    tooltip: {
-                        trigger: 'axis',
-                    },
+                    tooltip: eChartsOptions?.tooltip,
                 },
                 false,
                 true, // lazy update
             );
         }
-    }, [chartRef]);
+    }, [chartRef, eChartsOptions?.tooltip]);
 
     if (isLoading) return <LoadingChart />;
     if (!eChartsOptions) return <EmptyChart />;
