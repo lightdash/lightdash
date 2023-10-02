@@ -1462,7 +1462,7 @@ const useEcharts = (
                             <tr>
                                 <td>${marker}</td>
                                 <td>${seriesName}</td>
-                                <td><b>${getFormattedValue(
+                                <td style="text-align: right;"><b>${getFormattedValue(
                                     (value as Record<string, unknown>)[dim],
                                     dim.split('.')[0],
                                     items,
