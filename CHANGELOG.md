@@ -1,3 +1,10 @@
+# [0.796.0](https://github.com/lightdash/lightdash/compare/0.795.2...0.796.0) (2023-10-02)
+
+
+### Features
+
+* migrate create dashboard modal to mantine ([#7275](https://github.com/lightdash/lightdash/issues/7275)) ([32e2b86](https://github.com/lightdash/lightdash/commit/32e2b86a45c29f793a57f3ae1f2a4733ca1418e3))
+
 ## [0.795.2](https://github.com/lightdash/lightdash/compare/0.795.1...0.795.2) (2023-10-02)
 
 
