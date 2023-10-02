@@ -134,6 +134,48 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
 
     const opts = useMemo<Opts>(() => ({ renderer: 'svg' }), []);
 
+    const handleOnMouseOver = useCallback(
+        (params) => {
+            const eCharts = chartRef.current?.getEchartsInstance();
+
+            if (eCharts) {
+                eCharts.setOption(
+                    {
+                        tooltip: {
+                            trigger: 'item',
+                            formatter: undefined,
+                        },
+                    },
+                    false,
+                    true, // lazy update
+                );
+
+                // Wait for tooltip to change from `axis` to `item` and keep hovered on item highlighted
+                setTimeout(() => {
+                    eCharts.dispatchAction({
+                        type: 'highlight',
+                        seriesIndex: params.seriesIndex,
+                    });
+                }, 100);
+            }
+        },
+        [chartRef],
+    );
+
+    const handleOnMouseOut = useCallback(() => {
+        const eCharts = chartRef.current?.getEchartsInstance();
+
+        if (eCharts) {
+            eCharts.setOption(
+                {
+                    tooltip: eChartsOptions?.tooltip,
+                },
+                false,
+                true, // lazy update
+            );
+        }
+    }, [chartRef, eChartsOptions?.tooltip]);
+
     if (isLoading) return <LoadingChart />;
     if (!eChartsOptions) return <EmptyChart />;
 
@@ -161,6 +203,8 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
             onEvents={{
                 contextmenu: onChartContextMenu,
                 click: onChartContextMenu,
+                mouseover: handleOnMouseOver,
+                mouseout: handleOnMouseOut,
                 legendselectchanged: onLegendChange,
             }}
             {...props}
