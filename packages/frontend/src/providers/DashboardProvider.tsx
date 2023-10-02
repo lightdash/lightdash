@@ -140,7 +140,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
         });
     }, [dashboardTemporaryFilters, history, pathname, search]);
 
-    // Gets filters from storage after redirect
+    // Gets filters from URL and storage after redirect
     useMount(() => {
         const searchParams = new URLSearchParams(search);
         const tempFilterSearchParam = searchParams.get('tempFilters');
