@@ -1,3 +1,10 @@
+## [0.795.1](https://github.com/lightdash/lightdash/compare/0.795.0...0.795.1) (2023-10-02)
+
+
+### Bug Fixes
+
+* show pivot table results ([#7263](https://github.com/lightdash/lightdash/issues/7263)) ([317112e](https://github.com/lightdash/lightdash/commit/317112e537517d50a14de70afbfb94a313769b02))
+
 # [0.795.0](https://github.com/lightdash/lightdash/compare/0.794.0...0.795.0) (2023-09-29)
 
 
