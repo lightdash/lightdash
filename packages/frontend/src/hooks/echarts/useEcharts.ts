@@ -1433,7 +1433,7 @@ const useEcharts = (
             confine: true,
             trigger: 'axis',
             enterable: true,
-            extraCssText: 'overflow-y: auto; max-height:360px;',
+            extraCssText: 'overflow-y: auto; max-height:280px;',
             axisPointer: {
                 type: 'shadow',
                 label: { show: true },
@@ -1450,10 +1450,12 @@ const useEcharts = (
                             encode,
                             value,
                         } = param;
+
                         if (dimensionNames) {
-                            const dim = encode?.y[0]
-                                ? dimensionNames[encode?.y[0]]
-                                : '';
+                            const dim =
+                                encode?.y[0] !== undefined
+                                    ? dimensionNames[encode?.y[0]]
+                                    : '';
 
                             if (typeof value === 'object' && dim in value) {
                                 return `
