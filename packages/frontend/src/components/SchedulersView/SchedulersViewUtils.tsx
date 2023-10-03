@@ -13,10 +13,10 @@ import {
     IconPhoto,
     IconProgress,
 } from '@tabler/icons-react';
+import { GSheetsIconFilled } from '@ui/common/GSheetsIcon';
 import dayjs from 'dayjs';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
-import { GSheetsIconFilled } from '../SchedulerModals/SchedulerModalBase/SchedulerModalBase.styles';
 
 export type SchedulerItem = SchedulerWithLogs['schedulers'][number];
 export type Log = SchedulerWithLogs['logs'][number];

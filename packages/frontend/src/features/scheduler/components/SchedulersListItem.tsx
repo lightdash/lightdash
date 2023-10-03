@@ -10,13 +10,13 @@ import {
     getHumanReadableCronExpression,
     SchedulerAndTargets,
 } from '@lightdash/common';
-import { FC } from 'react';
 import {
     InfoContainer,
     PageDetailsContainer,
     SeparatorDot,
     UpdatedInfoLabel,
-} from '../../common/PageHeader';
+} from '@ui/common/PageHeader';
+import { FC } from 'react';
 import {
     SchedulerContainer,
     SchedulerDetailsContainer,

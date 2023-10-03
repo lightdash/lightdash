@@ -3,7 +3,7 @@ import React, { FC } from 'react';
 import {
     useChartSchedulerCreateMutation,
     useChartSchedulers,
-} from '../../hooks/scheduler/useChartSchedulers';
+} from '../hooks/useChartSchedulers';
 import SchedulersModalBase from './SchedulerModalBase';
 
 interface Props extends DialogProps {
@@ -11,7 +11,7 @@ interface Props extends DialogProps {
     name: string;
 }
 
-const ChartSchedulersModal: FC<Props> = ({
+export const ChartSchedulersModal: FC<Props> = ({
     chartUuid,
     name,
     ...modalProps
@@ -29,5 +29,3 @@ const ChartSchedulersModal: FC<Props> = ({
         />
     );
 };
-
-export default ChartSchedulersModal;

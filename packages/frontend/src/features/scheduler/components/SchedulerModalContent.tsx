@@ -13,6 +13,7 @@ import {
     SchedulerAndTargets,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
+import ErrorState from '@ui/common/ErrorState';
 import { FC, useEffect, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import {
@@ -20,16 +21,16 @@ import {
     UseQueryResult,
 } from 'react-query/types/react/types';
 import { useHistory, useLocation } from 'react-router-dom';
+import useUser from '../../../hooks/user/useUser';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 import {
     sendNowScheduler,
     useScheduler,
     useSendNowScheduler,
-} from '../../../hooks/scheduler/useScheduler';
-import { useSchedulersUpdateMutation } from '../../../hooks/scheduler/useSchedulersUpdateMutation';
-import useUser from '../../../hooks/user/useUser';
-import { useTracking } from '../../../providers/TrackingProvider';
-import { EventName } from '../../../types/Events';
-import ErrorState from '../../common/ErrorState';
+} from '../hooks/useScheduler';
+import { useSchedulersUpdateMutation } from '../hooks/useSchedulersUpdateMutation';
+import { getSchedulerUuidFromUrlParams } from '../utils';
 import SchedulerForm from './SchedulerForm';
 import SchedulersList from './SchedulersList';
 
@@ -255,18 +256,6 @@ interface Props extends DialogProps {
     >;
     isChart: boolean;
 }
-
-export const getSchedulerUuidFromUrlParams = (
-    search: string,
-): string | null => {
-    const searchParams = new URLSearchParams(search);
-    return searchParams.get('scheduler_uuid');
-};
-
-export const isSchedulerTypeSync = (search: string): string | null => {
-    const searchParams = new URLSearchParams(search);
-    return searchParams.get('isSync');
-};
 
 const SchedulersModalContent: FC<Omit<Props, 'name'>> = ({
     resourceUuid,

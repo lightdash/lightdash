@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { pollJobStatus } from '@features/scheduler/hooks/useScheduler';
 import {
     ApiError,
     ApiJobScheduledResponse,
@@ -9,7 +10,6 @@ import { useMutation, useQuery, useQueryClient } from 'react-query';
 import useLocalStorageState from 'use-local-storage-state';
 import { lightdashApi } from '../../api';
 import { useErrorLogs } from '../../providers/ErrorLogsProvider';
-import { pollJobStatus } from '../scheduler/useScheduler';
 import useToaster from '../toaster/useToaster';
 import { useProject } from '../useProject';
 import useUser from '../user/useUser';

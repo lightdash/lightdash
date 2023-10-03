@@ -1,6 +1,8 @@
 import { Classes, Divider, Menu } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
+import { DashboardSchedulersModal } from '@features/scheduler';
+import { getSchedulerUuidFromUrlParams } from '@features/scheduler/utils';
 import { Dashboard, SpaceSummary, UpdatedByUser } from '@lightdash/common';
 import {
     ActionIcon,
@@ -32,8 +34,6 @@ import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
-import DashboardSchedulersModal from '../../SchedulerModals/DashboardSchedulersModal';
-import { getSchedulerUuidFromUrlParams } from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
 import ShareLinkButton from '../../ShareLinkButton';
 import MantineIcon from '../MantineIcon';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';

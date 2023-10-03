@@ -1,8 +1,8 @@
+import { useSchedulerLogs } from '@features/scheduler/hooks/useScheduler';
 import { ActionIcon, Group, Tabs, Title, Tooltip } from '@mantine/core';
 import { IconClock, IconRefresh, IconSend } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import { useQueryClient } from 'react-query';
-import { useSchedulerLogs } from '../../hooks/scheduler/useScheduler';
 import { useTableTabStyles } from '../../hooks/styles/useTableTabStyles';
 import useToaster from '../../hooks/toaster/useToaster';
 import LoadingState from '../common/LoadingState';

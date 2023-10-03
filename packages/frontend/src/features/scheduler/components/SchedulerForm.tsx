@@ -19,22 +19,22 @@ import { Controller, useFormContext } from 'react-hook-form';
 import useHealth from '../../../hooks/health/useHealth';
 
 import { IconInfoCircle } from '@tabler/icons-react';
-import MDEditor, { commands } from '@uiw/react-md-editor';
-import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
-import { useGetSlack } from '../../../hooks/useSlack';
-import { isInvalidCronExpression } from '../../../utils/fieldValidators';
-import MantineIcon from '../../common/MantineIcon';
-import { ArrayInput } from '../../ReactHookForm/ArrayInput';
-import AutoComplete from '../../ReactHookForm/AutoComplete';
-import CronInput from '../../ReactHookForm/CronInput';
+import MantineIcon from '@ui/common/MantineIcon';
+import { ArrayInput } from '@ui/ReactHookForm/ArrayInput';
+import AutoComplete from '@ui/ReactHookForm/AutoComplete';
+import CronInput from '@ui/ReactHookForm/CronInput';
 import {
     InlinedInputs,
     InlinedLabel,
     InlineIcon,
-} from '../../ReactHookForm/CronInput/CronInput.styles';
-import Form from '../../ReactHookForm/Form';
-import Input from '../../ReactHookForm/Input';
-import { hasRequiredScopes } from '../../UserSettings/SlackSettingsPanel';
+} from '@ui/ReactHookForm/CronInput/CronInput.styles';
+import Form from '@ui/ReactHookForm/Form';
+import Input from '@ui/ReactHookForm/Input';
+import { hasRequiredScopes } from '@ui/UserSettings/SlackSettingsPanel';
+import MDEditor, { commands } from '@uiw/react-md-editor';
+import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
+import { useGetSlack } from '../../../hooks/useSlack';
+import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import {
     EmailIcon,
     InputGroupWrapper,

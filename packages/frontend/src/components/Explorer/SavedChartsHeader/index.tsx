@@ -8,6 +8,11 @@ import {
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
+import { ChartSchedulersModal } from '@features/scheduler';
+import {
+    getSchedulerUuidFromUrlParams,
+    isSchedulerTypeSync,
+} from '@features/scheduler/utils';
 import { Box, Tooltip } from '@mantine/core';
 import {
     IconArrowBack,
@@ -57,11 +62,6 @@ import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
 import ViewInfo from '../../common/PageHeader/ViewInfo';
 import { ResourceInfoPopup } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
-import ChartSchedulersModal from '../../SchedulerModals/ChartSchedulersModal';
-import {
-    getSchedulerUuidFromUrlParams,
-    isSchedulerTypeSync,
-} from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
 import SaveChartButton from '../SaveChartButton';
 
 const SavedChartsHeader: FC = () => {

@@ -1,9 +1,9 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
+import { useScheduler } from '@features/scheduler/hooks/useScheduler';
+import { useSchedulersDeleteMutation } from '@features/scheduler/hooks/useSchedulersDeleteMutation';
 import { Button, Group, Stack, Text } from '@mantine/core';
 import { useCallback, useEffect } from 'react';
 import ErrorState from '../../../components/common/ErrorState';
-import { useScheduler } from '../../../hooks/scheduler/useScheduler';
-import { useSchedulersDeleteMutation } from '../../../hooks/scheduler/useSchedulersDeleteMutation';
 import { SyncModalAction, useSyncModal } from '../providers/SyncModalProvider';
 
 export const SyncModalDelete = () => {
