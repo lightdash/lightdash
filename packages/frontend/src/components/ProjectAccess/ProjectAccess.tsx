@@ -1,12 +1,3 @@
-import {
-    ButtonGroup,
-    Classes,
-    Intent,
-    NonIdealState,
-    Spinner,
-    Tag,
-} from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import {
     OrganizationMemberProfile,
@@ -14,8 +5,23 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
 } from '@lightdash/common';
-import { Button, Group, Modal, Stack, Text, Title } from '@mantine/core';
-import { IconKey, IconTrash } from '@tabler/icons-react';
+import {
+    Box,
+    Button,
+    Group,
+    Loader,
+    Modal,
+    NativeSelect,
+    Stack,
+    Text,
+    Title,
+    Tooltip,
+} from '@mantine/core';
+import {
+    IconAlertTriangleFilled,
+    IconKey,
+    IconTrash,
+} from '@tabler/icons-react';
 import { FC, useMemo, useState } from 'react';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import {
@@ -28,11 +34,13 @@ import { useAbilityContext } from '../common/Authorization';
 import MantineIcon from '../common/MantineIcon';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import {
+    BadgeBox,
+    ButtonGroup,
+    EmailBox,
     ItemContent,
-    RelevantOrgRoleIcon,
-    RoleSelectButton,
+    LoadingArea,
+    LoadingText,
     SectionWrapper,
-    UserEmail,
     UserInfo,
     UserName,
 } from './ProjectAccess.styles';
@@ -57,50 +65,78 @@ const UserListItem: FC<{
             <ItemContent>
                 <SectionWrapper>
                     <UserInfo>
-                        <UserName className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
+                        <UserName>
                             {firstName} {lastName}
                         </UserName>
-                        {email && <UserEmail minimal>{email}</UserEmail>}
+
+                        {email && <EmailBox>{email}</EmailBox>}
                     </UserInfo>
 
                     {relevantOrgRole && (
-                        <Tooltip2
-                            content={`This user inherits the organization role: ${relevantOrgRole}`}
+                        <Tooltip
+                            position="left"
+                            color="dark"
+                            withArrow
+                            arrowSize={10}
+                            label={`This user inherits the organization role: ${relevantOrgRole}`}
+                            sx={{ padding: '10px', backgroundColor: '#57606a' }}
                         >
-                            <RelevantOrgRoleIcon
-                                icon="warning-sign"
-                                intent={Intent.WARNING}
-                            />
-                        </Tooltip2>
+                            <Box
+                                sx={{
+                                    marginRight: '10px',
+                                    color: '#8f6215',
+                                }}
+                            >
+                                <IconAlertTriangleFilled size={17} />
+                            </Box>
+                        </Tooltip>
                     )}
 
                     <ButtonGroup>
                         {onUpdate ? (
-                            <RoleSelectButton
-                                fill
+                            <NativeSelect
                                 id="user-role"
-                                options={Object.values(ProjectMemberRole).map(
+                                data={Object.values(ProjectMemberRole).map(
                                     (orgMemberRole) => ({
                                         value: orgMemberRole,
                                         label: orgMemberRole.replace('_', ' '),
                                     }),
                                 )}
-                                required
                                 onChange={(e) => {
                                     const newRole = e.target
                                         .value as ProjectMemberRole;
                                     onUpdate(newRole);
                                 }}
+                                variant="filled"
+                                sx={{
+                                    marginRight: '0.5em',
+                                    boxSizing: 'border-box',
+                                    height: '30px',
+                                    fontSize: '14px',
+                                }}
                                 value={role}
                             />
                         ) : (
-                            <Tooltip2
-                                content={roleTooltip ? roleTooltip : undefined}
+                            <Tooltip
+                                position="left"
+                                color="dark"
+                                withArrow
+                                arrowSize={10}
+                                label={roleTooltip ? roleTooltip : undefined}
+                                sx={{
+                                    padding: '10px',
+                                    backgroundColor: '#57606a',
+                                }}
                             >
-                                <Tag minimal large>
-                                    {role}
-                                </Tag>
-                            </Tooltip2>
+                                <Box
+                                    sx={{
+                                        marginRight: '10px',
+                                        color: '#8f6215',
+                                    }}
+                                >
+                                    <BadgeBox>{role}</BadgeBox>
+                                </Box>
+                            </Tooltip>
                         )}
                         {onDelete && (
                             <Button
@@ -214,7 +250,12 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
     );
 
     if (isProjectAccessLoading || isOrganizationUsersLoading) {
-        return <NonIdealState title="Loading..." icon={<Spinner />} />;
+        return (
+            <LoadingArea>
+                <Loader color="gray" size={50} />
+                <LoadingText>{'Loading...'}</LoadingText>
+            </LoadingArea>
+        );
     }
     return (
         <Stack>
