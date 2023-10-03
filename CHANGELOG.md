@@ -1,3 +1,10 @@
+## [0.797.1](https://github.com/lightdash/lightdash/compare/0.797.0...0.797.1) (2023-10-03)
+
+
+### Bug Fixes
+
+* disable animations in minimal dashboards ([#7284](https://github.com/lightdash/lightdash/issues/7284)) ([ca0f903](https://github.com/lightdash/lightdash/commit/ca0f903f502a66119dfab39f76a404600089d330))
+
 # [0.797.0](https://github.com/lightdash/lightdash/compare/0.796.0...0.797.0) (2023-10-02)
 
 
