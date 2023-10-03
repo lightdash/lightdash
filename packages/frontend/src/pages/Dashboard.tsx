@@ -66,13 +66,14 @@ export const getReactGridLayoutConfig = (
     isResizable: isEditMode,
 });
 
-export const RESPONSIVE_GRID_LAYOUT_PROPS = {
+export const getResponsiveGridLayoutProps = (enableAnimation = true) => ({
     draggableCancel: '.non-draggable',
-    useCSSTransforms: false,
+    useCSSTransforms: enableAnimation,
+    measureBeforeMount: !enableAnimation,
     breakpoints: { lg: 1200, md: 996, sm: 768 },
     cols: { lg: 36, md: 30, sm: 18 },
     rowHeight: 50,
-};
+});
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -530,7 +531,7 @@ const Dashboard: FC = () => {
                 )}
 
                 <ResponsiveGridLayout
-                    {...RESPONSIVE_GRID_LAYOUT_PROPS}
+                    {...getResponsiveGridLayoutProps()}
                     onDragStop={handleUpdateTiles}
                     onResizeStop={handleUpdateTiles}
                     layouts={layouts}
