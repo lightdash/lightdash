@@ -8,16 +8,16 @@ import {
     Spinner,
 } from '@blueprintjs/core';
 import React, { FC, useCallback, useEffect } from 'react';
-import { useScheduler } from '../../../hooks/scheduler/useScheduler';
-import { useSchedulersDeleteMutation } from '../../../hooks/scheduler/useSchedulersDeleteMutation';
-import ErrorState from '../../common/ErrorState';
+import ErrorState from '../../../components/common/ErrorState';
+import { useScheduler } from '../hooks/useScheduler';
+import { useSchedulersDeleteMutation } from '../hooks/useSchedulersDeleteMutation';
 
 interface DashboardDeleteModalProps extends DialogProps {
     schedulerUuid: string;
     onConfirm: () => void;
 }
 
-const SchedulerDeleteModal: FC<DashboardDeleteModalProps> = ({
+export const SchedulerDeleteModal: FC<DashboardDeleteModalProps> = ({
     schedulerUuid,
     onConfirm,
     ...modalProps
@@ -81,5 +81,3 @@ const SchedulerDeleteModal: FC<DashboardDeleteModalProps> = ({
         </Dialog>
     );
 };
-
-export default SchedulerDeleteModal;

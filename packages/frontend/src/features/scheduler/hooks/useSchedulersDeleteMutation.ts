@@ -1,7 +1,7 @@
 import { ApiError } from '@lightdash/common';
 import { useMutation, useQueryClient } from 'react-query';
-import { lightdashApi } from '../../api';
-import useToaster from '../toaster/useToaster';
+import { lightdashApi } from '../../../api';
+import useToaster from '../../../hooks/toaster/useToaster';
 
 const deleteScheduler = async (uuid: string) =>
     lightdashApi<undefined>({

@@ -27,13 +27,13 @@ import {
 import { useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
+import { DashboardSchedulersModal } from '../../../features/scheduler';
+import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
 import { useDashboardRefresh } from '../../../hooks/dashboard/useDashboardRefresh';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
-import DashboardSchedulersModal from '../../SchedulerModals/DashboardSchedulersModal';
-import { getSchedulerUuidFromUrlParams } from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
 import ShareLinkButton from '../../ShareLinkButton';
 import MantineIcon from '../MantineIcon';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';

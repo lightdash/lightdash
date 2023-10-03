@@ -3,7 +3,7 @@ import React, { FC } from 'react';
 import {
     useDashboardSchedulerCreateMutation,
     useDashboardSchedulers,
-} from '../../hooks/scheduler/useDashboardSchedulers';
+} from '../hooks/useDashboardSchedulers';
 import SchedulersModalBase from './SchedulerModalBase';
 
 interface Props extends DialogProps {
@@ -11,7 +11,7 @@ interface Props extends DialogProps {
     name: string;
 }
 
-const DashboardSchedulersModal: FC<Props> = ({
+export const DashboardSchedulersModal: FC<Props> = ({
     dashboardUuid,
     name,
     ...modalProps
@@ -29,5 +29,3 @@ const DashboardSchedulersModal: FC<Props> = ({
         />
     );
 };
-
-export default DashboardSchedulersModal;

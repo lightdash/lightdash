@@ -8,8 +8,8 @@ import {
 import React, { FC } from 'react';
 import { useQueryClient } from 'react-query';
 import { Link } from 'react-router-dom';
+import { SchedulerDeleteModal } from '../../features/scheduler';
 import MantineIcon from '../common/MantineIcon';
-import SchedulerDeleteModal from '../SchedulerModals/SchedulerModalBase/SchedulerDeleteModal';
 import {
     getItemLink,
     getSchedulerLink,

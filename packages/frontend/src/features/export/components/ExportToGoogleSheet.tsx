@@ -3,8 +3,8 @@ import { MenuItem2 } from '@blueprintjs/popover2';
 import { ApiScheduledDownloadCsv } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { FC, memo, useState } from 'react';
+import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { GsheetsIcon } from '../../../components/SchedulerModals/SchedulerModalBase/SchedulerModalBase.styles';
 import { useGdriveAccessToken } from '../../../hooks/gdrive/useGdrive';
 import useHealth from '../../../hooks/health/useHealth';
 import { useExportToGoogleSheet } from '../hooks/useExportToGoogleSheet';
@@ -60,7 +60,7 @@ export const ExportToGoogleSheet: FC<ExportToGoogleSheetProps> = memo(
                 size="xs"
                 variant="default"
                 loading={isExporting}
-                leftIcon={<MantineIcon icon={GsheetsIcon} />}
+                leftIcon={<MantineIcon icon={GSheetsIcon} />}
                 onClick={() => setIsGoogleAuthQueryEnabled(true)}
                 disabled={disabled}
             >

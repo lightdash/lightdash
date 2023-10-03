@@ -2,8 +2,8 @@ import { Badge, Button, CloseButton, Tooltip } from '@mantine/core';
 import { FC, useCallback, useState } from 'react';
 import useDrivePicker from 'react-google-drive-picker';
 import { useFormContext } from 'react-hook-form';
+import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { GsheetsIcon } from '../../../components/SchedulerModals/SchedulerModalBase/SchedulerModalBase.styles';
 import { useGdriveAccessToken } from '../../../hooks/gdrive/useGdrive';
 import useHealth from '../../../hooks/health/useHealth';
 
@@ -70,7 +70,7 @@ export const SelectGoogleSheetButton: FC = () => {
             <Badge
                 py="md"
                 radius="sm"
-                leftSection={<MantineIcon icon={GsheetsIcon} />}
+                leftSection={<MantineIcon icon={GSheetsIcon} />}
                 styles={{
                     root: {
                         color: 'black',
