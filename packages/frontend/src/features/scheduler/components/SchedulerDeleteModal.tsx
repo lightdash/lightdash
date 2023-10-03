@@ -7,8 +7,8 @@ import {
     NonIdealState,
     Spinner,
 } from '@blueprintjs/core';
-import ErrorState from '@ui/common/ErrorState';
 import React, { FC, useCallback, useEffect } from 'react';
+import ErrorState from '../../../components/common/ErrorState';
 import { useScheduler } from '../hooks/useScheduler';
 import { useSchedulersDeleteMutation } from '../hooks/useSchedulersDeleteMutation';
 

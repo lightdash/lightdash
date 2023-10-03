@@ -1,7 +1,4 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
-import { useChartSchedulerCreateMutation } from '@features/scheduler/hooks/useChartSchedulers';
-import { useScheduler } from '@features/scheduler/hooks/useScheduler';
-import { useSchedulersUpdateMutation } from '@features/scheduler/hooks/useSchedulersUpdateMutation';
 import {
     CreateSchedulerAndTargetsWithoutIds,
     SchedulerFormat,
@@ -22,6 +19,9 @@ import { FormProvider, useForm } from 'react-hook-form';
 import ErrorState from '../../../components/common/ErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import CronInput from '../../../components/ReactHookForm/CronInput';
+import { useChartSchedulerCreateMutation } from '../../../features/scheduler/hooks/useChartSchedulers';
+import { useScheduler } from '../../../features/scheduler/hooks/useScheduler';
+import { useSchedulersUpdateMutation } from '../../../features/scheduler/hooks/useSchedulersUpdateMutation';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import { SyncModalAction, useSyncModal } from '../providers/SyncModalProvider';
 import { SelectGoogleSheetButton } from './SelectGoogleSheetButton';

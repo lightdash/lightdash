@@ -13,8 +13,8 @@ import {
     IconPhoto,
     IconProgress,
 } from '@tabler/icons-react';
-import { GSheetsIconFilled } from '@ui/common/GSheetsIcon';
 import dayjs from 'dayjs';
+import { GSheetsIconFilled } from '../../components/common/GSheetsIcon';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
 

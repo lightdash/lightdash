@@ -1,4 +1,3 @@
-import { useChartSchedulers } from '@features/scheduler/hooks/useChartSchedulers';
 import { SchedulerFormat } from '@lightdash/common';
 import {
     ActionIcon,
@@ -15,6 +14,7 @@ import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
 import cronstrue from 'cronstrue';
 import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useChartSchedulers } from '../../../features/scheduler/hooks/useChartSchedulers';
 import { SyncModalAction, useSyncModal } from '../providers/SyncModalProvider';
 
 export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {

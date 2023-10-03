@@ -8,11 +8,6 @@ import {
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
-import { ChartSchedulersModal } from '@features/scheduler';
-import {
-    getSchedulerUuidFromUrlParams,
-    isSchedulerTypeSync,
-} from '@features/scheduler/utils';
 import { Box, Tooltip } from '@mantine/core';
 import {
     IconArrowBack,
@@ -30,6 +25,11 @@ import {
 import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
+import { ChartSchedulersModal } from '../../../features/scheduler';
+import {
+    getSchedulerUuidFromUrlParams,
+    isSchedulerTypeSync,
+} from '../../../features/scheduler/utils';
 import { SyncModal as GoogleSheetsSyncModal } from '../../../features/sync/components';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';

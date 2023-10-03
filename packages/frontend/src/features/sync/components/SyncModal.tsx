@@ -1,10 +1,10 @@
-import { getSchedulerUuidFromUrlParams } from '@features/scheduler/utils';
 import { Flex, Modal, ModalProps, Title } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
-import { GSheetsIcon } from '@ui/common/GSheetsIcon';
 import { FC, useEffect } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
+import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
 import {
     SyncModalAction,
     SyncModalProvider,

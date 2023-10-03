@@ -1,8 +1,8 @@
 import { Badge, Button, CloseButton, Tooltip } from '@mantine/core';
-import { GSheetsIcon } from '@ui/common/GSheetsIcon';
 import { FC, useCallback, useState } from 'react';
 import useDrivePicker from 'react-google-drive-picker';
 import { useFormContext } from 'react-hook-form';
+import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useGdriveAccessToken } from '../../../hooks/gdrive/useGdrive';
 import useHealth from '../../../hooks/health/useHealth';

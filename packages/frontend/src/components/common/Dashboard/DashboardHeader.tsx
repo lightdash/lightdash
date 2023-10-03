@@ -1,8 +1,6 @@
 import { Classes, Divider, Menu } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
-import { DashboardSchedulersModal } from '@features/scheduler';
-import { getSchedulerUuidFromUrlParams } from '@features/scheduler/utils';
 import { Dashboard, SpaceSummary, UpdatedByUser } from '@lightdash/common';
 import {
     ActionIcon,
@@ -29,6 +27,8 @@ import {
 import { useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
+import { DashboardSchedulersModal } from '../../../features/scheduler';
+import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
 import { useDashboardRefresh } from '../../../hooks/dashboard/useDashboardRefresh';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';

@@ -1,4 +1,3 @@
-import { SchedulerDeleteModal } from '@features/scheduler';
 import { ActionIcon, Menu } from '@mantine/core';
 import {
     IconDots,
@@ -9,6 +8,7 @@ import {
 import React, { FC } from 'react';
 import { useQueryClient } from 'react-query';
 import { Link } from 'react-router-dom';
+import { SchedulerDeleteModal } from '../../features/scheduler';
 import MantineIcon from '../common/MantineIcon';
 import {
     getItemLink,

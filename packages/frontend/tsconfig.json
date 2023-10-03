@@ -1,7 +1,6 @@
 {
     "extends": "./../../tsconfig.json",
     "compilerOptions": {
-        "baseUrl": "./src",
         "composite": true,
         "target": "ESNext",
         "lib": ["dom", "dom.iterable", "esnext"],
@@ -22,10 +21,7 @@
         "jsx": "react-jsx",
         "types": ["jest", "node", "vite/client", "vite-plugin-svgr/client"],
         "paths": {
-            "@lightdash/common": ["./../common/src"],
-            "@features/*": ["features/*"],
-            // Alias shared components to @ui
-            "@ui/*": ["components/*"]
+            "@lightdash/common": ["./../common/src"]
         }
     },
     "include": ["src"]

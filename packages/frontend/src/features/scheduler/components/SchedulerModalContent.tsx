@@ -13,7 +13,6 @@ import {
     SchedulerAndTargets,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
-import ErrorState from '@ui/common/ErrorState';
 import { FC, useEffect, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import {
@@ -21,6 +20,7 @@ import {
     UseQueryResult,
 } from 'react-query/types/react/types';
 import { useHistory, useLocation } from 'react-router-dom';
+import ErrorState from '../../../components/common/ErrorState';
 import useUser from '../../../hooks/user/useUser';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
