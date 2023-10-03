@@ -3,7 +3,7 @@ import { PivotReference } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import { EChartsReactProps, Opts } from 'echarts-for-react/lib/types';
 import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
-import useEcharts from '../../hooks/echarts/useEcharts';
+import useEcharts, { isLineSeriesOption } from '../../hooks/echarts/useEcharts';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
 type EchartBaseClickEvent = {
@@ -139,16 +139,30 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
             const eCharts = chartRef.current?.getEchartsInstance();
 
             if (eCharts) {
-                eCharts.setOption(
-                    {
-                        tooltip: {
-                            trigger: 'item',
-                            formatter: undefined,
+                // TODO: move to own util function
+                let setTooltipItemTrigger = true;
+                // Tooltip trigger 'item' does not work when symbol is not shown; reference: https://github.com/apache/echarts/issues/14563
+                const series = eCharts.getOption().series;
+                if (
+                    Array.isArray(series) &&
+                    isLineSeriesOption(series[params.seriesIndex])
+                ) {
+                    setTooltipItemTrigger =
+                        !!series[params.seriesIndex].showSymbol;
+                }
+
+                if (setTooltipItemTrigger) {
+                    eCharts.setOption(
+                        {
+                            tooltip: {
+                                trigger: 'item',
+                                formatter: undefined,
+                            },
                         },
-                    },
-                    false,
-                    true, // lazy update
-                );
+                        false,
+                        true, // lazy update
+                    );
+                }
 
                 // Wait for tooltip to change from `axis` to `item` and keep hovered on item highlighted
                 setTimeout(() => {
@@ -156,7 +170,7 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
                         type: 'highlight',
                         seriesIndex: params.seriesIndex,
                     });
-                }, 100);
+                }, 200);
             }
         },
         [chartRef],
