@@ -36,6 +36,7 @@ import {
 } from '@lightdash/common';
 import {
     DefaultLabelFormatterCallbackParams,
+    LineSeriesOption,
     TooltipComponentFormatterCallback,
     TooltipComponentOption,
 } from 'echarts';
@@ -65,6 +66,9 @@ type TooltipOption = Omit<TooltipComponentOption, 'formatter'> & {
               TooltipFormatterParams | TooltipFormatterParams[]
           >;
 };
+
+export const isLineSeriesOption = (obj: unknown): obj is LineSeriesOption =>
+    typeof obj === 'object' && obj !== null && 'showSymbol' in obj;
 
 const getLabelFromField = (
     fields: Array<Field | TableCalculation>,
