@@ -1,3 +1,10 @@
+# [0.798.0](https://github.com/lightdash/lightdash/compare/0.797.2...0.798.0) (2023-10-03)
+
+
+### Features
+
+* create submenu for custom metrics options ([#7282](https://github.com/lightdash/lightdash/issues/7282)) ([ffaf815](https://github.com/lightdash/lightdash/commit/ffaf8159a00d22d89440a7c5efd4b29b6f0786db))
+
 ## [0.797.2](https://github.com/lightdash/lightdash/compare/0.797.1...0.797.2) (2023-10-03)
 
 
