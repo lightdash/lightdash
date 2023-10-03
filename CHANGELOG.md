@@ -1,3 +1,10 @@
+## [0.797.2](https://github.com/lightdash/lightdash/compare/0.797.1...0.797.2) (2023-10-03)
+
+
+### Bug Fixes
+
+* upgrade snowflake-sdk to 1.9.0 ([#7292](https://github.com/lightdash/lightdash/issues/7292)) ([fb2f2f1](https://github.com/lightdash/lightdash/commit/fb2f2f13726359e874ae0011c764bf6f896a6cc5))
+
 ## [0.797.1](https://github.com/lightdash/lightdash/compare/0.797.0...0.797.1) (2023-10-03)
 
 
