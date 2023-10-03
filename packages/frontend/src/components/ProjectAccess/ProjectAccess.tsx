@@ -1,9 +1,3 @@
-import {
-    ButtonGroup,
-    Classes,
-    NonIdealState,
-    Spinner,
-} from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import {
     OrganizationMemberProfile,
@@ -12,10 +6,12 @@ import {
     ProjectMemberRole,
 } from '@lightdash/common';
 import {
-    Badge,
+    Box,
     Button,
     Group,
+    Loader,
     Modal,
+    NativeSelect,
     Stack,
     Text,
     Title,
@@ -38,10 +34,13 @@ import { useAbilityContext } from '../common/Authorization';
 import MantineIcon from '../common/MantineIcon';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import {
+    BadgeBox,
+    ButtonGroup,
+    EmailBox,
     ItemContent,
-    RoleSelectButton,
+    LoadingArea,
+    LoadingText,
     SectionWrapper,
-    UserEmail,
     UserInfo,
     UserName,
 } from './ProjectAccess.styles';
@@ -66,64 +65,77 @@ const UserListItem: FC<{
             <ItemContent>
                 <SectionWrapper>
                     <UserInfo>
-                        <UserName className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
+                        <UserName>
                             {firstName} {lastName}
                         </UserName>
-                        {email && <UserEmail minimal>{email}</UserEmail>}
+
+                        {email && <EmailBox>{email}</EmailBox>}
                     </UserInfo>
 
                     {relevantOrgRole && (
                         <Tooltip
-                            label={`This user inherits the organization role: ${relevantOrgRole}`}
                             position="left"
+                            color="dark"
+                            withArrow
+                            arrowSize={10}
+                            label={`This user inherits the organization role: ${relevantOrgRole}`}
+                            sx={{ padding: '10px', backgroundColor: '#57606a' }}
                         >
-                            <MantineIcon
-                                icon={IconAlertTriangleFilled}
-                                style={{
-                                    marginRight: 8,
-                                    color: 'orange',
+                            <Box
+                                sx={{
+                                    marginRight: '10px',
+                                    color: '#8f6215',
                                 }}
-                            />
+                            >
+                                <IconAlertTriangleFilled size={17} />
+                            </Box>
                         </Tooltip>
                     )}
 
                     <ButtonGroup>
                         {onUpdate ? (
-                            <RoleSelectButton
-                                fill
+                            <NativeSelect
                                 id="user-role"
-                                options={Object.values(ProjectMemberRole).map(
+                                data={Object.values(ProjectMemberRole).map(
                                     (orgMemberRole) => ({
                                         value: orgMemberRole,
                                         label: orgMemberRole.replace('_', ' '),
                                     }),
                                 )}
-                                required
                                 onChange={(e) => {
                                     const newRole = e.target
                                         .value as ProjectMemberRole;
                                     onUpdate(newRole);
                                 }}
+                                variant="filled"
+                                sx={{
+                                    marginRight: '0.5em',
+                                    boxSizing: 'border-box',
+                                    height: '30px',
+                                    fontSize: '14px',
+                                }}
                                 value={role}
                             />
                         ) : (
                             <Tooltip
-                                label={roleTooltip}
-                                disabled={!roleTooltip}
                                 position="left"
+                                color="dark"
+                                withArrow
+                                arrowSize={10}
+                                label={roleTooltip ? roleTooltip : undefined}
+                                sx={{
+                                    padding: '10px',
+                                    backgroundColor: '#57606a',
+                                }}
                             >
-                                <Badge
-                                    radius="xs"
-                                    size="lg"
-                                    variant="filled"
-                                    color="gray.3"
+                                <Box
                                     sx={{
-                                        textTransform: 'unset',
-                                        color: 'black',
+                                        marginRight: '10px',
+                                        color: '#8f6215',
                                     }}
                                 >
-                                    {role}
-                                </Badge>
+                                    <BadgeBox>{role}</BadgeBox>
+                                </Box>
                             </Tooltip>
                         )}
                         {onDelete && (
@@ -238,7 +250,12 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
     );
 
     if (isProjectAccessLoading || isOrganizationUsersLoading) {
-        return <NonIdealState title="Loading..." icon={<Spinner />} />;
+        return (
+            <LoadingArea>
+                <Loader color="gray" size={50} />
+                <LoadingText>{'Loading...'}</LoadingText>
+            </LoadingArea>
+        );
     }
     return (
         <Stack>

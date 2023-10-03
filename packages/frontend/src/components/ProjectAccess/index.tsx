@@ -1,10 +1,9 @@
 import { subject } from '@casl/ability';
-import { Anchor, Group, Text } from '@mantine/core';
+import { Anchor, Button, Group, Text } from '@mantine/core';
 import { FC, useState } from 'react';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
 import ProjectAccess from './ProjectAccess';
-import { AddUserButton } from './ProjectAccess.styles';
 import ProjectAccessCreation from './ProjectAccessCreation';
 
 interface ProjectUserAccessProps {
@@ -49,13 +48,21 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
                                     projectUuid,
                                 })}
                             >
-                                <AddUserButton
-                                    intent="primary"
+                                <Button
                                     onClick={() => {
                                         setShowProjectAccessCreate(true);
                                     }}
-                                    text="Add user"
-                                />
+                                    color="indigo"
+                                    radius="xs"
+                                    compact
+                                    sx={{
+                                        width: '76px',
+                                        height: '30px',
+                                        background: '#2D72D2',
+                                    }}
+                                >
+                                    Add user
+                                </Button>
                             </Can>
                         )}
                     </Group>
