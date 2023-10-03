@@ -170,7 +170,7 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
                         type: 'highlight',
                         seriesIndex: params.seriesIndex,
                     });
-                }, 200);
+                }, 100);
             }
         },
         [chartRef],
