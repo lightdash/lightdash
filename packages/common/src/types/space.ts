@@ -33,7 +33,7 @@ export type SpaceSummary = Pick<
 export type CreateSpace = {
     name: string;
     isPrivate?: boolean;
-    access?: SpaceShare[];
+    access?: Pick<SpaceShare, 'userUuid'>[];
 };
 
 export type UpdateSpace = {
