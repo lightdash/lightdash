@@ -224,7 +224,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             withinPortal
                             trigger="hover"
                             offset={0}
-                            position="right-start"
+                            position="right"
                             shadow="md"
                             closeOnItemClick
                         >
@@ -243,7 +243,13 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 </Menu.Item>
                             </Menu.Target>
 
-                            <Menu.Dropdown maw={320}>
+                            <Menu.Dropdown
+                                maw={320}
+                                mah={400}
+                                style={{
+                                    overflowY: 'auto',
+                                }}
+                            >
                                 {[
                                     SpaceType.SharedWithMe,
                                     SpaceType.AdminContentView,
