@@ -71,7 +71,7 @@
         "use-context-selector": "^1.4.1",
         "use-local-storage-state": "17",
         "uuid": "^8.3.2",
-        "zod": "^3.21.4"
+        "zod": "^3.22.3"
     },
     "scripts": {
         "start": "vite",
