@@ -1,3 +1,12 @@
+## [0.798.3](https://github.com/lightdash/lightdash/compare/0.798.2...0.798.3) (2023-10-04)
+
+
+### Bug Fixes
+
+* add overflowY auto and max height ([#7319](https://github.com/lightdash/lightdash/issues/7319)) ([43be82a](https://github.com/lightdash/lightdash/commit/43be82a46330a031b6bbc53d3e587a5092b33917))
+* fix tootlip header format ([#7307](https://github.com/lightdash/lightdash/issues/7307)) ([447e528](https://github.com/lightdash/lightdash/commit/447e528fc787ff1b4b96139336e2c47fd667f4bc))
+* fix total label on stacked chart ([#7304](https://github.com/lightdash/lightdash/issues/7304)) ([6d439ed](https://github.com/lightdash/lightdash/commit/6d439edeeb63aa4110a2251f97c4ad14c9cae769))
+
 ## [0.798.2](https://github.com/lightdash/lightdash/compare/0.798.1...0.798.2) (2023-10-04)
 
 
