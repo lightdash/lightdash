@@ -128,7 +128,7 @@ const ControlledSuggest: FC<{
     groupBy,
     ...props
 }) => {
-    const activeItem = items.find((item) => item.value === field.value);
+    const activeItem = items.find((item) => item.value === field.value) ?? null; // Note: Avoid displaying first item as selected by default when activeItem is undefined
     const onItemSelect = useCallback(
         (item: Item) => {
             field.onChange(item.value);
