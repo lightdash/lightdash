@@ -1,5 +1,5 @@
-import { Callout, Code, NonIdealState, Pre, Spinner } from '@blueprintjs/core';
-import React from 'react';
+import { Callout, NonIdealState, Spinner } from '@blueprintjs/core';
+import { Prism } from '@mantine/prism';
 import { useCompiledSql } from '../hooks/useCompiledSql';
 
 export const RenderedSql = () => {
@@ -24,8 +24,8 @@ export const RenderedSql = () => {
     }
 
     return (
-        <Pre style={{ borderRadius: '0', boxShadow: 'none', overflow: 'auto' }}>
-            <Code>{data || ''}</Code>
-        </Pre>
+        <Prism m="sm" language="sql">
+            {data || ''}
+        </Prism>
     );
 };
