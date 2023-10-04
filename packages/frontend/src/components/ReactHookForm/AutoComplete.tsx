@@ -162,7 +162,6 @@ const ControlledSuggest: FC<{
         },
         [groupBy, suggestProps?.createNewItemRenderer],
     );
-    console.log(activeItem);
 
     return (
         <Suggest2<Item>
