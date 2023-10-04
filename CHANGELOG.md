@@ -1,3 +1,10 @@
+## [0.798.2](https://github.com/lightdash/lightdash/compare/0.798.1...0.798.2) (2023-10-04)
+
+
+### Bug Fixes
+
+* set activeItem null if undefined ([#7305](https://github.com/lightdash/lightdash/issues/7305)) ([dc74a8c](https://github.com/lightdash/lightdash/commit/dc74a8c8c499a6b87d9e83d84b104ce5dac1206f))
+
 ## [0.798.1](https://github.com/lightdash/lightdash/compare/0.798.0...0.798.1) (2023-10-04)
 
 
