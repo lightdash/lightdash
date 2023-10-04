@@ -3861,6 +3861,17 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_SpaceShare.userUuid_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                userUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CreateSpace: {
         dataType: 'refAlias',
         type: {
@@ -3868,7 +3879,10 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 access: {
                     dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'SpaceShare' },
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'Pick_SpaceShare.userUuid_',
+                    },
                 },
                 isPrivate: { dataType: 'boolean' },
                 name: { dataType: 'string', required: true },
