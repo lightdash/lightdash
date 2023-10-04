@@ -8,8 +8,10 @@ import {
 import {
     Box,
     Button,
+    Center,
     Group,
     Loader,
+    Mark,
     Modal,
     NativeSelect,
     Stack,
@@ -33,17 +35,6 @@ import { useApp } from '../../providers/AppProvider';
 import { useAbilityContext } from '../common/Authorization';
 import MantineIcon from '../common/MantineIcon';
 import { SettingsCard } from '../common/Settings/SettingsCard';
-import {
-    BadgeBox,
-    ButtonGroup,
-    EmailBox,
-    ItemContent,
-    LoadingArea,
-    LoadingText,
-    SectionWrapper,
-    UserInfo,
-    UserName,
-} from './ProjectAccess.styles';
 
 const UserListItem: FC<{
     user: OrganizationMemberProfile | ProjectMemberProfile;
@@ -62,29 +53,52 @@ const UserListItem: FC<{
 
     return (
         <SettingsCard>
-            <ItemContent>
-                <SectionWrapper>
-                    <UserInfo>
-                        <UserName>
+            <Box>
+                <Box
+                    sx={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                    }}
+                >
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                        }}
+                    >
+                        <Text fw={700}>
                             {firstName} {lastName}
-                        </UserName>
+                        </Text>
 
-                        {email && <EmailBox>{email}</EmailBox>}
-                    </UserInfo>
+                        {email && (
+                            <Mark
+                                color="gray"
+                                sx={{
+                                    width: 'fit-content',
+                                    padding: '2px 6px',
+                                    fontSize: '12px',
+                                    marginTop: '0.3em',
+                                }}
+                            >
+                                {email}
+                            </Mark>
+                        )}
+                    </Box>
 
                     {relevantOrgRole && (
                         <Tooltip
                             position="left"
                             color="dark"
                             withArrow
-                            arrowSize={10}
+                            arrowSize={8}
                             label={`This user inherits the organization role: ${relevantOrgRole}`}
-                            sx={{ padding: '10px', backgroundColor: '#57606a' }}
                         >
                             <Box
                                 sx={{
                                     marginRight: '10px',
-                                    color: '#8f6215',
+                                    marginLeft: 'auto',
                                 }}
                             >
                                 <IconAlertTriangleFilled size={17} />
@@ -92,7 +106,7 @@ const UserListItem: FC<{
                         </Tooltip>
                     )}
 
-                    <ButtonGroup>
+                    <Box sx={{ display: 'flex' }}>
                         {onUpdate ? (
                             <NativeSelect
                                 id="user-role"
@@ -110,9 +124,6 @@ const UserListItem: FC<{
                                 variant="filled"
                                 sx={{
                                     marginRight: '0.5em',
-                                    boxSizing: 'border-box',
-                                    height: '30px',
-                                    fontSize: '14px',
                                 }}
                                 value={role}
                             />
@@ -121,20 +132,18 @@ const UserListItem: FC<{
                                 position="left"
                                 color="dark"
                                 withArrow
-                                arrowSize={10}
+                                arrowSize={8}
                                 label={roleTooltip ? roleTooltip : undefined}
-                                sx={{
-                                    padding: '10px',
-                                    backgroundColor: '#57606a',
-                                }}
                             >
-                                <Box
-                                    sx={{
-                                        marginRight: '10px',
-                                        color: '#8f6215',
-                                    }}
-                                >
-                                    <BadgeBox>{role}</BadgeBox>
+                                <Box>
+                                    <Mark
+                                        color="gray"
+                                        sx={{
+                                            padding: '5.9px 8.9px',
+                                        }}
+                                    >
+                                        {role}
+                                    </Mark>
                                 </Box>
                             </Tooltip>
                         )}
@@ -149,9 +158,9 @@ const UserListItem: FC<{
                                 <MantineIcon icon={IconTrash} />
                             </Button>
                         )}
-                    </ButtonGroup>
-                </SectionWrapper>
-            </ItemContent>
+                    </Box>
+                </Box>
+            </Box>
             <Modal
                 opened={isDeleteDialogOpen}
                 onClose={() => setIsDeleteDialogOpen(false)}
@@ -251,10 +260,24 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
 
     if (isProjectAccessLoading || isOrganizationUsersLoading) {
         return (
-            <LoadingArea>
+            <Center
+                sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                }}
+            >
                 <Loader color="gray" size={50} />
-                <LoadingText>{'Loading...'}</LoadingText>
-            </LoadingArea>
+                <Box
+                    sx={{
+                        fontWeight: 'bolder',
+                        color: '#5f6b7c',
+                        fontSize: '17px',
+                        marginTop: '7px',
+                    }}
+                >
+                    {'Loading...'}
+                </Box>
+            </Center>
         );
     }
     return (

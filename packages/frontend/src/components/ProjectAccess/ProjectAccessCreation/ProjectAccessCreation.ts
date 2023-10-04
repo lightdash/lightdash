@@ -3,12 +3,6 @@ import styled from 'styled-components';
 import Form from '../../ReactHookForm/Form';
 import Select from '../../ReactHookForm/Select';
 
-export const Panel = styled.div`
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-`;
-
 export const ProjectAccessForm = styled(Form)`
     display: flex;
     align-items: flex-start;

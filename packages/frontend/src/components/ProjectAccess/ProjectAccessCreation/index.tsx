@@ -8,7 +8,7 @@ import {
     ProjectMemberRole,
     validateEmail,
 } from '@lightdash/common';
-import { Button } from '@mantine/core';
+import { Box, Button } from '@mantine/core';
 import { IconChevronLeft } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -22,7 +22,6 @@ import MantineIcon from '../../common/MantineIcon';
 import InviteSuccess from '../../UserSettings/UserManagementPanel/InviteSuccess';
 import {
     EmailForm,
-    Panel,
     ProjectAccessForm,
     RoleSelectButton,
 } from './ProjectAccessCreation';
@@ -134,7 +133,13 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
     };
 
     return (
-        <Panel>
+        <Box
+            sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+            }}
+        >
             <Button
                 variant="subtle"
                 size="sm"
@@ -211,7 +216,6 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
                             }}
                         />
                     </EmailForm>
-
                     <RoleSelectButton
                         name="role"
                         disabled={isLoading}
@@ -247,7 +251,7 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
             </Card>
 
             {inviteLink && <InviteSuccess invite={inviteLink} hasMarginTop />}
-        </Panel>
+        </Box>
     );
 };
 
