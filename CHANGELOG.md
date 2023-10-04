@@ -1,3 +1,10 @@
+# [0.799.0](https://github.com/lightdash/lightdash/compare/0.798.3...0.799.0) (2023-10-04)
+
+
+### Features
+
+* use prism to render sql code ([#7325](https://github.com/lightdash/lightdash/issues/7325)) ([48ad756](https://github.com/lightdash/lightdash/commit/48ad75646ad35bd3cc57251292231cad1d77eb21))
+
 ## [0.798.3](https://github.com/lightdash/lightdash/compare/0.798.2...0.798.3) (2023-10-04)
 
 
