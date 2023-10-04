@@ -1,3 +1,10 @@
+## [0.798.1](https://github.com/lightdash/lightdash/compare/0.798.0...0.798.1) (2023-10-04)
+
+
+### Bug Fixes
+
+* keep tooltip trigger axis if line series with no symbol ([#7290](https://github.com/lightdash/lightdash/issues/7290)) ([d10e2b4](https://github.com/lightdash/lightdash/commit/d10e2b48227ac1a034a8efa63fdb6d5b6689f0ba))
+
 # [0.798.0](https://github.com/lightdash/lightdash/compare/0.797.2...0.798.0) (2023-10-03)
 
 
