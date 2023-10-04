@@ -1404,7 +1404,8 @@ const useEcharts = (
                 results.length >= 0 &&
                 [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
                     xField.type,
-                )
+                ) &&
+                resultsData?.metricQuery.sorts.length === 0
             ) {
                 return results.sort((a, b) => {
                     if (
