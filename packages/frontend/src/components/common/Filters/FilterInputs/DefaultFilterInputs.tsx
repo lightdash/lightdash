@@ -8,12 +8,12 @@ import {
     FilterType,
     isFilterRule,
 } from '@lightdash/common';
+import { NumberInput } from '@mantine/core';
 import isString from 'lodash-es/isString';
 import React from 'react';
 import { useFiltersContext } from '../FiltersProvider';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import MultiAutoComplete from './AutoComplete/MultiAutoComplete';
-import { StyledNumericInput } from './NumericInput.styles';
 
 export type FilterInputsProps<T extends ConditionalRule> = {
     filterType: FilterType;
@@ -119,14 +119,16 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
             if (parsedValue && isNaN(parsedValue)) parsedValue = undefined;
 
             return (
-                <StyledNumericInput
+                <NumberInput
                     className={disabled ? 'disabled-filter' : ''}
                     disabled={disabled}
-                    fill
                     placeholder={placeholder}
-                    type="number"
                     defaultValue={parsedValue}
-                    onValueChange={(numericValue, stringValue) => {
+                    sx={{
+                        width: '800px',
+                    }}
+                    onChange={(numericValue) => {
+                        const stringValue = numericValue.toString();
                         onChange({
                             ...rule,
                             values: stringValue === '' ? [] : [numericValue],
