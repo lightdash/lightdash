@@ -1479,8 +1479,15 @@ const useEcharts = (
                         return '';
                     })
                     .join('');
-
-                return `${params[0].axisValueLabel}<br/><table>${tooltipRows}</table>`;
+                const tooltipHeader =
+                    params[0].dimensionNames?.[0] !== undefined
+                        ? getFormattedValue(
+                              params[0].axisValueLabel,
+                              params[0].dimensionNames[0],
+                              items,
+                          )
+                        : params[0].axisValueLabel;
+                return `${tooltipHeader}<br/><table>${tooltipRows}</table>`;
             },
         }),
         [items],
