@@ -6,10 +6,7 @@ import clamp from 'lodash-es/clamp';
 import { FC, HTMLAttributes, useMemo } from 'react';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import MantineIcon from '../common/MantineIcon';
-import {
-    TILE_HEADER_HEIGHT,
-    TILE_HEADER_MARGIN_BOTTOM,
-} from '../DashboardTiles/TileBase/TileBase.styles';
+import { TILE_HEADER_HEIGHT } from '../DashboardTiles/TileBase/TileBase.styles';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { EmptyChart, LoadingChart } from '../SimpleChart';
 import BigNumberContextMenu from './BigNumberContextMenu';
@@ -131,9 +128,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     return validData ? (
         <BigNumberContainer
             $paddingBottom={
-                isDashboard && isTitleHidden
-                    ? TILE_HEADER_HEIGHT + TILE_HEADER_MARGIN_BOTTOM - 8
-                    : TILE_HEADER_HEIGHT
+                isDashboard && isTitleHidden ? 0 : TILE_HEADER_HEIGHT
             }
             ref={(elem) => setRef(elem)}
             {...wrapperProps}

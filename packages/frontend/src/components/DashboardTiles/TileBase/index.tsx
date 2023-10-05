@@ -85,7 +85,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         $isEditMode={isEditMode}
                         onMouseEnter={() => setIsHovering(true)}
                         onMouseLeave={() => setIsHovering(false)}
-                        $isEmpty={isMarkdownTileTitleEmpty}
+                        $isEmpty={isMarkdownTileTitleEmpty || hideTitle}
                     >
                         <Tooltip
                             disabled={!description}
