@@ -1,3 +1,10 @@
+## [0.800.1](https://github.com/lightdash/lightdash/compare/0.800.0...0.800.1) (2023-10-05)
+
+
+### Bug Fixes
+
+* fix total stack mixed chart ([#7348](https://github.com/lightdash/lightdash/issues/7348)) ([ab618b1](https://github.com/lightdash/lightdash/commit/ab618b1ff8bed72787843c40a7d318132d81c7a0))
+
 # [0.800.0](https://github.com/lightdash/lightdash/compare/0.799.2...0.800.0) (2023-10-05)
 
 
