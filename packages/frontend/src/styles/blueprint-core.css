@@ -8986,12 +8986,7 @@ label.bp4-label:not(.bp4-inline) .bp4-popover-target {
     right: 12px;
     top: 12px;
 }
-.bp4-html-select.bp4-fill,
-.bp4-html-select.bp4-fill select,
-.bp4-select.bp4-fill,
-.bp4-select.bp4-fill select {
-    width: 100%;
-}
+
 .bp4-dark .bp4-html-select option,
 .bp4-dark .bp4-select option {
     background-color: #2f343c;

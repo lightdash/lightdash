@@ -1,12 +1,3 @@
-import {
-    ButtonGroup,
-    Classes,
-    Intent,
-    NonIdealState,
-    Spinner,
-    Tag,
-} from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import {
     OrganizationMemberProfile,
@@ -14,8 +5,22 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
 } from '@lightdash/common';
-import { Button, Group, Modal, Stack, Text, Title } from '@mantine/core';
-import { IconKey, IconTrash } from '@tabler/icons-react';
+import {
+    Box,
+    Button,
+    Group,
+    LoadingOverlay,
+    Modal,
+    Stack,
+    Text,
+    Title,
+    Tooltip,
+} from '@mantine/core';
+import {
+    IconAlertTriangleFilled,
+    IconKey,
+    IconTrash,
+} from '@tabler/icons-react';
 import { FC, useMemo, useState } from 'react';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import {
@@ -29,7 +34,6 @@ import MantineIcon from '../common/MantineIcon';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import {
     ItemContent,
-    RelevantOrgRoleIcon,
     RoleSelectButton,
     SectionWrapper,
     UserEmail,
@@ -57,24 +61,24 @@ const UserListItem: FC<{
             <ItemContent>
                 <SectionWrapper>
                     <UserInfo>
-                        <UserName className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
+                        <UserName>
                             {firstName} {lastName}
                         </UserName>
                         {email && <UserEmail minimal>{email}</UserEmail>}
                     </UserInfo>
 
                     {relevantOrgRole && (
-                        <Tooltip2
-                            content={`This user inherits the organization role: ${relevantOrgRole}`}
+                        <Tooltip
+                            label={`This user inherits the organization role: ${relevantOrgRole}`}
                         >
-                            <RelevantOrgRoleIcon
-                                icon="warning-sign"
-                                intent={Intent.WARNING}
+                            <MantineIcon
+                                icon={IconAlertTriangleFilled}
+                                style={{ marginRight: '10', color: '#935610' }}
                             />
-                        </Tooltip2>
+                        </Tooltip>
                     )}
 
-                    <ButtonGroup>
+                    <Group spacing="xs" position="right">
                         {onUpdate ? (
                             <RoleSelectButton
                                 fill
@@ -94,13 +98,17 @@ const UserListItem: FC<{
                                 value={role}
                             />
                         ) : (
-                            <Tooltip2
-                                content={roleTooltip ? roleTooltip : undefined}
+                            <Tooltip
+                                label={roleTooltip ? roleTooltip : undefined}
                             >
-                                <Tag minimal large>
+                                <Box
+                                    p="sm"
+                                    bg="#EFF0F3"
+                                    style={{ cursor: 'default' }}
+                                >
                                     {role}
-                                </Tag>
-                            </Tooltip2>
+                                </Box>
+                            </Tooltip>
                         )}
                         {onDelete && (
                             <Button
@@ -113,7 +121,7 @@ const UserListItem: FC<{
                                 <MantineIcon icon={IconTrash} />
                             </Button>
                         )}
-                    </ButtonGroup>
+                    </Group>
                 </SectionWrapper>
             </ItemContent>
             <Modal
@@ -183,8 +191,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
 
     const { data: projectAccess, isLoading: isProjectAccessLoading } =
         useProjectAccess(projectUuid);
-    const { data: organizationUsers, isLoading: isOrganizationUsersLoading } =
-        useOrganizationUsers();
+    const { data: organizationUsers } = useOrganizationUsers();
 
     const [inheritedPermissions, overlapPermissions] = useMemo(() => {
         const projectMemberEmails =
@@ -213,8 +220,13 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
         }),
     );
 
-    if (isProjectAccessLoading || isOrganizationUsersLoading) {
-        return <NonIdealState title="Loading..." icon={<Spinner />} />;
+    if (isProjectAccessLoading || isProjectAccessLoading) {
+        return (
+            <LoadingOverlay
+                visible={isProjectAccessLoading || isProjectAccessLoading}
+                overlayBlur={2}
+            />
+        );
     }
     return (
         <Stack>
