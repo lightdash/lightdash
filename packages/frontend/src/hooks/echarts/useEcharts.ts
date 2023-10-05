@@ -1147,6 +1147,12 @@ const getStackTotalRows = (
     flipAxis: boolean | undefined,
     selectedLegendNames: LegendValues,
 ): [unknown, unknown, number][] => {
+    const isNonStackable = series.some(
+        (s) =>
+            s.type === CartesianSeriesType.LINE ||
+            s.type === CartesianSeriesType.SCATTER,
+    );
+    if (isNonStackable) return [];
     return rows.map((row) => {
         const total = calculateStackTotal(
             row,
