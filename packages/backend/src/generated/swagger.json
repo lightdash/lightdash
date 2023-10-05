@@ -5145,7 +5145,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.798.0",
+        "version": "0.800.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -5655,9 +5655,9 @@
                 ]
             }
         },
-        "/api/v1/projects/{projectUuid}/metricflow": {
+        "/api/v1/projects/{projectUuid}/dbtsemanticlayer": {
             "post": {
-                "operationId": "GetMetricFlowData",
+                "operationId": "GetDbtSemanticLayerData",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -5678,8 +5678,8 @@
                         }
                     }
                 },
-                "description": "Get MetricFlow data",
-                "tags": ["MetricFlow"],
+                "description": "Get DbtSemanticLayer data",
+                "tags": ["DbtSemanticLayer"],
                 "security": [],
                 "parameters": [
                     {

@@ -172,10 +172,16 @@ const MetricFlowPage = () => {
                     <Group position="apart">
                         <Flex gap="xs">
                             <PageBreadcrumbs
-                                items={[{ title: 'MetricFlow', active: true }]}
+                                items={[
+                                    {
+                                        title: 'dbt Semantic Layer',
+                                        active: true,
+                                    },
+                                ]}
                             />
                             <Tooltip
-                                label={`MetricFlow integration is in beta and may be unstable`}
+                                multiline
+                                label={`The dbt Semantic Layer integration is in beta and may be unstable`}
                             >
                                 <Badge size="sm" variant="light">
                                     BETA
