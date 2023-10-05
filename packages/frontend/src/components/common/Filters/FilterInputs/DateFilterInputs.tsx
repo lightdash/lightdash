@@ -1,4 +1,3 @@
-import { NumericInput } from '@blueprintjs/core';
 import { DateInput2 } from '@blueprintjs/datetime2';
 import {
     ConditionalRule,
@@ -13,6 +12,7 @@ import {
     parseDate,
     TimeFrames,
 } from '@lightdash/common';
+import { Flex, NumberInput } from '@mantine/core';
 import moment from 'moment';
 import React from 'react';
 import MonthAndYearInput from '../../MonthAndYearInput';
@@ -237,20 +237,25 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
         case FilterOperator.IN_THE_NEXT:
             const parsedValue = parseInt(rule.values?.[0], 10);
             return (
-                <MultipleInputsWrapper>
-                    <NumericInput
-                        className={disabled ? 'disabled-filter' : ''}
-                        fill
+                <Flex gap="xs" sx={{ width: '100%' }}>
+                    <NumberInput
+                        size="xs"
+                        sx={{ flexShrink: 1, flexGrow: 1 }}
                         placeholder={placeholder}
                         disabled={disabled}
                         value={isNaN(parsedValue) ? undefined : parsedValue}
                         min={0}
-                        onValueChange={(value) =>
-                            onChange({ ...rule, values: [value] })
-                        }
+                        onChange={(value) => {
+                            onChange({
+                                ...rule,
+                                values: value === '' ? [] : [value],
+                            });
+                        }}
                     />
+
                     <UnitOfTimeAutoComplete
                         disabled={disabled}
+                        sx={{ flexShrink: 0, flexGrow: 3 }}
                         isTimestamp={isTimestamp}
                         unitOfTime={rule.settings?.unitOfTime}
                         completed={rule.settings?.completed || false}
@@ -265,30 +270,29 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             })
                         }
                     />
-                </MultipleInputsWrapper>
+                </Flex>
             );
         case FilterOperator.IN_THE_CURRENT:
             return (
-                <MultipleInputsWrapper>
-                    <UnitOfTimeAutoComplete
-                        disabled={disabled}
-                        isTimestamp={isTimestamp}
-                        unitOfTime={rule.settings?.unitOfTime}
-                        showOptionsInPlural={false}
-                        showCompletedOptions={false}
-                        completed={false}
-                        popoverProps={popoverProps}
-                        onChange={(value) =>
-                            onChange({
-                                ...rule,
-                                settings: {
-                                    unitOfTime: value.unitOfTime,
-                                    completed: false,
-                                },
-                            })
-                        }
-                    />
-                </MultipleInputsWrapper>
+                <UnitOfTimeAutoComplete
+                    sx={{ width: '100%' }}
+                    disabled={disabled}
+                    isTimestamp={isTimestamp}
+                    unitOfTime={rule.settings?.unitOfTime}
+                    showOptionsInPlural={false}
+                    showCompletedOptions={false}
+                    completed={false}
+                    popoverProps={popoverProps}
+                    onChange={(value) =>
+                        onChange({
+                            ...rule,
+                            settings: {
+                                unitOfTime: value.unitOfTime,
+                                completed: false,
+                            },
+                        })
+                    }
+                />
             );
         case FilterOperator.IN_BETWEEN:
             if (isTimestamp) {
