@@ -2,11 +2,12 @@ import {
     Field,
     getItemId,
     getItemLabel,
+    getItemLabelWithoutTableName,
     isField,
     Item,
     TableCalculation,
 } from '@lightdash/common';
-import { Group, Select, SelectProps, Text } from '@mantine/core';
+import { Group, Select, SelectProps, Text, Tooltip } from '@mantine/core';
 import { FC, forwardRef, useCallback, useMemo } from 'react';
 import FieldIcon from '../FieldIcon';
 
@@ -34,20 +35,36 @@ interface FieldAutoCompleteProps
 interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
     item: Item;
     label: string;
+    description?: string;
     size?: SelectProps['size'];
     selected?: boolean;
 }
 
 const FieldSelectItem = forwardRef<HTMLDivElement, ItemProps>(
-    ({ item, label, size, ...rest }, ref) => (
-        <div ref={ref} {...rest}>
-            <Group noWrap spacing={size}>
-                <FieldIcon item={item} selected={rest.selected} />
+    ({ item, label, description, size, ...rest }, ref) => (
+        <Tooltip
+            disabled={!description}
+            label={
                 <Text truncate size={size}>
-                    {label}
+                    {description}
                 </Text>
-            </Group>
-        </div>
+            }
+            position="top-start"
+            multiline
+            maw={400}
+            arrowOffset={16}
+            offset={-2}
+            withinPortal
+        >
+            <div ref={ref} {...rest}>
+                <Group noWrap spacing={size}>
+                    <FieldIcon item={item} selected={rest.selected} />
+                    <Text truncate size={size}>
+                        {label}
+                    </Text>
+                </Group>
+            </div>
+        </Tooltip>
     ),
 );
 
@@ -89,14 +106,18 @@ const FieldAutoComplete: FC<FieldAutoCompleteProps> = ({
         <Select
             w="100%"
             searchable
-            clearable
             {...rest}
             icon={field ? <FieldIcon item={field} /> : undefined}
             value={selectedFieldId}
             itemComponent={FieldSelectItem}
             data={sortedItems.map((i) => ({
                 value: getItemId(i),
-                label: getItemLabel(i),
+                label: isField(i)
+                    ? hasGrouping
+                        ? getItemLabelWithoutTableName(i)
+                        : getItemLabel(i)
+                    : i.name,
+                description: isField(i) ? i.description : undefined,
                 item: i,
                 group: hasGrouping && isField(i) ? i.tableLabel : undefined,
                 size: rest.size,
