@@ -268,11 +268,21 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                                     {groupSelectedField && (
                                         <CloseButton
                                             onClick={() => {
-                                                setPivotDimensions(
+                                                const newPivotDimensions =
                                                     pivotDimensions.filter(
                                                         (key) =>
                                                             key !== pivotKey,
-                                                    ),
+                                                    );
+
+                                                if (
+                                                    newPivotDimensions.length ===
+                                                    0
+                                                ) {
+                                                    setStacking(false);
+                                                }
+
+                                                setPivotDimensions(
+                                                    newPivotDimensions,
                                                 );
                                             }}
                                         />
