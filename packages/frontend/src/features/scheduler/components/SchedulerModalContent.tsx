@@ -68,7 +68,7 @@ const ListStateContent: FC<{
     );
 };
 
-const CreateStateContent: FC<{
+export const CreateStateContent: FC<{
     resourceUuid: string;
     createMutation: UseMutationResult<
         SchedulerAndTargets,
@@ -145,7 +145,7 @@ const CreateStateContent: FC<{
     );
 };
 
-const UpdateStateContent: FC<{
+export const UpdateStateContent: FC<{
     schedulerUuid: string;
     onBack: () => void;
 }> = ({ schedulerUuid, onBack }) => {
