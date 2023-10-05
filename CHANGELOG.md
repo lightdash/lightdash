@@ -1,3 +1,10 @@
+## [0.799.1](https://github.com/lightdash/lightdash/compare/0.799.0...0.799.1) (2023-10-05)
+
+
+### Bug Fixes
+
+* downgrade node 18 ([#7327](https://github.com/lightdash/lightdash/issues/7327)) ([eb28c64](https://github.com/lightdash/lightdash/commit/eb28c6486424ffe22d4db2b754e5c4899ee2ecec))
+
 # [0.799.0](https://github.com/lightdash/lightdash/compare/0.798.3...0.799.0) (2023-10-04)
 
 
