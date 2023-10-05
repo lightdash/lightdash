@@ -285,21 +285,37 @@ describe('Explore', () => {
         // wait to compile query
         cy.findByText('Open in SQL Runner').parent().should('not.be.disabled');
 
-        cy.get('pre > code').then(($code) => {
-            const queryLines = $code.text().split('\n');
+        let sqlQueryLines;
+        const aceLines: string[] = [];
 
-            // follow link
-            cy.findByText('Open in SQL Runner').parent().click();
+        // Get compiled SQL query from Explore
+        cy.get('.mantine-Prism-root')
+            .within(() => {
+                sqlQueryLines = Cypress.$('.mantine-Prism-lineContent')
+                    .toArray()
+                    .map((el) => (el.innerText === '\n' ? '' : el.innerText));
+            })
+            .then(() => {
+                // open SQL Runner
+                cy.findByText('Open in SQL Runner').parent().click();
+                // wait for URL to change to be in SQL Runner
+                cy.url().should('include', '/sqlRunner');
+                cy.get('.ace_content').should('exist');
 
-            // wait page loading
-            cy.get('.ace_content').should('exist');
-
-            // compare SQL query
-            cy.get('.ace_line').should('have.length', queryLines.length);
-            cy.get('.ace_line').each(($line, index) => {
-                cy.wrap($line).should('have.text', queryLines[index]);
+                // Get SQL query from SQL Runner editor
+                cy.get('.ace_line')
+                    .each(($el) => {
+                        aceLines.push($el.text());
+                    })
+                    .then(() => {
+                        // compare SQL query from the Explore with the one in SQL Runner
+                        cy.get('.ace_line').should(
+                            'have.length',
+                            sqlQueryLines?.length,
+                        );
+                        cy.wrap(aceLines).should('deep.equal', sqlQueryLines);
+                    });
             });
-        });
     });
 
     it('Should clear query using hotkeys', () => {
