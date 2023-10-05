@@ -56,12 +56,24 @@ describe('Date tests', () => {
 
         cy.findByTestId('Charts-card-expand').click(); // Collapse charts
         cy.findByTestId('SQL-card-expand').click();
-        cy.get('code')
-            .invoke('text')
-            .should(
-                'include',
-                `(DATE_TRUNC('MONTH', "orders".order_date)) = ('2018-02-01')`,
-            );
+
+        cy.get('.mantine-Prism-root').within(() => {
+            const compiledSql = Cypress.$('.mantine-Prism-lineContent')
+                .toArray()
+                .map((el) => (el.innerText === '\n' ? '' : el.innerText));
+
+            cy.wrap(compiledSql).should((actualArray) => {
+                const expectedStrings = [
+                    'WHERE ((',
+                    "  (DATE_TRUNC('MONTH', \"orders\".order_date)) = ('2018-02-01')",
+                    '))',
+                ];
+
+                expectedStrings.forEach((str) => {
+                    expect(actualArray).to.include(str);
+                });
+            });
+        });
     });
 
     it('Should use dashboard month filter', () => {
@@ -271,7 +283,7 @@ describe('Date tests', () => {
             cy.get('button').find('[data-previous="true"]').click();
             cy.contains('button', 2017).click();
         });
-        cy.get('.bp4-code').contains(
+        cy.get('.mantine-Prism-root').contains(
             `(DATE_TRUNC('YEAR', "customers".created)) = ('2017-01-01')`,
         );
 
@@ -279,7 +291,7 @@ describe('Date tests', () => {
         cy.findByRole('dialog').within(() => {
             cy.contains('button', 2018).click();
         });
-        cy.get('.bp4-code').contains(
+        cy.get('.mantine-Prism-root').contains(
             `(DATE_TRUNC('YEAR', "customers".created)) = ('2018-01-01')`,
         );
 
@@ -296,7 +308,7 @@ describe('Date tests', () => {
             cy.contains('button', 2017).click();
             cy.contains('button', 'Aug').click();
         });
-        cy.get('.bp4-code').contains(
+        cy.get('.mantine-Prism-root').contains(
             `(DATE_TRUNC('MONTH', "customers".created)) = ('2017-08-01')`,
         );
 
@@ -306,7 +318,7 @@ describe('Date tests', () => {
             cy.contains('button', '2018').click();
             cy.contains('button', 'Sep').click();
         });
-        cy.get('.bp4-code').contains(
+        cy.get('.mantine-Prism-root').contains(
             `(DATE_TRUNC('MONTH', "customers".created)) = ('2018-09-01')`,
         );
 
@@ -329,7 +341,7 @@ describe('Date tests', () => {
         cy.contains('Created day').click();
 
         cy.get('.bp4-date-input input').should('have.value', todayDate);
-        cy.get('.bp4-code').contains(
+        cy.get('.mantine-Prism-root').contains(
             `(DATE_TRUNC('DAY', "customers".created)) = ('${todayDate}')`,
         );
 
@@ -344,7 +356,7 @@ describe('Date tests', () => {
 
         // Keep same date
         cy.get('.bp4-date-input input').should('have.value', todayDate);
-        cy.get('.bp4-code').contains(
+        cy.get('.mantine-Prism-root').contains(
             `(DATE_TRUNC('DAY', "customers".created)) != ('${todayDate}')`,
         );
 
@@ -371,7 +383,7 @@ describe('Date tests', () => {
         cy.findByRole('menuitem', { name: 'Add filter' }).click();
 
         cy.contains('button', now.format('YYYY'));
-        cy.get('.bp4-code').contains(
+        cy.get('.mantine-Prism-root').contains(
             `(DATE_TRUNC('YEAR', "orders".order_date)) = ('${now.format(
                 'YYYY',
             )}-01-01')`,
@@ -383,7 +395,7 @@ describe('Date tests', () => {
         cy.findByRole('menuitem', { name: 'Add filter' }).click();
 
         cy.contains('button', now.format('MMMM YYYY'));
-        cy.get('.bp4-code').contains(
+        cy.get('.mantine-Prism-root').contains(
             `(DATE_TRUNC('MONTH', "orders".order_date)) = ('${now.format(
                 'YYYY',
             )}-${now.format('MM')}-01')`,
@@ -403,7 +415,7 @@ describe('Date tests', () => {
         cy.findByRole('menuitem', { name: 'Add filter' }).click();
 
         cy.get('.bp4-date-input input').should('have.value', weekDate);
-        cy.get('.bp4-code').contains(
+        cy.get('.mantine-Prism-root').contains(
             `(DATE_TRUNC('WEEK', "orders".order_date)) = ('${weekDate}')`,
         );
         cy.get('.tabler-icon-x').click({ multiple: true });
@@ -415,7 +427,7 @@ describe('Date tests', () => {
         const todayDate = getLocalISOString(now.toDate());
 
         cy.get('.bp4-date-input input').should('have.value', todayDate);
-        cy.get('.bp4-code').contains(
+        cy.get('.mantine-Prism-root').contains(
             `(DATE_TRUNC('DAY', "orders".order_date)) = ('${todayDate}')`,
         );
         cy.get('.tabler-icon-x').click({ multiple: true });
