@@ -295,8 +295,8 @@ const FilterConfiguration: FC<Props> = ({
                                 <FieldAutoComplete
                                     hasGrouping
                                     id="field-autocomplete"
+                                    field={selectedField}
                                     fields={fields}
-                                    activeField={selectedField}
                                     onChange={handleChangeField}
                                     inputProps={{
                                         style: {

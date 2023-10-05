@@ -219,7 +219,7 @@ const DrillDownModal: FC = () => {
                         labelFor="chart-name"
                     >
                         <FieldAutoComplete
-                            activeField={selectedDimension}
+                            field={selectedDimension}
                             fields={dimensionsAvailable}
                             onChange={(field) => {
                                 if (isField(field)) {

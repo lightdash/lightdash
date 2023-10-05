@@ -247,8 +247,8 @@ const TileFilterConfiguration: FC<Props> = ({
                                             fontSize: theme.fontSizes.xs,
                                         },
                                     }}
+                                    field={value.selectedField}
                                     fields={value.sortedFilters}
-                                    activeField={value.selectedField}
                                     onChange={(newFilter) => {
                                         onChange(
                                             FilterActions.ADD,

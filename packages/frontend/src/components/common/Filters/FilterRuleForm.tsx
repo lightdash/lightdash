@@ -78,7 +78,8 @@ const FilterRuleForm: FC<Props> = ({
             {activeField ? (
                 <>
                     <FieldAutoComplete
-                        activeField={activeField}
+                        size="xs"
+                        field={activeField}
                         fields={fields}
                         onChange={(field) => {
                             if (isField(field)) {
@@ -88,6 +89,7 @@ const FilterRuleForm: FC<Props> = ({
                         disabled={!isEditMode}
                         hasGrouping
                     />
+
                     <HTMLSelect
                         className={!isEditMode ? 'disabled-filter' : ''}
                         fill={false}
@@ -111,6 +113,7 @@ const FilterRuleForm: FC<Props> = ({
                         options={filterConfig.operatorOptions}
                         value={filterRule.operator}
                     />
+
                     <filterConfig.inputs
                         filterType={filterType}
                         field={activeField}
@@ -125,6 +128,7 @@ const FilterRuleForm: FC<Props> = ({
                     {filterRule.target.fieldId}
                 </span>
             )}
+
             {isEditMode &&
                 (!onConvertToGroup ? (
                     <ActionIcon onClick={onDelete}>

@@ -23,7 +23,6 @@ import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../MantineIcon';
 import FieldAutoComplete from './FieldAutocomplete/FieldAutoComplete';
-import { FieldAutoCompleteWrapper } from './FieldAutocomplete/FieldAutoComplete.styles';
 import FilterGroupForm from './FilterGroupForm';
 import { FieldWithSuggestions, useFiltersContext } from './FiltersProvider';
 import SimplifiedFilterGroupForm from './SimplifiedFilterGroupForm';
@@ -213,7 +212,8 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                 }}
             >
                 {isOpen && (
-                    <FieldAutoCompleteWrapper>
+                    // TODO: check wrapper
+                    <>
                         <FieldAutoComplete
                             autoFocus
                             fields={fields}
@@ -221,11 +221,13 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                             onClosed={toggleFieldInput}
                             hasGrouping
                         />
+
                         <ActionIcon onClick={toggleFieldInput}>
                             <MantineIcon icon={IconX} />
                         </ActionIcon>
-                    </FieldAutoCompleteWrapper>
+                    </>
                 )}
+
                 {isEditMode && !isOpen && (
                     <Button
                         variant="light"

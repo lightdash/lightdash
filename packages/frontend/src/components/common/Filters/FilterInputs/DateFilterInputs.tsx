@@ -56,10 +56,15 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                 switch (field.timeInterval.toUpperCase()) {
                     case TimeFrames.WEEK:
                         return (
-                            <>
+                            <Flex
+                                align="center"
+                                gap="xs"
+                                sx={{ width: '100%' }}
+                            >
                                 <span style={{ whiteSpace: 'nowrap' }}>
                                     week commencing
                                 </span>
+
                                 <WeekPicker
                                     placeholder={placeholder}
                                     disabled={disabled}
@@ -76,7 +81,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                         });
                                     }}
                                 />
-                            </>
+                            </Flex>
                         );
                     case TimeFrames.MONTH:
                         return (

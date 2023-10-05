@@ -1,144 +1,109 @@
-import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
-import { Suggest2 } from '@blueprintjs/select';
 import {
     Field,
     getItemId,
     getItemLabel,
+    isField,
+    Item,
     TableCalculation,
 } from '@lightdash/common';
-import { useMemo } from 'react';
-import { createGlobalStyle } from 'styled-components';
-import { useActiveProjectUuid } from '../../../../hooks/useActiveProject';
-import { useExplores } from '../../../../hooks/useExplores';
+import { Group, Select, SelectProps, Text } from '@mantine/core';
+import { FC, forwardRef, useCallback, useMemo } from 'react';
 import FieldIcon from '../FieldIcon';
-import {
-    renderFilterItem,
-    renderFilterItemWithoutTableName,
-} from './renderFilterItem';
-import RenderFilterList from './renderFilterList';
 
-const AutocompleteMaxHeight = createGlobalStyle`
-  .autocomplete-max-height {
-    max-height: 400px;
-    overflow-y: auto;
-  }
-`;
+// id? name? of the field
+// disabled
+// autoFocus
+// placeholder
+// activeField <<< value
+// fields <<< data ?
+// inactiveFieldIds
+// onChange
+// onClosed
+// hasGrouping
 
-type FieldAutoCompleteProps<T> = {
-    id?: string;
-    name?: string;
-    disabled?: boolean;
-    autoFocus?: boolean;
-    activeField?: T;
+interface FieldAutoCompleteProps
+    extends Omit<SelectProps, 'items' | 'onChange' | 'data'> {
+    field?: Field | TableCalculation;
+    fields: (Field | TableCalculation)[];
     inactiveFieldIds?: string[];
-    placeholder?: string;
-    fields: Array<T>;
-    onChange: (value: T) => void;
+    onChange: (value: Field | TableCalculation) => void;
     onClosed?: () => void;
-    popoverProps?: Popover2Props;
-    inputProps?: React.ComponentProps<typeof Suggest2>['inputProps'];
     hasGrouping?: boolean;
-};
+}
 
-const FieldAutoComplete = <T extends Field | TableCalculation>({
-    disabled,
-    autoFocus,
-    activeField,
+interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
+    item: Item;
+    label: string;
+    size?: SelectProps['size'];
+    selected?: boolean;
+}
+
+const FieldSelectItem = forwardRef<HTMLDivElement, ItemProps>(
+    ({ item, label, size, ...rest }, ref) => (
+        <div ref={ref} {...rest}>
+            <Group noWrap spacing={size}>
+                <FieldIcon item={item} selected={rest.selected} />
+                <Text truncate size={size}>
+                    {label}
+                </Text>
+            </Group>
+        </div>
+    ),
+);
+
+const FieldAutoComplete: FC<FieldAutoCompleteProps> = ({
+    field,
     fields,
-    id,
-    name,
     onChange,
     onClosed,
     placeholder,
-    popoverProps,
-    inputProps,
+    inactiveFieldIds = [],
     hasGrouping = false,
-}: FieldAutoCompleteProps<T>) => {
-    const { activeProjectUuid } = useActiveProjectUuid({
-        refetchOnMount: false,
-    });
-    const { data: exploresData } = useExplores(activeProjectUuid ?? '', false, {
-        refetchOnMount: false,
-    });
+    ...rest
+}) => {
+    const filteredFields = useMemo(() => {
+        return fields.filter((f) => !inactiveFieldIds.includes(getItemId(f)));
+    }, [fields, inactiveFieldIds]);
 
-    const sortedFields = useMemo(() => {
-        return fields.sort((a, b) =>
+    const sortedItems = useMemo(() => {
+        return filteredFields.sort((a, b) =>
             getItemLabel(a).localeCompare(getItemLabel(b)),
         );
-    }, [fields]);
+    }, [filteredFields]);
 
-    return (hasGrouping && exploresData) || !hasGrouping ? (
-        <>
-            <AutocompleteMaxHeight />
-            <Suggest2<T>
-                fill
-                className={disabled ? 'disabled-filter' : ''}
-                disabled={disabled}
-                inputProps={{
-                    id,
-                    name,
-                    autoFocus,
-                    placeholder: placeholder || 'Search field...',
-                    leftElement: activeField && (
-                        <FieldIcon
-                            item={activeField}
-                            size={16}
-                            style={{ margin: '7px 8px' }}
-                        />
-                    ),
-                    ...inputProps,
-                }}
-                items={sortedFields}
-                itemsEqual={(value, other) => {
-                    return getItemId(value) === getItemId(other);
-                }}
-                inputValueRenderer={(item) => {
-                    if (!activeField) {
-                        return '';
-                    }
-                    return getItemLabel(item);
-                }}
-                popoverProps={{
-                    minimal: true,
-                    onClosed,
-                    popoverClassName: 'autocomplete-max-height',
-                    captureDismiss: true,
-                    ...popoverProps,
-                }}
-                itemRenderer={
-                    hasGrouping
-                        ? renderFilterItemWithoutTableName
-                        : renderFilterItem
-                }
-                {...(hasGrouping && {
-                    itemListRenderer: (itemListRendererProps) => {
-                        const tables =
-                            exploresData?.map((explore) => ({
-                                description: explore.description,
-                                name: explore.name,
-                            })) ?? [];
-                        return (
-                            <RenderFilterList
-                                {...itemListRendererProps}
-                                tables={tables}
-                            />
-                        );
-                    },
-                })}
-                activeItem={activeField}
-                selectedItem={activeField}
-                noResults={<MenuItem2 disabled text="No results." />}
-                onItemSelect={onChange}
-                itemPredicate={(query, item, _index, exactMatch) => {
-                    const label = getItemLabel(item);
-                    if (exactMatch) {
-                        return query.toLowerCase() === label.toLowerCase();
-                    }
-                    return label.toLowerCase().includes(query.toLowerCase());
-                }}
-            />
-        </>
-    ) : null;
+    const selectedFieldId = useMemo(() => {
+        return field ? getItemId(field) : undefined;
+    }, [field]);
+
+    const handleChange = useCallback(
+        (value: string) => {
+            const selectedField = fields.find((f) => getItemId(f) === value);
+
+            if (!selectedField) return;
+            onChange(selectedField);
+        },
+        [fields, onChange],
+    );
+
+    return (
+        <Select
+            w="100%"
+            searchable
+            clearable
+            {...rest}
+            icon={field ? <FieldIcon item={field} /> : undefined}
+            value={selectedFieldId}
+            itemComponent={FieldSelectItem}
+            data={sortedItems.map((i) => ({
+                value: getItemId(i),
+                label: getItemLabel(i),
+                item: i,
+                group: hasGrouping && isField(i) ? i.tableLabel : undefined,
+                size: rest.size,
+            }))}
+            onChange={handleChange}
+        />
+    );
 };
 
 export default FieldAutoComplete;
