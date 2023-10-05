@@ -1,3 +1,10 @@
+## [0.799.2](https://github.com/lightdash/lightdash/compare/0.799.1...0.799.2) (2023-10-05)
+
+
+### Bug Fixes
+
+* Improve the `access` parameter of `CreateSpaceInProject` ([#7300](https://github.com/lightdash/lightdash/issues/7300)) ([a9293b2](https://github.com/lightdash/lightdash/commit/a9293b2c4ed7e6f15b03854b8e0c28798d013cf0))
+
 ## [0.799.1](https://github.com/lightdash/lightdash/compare/0.799.0...0.799.1) (2023-10-05)
 
 
