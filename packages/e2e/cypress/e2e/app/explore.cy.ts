@@ -285,13 +285,15 @@ describe('Explore', () => {
         // wait to compile query
         cy.findByText('Open in SQL Runner').parent().should('not.be.disabled');
 
-        let sqlQueryLines;
-        const aceLines: string[] = [];
+        let sqlQueryFromExploreLines;
+        const sqlQueryFromSqlRunnerLines: string[] = [];
 
         // Get compiled SQL query from Explore
         cy.get('.mantine-Prism-root')
             .within(() => {
-                sqlQueryLines = Cypress.$('.mantine-Prism-lineContent')
+                sqlQueryFromExploreLines = Cypress.$(
+                    '.mantine-Prism-lineContent',
+                )
                     .toArray()
                     .map((el) => (el.innerText === '\n' ? '' : el.innerText));
             })
@@ -305,15 +307,18 @@ describe('Explore', () => {
                 // Get SQL query from SQL Runner editor
                 cy.get('.ace_line')
                     .each(($el) => {
-                        aceLines.push($el.text());
+                        sqlQueryFromSqlRunnerLines.push($el.text());
                     })
                     .then(() => {
                         // compare SQL query from the Explore with the one in SQL Runner
                         cy.get('.ace_line').should(
                             'have.length',
-                            sqlQueryLines?.length,
+                            sqlQueryFromExploreLines?.length,
                         );
-                        cy.wrap(aceLines).should('deep.equal', sqlQueryLines);
+                        cy.wrap(sqlQueryFromSqlRunnerLines).should(
+                            'deep.equal',
+                            sqlQueryFromExploreLines,
+                        );
                     });
             });
     });
