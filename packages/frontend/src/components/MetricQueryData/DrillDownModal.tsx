@@ -29,7 +29,7 @@ import React, { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
-import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
+import FieldAutoComplete from '../common/Filters/FieldAutocomplete/FieldAutoComplete';
 import { useMetricQueryDataContext } from './MetricQueryDataProvider';
 
 type CombineFiltersArgs = {

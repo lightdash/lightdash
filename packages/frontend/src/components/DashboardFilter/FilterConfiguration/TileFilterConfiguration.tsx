@@ -20,7 +20,7 @@ import {
 } from '@mantine/core';
 import { FC, useCallback, useMemo } from 'react';
 import { FilterActions } from '.';
-import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
+import FieldAutoComplete from '../../common/Filters/FieldAutocomplete/FieldAutoComplete';
 import MantineIcon from '../../common/MantineIcon';
 import { getChartIcon } from '../../common/ResourceIcon';
 

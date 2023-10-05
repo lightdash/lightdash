@@ -9,8 +9,8 @@ import {
 } from '@lightdash/common';
 import { Tooltip } from '@mantine/core';
 import { forwardRef, MouseEventHandler, ReactNode } from 'react';
-import FieldIcon from './FieldIcon';
-import FieldLabel from './FieldLabel';
+import FieldIcon from '../FieldIcon';
+import FieldLabel from '../FieldLabel';
 
 const FilterItem = forwardRef<
     HTMLDivElement,

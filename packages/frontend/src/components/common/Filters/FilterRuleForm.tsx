@@ -14,7 +14,7 @@ import { IconDots, IconX } from '@tabler/icons-react';
 import React, { FC, useCallback, useMemo } from 'react';
 import MantineIcon from '../MantineIcon';
 import { FilterTypeConfig } from './configs';
-import FieldAutoComplete from './FieldAutoComplete';
+import FieldAutoComplete from './FieldAutocomplete/FieldAutoComplete';
 
 type Props = {
     fields: FilterableField[];

@@ -10,7 +10,7 @@ import { Group, Text, Tooltip } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import React, { forwardRef, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
-import MantineIcon from '../MantineIcon';
+import MantineIcon from '../../MantineIcon';
 
 type GroupTable = Pick<SummaryExplore, 'name' | 'description'>;
 

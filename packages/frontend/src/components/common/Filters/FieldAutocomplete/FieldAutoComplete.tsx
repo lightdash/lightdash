@@ -8,9 +8,9 @@ import {
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { createGlobalStyle } from 'styled-components';
-import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
-import { useExplores } from '../../../hooks/useExplores';
-import FieldIcon from './FieldIcon';
+import { useActiveProjectUuid } from '../../../../hooks/useActiveProject';
+import { useExplores } from '../../../../hooks/useExplores';
+import FieldIcon from '../FieldIcon';
 import {
     renderFilterItem,
     renderFilterItemWithoutTableName,

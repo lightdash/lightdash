@@ -28,7 +28,7 @@ import {
 import { IconRotate2 } from '@tabler/icons-react';
 import produce from 'immer';
 import { FC, useCallback, useMemo, useState } from 'react';
-import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
+import FieldAutoComplete from '../../common/Filters/FieldAutocomplete/FieldAutoComplete';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import FieldLabel from '../../common/Filters/FieldLabel';
 import MantineIcon from '../../common/MantineIcon';
