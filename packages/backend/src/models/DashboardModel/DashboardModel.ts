@@ -221,6 +221,7 @@ export class DashboardModel {
     async getAllByProject(
         projectUuid: string,
         chartUuid?: string,
+        limit?: number,
     ): Promise<DashboardBasicDetails[]> {
         const cteTableName = 'cte';
         const dashboardsQuery = this.database
@@ -305,6 +306,10 @@ export class DashboardModel {
                     .where(`${ProjectTableName}.project_uuid`, projectUuid);
             })
             .select(`${cteTableName}.*`);
+
+        if (limit) {
+            dashboardsQuery.limit(limit);
+        }
 
         if (chartUuid) {
             dashboardsQuery

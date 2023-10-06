@@ -10,7 +10,7 @@ import OnboardingPanel from '../components/Home/OnboardingPanel/index';
 import RecentlyUpdatedPanel from '../components/Home/RecentlyUpdatedPanel';
 import PageSpinner from '../components/PageSpinner';
 import PinnedItemsPanel from '../components/PinnedItemsPanel';
-import { useDashboards } from '../hooks/dashboard/useDashboards';
+import { useRecentlyUpdatedDashboards } from '../hooks/dashboard/useDashboards';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
 import {
     useOnboardingStatus,
@@ -31,9 +31,9 @@ const Home: FC = () => {
     const { data: pinnedItems = [], isLoading: pinnedItemsLoading } =
         usePinnedItems(selectedProjectUuid, project.data?.pinnedListUuid);
 
-    // only used for recently updated panel - could be faster
     const { data: dashboards = [], isLoading: dashboardsLoading } =
-        useDashboards(selectedProjectUuid);
+        useRecentlyUpdatedDashboards(selectedProjectUuid);
+    // only used for recently updated panel - could be faster
     const { data: savedCharts = [], isLoading: chartsLoading } =
         useSavedCharts(selectedProjectUuid);
     // -----

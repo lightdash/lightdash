@@ -23,6 +23,13 @@ const getDashboards = async (
         body: undefined,
     });
 
+const getRecentlyUpdatedDashboards = async (projectUuid: string) =>
+    lightdashApi<DashboardBasicDetails[]>({
+        url: `/projects/${projectUuid}/dashboards?recentlyUpdated=true`,
+        method: 'GET',
+        body: undefined,
+    });
+
 const getDashboardsContainingChart = async (
     projectUuid: string,
     chartId: string,
@@ -43,6 +50,26 @@ export const useDashboards = (
     return useQuery<DashboardBasicDetails[], ApiError>(
         ['dashboards', projectUuid, includePrivateSpaces],
         () => getDashboards(projectUuid || '', includePrivateSpaces),
+        {
+            enabled: projectUuid !== undefined,
+            ...useQueryOptions,
+            onError: (result) => {
+                setErrorResponse(result);
+                useQueryOptions?.onError?.(result);
+            },
+        },
+    );
+};
+
+export const useRecentlyUpdatedDashboards = (
+    projectUuid: string,
+    useQueryOptions?: UseQueryOptions<DashboardBasicDetails[], ApiError>,
+) => {
+    const setErrorResponse = useQueryError();
+
+    return useQuery<DashboardBasicDetails[], ApiError>(
+        ['dashboards-recently-updated', projectUuid],
+        () => getRecentlyUpdatedDashboards(projectUuid || ''),
         {
             enabled: projectUuid !== undefined,
             ...useQueryOptions,

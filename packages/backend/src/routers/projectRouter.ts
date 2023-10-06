@@ -391,21 +391,39 @@ projectRouter.get(
                 : undefined;
 
         const includePrivate = req.query.includePrivate === 'true';
+        const recentlyUpdated = req.query.recentlyUpdated === 'true';
 
-        dashboardService
-            .getAllByProject(
-                req.user!,
-                req.params.projectUuid,
-                chartUuid,
-                includePrivate,
-            )
-            .then((results) => {
-                res.json({
-                    status: 'ok',
-                    results,
-                });
-            })
-            .catch(next);
+        if (recentlyUpdated) {
+            dashboardService
+                .getRecentlyUpdatedByProject(
+                    req.user!,
+                    req.params.projectUuid,
+                    chartUuid,
+                    includePrivate,
+                )
+                .then((results) => {
+                    res.json({
+                        status: 'ok',
+                        results,
+                    });
+                })
+                .catch(next);
+        } else {
+            dashboardService
+                .getAllByProject(
+                    req.user!,
+                    req.params.projectUuid,
+                    chartUuid,
+                    includePrivate,
+                )
+                .then((results) => {
+                    res.json({
+                        status: 'ok',
+                        results,
+                    });
+                })
+                .catch(next);
+        }
     },
 );
 
