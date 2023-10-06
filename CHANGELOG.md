@@ -1,3 +1,10 @@
+## [0.800.3](https://github.com/lightdash/lightdash/compare/0.800.2...0.800.3) (2023-10-06)
+
+
+### Bug Fixes
+
+* improve logging on ssh tunnel connections ([#7366](https://github.com/lightdash/lightdash/issues/7366)) ([67f4649](https://github.com/lightdash/lightdash/commit/67f46498690f4351d5a793971eaa1ce5e991efc9))
+
 ## [0.800.2](https://github.com/lightdash/lightdash/compare/0.800.1...0.800.2) (2023-10-06)
 
 
