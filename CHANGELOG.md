@@ -1,3 +1,10 @@
+## [0.800.2](https://github.com/lightdash/lightdash/compare/0.800.1...0.800.2) (2023-10-06)
+
+
+### Bug Fixes
+
+* slack invitation url ([#7361](https://github.com/lightdash/lightdash/issues/7361)) ([1253465](https://github.com/lightdash/lightdash/commit/1253465e72bd4eb9e43986b5425da702297e73ff))
+
 ## [0.800.1](https://github.com/lightdash/lightdash/compare/0.800.0...0.800.1) (2023-10-05)
 
 
