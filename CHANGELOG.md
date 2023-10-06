@@ -1,3 +1,10 @@
+## [0.800.4](https://github.com/lightdash/lightdash/compare/0.800.3...0.800.4) (2023-10-06)
+
+
+### Bug Fixes
+
+* fix unfurl data visualization on tables ([#7364](https://github.com/lightdash/lightdash/issues/7364)) ([e05be3c](https://github.com/lightdash/lightdash/commit/e05be3c540699c90713a901a432249f93683b2b0))
+
 ## [0.800.3](https://github.com/lightdash/lightdash/compare/0.800.2...0.800.3) (2023-10-06)
 
 
