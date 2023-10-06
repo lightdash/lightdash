@@ -182,7 +182,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             </ButtonsWrapper>
                         ) : null}
                     </HeaderContainer>
-                    <ChartContainer className="non-draggable sentry-block fs-block cohere-block">
+                    <ChartContainer className="non-draggable sentry-block">
                         {children}
                     </ChartContainer>
                     {isEditingTileContent &&

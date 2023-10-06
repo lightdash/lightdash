@@ -56,7 +56,7 @@ const MinimalExplorer: FC = () => {
             <MantineProvider inherit theme={themeOverride}>
                 <StyledLightdashVisualization
                     // get rid of the classNames once you remove analytics providers
-                    className="sentry-block fs-block cohere-block"
+                    className="sentry-block"
                     data-testid="visualization"
                 />
             </MantineProvider>

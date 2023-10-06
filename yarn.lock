@@ -2503,11 +2503,6 @@
     aria-hidden "^1.1.3"
     tabbable "^6.0.1"
 
-"@fullstory/browser@^1.6.2":
-  version "1.6.2"
-  resolved "https://registry.npmjs.org/@fullstory/browser/-/browser-1.6.2.tgz"
-  integrity sha512-r3kPrTKijI/LkdSW7t1GlXPn4jPuZL4AFGDJBWMj4E4HLeF2lCvZtSOZ1YTwZtJFciLp/+KOIW3qBDkqqXC2qw==
-
 "@godaddy/terminus@^4.12.0":
   version "4.12.0"
   resolved "https://registry.npmjs.org/@godaddy/terminus/-/terminus-4.12.0.tgz"
@@ -7316,11 +7311,6 @@ code-point-at@^1.0.0:
   version "1.1.0"
   resolved "https://registry.npmjs.org/code-point-at/-/code-point-at-1.1.0.tgz"
   integrity sha1-DQcLTQQ6W+ozovGkDi7bPZpMz3c=
-
-cohere-js@^1.0.19:
-  version "1.0.19"
-  resolved "https://registry.npmjs.org/cohere-js/-/cohere-js-1.0.19.tgz"
-  integrity sha512-2XVX2LUKHjbJ4GCsnizXnAVHZfq9RM1RmHl8zE4G2ORdXmDpzSx5i0UIj/0GZ3AwjKIlYsrGA4kdCGT+WapjPQ==
 
 collect-v8-coverage@^1.0.0:
   version "1.0.1"

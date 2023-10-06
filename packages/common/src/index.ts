@@ -585,15 +585,6 @@ export type HealthState = {
         environment: string;
         release: string;
     };
-    intercom: {
-        appId: string;
-        apiBase: string;
-    };
-
-    fullstory: {
-        orgId: string;
-        devMode: boolean;
-    };
     auth: {
         disablePasswordAuthentication: boolean;
         google: {
@@ -615,10 +606,11 @@ export type HealthState = {
             loginPath: string;
         };
     };
-    cohere: {
-        token: string;
-    };
     siteUrl: string;
+    intercom: {
+        appId: string;
+        apiBase: string;
+    };
     staticIp: string;
     query: {
         maxLimit: number;
