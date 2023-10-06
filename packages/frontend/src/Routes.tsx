@@ -205,7 +205,7 @@ const Routes: FC = () => {
                                         </TrackPage>
                                     </Route>
 
-                                    <Route path="/projects/:projectUuid/metricflow">
+                                    <Route path="/projects/:projectUuid/dbtsemanticlayer">
                                         <NavBar />
                                         <TrackPage name={PageName.METRIC_FLOW}>
                                             <MetricFlowPage />
