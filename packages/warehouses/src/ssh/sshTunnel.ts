@@ -41,7 +41,9 @@ export class SshTunnel<T extends CreateWarehouseCredentials> {
                                 '',
                         } as SSHConfig;
                         this.sshConnection = new SSH2Promise(remoteHostConfig);
-                        console.info('Opening SSH tunnel to remote host');
+                        console.info(
+                            `Opening SSH tunnel to remote host: ${this.originalCredentials.host}:${this.originalCredentials.port}`,
+                        );
                         const sshTunnel = await this.sshConnection.addTunnel({
                             remoteAddr: this.originalCredentials.host,
                             remotePort: this.originalCredentials.port,
@@ -56,6 +58,9 @@ export class SshTunnel<T extends CreateWarehouseCredentials> {
                             port: sshTunnel.localPort,
                         };
                     } catch (e) {
+                        console.error(
+                            `Failed to connect to remote host: ${this.originalCredentials.host}:${this.originalCredentials.port}`,
+                        );
                         throw new WarehouseConnectionError(
                             `Could not open SSH tunnel: ${e.message}`,
                         );
