@@ -114,6 +114,7 @@ const MetricFlowPage = () => {
     const {
         chartType,
         columnOrder,
+        chartConfig,
         setChartType,
         setChartConfig,
         setPivotFields,
@@ -274,7 +275,7 @@ const MetricFlowPage = () => {
             </TrackSection>
             <Stack mt="lg" spacing="sm" sx={{ flexGrow: 1 }}>
                 <VisualizationProvider
-                    initialChartConfig={undefined}
+                    initialChartConfig={chartConfig}
                     initialPivotDimensions={undefined}
                     chartType={chartType}
                     resultsData={resultsData}
