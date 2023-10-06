@@ -1,5 +1,6 @@
-import { Classes, KeyCombo } from '@blueprintjs/core';
+import { Classes } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
+import { Kbd } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
 import { memo, useCallback } from 'react';
 import { useExplorerContext } from '../providers/ExplorerProvider';
@@ -33,7 +34,12 @@ export const RefreshButton = memo(() => {
 
     return (
         <Tooltip2
-            content={<KeyCombo combo="mod+enter" />}
+            content={
+                <>
+                    <Kbd>ctrl</Kbd>
+                    <Kbd sx={{ marginLeft: '4px' }}>enter</Kbd>
+                </>
+            }
             position="bottom"
             disabled={isLoading || !isValidQuery}
         >
