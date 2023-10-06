@@ -1,3 +1,10 @@
+# [0.801.0](https://github.com/lightdash/lightdash/compare/0.800.4...0.801.0) (2023-10-06)
+
+
+### Features
+
+* enable big value viz on dbt semantic layer ([#7367](https://github.com/lightdash/lightdash/issues/7367)) ([ec46807](https://github.com/lightdash/lightdash/commit/ec468071475459164828ca0ab5e7d2c9e3b54ba0))
+
 ## [0.800.4](https://github.com/lightdash/lightdash/compare/0.800.3...0.800.4) (2023-10-06)
 
 
