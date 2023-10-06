@@ -450,7 +450,7 @@ export class UnfurlService {
                         'page.metrics.heap_size': pageMetrics.JSHeapUsedSize,
                         'page.metrics.total_size': pageMetrics.JSHeapTotalSize,
                         'page.type': lightdashPage,
-                        url: url,
+                        url,
                         chartType: chartType || 'undefined',
                         organization_uuid: organizationUuid || 'undefined',
                         'page.metrics.event_listeners':
@@ -468,7 +468,7 @@ export class UnfurlService {
                     span.recordException(e);
                     span.setAttributes({
                         'page.type': lightdashPage,
-                        url: url,
+                        url,
                         chartType: chartType || 'undefined',
                         organization_uuid: organizationUuid || 'undefined',
                     });
