@@ -179,7 +179,7 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
                 >
                     <Space h="sm" />
                     <LightdashVisualization
-                        className="sentry-block"
+                        className="sentry-block ph-no-capture"
                         data-testid="visualization"
                     />
                     <SeriesContextMenu

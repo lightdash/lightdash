@@ -613,6 +613,10 @@ export type HealthState = {
             loginPath: string;
         };
     };
+    posthog: {
+        projectApiKey: string;
+        apiHost: string;
+    };
     siteUrl: string;
     intercom: {
         appId: string;

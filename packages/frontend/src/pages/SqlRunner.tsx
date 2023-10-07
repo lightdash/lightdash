@@ -46,7 +46,7 @@ import { SectionName } from '../types/Events';
 
 const generateBasicSqlQuery = (table: string) =>
     `SELECT *
-     FROM ${table} LIMIT 25`;
+   FROM ${table} LIMIT 25`;
 
 enum SqlRunnerCards {
     CHART = 'CHART',
@@ -285,7 +285,7 @@ const SqlRunnerPage = () => {
                             handleCardExpand(SqlRunnerCards.CHART, value)
                         }
                     >
-                        <LightdashVisualization className="sentry-block" />
+                        <LightdashVisualization className="sentry-block ph-no-capture" />
                     </CollapsableCard>
                 </VisualizationProvider>
 

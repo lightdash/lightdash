@@ -306,7 +306,7 @@ const MetricFlowPage = () => {
                         shouldExpand
                         onToggle={() => undefined}
                     >
-                        <LightdashVisualization className="sentry-block" />
+                        <LightdashVisualization className="sentry-block ph-no-capture" />
                     </CollapsableCard>
                 </VisualizationProvider>
 

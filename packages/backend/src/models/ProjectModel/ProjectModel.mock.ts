@@ -72,6 +72,10 @@ export const lightdashConfigMock: LightdashConfig = {
             oauth2TenantId: '',
         },
     },
+    posthog: {
+        projectApiKey: '',
+        apiHost: '',
+    },
     intercom: {
         appId: '',
         apiBase: '',
