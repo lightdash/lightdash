@@ -11,9 +11,13 @@ const PosthogIdentified: FC = ({ children }) => {
     if (user.data) {
         posthog.identify(user.data.userUuid, {
             uuid: user.data.userUuid,
-            email: user.data.email,
-            first_name: user.data.firstName,
-            last_name: user.data.lastName,
+            ...(user.data.isTrackingAnonymized
+                ? {}
+                : {
+                      email: user.data.email,
+                      first_name: user.data.firstName,
+                      last_name: user.data.lastName,
+                  }),
         });
         if (user.data.organizationUuid) {
             posthog.group('organization', user.data.organizationUuid, {
