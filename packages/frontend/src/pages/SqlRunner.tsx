@@ -46,7 +46,7 @@ import { SectionName } from '../types/Events';
 
 const generateBasicSqlQuery = (table: string) =>
     `SELECT *
-   FROM ${table} LIMIT 25`;
+     FROM ${table} LIMIT 25`;
 
 enum SqlRunnerCards {
     CHART = 'CHART',
