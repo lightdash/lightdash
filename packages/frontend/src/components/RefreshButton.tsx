@@ -1,6 +1,7 @@
-import { Classes, KeyCombo } from '@blueprintjs/core';
+import { Classes } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { useHotkeys } from '@mantine/hooks';
+import { Group, Kbd, Text } from '@mantine/core';
+import { useHotkeys, useOs } from '@mantine/hooks';
 import { memo, useCallback } from 'react';
 import { useExplorerContext } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
@@ -8,6 +9,7 @@ import { EventName } from '../types/Events';
 import { BigButton } from './common/BigButton';
 
 export const RefreshButton = memo(() => {
+    const os = useOs();
     const isValidQuery = useExplorerContext(
         (context) => context.state.isValidQuery,
     );
@@ -33,7 +35,35 @@ export const RefreshButton = memo(() => {
 
     return (
         <Tooltip2
-            content={<KeyCombo combo="mod+enter" />}
+            content={
+                <Group spacing="xxs">
+                    <Kbd
+                        fw={600}
+                        sx={{
+                            backgroundColor: '#2C2E33',
+                            color: '#C1C2C5',
+                            border: 'none',
+                        }}
+                    >
+                        {os === 'macos' || os === 'ios' ? '⌘' : 'ctrl'}
+                    </Kbd>
+
+                    <Text color="dimmed" fw={600}>
+                        +
+                    </Text>
+
+                    <Kbd
+                        fw={600}
+                        sx={{
+                            backgroundColor: '#2C2E33',
+                            color: '#C1C2C5',
+                            border: 'none',
+                        }}
+                    >
+                        enter
+                    </Kbd>
+                </Group>
+            }
             position="bottom"
             disabled={isLoading || !isValidQuery}
         >
