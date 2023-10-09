@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {} // important override
+  },
+  "exclude": [
+    "**/node_modules",
+    "**/dist"
+  ]
+}

@@ -1,0 +1,38 @@
+{
+    "name": "@lightdash/warehouses",
+    "version": "0.803.1",
+    "license": "MIT",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "files": [
+        "dist/**/*"
+    ],
+    "dependencies": {
+        "@databricks/sql": "1.1.0",
+        "@google-cloud/bigquery": "^5.9.1",
+        "@lightdash/common": "^0.803.1",
+        "lodash": "^4.17.21",
+        "pg": "^8.7.1",
+        "pg-cursor": "^2.10.0",
+        "snowflake-sdk": "^1.9.0",
+        "ssh2-promise": "^1.0.3",
+        "trino-client": "^0.2.0"
+    },
+    "devDependencies": {
+        "@types/pg-cursor": "^2.7.0",
+        "@types/snowflake-sdk": "^1.6.14"
+    },
+    "description": "Warehouse connectors for Lightdash",
+    "scripts": {
+        "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
+        "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
+        "lint": "yarn run linter ./src",
+        "fix-lint": "yarn run linter ./src --fix",
+        "format": "yarn run formatter ./src --check",
+        "fix-format": "yarn run formatter ./src --write",
+        "test": "jest",
+        "copy-files": "copyfiles -u 1 src/warehouseClients/ca-bundle-aws-redshift.crt src/warehouseClients/ca-bundle-aws-rds-global.pem dist/",
+        "build": "tsc --build tsconfig.json && yarn copy-files",
+        "dev": "tsc --build --watch --preserveWatchOutput tsconfig.json"
+    }
+}

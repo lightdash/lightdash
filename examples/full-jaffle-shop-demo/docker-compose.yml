@@ -1,0 +1,29 @@
+version: "3.8"
+services:
+  lightdash:
+    build:
+      context: .
+      dockerfile: dockerfile
+    depends_on: 
+      - db
+    environment:
+      - PGHOST=db
+      - PGPASSWORD=password
+      - PGUSER=postgres
+      - PGPORT=5432
+      - PGDATABASE=postgres
+      - SECURE_COOKIES=false
+      - TRUST_PROXY=false
+      - LIGHTDASH_SECRET='not very secret'
+
+    volumes:
+      - "./profiles:/usr/app/profiles"
+      - "./dbt:/usr/app/dbt"
+    ports:
+      - 8080:8080
+
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: password

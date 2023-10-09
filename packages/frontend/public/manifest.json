@@ -1,0 +1,30 @@
+{
+  "short_name": "lightdash",
+  "name": "lightdash",
+  "icons": [
+    {
+      "src": "favicon-16x16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "favicon-32x32.png",
+      "sizes": "64x64 32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "favicon.ico",
+      "sizes": "24x24",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "apple-touch-icon.png",
+      "type": "image/png",
+      "sizes": "192x192 512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#0E5A8A",
+  "background_color": "#ffffff"
+}

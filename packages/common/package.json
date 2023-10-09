@@ -1,0 +1,37 @@
+{
+    "name": "@lightdash/common",
+    "version": "0.803.1",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "files": [
+        "dist/**/*"
+    ],
+    "license": "MIT",
+    "devDependencies": {
+        "@types/pegjs": "^0.10.3",
+        "typescript-json-schema": "^0.54.0"
+    },
+    "dependencies": {
+        "@casl/ability": "^5.4.3",
+        "ajv": "^8.3.0",
+        "ajv-formats": "^2.1.0",
+        "cronstrue": "^2.23.0",
+        "dependency-graph": "^0.11.0",
+        "liquidjs": "^10.0.0",
+        "moment": "^2.29.4",
+        "pegjs": "^0.10.0",
+        "uuid": "^8.3.2",
+        "zod": "^3.22.3"
+    },
+    "scripts": {
+        "dev": "tsc --build --watch --preserveWatchOutput tsconfig.json",
+        "build": "tsc --build tsconfig.json",
+        "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
+        "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
+        "lint": "yarn run linter ./src",
+        "fix-lint": "yarn run linter ./src --fix",
+        "format": "yarn run formatter ./src --check",
+        "fix-format": "yarn run formatter ./src --write",
+        "test": "TZ=UTC jest"
+    }
+}

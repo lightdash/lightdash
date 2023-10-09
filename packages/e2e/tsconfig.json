@@ -1,0 +1,20 @@
+{
+    "extends": "./../../tsconfig.json",
+    "compilerOptions": {
+        "target": "es5",
+        "lib": ["es5", "dom"],
+        "types": [
+            "cypress",
+            "@testing-library/cypress",
+            "node",
+            "cypress-file-upload"
+        ],
+        "strictNullChecks": true /* Enable strict null checks. */,
+    },
+    "include": ["**/*.ts"],
+    "references": [
+        {
+            "path": "../common"
+        }
+    ]
+}

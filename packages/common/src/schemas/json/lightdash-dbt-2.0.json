@@ -1,0 +1,416 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "type": "object",
+    "properties": {
+        "version": {
+            "type": "number",
+            "enum": [2]
+        },
+        "models": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "docs": {
+                        "type": "object",
+                        "properties": {
+                            "show": {
+                                "type": "boolean"
+                            }
+                        }
+                    },
+                    "tests": {
+                        "type": "array",
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "object"
+                                },
+                                {
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
+                    "meta": {
+                        "type": "object",
+                        "properties": {
+                            "joins": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "join": {
+                                            "type": "string"
+                                        },
+                                        "sql_on": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["join", "sql_on"]
+                                }
+                            },
+                            "order_fields_by": {
+                                "type": "string",
+                                "enum": ["index", "label"]
+                            },
+                            "metrics": {
+                                "type": "object",
+                                "patternProperties": {
+                                    "^[a-z0-9_]+$": {
+                                        "type": "object",
+                                        "properties": {
+                                            "type": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "percentile",
+                                                    "median",
+                                                    "average",
+                                                    "boolean",
+                                                    "count",
+                                                    "count_distinct",
+                                                    "date",
+                                                    "max",
+                                                    "min",
+                                                    "number",
+                                                    "string",
+                                                    "sum"
+                                                ]
+                                            },
+                                            "label": {
+                                                "type": "string"
+                                            },
+                                            "description": {
+                                                "type": "string"
+                                            },
+                                            "sql": {
+                                                "type": "string"
+                                            },
+                                            "hidden": {
+                                                "type": "boolean"
+                                            },
+                                            "round": {
+                                                "type": "number",
+                                                "minimum": 0
+                                            },
+                                            "format": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "km",
+                                                    "mi",
+                                                    "usd",
+                                                    "gbp",
+                                                    "eur",
+                                                    "percent",
+                                                    "id"
+                                                ]
+                                            },
+                                            "percentile": {
+                                                "type": "number"
+                                            }
+                                        },
+                                        "required": ["type", "sql"]
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "columns": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "description": {
+                                    "type": "string"
+                                },
+                                "quote": {
+                                    "type": "boolean"
+                                },
+                                "tests": {
+                                    "type": "array",
+                                    "items": {
+                                        "anyOf": [
+                                            {
+                                                "type": "object"
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ]
+                                    }
+                                },
+                                "tags": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                },
+                                "meta": {
+                                    "type": "object",
+                                    "properties": {
+                                        "metrics": {
+                                            "type": "object",
+                                            "patternProperties": {
+                                                "^[a-z0-9_]+$": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "type": {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "percentile",
+                                                                "median",
+                                                                "average",
+                                                                "boolean",
+                                                                "count",
+                                                                "count_distinct",
+                                                                "date",
+                                                                "max",
+                                                                "min",
+                                                                "number",
+                                                                "string",
+                                                                "sum"
+                                                            ]
+                                                        },
+                                                        "label": {
+                                                            "type": "string"
+                                                        },
+                                                        "description": {
+                                                            "type": "string"
+                                                        },
+                                                        "sql": {
+                                                            "type": "string"
+                                                        },
+                                                        "hidden": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "round": {
+                                                            "type": "number",
+                                                            "minimum": 0
+                                                        },
+                                                        "format": {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "km",
+                                                                "mi",
+                                                                "usd",
+                                                                "gbp",
+                                                                "eur",
+                                                                "percent",
+                                                                "id"
+                                                            ]
+                                                        },
+                                                        "percentile": {
+                                                            "type": "number"
+                                                        }
+                                                    },
+                                                    "required": ["type"]
+                                                }
+                                            }
+                                        },
+                                        "dimension": {
+                                            "type": "object",
+                                            "properties": {
+                                                "label": {
+                                                    "type": "string"
+                                                },
+                                                "description": {
+                                                    "type": "string"
+                                                },
+                                                "sql": {
+                                                    "type": "string"
+                                                },
+                                                "hidden": {
+                                                    "type": "boolean"
+                                                },
+                                                "round": {
+                                                    "type": "number",
+                                                    "minimum": 0
+                                                },
+                                                "format": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "km",
+                                                        "mi",
+                                                        "usd",
+                                                        "gbp",
+                                                        "eur",
+                                                        "percent",
+                                                        "id"
+                                                    ]
+                                                },
+                                                "time_intervals": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "RAW",
+                                                                    "DAY",
+                                                                    "WEEK",
+                                                                    "MONTH",
+                                                                    "QUARTER",
+                                                                    "YEAR",
+                                                                    "HOUR",
+                                                                    "MINUTE",
+                                                                    "SECOND",
+                                                                    "MILLISECOND",
+                                                                    "MONTH_NUM",
+                                                                    "MONTH_NAME",
+                                                                    "DAY_OF_WEEK_NAME",
+                                                                    "QUARTER_NAME",
+                                                                    "DAY_OF_WEEK_INDEX",
+                                                                    "DAY_OF_MONTH_NUM",
+                                                                    "DAY_OF_YEAR_NUM",
+                                                                    "QUARTER_NUM",
+                                                                    "YEAR_NUM"
+                                                                ]
+                                                            }
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "default",
+                                                                "OFF"
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "required": ["name"]
+            }
+        },
+        "metrics": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "model": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "timestamp": {
+                        "type": "string"
+                    },
+                    "time_grains": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "dimensions": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "filters": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "meta": {
+                        "type": "object",
+                        "properties": {
+                            "hidden": {
+                                "type": "boolean"
+                            },
+                            "round": {
+                                "type": "number",
+                                "minimum": 0
+                            },
+                            "format": {
+                                "type": "string",
+                                "enum": [
+                                    "km",
+                                    "mi",
+                                    "usd",
+                                    "gbp",
+                                    "eur",
+                                    "percent",
+                                    "id"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "required": ["name"]
+            }
+        },
+        "seeds": {
+            "type": "array",
+            "items": {
+                "type": "object"
+            }
+        },
+        "snapshots": {
+            "type": "array",
+            "items": {
+                "type": "object"
+            }
+        },
+        "tests": {
+            "type": "array",
+            "items": {
+                "type": "object"
+            }
+        },
+        "sources": {
+            "type": "array",
+            "items": {
+                "type": "object"
+            }
+        },
+        "analyses": {
+            "type": "array",
+            "items": {
+                "type": "object"
+            }
+        },
+        "exposures": {
+            "type": "array",
+            "items": {
+                "type": "object"
+            }
+        },
+        "macros": {
+            "type": "array",
+            "items": {
+                "type": "object"
+            }
+        }
+    },
+    "additionalProperties": false,
+    "required": ["version"]
+}

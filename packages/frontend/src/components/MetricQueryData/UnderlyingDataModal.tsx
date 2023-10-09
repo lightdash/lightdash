@@ -1,0 +1,28 @@
+import { Dialog } from '@blueprintjs/core';
+import { FC } from 'react';
+import { useMetricQueryDataContext } from './MetricQueryDataProvider';
+import UnderlyingDataModalContent from './UnderlyingDataModalContent';
+
+const UnderlyingDataModal: FC = () => {
+    const { isUnderlyingDataModalOpen, closeUnderlyingDataModal } =
+        useMetricQueryDataContext();
+
+    return (
+        <Dialog
+            isOpen={isUnderlyingDataModalOpen}
+            onClose={closeUnderlyingDataModal}
+            lazy
+            title={`View underlying data`}
+            style={{
+                width: '90%',
+                height: '90vh',
+                minHeight: '400px',
+                minWidth: '500px',
+            }}
+        >
+            <UnderlyingDataModalContent />
+        </Dialog>
+    );
+};
+
+export default UnderlyingDataModal;
