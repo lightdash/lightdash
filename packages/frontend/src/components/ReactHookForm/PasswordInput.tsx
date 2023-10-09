@@ -11,7 +11,7 @@ const PasswordInput: FC<Omit<InputWrapperProps, 'render'>> = (props) => {
             render={(inputProps, { field }) => (
                 <InputGroup
                     {...inputProps}
-                    className="sentry-block"
+                    className="sentry-block ph-no-capture"
                     placeholder={
                         inputProps.placeholder || 'Enter your password...'
                     }

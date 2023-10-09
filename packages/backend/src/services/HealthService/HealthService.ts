@@ -59,6 +59,7 @@ export class HealthService {
             intercom: this.lightdashConfig.intercom,
             siteUrl: this.lightdashConfig.siteUrl,
             staticIp: this.lightdashConfig.staticIp,
+            posthog: this.lightdashConfig.posthog,
             query: this.lightdashConfig.query,
             hasSlack: this.hasSlackConfig(),
             auth: {

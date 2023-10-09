@@ -285,7 +285,7 @@ const SqlRunnerPage = () => {
                             handleCardExpand(SqlRunnerCards.CHART, value)
                         }
                     >
-                        <LightdashVisualization className="sentry-block" />
+                        <LightdashVisualization className="sentry-block ph-no-capture" />
                     </CollapsableCard>
                 </VisualizationProvider>
 

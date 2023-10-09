@@ -32,6 +32,7 @@ export const BaseResponse = {
     hasEmailClient: false,
     siteUrl: undefined,
     intercom: undefined,
+    posthog: undefined,
     rudder: undefined,
     sentry: undefined,
     hasSlack: false,
