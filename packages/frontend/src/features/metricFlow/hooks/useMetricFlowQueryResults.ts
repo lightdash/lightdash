@@ -7,6 +7,7 @@ import {
     getMetricFlowQueryResults,
     GetMetricFlowQueryResultsResponse,
     QueryStatus,
+    TimeGranularity,
 } from '../../../api/MetricFlowAPI';
 
 type ApiRequestsState = Pick<
@@ -21,8 +22,8 @@ type ApiRequestsState = Pick<
 const useMetricFlowQueryResults = (
     projectUuid: string | undefined,
     query?: {
-        metrics: string[];
-        dimensions: string[];
+        metrics: Record<string, {}>;
+        dimensions: Record<string, { grain: TimeGranularity }>;
     },
     useCreateQueryOptions?: UseQueryOptions<
         CreateMetricFlowQueryResponse,
@@ -35,7 +36,7 @@ const useMetricFlowQueryResults = (
 ): ApiRequestsState => {
     const metricFlowQuery = useQuery<CreateMetricFlowQueryResponse, ApiError>({
         queryKey: ['metric_flow_query', projectUuid, query],
-        enabled: !!projectUuid && !!query?.metrics.length,
+        enabled: !!projectUuid && !!Object.keys(query?.metrics ?? {}).length,
         queryFn: () => createMetricFlowQuery(projectUuid!, query!),
         ...useCreateQueryOptions,
     });

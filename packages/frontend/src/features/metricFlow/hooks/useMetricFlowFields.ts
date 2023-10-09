@@ -5,13 +5,14 @@ import { UseQueryOptions } from 'react-query/types/react/types';
 import {
     getMetricFlowFields,
     GetMetricFlowFieldsResponse,
+    TimeGranularity,
 } from '../../../api/MetricFlowAPI';
 
 const useMetricFlowFields = (
     projectUuid?: string,
     selectedFields?: {
-        metrics: string[];
-        dimensions: string[];
+        metrics: Record<string, {}>;
+        dimensions: Record<string, { grain: TimeGranularity }>;
     },
     useQueryOptions?: UseQueryOptions<GetMetricFlowFieldsResponse, ApiError>,
 ) => {
@@ -22,7 +23,10 @@ const useMetricFlowFields = (
         keepPreviousData: true,
         select: (data) => {
             // If no dimensions are returned, use the dimensions from the metrics
-            if (!selectedFields || selectedFields.metrics.length === 0) {
+            if (
+                !selectedFields ||
+                Object.keys(selectedFields.metrics).length === 0
+            ) {
                 const dimensionsFromMetrics = uniqWith(
                     data.metricsForDimensions
                         .map((metric) => metric.dimensions)
