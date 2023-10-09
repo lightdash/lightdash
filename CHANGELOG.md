@@ -1,3 +1,10 @@
+## [0.801.1](https://github.com/lightdash/lightdash/compare/0.801.0...0.801.1) (2023-10-09)
+
+
+### Bug Fixes
+
+* Migrate blueprint <KeyCombo> to mantine ([#7362](https://github.com/lightdash/lightdash/issues/7362)) ([c181ca1](https://github.com/lightdash/lightdash/commit/c181ca1f8a11df22e8faedc78b3695e1ab9c8094))
+
 # [0.801.0](https://github.com/lightdash/lightdash/compare/0.800.4...0.801.0) (2023-10-06)
 
 
