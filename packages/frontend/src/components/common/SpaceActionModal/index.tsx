@@ -229,7 +229,7 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
             const result = await createMutation({
                 name: state!.name,
                 isPrivate: state!.isPrivate,
-                access: state!.access.map((access) => ({
+                access: state!.access?.map((access) => ({
                     userUuid: access.userUuid,
                 })),
             });

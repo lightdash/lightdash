@@ -34,12 +34,13 @@ export const hasSpaceAccess = (
         }),
     );
 
-    const userUuidsWithAccess = space.access.map((access) =>
-        typeof access === 'string' ? access : access.userUuid,
-    );
+    const userUuidsWithAccess =
+        space.access?.map((access) =>
+            typeof access === 'string' ? access : access.userUuid,
+        ) || [];
 
     const hasAccess =
-        !space.isPrivate || userUuidsWithAccess.includes(user.userUuid);
+        !space.isPrivate || userUuidsWithAccess?.includes(user.userUuid);
 
     return checkAdminAccess ? hasAdminAccess || hasAccess : hasAccess;
 };

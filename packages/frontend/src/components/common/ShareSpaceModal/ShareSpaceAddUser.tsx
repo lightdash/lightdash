@@ -100,7 +100,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             const isDisabled =
                 isAdmin ||
                 space.access
-                    .map((access) => access.userUuid)
+                    ?.map((access) => access.userUuid)
                     .includes(userUuid);
 
             const isSelected = usersSelected.includes(userUuid) && !isDisabled;
