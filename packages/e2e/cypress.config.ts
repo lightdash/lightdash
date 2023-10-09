@@ -14,7 +14,6 @@ export default defineConfig({
         blockHosts: [
             '*.rudderlabs.com',
             '*.intercom.io',
-            '*.cohere.so',
             '*.headwayapp.co',
             'chat.lightdash.com',
             '*.loom.com',

@@ -81,8 +81,6 @@ export type LightdashConfig = {
     mode: LightdashMode;
     sentry: SentryConfig;
     auth: AuthConfig;
-    cohere: CohereConfig;
-    fullstory: FullstoryConfig;
     intercom: IntercomConfig;
     siteUrl: string;
     staticIp: string;
@@ -133,19 +131,10 @@ export type IntercomConfig = {
     apiBase: string;
 };
 
-type CohereConfig = {
-    token: string;
-};
-
 export type SentryConfig = {
     dsn: string;
     release: string;
     environment: string;
-};
-
-export type FullstoryConfig = {
-    orgId: string;
-    devMode: boolean;
 };
 
 export type RudderConfig = {
@@ -278,13 +267,6 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             environment:
                 process.env.NODE_ENV === 'development' ? 'development' : mode,
         },
-        fullstory: {
-            orgId: process.env.FULLSTORY_ORG_ID || '',
-            devMode:
-                process.env.NODE_ENV === 'development' ||
-                mode === LightdashMode.DEMO ||
-                mode === LightdashMode.PR,
-        },
         lightdashSecret,
         secureCookies: process.env.SECURE_COOKIES === 'true',
         cookiesMaxAgeHours: getIntegerFromEnvironmentVariable(
@@ -341,9 +323,6 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             appId: process.env.INTERCOM_APP_ID || 'zppxyjpp',
             apiBase:
                 process.env.INTERCOM_APP_BASE || 'https://api-iam.intercom.io',
-        },
-        cohere: {
-            token: process.env.COHERE_TOKEN || '',
         },
         siteUrl,
         staticIp: process.env.STATIC_IP || '',

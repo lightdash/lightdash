@@ -66,7 +66,7 @@ const InviteSuccess: FC<{
                 <TextInput
                     id="invite-link-input"
                     readOnly
-                    className="cohere-block sentry-block fs-block"
+                    className="sentry-block"
                     value={invite.inviteUrl}
                     rightSection={
                         <CopyButton value={invite.inviteUrl}>

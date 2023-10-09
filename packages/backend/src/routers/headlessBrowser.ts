@@ -123,7 +123,6 @@ if (
                 'headwayapp.co',
                 'rudderlabs.com',
                 'analytics.lightdash.com',
-                'cohere.so',
                 'intercom.io',
             ];
             await page.setRequestInterception(true);
