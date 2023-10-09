@@ -207,7 +207,8 @@ const SchedulerForm2: FC<{
     const isAddEmailDisabled = disabled || !health.data?.hasEmailClient;
     const isImageDisabled = !health.data?.hasHeadlessBrowser;
 
-    const showDestinationLabel = emails.length < 1;
+    const showDestinationLabel =
+        form.values?.emailTargets.length + form.values?.slackTargets.length < 1;
 
     const limit = form.values?.options?.limit;
 
