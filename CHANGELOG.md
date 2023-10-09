@@ -1,3 +1,10 @@
+## [0.803.1](https://github.com/lightdash/lightdash/compare/0.803.0...0.803.1) (2023-10-09)
+
+
+### Bug Fixes
+
+* turn off stacking if no pivot dimensions ([#7369](https://github.com/lightdash/lightdash/issues/7369)) ([ab58f59](https://github.com/lightdash/lightdash/commit/ab58f593bfa99290cae8018054f11b41d3eaae5a))
+
 # [0.803.0](https://github.com/lightdash/lightdash/compare/0.802.0...0.803.0) (2023-10-09)
 
 
