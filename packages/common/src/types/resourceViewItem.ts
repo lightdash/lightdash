@@ -125,3 +125,8 @@ export const spaceToResourceViewItem = (
     chartCount: space.chartCount,
     access: space.access,
 });
+
+export type MostPopularAndRecentlyUpdated = {
+    mostPopular: (DashboardBasicDetails | SpaceQuery)[];
+    recentlyUpdated: (DashboardBasicDetails | SpaceQuery)[];
+};
