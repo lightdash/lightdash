@@ -9,12 +9,13 @@ const SchedulersModal2: FC<
     Omit<React.ComponentProps<typeof SchedulerModalContent2>, 'onClose'> & {
         name: string;
         onClose?: () => void;
+        isOpen?: boolean;
     }
 > = ({
     resourceUuid,
     schedulersQuery,
     createMutation,
-    isOpen,
+    isOpen = false,
     isChart,
     onClose = () => {},
 }) => {
@@ -23,6 +24,7 @@ const SchedulersModal2: FC<
             opened={isOpen}
             onClose={onClose}
             size="lg"
+            yOffset={65}
             title={
                 <Group spacing="xs">
                     <MantineIcon icon={IconSend} size="lg" color="gray.7" />
@@ -31,7 +33,7 @@ const SchedulersModal2: FC<
             }
             styles={(theme) => ({
                 header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
-                body: { backgroundColor: theme.colors.gray[2] },
+                body: { padding: 0 },
             })}
         >
             <SchedulerModalContent2
@@ -39,7 +41,6 @@ const SchedulersModal2: FC<
                 schedulersQuery={schedulersQuery}
                 createMutation={createMutation}
                 onClose={onClose}
-                isOpen={isOpen}
                 isChart={isChart}
             />
         </Modal>
