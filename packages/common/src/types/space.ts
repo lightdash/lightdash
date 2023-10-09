@@ -10,7 +10,7 @@ export type Space = {
     queries: SpaceQuery[];
     projectUuid: string;
     dashboards: SpaceDashboard[];
-    access: SpaceShare[];
+    access: SpaceShare[] | undefined;
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
 };
