@@ -1,3 +1,10 @@
+# [0.802.0](https://github.com/lightdash/lightdash/compare/0.801.1...0.802.0) (2023-10-09)
+
+
+### Features
+
+* remove cohere + fullstory ([#7373](https://github.com/lightdash/lightdash/issues/7373)) ([14d4c8c](https://github.com/lightdash/lightdash/commit/14d4c8cae112c93c8585dc788a01c10da82758dd))
+
 ## [0.801.1](https://github.com/lightdash/lightdash/compare/0.801.0...0.801.1) (2023-10-09)
 
 
