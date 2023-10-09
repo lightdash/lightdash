@@ -37,7 +37,7 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
         cachedWarehouse,
         dbtVersion,
     }: DbtGitlabProjectAdapterArgs) {
-        const remoteRepositoryUrl = `https://:${gitlabPersonalAccessToken}@${
+        const remoteRepositoryUrl = `https://lightdash:${gitlabPersonalAccessToken}@${
             hostDomain || DEFAULT_GITLAB_HOST_DOMAIN
         }/${gitlabRepository}.git`;
         super({
