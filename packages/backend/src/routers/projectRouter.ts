@@ -362,6 +362,23 @@ projectRouter.get(
     },
 );
 
+projectRouter.get(
+    '/most-popular-and-recently-updated',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        projectService
+            .getMostPopularAndRecentlyUpdated(req.user!, req.params.projectUuid)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
+
 projectRouter.patch(
     '/spaces/:spaceUuid/pinning',
     allowApiKeyAuthentication,
@@ -391,39 +408,21 @@ projectRouter.get(
                 : undefined;
 
         const includePrivate = req.query.includePrivate === 'true';
-        const recentlyUpdated = req.query.recentlyUpdated === 'true';
 
-        if (recentlyUpdated) {
-            dashboardService
-                .getRecentlyUpdatedByProject(
-                    req.user!,
-                    req.params.projectUuid,
-                    chartUuid,
-                    includePrivate,
-                )
-                .then((results) => {
-                    res.json({
-                        status: 'ok',
-                        results,
-                    });
-                })
-                .catch(next);
-        } else {
-            dashboardService
-                .getAllByProject(
-                    req.user!,
-                    req.params.projectUuid,
-                    chartUuid,
-                    includePrivate,
-                )
-                .then((results) => {
-                    res.json({
-                        status: 'ok',
-                        results,
-                    });
-                })
-                .catch(next);
-        }
+        dashboardService
+            .getAllByProject(
+                req.user!,
+                req.params.projectUuid,
+                chartUuid,
+                includePrivate,
+            )
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
     },
 );
 
