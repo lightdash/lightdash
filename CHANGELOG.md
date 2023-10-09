@@ -1,3 +1,10 @@
+# [0.803.0](https://github.com/lightdash/lightdash/compare/0.802.0...0.803.0) (2023-10-09)
+
+
+### Features
+
+* add posthog ([#7376](https://github.com/lightdash/lightdash/issues/7376)) ([df75048](https://github.com/lightdash/lightdash/commit/df75048de9c14f8771dc2a6aba1a0d2c887b10dc))
+
 # [0.802.0](https://github.com/lightdash/lightdash/compare/0.801.1...0.802.0) (2023-10-09)
 
 
