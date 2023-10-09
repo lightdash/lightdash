@@ -352,4 +352,118 @@ export async function seed(knex: Knex): Promise<void> {
             updatedByUser,
         },
     );
+
+    // Pivot table
+    await savedChartModel.create(
+        SEED_PROJECT.project_uuid,
+        SEED_ORG_1_ADMIN.user_uuid,
+        {
+            name: 'How much revenue do we have per payment method each month?',
+            description: 'A pivot table sample',
+            tableName: 'payments',
+            metricQuery: {
+                dimensions: [
+                    'payments_payment_method',
+                    'customers_created_month',
+                ],
+                metrics: ['payments_total_revenue'],
+                filters: {},
+                limit: 500,
+                sorts: [
+                    {
+                        fieldId: 'customers_created_month',
+                        descending: false,
+                    },
+                ],
+                tableCalculations: [],
+            },
+            chartConfig: {
+                type: ChartType.TABLE,
+                config: {
+                    showColumnCalculation: true,
+                    showRowCalculation: true,
+                    showTableNames: false,
+                    showResultsTotal: false,
+                    columns: {},
+                    hideRowNumbers: false,
+                    conditionalFormattings: [
+                        {
+                            target: { fieldId: 'payments_total_revenue' },
+                            color: '#63c654',
+                            rules: [
+                                {
+                                    id: '2f4bf13c-861b-41e7-bad8-7f553fb93197',
+                                    operator: ConditionalOperator.GREATER_THAN,
+                                    values: [300],
+                                },
+                            ],
+                        },
+                    ],
+                    metricsAsRows: false,
+                },
+            },
+            pivotConfig: {
+                columns: ['payments_payment_method'],
+            },
+            tableConfig: {
+                columnOrder: [
+                    'payments_payment_method',
+                    'customers_created_month',
+                    'payments_total_revenue',
+                ],
+            },
+            updatedByUser,
+        },
+    );
+
+    // Pie chart
+    await savedChartModel.create(
+        SEED_PROJECT.project_uuid,
+        SEED_ORG_1_ADMIN.user_uuid,
+        {
+            name: 'How many users were created each month ?',
+            description: 'A pivot table sample',
+            tableName: 'customers',
+            metricQuery: {
+                dimensions: ['customers_created_month'],
+                metrics: ['customers_unique_customer_count'],
+                filters: {},
+                limit: 500,
+                sorts: [
+                    {
+                        fieldId: 'customers_created_month',
+                        descending: false,
+                    },
+                ],
+                tableCalculations: [],
+            },
+            chartConfig: {
+                type: ChartType.PIE,
+                config: {
+                    groupFieldIds: ['customers_created_month'],
+                    metricId: 'customers_unique_customer_count',
+                    isDonut: true,
+                    valueLabel: 'inside',
+                    showValue: false,
+                    showPercentage: true,
+                    groupLabelOverrides: {},
+                    groupColorOverrides: {},
+                    groupValueOptionOverrides: {},
+                    groupSortOverrides: [],
+                    showLegend: true,
+                    legendPosition: 'horizontal',
+                },
+            },
+            pivotConfig: {
+                columns: ['payments_payment_method'],
+            },
+            tableConfig: {
+                columnOrder: [
+                    'customers_created_month',
+                    'customers_unique_customer_count',
+                ],
+            },
+            updatedByUser,
+        },
+    );
 }
