@@ -1,3 +1,11 @@
+## [0.803.2](https://github.com/lightdash/lightdash/compare/0.803.1...0.803.2) (2023-10-09)
+
+
+### Bug Fixes
+
+* fix gitlab token form ([#7378](https://github.com/lightdash/lightdash/issues/7378)) ([11338db](https://github.com/lightdash/lightdash/commit/11338db3ba274fff123d7becccafaa5de1ae10cd))
+* make access possibly undefined ([#7381](https://github.com/lightdash/lightdash/issues/7381)) ([c4f84e4](https://github.com/lightdash/lightdash/commit/c4f84e4582ad20e1457ffc5ed18543036a2c3c8c))
+
 ## [0.803.1](https://github.com/lightdash/lightdash/compare/0.803.0...0.803.1) (2023-10-09)
 
 
