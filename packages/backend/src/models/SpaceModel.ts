@@ -53,8 +53,11 @@ type Dependencies = {
 export class SpaceModel {
     private database: Knex;
 
+    public MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT: number;
+
     constructor(dependencies: Dependencies) {
         this.database = dependencies.database;
+        this.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT = 10;
     }
 
     async find(filters: {
@@ -196,8 +199,14 @@ export class SpaceModel {
         };
     }
 
-    async getSpaceDashboards(spaceUuid: string): Promise<SpaceDashboard[]> {
-        const dashboards = await this.database
+    async getSpaceDashboards(
+        spaceUuids: string[],
+        filters?: {
+            recentlyUpdated?: boolean;
+            mostPopular?: boolean;
+        },
+    ): Promise<SpaceDashboard[]> {
+        let dashboardsQuery = this.database
             .table(DashboardsTableName)
             .leftJoin(
                 SpaceTableName,
@@ -239,6 +248,7 @@ export class SpaceModel {
                     views: string;
                     first_viewed_at: Date | null;
                     validation_errors: DbValidationTable[];
+                    space_uuid: string;
                 })[]
             >([
                 `${DashboardsTableName}.dashboard_uuid`,
@@ -269,7 +279,35 @@ export class SpaceModel {
                     ) as validation_errors
                 `),
             ])
-            .orderBy([
+            .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
+            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids);
+
+        if (filters?.recentlyUpdated || filters?.mostPopular) {
+            dashboardsQuery = dashboardsQuery
+                .orderBy(
+                    filters.mostPopular
+                        ? [
+                              {
+                                  column: `${DashboardVersionsTableName}.dashboard_id`,
+                              },
+                              {
+                                  column: 'views',
+                                  order: 'desc',
+                              },
+                          ]
+                        : [
+                              {
+                                  column: `${DashboardVersionsTableName}.dashboard_id`,
+                              },
+                              {
+                                  column: `${DashboardVersionsTableName}.created_at`,
+                                  order: 'desc',
+                              },
+                          ],
+                )
+                .limit(this.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT);
+        } else {
+            dashboardsQuery = dashboardsQuery.orderBy([
                 {
                     column: `${DashboardVersionsTableName}.dashboard_id`,
                 },
@@ -277,9 +315,10 @@ export class SpaceModel {
                     column: `${DashboardVersionsTableName}.created_at`,
                     order: 'desc',
                 },
-            ])
-            .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
-            .where(`${SpaceTableName}.space_uuid`, spaceUuid);
+            ]);
+        }
+
+        const dashboards = await dashboardsQuery;
 
         return dashboards.map(
             ({
@@ -297,6 +336,7 @@ export class SpaceModel {
                 pinned_list_uuid,
                 order,
                 validation_errors,
+                space_uuid,
             }) => ({
                 organizationUuid: organization_uuid,
                 name,
@@ -309,7 +349,7 @@ export class SpaceModel {
                     firstName: first_name,
                     lastName: last_name,
                 },
-                spaceUuid,
+                spaceUuid: space_uuid,
                 views: parseInt(views, 10),
                 firstViewedAt: first_viewed_at,
                 pinnedListUuid: pinned_list_uuid,
@@ -415,8 +455,15 @@ export class SpaceModel {
         );
     }
 
-    async getSpaceQueries(spaceUuid: string): Promise<SpaceQuery[]> {
-        const savedQueries = await this.database('saved_queries')
+    async getSpaceQueries(
+        spaceUuids: string[],
+        filters?: {
+            recentlyUpdated?: boolean;
+            mostPopular?: boolean;
+        },
+    ): Promise<SpaceQuery[]> {
+        let spaceQueriesQuery = this.database('saved_queries')
+            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
             .leftJoin(
                 SpaceTableName,
                 `saved_queries.space_id`,
@@ -452,6 +499,7 @@ export class SpaceModel {
                     pinned_list_uuid: string;
                     order: number;
                     validation_errors: DbValidationTable[];
+                    space_uuid: string;
                 }[]
             >([
                 `saved_queries.saved_query_uuid`,
@@ -479,10 +527,37 @@ export class SpaceModel {
                         ), '[]'
                     ) as validation_errors
                 `),
-            ])
-            .orderBy(`saved_queries.last_version_updated_at`, 'desc')
+                `${SpaceTableName}.space_uuid`,
+            ]);
 
-            .where(`${SpaceTableName}.space_uuid`, spaceUuid);
+        if (filters?.recentlyUpdated || filters?.mostPopular) {
+            spaceQueriesQuery = spaceQueriesQuery
+                .orderBy(
+                    filters.mostPopular
+                        ? [
+                              {
+                                  column: 'views',
+                                  order: 'desc',
+                              },
+                          ]
+                        : [
+                              {
+                                  column: `saved_queries.last_version_updated_at`,
+                                  order: 'desc',
+                              },
+                          ],
+                )
+                .limit(this.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT);
+        } else {
+            spaceQueriesQuery = spaceQueriesQuery.orderBy([
+                {
+                    column: `saved_queries.last_version_updated_at`,
+                    order: 'desc',
+                },
+            ]);
+        }
+
+        const savedQueries = await spaceQueriesQuery;
 
         return savedQueries.map((savedQuery) => ({
             uuid: savedQuery.saved_query_uuid,
@@ -494,7 +569,7 @@ export class SpaceModel {
                 firstName: savedQuery.first_name,
                 lastName: savedQuery.last_name,
             },
-            spaceUuid,
+            spaceUuid: savedQuery.space_uuid,
             views: parseInt(savedQuery.views, 10),
             firstViewedAt: savedQuery.first_viewed_at,
             chartType: savedQuery.chart_kind,
@@ -551,8 +626,8 @@ export class SpaceModel {
                 projectUuid: row.project_uuid,
                 pinnedListUuid: row.pinned_list_uuid,
                 pinnedListOrder: row.order,
-                queries: await this.getSpaceQueries(row.space_uuid),
-                dashboards: await this.getSpaceDashboards(row.space_uuid),
+                queries: await this.getSpaceQueries([row.space_uuid]),
+                dashboards: await this.getSpaceDashboards([row.space_uuid]),
                 access: await this.getSpaceAccess(row.space_uuid),
             })),
         );
@@ -577,8 +652,8 @@ export class SpaceModel {
             projectUuid: space.projectUuid,
             pinnedListUuid: space.pinnedListUuid,
             pinnedListOrder: space.pinnedListOrder,
-            queries: await this.getSpaceQueries(space.uuid),
-            dashboards: await this.getSpaceDashboards(space.uuid),
+            queries: await this.getSpaceQueries([space.uuid]),
+            dashboards: await this.getSpaceDashboards([space.uuid]),
             access: await this.getSpaceAccess(space.uuid),
         };
     }
