@@ -1,0 +1,8 @@
+{
+    "name": "Lightdash Dev Environment",
+    "dockerComposeFile": ["../docker/docker-compose.dev.yml"],
+    "service": "lightdash-dev",
+    "workspaceFolder": "/usr/app",
+    "forwardPorts": [3000, 8080],
+    "postCreateCommand": "/scripts/setup-codespaces.sh"
+}
