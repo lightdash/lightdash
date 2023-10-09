@@ -13,6 +13,7 @@ import {
     GetMetricFlowFieldsResponse,
     MetricFlowDimensionType,
 } from '../../../api/MetricFlowAPI';
+import { convertDimensionNameToLabels } from './convertDimensionNameToLabels';
 
 export default function convertMetricFlowFieldsToExplore(
     tableName: string,
@@ -21,6 +22,7 @@ export default function convertMetricFlowFieldsToExplore(
     const dimensionsMap = metricFlowFields.dimensions.reduce(
         (acc, { name, description, type }) => {
             const isTimeDimension = type === MetricFlowDimensionType.TIME;
+            const labels = convertDimensionNameToLabels(name);
             const dimension: CompiledDimension = {
                 fieldType: FieldType.DIMENSION,
                 type: isTimeDimension
@@ -29,9 +31,9 @@ export default function convertMetricFlowFieldsToExplore(
                 // Note: time columns in results are suffixed with '__day' by default
                 name: isTimeDimension ? `${name}__day` : name,
                 description,
-                label: friendlyName(name),
+                label: labels.dimensionLabel,
                 table: tableName,
-                tableLabel: '',
+                tableLabel: labels.tableLabel ?? '',
                 sql: '',
                 compiledSql: '',
                 tablesReferences: [tableName],
