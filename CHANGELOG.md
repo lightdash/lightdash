@@ -1,3 +1,10 @@
+# [0.804.0](https://github.com/lightdash/lightdash/compare/0.803.2...0.804.0) (2023-10-10)
+
+
+### Features
+
+* semantic layer time granularity ([#7391](https://github.com/lightdash/lightdash/issues/7391)) ([480410b](https://github.com/lightdash/lightdash/commit/480410b270cf9042362ece2b1e0ed9f0dd4e0a2b))
+
 ## [0.803.2](https://github.com/lightdash/lightdash/compare/0.803.1...0.803.2) (2023-10-09)
 
 
