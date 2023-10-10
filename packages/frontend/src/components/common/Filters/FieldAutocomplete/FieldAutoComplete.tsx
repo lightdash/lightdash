@@ -119,6 +119,9 @@ const FieldAutoComplete: FC<FieldAutoCompleteProps> = ({
                     zIndex: 1,
                     backgroundColor: 'white',
                 },
+                separatorLabel: {
+                    fontWeight: 600,
+                },
             }}
             {...rest}
             icon={field ? <FieldIcon item={field} /> : undefined}
