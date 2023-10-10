@@ -112,8 +112,18 @@ const SchedulerForm2: FC<{
             emailTargets: [] as string[],
             slackTargets: [] as string[],
         },
+        validateInputOnBlur: ['options.customLimit'],
 
-        // TODO: Validate form
+        validate: {
+            options: {
+                customLimit: (value, values) => {
+                    return values.options.limit === Limit.CUSTOM &&
+                        !Number.isInteger(value)
+                        ? 'Custom limit must be an integer'
+                        : null;
+                },
+            },
+        },
 
         transformValues: (values) => {
             let options;
@@ -226,6 +236,7 @@ const SchedulerForm2: FC<{
                 <TextInput
                     label="Delivery name"
                     placeholder="Name your delivery"
+                    required
                     {...form.getInputProps('name')}
                 />
                 <Input.Wrapper label="Delivery frequency">
@@ -346,6 +357,8 @@ const SchedulerForm2: FC<{
                                             <NumberInput
                                                 w={150}
                                                 min={1}
+                                                precision={0}
+                                                required
                                                 {...form.getInputProps(
                                                     'options.customLimit',
                                                 )}
