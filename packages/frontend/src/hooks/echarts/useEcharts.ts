@@ -1404,14 +1404,19 @@ const useEcharts = (
             const xField = dimensions.find(
                 (dimension) => getItemId(dimension) === xFieldId,
             );
+            const hasTotal = validCartesianConfig?.eChartsConfig?.series?.some(
+                (s) => s.stackLabel?.show,
+            );
+            // If there is a total, we don't sort the results because we need to keep the same order on results
+            // This could still cause issues if there is a total on bar chart axis, the sorting is wrong and one of the axis is a line chart
+            if (hasTotal) return results;
 
             if (
                 xField !== undefined &&
                 results.length >= 0 &&
                 [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
                     xField.type,
-                ) &&
-                resultsData?.metricQuery.sorts.length === 0
+                )
             ) {
                 return results.sort((a, b) => {
                     if (
@@ -1436,6 +1441,7 @@ const useEcharts = (
         validCartesianConfig?.layout?.xField,
         resultsData?.metricQuery.sorts,
         explore,
+        validCartesianConfig?.eChartsConfig?.series,
     ]);
 
     const tooltip = useMemo<TooltipOption>(
