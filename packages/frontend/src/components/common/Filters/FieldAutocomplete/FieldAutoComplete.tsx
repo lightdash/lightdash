@@ -110,7 +110,16 @@ const FieldAutoComplete: FC<FieldAutoCompleteProps> = ({
     return (
         <Select
             w="100%"
+            initiallyOpened
             searchable
+            styles={{
+                separator: {
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 1,
+                    backgroundColor: 'white',
+                },
+            }}
             {...rest}
             icon={field ? <FieldIcon item={field} /> : undefined}
             value={selectedFieldId}
