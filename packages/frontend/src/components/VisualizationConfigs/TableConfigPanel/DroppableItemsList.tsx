@@ -34,7 +34,6 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
     droppableId,
     itemIds,
     isDragging,
-    disableReorder,
     placeholder,
 }) => {
     return (
@@ -75,15 +74,6 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                                         mb="xs"
                                         ref={innerRef}
                                         {...draggableProps}
-                                        style={{
-                                            visibility:
-                                                isDragging &&
-                                                disableReorder &&
-                                                !snapshot.isDragging
-                                                    ? 'hidden'
-                                                    : undefined,
-                                            ...draggableProps.style,
-                                        }}
                                     >
                                         <Box
                                             {...dragHandleProps}
