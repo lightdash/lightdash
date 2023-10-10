@@ -1,7 +1,7 @@
-import { friendlyName } from '@lightdash/common';
-import { NavLink } from '@mantine/core';
+import { Group, NavLink, Text } from '@mantine/core';
 import React, { FC } from 'react';
 import { GetMetricFlowFieldsResponse } from '../../../api/MetricFlowAPI';
+import { convertDimensionNameToLabels } from '../utils/convertDimensionNameToLabels';
 import MetricFlowFieldIcon from './MetricFlowFieldIcon';
 
 type Props = {
@@ -20,16 +20,30 @@ const MetricFlowFieldList: FC<Props> = ({
 }) => {
     return (
         <>
-            {fields?.map((field) => (
-                <NavLink
-                    key={field.name}
-                    active={selectedFields.includes(field.name)}
-                    icon={<MetricFlowFieldIcon type={field.type} size="lg" />}
-                    label={friendlyName(field.name)}
-                    description={field.description}
-                    onClick={() => onClick(field.name)}
-                />
-            ))}
+            {fields?.map((field) => {
+                const labels = convertDimensionNameToLabels(field.name);
+                return (
+                    <NavLink
+                        key={field.name}
+                        active={selectedFields.includes(field.name)}
+                        icon={
+                            <MetricFlowFieldIcon type={field.type} size="lg" />
+                        }
+                        label={
+                            <Group spacing="xxs">
+                                {labels.tableLabel ? (
+                                    <Text fw={400} color="gray.6">
+                                        {labels.tableLabel}
+                                    </Text>
+                                ) : null}
+                                {labels.dimensionLabel}
+                            </Group>
+                        }
+                        description={field.description}
+                        onClick={() => onClick(field.name)}
+                    />
+                );
+            })}
         </>
     );
 };
