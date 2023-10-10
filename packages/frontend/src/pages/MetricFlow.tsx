@@ -11,6 +11,7 @@ import {
 } from '@mantine/core';
 import { IconRefresh, IconTrashX } from '@tabler/icons-react';
 import React, { useCallback, useMemo, useState } from 'react';
+import { TimeGranularity } from '../api/MetricFlowAPI';
 import { ChartDownloadMenu } from '../components/ChartDownload';
 import CollapsableCard from '../components/common/CollapsableCard';
 import LoadingState from '../components/common/LoadingState';
@@ -43,8 +44,12 @@ const MetricFlowPage = () => {
     const { showToastError } = useToaster();
     const { user } = useApp();
     const { activeProjectUuid } = useActiveProjectUuid();
-    const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
-    const [selectedDimensions, setSelectedDimensions] = useState<string[]>([]);
+    const [selectedMetrics, setSelectedMetrics] = useState<Record<string, {}>>(
+        {},
+    );
+    const [selectedDimensions, setSelectedDimensions] = useState<
+        Record<string, { grain: TimeGranularity }>
+    >({});
     const metricFlowFieldsQuery = useMetricFlowFields(
         activeProjectUuid,
         {
@@ -57,8 +62,8 @@ const MetricFlowPage = () => {
                     title: 'Error fetching metrics and dimensions',
                     subtitle: err.error.message,
                 });
-                setSelectedMetrics([]);
-                setSelectedDimensions([]);
+                setSelectedMetrics({});
+                setSelectedDimensions({});
             },
         },
     );
@@ -122,23 +127,37 @@ const MetricFlowPage = () => {
 
     const handleMetricSelect = useCallback(
         (metric: string) => {
-            setSelectedMetrics((metrics) => {
-                if (metrics.includes(metric)) {
-                    return metrics.filter((m) => m !== metric);
+            setSelectedMetrics((prevState) => {
+                if (!!prevState[metric]) {
+                    delete prevState[metric];
+                } else {
+                    prevState[metric] = { grain: TimeGranularity.DAY };
                 }
-                return [...metrics, metric];
+                return { ...prevState };
             });
         },
         [setSelectedMetrics],
     );
 
     const handleDimensionSelect = useCallback(
-        (metric: string) => {
-            setSelectedDimensions((dimensions) => {
-                if (dimensions.includes(metric)) {
-                    return dimensions.filter((m) => m !== metric);
+        (dimension: string) => {
+            setSelectedDimensions((prevState) => {
+                if (!!prevState[dimension]) {
+                    delete prevState[dimension];
+                } else {
+                    prevState[dimension] = { grain: TimeGranularity.DAY };
                 }
-                return [...dimensions, metric];
+                return { ...prevState };
+            });
+        },
+        [setSelectedDimensions],
+    );
+
+    const handleDimensionTimeGranularitySelect = useCallback(
+        (dimension: string, timeGranularity: TimeGranularity) => {
+            setSelectedDimensions((prevState) => {
+                prevState[dimension] = { grain: timeGranularity };
+                return { ...prevState };
             });
         },
         [setSelectedDimensions],
@@ -210,8 +229,8 @@ const MetricFlowPage = () => {
                                     variant="outline"
                                     color="red"
                                     onClick={() => {
-                                        setSelectedMetrics([]);
-                                        setSelectedDimensions([]);
+                                        setSelectedMetrics({});
+                                        setSelectedDimensions({});
                                     }}
                                 >
                                     <IconTrashX />
@@ -226,7 +245,7 @@ const MetricFlowPage = () => {
                                 (
                                 {metricFlowFieldsQuery.data
                                     ?.metricsForDimensions.length ?? 0}
-                                {selectedDimensions.length > 0 && (
+                                {Object.keys(selectedDimensions).length > 0 && (
                                     <> available based on selected dimensions</>
                                 )}
                                 )
@@ -248,7 +267,7 @@ const MetricFlowPage = () => {
                                 (
                                 {metricFlowFieldsQuery.data?.dimensions
                                     .length ?? 0}
-                                {selectedMetrics.length > 0 && (
+                                {selectedMetrics.size > 0 && (
                                     <> available based on selected metrics</>
                                 )}
                                 )
@@ -259,6 +278,9 @@ const MetricFlowPage = () => {
                                 fields={metricFlowFieldsQuery.data?.dimensions}
                                 selectedFields={selectedDimensions}
                                 onClick={(name) => handleDimensionSelect(name)}
+                                onClickTimeGranularity={
+                                    handleDimensionTimeGranularitySelect
+                                }
                             />
                         </Stack>
                     </Stack>
