@@ -1,3 +1,11 @@
+## [0.804.3](https://github.com/lightdash/lightdash/compare/0.804.2...0.804.3) (2023-10-10)
+
+
+### Bug Fixes
+
+* disable dbt semantic layer settings page ([#7409](https://github.com/lightdash/lightdash/issues/7409)) ([d9e85b1](https://github.com/lightdash/lightdash/commit/d9e85b166b94b0634bacbae6d8fcf4a9e2b08dc8))
+* fix tooltip behind markdown ([#7412](https://github.com/lightdash/lightdash/issues/7412)) ([e22cd34](https://github.com/lightdash/lightdash/commit/e22cd34ea1dc89d6fc5bfe5e9176cce2c9011885))
+
 ## [0.804.2](https://github.com/lightdash/lightdash/compare/0.804.1...0.804.2) (2023-10-10)
 
 
