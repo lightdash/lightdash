@@ -7,7 +7,7 @@ import {
     Item,
     TableCalculation,
 } from '@lightdash/common';
-import { Group, Select, SelectProps, Text, Tooltip } from '@mantine/core';
+import { Box, Group, Select, SelectProps, Text, Tooltip } from '@mantine/core';
 import { FC, forwardRef, useCallback, useMemo } from 'react';
 import FieldIcon from '../FieldIcon';
 
@@ -56,14 +56,19 @@ const FieldSelectItem = forwardRef<HTMLDivElement, ItemProps>(
             offset={-2}
             withinPortal
         >
-            <div ref={ref} {...rest}>
-                <Group noWrap spacing={size}>
+            <Box ref={ref} {...rest}>
+                <Group
+                    noWrap
+                    spacing={size}
+                    maw="100%"
+                    sx={{ overflow: 'hidden' }}
+                >
                     <FieldIcon item={item} selected={rest.selected} />
                     <Text truncate size={size}>
                         {label}
                     </Text>
                 </Group>
-            </div>
+            </Box>
         </Tooltip>
     ),
 );
@@ -109,6 +114,7 @@ const FieldAutoComplete: FC<FieldAutoCompleteProps> = ({
             {...rest}
             icon={field ? <FieldIcon item={field} /> : undefined}
             value={selectedFieldId}
+            dropdownComponent="div"
             itemComponent={FieldSelectItem}
             data={sortedItems.map((i) => ({
                 value: getItemId(i),
