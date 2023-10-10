@@ -1,4 +1,8 @@
-import { CreateSchedulerTarget, SchedulerFormat } from '@lightdash/common';
+import {
+    CreateSchedulerTarget,
+    SchedulerFormat,
+    validateEmail,
+} from '@lightdash/common';
 import {
     Anchor,
     Box,
@@ -430,6 +434,9 @@ const SchedulerForm2: FC<{
                                                     val,
                                                 );
                                             }}
+                                            shouldCreate={(value) =>
+                                                validateEmail(value)
+                                            }
                                             rightSection={<></>}
                                         />
                                     </Box>
