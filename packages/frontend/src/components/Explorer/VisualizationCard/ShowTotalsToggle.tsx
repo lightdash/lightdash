@@ -6,8 +6,6 @@ import { StyledSwitch } from './ShowTotalsToggle.styles';
 const ShowTotalsToggle: FC = () => {
     const {
         tableConfig: {
-            showColumnCalculation,
-            setShowColumnCalculation,
             showRowCalculation,
             setShowRowCalculation,
             canUsePivotTable,
@@ -28,19 +26,6 @@ const ShowTotalsToggle: FC = () => {
                     onChange={() => setShowRowCalculation(!showRowCalculation)}
                 />
             ) : null}
-
-            <StyledSwitch
-                large
-                id="showTotals"
-                innerLabelChecked="Yes"
-                innerLabel="No"
-                alignIndicator="right"
-                label="Show column total"
-                checked={showColumnCalculation}
-                onChange={() =>
-                    setShowColumnCalculation(!showColumnCalculation)
-                }
-            />
         </>
     );
 };
