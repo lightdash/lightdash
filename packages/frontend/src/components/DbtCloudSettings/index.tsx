@@ -69,20 +69,22 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
                 />
             ) : (
                 <SettingsGridCard>
-                    <div>
-                        <Title order={4}>dbt cloud</Title>
+                    <Stack spacing="sm">
+                        <Title order={4}>dbt Semantic Layer</Title>
 
                         <Text color="dimmed">
-                            Connect Lightdash to your dbt Cloud account to start
-                            consuming metrics from the dbt semantic layer and
-                            using dbt jinja in your queries. To get started we
-                            recommend following the{' '}
-                            <Anchor href="https://docs.lightdash.com/guides/dbt-semantic-layer">
-                                dbt cloud semantic layer guide
-                            </Anchor>{' '}
-                            in the Lightdash docs.
+                            dbt Semantic Layer is available now in Lightdash
+                            Cloud. To get setup, reach out to your Lightdash
+                            support rep or email support@lightdash.com to have
+                            this activated in your account.
                         </Text>
-                    </div>
+                        <Text color="dimmed">
+                            Read more about using dbt Semantic Layer in our{' '}
+                            <Anchor href="https://docs.lightdash.com/guides/dbt-semantic-layer">
+                                docs guide
+                            </Anchor>
+                        </Text>
+                    </Stack>
 
                     <Stack>
                         <PasswordInput
@@ -91,7 +93,8 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
                                 <Group display="inline-flex" spacing="xs">
                                     Service Token
                                     <Tooltip
-                                        label="Service tokens can be found in your dbt Cloud account settings: https://cloud.getdbt.com/next/settings - token needs at least 'metadata only' permissions."
+                                        maw={400}
+                                        label="Service tokens can be found in your dbt Cloud account settings: https://cloud.getdbt.com/next/settings - token needs at least 'semantic layer only' permissions."
                                         multiline
                                     >
                                         <MantineIcon
@@ -101,17 +104,18 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
                                     </Tooltip>
                                 </Group>
                             }
-                            disabled={dbtCloudSettings.isLoading}
-                            placeholder="Enter your token..."
+                            readOnly
+                            disabled
                         />
 
                         <TextInput
                             {...form.getInputProps('metricsJobId')}
                             label={
                                 <Group display="inline-flex" spacing="xs">
-                                    Job ID
+                                    Environment ID
                                     <Tooltip
-                                        label="Your Job ID can be found by clicking Deploy > Jobs in the top bar in dbt Cloud. The Job ID in is the number in the URL after /jobs/12345."
+                                        maw={400}
+                                        label="The unique identifier for the dbt production environment, you can retrieve this from the dbt Cloud URL when you navigate to Environments under Deploy. If your URL ends with .../environments/222222, your environmentId is 222222"
                                         multiline
                                     >
                                         <MantineIcon
@@ -121,12 +125,14 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
                                     </Tooltip>
                                 </Group>
                             }
-                            disabled={dbtCloudSettings.isLoading}
+                            readOnly
+                            disabled
                         />
 
                         <Group ml="auto">
                             {dbtCloudSettings.data?.metricsJobId && (
                                 <Button
+                                    disabled
                                     variant="default"
                                     onClick={() => handleClear()}
                                 >
@@ -136,6 +142,7 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
 
                             <Button
                                 type="submit"
+                                disabled
                                 loading={dbtCloudSettings.isLoading}
                             >
                                 Save
