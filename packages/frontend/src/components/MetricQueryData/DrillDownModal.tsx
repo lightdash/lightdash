@@ -30,7 +30,7 @@ import { FC, useCallback, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
-import FieldAutoComplete from '../common/Filters/FieldAutocomplete/FieldAutoComplete';
+import ItemSelect from '../common/ItemSelect';
 import { useMetricQueryDataContext } from './MetricQueryDataProvider';
 
 type CombineFiltersArgs = {
@@ -218,9 +218,10 @@ const DrillDownModal: FC = () => {
                         label="Pick a dimension to segment your metric by"
                         labelFor="chart-name"
                     >
-                        <FieldAutoComplete
-                            field={selectedDimension}
-                            fields={dimensionsAvailable}
+                        <ItemSelect
+                            disabled={dimensionsAvailable.length === 0}
+                            item={selectedDimension}
+                            items={dimensionsAvailable}
                             onChange={(field) => {
                                 if (!(isField(field) && isDimension(field))) {
                                     throw new Error(
@@ -230,7 +231,6 @@ const DrillDownModal: FC = () => {
 
                                 setSelectedDimension(field);
                             }}
-                            disabled={dimensionsAvailable.length === 0}
                         />
                     </FormGroup>
                 </div>

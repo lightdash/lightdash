@@ -1,35 +1,15 @@
 import {
-    Field,
     getItemId,
     getItemLabel,
     getItemLabelWithoutTableName,
     isField,
     Item,
-    TableCalculation,
 } from '@lightdash/common';
 import { Box, Group, Select, SelectProps, Text, Tooltip } from '@mantine/core';
 import { FC, forwardRef, useCallback, useMemo } from 'react';
-import FieldIcon from '../FieldIcon';
+import FieldIcon from '../Filters/FieldIcon';
 
-// id? name? of the field
-// disabled
-// autoFocus
-// placeholder
-// onChange
-// onClosed
-// hasGrouping
-
-interface FieldAutoCompleteProps
-    extends Omit<SelectProps, 'items' | 'onChange' | 'data'> {
-    field?: Field | TableCalculation;
-    fields: (Field | TableCalculation)[];
-    inactiveFieldIds?: string[];
-    onChange: (value: Field | TableCalculation) => void;
-    onClosed?: () => void;
-    hasGrouping?: boolean;
-}
-
-interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
+interface ItemComponentProps extends React.ComponentPropsWithoutRef<'div'> {
     item: Item;
     label: string;
     description?: string;
@@ -37,7 +17,7 @@ interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
     selected?: boolean;
 }
 
-const FieldSelectItem = forwardRef<HTMLDivElement, ItemProps>(
+const ItemComponent = forwardRef<HTMLDivElement, ItemComponentProps>(
     ({ item, label, description, size, ...rest }, ref) => (
         <Tooltip
             disabled={!description}
@@ -70,37 +50,47 @@ const FieldSelectItem = forwardRef<HTMLDivElement, ItemProps>(
     ),
 );
 
-const FieldAutoComplete: FC<FieldAutoCompleteProps> = ({
-    field,
-    fields,
+interface ItemSelectProps
+    extends Omit<SelectProps, 'value' | 'data' | 'onChange'> {
+    item?: Item;
+    items: Item[];
+    inactiveItemIds?: string[];
+    onChange: (value: Item | undefined) => void;
+    onClosed?: () => void;
+    hasGrouping?: boolean;
+}
+
+const getLabel = (item: Item, hasGrouping: boolean) => {
+    return hasGrouping
+        ? getItemLabelWithoutTableName(item)
+        : getItemLabel(item);
+};
+
+const ItemSelect: FC<ItemSelectProps> = ({
+    item,
+    items,
     onChange,
     onClosed,
-    inactiveFieldIds = [],
+    inactiveItemIds = [],
     hasGrouping = false,
     ...rest
 }) => {
-    const filteredFields = useMemo(() => {
-        return fields.filter((f) => !inactiveFieldIds.includes(getItemId(f)));
-    }, [fields, inactiveFieldIds]);
-
     const sortedItems = useMemo(() => {
-        return filteredFields.sort((a, b) =>
-            getItemLabel(a).localeCompare(getItemLabel(b)),
+        return items.sort((a, b) =>
+            getLabel(a, hasGrouping).localeCompare(getLabel(b, hasGrouping)),
         );
-    }, [filteredFields]);
+    }, [items, hasGrouping]);
 
-    const selectedFieldId = useMemo(() => {
-        return field ? getItemId(field) : undefined;
-    }, [field]);
+    const selectedItemId = useMemo(() => {
+        return item ? getItemId(item) : undefined;
+    }, [item]);
 
     const handleChange = useCallback(
         (value: string) => {
-            const selectedField = fields.find((f) => getItemId(f) === value);
-
-            if (!selectedField) return;
+            const selectedField = items.find((f) => getItemId(f) === value);
             onChange(selectedField);
         },
-        [fields, onChange],
+        [items, onChange],
     );
 
     return (
@@ -118,21 +108,20 @@ const FieldAutoComplete: FC<FieldAutoCompleteProps> = ({
                     fontWeight: 600,
                 },
             }}
-            icon={field ? <FieldIcon item={field} /> : undefined}
             dropdownComponent="div"
-            itemComponent={FieldSelectItem}
+            itemComponent={ItemComponent}
+            icon={item ? <FieldIcon item={item} /> : undefined}
+            placeholder={rest.placeholder ?? 'Search field...'}
+            allowDeselect={false}
             {...rest}
-            value={selectedFieldId}
+            value={selectedItemId}
             data={sortedItems.map((i) => ({
-                value: getItemId(i),
-                label: isField(i)
-                    ? hasGrouping
-                        ? getItemLabelWithoutTableName(i)
-                        : getItemLabel(i)
-                    : i.name,
-                description: isField(i) ? i.description : undefined,
                 item: i,
+                value: getItemId(i),
+                label: getLabel(i, hasGrouping),
+                description: isField(i) ? i.description : undefined,
                 group: hasGrouping && isField(i) ? i.tableLabel : undefined,
+                disabled: inactiveItemIds.includes(getItemId(i)),
                 size: rest.size,
             }))}
             onChange={handleChange}
@@ -140,4 +129,4 @@ const FieldAutoComplete: FC<FieldAutoCompleteProps> = ({
     );
 };
 
-export default FieldAutoComplete;
+export default ItemSelect;

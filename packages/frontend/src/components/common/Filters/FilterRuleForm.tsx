@@ -11,10 +11,10 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Box, Menu } from '@mantine/core';
 import { IconDots, IconX } from '@tabler/icons-react';
-import React, { FC, useCallback, useMemo } from 'react';
+import { FC, useCallback, useMemo } from 'react';
+import ItemSelect from '../ItemSelect';
 import MantineIcon from '../MantineIcon';
 import { FilterTypeConfig } from './configs';
-import FieldAutoComplete from './FieldAutocomplete/FieldAutoComplete';
 
 type Props = {
     fields: FilterableField[];
@@ -77,17 +77,17 @@ const FilterRuleForm: FC<Props> = ({
         >
             {activeField ? (
                 <>
-                    <FieldAutoComplete
+                    <ItemSelect
                         size="xs"
-                        field={activeField}
-                        fields={fields}
+                        disabled={!isEditMode}
+                        hasGrouping
+                        item={activeField}
+                        items={fields}
                         onChange={(field) => {
                             if (isField(field)) {
                                 onFieldChange(getFieldId(field));
                             }
                         }}
-                        disabled={!isEditMode}
-                        hasGrouping
                     />
 
                     <HTMLSelect

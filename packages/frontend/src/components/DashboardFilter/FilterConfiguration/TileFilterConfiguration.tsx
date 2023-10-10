@@ -21,7 +21,7 @@ import {
 } from '@mantine/core';
 import { FC, useCallback, useMemo } from 'react';
 import { FilterActions } from '.';
-import FieldAutoComplete from '../../common/Filters/FieldAutocomplete/FieldAutoComplete';
+import ItemSelect from '../../common/ItemSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { getChartIcon } from '../../common/ResourceIcon';
 
@@ -222,11 +222,11 @@ const TileFilterConfiguration: FC<Props> = ({
                                 mt="sm"
                                 display={!value.checked ? 'none' : 'auto'}
                             >
-                                <FieldAutoComplete
+                                <ItemSelect
                                     size="xs"
                                     disabled={!value.checked}
-                                    field={value.selectedField}
-                                    fields={value.sortedFilters}
+                                    item={value.selectedField}
+                                    items={value.sortedFilters}
                                     onChange={(newField) => {
                                         if (!isField(newField)) {
                                             throw new Error(

@@ -19,7 +19,7 @@ import {
 import { IconPlus } from '@tabler/icons-react';
 import { FC, useCallback, useMemo } from 'react';
 import { EMPTY_X_AXIS } from '../../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import FieldSelect from '../../common/FieldSelect/FieldSelect';
+import ItemSelect from '../../common/ItemSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { MAX_PIVOTS } from '../TableConfigPanel/GeneralSettings';
@@ -162,9 +162,9 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                     </Button>
                 ) : (
                     <Group spacing="xs">
-                        <FieldSelect
-                            selectedField={xAxisField}
-                            fieldOptions={items}
+                        <ItemSelect
+                            item={xAxisField}
+                            items={items}
                             onChange={handleOnChangeOfXAxisField}
                         />
                         <CloseButton
@@ -189,11 +189,14 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                         : availableYFields;
                     return (
                         <Group spacing="xs" key={`${field}-y-axis`}>
-                            <FieldSelect
-                                selectedField={activeField}
-                                fieldOptions={yFieldsOptions}
+                            <ItemSelect
+                                item={activeField}
+                                items={yFieldsOptions}
                                 onChange={(newValue) => {
-                                    updateYField(index, newValue ?? '');
+                                    updateYField(
+                                        index,
+                                        newValue ? getItemId(newValue) : '',
+                                    );
                                 }}
                             />
                             {yFields?.length !== 1 && (
@@ -247,11 +250,11 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                                 : undefined;
                             return (
                                 <Group spacing="xs" key={pivotKey}>
-                                    <FieldSelect
-                                        selectedField={activeField}
-                                        fieldOptions={fieldOptions}
+                                    <ItemSelect
                                         disabled={!chartHasMetricOrTableCalc}
                                         placeholder="Select a field to group by"
+                                        item={activeField}
+                                        items={fieldOptions}
                                         onChange={(newValue) => {
                                             if (!newValue) return;
                                             setPivotDimensions(
@@ -259,9 +262,9 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                                                     ? replaceStringInArray(
                                                           pivotDimensions,
                                                           pivotKey,
-                                                          newValue,
+                                                          getItemId(newValue),
                                                       )
-                                                    : [newValue],
+                                                    : [getItemId(newValue)],
                                             );
                                         }}
                                     />

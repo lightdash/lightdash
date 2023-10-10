@@ -26,13 +26,4 @@ const FieldLabel: FC<FieldLabelProps> = ({ item }) => {
     );
 };
 
-export const fieldLabelText = (item: FieldLabelProps['item']) => {
-    return (
-        (isField(item) ? `${item.tableLabel} ` : '') +
-        (isField(item) || isAdditionalMetric(item)
-            ? item.label
-            : item.displayName)
-    );
-};
-
 export default FieldLabel;

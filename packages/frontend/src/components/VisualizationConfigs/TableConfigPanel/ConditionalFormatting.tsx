@@ -15,6 +15,7 @@ import {
     hasPercentageFormat,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
+    Item,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -39,10 +40,8 @@ import {
 import produce from 'immer';
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
-import FieldSelectItem from '../../common/FieldSelect/FieldSelectItem';
-import FieldIcon from '../../common/Filters/FieldIcon';
-import { fieldLabelText } from '../../common/Filters/FieldLabel';
 import { FiltersProvider } from '../../common/Filters/FiltersProvider';
+import ItemSelect from '../../common/ItemSelect';
 import MantineIcon from '../../common/MantineIcon';
 import ConditionalFormattingRule from './ConditionalFormattingRule';
 
@@ -97,10 +96,12 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
     );
 
     const handleChangeField = useCallback(
-        (newFieldId: string) => {
+        (newField: Item | undefined) => {
             handleChange(
                 produce(config, (draft) => {
-                    draft.target = newFieldId ? { fieldId: newFieldId } : null;
+                    draft.target = newField
+                        ? { fieldId: getItemId(newField) }
+                        : null;
                 }),
             );
         },
@@ -278,25 +279,14 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                             borderRadius: theme.radius.sm,
                         })}
                     >
-                        <Select
+                        <ItemSelect
                             label="Select field"
-                            placeholder="Search field..."
-                            searchable
                             clearable
-                            icon={field && <FieldIcon item={field} />}
-                            value={field ? getItemId(field) : ''}
-                            data={fields.map((f) => {
-                                const id = getItemId(f);
-                                return {
-                                    item: f,
-                                    value: id,
-                                    label: fieldLabelText(f),
-                                    disabled:
-                                        id === (field && getItemId(field)),
-                                };
-                            })}
-                            itemComponent={FieldSelectItem}
-                            onChange={handleChangeField}
+                            item={field}
+                            items={fields}
+                            onChange={(newField) => {
+                                handleChangeField(newField);
+                            }}
                         />
 
                         <Select

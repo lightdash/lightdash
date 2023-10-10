@@ -6,7 +6,6 @@ import {
     fieldId as getFieldId,
     formatDate,
     getDateFormat,
-    getItemId,
     isDateItem,
     isDimension,
     isField,
@@ -32,7 +31,7 @@ import {
 } from '@mantine/core';
 import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
-import FieldSelect from '../../../common/FieldSelect/FieldSelect';
+import ItemSelect from '../../../common/ItemSelect';
 import MantineIcon from '../../../common/MantineIcon';
 import MonthAndYearInput from '../../../common/MonthAndYearInput';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
@@ -281,21 +280,18 @@ export const ReferenceLine: FC<Props> = ({
                         borderRadius: theme.radius.sm,
                     })}
                 >
-                    <FieldSelect
+                    <ItemSelect
                         label="Field"
-                        selectedField={selectedField}
-                        fieldOptions={fieldsInAxes}
+                        item={selectedField}
+                        items={fieldsInAxes}
                         placeholder="Search field..."
-                        onChange={(itemId) => {
-                            const field = fieldsInAxes.find(
-                                (f) => getItemId(f) === itemId,
-                            );
-                            setSelectedField(field);
+                        onChange={(newItem) => {
+                            setSelectedField(newItem);
 
-                            if (value !== undefined && field !== undefined)
+                            if (value !== undefined && newItem !== undefined)
                                 updateReferenceLine(
                                     value,
-                                    field,
+                                    newItem,
                                     label,
                                     lineColor,
                                     referenceLine.data.name,

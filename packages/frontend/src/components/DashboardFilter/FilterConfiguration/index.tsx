@@ -9,10 +9,10 @@ import {
     FilterableField,
     isField,
     isFilterableField,
+    Item,
     matchFieldByType,
     matchFieldByTypeAndName,
     matchFieldExact,
-    TableCalculation,
 } from '@lightdash/common';
 import {
     Box,
@@ -27,9 +27,9 @@ import {
 import { IconRotate2 } from '@tabler/icons-react';
 import produce from 'immer';
 import { FC, useCallback, useMemo, useState } from 'react';
-import FieldAutoComplete from '../../common/Filters/FieldAutocomplete/FieldAutoComplete';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import FieldLabel from '../../common/Filters/FieldLabel';
+import ItemSelect from '../../common/ItemSelect';
 import MantineIcon from '../../common/MantineIcon';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
@@ -108,21 +108,22 @@ const FilterConfiguration: FC<Props> = ({
         );
     }, [originalFilterRule, draftFilterRule]);
 
-    const handleChangeField = (newField: Field | TableCalculation) => {
+    const handleChangeField = (newItem: Item | undefined) => {
         if (!fields) return;
 
         const isCreatingTemporary = isCreatingNew && !isEditMode;
 
-        if (newField && isField(newField) && isFilterableField(newField)) {
+        if (newItem && isField(newItem) && isFilterableField(newItem)) {
             setDraftFilterRule(
                 createDashboardFilterRuleFromField(
-                    newField,
+                    newItem,
                     availableTileFilters,
                     false,
                     isCreatingTemporary,
                 ),
             );
-            setSelectedField(newField);
+
+            setSelectedField(newItem);
         }
     };
 
@@ -278,9 +279,8 @@ const FilterConfiguration: FC<Props> = ({
                 <Tabs.Panel value={FilterTabs.SETTINGS} w={350}>
                     <Stack spacing="sm">
                         {!!fields && isCreatingNew ? (
-                            <FieldAutoComplete
+                            <ItemSelect
                                 data-testid="field-autocomplete"
-                                hasGrouping
                                 size="xs"
                                 label={
                                     <Text>
@@ -290,8 +290,9 @@ const FilterConfiguration: FC<Props> = ({
                                         </Text>{' '}
                                     </Text>
                                 }
-                                field={selectedField}
-                                fields={fields}
+                                hasGrouping
+                                item={selectedField}
+                                items={fields}
                                 onChange={handleChangeField}
                             />
                         ) : (
