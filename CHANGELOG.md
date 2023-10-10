@@ -1,3 +1,10 @@
+## [0.804.1](https://github.com/lightdash/lightdash/compare/0.804.0...0.804.1) (2023-10-10)
+
+
+### Bug Fixes
+
+* semantic layer snowflake results ([#7395](https://github.com/lightdash/lightdash/issues/7395)) ([d5b6b06](https://github.com/lightdash/lightdash/commit/d5b6b0651dca6df3e2a1c27d67406871dc2af5bf))
+
 # [0.804.0](https://github.com/lightdash/lightdash/compare/0.803.2...0.804.0) (2023-10-10)
 
 
