@@ -7,8 +7,8 @@ import {
     MetricFlowDimensionType,
     TimeGranularity,
 } from '../../../api/MetricFlowAPI';
+import { convertDimensionNameToLabels } from '../utils/convertDimensionNameToLabels';
 import MetricFlowFieldIcon from './MetricFlowFieldIcon';
-import {convertDimensionNameToLabels} from "../utils/convertDimensionNameToLabels";
 
 type Props = {
     fields:
