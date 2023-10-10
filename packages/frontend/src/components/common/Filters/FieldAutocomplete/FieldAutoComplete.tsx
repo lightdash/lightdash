@@ -15,9 +15,6 @@ import FieldIcon from '../FieldIcon';
 // disabled
 // autoFocus
 // placeholder
-// activeField <<< value
-// fields <<< data ?
-// inactiveFieldIds
 // onChange
 // onClosed
 // hasGrouping
@@ -78,7 +75,6 @@ const FieldAutoComplete: FC<FieldAutoCompleteProps> = ({
     fields,
     onChange,
     onClosed,
-    placeholder,
     inactiveFieldIds = [],
     hasGrouping = false,
     ...rest
@@ -110,7 +106,6 @@ const FieldAutoComplete: FC<FieldAutoCompleteProps> = ({
     return (
         <Select
             w="100%"
-            initiallyOpened
             searchable
             styles={{
                 separator: {
@@ -123,11 +118,11 @@ const FieldAutoComplete: FC<FieldAutoCompleteProps> = ({
                     fontWeight: 600,
                 },
             }}
-            {...rest}
             icon={field ? <FieldIcon item={field} /> : undefined}
-            value={selectedFieldId}
             dropdownComponent="div"
             itemComponent={FieldSelectItem}
+            {...rest}
+            value={selectedFieldId}
             data={sortedItems.map((i) => ({
                 value: getItemId(i),
                 label: isField(i)

@@ -50,7 +50,9 @@ describe('Dashboard', () => {
         // Add filter
         cy.contains('Add filter').click();
 
-        cy.get('#field-autocomplete').click().type('payment method{enter}');
+        cy.findByTestId('field-autocomplete')
+            .click()
+            .type('payment method{enter}');
         cy.findByPlaceholderText('Start typing to filter results').type(
             'credit_card{enter}',
         );
@@ -124,7 +126,9 @@ describe('Dashboard', () => {
 
         // Add filter Payment method is credit_card and apply
         cy.contains('Add filter').click();
-        cy.get('#field-autocomplete').click().type('payment method{enter}');
+        cy.findByTestId('field-autocomplete')
+            .click()
+            .type('payment method{enter}');
         cy.get('label.mantine-Switch-track').click();
         cy.findByPlaceholderText('Start typing to filter results').type(
             'credit_card{enter}{esc}',

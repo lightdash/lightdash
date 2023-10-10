@@ -8,9 +8,9 @@ import {
 } from '@blueprintjs/core';
 import {
     ChartType,
-    CompiledDimension,
     CreateSavedChartVersion,
     DashboardFilters,
+    Dimension,
     FieldId,
     fieldId as getFieldId,
     FilterGroupItem,
@@ -20,12 +20,13 @@ import {
     getDimensions,
     getItemId,
     hashFieldReference,
+    isDimension,
     isField,
     MetricQuery,
     PivotReference,
     ResultValue,
 } from '@lightdash/common';
-import React, { FC, useCallback, useMemo } from 'react';
+import { FC, useCallback, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
@@ -158,8 +159,8 @@ const drillDownExploreUrl = ({
 };
 const DrillDownModal: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const [selectedDimension, setSelectedDimension] =
-        React.useState<CompiledDimension>();
+    const [selectedDimension, setSelectedDimension] = useState<Dimension>();
+
     const {
         isDrillDownModalOpen,
         closeDrillDownModal,
@@ -169,13 +170,11 @@ const DrillDownModal: FC = () => {
     } = useMetricQueryDataContext();
 
     const dimensionsAvailable = useMemo(() => {
-        if (explore) {
-            return getDimensions(explore).filter(
-                (dimension) => !dimension.hidden,
-            );
-        }
-        return [];
+        if (!explore) return [];
+
+        return getDimensions(explore).filter((dimension) => !dimension.hidden);
     }, [explore]);
+
     const value = useMemo(() => {
         if (drillDownConfig && isField(drillDownConfig.item)) {
             const fieldId =
@@ -205,6 +204,7 @@ const DrillDownModal: FC = () => {
         setSelectedDimension(undefined);
         closeDrillDownModal();
     }, [closeDrillDownModal]);
+
     return (
         <Dialog
             isOpen={isDrillDownModalOpen}
@@ -222,9 +222,13 @@ const DrillDownModal: FC = () => {
                             field={selectedDimension}
                             fields={dimensionsAvailable}
                             onChange={(field) => {
-                                if (isField(field)) {
-                                    setSelectedDimension(field);
+                                if (!(isField(field) && isDimension(field))) {
+                                    throw new Error(
+                                        'Expected field to be a dimension',
+                                    );
                                 }
+
+                                setSelectedDimension(field);
                             }}
                             disabled={dimensionsAvailable.length === 0}
                         />
