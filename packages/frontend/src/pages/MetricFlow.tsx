@@ -1,15 +1,16 @@
 import { subject } from '@casl/ability';
 import {
-    ActionIcon,
     Badge,
+    Button,
     Flex,
     Group,
+    ScrollArea,
     Stack,
     Text,
     Title,
     Tooltip,
 } from '@mantine/core';
-import { IconRefresh, IconTrashX } from '@tabler/icons-react';
+import { IconPlayerPlay, IconRefresh, IconTrashX } from '@tabler/icons-react';
 import React, { useCallback, useMemo, useState } from 'react';
 import { TimeGranularity } from '../api/MetricFlowAPI';
 import { ChartDownloadMenu } from '../components/ChartDownload';
@@ -25,7 +26,6 @@ import VisualizationProvider from '../components/LightdashVisualization/Visualiz
 import MetricFlowFieldList from '../features/metricFlow/components/MetricFlowFieldList';
 import MetricFlowSqlCard from '../features/metricFlow/components/MetricFlowSqlCard';
 import MetricFlowResultsTable from '../features/metricFlow/components/ResultsTable';
-import RunQueryButton from '../features/metricFlow/components/RunQueryButton';
 import useMetricFlowFields from '../features/metricFlow/hooks/useMetricFlowFields';
 import useMetricFlowQueryResults from '../features/metricFlow/hooks/useMetricFlowQueryResults';
 import useMetricFlowVisualization from '../features/metricFlow/hooks/useMetricFlowVisualization';
@@ -35,8 +35,6 @@ import convertMetricFlowQueryResultsToResultsData from '../features/metricFlow/u
 import useToaster from '../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useApp } from '../providers/AppProvider';
-import { TrackSection } from '../providers/TrackingProvider';
-import { SectionName } from '../types/Events';
 
 const MOCK_TABLE_NAME = 'metricflow';
 
@@ -208,39 +206,64 @@ const MetricFlowPage = () => {
                                 </Badge>
                             </Tooltip>
                         </Flex>
-                        <Flex gap="xs" align="center">
-                            <Tooltip label={'Refetch fields'}>
-                                <ActionIcon
-                                    size="sm"
-                                    variant="outline"
-                                    color="blue"
-                                    loading={metricFlowFieldsQuery.isFetching}
+                        <Button.Group>
+                            <Tooltip
+                                label={'Run query'}
+                                withinPortal
+                                position="bottom"
+                            >
+                                <Button
+                                    size="xs"
+                                    variant="default"
+                                    disabled={
+                                        metricFlowQueryResultsQuery.isLoading
+                                    }
+                                    onClick={() =>
+                                        metricFlowQueryResultsQuery.refetch()
+                                    }
+                                >
+                                    <IconPlayerPlay size={12} color="blue" />
+                                </Button>
+                            </Tooltip>
+                            <Tooltip
+                                label={'Refetch fields'}
+                                withinPortal
+                                position="bottom"
+                            >
+                                <Button
+                                    size="xs"
+                                    variant="default"
                                     disabled={metricFlowFieldsQuery.isFetching}
                                     onClick={() =>
                                         metricFlowFieldsQuery.refetch()
                                     }
                                 >
-                                    <IconRefresh />
-                                </ActionIcon>
+                                    <IconRefresh size={12} />
+                                </Button>
                             </Tooltip>
-                            <Tooltip label={'Clear selected fields'}>
-                                <ActionIcon
-                                    size="sm"
-                                    variant="outline"
-                                    color="red"
+                            <Tooltip
+                                label={'Clear selected fields'}
+                                withinPortal
+                                position="bottom"
+                            >
+                                <Button
+                                    size="xs"
+                                    variant="default"
                                     onClick={() => {
                                         setSelectedMetrics({});
                                         setSelectedDimensions({});
                                     }}
                                 >
-                                    <IconTrashX />
-                                </ActionIcon>
+                                    <IconTrashX size={12} color="red" />
+                                </Button>
                             </Tooltip>
-                        </Flex>
+                        </Button.Group>
                     </Group>
-                    <Stack mah="100%">
+                    <Stack mah="100%" sx={{ overflow: 'hidden' }}>
                         <Flex align="baseline" gap="xxs">
-                            <Title order={5}>Metrics</Title>
+                            <Title order={5} color="yellow.9">
+                                Metrics
+                            </Title>
                             <Text span fz="xs" color="gray.6">
                                 (
                                 {metricFlowFieldsQuery.data
@@ -251,7 +274,7 @@ const MetricFlowPage = () => {
                                 )
                             </Text>
                         </Flex>
-                        <Stack sx={{ overflowY: 'auto', flex: 1 }}>
+                        <ScrollArea offsetScrollbars sx={{ flex: 1 }}>
                             <MetricFlowFieldList
                                 fields={
                                     metricFlowFieldsQuery.data
@@ -260,9 +283,11 @@ const MetricFlowPage = () => {
                                 selectedFields={selectedMetrics}
                                 onClick={(name) => handleMetricSelect(name)}
                             />
-                        </Stack>
+                        </ScrollArea>
                         <Flex align="baseline" gap="xxs">
-                            <Title order={5}>Dimensions</Title>
+                            <Title order={5} color="blue.9">
+                                Dimensions
+                            </Title>
                             <Text span fz="xs" color="gray.6">
                                 (
                                 {metricFlowFieldsQuery.data?.dimensions
@@ -273,7 +298,7 @@ const MetricFlowPage = () => {
                                 )
                             </Text>
                         </Flex>
-                        <Stack sx={{ overflowY: 'auto', flex: 1 }}>
+                        <ScrollArea offsetScrollbars sx={{ flex: 1 }}>
                             <MetricFlowFieldList
                                 fields={metricFlowFieldsQuery.data?.dimensions}
                                 selectedFields={selectedDimensions}
@@ -282,20 +307,12 @@ const MetricFlowPage = () => {
                                     handleDimensionTimeGranularitySelect
                                 }
                             />
-                        </Stack>
+                        </ScrollArea>
                     </Stack>
                 </Stack>
             }
         >
-            <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
-                <Group position="apart">
-                    <RunQueryButton
-                        isLoading={metricFlowQueryResultsQuery.isLoading}
-                        onClick={() => metricFlowQueryResultsQuery.refetch()}
-                    />
-                </Group>
-            </TrackSection>
-            <Stack mt="lg" spacing="sm" sx={{ flexGrow: 1 }}>
+            <Stack spacing="sm" sx={{ flexGrow: 1 }}>
                 <VisualizationProvider
                     initialChartConfig={chartConfig}
                     initialPivotDimensions={undefined}
