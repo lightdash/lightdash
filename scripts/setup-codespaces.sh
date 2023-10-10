@@ -24,5 +24,5 @@ yarn workspace backend migrate
 
 yarn workspace backend seed
 
-# Optional: Run Lightdash frontend and backend in dev mode
+# Run Lightdash frontend and backend in dev mode
 yarn dev

@@ -272,12 +272,7 @@ To get started:
 Once connected run the following commands in the VS Code terminal:
 
 ```shell
-# Setup the database
-yarn workspace backend migrate
-yarn workspace backend seed
-
-# Run Lightdash frontend and backend in dev mode
-yarn dev
+sh scripts/setup-codespaces.sh
 ```
 
 #### using Docker compose
