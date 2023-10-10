@@ -1,3 +1,10 @@
+## [0.804.2](https://github.com/lightdash/lightdash/compare/0.804.1...0.804.2) (2023-10-10)
+
+
+### Bug Fixes
+
+* auto sorting line charts without totals ([#7407](https://github.com/lightdash/lightdash/issues/7407)) ([13bf883](https://github.com/lightdash/lightdash/commit/13bf883d09798e7cec501b64c58b8e2e268de75f))
+
 ## [0.804.1](https://github.com/lightdash/lightdash/compare/0.804.0...0.804.1) (2023-10-10)
 
 
