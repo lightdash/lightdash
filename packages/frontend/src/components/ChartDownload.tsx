@@ -129,35 +129,44 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
             throw new Error('Chart instance not reachable');
         }
 
-        const svgBase64 = echartsInstance.getDataURL();
-        const width = echartsInstance.getWidth();
-        const height = echartsInstance.getHeight();
+        try {
+            const svgBase64 = echartsInstance.getDataURL();
+            const width = echartsInstance.getWidth();
+            const height = echartsInstance.getHeight();
 
-        switch (type) {
-            case DownloadType.PDF:
-                downloadPdf(
-                    await base64SvgToBase64Image(svgBase64, width),
-                    width,
-                    height,
-                );
-                break;
-            case DownloadType.SVG:
-                downloadImage(svgBase64);
-                break;
-            case DownloadType.JPEG:
-                downloadImage(
-                    await base64SvgToBase64Image(svgBase64, width, 'jpeg'),
-                );
-                break;
-            case DownloadType.PNG:
-                downloadImage(await base64SvgToBase64Image(svgBase64, width));
-                break;
-            case DownloadType.JSON:
-                downloadJson(echartsInstance.getOption());
-                break;
-            default: {
-                assertUnreachable(type, `Unexpected download type: ${type}`);
+            switch (type) {
+                case DownloadType.PDF:
+                    downloadPdf(
+                        await base64SvgToBase64Image(svgBase64, width),
+                        width,
+                        height,
+                    );
+                    break;
+                case DownloadType.SVG:
+                    downloadImage(svgBase64);
+                    break;
+                case DownloadType.JPEG:
+                    downloadImage(
+                        await base64SvgToBase64Image(svgBase64, width, 'jpeg'),
+                    );
+                    break;
+                case DownloadType.PNG:
+                    downloadImage(
+                        await base64SvgToBase64Image(svgBase64, width),
+                    );
+                    break;
+                case DownloadType.JSON:
+                    downloadJson(echartsInstance.getOption());
+                    break;
+                default: {
+                    assertUnreachable(
+                        type,
+                        `Unexpected download type: ${type}`,
+                    );
+                }
             }
+        } catch (e) {
+            console.error(`Unable to download ${type} from chart ${e}`);
         }
     }, [chartRef, type]);
 
