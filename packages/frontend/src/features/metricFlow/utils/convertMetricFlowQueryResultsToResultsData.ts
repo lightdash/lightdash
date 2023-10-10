@@ -6,10 +6,10 @@ export default function convertMetricFlowQueryResultsToResultsData(
     metricFlowJsonResults: MetricFlowJsonResults,
 ) {
     const dimensionIdsInSchema = metricFlowJsonResults.schema.fields.map(
-        ({ name }) => name,
+        ({ name }) => name.toLowerCase(),
     );
     const metricIdsInSchema = metricFlowJsonResults.schema.fields.map(
-        ({ name }) => name,
+        ({ name }) => name.toLowerCase(),
     );
 
     const dimensionsInSchema = Object.values(
@@ -33,7 +33,7 @@ export default function convertMetricFlowQueryResultsToResultsData(
                 const raw = row[columnName];
                 return {
                     ...acc,
-                    [`${explore.baseTable}_${columnName}`]: {
+                    [`${explore.baseTable}_${columnName.toLowerCase()}`]: {
                         value: {
                             raw,
                             formatted: `${raw}`,
