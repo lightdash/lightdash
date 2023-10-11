@@ -1,3 +1,15 @@
+# [0.805.0](https://github.com/lightdash/lightdash/compare/0.804.4...0.805.0) (2023-10-11)
+
+
+### Bug Fixes
+
+* fix incorrect chart_type in database and dashboard ([#7416](https://github.com/lightdash/lightdash/issues/7416)) ([bc0d0aa](https://github.com/lightdash/lightdash/commit/bc0d0aa089611f86ff0e6015906bfe23aa90509a)), closes [#7395](https://github.com/lightdash/lightdash/issues/7395) [#7395](https://github.com/lightdash/lightdash/issues/7395) [#7407](https://github.com/lightdash/lightdash/issues/7407) [#7407](https://github.com/lightdash/lightdash/issues/7407) [#7401](https://github.com/lightdash/lightdash/issues/7401) [#7411](https://github.com/lightdash/lightdash/issues/7411) [#7385](https://github.com/lightdash/lightdash/issues/7385) [#7412](https://github.com/lightdash/lightdash/issues/7412) [#7406](https://github.com/lightdash/lightdash/issues/7406) [#7409](https://github.com/lightdash/lightdash/issues/7409) [#7409](https://github.com/lightdash/lightdash/issues/7409) [#7412](https://github.com/lightdash/lightdash/issues/7412) [#7413](https://github.com/lightdash/lightdash/issues/7413) [#7413](https://github.com/lightdash/lightdash/issues/7413)
+
+
+### Features
+
+* filter numeric input to mantine ([#7428](https://github.com/lightdash/lightdash/issues/7428)) ([292af2e](https://github.com/lightdash/lightdash/commit/292af2e4452340f14d11cf0bfa6fadeca6dad7cd))
+
 ## [0.804.4](https://github.com/lightdash/lightdash/compare/0.804.3...0.804.4) (2023-10-11)
 
 
