@@ -7,6 +7,7 @@ import {
     ECHARTS_DEFAULT_COLORS,
     Field,
     findItem,
+    formatDate,
     formatItemValue,
     formatTableCalculationValue,
     formatValue,
@@ -33,7 +34,6 @@ import {
     Series,
     TableCalculation,
     timeFrameConfigs,
-    TimeFrames,
 } from '@lightdash/common';
 import {
     DefaultLabelFormatterCallbackParams,
@@ -268,11 +268,12 @@ const getFormattedValue = (
     value: any,
     key: string,
     items: Array<Field | TableCalculation>,
+    convertToUTC: boolean = true,
 ): string => {
     return formatItemValue(
         items.find((item) => getItemId(item) === key),
         value,
-        true,
+        convertToUTC,
     );
 };
 
@@ -1499,19 +1500,34 @@ const useEcharts = (
                     const field = items.find(
                         (item) => getItemId(item) === dimensionId,
                     );
-                    const isQuarter = isDimension(field)
-                        ? field.timeInterval === TimeFrames.QUARTER
-                        : false;
+
+                    if (
+                        isDimension(field) &&
+                        (field.type === DimensionType.DATE ||
+                            field.type === DimensionType.TIMESTAMP)
+                    ) {
+                        const date = (params[0].data as Record<string, any>)[
+                            dimensionId
+                        ]; // get full timestamp from data
+                        const dateFormatted = formatDate(
+                            date,
+                            field.timeInterval,
+                            false,
+                        );
+                        return `${dateFormatted}<br/><table>${tooltipRows}</table>`;
+                    }
+
                     const hasFormat = isField(field)
                         ? field.format !== undefined
                         : false;
 
-                    if (isQuarter || hasFormat) {
+                    if (hasFormat) {
                         const tooltipHeader = getFormattedValue(
                             params[0].axisValueLabel,
                             dimensionId,
                             items,
                         );
+
                         return `${tooltipHeader}<br/><table>${tooltipRows}</table>`;
                     }
                 }

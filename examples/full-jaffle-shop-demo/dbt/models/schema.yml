@@ -104,6 +104,9 @@ models:
       - name: order_date
         description: Date (UTC) that the order was placed
         meta:
+          dimension: 
+            type: date
+            time_intervals: ['DAY', 'WEEK', 'MONTH', 'QUARTER', 'YEAR'] 
           metrics:
             date_of_first_order:
               type: min
