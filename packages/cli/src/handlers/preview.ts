@@ -45,18 +45,15 @@ const cleanupProject = async (projectUuid: string): Promise<void> => {
             url: `/api/v1/org/projects/${projectUuid}`,
             body: undefined,
         });
-
         await LightdashAnalytics.track({
             event: 'preview.completed',
             properties: {
                 projectId: projectUuid,
             },
         });
-
         teardownSpinner.succeed(`  Cleaned up`);
-    } catch (error) {
-        // Handle any errors that occur during the cleanup process
-        console.error('Error during cleanup:', error);
+    } catch (e) {
+        console.error('Error during cleanup:', e);
         teardownSpinner.fail(`  Cleanup failed`);
     }
 };
@@ -150,6 +147,7 @@ export const previewHandler = async (
 
         process.on("SIGINT", async () => {
             await cleanupProject(project!.projectUuid);
+            
             process.exit(0);
         });
 
