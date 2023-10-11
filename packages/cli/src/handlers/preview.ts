@@ -19,7 +19,6 @@ import { createProject } from './createProject';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { deploy } from './deploy';
-import { setupExitHandlers } from './exit';
 
 type PreviewHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -147,7 +146,7 @@ export const previewHandler = async (
 
         process.on("SIGINT", async () => {
             await cleanupProject(project!.projectUuid);
-            
+
             process.exit(0);
         });
 
