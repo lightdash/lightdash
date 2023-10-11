@@ -1,3 +1,10 @@
+## [0.804.4](https://github.com/lightdash/lightdash/compare/0.804.3...0.804.4) (2023-10-11)
+
+
+### Bug Fixes
+
+* try-catch error when downloading jpeg image from pie chart ([#7413](https://github.com/lightdash/lightdash/issues/7413)) ([608a2e2](https://github.com/lightdash/lightdash/commit/608a2e2e18376f96ed0e67d6d501c453113850e0))
+
 ## [0.804.3](https://github.com/lightdash/lightdash/compare/0.804.2...0.804.3) (2023-10-10)
 
 
