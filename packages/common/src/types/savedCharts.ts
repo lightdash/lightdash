@@ -464,7 +464,6 @@ export const getChartKind = (
     chartType: ChartType,
     value: ChartConfig['config'],
 ): ChartKind | undefined => {
-
     switch (chartType) {
         case ChartType.PIE:
             return ChartKind.PIE;
