@@ -19,6 +19,7 @@ import { createProject } from './createProject';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { deploy } from './deploy';
+import { setupExitHandlers } from './exit';
 
 type PreviewHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -33,6 +34,31 @@ type PreviewHandlerOptions = DbtCompileOptions & {
 type StopPreviewHandlerOptions = {
     name: string;
     verbose: boolean;
+};
+
+const cleanupProject = async (projectUuid: string): Promise<void> => {
+    const teardownSpinner = GlobalState.startSpinner(`  Cleaning up`);
+
+    try {
+        await lightdashApi({
+            method: 'DELETE',
+            url: `/api/v1/org/projects/${projectUuid}`,
+            body: undefined,
+        });
+
+        await LightdashAnalytics.track({
+            event: 'preview.completed',
+            properties: {
+                projectId: projectUuid,
+            },
+        });
+
+        teardownSpinner.succeed(`  Cleaned up`);
+    } catch (error) {
+        // Handle any errors that occur during the cleanup process
+        console.error('Error during cleanup:', error);
+        teardownSpinner.fail(`  Cleanup failed`);
+    }
 };
 
 const projectUrl = async (project: Project): Promise<URL> => {
@@ -122,6 +148,11 @@ export const previewHandler = async (
 
         setPreviewProject(project.projectUuid, name);
 
+        process.on("SIGINT", async () => {
+            await cleanupProject(project!.projectUuid);
+            process.exit(0);
+        });
+
         spinner.succeed(
             `  Developer preview "${name}" ready at: ${await projectUrl(
                 project,
@@ -192,19 +223,8 @@ export const previewHandler = async (
         });
         throw e;
     }
-    const teardownSpinner = GlobalState.startSpinner(`  Cleaning up`);
-    await lightdashApi({
-        method: 'DELETE',
-        url: `/api/v1/org/projects/${project.projectUuid}`,
-        body: undefined,
-    });
-    await LightdashAnalytics.track({
-        event: 'preview.completed',
-        properties: {
-            projectId: project.projectUuid,
-        },
-    });
-    teardownSpinner.succeed(`  Cleaned up`);
+
+    await cleanupProject(project.projectUuid);
 };
 
 export const startPreviewHandler = async (
