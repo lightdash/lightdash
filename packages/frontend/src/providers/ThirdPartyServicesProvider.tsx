@@ -48,6 +48,7 @@ const ThirdPartyServicesEnabledProvider: FC = ({ children }) => {
                     bootstrap: {
                         featureFlags: {
                             'lightdash-team-flair': false,
+                            'extended-usage-analytics': false,
                         },
                     },
                 }}

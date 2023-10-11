@@ -9,6 +9,7 @@ import EChartsReact from 'echarts-for-react';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 
+import { PostHogFeature } from 'posthog-js/react';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
@@ -299,6 +300,25 @@ const UserActivity: FC = () => {
                         )}
                     </Table>
                 </ActivityCard>
+
+                <PostHogFeature flag={'extended-usage-analytics'} match={true}>
+                    <ActivityCard grid="table-not-logged-in">
+                        <Description>FEATURE FLAG</Description>
+                        <Table bordered condensed $showFooter={false}>
+                            <thead>
+                                <tr>
+                                    <th>First Name</th>
+                                    <th>Last Name</th>
+                                    <th>Days since last query</th>
+                                </tr>
+                            </thead>
+                            {showTableBodyWithUsers(
+                                'users-not-logged-in',
+                                data.tableNoQueries,
+                            )}
+                        </Table>
+                    </ActivityCard>
+                </PostHogFeature>
             </Container>
         </Page>
     );
