@@ -17,7 +17,6 @@ import VisualizationProvider from '../../LightdashVisualization/VisualizationPro
 import { EchartSeriesClickEvent } from '../../SimpleChart';
 import VisualizationCardOptions from '../VisualizationCardOptions';
 import { SeriesContextMenu } from './SeriesContextMenu';
-import ShowTotalsToggle from './ShowTotalsToggle';
 import VisualizationConfigPanel from './VisualizationConfigPanel';
 
 export type EchartsClickEvent = {
@@ -164,9 +163,6 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
                                             chartType={chartType}
                                         />
                                     </>
-                                )}
-                                {!isEditMode && chartType === 'table' && (
-                                    <ShowTotalsToggle />
                                 )}
                                 <ChartDownloadMenu
                                     getCsvLink={getCsvLink}
