@@ -1,3 +1,32 @@
+## [0.804.4](https://github.com/lightdash/lightdash/compare/0.804.3...0.804.4) (2023-10-11)
+
+
+### Bug Fixes
+
+* try-catch error when downloading jpeg image from pie chart ([#7413](https://github.com/lightdash/lightdash/issues/7413)) ([608a2e2](https://github.com/lightdash/lightdash/commit/608a2e2e18376f96ed0e67d6d501c453113850e0))
+
+## [0.804.3](https://github.com/lightdash/lightdash/compare/0.804.2...0.804.3) (2023-10-10)
+
+
+### Bug Fixes
+
+* disable dbt semantic layer settings page ([#7409](https://github.com/lightdash/lightdash/issues/7409)) ([d9e85b1](https://github.com/lightdash/lightdash/commit/d9e85b166b94b0634bacbae6d8fcf4a9e2b08dc8))
+* fix tooltip behind markdown ([#7412](https://github.com/lightdash/lightdash/issues/7412)) ([e22cd34](https://github.com/lightdash/lightdash/commit/e22cd34ea1dc89d6fc5bfe5e9176cce2c9011885))
+
+## [0.804.2](https://github.com/lightdash/lightdash/compare/0.804.1...0.804.2) (2023-10-10)
+
+
+### Bug Fixes
+
+* auto sorting line charts without totals ([#7407](https://github.com/lightdash/lightdash/issues/7407)) ([13bf883](https://github.com/lightdash/lightdash/commit/13bf883d09798e7cec501b64c58b8e2e268de75f))
+
+## [0.804.1](https://github.com/lightdash/lightdash/compare/0.804.0...0.804.1) (2023-10-10)
+
+
+### Bug Fixes
+
+* semantic layer snowflake results ([#7395](https://github.com/lightdash/lightdash/issues/7395)) ([d5b6b06](https://github.com/lightdash/lightdash/commit/d5b6b0651dca6df3e2a1c27d67406871dc2af5bf))
+
 # [0.804.0](https://github.com/lightdash/lightdash/compare/0.803.2...0.804.0) (2023-10-10)
 
 

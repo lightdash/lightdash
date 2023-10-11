@@ -301,7 +301,7 @@ const Settings: FC = () => {
                                     }),
                                 ) ? (
                                     <RouterNavLink
-                                        label="dbt Cloud"
+                                        label="dbt Semantic Layer"
                                         exact
                                         to={`/generalSettings/projectManagement/${project.projectUuid}/integrations/dbtCloud`}
                                         icon={

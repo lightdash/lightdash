@@ -23,7 +23,7 @@ const MetricFlowSqlCard: FC<Props> = ({
     error,
     canRedirectToSqlRunner = false,
 }) => {
-    const [isOpen, setIsOpen] = useState<boolean>(true);
+    const [isOpen, setIsOpen] = useState<boolean>(false);
     const sqlRunnerUrl = useMemo(() => {
         const params = new URLSearchParams({
             sql_runner: JSON.stringify({
@@ -38,7 +38,8 @@ const MetricFlowSqlCard: FC<Props> = ({
             isOpen={isOpen}
             onToggle={() => setIsOpen(!isOpen)}
             rightHeaderElement={
-                canRedirectToSqlRunner && (
+                canRedirectToSqlRunner &&
+                isOpen && (
                     <Button
                         variant="default"
                         size="xs"

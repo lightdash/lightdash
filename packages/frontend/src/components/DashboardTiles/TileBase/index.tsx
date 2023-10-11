@@ -92,6 +92,8 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             label={description}
                             multiline
                             position="top-start"
+                            withinPortal={true}
+                            maw={400}
                         >
                             <TitleWrapper $hovered={titleHovered}>
                                 {!hideTitle ? (
