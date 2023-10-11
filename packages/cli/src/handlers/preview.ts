@@ -144,7 +144,7 @@ export const previewHandler = async (
 
         setPreviewProject(project.projectUuid, name);
 
-        process.on("SIGINT", async () => {
+        process.on('SIGINT', async () => {
             await cleanupProject(project!.projectUuid);
 
             process.exit(0);
