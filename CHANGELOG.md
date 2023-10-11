@@ -1,3 +1,10 @@
+## [0.805.2](https://github.com/lightdash/lightdash/compare/0.805.1...0.805.2) (2023-10-11)
+
+
+### Bug Fixes
+
+* dead tiles when charts are deleted ([#7436](https://github.com/lightdash/lightdash/issues/7436)) ([3a4b8d9](https://github.com/lightdash/lightdash/commit/3a4b8d9b9587e81862f3390445d388913cd9f70d))
+
 ## [0.805.1](https://github.com/lightdash/lightdash/compare/0.805.0...0.805.1) (2023-10-11)
 
 
