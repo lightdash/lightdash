@@ -102,7 +102,7 @@ describe('Date tests', () => {
         cy.contains('Add filter').click();
         cy.findByTestId('field-autocomplete')
             .click()
-            .type('order date month{down}{enter}');
+            .type('order date month{downArrow}{enter}');
 
         cy.contains('button', 'Select a date').click();
         cy.findAllByRole('dialog')
