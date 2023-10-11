@@ -33,6 +33,7 @@ import {
     Series,
     TableCalculation,
     timeFrameConfigs,
+    TimeFrames,
 } from '@lightdash/common';
 import {
     DefaultLabelFormatterCallbackParams,
@@ -1491,15 +1492,30 @@ const useEcharts = (
                         return '';
                     })
                     .join('');
-                const tooltipHeader =
-                    params[0].dimensionNames?.[0] !== undefined
-                        ? getFormattedValue(
-                              params[0].axisValueLabel,
-                              params[0].dimensionNames[0],
-                              items,
-                          )
-                        : params[0].axisValueLabel;
-                return `${tooltipHeader}<br/><table>${tooltipRows}</table>`;
+
+                const dimensionId = params[0].dimensionNames?.[0];
+
+                if (dimensionId !== undefined) {
+                    const field = items.find(
+                        (item) => getItemId(item) === dimensionId,
+                    );
+                    const isQuarter = isDimension(field)
+                        ? field.timeInterval === TimeFrames.QUARTER
+                        : false;
+                    const hasFormat = isField(field)
+                        ? field.format !== undefined
+                        : false;
+
+                    if (isQuarter || hasFormat) {
+                        const tooltipHeader = getFormattedValue(
+                            params[0].axisValueLabel,
+                            dimensionId,
+                            items,
+                        );
+                        return `${tooltipHeader}<br/><table>${tooltipRows}</table>`;
+                    }
+                }
+                return `${params[0].axisValueLabel}<br/><table>${tooltipRows}</table>`;
             },
         }),
         [items],
