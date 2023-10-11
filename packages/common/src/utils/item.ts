@@ -4,6 +4,7 @@ import {
     fieldId,
     isDimension,
     isField,
+    Item,
     MetricType,
     TableCalculation,
 } from '../types/field';
@@ -41,14 +42,17 @@ export const findItem = (
         isField(item) ? fieldId(item) === id : item.name === id,
     );
 
-export const getItemId = (item: Field | AdditionalMetric | TableCalculation) =>
+export const getItemId = (item: Item) =>
     isField(item) || isAdditionalMetric(item) ? fieldId(item) : item.name;
 
-export const getItemLabel = (item: Field | TableCalculation) =>
-    isField(item) ? `${item.tableLabel} ${item.label}` : item.displayName;
+export const getItemLabelWithoutTableName = (item: Item) =>
+    isField(item) || isAdditionalMetric(item)
+        ? `${item.label}`
+        : item.displayName;
 
-export const getItemLabelWithoutTableName = (item: Field | TableCalculation) =>
-    isField(item) ? `${item.label}` : item.displayName;
+export const getItemLabel = (item: Item) =>
+    (isField(item) ? `${item.tableLabel} ` : '') +
+    getItemLabelWithoutTableName(item);
 
 export const getItemIcon = (
     item: Field | TableCalculation | AdditionalMetric,
