@@ -32,16 +32,12 @@ const useSavedQueryWithDashboardFilters = (
     );
 
     const isLoadingOrFetching =
-        isLoadingSavedQuery ||
-        isFetchingSavedQuery ||
-        isLoadingExplore ||
-        !savedQuery ||
-        !explore;
+        isLoadingSavedQuery || isFetchingSavedQuery || isLoadingExplore;
 
     const dashboardFilters = useDashboardFiltersForExplore(tileUuid, explore);
 
     const savedQueryWithDashboardFilters = useMemo(() => {
-        if (isLoadingOrFetching) return undefined;
+        if (isLoadingOrFetching || !savedQuery) return undefined;
 
         return {
             ...savedQuery,
