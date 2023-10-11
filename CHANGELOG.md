@@ -1,3 +1,10 @@
+## [0.805.1](https://github.com/lightdash/lightdash/compare/0.805.0...0.805.1) (2023-10-11)
+
+
+### Bug Fixes
+
+* Remove 'show column total' in view mode for table charts ([#7418](https://github.com/lightdash/lightdash/issues/7418)) ([46338d5](https://github.com/lightdash/lightdash/commit/46338d5c04b1595776d368a35aadee3c5bb6f15f))
+
 # [0.805.0](https://github.com/lightdash/lightdash/compare/0.804.4...0.805.0) (2023-10-11)
 
 
