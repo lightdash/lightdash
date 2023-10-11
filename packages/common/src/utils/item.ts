@@ -42,7 +42,7 @@ export const findItem = (
         isField(item) ? fieldId(item) === id : item.name === id,
     );
 
-export const getItemId = (item: Item) =>
+export const getItemId = (item: Field | AdditionalMetric | TableCalculation) =>
     isField(item) || isAdditionalMetric(item) ? fieldId(item) : item.name;
 
 export const getItemLabelWithoutTableName = (item: Item) =>
