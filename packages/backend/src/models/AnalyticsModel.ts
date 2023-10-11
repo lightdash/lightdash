@@ -11,8 +11,10 @@ import {
     AnalyticsDashboardViewsTableName,
 } from '../database/entities/analytics';
 import {
+    chartViewsSql,
     chartWeeklyAverageQueriesSql,
     chartWeeklyQueryingUsersSql,
+    dashboardViewsSql,
     numberWeeklyQueryingUsersSql,
     tableMostCreatedChartsSql,
     tableMostQueriesSql,
@@ -136,6 +138,10 @@ export class AnalyticsModel {
             chartWeeklyAverageQueriesSql(userUuids, projectUuid),
         );
 
+        const dashboardViews = await this.database.raw(
+            dashboardViewsSql(projectUuid),
+        );
+        const chartViews = await this.database.raw(chartViewsSql(projectUuid));
         const parseUsersWithCount = (
             userData: DbUserWithCount,
         ): UserWithCount => ({
@@ -169,6 +175,8 @@ export class AnalyticsModel {
             tableNoQueries: tableNoQueries.rows.map(parseUsersWithCount),
             chartWeeklyQueryingUsers: chartWeeklyQueryingUsers.rows,
             chartWeeklyAverageQueries: chartWeeklyAverageQueries.rows,
+            dashboardViews: dashboardViews.rows,
+            chartViews: chartViews.rows,
         };
     }
 }

@@ -4,7 +4,11 @@ export type UserWithCount = {
     lastName: string;
     count: number | undefined;
 };
-
+export type ActivityViews = {
+    count: number;
+    uuid: string;
+    name: string;
+};
 export type UserActivity = {
     numberUsers: number;
     numberViewers: number;
@@ -25,6 +29,8 @@ export type UserActivity = {
         date: Date;
         average_number_of_weekly_queries_per_user: string;
     }[];
+    dashboardViews: ActivityViews[];
+    chartViews: ActivityViews[];
 };
 
 export type ViewStatistics = {

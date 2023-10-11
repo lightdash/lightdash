@@ -59,7 +59,7 @@ GROUP BY users.user_uuid,
   users.first_name, 
   users.last_name
 ORDER BY COUNT(analytics_chart_views.user_uuid) DESC
-limit 10
+
 `;
 
 export const tableMostCreatedChartsSql = (
@@ -115,7 +115,7 @@ WHERE users.user_uuid in ('${userUuids.join(
     )
   )
 GROUP BY users.user_uuid
-limit 10
+
 `;
 
 const dateUserViewsGrid = (userUuids: string[], projectUuid: string) => `
@@ -193,4 +193,34 @@ FROM stg
 group by date
 order by date desc
 
+`;
+
+export const chartViewsSql = (projectUuid: string) => `
+SELECT  
+  count(chart_uuid) as count, 
+  chart_uuid as uuid, 
+  sq.name
+FROM public.analytics_chart_views
+  left join saved_queries sq on sq.saved_query_uuid  = chart_uuid 
+  left join spaces s on s.space_id  = sq.space_id 
+  left join projects on projects.project_id = s.project_id
+where projects.project_uuid = '${projectUuid}'
+group by chart_uuid, sq.name
+order by count(chart_uuid) desc
+limit 20
+`;
+
+export const dashboardViewsSql = (projectUuid: string) => `
+SELECT  
+  count(dv.dashboard_uuid) as count, 
+  dv.dashboard_uuid as uuid, 
+  d.name
+FROM public.analytics_dashboard_views dv
+  left join dashboards d  on d.dashboard_uuid  = dv.dashboard_uuid 
+  left join spaces s on s.space_id  = d.space_id 
+  left join projects on projects.project_id = s.project_id
+where projects.project_uuid = '${projectUuid}'
+group by dv.dashboard_uuid, d.name
+order by count(dv.dashboard_uuid) desc
+limit 20
 `;

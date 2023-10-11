@@ -1,5 +1,6 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
 import {
+    ActivityViews,
     UserActivity as UserActivityResponse,
     UserWithCount,
 } from '@lightdash/common';
@@ -28,6 +29,22 @@ import {
     Description,
     UserAnalyticsPageHeader,
 } from './UserActivity.styles';
+
+const showTableViews = (key: string, views: ActivityViews[]) => {
+    return (
+        <tbody>
+            {views.map((view) => {
+                return (
+                    <tr key={`${key}-${view.uuid}`}>
+                        <td>{view.name} </td>
+
+                        <td>{view.count}</td>
+                    </tr>
+                );
+            })}
+        </tbody>
+    );
+};
 
 const showTableBodyWithUsers = (key: string, userList: UserWithCount[]) => {
     return (
@@ -302,20 +319,31 @@ const UserActivity: FC = () => {
                 </ActivityCard>
 
                 <PostHogFeature flag={'extended-usage-analytics'} match={true}>
-                    <ActivityCard grid="table-not-logged-in">
-                        <Description>FEATURE FLAG</Description>
-                        <Table bordered condensed $showFooter={false}>
+                    <ActivityCard grid="table-dashboard-views">
+                        <Description>Dashboard views (top 20)</Description>
+                        <Table bordered $showFooter={false}>
                             <thead>
                                 <tr>
-                                    <th>First Name</th>
-                                    <th>Last Name</th>
-                                    <th>Days since last query</th>
+                                    <th>Dashboard name</th>
+                                    <th>Views</th>
                                 </tr>
                             </thead>
-                            {showTableBodyWithUsers(
-                                'users-not-logged-in',
-                                data.tableNoQueries,
+                            {showTableViews(
+                                'dashboard-views',
+                                data.dashboardViews,
                             )}
+                        </Table>
+                    </ActivityCard>
+                    <ActivityCard grid="table-chart-views">
+                        <Description>Chart views (top 20)</Description>
+                        <Table bordered $showFooter={false}>
+                            <thead>
+                                <tr>
+                                    <th>Chart name</th>
+                                    <th>Views</th>
+                                </tr>
+                            </thead>
+                            {showTableViews('chart-views', data.chartViews)}
                         </Table>
                     </ActivityCard>
                 </PostHogFeature>
