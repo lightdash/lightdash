@@ -35,6 +35,28 @@ type StopPreviewHandlerOptions = {
     verbose: boolean;
 };
 
+const cleanupProject = async (projectUuid: string): Promise<void> => {
+    const teardownSpinner = GlobalState.startSpinner(`  Cleaning up`);
+
+    try {
+        await lightdashApi({
+            method: 'DELETE',
+            url: `/api/v1/org/projects/${projectUuid}`,
+            body: undefined,
+        });
+        await LightdashAnalytics.track({
+            event: 'preview.completed',
+            properties: {
+                projectId: projectUuid,
+            },
+        });
+        teardownSpinner.succeed(`  Cleaned up`);
+    } catch (e) {
+        console.error('Error during cleanup:', e);
+        teardownSpinner.fail(`  Cleanup failed`);
+    }
+};
+
 const projectUrl = async (project: Project): Promise<URL> => {
     const config = await getConfig();
 
@@ -122,6 +144,12 @@ export const previewHandler = async (
 
         setPreviewProject(project.projectUuid, name);
 
+        process.on('SIGINT', async () => {
+            await cleanupProject(project!.projectUuid);
+
+            process.exit(0);
+        });
+
         spinner.succeed(
             `  Developer preview "${name}" ready at: ${await projectUrl(
                 project,
@@ -192,19 +220,8 @@ export const previewHandler = async (
         });
         throw e;
     }
-    const teardownSpinner = GlobalState.startSpinner(`  Cleaning up`);
-    await lightdashApi({
-        method: 'DELETE',
-        url: `/api/v1/org/projects/${project.projectUuid}`,
-        body: undefined,
-    });
-    await LightdashAnalytics.track({
-        event: 'preview.completed',
-        properties: {
-            projectId: project.projectUuid,
-        },
-    });
-    teardownSpinner.succeed(`  Cleaned up`);
+
+    await cleanupProject(project.projectUuid);
 };
 
 export const startPreviewHandler = async (
