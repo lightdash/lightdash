@@ -54,7 +54,7 @@ describe('Dashboard', () => {
             .click()
             .type('payment method{downArrow}{enter}');
         cy.findByPlaceholderText('Start typing to filter results').type(
-            'credit_card{enter}',
+            'credit_card{enter}{esc}',
         );
         cy.findAllByRole('tab').eq(0).click();
         cy.contains('button', 'Apply').click();
@@ -218,7 +218,7 @@ describe('Dashboard', () => {
             .siblings()
             .first()
             .within(() => {
-                cy.get('input').should(
+                cy.get('input.mantine-Input-input').should(
                     'have.value',
                     'Stg payments Payment method',
                 );
