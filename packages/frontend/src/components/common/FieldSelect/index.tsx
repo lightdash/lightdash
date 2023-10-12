@@ -26,10 +26,9 @@ const ItemComponent = forwardRef<HTMLDivElement, ItemComponentProps>(
                     {description}
                 </Text>
             }
-            position="top-start"
+            position="top"
             multiline
             maw={400}
-            arrowOffset={16}
             offset={-2}
             withinPortal
         >
