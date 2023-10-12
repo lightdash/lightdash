@@ -1,3 +1,10 @@
+# [0.806.0](https://github.com/lightdash/lightdash/compare/0.805.4...0.806.0) (2023-10-12)
+
+
+### Features
+
+* add new user activity charts ([#7432](https://github.com/lightdash/lightdash/issues/7432)) ([a6104d6](https://github.com/lightdash/lightdash/commit/a6104d6685df57df6f6bd2fdc0bd149d4d891eb4))
+
 ## [0.805.4](https://github.com/lightdash/lightdash/compare/0.805.3...0.805.4) (2023-10-12)
 
 
