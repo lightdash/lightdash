@@ -1,3 +1,4 @@
+import { Popover2Props } from '@blueprintjs/popover2';
 import {
     assertUnreachable,
     ConditionalRule,
@@ -20,6 +21,7 @@ export type FilterInputsProps<T extends ConditionalRule> = {
     rule: T;
     onChange: (value: T) => void;
     disabled?: boolean;
+    popoverProps?: Popover2Props;
 };
 
 const DefaultFilterInputs = <T extends ConditionalRule>({
