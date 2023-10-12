@@ -47,17 +47,21 @@ const calculateFontSize = (
     boundWidth: number,
     boundHeight: number,
 ) => {
-    const widthScale = (boundWidth - BOX_MIN_WIDTH) / (BOX_MAX_WIDTH - BOX_MIN_WIDTH);
-    const heightScale = (boundHeight - BOX_MIN_HEIGHT) / (BOX_MAX_HEIGHT - BOX_MIN_HEIGHT);
+    const widthScale =
+        (boundWidth - BOX_MIN_WIDTH) / (BOX_MAX_WIDTH - BOX_MIN_WIDTH);
+    const heightScale =
+        (boundHeight - BOX_MIN_HEIGHT) / (BOX_MAX_HEIGHT - BOX_MIN_HEIGHT);
 
-    const scalingFactor = Math.min(widthScale, heightScale)
+    const scalingFactor = Math.min(widthScale, heightScale);
 
     // assert : 0 <= scalingFactor <= 1
 
-    const fontSize = Math.floor(fontSizeMin + ((fontSizeMax - fontSizeMin) * scalingFactor))
+    const fontSize = Math.floor(
+        fontSizeMin + (fontSizeMax - fontSizeMin) * scalingFactor,
+    );
 
     return fontSize;
-}
+};
 
 const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     minimal = false,
@@ -97,7 +101,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             observerElementSize?.height || 0,
             BOX_MIN_HEIGHT,
             BOX_MAX_HEIGHT,
-        )
+        );
 
         const valueSize = calculateFontSize(
             VALUE_SIZE_MIN,
