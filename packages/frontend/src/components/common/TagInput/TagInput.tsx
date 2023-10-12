@@ -74,8 +74,7 @@ export interface TagInputProps
     /** Called to split after onPaste  */
     pasteSplit?: (data: any) => string[];
 
-    /** Allow to paste item */
-    addOnPaste?: boolean;
+    splitChars?: string[];
 
     /** Called for validation when add tags */
     validationRegex?: RegExp;
@@ -84,20 +83,55 @@ export interface TagInputProps
     onValidationReject?: (data: string[]) => void;
 
     /** Allow to only unique */
-    onlyUnique?: boolean;
+    allowDuplicates?: boolean;
 
     /** Input Tag position */
     inputFieldPosition?: InputFieldPosition;
 
     /** Props added to clear button */
     clearButtonProps?: React.ComponentPropsWithoutRef<'button'>;
+
+    /** Controlled search value */
+    searchValue?: string;
+
+    /** Uncontrolled search defaultValue */
+    defaultSearchValue?: string;
+
+    /** Called when search changes */
+    onSearchChange?: (value: string) => void;
 }
 
-const separators = [',', ';', '\\(', '\\)', '\\*', '/', ':', '\\?', '\n', '\r'];
+function splitTags(splitChars: string[] | undefined, value: string) {
+    if (!splitChars) return [value];
 
-const defaultPasteSplit = (data: string): string[] => {
-    return data.split(new RegExp(separators.join('|'))).map((d) => d.trim());
-};
+    return value
+        .split(new RegExp(`[${splitChars.join('')}]`))
+        .map((tag) => tag.trim())
+        .filter((tag) => tag !== '');
+}
+
+interface GetSplittedTagsInput {
+    splitChars: string[] | undefined;
+    allowDuplicates: boolean | undefined;
+    maxTags: number | undefined;
+    value: string;
+    currentTags: string[];
+}
+
+function getSplittedTags({
+    splitChars,
+    allowDuplicates,
+    maxTags,
+    value,
+    currentTags,
+}: GetSplittedTagsInput) {
+    const splitted = splitTags(splitChars, value);
+    const merged = allowDuplicates
+        ? [...currentTags, ...splitted]
+        : [...new Set([...currentTags, ...splitted])];
+
+    return maxTags ? merged.slice(0, maxTags) : merged;
+}
 
 const getClipboardData = (e: React.ClipboardEvent): string => {
     if (e.clipboardData) {
@@ -111,9 +145,8 @@ const defaultProps: Partial<TagInputProps> = {
     size: 'sm',
     valueComponent: DefaultValue,
     disabled: false,
-    addOnPaste: true,
-    onlyUnique: false,
-    pasteSplit: defaultPasteSplit,
+    allowDuplicates: false,
+    splitChars: [','],
     validationRegex: /.*/,
     onValidationReject: () => {},
     inputFieldPosition: 'inside',
@@ -162,11 +195,13 @@ export const TagInput = forwardRef<HTMLInputElement, TagInputProps>(
             clearInputOnBlur = false,
             onChangeInput,
             maxTags,
-            addOnPaste,
-            pasteSplit,
+            splitChars,
             validationRegex,
+            searchValue,
+            defaultSearchValue,
             onValidationReject,
-            onlyUnique,
+            onSearchChange,
+            allowDuplicates,
             inputFieldPosition,
             clearButtonProps,
             ...others
@@ -181,7 +216,6 @@ export const TagInput = forwardRef<HTMLInputElement, TagInputProps>(
         const inputRef = useRef<HTMLInputElement>();
         const wrapperRef = useRef<HTMLDivElement>();
         const uuid = useId(id);
-        const [inputValue, setInputValue] = useState('');
         const [IMEOpen, setIMEOpen] = useState(false);
 
         const [_value, setValue] = useUncontrolled({
@@ -189,6 +223,13 @@ export const TagInput = forwardRef<HTMLInputElement, TagInputProps>(
             defaultValue,
             finalValue: [],
             onChange,
+        });
+
+        const [_searchValue, setSearchValue] = useUncontrolled({
+            value: searchValue,
+            defaultValue: defaultSearchValue,
+            finalValue: '',
+            onChange: onSearchChange,
         });
 
         const valuesOverflow = useRef(!!maxTags && maxTags < _value.length);
@@ -211,7 +252,7 @@ export const TagInput = forwardRef<HTMLInputElement, TagInputProps>(
                 onChangeInput(event.currentTarget.value);
             }
 
-            setInputValue(event.currentTarget.value);
+            setSearchValue(event.currentTarget.value);
         };
 
         const handleInputFocus = (
@@ -228,7 +269,7 @@ export const TagInput = forwardRef<HTMLInputElement, TagInputProps>(
             }
 
             if (clearInputOnBlur) {
-                setInputValue('');
+                setSearchValue('');
             }
         };
 
@@ -237,7 +278,7 @@ export const TagInput = forwardRef<HTMLInputElement, TagInputProps>(
             if (readOnly) {
                 return false;
             }
-            if (onlyUnique) {
+            if (!allowDuplicates) {
                 tags = uniq(tags);
                 tags = tags.filter((tag) =>
                     _value.every((currentTag) => currentTag !== tag),
@@ -264,11 +305,11 @@ export const TagInput = forwardRef<HTMLInputElement, TagInputProps>(
             if (tags.length > 0) {
                 const newValue = _value.concat(tags);
                 setValue(newValue);
-                setInputValue('');
+                setSearchValue('');
                 return true;
             }
 
-            setInputValue('');
+            setSearchValue('');
             return false;
         };
 
@@ -283,12 +324,30 @@ export const TagInput = forwardRef<HTMLInputElement, TagInputProps>(
                 return;
             }
 
+            const length = _searchValue.trim().length;
+
+            if (splitChars!.includes(event.key) && length > 0) {
+                const tags = getSplittedTags({
+                    splitChars,
+                    allowDuplicates,
+                    maxTags,
+                    value: _searchValue,
+                    currentTags: _value,
+                });
+
+                handleAddTags(tags);
+                setSearchValue('');
+                event.preventDefault();
+
+                return;
+            }
+
             switch (event.key) {
                 case 'Enter': {
-                    if (inputValue) {
+                    if (_searchValue) {
                         event.preventDefault();
 
-                        handleAddTags([inputValue]);
+                        handleAddTags([_searchValue]);
                         if (maxTags && _value.length === maxTags - 1) {
                             valuesOverflow.current = true;
                             inputRef.current?.blur();
@@ -301,7 +360,7 @@ export const TagInput = forwardRef<HTMLInputElement, TagInputProps>(
                 }
 
                 case 'Backspace': {
-                    if (_value.length > 0 && inputValue.length === 0) {
+                    if (_value.length > 0 && _searchValue.length === 0) {
                         setValue(_value.slice(0, -1));
                     }
 
@@ -342,41 +401,42 @@ export const TagInput = forwardRef<HTMLInputElement, TagInputProps>(
             });
 
         const handleClear = (): void => {
-            setInputValue('');
+            setSearchValue('');
             setValue([]);
             inputRef.current?.focus();
             valuesOverflow.current = false;
         };
 
         const handlePaste = (e: React.ClipboardEvent): void => {
-            if (!addOnPaste) {
-                return;
-            }
-
             e.preventDefault();
             const data = getClipboardData(e);
-            const tags = pasteSplit(data);
+            const tags = splitTags(splitChars, data);
             handleAddTags(tags);
         };
 
         const inputElement = (
             <input
+                // @ts-ignore
                 ref={useMergedRef(ref, inputRef)}
+                // @ts-ignore
                 type="text"
                 id={uuid}
                 className={cx(classes.tagInput, {
                     [classes.tagInputEmpty]: _value.length === 0,
                 })}
                 onKeyDown={handleInputKeydown}
-                value={inputValue}
+                value={_searchValue}
                 onChange={handleInputChange}
                 onFocus={handleInputFocus}
+                // @ts-ignore
                 onCompositionStart={() => setIMEOpen(true)}
+                // @ts-ignore
                 onCompositionEnd={() => setIMEOpen(false)}
                 onBlur={handleInputBlur}
                 readOnly={valuesOverflow.current || readOnly}
                 placeholder={_value.length === 0 ? placeholder : undefined}
                 disabled={disabled}
+                // @ts-ignore
                 autoComplete="off"
                 {...rest}
             />
@@ -413,6 +473,7 @@ export const TagInput = forwardRef<HTMLInputElement, TagInputProps>(
                     aria-owns={`${uuid}-items`}
                     aria-controls={uuid}
                     tabIndex={-1}
+                    // @ts-ignore
                     ref={wrapperRef}
                 >
                     {inputFieldPosition === 'top' && (
@@ -451,13 +512,17 @@ export const TagInput = forwardRef<HTMLInputElement, TagInputProps>(
                             theme,
                             rightSection,
                             rightSectionWidth,
+                            // @ts-ignore
                             styles,
+                            // @ts-ignore
                             size,
+                            // @ts-ignore
                             shouldClear: clearable && _value.length > 0,
                             onClear: handleClear,
                             error,
                             disabled,
                             clearButtonProps,
+                            // @ts-ignore
                             readOnly,
                         })}
                     >
