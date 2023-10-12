@@ -5,7 +5,6 @@ import {
     Field,
     fieldId as getFieldId,
     isDashboardChartTileType,
-    isField,
     matchFieldByType,
     matchFieldByTypeAndName,
     matchFieldExact,
@@ -21,7 +20,7 @@ import {
 } from '@mantine/core';
 import { FC, useCallback, useMemo } from 'react';
 import { FilterActions } from '.';
-import ItemSelect from '../../common/ItemSelect';
+import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { getChartIcon } from '../../common/ResourceIcon';
 
@@ -222,18 +221,12 @@ const TileFilterConfiguration: FC<Props> = ({
                                 mt="sm"
                                 display={!value.checked ? 'none' : 'auto'}
                             >
-                                <ItemSelect
+                                <FieldSelect
                                     size="xs"
                                     disabled={!value.checked}
                                     item={value.selectedField}
                                     items={value.sortedFilters}
                                     onChange={(newField) => {
-                                        if (!isField(newField)) {
-                                            throw new Error(
-                                                'Expected field to be a Field',
-                                            );
-                                        }
-
                                         onChange(
                                             FilterActions.ADD,
                                             value.tileUuid,

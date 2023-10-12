@@ -12,7 +12,6 @@ import {
     isField,
     isFilterableField,
     isMetric,
-    Item,
     Metric,
 } from '@lightdash/common';
 import { ActionIcon, Button } from '@mantine/core';
@@ -20,7 +19,7 @@ import { IconPlus, IconX } from '@tabler/icons-react';
 import { FC, useCallback, useMemo } from 'react';
 import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
-import ItemSelect from '../ItemSelect';
+import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import FilterGroupForm from './FilterGroupForm';
 import { FieldWithSuggestions, useFiltersContext } from './FiltersProvider';
@@ -60,9 +59,9 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
         filterRulesPerFieldType.metrics.length >= 1;
 
     const addFieldRule = useCallback(
-        (item: Item | undefined) => {
-            if (isField(item) && isFilterableField(item)) {
-                setFilters(addFilterRule({ filters, field: item }), false);
+        (field: FieldWithSuggestions) => {
+            if (isField(field) && isFilterableField(field)) {
+                setFilters(addFilterRule({ filters, field }), false);
                 toggleFieldInput(false);
             }
         },
@@ -212,11 +211,14 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
             >
                 {isOpen && (
                     <>
-                        <ItemSelect
+                        <FieldSelect
                             autoFocus
                             hasGrouping
                             items={fields}
-                            onChange={addFieldRule}
+                            onChange={(field) => {
+                                if (!field) return;
+                                addFieldRule(field);
+                            }}
                             onClosed={toggleFieldInput}
                         />
 

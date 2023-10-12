@@ -7,12 +7,11 @@ import {
     FilterType,
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
-    isField,
 } from '@lightdash/common';
 import { ActionIcon, Box, Menu } from '@mantine/core';
 import { IconDots, IconX } from '@tabler/icons-react';
 import { FC, useCallback, useMemo } from 'react';
-import ItemSelect from '../ItemSelect';
+import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import { FilterTypeConfig } from './configs';
 
@@ -77,16 +76,15 @@ const FilterRuleForm: FC<Props> = ({
         >
             {activeField ? (
                 <>
-                    <ItemSelect
+                    <FieldSelect
                         size="xs"
                         disabled={!isEditMode}
                         hasGrouping
                         item={activeField}
                         items={fields}
                         onChange={(field) => {
-                            if (isField(field)) {
-                                onFieldChange(getFieldId(field));
-                            }
+                            if (!field) return;
+                            onFieldChange(getFieldId(field));
                         }}
                     />
 

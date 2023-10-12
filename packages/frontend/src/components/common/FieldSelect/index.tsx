@@ -6,7 +6,7 @@ import {
     Item,
 } from '@lightdash/common';
 import { Box, Group, Select, SelectProps, Text, Tooltip } from '@mantine/core';
-import { FC, forwardRef, useCallback, useMemo } from 'react';
+import { forwardRef, useCallback, useMemo } from 'react';
 import FieldIcon from '../Filters/FieldIcon';
 
 interface ItemComponentProps extends React.ComponentPropsWithoutRef<'div'> {
@@ -50,15 +50,17 @@ const ItemComponent = forwardRef<HTMLDivElement, ItemComponentProps>(
     ),
 );
 
-interface ItemSelectProps
-    extends Omit<SelectProps, 'value' | 'data' | 'onChange'> {
-    item?: Item;
-    items: Item[];
+type FieldSelectProps<T extends Item = Item> = Omit<
+    SelectProps,
+    'value' | 'data' | 'onChange'
+> & {
+    item?: T;
+    items: T[];
     inactiveItemIds?: string[];
-    onChange: (value: Item | undefined) => void;
+    onChange: (value: T | undefined) => void;
     onClosed?: () => void;
     hasGrouping?: boolean;
-}
+};
 
 const getLabel = (item: Item, hasGrouping: boolean) => {
     return hasGrouping
@@ -66,7 +68,7 @@ const getLabel = (item: Item, hasGrouping: boolean) => {
         : getItemLabel(item);
 };
 
-const ItemSelect: FC<ItemSelectProps> = ({
+const FieldSelect = <T extends Item = Item>({
     item,
     items,
     onChange,
@@ -74,7 +76,7 @@ const ItemSelect: FC<ItemSelectProps> = ({
     inactiveItemIds = [],
     hasGrouping = false,
     ...rest
-}) => {
+}: FieldSelectProps<T>): JSX.Element => {
     const sortedItems = useMemo(() => {
         return items.sort((a, b) =>
             getLabel(a, hasGrouping).localeCompare(getLabel(b, hasGrouping)),
@@ -129,4 +131,4 @@ const ItemSelect: FC<ItemSelectProps> = ({
     );
 };
 
-export default ItemSelect;
+export default FieldSelect;

@@ -20,7 +20,6 @@ import {
     getDimensions,
     getItemId,
     hashFieldReference,
-    isDimension,
     isField,
     MetricQuery,
     PivotReference,
@@ -30,7 +29,7 @@ import { FC, useCallback, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
-import ItemSelect from '../common/ItemSelect';
+import FieldSelect from '../common/FieldSelect';
 import { useMetricQueryDataContext } from './MetricQueryDataProvider';
 
 type CombineFiltersArgs = {
@@ -218,19 +217,11 @@ const DrillDownModal: FC = () => {
                         label="Pick a dimension to segment your metric by"
                         labelFor="chart-name"
                     >
-                        <ItemSelect
+                        <FieldSelect
                             disabled={dimensionsAvailable.length === 0}
                             item={selectedDimension}
                             items={dimensionsAvailable}
-                            onChange={(field) => {
-                                if (!(isField(field) && isDimension(field))) {
-                                    throw new Error(
-                                        'Expected field to be a dimension',
-                                    );
-                                }
-
-                                setSelectedDimension(field);
-                            }}
+                            onChange={setSelectedDimension}
                         />
                     </FormGroup>
                 </div>

@@ -19,7 +19,7 @@ import {
 import { IconPlus } from '@tabler/icons-react';
 import { FC, useCallback, useMemo } from 'react';
 import { EMPTY_X_AXIS } from '../../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import ItemSelect from '../../common/ItemSelect';
+import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { MAX_PIVOTS } from '../TableConfigPanel/GeneralSettings';
@@ -162,7 +162,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                     </Button>
                 ) : (
                     <Group spacing="xs">
-                        <ItemSelect
+                        <FieldSelect
                             item={xAxisField}
                             items={items}
                             onChange={handleOnChangeOfXAxisField}
@@ -189,7 +189,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                         : availableYFields;
                     return (
                         <Group spacing="xs" key={`${field}-y-axis`}>
-                            <ItemSelect
+                            <FieldSelect
                                 item={activeField}
                                 items={yFieldsOptions}
                                 onChange={(newValue) => {
@@ -250,7 +250,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                                 : undefined;
                             return (
                                 <Group spacing="xs" key={pivotKey}>
-                                    <ItemSelect
+                                    <FieldSelect
                                         disabled={!chartHasMetricOrTableCalc}
                                         placeholder="Select a field to group by"
                                         item={activeField}

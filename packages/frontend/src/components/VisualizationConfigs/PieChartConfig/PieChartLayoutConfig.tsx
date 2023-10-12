@@ -1,7 +1,7 @@
 import { fieldId, getItemId } from '@lightdash/common';
 import { Box, Button, Stack, Switch, Tooltip } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import ItemSelect from '../../common/ItemSelect';
+import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
@@ -32,7 +32,7 @@ const PieChartLayoutConfig: React.FC = () => {
                     );
 
                     return (
-                        <ItemSelect
+                        <FieldSelect
                             key={index}
                             disabled={dimensions.length === 0}
                             clearable={index !== 0}
@@ -97,7 +97,7 @@ const PieChartLayoutConfig: React.FC = () => {
                 label="You must select at least one numeric metric to create a pie chart"
             >
                 <Box>
-                    <ItemSelect
+                    <FieldSelect
                         label="Metric"
                         placeholder="Select metric"
                         disabled={allNumericMetrics.length === 0}

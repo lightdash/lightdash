@@ -9,7 +9,6 @@ import {
     FilterableField,
     isField,
     isFilterableField,
-    Item,
     matchFieldByType,
     matchFieldByTypeAndName,
     matchFieldExact,
@@ -27,9 +26,9 @@ import {
 import { IconRotate2 } from '@tabler/icons-react';
 import produce from 'immer';
 import { FC, useCallback, useMemo, useState } from 'react';
+import FieldSelect from '../../common/FieldSelect';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import FieldLabel from '../../common/Filters/FieldLabel';
-import ItemSelect from '../../common/ItemSelect';
 import MantineIcon from '../../common/MantineIcon';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
@@ -108,9 +107,7 @@ const FilterConfiguration: FC<Props> = ({
         );
     }, [originalFilterRule, draftFilterRule]);
 
-    const handleChangeField = (newItem: Item | undefined) => {
-        if (!fields) return;
-
+    const handleChangeField = (newItem: FilterableField) => {
         const isCreatingTemporary = isCreatingNew && !isEditMode;
 
         if (newItem && isField(newItem) && isFilterableField(newItem)) {
@@ -279,8 +276,8 @@ const FilterConfiguration: FC<Props> = ({
                 <Tabs.Panel value={FilterTabs.SETTINGS} w={350}>
                     <Stack spacing="sm">
                         {!!fields && isCreatingNew ? (
-                            <ItemSelect
-                                data-testid="field-autocomplete"
+                            <FieldSelect
+                                data-testid="FilterConfiguration/field-autocomplete"
                                 size="xs"
                                 label={
                                     <Text>
@@ -293,7 +290,10 @@ const FilterConfiguration: FC<Props> = ({
                                 hasGrouping
                                 item={selectedField}
                                 items={fields}
-                                onChange={handleChangeField}
+                                onChange={(newField) => {
+                                    if (!newField) return;
+                                    handleChangeField(newField);
+                                }}
                             />
                         ) : (
                             selectedField && (

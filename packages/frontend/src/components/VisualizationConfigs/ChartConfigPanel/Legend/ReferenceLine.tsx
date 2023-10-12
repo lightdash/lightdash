@@ -31,7 +31,7 @@ import {
 } from '@mantine/core';
 import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
-import ItemSelect from '../../../common/ItemSelect';
+import FieldSelect from '../../../common/FieldSelect';
 import MantineIcon from '../../../common/MantineIcon';
 import MonthAndYearInput from '../../../common/MonthAndYearInput';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
@@ -280,7 +280,7 @@ export const ReferenceLine: FC<Props> = ({
                         borderRadius: theme.radius.sm,
                     })}
                 >
-                    <ItemSelect
+                    <FieldSelect
                         label="Field"
                         item={selectedField}
                         items={fieldsInAxes}

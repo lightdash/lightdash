@@ -15,7 +15,6 @@ import {
     hasPercentageFormat,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
-    Item,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -40,8 +39,8 @@ import {
 import produce from 'immer';
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
+import FieldSelect from '../../common/FieldSelect';
 import { FiltersProvider } from '../../common/Filters/FiltersProvider';
-import ItemSelect from '../../common/ItemSelect';
 import MantineIcon from '../../common/MantineIcon';
 import ConditionalFormattingRule from './ConditionalFormattingRule';
 
@@ -96,7 +95,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
     );
 
     const handleChangeField = useCallback(
-        (newField: Item | undefined) => {
+        (newField: FilterableItem | undefined) => {
             handleChange(
                 produce(config, (draft) => {
                     draft.target = newField
@@ -279,7 +278,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                             borderRadius: theme.radius.sm,
                         })}
                     >
-                        <ItemSelect
+                        <FieldSelect
                             label="Select field"
                             clearable
                             item={field}

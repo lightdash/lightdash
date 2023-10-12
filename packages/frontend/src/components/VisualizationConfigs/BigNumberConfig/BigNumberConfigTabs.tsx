@@ -14,7 +14,7 @@ import {
     TextInput,
 } from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
-import ItemSelect from '../../common/ItemSelect';
+import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
@@ -62,7 +62,7 @@ const BigNumberConfigTabs = () => {
             </Tabs.List>
             <Tabs.Panel value="layout">
                 <Stack spacing="md" mt="sm">
-                    <ItemSelect
+                    <FieldSelect
                         label="Field"
                         item={selectedItem}
                         items={availableFields}
