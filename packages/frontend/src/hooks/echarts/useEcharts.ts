@@ -76,9 +76,7 @@ const getLabelFromField = (
 ) => {
     const item = findItem(fields, key);
     if (item) {
-        return isField(item)
-            ? getItemLabelWithoutTableName(item)
-            : item.displayName;
+        return getItemLabelWithoutTableName(item);
     } else if (key) {
         return friendlyName(key);
     } else {

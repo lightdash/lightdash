@@ -119,16 +119,15 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     );
 
     const handleOnChangeOfXAxisField = useCallback(
-        (newValue) => {
-            setXField(newValue ?? undefined);
-            if (newValue && isStacked) {
-                const newXAxisField = items.find(
-                    (item) => getItemId(item) === newValue,
-                );
-                if (isNumericItem(newXAxisField)) setStacking(false);
+        (newValue: Field | TableCalculation | undefined) => {
+            const fieldId = newValue ? getItemId(newValue) : undefined;
+            setXField(fieldId ?? undefined);
+
+            if (newValue && isStacked && isNumericItem(newValue)) {
+                setStacking(false);
             }
         },
-        [isStacked, items, setStacking, setXField],
+        [isStacked, setStacking, setXField],
     );
 
     return (
@@ -166,11 +165,13 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                             item={xAxisField}
                             items={items}
                             onChange={handleOnChangeOfXAxisField}
-                        />
-                        <CloseButton
-                            onClick={() => {
-                                setXField(EMPTY_X_AXIS);
-                            }}
+                            rightSection={
+                                <CloseButton
+                                    onClick={() => {
+                                        setXField(EMPTY_X_AXIS);
+                                    }}
+                                />
+                            }
                         />
                     </Group>
                 )}
@@ -198,14 +199,16 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                                         newValue ? getItemId(newValue) : '',
                                     );
                                 }}
+                                rightSection={
+                                    yFields?.length !== 1 && (
+                                        <CloseButton
+                                            onClick={() => {
+                                                removeSingleSeries(index);
+                                            }}
+                                        />
+                                    )
+                                }
                             />
-                            {yFields?.length !== 1 && (
-                                <CloseButton
-                                    onClick={() => {
-                                        removeSingleSeries(index);
-                                    }}
-                                />
-                            )}
                         </Group>
                     );
                 })}
@@ -267,19 +270,22 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                                                     : [getItemId(newValue)],
                                             );
                                         }}
+                                        rightSection={
+                                            groupSelectedField && (
+                                                <CloseButton
+                                                    onClick={() => {
+                                                        setPivotDimensions(
+                                                            pivotDimensions.filter(
+                                                                (key) =>
+                                                                    key !==
+                                                                    pivotKey,
+                                                            ),
+                                                        );
+                                                    }}
+                                                />
+                                            )
+                                        }
                                     />
-                                    {groupSelectedField && (
-                                        <CloseButton
-                                            onClick={() => {
-                                                setPivotDimensions(
-                                                    pivotDimensions.filter(
-                                                        (key) =>
-                                                            key !== pivotKey,
-                                                    ),
-                                                );
-                                            }}
-                                        />
-                                    )}
                                 </Group>
                             );
                         })}
