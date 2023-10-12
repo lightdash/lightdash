@@ -1,5 +1,3 @@
-import { TagInput } from '@blueprintjs/core';
-import { Popover2Props } from '@blueprintjs/popover2';
 import {
     assertUnreachable,
     ConditionalRule,
@@ -11,6 +9,7 @@ import {
 import { NumberInput } from '@mantine/core';
 import isString from 'lodash-es/isString';
 import React from 'react';
+import { TagInput } from '../../TagInput/TagInput';
 import { useFiltersContext } from '../FiltersProvider';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import MultiAutoComplete from './AutoComplete/MultiAutoComplete';
@@ -20,7 +19,6 @@ export type FilterInputsProps<T extends ConditionalRule> = {
     field: FilterableItem;
     rule: T;
     onChange: (value: T) => void;
-    popoverProps?: Popover2Props;
     disabled?: boolean;
 };
 
@@ -28,7 +26,6 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
     field,
     filterType,
     rule,
-    popoverProps,
     disabled,
     onChange,
 }: React.PropsWithChildren<FilterInputsProps<T>>) => {
@@ -55,50 +52,51 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
         case FilterOperator.NOT_INCLUDE:
         case FilterOperator.EQUALS:
         case FilterOperator.NOT_EQUALS: {
-            if (filterType === FilterType.STRING) {
-                return (
-                    <MultiAutoComplete
-                        filterId={rule.id}
-                        disabled={disabled}
-                        field={field}
-                        placeholder={placeholder}
-                        values={(rule.values || []).filter(isString)}
-                        suggestions={suggestions || []}
-                        popoverProps={popoverProps}
-                        onChange={(values) =>
-                            onChange({
-                                ...rule,
-                                values,
-                            })
-                        }
-                    />
-                );
+            switch (filterType) {
+                case FilterType.STRING:
+                    return (
+                        <MultiAutoComplete
+                            filterId={rule.id}
+                            disabled={disabled}
+                            field={field}
+                            placeholder={placeholder}
+                            values={(rule.values || []).filter(isString)}
+                            suggestions={suggestions || []}
+                            onChange={(values) =>
+                                onChange({
+                                    ...rule,
+                                    values,
+                                })
+                            }
+                        />
+                    );
+
+                case FilterType.NUMBER:
+                case FilterType.BOOLEAN:
+                case FilterType.DATE:
+                    return (
+                        <TagInput
+                            w="100%"
+                            clearable
+                            size="xs"
+                            disabled={disabled}
+                            placeholder={placeholder}
+                            allowDuplicates={false}
+                            validationRegex={
+                                filterType === FilterType.NUMBER
+                                    ? /^\d+$/
+                                    : undefined
+                            }
+                            value={rule.values?.map(String)}
+                            onChange={(values) => onChange({ ...rule, values })}
+                        />
+                    );
+                default:
+                    return assertUnreachable(
+                        filterType,
+                        `No form implemented for DefaultFilterInputs filter type ${filterType}`,
+                    );
             }
-            return (
-                <TagInput
-                    className={disabled ? 'disabled-filter' : ''}
-                    fill
-                    disabled={disabled}
-                    addOnBlur
-                    inputProps={{
-                        type:
-                            filterType === FilterType.NUMBER
-                                ? 'number'
-                                : 'text',
-                    }}
-                    placeholder={placeholder}
-                    tagProps={{ minimal: true }}
-                    values={rule.values || []}
-                    onChange={(values) =>
-                        onChange({
-                            ...rule,
-                            values: values?.filter(
-                                (v, i, arr) => arr.indexOf(v) === i,
-                            ),
-                        })
-                    }
-                />
-            );
         }
         case FilterOperator.GREATER_THAN:
         case FilterOperator.GREATER_THAN_OR_EQUAL:
