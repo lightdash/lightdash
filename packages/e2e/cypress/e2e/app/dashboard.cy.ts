@@ -50,9 +50,11 @@ describe('Dashboard', () => {
         // Add filter
         cy.contains('Add filter').click();
 
-        cy.get('#field-autocomplete').click().type('payment method{enter}');
+        cy.findByTestId('FilterConfiguration/FieldSelect')
+            .click()
+            .type('payment method{downArrow}{enter}');
         cy.findByPlaceholderText('Start typing to filter results').type(
-            'credit_card{enter}',
+            'credit_card{enter}{esc}',
         );
         cy.findAllByRole('tab').eq(0).click();
         cy.contains('button', 'Apply').click();
@@ -124,7 +126,9 @@ describe('Dashboard', () => {
 
         // Add filter Payment method is credit_card and apply
         cy.contains('Add filter').click();
-        cy.get('#field-autocomplete').click().type('payment method{enter}');
+        cy.findByTestId('FilterConfiguration/FieldSelect')
+            .click()
+            .type('payment method{downArrow}{enter}');
         cy.get('label.mantine-Switch-track').click();
         cy.findByPlaceholderText('Start typing to filter results').type(
             'credit_card{enter}{esc}',
@@ -214,7 +218,7 @@ describe('Dashboard', () => {
             .siblings()
             .first()
             .within(() => {
-                cy.get('input').should(
+                cy.get('input.mantine-Input-input').should(
                     'have.value',
                     'Stg payments Payment method',
                 );

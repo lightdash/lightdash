@@ -30,8 +30,8 @@ type PieChartConfig = {
 
     groupFieldIds: (string | null)[];
     groupAdd: () => void;
-    groupChange: (prevValue: any, newValue: any) => void;
-    groupRemove: (dimensionId: any) => void;
+    groupChange: (prevDimensionId: string, newDimensionId: string) => void;
+    groupRemove: (dimensionId: string) => void;
 
     metricId: string | null;
     selectedMetric: Field | TableCalculation | undefined;
@@ -296,11 +296,11 @@ const usePieChartConfig: PieChartConfigFn = (
     }, [groupLabels, defaultColors]);
 
     const handleGroupChange = useCallback(
-        (prevValue: string, newValue: string) => {
+        (prevDimensionId: string, newDimensionId: string) => {
             setGroupFieldIds((prev) => {
                 const newSet = new Set(prev);
-                newSet.delete(prevValue);
-                newSet.add(newValue);
+                newSet.delete(prevDimensionId);
+                newSet.add(newDimensionId);
                 return [...newSet.values()];
             });
         },

@@ -1,11 +1,10 @@
-import { Classes, Popover2Props } from '@blueprintjs/popover2';
-
-import { FormGroup } from '@blueprintjs/core';
+import { Popover2Props } from '@blueprintjs/popover2';
 import {
     assertUnreachable,
     createDashboardFilterRuleFromField,
     DashboardFilterRule,
     DashboardTile,
+    Field,
     fieldId,
     FilterableField,
     isField,
@@ -23,12 +22,11 @@ import {
     Tabs,
     Text,
     Tooltip,
-    useMantineTheme,
 } from '@mantine/core';
 import { IconRotate2 } from '@tabler/icons-react';
 import produce from 'immer';
 import { FC, useCallback, useMemo, useState } from 'react';
-import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
+import FieldSelect from '../../common/FieldSelect';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import FieldLabel from '../../common/Filters/FieldLabel';
 import MantineIcon from '../../common/MantineIcon';
@@ -66,14 +64,14 @@ interface Props {
     onSave: (value: DashboardFilterRule) => void;
 }
 
-const getDefaultFilter = (
-    filters: FilterableField[],
+const getDefaultField = (
+    fields: FilterableField[],
     selectedField: FilterableField,
 ) => {
     return (
-        filters.find(matchFieldExact(selectedField)) ??
-        filters.find(matchFieldByTypeAndName(selectedField)) ??
-        filters.find(matchFieldByType(selectedField))
+        fields.find(matchFieldExact(selectedField)) ??
+        fields.find(matchFieldByTypeAndName(selectedField)) ??
+        fields.find(matchFieldByType(selectedField))
     );
 };
 
@@ -90,7 +88,6 @@ const FilterConfiguration: FC<Props> = ({
     popoverProps,
     onSave,
 }) => {
-    const theme = useMantineTheme();
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>(DEFAULT_TAB);
 
     const [selectedField, setSelectedField] = useState<
@@ -111,8 +108,6 @@ const FilterConfiguration: FC<Props> = ({
     }, [originalFilterRule, draftFilterRule]);
 
     const handleChangeField = (newField: FilterableField) => {
-        if (!fields) return;
-
         const isCreatingTemporary = isCreatingNew && !isEditMode;
 
         if (newField && isField(newField) && isFilterableField(newField)) {
@@ -124,6 +119,7 @@ const FilterConfiguration: FC<Props> = ({
                     isCreatingTemporary,
                 ),
             );
+
             setSelectedField(newField);
         }
     };
@@ -160,7 +156,7 @@ const FilterConfiguration: FC<Props> = ({
     );
 
     const handleChangeTileConfiguration = useCallback(
-        (action: FilterActions, tileUuid: string, filter?: FilterableField) => {
+        (action: FilterActions, tileUuid: string, newField?: Field) => {
             const filters = availableTileFilters[tileUuid];
             if (!filters) return;
 
@@ -172,7 +168,7 @@ const FilterConfiguration: FC<Props> = ({
                 switch (action) {
                     case FilterActions.ADD:
                         const filterableField =
-                            filter ?? getDefaultFilter(filters, selectedField);
+                            newField ?? getDefaultField(filters, selectedField);
 
                         if (!filterableField) return draftState;
 
@@ -280,42 +276,25 @@ const FilterConfiguration: FC<Props> = ({
                 <Tabs.Panel value={FilterTabs.SETTINGS} w={350}>
                     <Stack spacing="sm">
                         {!!fields && isCreatingNew ? (
-                            <FormGroup
-                                style={{ marginBottom: '5px' }}
+                            <FieldSelect
+                                data-testid="FilterConfiguration/FieldSelect"
+                                size="xs"
                                 label={
-                                    <Text size="xs" fw={500}>
+                                    <Text>
                                         Select a dimension to filter{' '}
                                         <Text color="red" span>
                                             *
                                         </Text>{' '}
                                     </Text>
                                 }
-                                labelFor="field-autocomplete"
-                            >
-                                <FieldAutoComplete
-                                    hasGrouping
-                                    id="field-autocomplete"
-                                    fields={fields}
-                                    activeField={selectedField}
-                                    onChange={handleChangeField}
-                                    inputProps={{
-                                        style: {
-                                            borderRadius: '4px',
-                                            borderWidth: '1px',
-                                            boxShadow: 'none',
-                                            fontSize: theme.fontSizes.xs,
-                                        },
-                                    }}
-                                    popoverProps={{
-                                        lazy: true,
-                                        matchTargetWidth: true,
-                                        captureDismiss: !popoverProps?.isOpen,
-                                        canEscapeKeyClose:
-                                            !popoverProps?.isOpen,
-                                        ...popoverProps,
-                                    }}
-                                />
-                            </FormGroup>
+                                hasGrouping
+                                item={selectedField}
+                                items={fields}
+                                onChange={(newField) => {
+                                    if (!newField) return;
+                                    handleChangeField(newField);
+                                }}
+                            />
                         ) : (
                             selectedField && (
                                 <Group spacing="xs">
@@ -383,7 +362,6 @@ const FilterConfiguration: FC<Props> = ({
                         <Button
                             size="xs"
                             variant="filled"
-                            className={Classes.POPOVER2_DISMISS}
                             disabled={isApplyDisabled}
                             onClick={() => {
                                 setSelectedTabId(FilterTabs.SETTINGS);

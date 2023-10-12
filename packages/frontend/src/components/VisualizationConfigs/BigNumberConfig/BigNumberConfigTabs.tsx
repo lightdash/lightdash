@@ -2,8 +2,7 @@ import {
     CompactConfigMap,
     CompactOrAlias,
     ComparisonFormatTypes,
-    fieldId,
-    isField,
+    getItemId,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -15,9 +14,7 @@ import {
     TextInput,
 } from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
-import FieldSelectItem from '../../common/FieldSelect/FieldSelectItem';
-import FieldIcon from '../../common/Filters/FieldIcon';
-import { fieldLabelText } from '../../common/Filters/FieldLabel';
+import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
@@ -39,7 +36,7 @@ const BigNumberConfigTabs = () => {
             setBigNumberStyle,
             showStyle,
             availableFields,
-            selectedField,
+            selectedField: selectedFieldId,
             setSelectedField,
             getField,
             showBigNumberLabel,
@@ -55,7 +52,7 @@ const BigNumberConfigTabs = () => {
         },
     } = useVisualizationContext();
 
-    const selectedFieldObject = getField(selectedField);
+    const selectedField = getField(selectedFieldId);
 
     return (
         <Tabs w={320} defaultValue="layout">
@@ -65,29 +62,14 @@ const BigNumberConfigTabs = () => {
             </Tabs.List>
             <Tabs.Panel value="layout">
                 <Stack spacing="md" mt="sm">
-                    <Select
+                    <FieldSelect
                         label="Field"
-                        searchable
-                        icon={
-                            selectedFieldObject && (
-                                <FieldIcon item={selectedFieldObject} />
-                            )
-                        }
-                        value={selectedField ? selectedField : undefined}
-                        data={availableFields.map((field) => {
-                            const id = isField(field)
-                                ? fieldId(field)
-                                : field.name;
-                            return {
-                                item: field,
-                                value: id,
-                                label: fieldLabelText(field),
-                                disabled: id === selectedField,
-                            };
-                        })}
-                        itemComponent={FieldSelectItem}
+                        item={selectedField}
+                        items={availableFields}
                         onChange={(newValue) => {
-                            setSelectedField(newValue ?? undefined);
+                            setSelectedField(
+                                newValue ? getItemId(newValue) : undefined,
+                            );
                         }}
                     />
 

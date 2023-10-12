@@ -48,11 +48,15 @@ const getFieldIcon = (field: Field | TableCalculation | AdditionalMetric) => {
 
 type Props = Omit<MantineIconProps, 'icon'> & {
     item: Field | TableCalculation | AdditionalMetric;
+    selected?: boolean;
 };
 
 const FieldIcon = forwardRef<SVGSVGElement, Props>(
-    ({ item, size = 'lg', ...iconProps }, ref) => {
-        const iconColor = iconProps.color ?? getItemColor(item);
+    ({ item, size = 'lg', selected, ...iconProps }, ref) => {
+        const iconColor = selected
+            ? 'white'
+            : iconProps.color ?? getItemColor(item);
+
         const props = {
             ...iconProps,
             ref,
