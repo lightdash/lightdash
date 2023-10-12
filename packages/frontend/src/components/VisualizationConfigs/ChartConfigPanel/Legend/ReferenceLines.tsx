@@ -62,7 +62,8 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                     if (selectedSeries === undefined) return;
 
                     const dataWithAxis = {
-                        name: lineId,
+                        name: updateLabel || 'Reference line',
+                        value: lineId,
                         lineStyle: { color: updateColor },
                         label: updateLabel ? { formatter: updateLabel } : {},
                         xAxis: undefined,
@@ -73,7 +74,11 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
 
                     const updatedReferenceLines: ReferenceLineField[] =
                         referenceLines.map((line) => {
-                            if (line.data.name === lineId)
+                            // Check both .value and .name for backwards compatibility
+                            if (
+                                line.data.value === lineId ||
+                                line.data.name === lineId
+                            )
                                 return { fieldId: fieldId, data: dataWithAxis };
                             else return line;
                         });
@@ -93,7 +98,8 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
     const addReferenceLine = useCallback(() => {
         const newReferenceLine: ReferenceLineField = {
             data: {
-                name: uuidv4(),
+                name: 'Reference line',
+                value: uuidv4(),
             },
         };
         setReferenceLines([...referenceLines, newReferenceLine]);
@@ -109,7 +115,9 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                         ...serie.markLine,
                         data:
                             serie.markLine?.data.filter(
-                                (data) => data.name !== markLineId,
+                                (data) =>
+                                    data.value !== markLineId &&
+                                    data.name !== markLineId,
                             ) || [],
                     },
                 };
@@ -118,7 +126,11 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
             updateSeries(series);
 
             setReferenceLines(
-                referenceLines.filter((line) => line.data.name !== markLineId),
+                referenceLines.filter(
+                    (line) =>
+                        line.data.value !== markLineId &&
+                        line.data.name !== markLineId,
+                ),
             );
         },
         [
@@ -136,7 +148,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                 referenceLines.map((line, index) => {
                     return (
                         <ReferenceLine
-                            key={line.data.name}
+                            key={line.data.value}
                             index={index + 1}
                             isDefaultOpen={referenceLines.length <= 1}
                             items={items}

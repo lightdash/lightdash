@@ -146,6 +146,7 @@ export type MarkLineData = {
     yAxis?: string;
     xAxis?: string;
     name: string;
+    value: string;
     lineStyle?: {
         color: string;
     };
