@@ -47,7 +47,7 @@ const PieChartLayoutConfig: React.FC = () => {
                                 if (!dimensionId) return;
 
                                 if (newField) {
-                                    const newFieldId = getItemId(newField);
+                                    const newFieldId = fieldId(newField);
                                     if (newFieldId !== dimensionId) {
                                         groupChange(dimensionId, newFieldId);
                                     }

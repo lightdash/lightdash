@@ -68,7 +68,7 @@ const BigNumberConfigTabs = () => {
                         items={availableFields}
                         onChange={(newValue) => {
                             setSelectedField(
-                                newValue ? getItemId(newValue) : '',
+                                newValue ? getItemId(newValue) : undefined,
                             );
                         }}
                     />

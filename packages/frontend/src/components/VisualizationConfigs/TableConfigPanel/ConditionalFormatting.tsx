@@ -283,9 +283,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                             clearable
                             item={field}
                             items={fields}
-                            onChange={(newField) => {
-                                handleChangeField(newField);
-                            }}
+                            onChange={handleChangeField}
                         />
 
                         <Select

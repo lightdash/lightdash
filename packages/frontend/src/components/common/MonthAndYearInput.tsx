@@ -15,7 +15,7 @@ const MonthAndYearInput: FC<Props> = ({ value, onChange, ...props }) => {
 
     return (
         <MonthPickerInput
-            sx={{ width: '100%' }}
+            w="100%"
             size="xs"
             minDate={moment().year(1000).toDate()}
             maxDate={moment().year(9999).toDate()}

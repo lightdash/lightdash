@@ -39,7 +39,11 @@ const ItemComponent = forwardRef<HTMLDivElement, ItemComponentProps>(
                     maw="100%"
                     sx={{ overflow: 'hidden' }}
                 >
-                    <FieldIcon item={item} selected={rest.selected} />
+                    <FieldIcon
+                        style={{ flexShrink: 0 }}
+                        item={item}
+                        selected={rest.selected}
+                    />
                     <Text truncate size={size}>
                         {label}
                     </Text>
