@@ -7,7 +7,6 @@ import {
     ECHARTS_DEFAULT_COLORS,
     Field,
     findItem,
-    formatDate,
     formatItemValue,
     formatTableCalculationValue,
     formatValue,
@@ -1509,9 +1508,10 @@ const useEcharts = (
                         const date = (params[0].data as Record<string, any>)[
                             dimensionId
                         ]; // get full timestamp from data
-                        const dateFormatted = formatDate(
+                        const dateFormatted = getFormattedValue(
                             date,
-                            field.timeInterval,
+                            dimensionId,
+                            items,
                             false,
                         );
                         return `${dateFormatted}<br/><table>${tooltipRows}</table>`;
