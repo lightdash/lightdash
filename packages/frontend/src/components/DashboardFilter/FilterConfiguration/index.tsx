@@ -107,20 +107,20 @@ const FilterConfiguration: FC<Props> = ({
         );
     }, [originalFilterRule, draftFilterRule]);
 
-    const handleChangeField = (newItem: FilterableField) => {
+    const handleChangeField = (newField: FilterableField) => {
         const isCreatingTemporary = isCreatingNew && !isEditMode;
 
-        if (newItem && isField(newItem) && isFilterableField(newItem)) {
+        if (newField && isField(newField) && isFilterableField(newField)) {
             setDraftFilterRule(
                 createDashboardFilterRuleFromField(
-                    newItem,
+                    newField,
                     availableTileFilters,
                     false,
                     isCreatingTemporary,
                 ),
             );
 
-            setSelectedField(newItem);
+            setSelectedField(newField);
         }
     };
 

@@ -52,7 +52,7 @@ const BigNumberConfigTabs = () => {
         },
     } = useVisualizationContext();
 
-    const selectedItem = getField(selectedFieldId);
+    const selectedField = getField(selectedFieldId);
 
     return (
         <Tabs w={320} defaultValue="layout">
@@ -64,7 +64,7 @@ const BigNumberConfigTabs = () => {
                 <Stack spacing="md" mt="sm">
                     <FieldSelect
                         label="Field"
-                        item={selectedItem}
+                        item={selectedField}
                         items={availableFields}
                         onChange={(newValue) => {
                             setSelectedField(

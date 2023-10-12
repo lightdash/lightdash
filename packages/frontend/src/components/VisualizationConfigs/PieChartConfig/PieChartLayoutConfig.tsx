@@ -1,4 +1,4 @@
-import { fieldId, getItemId } from '@lightdash/common';
+import { fieldId, isField } from '@lightdash/common';
 import { Box, Button, Stack, Switch, Tooltip } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import FieldSelect from '../../common/FieldSelect';
@@ -43,13 +43,13 @@ const PieChartLayoutConfig: React.FC = () => {
                             inactiveItemIds={groupFieldIds
                                 .filter((id): id is string => !!id)
                                 .filter((id) => id !== dimensionId)}
-                            onChange={(newItem) => {
+                            onChange={(newField) => {
                                 if (!dimensionId) return;
 
-                                if (newItem) {
-                                    const newItemId = getItemId(newItem);
-                                    if (newItemId !== dimensionId) {
-                                        groupChange(dimensionId, newItemId);
+                                if (newField) {
+                                    const newFieldId = getItemId(newField);
+                                    if (newFieldId !== dimensionId) {
+                                        groupChange(dimensionId, newFieldId);
                                     }
                                 } else {
                                     groupRemove(dimensionId);
@@ -103,8 +103,12 @@ const PieChartLayoutConfig: React.FC = () => {
                         disabled={allNumericMetrics.length === 0}
                         item={selectedMetric}
                         items={allNumericMetrics}
-                        onChange={(newItem) => {
-                            metricChange(newItem ? getItemId(newItem) : null);
+                        onChange={(newField) => {
+                            metricChange(
+                                newField && isField(newField)
+                                    ? fieldId(newField)
+                                    : null,
+                            );
                         }}
                     />
                 </Box>

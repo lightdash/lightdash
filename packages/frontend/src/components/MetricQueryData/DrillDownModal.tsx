@@ -8,9 +8,9 @@ import {
 } from '@blueprintjs/core';
 import {
     ChartType,
+    CompiledDimension,
     CreateSavedChartVersion,
     DashboardFilters,
-    Dimension,
     FieldId,
     fieldId as getFieldId,
     FilterGroupItem,
@@ -158,7 +158,8 @@ const drillDownExploreUrl = ({
 };
 const DrillDownModal: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const [selectedDimension, setSelectedDimension] = useState<Dimension>();
+    const [selectedDimension, setSelectedDimension] =
+        useState<CompiledDimension>();
 
     const {
         isDrillDownModalOpen,

@@ -285,13 +285,13 @@ export const ReferenceLine: FC<Props> = ({
                         item={selectedField}
                         items={fieldsInAxes}
                         placeholder="Search field..."
-                        onChange={(newItem) => {
-                            setSelectedField(newItem);
+                        onChange={(newField) => {
+                            setSelectedField(newField);
 
-                            if (value !== undefined && newItem !== undefined)
+                            if (value !== undefined && newField !== undefined)
                                 updateReferenceLine(
                                     value,
-                                    newItem,
+                                    newField,
                                     label,
                                     lineColor,
                                     referenceLine.data.name,
