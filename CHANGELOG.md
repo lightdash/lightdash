@@ -1,3 +1,11 @@
+## [0.805.4](https://github.com/lightdash/lightdash/compare/0.805.3...0.805.4) (2023-10-12)
+
+
+### Bug Fixes
+
+* fix default tooltip format ([#7426](https://github.com/lightdash/lightdash/issues/7426)) ([87ed0e6](https://github.com/lightdash/lightdash/commit/87ed0e6942bd2a745e543f44c9cae359c8fe14bf))
+* reference lines uuid ([#7443](https://github.com/lightdash/lightdash/issues/7443)) ([eb8adc7](https://github.com/lightdash/lightdash/commit/eb8adc73b3aa1e5b9756ec4ae72ab829848579d8))
+
 ## [0.805.3](https://github.com/lightdash/lightdash/compare/0.805.2...0.805.3) (2023-10-12)
 
 
