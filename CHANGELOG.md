@@ -1,3 +1,10 @@
+## [0.805.3](https://github.com/lightdash/lightdash/compare/0.805.2...0.805.3) (2023-10-12)
+
+
+### Bug Fixes
+
+* delete preview project on SIGINT ([#7437](https://github.com/lightdash/lightdash/issues/7437)) ([f8936ce](https://github.com/lightdash/lightdash/commit/f8936ce1e68b8824780de889dcafecae1ec5b4ff))
+
 ## [0.805.2](https://github.com/lightdash/lightdash/compare/0.805.1...0.805.2) (2023-10-11)
 
 
