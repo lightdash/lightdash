@@ -39,6 +39,7 @@ const taskDurationHistogram = meter.createHistogram<{
 const chartCounter = meter.createObservableUpDownCounter<{
     errors: number;
     timeout: boolean;
+    organization_uuid: string;
 }>('screenshot.chart.count', {
     description: 'Total number of chart requests on an unfurl job',
     valueType: ValueType.INT,
@@ -239,6 +240,7 @@ export class UnfurlService {
             url,
             lightdashPage,
             details?.chartType,
+            details?.organizationUuid,
         );
 
         let imageUrl;
@@ -297,6 +299,7 @@ export class UnfurlService {
         url: string,
         lightdashPage: LightdashPage,
         chartType?: string,
+        organizationUuid?: string,
     ): Promise<Buffer | undefined> {
         if (this.lightdashConfig.headlessBrowser?.host === undefined) {
             Logger.error(
@@ -415,7 +418,7 @@ export class UnfurlService {
                     const path = `/tmp/${imageId}.png`;
                     const selector =
                         lightdashPage === LightdashPage.EXPLORE
-                            ? `.echarts-for-react, [data-testid="visualization"]`
+                            ? `[data-testid="visualization"]`
                             : 'body';
 
                     const element = await page.waitForSelector(selector, {
@@ -434,6 +437,7 @@ export class UnfurlService {
                         result.observe(chartRequests, {
                             errors: chartRequestErrors,
                             timeout,
+                            organization_uuid: organizationUuid || 'undefined',
                         });
                     });
 
@@ -445,6 +449,10 @@ export class UnfurlService {
                         'page.metrics.task_duration': pageMetrics.TaskDuration,
                         'page.metrics.heap_size': pageMetrics.JSHeapUsedSize,
                         'page.metrics.total_size': pageMetrics.JSHeapTotalSize,
+                        'page.type': lightdashPage,
+                        url,
+                        chartType: chartType || 'undefined',
+                        organization_uuid: organizationUuid || 'undefined',
                         'page.metrics.event_listeners':
                             pageMetrics.JSEventListeners,
                         timeout,
@@ -458,6 +466,12 @@ export class UnfurlService {
                     Sentry.captureException(e);
                     hasError = true;
                     span.recordException(e);
+                    span.setAttributes({
+                        'page.type': lightdashPage,
+                        url,
+                        chartType: chartType || 'undefined',
+                        organization_uuid: organizationUuid || 'undefined',
+                    });
                     span.setStatus({
                         code: SpanStatusCode.ERROR,
                     });

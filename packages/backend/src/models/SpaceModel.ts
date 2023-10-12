@@ -350,15 +350,24 @@ export class SpaceModel {
             )
             .leftJoin(
                 ProjectMembershipsTableName,
-                `${UserTableName}.user_id`,
-                `${ProjectMembershipsTableName}.user_id`,
+                function joinProjectMembershipTable() {
+                    this.on(
+                        `${UserTableName}.user_id`,
+                        '=',
+                        `${ProjectMembershipsTableName}.user_id`,
+                    ).andOn(
+                        `${SpaceTableName}.project_id`,
+                        '=',
+                        `${ProjectMembershipsTableName}.project_id`,
+                    );
+                },
             )
             .select<
                 {
                     user_uuid: string;
                     first_name: string;
                     last_name: string;
-                    project_role: ProjectMemberRole;
+                    project_role: ProjectMemberRole | null;
                     organization_role: OrganizationMemberRole;
                 }[]
             >([

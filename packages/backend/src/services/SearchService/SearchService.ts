@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     DashboardSearchResult,
     ForbiddenError,
-    getDimensions,
     SavedChartSearchResult,
     SearchResults,
     SessionUser,
@@ -99,16 +98,13 @@ export class SearchService {
         let filteredFields = results.fields;
         if (dimensionsHaveUserAttributes) {
             // Do not make user attribute query if not needed
-            const userAttributes = await this.userAttributesModel.find({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
+            const userAttributes =
+                await this.userAttributesModel.getAttributeValuesForOrgMember({
+                    organizationUuid,
+                    userUuid: user.userUuid,
+                });
             filteredFields = results.fields.filter((field) =>
-                hasUserAttributes(
-                    user.userUuid,
-                    field.requiredAttributes,
-                    userAttributes,
-                ),
+                hasUserAttributes(field.requiredAttributes, userAttributes),
             );
         }
 

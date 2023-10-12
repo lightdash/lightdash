@@ -16,6 +16,7 @@ import {
 import {
     DashboardFieldTarget,
     DashboardFilterRule,
+    DashboardFilters,
     DateFilterRule,
     FilterGroup,
     FilterGroupItem,
@@ -27,6 +28,7 @@ import {
     isFilterGroup,
     UnitOfTime,
 } from '../types/filter';
+import { MetricQuery } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { formatDate } from './formatting';
@@ -376,3 +378,103 @@ export const getFilterRulesByFieldType = (
             metrics: [],
         },
     );
+
+export const getDashboardFilterRulesForTile = (
+    tileUuid: string,
+    tables: string[],
+    rules: DashboardFilterRule[],
+): DashboardFilterRule[] =>
+    rules
+        .filter((rule) => !rule.disabled)
+        .map((filter) => {
+            const tileConfig = filter.tileTargets?.[tileUuid];
+
+            // If the config is false, we remove this filter
+            if (tileConfig === false) {
+                return null;
+            }
+
+            // If the tile isn't in the tileTarget overrides,
+            // we return the filter and don't treat this tile
+            // differently.
+            if (tileConfig === undefined) {
+                return filter;
+            }
+
+            return {
+                ...filter,
+                target: {
+                    fieldId: tileConfig.fieldId,
+                    tableName: tileConfig.tableName,
+                },
+            };
+        })
+        .filter((f): f is DashboardFilterRule => f !== null)
+        .filter((f) => tables.includes(f.target.tableName));
+
+export const getDashboardFiltersForTile = (
+    tileUuid: string,
+    tables: string[],
+    dashboardFilters: DashboardFilters,
+): DashboardFilters => ({
+    dimensions: getDashboardFilterRulesForTile(
+        tileUuid,
+        tables,
+        dashboardFilters.dimensions,
+    ),
+    metrics: getDashboardFilterRulesForTile(
+        tileUuid,
+        tables,
+        dashboardFilters.metrics,
+    ),
+});
+
+const combineFilterGroups = (
+    a: FilterGroup | undefined,
+    b: FilterGroup | undefined,
+): FilterGroup => ({
+    id: uuidv4(),
+    and: [a, b].filter((f): f is FilterGroup => !!f),
+});
+
+export const addFiltersToMetricQuery = (
+    metricQuery: MetricQuery,
+    filters: Filters,
+): MetricQuery => ({
+    ...metricQuery,
+    filters: {
+        dimensions: combineFilterGroups(
+            metricQuery.filters?.dimensions,
+            filters.dimensions,
+        ),
+        metrics: combineFilterGroups(
+            metricQuery.filters?.metrics,
+            filters.metrics,
+        ),
+    },
+});
+
+const combineFilterGroupWithFilterRules = (
+    filterGroup: FilterGroup | undefined,
+    filterRules: FilterRule[],
+): FilterGroup => ({
+    id: uuidv4(),
+    and: [...(filterGroup ? [filterGroup] : []), ...filterRules],
+});
+
+export const addDashboardFiltersToMetricQuery = (
+    metricQuery: MetricQuery,
+    dashboardFilters: DashboardFilters,
+): MetricQuery => ({
+    ...metricQuery,
+    filters: {
+        dimensions: combineFilterGroupWithFilterRules(
+            metricQuery.filters?.dimensions,
+            dashboardFilters.dimensions,
+        ),
+        metrics: combineFilterGroupWithFilterRules(
+            metricQuery.filters?.metrics,
+            dashboardFilters.metrics,
+        ),
+    },
+});

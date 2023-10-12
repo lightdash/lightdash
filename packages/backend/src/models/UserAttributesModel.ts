@@ -1,4 +1,8 @@
-import { CreateUserAttribute, UserAttribute } from '@lightdash/common';
+import {
+    CreateUserAttribute,
+    UserAttribute,
+    UserAttributeValueMap,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
@@ -7,6 +11,7 @@ import {
     OrganizationMemberUserAttributesTable,
     UserAttributesTable,
 } from '../database/entities/userAttributes';
+import { UserTableName } from '../database/entities/users';
 
 type Dependencies = {
     database: Knex;
@@ -19,10 +24,75 @@ export class UserAttributesModel {
         this.database = dependencies.database;
     }
 
+    async getAttributeValuesForOrgMember(filters: {
+        organizationUuid: string;
+        userUuid: string;
+    }): Promise<UserAttributeValueMap> {
+        const attributeValues = await this.database(UserAttributesTable)
+            .leftJoin(
+                OrganizationTableName,
+                `${UserAttributesTable}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
+            )
+            .select<Array<Pick<DbUserAttribute, 'name' | 'attribute_default'>>>(
+                `${UserAttributesTable}.name`,
+                `${UserAttributesTable}.attribute_default`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                filters.organizationUuid,
+            );
+
+        const userValues = await this.database(
+            OrganizationMemberUserAttributesTable,
+        )
+            .leftJoin(
+                UserTableName,
+                `${OrganizationMemberUserAttributesTable}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .leftJoin(
+                OrganizationTableName,
+                `${OrganizationMemberUserAttributesTable}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
+            )
+            .leftJoin(
+                UserAttributesTable,
+                `${OrganizationMemberUserAttributesTable}.user_attribute_uuid`,
+                `${UserAttributesTable}.user_attribute_uuid`,
+            )
+            .select<
+                Array<
+                    Pick<DbUserAttribute, 'name'> &
+                        Pick<DbOrganizationMemberUserAttribute, 'value'>
+                >
+            >(
+                `${UserAttributesTable}.name`,
+                `${OrganizationMemberUserAttributesTable}.value`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                filters.organizationUuid,
+            )
+            .where(`${UserTableName}.user_uuid`, filters.userUuid);
+
+        const userValuesMap = userValues.reduce<Record<string, string>>(
+            (acc, row) => ({ ...acc, [row.name]: row.value }),
+            {},
+        );
+        // combine user values and default values
+        return attributeValues.reduce<UserAttributeValueMap>(
+            (acc, row) => ({
+                ...acc,
+                [row.name]: userValuesMap[row.name] || row.attribute_default,
+            }),
+            {},
+        );
+    }
+
     async find(filters: {
         organizationUuid?: string;
         userAttributeUuid?: string;
-        userUuid?: string;
     }): Promise<UserAttribute[]> {
         const query = this.database(UserAttributesTable)
             .leftJoin(
@@ -73,11 +143,6 @@ export class UserAttributesModel {
                 `${UserAttributesTable}.user_attribute_uuid`,
                 filters.userAttributeUuid,
             );
-        }
-        if (filters.userUuid) {
-            query
-                .where(`users.user_uuid`, filters.userUuid)
-                .orWhereNotNull(`attribute_default`);
         }
 
         const orgAttributes = await query;

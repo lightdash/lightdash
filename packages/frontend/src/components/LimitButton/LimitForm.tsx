@@ -43,6 +43,7 @@ const LimitForm = forwardRef<HTMLFormElement, LimitFormProps>(
                     <NumberInput
                         autoFocus
                         step={100}
+                        min={1}
                         required
                         label="Total rows:"
                         {...form.getInputProps('limit')}

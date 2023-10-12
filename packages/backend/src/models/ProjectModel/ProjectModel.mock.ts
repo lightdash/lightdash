@@ -38,10 +38,6 @@ export const lightdashConfigMock: LightdashConfig = {
         release: '',
         environment: '',
     },
-    fullstory: {
-        orgId: '',
-        devMode: false,
-    },
     auth: {
         disablePasswordAuthentication: false,
         google: {
@@ -76,12 +72,13 @@ export const lightdashConfigMock: LightdashConfig = {
             oauth2TenantId: '',
         },
     },
+    posthog: {
+        projectApiKey: '',
+        apiHost: '',
+    },
     intercom: {
         appId: '',
         apiBase: '',
-    },
-    cohere: {
-        token: '',
     },
     smtp: undefined,
     siteUrl: '',

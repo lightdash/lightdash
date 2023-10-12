@@ -34,6 +34,12 @@ import {
     TableCalculation,
     timeFrameConfigs,
 } from '@lightdash/common';
+import {
+    DefaultLabelFormatterCallbackParams,
+    LineSeriesOption,
+    TooltipComponentFormatterCallback,
+    TooltipComponentOption,
+} from 'echarts';
 import groupBy from 'lodash-es/groupBy';
 import toNumber from 'lodash-es/toNumber';
 import moment from 'moment';
@@ -43,6 +49,26 @@ import { defaultGrid } from '../../components/VisualizationConfigs/ChartConfigPa
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import { useOrganization } from '../organization/useOrganization';
 import usePlottedData from '../plottedData/usePlottedData';
+
+// NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
+type TooltipFormatterParams = DefaultLabelFormatterCallbackParams & {
+    axisId: string;
+    axisIndex: number;
+    axisType: string;
+    axisValue: string | number;
+    axisValueLabel: string;
+};
+
+type TooltipOption = Omit<TooltipComponentOption, 'formatter'> & {
+    formatter?:
+        | string
+        | TooltipComponentFormatterCallback<
+              TooltipFormatterParams | TooltipFormatterParams[]
+          >;
+};
+
+export const isLineSeriesOption = (obj: unknown): obj is LineSeriesOption =>
+    typeof obj === 'object' && obj !== null && 'showSymbol' in obj;
 
 const getLabelFromField = (
     fields: Array<Field | TableCalculation>,
@@ -1121,6 +1147,12 @@ const getStackTotalRows = (
     flipAxis: boolean | undefined,
     selectedLegendNames: LegendValues,
 ): [unknown, unknown, number][] => {
+    const isNonStackable = series.some(
+        (s) =>
+            s.type === CartesianSeriesType.LINE ||
+            s.type === CartesianSeriesType.SCATTER,
+    );
+    if (isNonStackable) return [];
     return rows.map((row) => {
         const total = calculateStackTotal(
             row,
@@ -1372,6 +1404,12 @@ const useEcharts = (
             const xField = dimensions.find(
                 (dimension) => getItemId(dimension) === xFieldId,
             );
+            const hasTotal = validCartesianConfig?.eChartsConfig?.series?.some(
+                (s) => s.stackLabel?.show,
+            );
+            // If there is a total, we don't sort the results because we need to keep the same order on results
+            // This could still cause issues if there is a total on bar chart axis, the sorting is wrong and one of the axis is a line chart
+            if (hasTotal) return results;
 
             if (
                 xField !== undefined &&
@@ -1403,7 +1441,69 @@ const useEcharts = (
         validCartesianConfig?.layout?.xField,
         resultsData?.metricQuery.sorts,
         explore,
+        validCartesianConfig?.eChartsConfig?.series,
     ]);
+
+    const tooltip = useMemo<TooltipOption>(
+        () => ({
+            show: true,
+            confine: true,
+            trigger: 'axis',
+            enterable: true,
+            extraCssText: 'overflow-y: auto; max-height:280px;',
+            axisPointer: {
+                type: 'shadow',
+                label: { show: true },
+            },
+            formatter: (params) => {
+                if (!Array.isArray(params)) return '';
+
+                const tooltipRows = params
+                    .map((param) => {
+                        const {
+                            marker,
+                            seriesName,
+                            dimensionNames,
+                            encode,
+                            value,
+                        } = param;
+
+                        if (dimensionNames) {
+                            const dim =
+                                encode?.y[0] !== undefined
+                                    ? dimensionNames[encode?.y[0]]
+                                    : '';
+
+                            if (typeof value === 'object' && dim in value) {
+                                return `
+                            <tr>
+                                <td>${marker}</td>
+                                <td>${seriesName}</td>
+                                <td style="text-align: right;"><b>${getFormattedValue(
+                                    (value as Record<string, unknown>)[dim],
+                                    dim.split('.')[0],
+                                    items,
+                                )}</b></td>
+                            </tr>
+                        `;
+                            }
+                        }
+                        return '';
+                    })
+                    .join('');
+                const tooltipHeader =
+                    params[0].dimensionNames?.[0] !== undefined
+                        ? getFormattedValue(
+                              params[0].axisValueLabel,
+                              params[0].dimensionNames[0],
+                              items,
+                          )
+                        : params[0].axisValueLabel;
+                return `${tooltipHeader}<br/><table>${tooltipRows}</table>`;
+            },
+        }),
+        [items],
+    );
 
     const eChartsOptions = useMemo(
         () => ({
@@ -1421,15 +1521,7 @@ const useEcharts = (
                 id: 'lightdashResults',
                 source: sortedResults,
             },
-            tooltip: {
-                show: true,
-                confine: true,
-                trigger: 'axis',
-                axisPointer: {
-                    type: 'shadow',
-                    label: { show: true },
-                },
-            },
+            tooltip,
             grid: {
                 ...defaultGrid,
                 ...removeEmptyProperties(
@@ -1448,9 +1540,11 @@ const useEcharts = (
             validCartesianConfigLegend,
             series,
             sortedResults,
+            tooltip,
             colors,
         ],
     );
+
     if (
         !explore ||
         series.length <= 0 ||

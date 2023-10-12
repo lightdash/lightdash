@@ -40,6 +40,7 @@ import {
 } from '../hooks/dashboard/useDashboard';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import useSavedQueryWithDashboardFilters from '../hooks/dashboard/useSavedQueryWithDashboardFilters';
+import { useOrganization } from '../hooks/organization/useOrganization';
 import { deleteSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import {
@@ -65,13 +66,14 @@ export const getReactGridLayoutConfig = (
     isResizable: isEditMode,
 });
 
-export const RESPONSIVE_GRID_LAYOUT_PROPS = {
+export const getResponsiveGridLayoutProps = (enableAnimation = true) => ({
     draggableCancel: '.non-draggable',
-    useCSSTransforms: false,
+    useCSSTransforms: enableAnimation,
+    measureBeforeMount: !enableAnimation,
     breakpoints: { lg: 1200, md: 996, sm: 768 },
     cols: { lg: 36, md: 30, sm: 18 },
     rowHeight: 50,
-};
+});
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -157,6 +159,8 @@ const Dashboard: FC = () => {
         setDashboardFilters,
         setDashboardTemporaryFilters,
     } = useDashboardContext();
+
+    const { data: organization } = useOrganization();
     const hasTemporaryFilters = useMemo(
         () =>
             dashboardTemporaryFilters.dimensions.length > 0 ||
@@ -489,6 +493,7 @@ const Dashboard: FC = () => {
                         dashboardSpaceUuid={dashboard.spaceUuid}
                         dashboardViews={dashboard.views}
                         dashboardFirstViewedAt={dashboard.firstViewedAt}
+                        organizationUuid={organization?.organizationUuid}
                         isEditMode={isEditMode}
                         isSaving={isSaving}
                         hasDashboardChanged={
@@ -526,7 +531,7 @@ const Dashboard: FC = () => {
                 )}
 
                 <ResponsiveGridLayout
-                    {...RESPONSIVE_GRID_LAYOUT_PROPS}
+                    {...getResponsiveGridLayoutProps()}
                     onDragStop={handleUpdateTiles}
                     onResizeStop={handleUpdateTiles}
                     layouts={layouts}

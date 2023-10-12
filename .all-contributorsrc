@@ -1174,6 +1174,42 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "ayush117",
+      "name": "Ayush Trivedi",
+      "avatar_url": "https://avatars.githubusercontent.com/u/25580209?v=4",
+      "profile": "https://github.com/ayush117",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "zoltan-kski",
+      "name": "Zoltan K.",
+      "avatar_url": "https://avatars.githubusercontent.com/u/2300833?v=4",
+      "profile": "https://github.com/zoltan-kski",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "Ankush263",
+      "name": "Ankush Banik",
+      "avatar_url": "https://avatars.githubusercontent.com/u/86042508?v=4",
+      "profile": "https://my-portfolio-ankush263.vercel.app/",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "karan0handa",
+      "name": "Karan Handa",
+      "avatar_url": "https://avatars.githubusercontent.com/u/79533543?v=4",
+      "profile": "https://github.com/karan0handa",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,

@@ -4,8 +4,8 @@ import {
     SchedulerAndTargets,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
-import { lightdashApi } from '../../api';
-import useToaster from '../toaster/useToaster';
+import { lightdashApi } from '../../../api';
+import useToaster from '../../../hooks/toaster/useToaster';
 
 const getChartSchedulers = async (uuid: string) =>
     lightdashApi<SchedulerAndTargets[]>({

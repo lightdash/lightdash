@@ -85,13 +85,15 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         $isEditMode={isEditMode}
                         onMouseEnter={() => setIsHovering(true)}
                         onMouseLeave={() => setIsHovering(false)}
-                        $isEmpty={isMarkdownTileTitleEmpty}
+                        $isEmpty={isMarkdownTileTitleEmpty || hideTitle}
                     >
                         <Tooltip
                             disabled={!description}
                             label={description}
                             multiline
                             position="top-start"
+                            withinPortal={true}
+                            maw={400}
                         >
                             <TitleWrapper $hovered={titleHovered}>
                                 {!hideTitle ? (
@@ -182,7 +184,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             </ButtonsWrapper>
                         ) : null}
                     </HeaderContainer>
-                    <ChartContainer className="non-draggable sentry-block fs-block cohere-block">
+                    <ChartContainer className="non-draggable sentry-block ph-no-capture">
                         {children}
                     </ChartContainer>
                     {isEditingTileContent &&

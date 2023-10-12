@@ -28,21 +28,6 @@ export class HealthService {
         this.organizationModel = organizationModel;
     }
 
-    private hasSlackConfig(): boolean {
-        return (
-            this.lightdashConfig.slack?.appToken !== undefined &&
-            this.lightdashConfig.slack.signingSecret !== undefined
-        );
-    }
-
-    private isGoogleSSOEnabled(): boolean {
-        return (
-            this.lightdashConfig.auth.google.oauth2ClientId !== undefined &&
-            this.lightdashConfig.auth.google.oauth2ClientSecret !== undefined &&
-            this.lightdashConfig.auth.google.enabled
-        );
-    }
-
     async getHealthState(isAuthenticated: boolean): Promise<HealthState> {
         const { isComplete, currentVersion } = await getMigrationStatus();
 
@@ -71,11 +56,10 @@ export class HealthService {
             latest: { version: getDockerHubVersion() },
             rudder: this.lightdashConfig.rudder,
             sentry: this.lightdashConfig.sentry,
-            fullstory: this.lightdashConfig.fullstory,
             intercom: this.lightdashConfig.intercom,
-            cohere: this.lightdashConfig.cohere,
             siteUrl: this.lightdashConfig.siteUrl,
             staticIp: this.lightdashConfig.staticIp,
+            posthog: this.lightdashConfig.posthog,
             query: this.lightdashConfig.query,
             hasSlack: this.hasSlackConfig(),
             auth: {
@@ -107,5 +91,20 @@ export class HealthService {
             hasHeadlessBrowser:
                 this.lightdashConfig.headlessBrowser?.host !== undefined,
         };
+    }
+
+    private hasSlackConfig(): boolean {
+        return (
+            this.lightdashConfig.slack?.appToken !== undefined &&
+            this.lightdashConfig.slack.signingSecret !== undefined
+        );
+    }
+
+    private isGoogleSSOEnabled(): boolean {
+        return (
+            this.lightdashConfig.auth.google.oauth2ClientId !== undefined &&
+            this.lightdashConfig.auth.google.oauth2ClientSecret !== undefined &&
+            this.lightdashConfig.auth.google.enabled
+        );
     }
 }

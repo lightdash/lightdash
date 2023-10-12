@@ -13,35 +13,60 @@ import {
     GetMetricFlowFieldsResponse,
     MetricFlowDimensionType,
 } from '../../../api/MetricFlowAPI';
+import { convertDimensionNameToLabels } from './convertDimensionNameToLabels';
 
 export default function convertMetricFlowFieldsToExplore(
     tableName: string,
     metricFlowFields: GetMetricFlowFieldsResponse,
 ) {
-    const dimensionsMap = metricFlowFields.dimensions.reduce(
-        (acc, { name, description, type }) => {
-            const isTimeDimension = type === MetricFlowDimensionType.TIME;
-            const dimension: CompiledDimension = {
-                fieldType: FieldType.DIMENSION,
-                type: isTimeDimension
-                    ? DimensionType.TIMESTAMP
-                    : DimensionType.STRING,
-                // Note: time columns in results are suffixed with '__day' by default
-                name: isTimeDimension ? `${name}__day` : name,
-                description,
-                label: friendlyName(name),
-                table: tableName,
-                tableLabel: '',
-                sql: '',
-                compiledSql: '',
-                tablesReferences: [tableName],
-                hidden: false,
-            };
+    const dimensionsMap = metricFlowFields.dimensions.reduce<
+        Record<string, CompiledDimension>
+    >((acc, { name, description, type, queryableGranularities }) => {
+        const isTimeDimension = type === MetricFlowDimensionType.TIME;
+        const labels = convertDimensionNameToLabels(name);
+        const dimension: CompiledDimension = {
+            fieldType: FieldType.DIMENSION,
+            type: isTimeDimension
+                ? DimensionType.TIMESTAMP
+                : DimensionType.STRING,
+            name: name,
+            description,
+            label: labels.dimensionLabel,
+            table: tableName,
+            tableLabel: labels.tableLabel ?? '',
+            sql: '',
+            compiledSql: '',
+            tablesReferences: [tableName],
+            hidden: false,
+        };
+        acc[fieldId(dimension)] = dimension;
 
-            return { ...acc, [fieldId(dimension)]: dimension };
-        },
-        {},
-    );
+        if (isTimeDimension && queryableGranularities) {
+            queryableGranularities.forEach((timeGranularity) => {
+                const timeDimension: CompiledDimension = {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.TIMESTAMP,
+                    // Note: time columns in results are suffixed with the time granularity eg:'__day'
+                    name: `${name}__${timeGranularity
+                        .toString()
+                        .toLowerCase()}`,
+                    description,
+                    label: `${labels.dimensionLabel} (${friendlyName(
+                        timeGranularity,
+                    )})`,
+                    table: tableName,
+                    tableLabel: labels.tableLabel ?? '',
+                    sql: '',
+                    compiledSql: '',
+                    tablesReferences: [tableName],
+                    hidden: false,
+                };
+                acc[fieldId(timeDimension)] = timeDimension;
+            });
+        }
+
+        return acc;
+    }, {});
     const metricsMap = metricFlowFields.metricsForDimensions.reduce(
         (acc, { name, description }) => {
             const metric: CompiledMetric = {

@@ -20,7 +20,7 @@ import {
     parseAllReferences,
     renderFilterRuleSql,
     SupportedDbtAdapter,
-    UserAttribute,
+    UserAttributeValueMap,
     WarehouseClient,
 } from '@lightdash/common';
 import { hasUserAttribute } from './services/UserAttributesService/UserAttributeUtils';
@@ -54,7 +54,7 @@ const getMetricFromId = (
 
 export const replaceUserAttributes = (
     sqlFilter: string,
-    userAttributes: UserAttribute[],
+    userAttributes: UserAttributeValueMap,
     stringQuoteChar: string = "'",
     filter: string = 'sql_filter',
 ): string => {
@@ -66,57 +66,38 @@ export const replaceUserAttributes = (
         return sqlFilter;
     }
 
-    const sq = sqlAttributes.reduce<string>((acc, sqlAttribute) => {
+    return sqlAttributes.reduce<string>((acc, sqlAttribute) => {
         const attribute = sqlAttribute.replace(userAttributeRegex, '$1');
-        const userAttribute = userAttributes.find(
-            (ua) => ua.name === attribute,
-        );
+        const userValue: string | null | undefined = userAttributes[attribute];
 
-        if (userAttribute === undefined) {
+        if (userValue === undefined) {
             throw new ForbiddenError(
                 `Missing user attribute "${attribute}" on ${filter}: "${sqlFilter}"`,
             );
         }
-        if (
-            userAttribute.users.length !== 1 &&
-            userAttribute.attributeDefault === null
-        ) {
+        if (userValue === null) {
             throw new ForbiddenError(
                 `Invalid or missing user attribute "${attribute}" on ${filter}: "${sqlFilter}"`,
             );
         }
 
-        const userValue =
-            userAttribute.users.length > 0
-                ? userAttribute.users[0].value
-                : userAttribute.attributeDefault;
         return acc.replace(
             sqlAttribute,
             `${stringQuoteChar}${userValue}${stringQuoteChar}`,
         );
     }, sqlFilter);
-
-    return sq;
 };
 
 export const assertValidDimensionRequiredAttribute = (
-    userUuid: string,
     dimension: CompiledDimension,
-    userAttributes: UserAttribute[],
+    userAttributes: UserAttributeValueMap,
     field: string,
 ) => {
     // Throw error if user does not have the right requiredAttribute for this dimension
     if (dimension.requiredAttributes)
         Object.entries(dimension.requiredAttributes).map((attribute) => {
             const [attributeName, value] = attribute;
-            if (
-                !hasUserAttribute(
-                    userUuid,
-                    userAttributes,
-                    attributeName,
-                    value,
-                )
-            ) {
+            if (!hasUserAttribute(userAttributes, attributeName, value)) {
                 throw new ForbiddenError(
                     `Invalid or missing user attribute "${attribute}" on ${field}`,
                 );
@@ -128,10 +109,8 @@ export const assertValidDimensionRequiredAttribute = (
 export type BuildQueryProps = {
     explore: Explore;
     compiledMetricQuery: CompiledMetricQuery;
-
     warehouseClient: WarehouseClient;
-    userUuid: string;
-    userAttributes?: UserAttribute[];
+    userAttributes?: UserAttributeValueMap;
 };
 
 const getJoinType = (type: DbtModelJoinType = 'left') => {
@@ -153,8 +132,7 @@ export const buildQuery = ({
     explore,
     compiledMetricQuery,
     warehouseClient,
-    userUuid, // used to check permissions on user attributes
-    userAttributes = [],
+    userAttributes = {},
 }: BuildQueryProps): { query: string; hasExampleMetric: boolean } => {
     let hasExampleMetric: boolean = false;
     const adapterType: SupportedDbtAdapter = warehouseClient.getAdapterType();
@@ -172,7 +150,6 @@ export const buildQuery = ({
         const dimension = getDimensionFromId(field, explore);
 
         assertValidDimensionRequiredAttribute(
-            userUuid,
             dimension,
             userAttributes,
             `dimension: "${field}"`,
@@ -201,7 +178,6 @@ export const buildQuery = ({
             const dimension = getDimensionFromId(dimensionId, explore);
 
             assertValidDimensionRequiredAttribute(
-                userUuid,
                 dimension,
                 userAttributes,
                 `custom metric: "${metric.name}"`,

@@ -3,7 +3,7 @@ import { ViewStatistics } from './analytics';
 import { ConditionalFormattingConfig } from './conditionalFormatting';
 import { CompactOrAlias } from './field';
 import { MetricQuery } from './metricQuery';
-import { UpdatedByUser } from './user';
+import { LightdashUser, UpdatedByUser } from './user';
 import { ValidationSummary } from './validation';
 
 export enum ChartKind {
@@ -68,6 +68,16 @@ export type PieChartValueOptions = {
     showPercentage: boolean;
 };
 
+export const PieChartLegendPositions = {
+    horizontal: 'Horizontal',
+    vertical: 'Vertical',
+} as const;
+
+export type PieChartLegendPosition = keyof typeof PieChartLegendPositions;
+export const PieChartLegendPositionDefault = Object.keys(
+    PieChartLegendPositions,
+)[0] as PieChartLegendPosition;
+
 export type PieChart = {
     groupFieldIds?: string[];
     metricId?: string;
@@ -80,6 +90,7 @@ export type PieChart = {
     groupValueOptionOverrides?: Record<string, Partial<PieChartValueOptions>>;
     groupSortOverrides?: string[];
     showLegend?: boolean;
+    legendPosition?: PieChartLegendPosition;
 };
 
 export type PieChartConfig = {
@@ -453,8 +464,6 @@ export const getChartKind = (
     chartType: ChartType,
     value: ChartConfig['config'],
 ): ChartKind | undefined => {
-    if (value === undefined) return undefined;
-
     switch (chartType) {
         case ChartType.PIE:
             return ChartKind.PIE;
@@ -520,4 +529,33 @@ export type ChartSummary = Pick<
 export type ApiChartSummaryListResponse = {
     status: 'ok';
     results: ChartSummary[];
+};
+
+export type ChartHistory = {
+    history: ChartVersionSummary[];
+};
+
+export type ChartVersion = {
+    chartUuid: string;
+    versionUuid: string;
+    createdAt: Date;
+    createdBy: Pick<
+        LightdashUser,
+        'userUuid' | 'firstName' | 'lastName'
+    > | null;
+    chart: SavedChart;
+};
+
+export type ChartVersionSummary = Pick<
+    ChartVersion,
+    'chartUuid' | 'versionUuid' | 'createdAt' | 'createdBy'
+>;
+
+export type ApiGetChartHistoryResponse = {
+    status: 'ok';
+    results: ChartHistory;
+};
+export type ApiGetChartVersionResponse = {
+    status: 'ok';
+    results: ChartVersion;
 };

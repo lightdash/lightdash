@@ -1,9 +1,9 @@
-import { HTMLSelect, OptionProps } from '@blueprintjs/core';
 import {
     ConditionalRule,
     FilterOperator,
     isFilterRule,
 } from '@lightdash/common';
+import { Select } from '@mantine/core';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
 
@@ -20,41 +20,26 @@ const BooleanFilterInputs = <T extends ConditionalRule>(
         disabled: isFilterRuleDisabled,
     });
 
-    let selectValue;
-    if (isFilterRuleDisabled || (rule.values && rule.values.length < 1)) {
-        selectValue = 'any';
-    } else {
-        selectValue = rule.values?.[0] ? 'true' : 'false';
-    }
-
     switch (rule.operator) {
         case FilterOperator.EQUALS: {
             return (
-                <HTMLSelect
-                    fill
-                    className={disabled ? 'disabled-filter' : ''}
+                <Select
+                    w="100%"
+                    size="xs"
+                    withinPortal
                     disabled={disabled}
-                    onChange={(e) =>
+                    placeholder={placeholder}
+                    data={[
+                        { value: 'true', label: 'True' },
+                        { value: 'false', label: 'False' },
+                    ]}
+                    value={rule.values?.[0]?.toString() ?? null}
+                    onChange={(value) =>
                         onChange({
                             ...rule,
-                            values: [e.currentTarget.value === 'true'],
+                            values: value === null ? [] : [value === 'true'],
                         })
                     }
-                    placeholder={placeholder}
-                    options={
-                        [
-                            {
-                                value: 'any',
-                                label: placeholder,
-                                disabled: true,
-                                hidden: true,
-                            },
-                            { value: 'true', label: 'True' },
-                            { value: 'false', label: 'False' },
-                            // adding explicit type conversion because `hidden` is not in the typings but it actually works
-                        ] as OptionProps[]
-                    }
-                    value={selectValue}
                 />
             );
         }

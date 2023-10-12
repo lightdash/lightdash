@@ -10,7 +10,7 @@ import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
 import { DashboardProvider } from '../providers/DashboardProvider';
 import {
     getReactGridLayoutConfig,
-    RESPONSIVE_GRID_LAYOUT_PROPS,
+    getResponsiveGridLayoutProps,
 } from './Dashboard';
 
 import '../styles/react-grid.css';
@@ -46,7 +46,7 @@ const MinimalDashboard: FC = () => {
     return (
         <DashboardProvider>
             <ResponsiveGridLayout
-                {...RESPONSIVE_GRID_LAYOUT_PROPS}
+                {...getResponsiveGridLayoutProps(false)}
                 layouts={layouts}
             >
                 {dashboard.tiles.map((tile) => (

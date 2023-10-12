@@ -17,7 +17,6 @@ import VisualizationProvider from '../../LightdashVisualization/VisualizationPro
 import { EchartSeriesClickEvent } from '../../SimpleChart';
 import VisualizationCardOptions from '../VisualizationCardOptions';
 import { SeriesContextMenu } from './SeriesContextMenu';
-import ShowTotalsToggle from './ShowTotalsToggle';
 import VisualizationConfigPanel from './VisualizationConfigPanel';
 
 export type EchartsClickEvent = {
@@ -165,9 +164,6 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
                                         />
                                     </>
                                 )}
-                                {!isEditMode && chartType === 'table' && (
-                                    <ShowTotalsToggle />
-                                )}
                                 <ChartDownloadMenu
                                     getCsvLink={getCsvLink}
                                     projectUuid={projectUuid!}
@@ -179,7 +175,7 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
                 >
                     <Space h="sm" />
                     <LightdashVisualization
-                        className="sentry-block fs-block cohere-block"
+                        className="sentry-block ph-no-capture"
                         data-testid="visualization"
                     />
                     <SeriesContextMenu

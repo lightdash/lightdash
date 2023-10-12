@@ -16,12 +16,12 @@ import { analytics } from '../analytics/client';
 import { dbtCloudGraphqlClient } from '../clients/clients';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
-@Route('/api/v1/projects/{projectUuid}/metricflow')
+@Route('/api/v1/projects/{projectUuid}/dbtsemanticlayer')
 @Response<ApiErrorPayload>('default', 'Error')
-@Tags('MetricFlow')
+@Tags('DbtSemanticLayer')
 export class MetricFlowController extends Controller {
     /**
-     * Get MetricFlow data
+     * Get DbtSemanticLayer data
      * @param projectUuid the projectId
      * @param req express request
      * @param body graphql query
@@ -29,7 +29,7 @@ export class MetricFlowController extends Controller {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/')
-    @OperationId('GetMetricFlowData')
+    @OperationId('GetDbtSemanticLayerData')
     async post(
         @Path() projectUuid: string,
         @Request() req: express.Request,

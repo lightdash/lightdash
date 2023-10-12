@@ -14,9 +14,9 @@ import {
     IconProgress,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
+import { GSheetsIconFilled } from '../../components/common/GSheetsIcon';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
-import { GSheetsIconFilled } from '../SchedulerModals/SchedulerModalBase/SchedulerModalBase.styles';
 
 export type SchedulerItem = SchedulerWithLogs['schedulers'][number];
 export type Log = SchedulerWithLogs['logs'][number];

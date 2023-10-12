@@ -24,6 +24,11 @@ const useToaster = () => {
                                 <MDEditor.Markdown
                                     source={subtitle}
                                     linkTarget="_blank"
+                                    style={{
+                                        backgroundColor: 'transparent',
+                                        color: 'white',
+                                        fontSize: '12px',
+                                    }}
                                 />
                             )}
                         </div>

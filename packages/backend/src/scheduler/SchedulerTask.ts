@@ -30,6 +30,7 @@ import {
     ValidateProjectPayload,
 } from '@lightdash/common';
 import { nanoid } from 'nanoid';
+import slackifyMarkdown from 'slackify-markdown';
 import { analytics } from '../analytics/client';
 import {
     DownloadCsv,
@@ -279,6 +280,10 @@ export const sendSlackNotification = async (
         });
 
         // Backwards compatibility for old scheduled deliveries
+        const notificationPageData =
+            notification.page ??
+            (await getNotificationPageData(scheduler, jobId));
+
         const {
             url,
             details,
@@ -287,16 +292,14 @@ export const sendSlackNotification = async (
             imageUrl,
             csvUrl,
             csvUrls,
-            pdfFile, // TODO add pdf to slack
-        } =
-            notification.page ??
-            (await getNotificationPageData(scheduler, jobId));
+            // pdfFile, // TODO: add pdf to slack
+        } = notificationPageData;
 
         const getBlocksArgs = {
             title: name,
-            description: `${details.name}${
-                details.description ? ` - ${details.description}` : ''
-            }`,
+            name: details.name,
+            description: details.description,
+            message: scheduler.message && slackifyMarkdown(scheduler.message),
             ctaUrl: url,
             footerMarkdown:
                 schedulerUuid !== undefined
@@ -587,6 +590,7 @@ export const validateProject = async (
         });
     }
 };
+
 export const downloadCsv = async (
     jobId: string,
     scheduledTime: Date,
@@ -761,9 +765,13 @@ export const sendEmailNotification = async (
         });
 
         // Backwards compatibility for old scheduled deliveries
-        const { url, details, pageType, imageUrl, csvUrl, csvUrls, pdfFile } =
+        const notificationPageData =
             notification.page ??
             (await getNotificationPageData(scheduler, jobId));
+
+        const { url, details, pageType, imageUrl, csvUrl, csvUrls, pdfFile } =
+            notificationPageData;
+
         const schedulerUrl = `${url}?scheduler_uuid=${schedulerUuid}`;
 
         if (format === SchedulerFormat.IMAGE) {
@@ -775,6 +783,7 @@ export const sendEmailNotification = async (
                 name,
                 details.name,
                 details.description || '',
+                scheduler.message,
                 new Date().toLocaleDateString('en-GB'),
                 getHumanReadableCronExpression(scheduler.cron),
                 imageUrl,
@@ -792,6 +801,7 @@ export const sendEmailNotification = async (
                 name,
                 details.name,
                 details.description || '',
+                scheduler.message,
                 new Date().toLocaleDateString('en-GB'),
                 getHumanReadableCronExpression(scheduler.cron),
                 csvUrl,
@@ -808,6 +818,7 @@ export const sendEmailNotification = async (
                 name,
                 details.name,
                 details.description || '',
+                scheduler.message,
                 new Date().toLocaleDateString('en-GB'),
                 getHumanReadableCronExpression(scheduler.cron),
                 csvUrls,
@@ -1125,6 +1136,7 @@ const logScheduledTarget = async (
         status: SchedulerJobStatus.SCHEDULED,
     });
 };
+
 export const handleScheduledDelivery = async (
     jobId: string,
     scheduledTime: Date,

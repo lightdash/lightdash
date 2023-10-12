@@ -12,11 +12,20 @@ export enum MetricFlowMetricType {
     CUMULATIVE = 'CUMULATIVE',
 }
 
+export enum TimeGranularity {
+    DAY = 'DAY',
+    WEEK = 'WEEK',
+    MONTH = 'MONTH',
+    QUARTER = 'QUARTER',
+    YEAR = 'YEAR',
+}
+
 export type GetMetricFlowFieldsResponse = {
     dimensions: Array<{
         name: string;
         description?: string;
         type: MetricFlowDimensionType;
+        queryableGranularities: TimeGranularity[];
     }>;
     metricsForDimensions: Array<{
         name: string;
@@ -26,6 +35,7 @@ export type GetMetricFlowFieldsResponse = {
             name: string;
             description?: string;
             type: MetricFlowDimensionType;
+            queryableGranularities: TimeGranularity[];
         }>;
     }>;
 };
@@ -33,15 +43,18 @@ export type GetMetricFlowFieldsResponse = {
 export function getMetricFlowFields(
     projectUuid: string,
     selectedFields?: {
-        metrics: string[];
-        dimensions: string[];
+        metrics: Record<string, {}>;
+        dimensions: Record<string, { grain: TimeGranularity }>;
     },
 ): Promise<GetMetricFlowFieldsResponse> {
     const query = `query GetFields($environmentId: BigInt!) {
             metricsForDimensions(environmentId: $environmentId, dimensions: [${
-                selectedFields?.dimensions
-                    .filter((dimension) => dimension !== 'metric_time') // TODO: remove this when dbt stops throwing error when filtering by "metric_time"
-                    .map((dimension) => `{ name: "${dimension}" }`) ?? ''
+                Object.entries(selectedFields?.dimensions ?? {})
+                    .filter(([dimension]) => dimension !== 'metric_time') // TODO: remove this when dbt stops throwing error when filtering by "metric_time"
+                    .map(
+                        ([dimension, options]) =>
+                            `{ name: "${dimension}", grain: ${options.grain} }`,
+                    ) ?? ''
             }]) {
                 name
                 description
@@ -50,21 +63,23 @@ export function getMetricFlowFields(
                   name
                   description
                   type
+                  queryableGranularities
                 } 
             }
             dimensions(environmentId: $environmentId, metrics: [${
-                selectedFields?.metrics.map(
-                    (metric) => `{ name: "${metric}" }`,
+                Object.entries(selectedFields?.metrics ?? {}).map(
+                    ([metric]) => `{ name: "${metric}" }`,
                 ) ?? ''
             }]) {
                 name
                 description
                 type
+                queryableGranularities
             }
         }`;
 
     return lightdashApi<any>({
-        url: `/projects/${projectUuid}/metricflow`,
+        url: `/projects/${projectUuid}/dbtsemanticlayer`,
         method: 'POST',
         body: JSON.stringify({ query, operationName: 'GetFields' }),
     });
@@ -79,19 +94,20 @@ export type CreateMetricFlowQueryResponse = {
 export function createMetricFlowQuery(
     projectUuid: string,
     data: {
-        metrics: string[];
-        dimensions: string[];
+        metrics: Record<string, {}>;
+        dimensions: Record<string, { grain: TimeGranularity }>;
     },
 ): Promise<CreateMetricFlowQueryResponse> {
     const query: string = `
             mutation CreateQuery($environmentId: BigInt!) {
               createQuery(
                 environmentId: $environmentId
-                metrics: [${data.metrics.map(
-                    (metric) => `{ name: "${metric}" }`,
+                metrics: [${Object.entries(data?.metrics).map(
+                    ([metric]) => `{ name: "${metric}" }`,
                 )}]
-                groupBy: [${data.dimensions.map(
-                    (dimension) => `{ name: "${dimension}" }`,
+                groupBy: [${Object.entries(data.dimensions ?? {}).map(
+                    ([dimension, options]) =>
+                        `{ name: "${dimension}", grain: ${options.grain} }`,
                 )}]
               ) {
                 queryId
@@ -99,7 +115,7 @@ export function createMetricFlowQuery(
             }`;
 
     return lightdashApi<any>({
-        url: `/projects/${projectUuid}/metricflow`,
+        url: `/projects/${projectUuid}/dbtsemanticlayer`,
         method: 'POST',
         body: JSON.stringify({ query, operationName: 'CreateQuery' }),
     });
@@ -160,7 +176,7 @@ export function getMetricFlowQueryResults(
             }`;
 
     return lightdashApi<any>({
-        url: `/projects/${projectUuid}/metricflow`,
+        url: `/projects/${projectUuid}/dbtsemanticlayer`,
         method: 'POST',
         body: JSON.stringify({ query, operationName: 'GetQueryResults' }),
     }).then((response: GetMetricFlowQueryBase64ResultsResponse) => {

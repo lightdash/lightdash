@@ -122,7 +122,7 @@ export const CreateTokenModal: FC<{
                         id="invite-link-input"
                         label="Token"
                         readOnly
-                        className="cohere-block sentry-block fs-block"
+                        className="sentry-block ph-no-capture"
                         value={data.token}
                         rightSection={
                             <CopyButton value={data.token}>
@@ -152,7 +152,7 @@ export const CreateTokenModal: FC<{
                     <TextInput
                         id="invite-link-input"
                         label="CLI Authentication code"
-                        className="sentry-block fs-block cohere-block"
+                        className="sentry-block ph-no-capture"
                         readOnly
                         value={`lightdash login ${health.data?.siteUrl} --token ${data.token}`}
                         rightSection={

@@ -13,6 +13,7 @@ import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
 import UserCompletionModal from './components/UserCompletionModal';
 
+import ChartHistory from './pages/ChartHistory';
 import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
 import Dashboard from './pages/Dashboard';
@@ -143,6 +144,14 @@ const Routes: FC = () => {
                         <Switch>
                             <ProjectRoute path="/projects/:projectUuid">
                                 <Switch>
+                                    <Route path="/projects/:projectUuid/saved/:savedQueryUuid/history">
+                                        <NavBar />
+                                        <TrackPage
+                                            name={PageName.CHART_HISTORY}
+                                        >
+                                            <ChartHistory />
+                                        </TrackPage>
+                                    </Route>
                                     <Route path="/projects/:projectUuid/saved/:savedQueryUuid/:mode?">
                                         <NavBar />
                                         <TrackPage
@@ -161,12 +170,24 @@ const Routes: FC = () => {
                                         </TrackPage>
                                     </Route>
 
-                                    <Route path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?">
-                                        <NavBar />
-                                        <TrackPage name={PageName.DASHBOARD}>
-                                            <Dashboard />
-                                        </TrackPage>
-                                    </Route>
+                                    <Route
+                                        path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?"
+                                        render={(props) => (
+                                            <>
+                                                <NavBar />
+                                                <TrackPage
+                                                    name={PageName.DASHBOARD}
+                                                >
+                                                    <Dashboard
+                                                        key={
+                                                            props.match.params
+                                                                .dashboardUuid
+                                                        }
+                                                    />
+                                                </TrackPage>
+                                            </>
+                                        )}
+                                    />
 
                                     <Route path="/projects/:projectUuid/dashboards">
                                         <NavBar />
@@ -184,7 +205,7 @@ const Routes: FC = () => {
                                         </TrackPage>
                                     </Route>
 
-                                    <Route path="/projects/:projectUuid/metricflow">
+                                    <Route path="/projects/:projectUuid/dbtsemanticlayer">
                                         <NavBar />
                                         <TrackPage name={PageName.METRIC_FLOW}>
                                             <MetricFlowPage />

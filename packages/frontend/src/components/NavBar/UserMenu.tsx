@@ -1,5 +1,6 @@
 import { Menu } from '@mantine/core';
 import { IconLogout, IconUserCircle, IconUserPlus } from '@tabler/icons-react';
+import posthog from 'posthog-js';
 import { FC } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -10,7 +11,12 @@ import MantineIcon from '../common/MantineIcon';
 
 const UserMenu: FC = () => {
     const { user } = useApp();
-    const { mutate: logout } = useLogoutMutation();
+    const { mutate: logout } = useLogoutMutation({
+        onSuccess: () => {
+            posthog.reset();
+            window.location.href = '/login';
+        },
+    });
 
     return (
         <Menu

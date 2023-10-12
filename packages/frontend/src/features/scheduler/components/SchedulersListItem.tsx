@@ -16,7 +16,7 @@ import {
     PageDetailsContainer,
     SeparatorDot,
     UpdatedInfoLabel,
-} from '../../common/PageHeader';
+} from '../../../components/common/PageHeader';
 import {
     SchedulerContainer,
     SchedulerDetailsContainer,

@@ -1,6 +1,7 @@
 import {
     Button,
     Classes,
+    Collapse,
     Colors,
     FormGroup,
     NumericInput,
@@ -14,25 +15,26 @@ import {
 } from '@lightdash/common';
 import { Anchor, Box, Switch, Tooltip } from '@mantine/core';
 import React, { FC, useEffect, useMemo, useState } from 'react';
-import { useFormContext } from 'react-hook-form';
+import { Controller, useFormContext } from 'react-hook-form';
 import useHealth from '../../../hooks/health/useHealth';
 
 import { IconInfoCircle } from '@tabler/icons-react';
-import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
-import { useGetSlack } from '../../../hooks/useSlack';
-import { isInvalidCronExpression } from '../../../utils/fieldValidators';
-import MantineIcon from '../../common/MantineIcon';
-import { ArrayInput } from '../../ReactHookForm/ArrayInput';
-import AutoComplete from '../../ReactHookForm/AutoComplete';
-import CronInput from '../../ReactHookForm/CronInput';
+import MDEditor, { commands } from '@uiw/react-md-editor';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { ArrayInput } from '../../../components/ReactHookForm/ArrayInput';
+import AutoComplete from '../../../components/ReactHookForm/AutoComplete';
+import CronInput from '../../../components/ReactHookForm/CronInput';
 import {
     InlinedInputs,
     InlinedLabel,
     InlineIcon,
-} from '../../ReactHookForm/CronInput/CronInput.styles';
-import Form from '../../ReactHookForm/Form';
-import Input from '../../ReactHookForm/Input';
-import { hasRequiredScopes } from '../../UserSettings/SlackSettingsPanel';
+} from '../../../components/ReactHookForm/CronInput/CronInput.styles';
+import Form from '../../../components/ReactHookForm/Form';
+import Input from '../../../components/ReactHookForm/Input';
+import { hasRequiredScopes } from '../../../components/UserSettings/SlackSettingsPanel';
+import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
+import { useGetSlack } from '../../../hooks/useSlack';
+import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import {
     EmailIcon,
     InputGroupWrapper,
@@ -189,6 +191,50 @@ const SchedulerOptions: FC<
                 </i>
             )}
         </Form>
+    );
+};
+
+const SchedulerAdvancedOptions: FC = () => {
+    const form = useFormContext<CreateSchedulerAndTargetsWithoutIds>();
+
+    const [isAdvanced, setIsAdvanced] = useState(false);
+
+    return (
+        <>
+            <Button
+                minimal
+                small
+                icon={isAdvanced ? 'chevron-down' : 'chevron-right'}
+                onClick={() => setIsAdvanced(!isAdvanced)}
+            >
+                Customize body message
+            </Button>
+
+            <Collapse isOpen={isAdvanced}>
+                <Box pt="lg">
+                    <Controller
+                        name="message"
+                        control={form.control}
+                        render={({ field }) => (
+                            <MDEditor
+                                preview="edit"
+                                commands={[
+                                    commands.bold,
+                                    commands.italic,
+                                    commands.strikethrough,
+                                    commands.divider,
+                                    commands.link,
+                                ]}
+                                value={field.value ?? ''}
+                                onChange={(value) =>
+                                    field.onChange(value ?? '')
+                                }
+                            />
+                        )}
+                    />
+                </Box>
+            </Collapse>
+        </>
     );
 };
 
@@ -376,10 +422,12 @@ const SchedulerForm: FC<{
                                     methods.getValues()?.targets?.[index];
 
                                 if (isSlack(target)) {
-                                    const isPrivateChannel = slackChannels.some(
-                                        (channel) =>
-                                            channel.label !== target.channel,
-                                    );
+                                    const isPrivateChannel =
+                                        !slackChannels.find(
+                                            (channel) =>
+                                                channel.value ===
+                                                target.channel,
+                                        );
                                     const allChannels =
                                         isPrivateChannel &&
                                         target.channel !== ''
@@ -595,6 +643,10 @@ const SchedulerForm: FC<{
                         />
                     </InlinedInputs>
                 </InputGroupWrapper>
+            </FormGroup>
+
+            <FormGroup>
+                <SchedulerAdvancedOptions />
             </FormGroup>
         </Form>
     );

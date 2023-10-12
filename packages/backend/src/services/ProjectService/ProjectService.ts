@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    addFiltersToMetricQuery,
     AdditionalMetric,
     AlreadyProcessingError,
     AndFilterGroup,
@@ -54,7 +55,6 @@ import {
     ProjectType,
     RequestMethod,
     ResultRow,
-    SchedulerCsvOptions,
     SessionUser,
     SpaceSummary,
     SummaryExplore,
@@ -63,7 +63,7 @@ import {
     TableSelectionType,
     UpdateProject,
     UpdateProjectMember,
-    UserAttribute,
+    UserAttributeValueMap,
     WarehouseClient,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -701,8 +701,7 @@ export class ProjectService {
         metricQuery: MetricQuery,
         explore: Explore,
         warehouseClient: WarehouseClient,
-        userUuid: string,
-        userAttributes: UserAttribute[],
+        userAttributes: UserAttributeValueMap,
     ): Promise<{ query: string; hasExampleMetric: boolean }> {
         const compiledMetricQuery = compileMetricQuery({
             explore,
@@ -713,7 +712,6 @@ export class ProjectService {
             explore,
             compiledMetricQuery,
             warehouseClient,
-            userUuid,
             userAttributes,
         });
     }
@@ -739,15 +737,15 @@ export class ProjectService {
             projectUuid,
         );
         const explore = await this.getExplore(user, projectUuid, exploreName);
-        const userAttributes = await this.userAttributesModel.find({
-            organizationUuid,
-            userUuid: user.userUuid,
-        });
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
         const compiledQuery = ProjectService._compileQuery(
             metricQuery,
             explore,
             warehouseClient,
-            user.userUuid,
             userAttributes,
         );
         await sshTunnel.disconnect();
@@ -827,46 +825,20 @@ export class ProjectService {
         );
     }
 
-    private static combineFilters(
-        metricQuery: MetricQuery,
-        filters: Filters,
-    ): MetricQuery {
-        return {
-            ...metricQuery,
-            filters: {
-                dimensions: {
-                    id: 'and-dimensions',
-                    and: [
-                        metricQuery.filters?.dimensions,
-                        filters.dimensions,
-                    ].reduce<FilterGroup[]>((acc, val) => {
-                        if (val) return [...acc, val];
-                        return acc;
-                    }, []),
-                },
-                metrics: {
-                    id: 'and-metrics',
-                    and: [metricQuery.filters?.metrics, filters.metrics].reduce<
-                        FilterGroup[]
-                    >((acc, val) => {
-                        if (val) return [...acc, val];
-                        return acc;
-                    }, []),
-                },
-            },
-        };
-    }
-
     async runViewChartQuery(
         user: SessionUser,
         chartUuid: string,
         filters?: Filters,
+        versionUuid?: string,
     ): Promise<ApiQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
 
-        const savedChart = await this.savedChartModel.get(chartUuid);
+        const savedChart = await this.savedChartModel.get(
+            chartUuid,
+            versionUuid,
+        );
         const { organizationUuid, projectUuid } = savedChart;
 
         if (
@@ -887,7 +859,7 @@ export class ProjectService {
         }
 
         const metricQuery: MetricQuery = filters
-            ? ProjectService.combineFilters(savedChart.metricQuery, filters)
+            ? addFiltersToMetricQuery(savedChart.metricQuery, filters)
             : savedChart.metricQuery;
 
         const queryTags: RunQueryTags = {
@@ -1089,17 +1061,19 @@ export class ProjectService {
                         projectUuid,
                         exploreName,
                     );
-                    const userAttributes = await this.userAttributesModel.find({
-                        organizationUuid,
-                        userUuid: user.userUuid,
-                    });
+                    const userAttributes =
+                        await this.userAttributesModel.getAttributeValuesForOrgMember(
+                            {
+                                organizationUuid,
+                                userUuid: user.userUuid,
+                            },
+                        );
 
                     const { query, hasExampleMetric } =
                         await ProjectService._compileQuery(
                             metricQueryWithLimit,
                             explore,
                             warehouseClient,
-                            user.userUuid,
                             userAttributes,
                         );
 
@@ -1325,15 +1299,15 @@ export class ProjectService {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
         );
-        const userAttributes = await this.userAttributesModel.find({
-            organizationUuid,
-            userUuid: user.userUuid,
-        });
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
         const { query } = await ProjectService._compileQuery(
             metricQuery,
             explore,
             warehouseClient,
-            user.userUuid,
             userAttributes,
         );
 
@@ -1753,16 +1727,13 @@ export class ProjectService {
             if (!exploreHasFilteredAttribute(explore)) {
                 return explore;
             }
-            const userAttributes = await this.userAttributesModel.find({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
+            const userAttributes =
+                await this.userAttributesModel.getAttributeValuesForOrgMember({
+                    organizationUuid,
+                    userUuid: user.userUuid,
+                });
 
-            return filterDimensionsFromExplore(
-                explore,
-                user.userUuid,
-                userAttributes,
-            );
+            return filterDimensionsFromExplore(explore, userAttributes);
         } finally {
             span?.finish();
         }

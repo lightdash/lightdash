@@ -36,7 +36,12 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
 } from './types/projectMemberProfile';
-import { SavedChart, Series } from './types/savedCharts';
+import {
+    ChartHistory,
+    ChartVersion,
+    SavedChart,
+    Series,
+} from './types/savedCharts';
 import { SearchResults } from './types/search';
 import { ShareUrl } from './types/share';
 import { SlackSettings } from './types/slackSettings';
@@ -526,6 +531,8 @@ type ApiResults =
     | ViewStatistics
     | SchedulerWithLogs
     | ValidationResponse[]
+    | ChartHistory
+    | ChartVersion
     | ApiJobStatusResponse['results']
     | ApiJobScheduledResponse['results']
     | ApiSshKeyPairResponse['results'];
@@ -585,15 +592,6 @@ export type HealthState = {
         environment: string;
         release: string;
     };
-    intercom: {
-        appId: string;
-        apiBase: string;
-    };
-
-    fullstory: {
-        orgId: string;
-        devMode: boolean;
-    };
     auth: {
         disablePasswordAuthentication: boolean;
         google: {
@@ -615,10 +613,15 @@ export type HealthState = {
             loginPath: string;
         };
     };
-    cohere: {
-        token: string;
+    posthog: {
+        projectApiKey: string;
+        apiHost: string;
     };
     siteUrl: string;
+    intercom: {
+        appId: string;
+        apiBase: string;
+    };
     staticIp: string;
     query: {
         maxLimit: number;

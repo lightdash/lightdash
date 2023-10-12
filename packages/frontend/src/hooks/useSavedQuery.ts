@@ -1,5 +1,7 @@
 import {
     ApiError,
+    ChartHistory,
+    ChartVersion,
     CreateSavedChart,
     CreateSavedChartVersion,
     SavedChart,
@@ -110,6 +112,72 @@ export const useSavedQuery = ({ id, useQueryOptions }: Args = {}) =>
         retry: false,
         ...useQueryOptions,
     });
+
+const getChartHistoryQuery = async (chartUuid: string): Promise<ChartHistory> =>
+    lightdashApi<ChartHistory>({
+        url: `/saved/${chartUuid}/history`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useChartHistory = (chartUuid: string) =>
+    useQuery<ChartHistory, ApiError>({
+        queryKey: ['chart_history', chartUuid],
+        queryFn: () => getChartHistoryQuery(chartUuid),
+        retry: false,
+    });
+const getChartVersionQuery = async (
+    chartUuid: string,
+    versionUuid: string,
+): Promise<ChartVersion> =>
+    lightdashApi<ChartVersion>({
+        url: `/saved/${chartUuid}/version/${versionUuid}`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useChartVersion = (chartUuid: string, versionUuid?: string) =>
+    useQuery<ChartVersion, ApiError>({
+        queryKey: ['chart_version', chartUuid, versionUuid],
+        queryFn: () => getChartVersionQuery(chartUuid, versionUuid!),
+        enabled: versionUuid !== undefined,
+        retry: false,
+    });
+
+const rollbackChartQuery = async (
+    chartUuid: string,
+    versionUuid: string,
+): Promise<undefined> =>
+    lightdashApi<undefined>({
+        url: `/saved/${chartUuid}/rollback/${versionUuid}`,
+        method: 'POST',
+        body: undefined,
+    });
+export const useChartVersionRollbackMutation = (
+    chartUuid: string,
+    useQueryOptions?: UseQueryOptions<undefined, ApiError>,
+) => {
+    const { showToastSuccess, showToastError } = useToaster();
+    return useMutation<undefined, ApiError, string>(
+        (versionUuid: string) => rollbackChartQuery(chartUuid, versionUuid),
+        {
+            mutationKey: ['saved_query_rollback'],
+            ...useQueryOptions,
+            onSuccess: async (data) => {
+                showToastSuccess({
+                    title: `Success! Chart was reverted.`,
+                });
+                useQueryOptions?.onSuccess?.(data);
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to revert chart`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
+};
 
 export const useSavedQueryDeleteMutation = () => {
     const queryClient = useQueryClient();

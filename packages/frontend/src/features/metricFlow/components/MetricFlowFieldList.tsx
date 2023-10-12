@@ -1,7 +1,13 @@
 import { friendlyName } from '@lightdash/common';
-import { NavLink } from '@mantine/core';
+import { ActionIcon, Box, Group, Menu, NavLink, Text } from '@mantine/core';
+import { IconAdjustments, IconCheck } from '@tabler/icons-react';
 import React, { FC } from 'react';
-import { GetMetricFlowFieldsResponse } from '../../../api/MetricFlowAPI';
+import {
+    GetMetricFlowFieldsResponse,
+    MetricFlowDimensionType,
+    TimeGranularity,
+} from '../../../api/MetricFlowAPI';
+import { convertDimensionNameToLabels } from '../utils/convertDimensionNameToLabels';
 import MetricFlowFieldIcon from './MetricFlowFieldIcon';
 
 type Props = {
@@ -9,27 +15,101 @@ type Props = {
         | GetMetricFlowFieldsResponse['dimensions']
         | GetMetricFlowFieldsResponse['metricsForDimensions']
         | undefined;
-    selectedFields: string[];
+    selectedFields: Record<string, { grain?: TimeGranularity }>;
     onClick: (fieldName: string) => void;
+    onClickTimeGranularity?: (
+        fieldName: string,
+        timeGranularity: TimeGranularity,
+    ) => void;
 };
 
 const MetricFlowFieldList: FC<Props> = ({
     fields,
     selectedFields,
     onClick,
+    onClickTimeGranularity,
 }) => {
     return (
         <>
-            {fields?.map((field) => (
-                <NavLink
-                    key={field.name}
-                    active={selectedFields.includes(field.name)}
-                    icon={<MetricFlowFieldIcon type={field.type} size="lg" />}
-                    label={friendlyName(field.name)}
-                    description={field.description}
-                    onClick={() => onClick(field.name)}
-                />
-            ))}
+            {fields?.map((field) => {
+                const labels = convertDimensionNameToLabels(field.name);
+                const isSelected: boolean = !!selectedFields[field.name];
+                const selectedTimeGranularity =
+                    selectedFields[field.name]?.grain ?? TimeGranularity.DAY;
+                return (
+                    <NavLink
+                        key={field.name}
+                        active={isSelected}
+                        icon={
+                            <MetricFlowFieldIcon type={field.type} size="lg" />
+                        }
+                        label={
+                            <Group spacing="xxs">
+                                {labels.tableLabel ? (
+                                    <Text fw={400} color="gray.6">
+                                        {labels.tableLabel}
+                                    </Text>
+                                ) : null}
+                                {labels.dimensionLabel}
+                            </Group>
+                        }
+                        description={field.description}
+                        rightSection={
+                            isSelected &&
+                            field.type === MetricFlowDimensionType.TIME &&
+                            onClickTimeGranularity ? (
+                                <Box onClick={(e) => e.stopPropagation()}>
+                                    <Menu
+                                        shadow="lg"
+                                        position="bottom-start"
+                                        withinPortal
+                                    >
+                                        <Menu.Target>
+                                            <Box>
+                                                <ActionIcon size="xs">
+                                                    <IconAdjustments />
+                                                </ActionIcon>
+                                            </Box>
+                                        </Menu.Target>
+
+                                        <Menu.Dropdown>
+                                            <Menu.Label>
+                                                Time granularity
+                                            </Menu.Label>
+                                            {field.queryableGranularities.map(
+                                                (timeGranularity) => (
+                                                    <Menu.Item
+                                                        key={timeGranularity}
+                                                        rightSection={
+                                                            selectedTimeGranularity ===
+                                                            timeGranularity ? (
+                                                                <IconCheck
+                                                                    size={18}
+                                                                />
+                                                            ) : null
+                                                        }
+                                                        onClick={() =>
+                                                            onClickTimeGranularity(
+                                                                field.name,
+                                                                timeGranularity,
+                                                            )
+                                                        }
+                                                    >
+                                                        {friendlyName(
+                                                            timeGranularity,
+                                                        )}
+                                                    </Menu.Item>
+                                                ),
+                                            )}
+                                        </Menu.Dropdown>
+                                    </Menu>
+                                </Box>
+                            ) : null
+                        }
+                        onClick={() => onClick(field.name)}
+                    />
+                );
+            })}
         </>
     );
 };

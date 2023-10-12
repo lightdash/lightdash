@@ -11,15 +11,10 @@ import {
     Metric,
     MetricType,
 } from '@lightdash/common';
+import { ActionIcon, Box, Menu, MenuProps, Tooltip } from '@mantine/core';
+import { useToggle } from '@mantine/hooks';
 import {
-    ActionIcon,
-    Box,
-    Group,
-    Menu,
-    MenuProps,
-    Tooltip,
-} from '@mantine/core';
-import {
+    IconChevronRight,
     IconDots,
     IconEdit,
     IconFilter,
@@ -88,6 +83,11 @@ const TreeSingleNodeActions: FC<Props> = ({
     const toggleAdditionalMetricModal = useExplorerContext(
         (context) => context.actions.toggleAdditionalMetricModal,
     );
+
+    const [customMetricsMenuItemBgColor, toggle] = useToggle([
+        'default',
+        'gray.1',
+    ]);
 
     const customMetrics = useMemo(
         () => (isDimension(item) ? getCustomMetricType(item.type) : []),
@@ -160,34 +160,56 @@ const TreeSingleNodeActions: FC<Props> = ({
 
                 {customMetrics.length > 0 && isDimension(item) ? (
                     <>
-                        <Menu.Divider key="custom-metrics-divider" />
-                        <Menu.Label key="custom-metrics-label">
-                            <Group spacing="xs">
-                                <MantineIcon icon={IconSparkles} /> Add custom
-                                metrics
-                            </Group>
-                        </Menu.Label>
+                        <Menu
+                            withinPortal
+                            trigger="hover"
+                            position="right-start"
+                            shadow="md"
+                            closeOnItemClick
+                            onOpen={() => toggle()}
+                            onClose={() => toggle()}
+                        >
+                            <Menu.Target>
+                                <Menu.Item
+                                    bg={customMetricsMenuItemBgColor}
+                                    component="button"
+                                    role="menuitem"
+                                    icon={<MantineIcon icon={IconSparkles} />}
+                                    rightSection={
+                                        <Box ml="xs">
+                                            <MantineIcon
+                                                icon={IconChevronRight}
+                                            />
+                                        </Box>
+                                    }
+                                >
+                                    Add custom metrics
+                                </Menu.Item>
+                            </Menu.Target>
 
-                        {customMetrics.map((metric) => (
-                            <Menu.Item
-                                key={metric}
-                                component="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
+                            <Menu.Dropdown>
+                                {customMetrics.map((metric) => (
+                                    <Menu.Item
+                                        key={metric}
+                                        component="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
 
-                                    track({
-                                        name: EventName.ADD_CUSTOM_METRIC_CLICKED,
-                                    });
-                                    toggleAdditionalMetricModal({
-                                        type: metric,
-                                        item,
-                                        isEditing: false,
-                                    });
-                                }}
-                            >
-                                {friendlyName(metric)}
-                            </Menu.Item>
-                        ))}
+                                            track({
+                                                name: EventName.ADD_CUSTOM_METRIC_CLICKED,
+                                            });
+                                            toggleAdditionalMetricModal({
+                                                type: metric,
+                                                item,
+                                                isEditing: false,
+                                            });
+                                        }}
+                                    >
+                                        {friendlyName(metric)}
+                                    </Menu.Item>
+                                ))}
+                            </Menu.Dropdown>
+                        </Menu>
                     </>
                 ) : null}
             </Menu.Dropdown>

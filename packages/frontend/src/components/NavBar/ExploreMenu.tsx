@@ -54,6 +54,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 <MantineIcon icon={IconSquareRoundedPlus} />
                             }
                             onClick={() => setIsOpen(!isOpen)}
+                            data-testid="ExploreMenu/NewButton"
                         >
                             New
                         </Button>
@@ -96,6 +97,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 description="Arrange multiple charts into a single view."
                                 onClick={() => setIsCreateDashboardOpen(true)}
                                 icon={IconLayoutDashboard}
+                                data-testid="ExploreMenu/NewDashboardButton"
                             />
                         </Can>
 
@@ -136,7 +138,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
 
             <DashboardCreateModal
                 projectUuid={projectUuid}
-                isOpen={isCreateDashboardOpen}
+                opened={isCreateDashboardOpen}
                 onClose={() => setIsCreateDashboardOpen(false)}
                 onConfirm={(dashboard) => {
                     history.push(

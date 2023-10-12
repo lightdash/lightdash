@@ -1,8 +1,9 @@
 import { NonIdealState } from '@blueprintjs/core';
-import { Box } from '@mantine/core';
+import { Box, Flex } from '@mantine/core';
 import { FC } from 'react';
 import PivotTable from '../common/PivotTable';
 import Table from '../common/Table';
+import { ResultCount } from '../common/Table/TablePagination';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
 import CellContextMenu from './CellContextMenu';
@@ -64,16 +65,30 @@ const SimpleTable: FC<SimpleTableProps> = ({
         );
     } else if (pivotTableData.loading || pivotTableData.data) {
         return (
-            <Box p="xs" pb="xl" miw="100%" h="100%">
+            <Box
+                p="xs"
+                pb={showResultsTotal ? 'xxl' : 'xl'}
+                miw="100%"
+                h="100%"
+            >
                 {pivotTableData.data ? (
-                    <PivotTable
-                        className={className}
-                        data={pivotTableData.data}
-                        conditionalFormattings={conditionalFormattings}
-                        getFieldLabel={getFieldLabel}
-                        getField={getField}
-                        hideRowNumbers={hideRowNumbers}
-                    />
+                    <>
+                        <PivotTable
+                            className={className}
+                            data={pivotTableData.data}
+                            conditionalFormattings={conditionalFormattings}
+                            getFieldLabel={getFieldLabel}
+                            getField={getField}
+                            hideRowNumbers={hideRowNumbers}
+                        />
+                        {showResultsTotal && (
+                            <Flex justify="flex-end" pt="xxs" align="center">
+                                <ResultCount
+                                    count={pivotTableData.data.rowsCount}
+                                />
+                            </Flex>
+                        )}
+                    </>
                 ) : (
                     <LoadingChart />
                 )}

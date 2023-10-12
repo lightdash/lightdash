@@ -7,8 +7,8 @@ import {
     SchedulerWithLogs,
 } from '@lightdash/common';
 import { useMutation, useQuery, UseQueryOptions } from 'react-query';
-import { lightdashApi } from '../../api';
-import useToaster from '../toaster/useToaster';
+import { lightdashApi } from '../../../api';
+import useToaster from '../../../hooks/toaster/useToaster';
 
 const getScheduler = async (uuid: string) =>
     lightdashApi<SchedulerAndTargets>({

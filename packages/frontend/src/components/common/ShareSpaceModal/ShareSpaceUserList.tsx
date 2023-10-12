@@ -76,7 +76,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
             ...new Set([...projectUserUuids, ...organizationUserUuids]),
         ];
         return userUuids.reduce<SpaceShare[]>((acc, userUuid) => {
-            if (space.access.find((access) => access.userUuid === userUuid))
+            if (space.access?.find((access) => access.userUuid === userUuid))
                 return acc;
             const user = organizationUsers?.find(
                 (orgUser) => orgUser.userUuid === userUuid,
@@ -99,7 +99,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
 
     return (
         <>
-            {[...space.access, ...adminUsers]
+            {[...(space.access ?? []), ...adminUsers]
                 .sort((a, b) => {
                     if (userIsYou(a) && !userIsYou(b)) return -1;
                     if (!userIsYou(a) && userIsYou(b)) return 1;

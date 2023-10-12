@@ -10,7 +10,7 @@ export type Space = {
     queries: SpaceQuery[];
     projectUuid: string;
     dashboards: SpaceDashboard[];
-    access: SpaceShare[];
+    access: SpaceShare[] | undefined;
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
 };
@@ -33,7 +33,7 @@ export type SpaceSummary = Pick<
 export type CreateSpace = {
     name: string;
     isPrivate?: boolean;
-    access?: SpaceShare[];
+    access?: Pick<SpaceShare, 'userUuid'>[];
 };
 
 export type UpdateSpace = {

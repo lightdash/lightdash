@@ -208,11 +208,11 @@ Here are all of the properties you can customize:
 | [boolean](#boolean)               | Non-aggregate | For fields that will show if something is true or false   |
 | [count](#count)                   | Aggregate     | Counts the total number of values in the dimension        |
 | [count_distinct](#count_distinct) | Aggregate     | Counts the total unique number of values in the dimension |
-| [date](#date)                     | Non-aggregate | For measures that contain dates                           |
+| [date](#date)                     | Non-aggregate | For adding calculations to metrics that return dates.     |
 | [max](#max)                       | Aggregate     | Generates the maximum value within a numeric column       |
 | [min](#min)                       | Aggregate     | Generates the minimum value within a numeric column       |
-| [number](#number)                 | Non-aggregate | For measures that contain numbers                         |
-| [string](#string)                 | Non-aggregate | For measures that contain letters or special characters   |
+| [number](#number)                 | Non-aggregate | For adding calculations to metrics that return numbers.   |
+| [string](#string)                 | Non-aggregate | For metrics that contain letters or special characters    |
 | [sum](#sum)                       | Aggregate     | Generates a sum of values within a column                 |
 
 
@@ -342,8 +342,7 @@ If you want to create a metric of a maximum or minimum date, you can't use `type
       metrics:
         max_created_at_date:
           type: date
-          sql: MAX(${created_at_date})
-  sql: ${TABLE}.updated_at
+          sql: MAX(${TABLE}.created_at_date)
 ```
 
 ### max
@@ -445,7 +444,7 @@ columns:
       metrics:
         product_name_group:
           type: string
-          sql: "GROUP_CONCAT(${product_name})"
+          sql: "GROUP_CONCAT(${TABLE}.product_name)"
 ```
 
 ## Adding your own metric descriptions

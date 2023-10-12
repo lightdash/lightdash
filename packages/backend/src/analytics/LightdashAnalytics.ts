@@ -237,6 +237,33 @@ type DeleteSavedChartEvent = BaseTrack & {
     };
 };
 
+type ChartHistoryEvent = BaseTrack & {
+    event: 'saved_chart_history.view';
+    properties: {
+        projectId: string;
+        savedQueryId: string;
+        versionCount: number;
+    };
+};
+
+type ViewChartVersionEvent = BaseTrack & {
+    event: 'saved_chart_version.view';
+    properties: {
+        projectId: string;
+        savedQueryId: string;
+        versionId: string;
+    };
+};
+
+type RollbackChartVersionEvent = BaseTrack & {
+    event: 'saved_chart_version.rollback';
+    properties: {
+        projectId: string;
+        savedQueryId: string;
+        versionId: string;
+    };
+};
+
 export type CreateSavedChartVersionEvent = BaseTrack & {
     event: 'saved_chart_version.created';
     properties: {
@@ -786,6 +813,9 @@ type Track =
     | UpdateSavedChartEvent
     | DeleteSavedChartEvent
     | CreateSavedChartEvent
+    | ChartHistoryEvent
+    | ViewChartVersionEvent
+    | RollbackChartVersionEvent
     | CreateSavedChartVersionEvent
     | TrackUserDeletedEvent
     | ProjectErrorEvent

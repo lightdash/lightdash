@@ -24,7 +24,7 @@ export const TileBaseWrapper = styled.div<HeaderContainerProps>`
 `;
 
 export const TILE_HEADER_HEIGHT = 24;
-export const TILE_HEADER_MARGIN_BOTTOM = 12;
+const TILE_HEADER_MARGIN_BOTTOM = 12;
 
 export const HeaderContainer = styled.div<HeaderContainerProps>`
     display: flex;

@@ -25,6 +25,11 @@ import {
 import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
+import { ChartSchedulersModal } from '../../../features/scheduler';
+import {
+    getSchedulerUuidFromUrlParams,
+    isSchedulerTypeSync,
+} from '../../../features/scheduler/utils';
 import { SyncModal as GoogleSheetsSyncModal } from '../../../features/sync/components';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
@@ -57,11 +62,6 @@ import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
 import ViewInfo from '../../common/PageHeader/ViewInfo';
 import { ResourceInfoPopup } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
-import ChartSchedulersModal from '../../SchedulerModals/ChartSchedulersModal';
-import {
-    getSchedulerUuidFromUrlParams,
-    isSchedulerTypeSync,
-} from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
 import SaveChartButton from '../SaveChartButton';
 
 const SavedChartsHeader: FC = () => {
@@ -382,7 +382,6 @@ const SavedChartsHeader: FC = () => {
                                             }}
                                         />
                                     )}
-
                                     {!hasUnsavedChanges &&
                                         !chartBelongsToDashboard && (
                                             <MenuItem2

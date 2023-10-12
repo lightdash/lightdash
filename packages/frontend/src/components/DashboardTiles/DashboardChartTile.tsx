@@ -478,6 +478,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         }
     }, [savedQueryWithDashboardFilters]);
 
+    const userCanManageChart = user.data?.ability?.can('manage', 'SavedChart');
+
     return (
         <>
             <GlobalTileStyles />
@@ -518,10 +520,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             label="Finish editing dashboard to use these actions"
                         >
                             <Box>
-                                {user.data?.ability?.can(
-                                    'manage',
-                                    'SavedChart',
-                                ) && (
+                                {userCanManageChart && (
                                     <LinkMenuItem
                                         icon="document-open"
                                         text="Edit chart"
@@ -574,14 +573,17 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                         />
                                     )}
 
-                                {savedQueryWithDashboardFilters?.dashboardUuid && (
-                                    <MenuItem2
-                                        icon={<IconFolders size={16} />}
-                                        text="Move to space"
-                                        onClick={() => setIsMovingChart(true)}
-                                        disabled={isEditMode}
-                                    />
-                                )}
+                                {savedQueryWithDashboardFilters?.dashboardUuid &&
+                                    userCanManageChart && (
+                                        <MenuItem2
+                                            icon={<IconFolders size={16} />}
+                                            text="Move to space"
+                                            onClick={() =>
+                                                setIsMovingChart(true)
+                                            }
+                                            disabled={isEditMode}
+                                        />
+                                    )}
                             </Box>
                         </Tooltip>
                     )

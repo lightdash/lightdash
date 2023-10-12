@@ -3,6 +3,7 @@ import {
     ChartConfig,
     ChartKind,
     ChartSummary,
+    ChartVersionSummary,
     CreateSavedChart,
     CreateSavedChartVersion,
     DBFieldTypes,
@@ -22,6 +23,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
+import moment from 'moment';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
@@ -38,6 +40,7 @@ import {
     InsertChart,
     SavedChartAdditionalMetricTableName,
     SavedChartsTableName,
+    SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
 import {
     getFirstAccessibleSpace,
@@ -282,11 +285,90 @@ type Dependencies = {
     database: Knex;
 };
 
+type VersionSummaryRow = {
+    saved_query_uuid: string;
+    saved_queries_version_uuid: string;
+    created_at: Date;
+    user_uuid: string | null;
+    first_name: string | null;
+    last_name: string | null;
+};
+
 export class SavedChartModel {
     private database: Knex;
 
     constructor(dependencies: Dependencies) {
         this.database = dependencies.database;
+    }
+
+    static convertVersionSummary(row: VersionSummaryRow): ChartVersionSummary {
+        return {
+            chartUuid: row.saved_query_uuid,
+            versionUuid: row.saved_queries_version_uuid,
+            createdAt: row.created_at,
+            createdBy: row.user_uuid
+                ? {
+                      userUuid: row.user_uuid,
+                      firstName: row.first_name ?? '',
+                      lastName: row.last_name ?? '',
+                  }
+                : null,
+        };
+    }
+
+    private getVersionSummaryQuery() {
+        return this.database(SavedChartVersionsTableName)
+            .leftJoin(
+                SavedChartsTableName,
+                `${SavedChartVersionsTableName}.saved_query_id`,
+                `${SavedChartsTableName}.saved_query_id`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${SavedChartVersionsTableName}.updated_by_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .select<VersionSummaryRow[]>(
+                `${SavedChartsTableName}.saved_query_uuid`,
+                `${SavedChartVersionsTableName}.saved_queries_version_uuid`,
+                `${SavedChartVersionsTableName}.created_at`,
+                `${UserTableName}.user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+            )
+            .orderBy(`${SavedChartVersionsTableName}.created_at`, 'desc');
+    }
+
+    async getVersionSummary(
+        chartUuid: string,
+        versionUuid: string,
+    ): Promise<ChartVersionSummary> {
+        const chartVersion = await this.getVersionSummaryQuery()
+            .where(`${SavedChartsTableName}.saved_query_uuid`, chartUuid)
+            .where(
+                `${SavedChartVersionsTableName}.saved_queries_version_uuid`,
+                versionUuid,
+            )
+            .first();
+        if (chartVersion === undefined) {
+            throw new NotFoundError('Chart version not found');
+        }
+        return SavedChartModel.convertVersionSummary(chartVersion);
+    }
+
+    async getLatestVersionSummaries(
+        chartUuid: string,
+    ): Promise<ChartVersionSummary[]> {
+        const chartVersions = await this.getVersionSummaryQuery()
+            .where(`${SavedChartsTableName}.saved_query_uuid`, chartUuid)
+            .andWhere(
+                `${SavedChartVersionsTableName}.created_at`,
+                '>=',
+                moment().subtract(60, 'days'),
+            )
+            .orderBy(`${SavedChartVersionsTableName}.created_at`, 'asc');
+
+        return chartVersions.map(SavedChartModel.convertVersionSummary);
     }
 
     async create(
@@ -376,7 +458,10 @@ export class SavedChartModel {
         return savedChart;
     }
 
-    async get(savedChartUuid: string): Promise<SavedChart> {
+    async get(
+        savedChartUuid: string,
+        versionUuid?: string,
+    ): Promise<SavedChart> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
             ?.getTransaction();
@@ -385,7 +470,7 @@ export class SavedChartModel {
             description: 'Gets a single chart',
         });
         try {
-            const [savedQuery] = await this.database
+            const chartQuery = this.database
                 .from<DbSavedChartDetails>(SavedChartsTableName)
                 .leftJoin(
                     DashboardsTableName,
@@ -469,6 +554,16 @@ export class SavedChartModel {
                 )
                 .orderBy('saved_queries_versions.created_at', 'desc')
                 .limit(1);
+
+            if (versionUuid) {
+                chartQuery.where(
+                    `${SavedChartVersionsTableName}.saved_queries_version_uuid`,
+                    versionUuid,
+                );
+            }
+
+            const [savedQuery] = await chartQuery;
+
             if (savedQuery === undefined) {
                 throw new NotFoundError('Saved query not found');
             }
@@ -742,6 +837,13 @@ export class SavedChartModel {
             Pick<Project, 'projectUuid'> &
             Pick<Organization, 'organizationUuid'>)[]
     > {
+        const getLatestQueryVersionSubQuery = this.database(
+            'saved_queries_versions',
+        )
+            .select('saved_query_id', 'explore_name')
+            .max('created_at as latest')
+            .groupBy('saved_query_id', 'explore_name');
+
         const charts = await this.database('saved_queries')
             .whereIn(
                 `${SavedChartsTableName}.saved_query_uuid`,
@@ -751,7 +853,7 @@ export class SavedChartModel {
                 uuid: 'saved_queries.saved_query_uuid',
                 name: 'saved_queries.name',
                 spaceUuid: 'spaces.space_uuid',
-                tableName: 'saved_queries_versions.explore_name',
+                tableName: 'latest_saved_query.explore_name',
                 projectUuid: 'projects.project_uuid',
                 organizationUuid: 'organizations.organization_uuid',
             })
@@ -772,17 +874,22 @@ export class SavedChartModel {
                 );
             })
             .innerJoin(
-                'saved_queries_versions',
-                `${SavedChartsTableName}.saved_query_id`,
-                'saved_queries_versions.saved_query_id',
+                getLatestQueryVersionSubQuery.as('latest_saved_query'),
+                function latestSavedQueryJoin() {
+                    this.on(
+                        `${SavedChartsTableName}.saved_query_id`,
+                        '=',
+                        'latest_saved_query.saved_query_id',
+                    );
+                },
             )
             .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
             .leftJoin(
                 OrganizationTableName,
                 'organizations.organization_id',
                 'projects.organization_id',
-            )
-            .limit(1);
+            );
+
         if (charts.length === 0) {
             throw new NotFoundError('Saved queries not found');
         }

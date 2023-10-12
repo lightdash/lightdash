@@ -30,7 +30,6 @@ const MobileView = () => (
             <Anchor
                 href="https://join.slack.com/t/lightdash-community/shared_invite/zt-16q953ork-NZr1qdEqxSwB17E2ckUe7A"
                 target="_blank"
-                span
             >
                 ...or join our community!
             </Anchor>
