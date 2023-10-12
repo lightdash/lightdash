@@ -1,18 +1,19 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
 import {
+    ActivityViews,
     UserActivity as UserActivityResponse,
     UserWithCount,
 } from '@lightdash/common';
-import { Group } from '@mantine/core';
+import { Group, Table } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 
+import { PostHogFeature } from 'posthog-js/react';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
-import { Table } from '../components/common/Table/Table.styles';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useUserActivity } from '../hooks/analytics/useUserActivity';
 import { useProject } from '../hooks/useProject';
@@ -27,6 +28,21 @@ import {
     Description,
     UserAnalyticsPageHeader,
 } from './UserActivity.styles';
+
+const showTableViews = (key: string, views: ActivityViews[]) => {
+    return (
+        <tbody>
+            {views.map((view) => {
+                return (
+                    <tr key={`${key}-${view.uuid}`}>
+                        <td>{view.name}</td>
+                        <td>{view.count}</td>
+                    </tr>
+                );
+            })}
+        </tbody>
+    );
+};
 
 const showTableBodyWithUsers = (key: string, userList: UserWithCount[]) => {
     return (
@@ -244,10 +260,10 @@ const UserActivity: FC = () => {
                 <ActivityCard grid="table-most-queries">
                     <Description>
                         Which users have run the most queries in the last 7
-                        days? (top 10)
+                        days?
                     </Description>
 
-                    <Table bordered condensed $showFooter={false}>
+                    <Table withColumnBorders ta="left">
                         <thead>
                             <tr>
                                 <th>First Name</th>
@@ -267,7 +283,7 @@ const UserActivity: FC = () => {
                         last 7 days? (top 10)
                     </Description>
 
-                    <Table bordered condensed $showFooter={false}>
+                    <Table withColumnBorders ta="left">
                         <thead>
                             <tr>
                                 <th>First Name</th>
@@ -285,7 +301,7 @@ const UserActivity: FC = () => {
                     <Description>
                         Which users have not run queries in the last 90 days?
                     </Description>
-                    <Table bordered condensed $showFooter={false}>
+                    <Table withColumnBorders ta="left">
                         <thead>
                             <tr>
                                 <th>First Name</th>
@@ -299,6 +315,36 @@ const UserActivity: FC = () => {
                         )}
                     </Table>
                 </ActivityCard>
+
+                <PostHogFeature flag={'extended-usage-analytics'} match={true}>
+                    <ActivityCard grid="table-dashboard-views">
+                        <Description>Dashboard views (top 20)</Description>
+                        <Table withColumnBorders ta="left">
+                            <thead>
+                                <tr>
+                                    <th>Dashboard name</th>
+                                    <th>Views</th>
+                                </tr>
+                            </thead>
+                            {showTableViews(
+                                'dashboard-views',
+                                data.dashboardViews,
+                            )}
+                        </Table>
+                    </ActivityCard>
+                    <ActivityCard grid="table-chart-views">
+                        <Description>Chart views (top 20)</Description>
+                        <Table withColumnBorders ta="left">
+                            <thead>
+                                <tr>
+                                    <th>Chart name</th>
+                                    <th>Views</th>
+                                </tr>
+                            </thead>
+                            {showTableViews('chart-views', data.chartViews)}
+                        </Table>
+                    </ActivityCard>
+                </PostHogFeature>
             </Container>
         </Page>
     );

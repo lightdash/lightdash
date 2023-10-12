@@ -9,14 +9,15 @@ export const UserAnalyticsPageHeader = styled.div`
 export const Container = styled.div`
     display: grid;
     grid-template-columns: 300px 300px 300px 300px;
-    grid-template-rows: 200px 200px 400px 400px 400px;
+    grid-template-rows: 200px 200px 400px 400px 400px 400px;
     gap: 10px 10px;
     grid-template-areas:
         'total-users  total-users weekly-active weekly-active'
         'viewers interactive-viewers editors admins '
         'chart-active-users chart-active-users queries-per-user queries-per-user'
         'table-most-queries table-most-queries table-most-charts table-most-charts'
-        'table-not-logged-in table-not-logged-in . .';
+        'table-not-logged-in table-not-logged-in . .'
+        'table-dashboard-views table-dashboard-views table-chart-views table-chart-views';
 `;
 
 export const ActivityCard = styled(Card)<{ grid: string }>`
