@@ -632,9 +632,11 @@ export class ProjectService {
         try {
             await adapter.test();
         } catch (e) {
+            Logger.error(`Error testing project adapter: ${e}`);
+            throw e;
+        } finally {
             await adapter.destroy();
             await sshTunnel.disconnect();
-            throw e;
         }
         return { adapter, sshTunnel };
     }
@@ -721,7 +723,7 @@ export class ProjectService {
         metricQuery: MetricQuery,
         projectUuid: string,
         exploreName: string,
-    ): Promise<{ query: string; hasExampleMetric: boolean }> {
+    ) {
         const { organizationUuid } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
 
@@ -742,7 +744,7 @@ export class ProjectService {
                 organizationUuid,
                 userUuid: user.userUuid,
             });
-        const compiledQuery = ProjectService._compileQuery(
+        const compiledQuery = await ProjectService._compileQuery(
             metricQuery,
             explore,
             warehouseClient,

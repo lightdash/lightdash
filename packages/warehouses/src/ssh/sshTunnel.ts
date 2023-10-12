@@ -41,12 +41,25 @@ export class SshTunnel<T extends CreateWarehouseCredentials> {
                                 '',
                         } as SSHConfig;
                         this.sshConnection = new SSH2Promise(remoteHostConfig);
+                        const { host } = this.originalCredentials;
+
                         console.info(
-                            `Opening SSH tunnel to remote host: ${this.originalCredentials.host}:${this.originalCredentials.port}`,
+                            `Opening SSH tunnel to remote host: ${host}:${this.originalCredentials.port}`,
                         );
                         const sshTunnel = await this.sshConnection.addTunnel({
-                            remoteAddr: this.originalCredentials.host,
+                            remoteAddr: host,
                             remotePort: this.originalCredentials.port,
+                        });
+                        sshTunnel.on('close', () => {
+                            console.info(`SSH tunnel closed ${host}`);
+                        });
+                        sshTunnel.on('error', (err: Error) => {
+                            console.error(
+                                `SSH tunnel error ${host}: ${err.message}`,
+                            );
+                        });
+                        sshTunnel.on('drop', () => {
+                            console.info(`SSH tunnel drop ${host}`);
                         });
                         console.info(
                             `SSH tunnel ready at ${sshTunnel.localPort}`,
