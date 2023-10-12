@@ -1,3 +1,10 @@
+# [0.807.0](https://github.com/lightdash/lightdash/compare/0.806.0...0.807.0) (2023-10-12)
+
+
+### Features
+
+* field autocomplete to mantine ([#7358](https://github.com/lightdash/lightdash/issues/7358)) ([15bc4a5](https://github.com/lightdash/lightdash/commit/15bc4a578a331f950ef9229c1d0ebd6b05b370bc))
+
 # [0.806.0](https://github.com/lightdash/lightdash/compare/0.805.4...0.806.0) (2023-10-12)
 
 
