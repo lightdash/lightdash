@@ -100,7 +100,7 @@ describe('Date tests', () => {
 
         // Add filter
         cy.contains('Add filter').click();
-        cy.findByTestId('field-autocomplete')
+        cy.findByTestId('FilterConfiguration/FieldSelect')
             .click()
             .type('order date month{downArrow}{enter}');
 

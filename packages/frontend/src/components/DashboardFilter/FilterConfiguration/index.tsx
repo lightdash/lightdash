@@ -277,7 +277,7 @@ const FilterConfiguration: FC<Props> = ({
                     <Stack spacing="sm">
                         {!!fields && isCreatingNew ? (
                             <FieldSelect
-                                data-testid="FilterConfiguration/field-autocomplete"
+                                data-testid="FilterConfiguration/FieldSelect"
                                 size="xs"
                                 label={
                                     <Text>
