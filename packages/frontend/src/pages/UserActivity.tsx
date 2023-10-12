@@ -4,7 +4,7 @@ import {
     UserActivity as UserActivityResponse,
     UserWithCount,
 } from '@lightdash/common';
-import { Group } from '@mantine/core';
+import { Group, Table } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
 import { FC } from 'react';
@@ -14,7 +14,6 @@ import { PostHogFeature } from 'posthog-js/react';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
-import { Table } from '../components/common/Table/Table.styles';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useUserActivity } from '../hooks/analytics/useUserActivity';
 import { useProject } from '../hooks/useProject';
@@ -36,8 +35,7 @@ const showTableViews = (key: string, views: ActivityViews[]) => {
             {views.map((view) => {
                 return (
                     <tr key={`${key}-${view.uuid}`}>
-                        <td>{view.name} </td>
-
+                        <td>{view.name}</td>
                         <td>{view.count}</td>
                     </tr>
                 );
@@ -265,7 +263,7 @@ const UserActivity: FC = () => {
                         days?
                     </Description>
 
-                    <Table bordered condensed $showFooter={false}>
+                    <Table withColumnBorders ta="left">
                         <thead>
                             <tr>
                                 <th>First Name</th>
@@ -285,7 +283,7 @@ const UserActivity: FC = () => {
                         last 7 days? (top 10)
                     </Description>
 
-                    <Table bordered condensed $showFooter={false}>
+                    <Table withColumnBorders ta="left">
                         <thead>
                             <tr>
                                 <th>First Name</th>
@@ -303,7 +301,7 @@ const UserActivity: FC = () => {
                     <Description>
                         Which users have not run queries in the last 90 days?
                     </Description>
-                    <Table bordered condensed $showFooter={false}>
+                    <Table withColumnBorders ta="left">
                         <thead>
                             <tr>
                                 <th>First Name</th>
@@ -321,7 +319,7 @@ const UserActivity: FC = () => {
                 <PostHogFeature flag={'extended-usage-analytics'} match={true}>
                     <ActivityCard grid="table-dashboard-views">
                         <Description>Dashboard views (top 20)</Description>
-                        <Table bordered $showFooter={false}>
+                        <Table withColumnBorders ta="left">
                             <thead>
                                 <tr>
                                     <th>Dashboard name</th>
@@ -336,7 +334,7 @@ const UserActivity: FC = () => {
                     </ActivityCard>
                     <ActivityCard grid="table-chart-views">
                         <Description>Chart views (top 20)</Description>
-                        <Table bordered $showFooter={false}>
+                        <Table withColumnBorders ta="left">
                             <thead>
                                 <tr>
                                     <th>Chart name</th>
