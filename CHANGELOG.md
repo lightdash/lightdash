@@ -1,3 +1,10 @@
+# [0.810.0](https://github.com/lightdash/lightdash/compare/0.809.0...0.810.0) (2023-10-13)
+
+
+### Features
+
+* filter inputs - operator inputs to mantine ([#7458](https://github.com/lightdash/lightdash/issues/7458)) ([b78a878](https://github.com/lightdash/lightdash/commit/b78a878bd4724dfdccafb96c3cd674e5e0c04b0e))
+
 # [0.809.0](https://github.com/lightdash/lightdash/compare/0.808.2...0.809.0) (2023-10-13)
 
 
