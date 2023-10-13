@@ -1,4 +1,4 @@
-import { Colors, HTMLSelect } from '@blueprintjs/core';
+import { Colors } from '@blueprintjs/core';
 import {
     createFilterRuleFromField,
     fieldId as getFieldId,
@@ -8,7 +8,7 @@ import {
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
 } from '@lightdash/common';
-import { ActionIcon, Box, Menu } from '@mantine/core';
+import { ActionIcon, Box, Menu, Select } from '@mantine/core';
 import { IconDots, IconX } from '@tabler/icons-react';
 import { FC, useCallback, useMemo } from 'react';
 import FieldSelect from '../FieldSelect';
@@ -88,19 +88,23 @@ const FilterRuleForm: FC<Props> = ({
                         }}
                     />
 
-                    <HTMLSelect
-                        className={!isEditMode ? 'disabled-filter' : ''}
-                        fill={false}
+                    <Select
+                        size="xs"
+                        w="150px"
+                        sx={{ flexShrink: 0 }}
                         disabled={!isEditMode}
-                        style={{ width: 150 }}
-                        onChange={(e) => {
+                        value={filterRule.operator}
+                        data={filterConfig.operatorOptions}
+                        onChange={(value) => {
+                            if (!value) return;
+
                             onChange(
                                 getFilterRuleWithDefaultValue(
                                     activeField,
                                     {
                                         ...filterRule,
-                                        operator: e.currentTarget
-                                            .value as FilterRule['operator'],
+                                        operator:
+                                            value as FilterRule['operator'],
                                     },
                                     (filterRule.values?.length || 0) > 0
                                         ? filterRule.values
@@ -108,8 +112,6 @@ const FilterRuleForm: FC<Props> = ({
                                 ),
                             );
                         }}
-                        options={filterConfig.operatorOptions}
-                        value={filterRule.operator}
                     />
 
                     <filterConfig.inputs

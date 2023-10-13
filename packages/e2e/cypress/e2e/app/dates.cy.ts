@@ -348,13 +348,16 @@ describe('Date tests', () => {
         );
 
         // Change date operator
-        const select = cy
-            .get('select option[label="is null"]')
-            .parent('select');
-
-        select.should('have.value', 'equals');
-        select.select('notEquals');
-        select.should('have.value', 'notEquals');
+        cy.get('[role="combobox"]').find('input[value="is"]').click();
+        cy.get('[role="listbox"]')
+            .findByRole('option', { name: 'is not' })
+            .click();
+        cy.get('[role="combobox"]')
+            .find('input[value="is"]')
+            .should('not.exist');
+        cy.get('[role="combobox"]')
+            .find('input[value="is not"]')
+            .should('exist');
 
         // Keep same date
         cy.get('.bp4-date-input input').should('have.value', todayDate);
