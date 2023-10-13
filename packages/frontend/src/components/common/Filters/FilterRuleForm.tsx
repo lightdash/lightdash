@@ -90,7 +90,7 @@ const FilterRuleForm: FC<Props> = ({
 
                     <Select
                         size="xs"
-                        w="130px"
+                        w="150px"
                         sx={{ flexShrink: 0 }}
                         disabled={!isEditMode}
                         value={filterRule.operator}
