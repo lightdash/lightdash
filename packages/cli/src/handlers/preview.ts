@@ -98,9 +98,7 @@ export const previewHandler = async (
 
     const previewProject = await getPreviewProject(name);
     if (previewProject) {
-        throw new Error(
-            'Preview with the same name already running.'
-        );
+        throw new Error('Preview with the same name already running.');
     }
 
     console.error('');
