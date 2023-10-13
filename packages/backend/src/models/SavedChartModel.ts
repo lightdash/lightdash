@@ -316,6 +316,19 @@ export class SavedChartModel {
         };
     }
 
+    private getLastVersionUuidQuery(chartUuid: string) {
+        return this.database(SavedChartVersionsTableName)
+            .leftJoin(
+                SavedChartsTableName,
+                `${SavedChartVersionsTableName}.saved_query_id`,
+                `${SavedChartsTableName}.saved_query_id`,
+            )
+            .select('saved_queries_version_uuid')
+            .where(`${SavedChartsTableName}.saved_query_uuid`, chartUuid)
+            .limit(1)
+            .orderBy(`${SavedChartVersionsTableName}.created_at`, 'desc');
+    }
+
     private getVersionSummaryQuery() {
         return this.database(SavedChartVersionsTableName)
             .leftJoin(
@@ -359,13 +372,21 @@ export class SavedChartModel {
     async getLatestVersionSummaries(
         chartUuid: string,
     ): Promise<ChartVersionSummary[]> {
+        const getLastVersionUuidSubQuery =
+            this.getLastVersionUuidQuery(chartUuid);
         const chartVersions = await this.getVersionSummaryQuery()
             .where(`${SavedChartsTableName}.saved_query_uuid`, chartUuid)
-            .andWhere(
-                `${SavedChartVersionsTableName}.created_at`,
-                '>=',
-                moment().subtract(60, 'days'),
-            )
+            .andWhere(function () {
+                // get all versions from the last X days + the current version ( in case is older than X days )
+                this.where(
+                    `${SavedChartVersionsTableName}.created_at`,
+                    '>=',
+                    moment().subtract(60, 'days'),
+                ).orWhere(
+                    `${SavedChartVersionsTableName}.saved_queries_version_uuid`,
+                    getLastVersionUuidSubQuery,
+                );
+            })
             .orderBy(`${SavedChartVersionsTableName}.created_at`, 'asc');
 
         return chartVersions.map(SavedChartModel.convertVersionSummary);
