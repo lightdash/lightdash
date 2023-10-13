@@ -86,7 +86,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                             allowDuplicates={false}
                             validationRegex={
                                 filterType === FilterType.NUMBER
-                                    ? /^\d+$/
+                                    ? /^-?\d+(\.\d+)?$/
                                     : undefined
                             }
                             value={rule.values?.map(String)}
