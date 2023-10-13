@@ -283,7 +283,7 @@ program
     .description('Compile Lightdash resources')
     .option(
         '--name <preview name>',
-        'Custom name for preview. If a name is not provided, a unique randomly generated name will created.',
+        'Custom name for the preview. If a name is not provided, a unique, randomly generated name will be created.',
     )
     .option(
         '--project-dir <path>',
