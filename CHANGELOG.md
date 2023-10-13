@@ -1,3 +1,10 @@
+# [0.811.0](https://github.com/lightdash/lightdash/compare/0.810.0...0.811.0) (2023-10-13)
+
+
+### Features
+
+* add --name to preview ([#7456](https://github.com/lightdash/lightdash/issues/7456)) ([7a11d31](https://github.com/lightdash/lightdash/commit/7a11d318cf7d48fc053c3ffbba9f3ea276170607))
+
 # [0.810.0](https://github.com/lightdash/lightdash/compare/0.809.0...0.810.0) (2023-10-13)
 
 
