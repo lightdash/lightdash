@@ -1,3 +1,10 @@
+## [0.807.1](https://github.com/lightdash/lightdash/compare/0.807.0...0.807.1) (2023-10-13)
+
+
+### Bug Fixes
+
+* always show current version in chart history ([#7448](https://github.com/lightdash/lightdash/issues/7448)) ([52de0c4](https://github.com/lightdash/lightdash/commit/52de0c4c5113fa8bb75fcdad7d3ed3158d2af30c))
+
 # [0.807.0](https://github.com/lightdash/lightdash/compare/0.806.0...0.807.0) (2023-10-12)
 
 
