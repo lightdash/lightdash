@@ -96,6 +96,11 @@ export type LightdashConfig = {
         maxLimit: number;
         csvCellsLimit: number;
     };
+    chart: {
+        versionHistory: {
+            daysLimit: number;
+        };
+    };
     s3?: S3Config;
     headlessBrowser?: HeadlessBrowserConfig;
     slack?: SlackConfig;
@@ -347,6 +352,14 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_CSV_CELLS_LIMIT',
                 ) || 100000,
+        },
+        chart: {
+            versionHistory: {
+                daysLimit:
+                    getIntegerFromEnvironmentVariable(
+                        'LIGHTDASH_CHART_VERSION_HISTORY_DAYS_LIMIT',
+                    ) || 3,
+            },
         },
         s3: {
             region: process.env.S3_REGION,

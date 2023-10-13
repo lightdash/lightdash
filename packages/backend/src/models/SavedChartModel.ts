@@ -24,6 +24,7 @@ import {
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
 import moment from 'moment';
+import { LightdashConfig } from '../config/parseConfig';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
@@ -283,6 +284,7 @@ export const createSavedChart = async (
 
 type Dependencies = {
     database: Knex;
+    lightdashConfig: LightdashConfig;
 };
 
 type VersionSummaryRow = {
@@ -297,8 +299,11 @@ type VersionSummaryRow = {
 export class SavedChartModel {
     private database: Knex;
 
+    private lightdashConfig: LightdashConfig;
+
     constructor(dependencies: Dependencies) {
         this.database = dependencies.database;
+        this.lightdashConfig = dependencies.lightdashConfig;
     }
 
     static convertVersionSummary(row: VersionSummaryRow): ChartVersionSummary {
@@ -374,6 +379,7 @@ export class SavedChartModel {
     ): Promise<ChartVersionSummary[]> {
         const getLastVersionUuidSubQuery =
             this.getLastVersionUuidQuery(chartUuid);
+        const daysAgo = this.lightdashConfig.chart.versionHistory.daysLimit;
         const chartVersions = await this.getVersionSummaryQuery()
             .where(`${SavedChartsTableName}.saved_query_uuid`, chartUuid)
             .andWhere(function () {
@@ -381,7 +387,7 @@ export class SavedChartModel {
                 this.where(
                     `${SavedChartVersionsTableName}.created_at`,
                     '>=',
-                    moment().subtract(60, 'days'),
+                    moment().subtract(daysAgo, 'days').format('YYYY-MM-DD'),
                 ).orWhere(
                     `${SavedChartVersionsTableName}.saved_queries_version_uuid`,
                     getLastVersionUuidSubQuery,
