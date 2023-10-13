@@ -99,6 +99,9 @@ export interface TagInputProps
 
     /** Called when search changes */
     onSearchChange?: (value: string) => void;
+
+    /** Add on blur */
+    addOnBlur?: boolean;
 }
 
 function splitTags(splitChars: string[] | undefined, value: string) {
@@ -204,6 +207,7 @@ export const TagInput = forwardRef<HTMLInputElement, TagInputProps>(
             allowDuplicates,
             inputFieldPosition,
             clearButtonProps,
+            addOnBlur = true,
             ...others
         } = useComponentDefaultProps('TagInput', defaultProps, props);
 
@@ -263,16 +267,6 @@ export const TagInput = forwardRef<HTMLInputElement, TagInputProps>(
             }
         };
 
-        const handleInputBlur = (event: React.FocusEvent<HTMLInputElement>) => {
-            if (typeof onBlur === 'function') {
-                onBlur(event);
-            }
-
-            if (clearInputOnBlur) {
-                setSearchValue('');
-            }
-        };
-
         const handleAddTags = (newTags: string[]): boolean => {
             let tags = newTags;
             if (readOnly) {
@@ -311,6 +305,21 @@ export const TagInput = forwardRef<HTMLInputElement, TagInputProps>(
 
             setSearchValue('');
             return false;
+        };
+
+        const handleInputBlur = (event: React.FocusEvent<HTMLInputElement>) => {
+            if (addOnBlur && _searchValue !== '') {
+                handleAddTags([_searchValue]);
+                setSearchValue('');
+            }
+
+            if (typeof onBlur === 'function') {
+                onBlur(event);
+            }
+
+            if (clearInputOnBlur) {
+                setSearchValue('');
+            }
         };
 
         const handleInputKeydown = (
