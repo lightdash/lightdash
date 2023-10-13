@@ -102,12 +102,12 @@ export const previewHandler = async (
     );
 
     const previewProject = await getPreviewProject(name);
-    if (previewProject) {        
+    if (previewProject) {
         GlobalState.debug(`> Preview with the same name already running`);
         spinner.fail();
         throw new Error('Preview with the same name already running.');
     }
-    
+
     let project: Project | undefined;
 
     const config = await getConfig();
