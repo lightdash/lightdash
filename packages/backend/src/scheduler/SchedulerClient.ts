@@ -8,7 +8,6 @@ import {
     getSchedulerUuid,
     GsheetsNotificationPayload,
     hasSchedulerUuid,
-    isCreateScheduler,
     isCreateSchedulerSlackTarget,
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
