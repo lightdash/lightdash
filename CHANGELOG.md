@@ -1,3 +1,10 @@
+# [0.809.0](https://github.com/lightdash/lightdash/compare/0.808.2...0.809.0) (2023-10-13)
+
+
+### Features
+
+* chart version history days limit env var ([#7450](https://github.com/lightdash/lightdash/issues/7450)) ([3e1f0ec](https://github.com/lightdash/lightdash/commit/3e1f0ec487edacb2093f2618eab61575735f1d8f))
+
 ## [0.808.2](https://github.com/lightdash/lightdash/compare/0.808.1...0.808.2) (2023-10-13)
 
 
