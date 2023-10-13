@@ -1,3 +1,10 @@
+## [0.808.1](https://github.com/lightdash/lightdash/compare/0.808.0...0.808.1) (2023-10-13)
+
+
+### Bug Fixes
+
+* posthog analytics feature layout ([#7460](https://github.com/lightdash/lightdash/issues/7460)) ([f60e385](https://github.com/lightdash/lightdash/commit/f60e3851102a6d5d6e6295987351a30bdaaf94bf))
+
 # [0.808.0](https://github.com/lightdash/lightdash/compare/0.807.1...0.808.0) (2023-10-13)
 
 
