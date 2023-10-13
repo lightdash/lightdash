@@ -242,6 +242,10 @@ export type ScheduledDeliveryPayload =
 export const isCreateScheduler = (
     data: ScheduledDeliveryPayload,
 ): data is CreateSchedulerAndTargets => 'targets' in data;
+export const hasSchedulerUuid = (
+    data: SchedulerAndTargets | CreateSchedulerAndTargets,
+): data is SchedulerAndTargets => 'schedulerUuid' in data;
+
 export const getSchedulerUuid = (
     data: ScheduledDeliveryPayload,
 ): string | undefined =>
