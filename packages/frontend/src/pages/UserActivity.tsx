@@ -10,7 +10,7 @@ import EChartsReact from 'echarts-for-react';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 
-import { PostHogFeature } from 'posthog-js/react';
+import posthog from 'posthog-js';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
@@ -316,35 +316,37 @@ const UserActivity: FC = () => {
                     </Table>
                 </ActivityCard>
 
-                <PostHogFeature flag={'extended-usage-analytics'} match={true}>
-                    <ActivityCard grid="table-dashboard-views">
-                        <Description>Dashboard views (top 20)</Description>
-                        <Table withColumnBorders ta="left">
-                            <thead>
-                                <tr>
-                                    <th>Dashboard name</th>
-                                    <th>Views</th>
-                                </tr>
-                            </thead>
-                            {showTableViews(
-                                'dashboard-views',
-                                data.dashboardViews,
-                            )}
-                        </Table>
-                    </ActivityCard>
-                    <ActivityCard grid="table-chart-views">
-                        <Description>Chart views (top 20)</Description>
-                        <Table withColumnBorders ta="left">
-                            <thead>
-                                <tr>
-                                    <th>Chart name</th>
-                                    <th>Views</th>
-                                </tr>
-                            </thead>
-                            {showTableViews('chart-views', data.chartViews)}
-                        </Table>
-                    </ActivityCard>
-                </PostHogFeature>
+                {posthog.isFeatureEnabled('extended-usage-analytics') ? (
+                    <>
+                        <ActivityCard grid="table-dashboard-views">
+                            <Description>Dashboard views (top 20)</Description>
+                            <Table withColumnBorders ta="left">
+                                <thead>
+                                    <tr>
+                                        <th>Dashboard name</th>
+                                        <th>Views</th>
+                                    </tr>
+                                </thead>
+                                {showTableViews(
+                                    'dashboard-views',
+                                    data.dashboardViews,
+                                )}
+                            </Table>
+                        </ActivityCard>
+                        <ActivityCard grid="table-chart-views">
+                            <Description>Chart views (top 20)</Description>
+                            <Table withColumnBorders ta="left">
+                                <thead>
+                                    <tr>
+                                        <th>Chart name</th>
+                                        <th>Views</th>
+                                    </tr>
+                                </thead>
+                                {showTableViews('chart-views', data.chartViews)}
+                            </Table>
+                        </ActivityCard>
+                    </>
+                ) : null}
             </Container>
         </Page>
     );
