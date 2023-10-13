@@ -183,7 +183,11 @@ export const useCreateMutation = (
         {
             mutationKey: ['space_create', projectUuid],
             onSuccess: async (space) => {
-                await queryClient.refetchQueries(['spaces', projectUuid]);
+                await queryClient.invalidateQueries([
+                    'projects',
+                    projectUuid,
+                    'spaces',
+                ]);
 
                 options?.onSuccess?.(space);
 
