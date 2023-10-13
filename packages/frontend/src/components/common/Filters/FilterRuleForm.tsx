@@ -7,14 +7,13 @@ import {
     FilterType,
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
-    isField,
 } from '@lightdash/common';
 import { ActionIcon, Box, Menu } from '@mantine/core';
 import { IconDots, IconX } from '@tabler/icons-react';
-import React, { FC, useCallback, useMemo } from 'react';
+import { FC, useCallback, useMemo } from 'react';
+import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import { FilterTypeConfig } from './configs';
-import FieldAutoComplete from './FieldAutoComplete';
 
 type Props = {
     fields: FilterableField[];
@@ -77,17 +76,18 @@ const FilterRuleForm: FC<Props> = ({
         >
             {activeField ? (
                 <>
-                    <FieldAutoComplete
-                        activeField={activeField}
-                        fields={fields}
-                        onChange={(field) => {
-                            if (isField(field)) {
-                                onFieldChange(getFieldId(field));
-                            }
-                        }}
+                    <FieldSelect
+                        size="xs"
                         disabled={!isEditMode}
                         hasGrouping
+                        item={activeField}
+                        items={fields}
+                        onChange={(field) => {
+                            if (!field) return;
+                            onFieldChange(getFieldId(field));
+                        }}
                     />
+
                     <HTMLSelect
                         className={!isEditMode ? 'disabled-filter' : ''}
                         fill={false}
@@ -111,6 +111,7 @@ const FilterRuleForm: FC<Props> = ({
                         options={filterConfig.operatorOptions}
                         value={filterRule.operator}
                     />
+
                     <filterConfig.inputs
                         filterType={filterType}
                         field={activeField}
@@ -125,6 +126,7 @@ const FilterRuleForm: FC<Props> = ({
                     {filterRule.target.fieldId}
                 </span>
             )}
+
             {isEditMode &&
                 (!onConvertToGroup ? (
                     <ActionIcon onClick={onDelete}>

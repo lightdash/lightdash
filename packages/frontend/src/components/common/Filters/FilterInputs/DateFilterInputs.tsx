@@ -56,10 +56,11 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                 switch (field.timeInterval.toUpperCase()) {
                     case TimeFrames.WEEK:
                         return (
-                            <>
+                            <Flex align="center" gap="xs" w="100%">
                                 <span style={{ whiteSpace: 'nowrap' }}>
                                     week commencing
                                 </span>
+
                                 <WeekPicker
                                     placeholder={placeholder}
                                     disabled={disabled}
@@ -76,7 +77,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                         });
                                     }}
                                 />
-                            </>
+                            </Flex>
                         );
                     case TimeFrames.MONTH:
                         return (
@@ -237,7 +238,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
         case FilterOperator.IN_THE_NEXT:
             const parsedValue = parseInt(rule.values?.[0], 10);
             return (
-                <Flex gap="xs" sx={{ width: '100%' }}>
+                <Flex gap="xs" w="100%">
                     <NumberInput
                         size="xs"
                         sx={{ flexShrink: 1, flexGrow: 1 }}
@@ -275,7 +276,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
         case FilterOperator.IN_THE_CURRENT:
             return (
                 <UnitOfTimeAutoComplete
-                    sx={{ width: '100%' }}
+                    w="100%"
                     disabled={disabled}
                     isTimestamp={isTimestamp}
                     unitOfTime={rule.settings?.unitOfTime}

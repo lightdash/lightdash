@@ -245,15 +245,13 @@ export const createFilterRuleFromField = (
         value ? [value] : [],
     );
 
-export const matchFieldExact = (a: FilterableField) => (b: FilterableField) =>
+export const matchFieldExact = (a: Field) => (b: Field) =>
     a.type === b.type && a.name === b.name && a.table === b.table;
 
-export const matchFieldByTypeAndName =
-    (a: FilterableField) => (b: FilterableField) =>
-        a.type === b.type && a.name === b.name;
+export const matchFieldByTypeAndName = (a: Field) => (b: Field) =>
+    a.type === b.type && a.name === b.name;
 
-export const matchFieldByType = (a: FilterableField) => (b: FilterableField) =>
-    a.type === b.type;
+export const matchFieldByType = (a: Field) => (b: Field) => a.type === b.type;
 
 const getDefaultTileTargets = (
     field: FilterableField,

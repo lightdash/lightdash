@@ -52,8 +52,8 @@ type VisualizationContext = {
     isSqlRunner: boolean;
     dimensions: Dimension[];
     metrics: Metric[];
-    allMetrics: (Metric | AdditionalMetric | TableCalculation)[];
-    allNumericMetrics: (Metric | AdditionalMetric | TableCalculation)[];
+    allMetrics: (Metric | TableCalculation)[];
+    allNumericMetrics: (Metric | TableCalculation)[];
     customMetrics: AdditionalMetric[];
     tableCalculations: TableCalculation[];
     onSeriesContextMenu?: (

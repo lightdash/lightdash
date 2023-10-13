@@ -6,7 +6,6 @@ import {
     fieldId as getFieldId,
     formatDate,
     getDateFormat,
-    getItemId,
     isDateItem,
     isDimension,
     isField,
@@ -32,7 +31,7 @@ import {
 } from '@mantine/core';
 import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
-import FieldSelect from '../../../common/FieldSelect/FieldSelect';
+import FieldSelect from '../../../common/FieldSelect';
 import MantineIcon from '../../../common/MantineIcon';
 import MonthAndYearInput from '../../../common/MonthAndYearInput';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
@@ -283,19 +282,16 @@ export const ReferenceLine: FC<Props> = ({
                 >
                     <FieldSelect
                         label="Field"
-                        selectedField={selectedField}
-                        fieldOptions={fieldsInAxes}
+                        item={selectedField}
+                        items={fieldsInAxes}
                         placeholder="Search field..."
-                        onChange={(itemId) => {
-                            const field = fieldsInAxes.find(
-                                (f) => getItemId(f) === itemId,
-                            );
-                            setSelectedField(field);
+                        onChange={(newField) => {
+                            setSelectedField(newField);
 
-                            if (value !== undefined && field !== undefined)
+                            if (value !== undefined && newField !== undefined)
                                 updateReferenceLine(
                                     value,
-                                    field,
+                                    newField,
                                     label,
                                     lineColor,
                                     referenceLine.data.name,

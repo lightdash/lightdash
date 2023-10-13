@@ -17,11 +17,13 @@ import {
     IconCopy,
     IconDots,
     IconFolders,
+    IconHistory,
     IconLayoutGridAdd,
     IconPencil,
     IconSend,
     IconTrash,
 } from '@tabler/icons-react';
+import { PostHogFeature } from 'posthog-js/react';
 import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
@@ -485,6 +487,22 @@ const SavedChartsHeader: FC = () => {
                                             }
                                         />
                                     ) : null}
+                                    {userCanManageCharts && (
+                                        <PostHogFeature
+                                            flag={'chart-version-history'}
+                                            match={true}
+                                        >
+                                            <MenuItem2
+                                                icon={<IconHistory />}
+                                                text="Version history"
+                                                onClick={() =>
+                                                    history.push({
+                                                        pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/history`,
+                                                    })
+                                                }
+                                            />
+                                        </PostHogFeature>
+                                    )}
                                     <Divider />
                                     <Tooltip
                                         disabled={!getIsEditingDashboardChart()}

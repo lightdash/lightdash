@@ -1,9 +1,7 @@
 import { fieldId, isField } from '@lightdash/common';
-import { Box, Button, Select, Stack, Switch, Tooltip } from '@mantine/core';
+import { Box, Button, Stack, Switch, Tooltip } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import FieldSelectItem from '../../common/FieldSelect/FieldSelectItem';
-import FieldIcon from '../../common/Filters/FieldIcon';
-import { fieldLabelText } from '../../common/Filters/FieldLabel';
+import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
@@ -12,15 +10,13 @@ const PieChartLayoutConfig: React.FC = () => {
         dimensions,
         allNumericMetrics,
         pieChartConfig: {
-            metricId,
-            metricChange,
-
             groupFieldIds,
             groupAdd,
             groupChange,
             groupRemove,
 
             selectedMetric,
+            metricChange,
 
             isDonut,
             toggleDonut,
@@ -31,31 +27,34 @@ const PieChartLayoutConfig: React.FC = () => {
         <Stack>
             <Stack spacing="xs">
                 {groupFieldIds.map((dimensionId, index) => {
-                    const dimension = dimensions.find(
+                    const selectedDimension = dimensions.find(
                         (d) => fieldId(d) === dimensionId,
                     );
 
                     return (
-                        <Select
-                            disabled={dimensions.length === 0}
+                        <FieldSelect
                             key={index}
+                            disabled={dimensions.length === 0}
                             clearable={index !== 0}
                             label={index === 0 ? 'Group' : undefined}
                             placeholder="Select dimension"
-                            icon={dimension && <FieldIcon item={dimension} />}
-                            value={dimensionId}
-                            data={dimensions.map((d) => ({
-                                item: d,
-                                label: fieldLabelText(d),
-                                value: fieldId(d),
-                                disabled: groupFieldIds.includes(fieldId(d)),
-                            }))}
-                            itemComponent={FieldSelectItem}
-                            onChange={(newValue) =>
-                                newValue === null
-                                    ? groupRemove(dimensionId)
-                                    : groupChange(dimensionId, newValue)
-                            }
+                            item={selectedDimension}
+                            items={dimensions}
+                            inactiveItemIds={groupFieldIds
+                                .filter((id): id is string => !!id)
+                                .filter((id) => id !== dimensionId)}
+                            onChange={(newField) => {
+                                if (!dimensionId) return;
+
+                                if (newField) {
+                                    const newFieldId = fieldId(newField);
+                                    if (newFieldId !== dimensionId) {
+                                        groupChange(dimensionId, newFieldId);
+                                    }
+                                } else {
+                                    groupRemove(dimensionId);
+                                }
+                            }}
                         />
                     );
                 })}
@@ -98,29 +97,18 @@ const PieChartLayoutConfig: React.FC = () => {
                 label="You must select at least one numeric metric to create a pie chart"
             >
                 <Box>
-                    <Select
-                        disabled={allNumericMetrics.length === 0}
+                    <FieldSelect
                         label="Metric"
                         placeholder="Select metric"
-                        value={metricId}
-                        icon={
-                            selectedMetric && (
-                                <FieldIcon item={selectedMetric} />
-                            )
-                        }
-                        itemComponent={FieldSelectItem}
-                        data={allNumericMetrics.map((m) => {
-                            const id = isField(m) ? fieldId(m) : m.name;
-
-                            return {
-                                item: m,
-                                value: id,
-                                label: fieldLabelText(m),
-                                disabled: metricId === id,
-                            };
-                        })}
-                        onChange={(newValue) => {
-                            metricChange(newValue);
+                        disabled={allNumericMetrics.length === 0}
+                        item={selectedMetric}
+                        items={allNumericMetrics}
+                        onChange={(newField) => {
+                            metricChange(
+                                newField && isField(newField)
+                                    ? fieldId(newField)
+                                    : null,
+                            );
                         }}
                     />
                 </Box>

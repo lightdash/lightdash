@@ -1,3 +1,60 @@
+## [0.808.2](https://github.com/lightdash/lightdash/compare/0.808.1...0.808.2) (2023-10-13)
+
+
+### Bug Fixes
+
+* adding missing await to query ([#7453](https://github.com/lightdash/lightdash/issues/7453)) ([1ac7a28](https://github.com/lightdash/lightdash/commit/1ac7a281489c58b29f3777a4acc9daba6a0511a0))
+
+## [0.808.1](https://github.com/lightdash/lightdash/compare/0.808.0...0.808.1) (2023-10-13)
+
+
+### Bug Fixes
+
+* posthog analytics feature layout ([#7460](https://github.com/lightdash/lightdash/issues/7460)) ([f60e385](https://github.com/lightdash/lightdash/commit/f60e3851102a6d5d6e6295987351a30bdaaf94bf))
+
+# [0.808.0](https://github.com/lightdash/lightdash/compare/0.807.1...0.808.0) (2023-10-13)
+
+
+### Features
+
+* chat history feature flag ([#7449](https://github.com/lightdash/lightdash/issues/7449)) ([4b3da00](https://github.com/lightdash/lightdash/commit/4b3da00f185b4babc852418966391d5a93418be2))
+
+## [0.807.1](https://github.com/lightdash/lightdash/compare/0.807.0...0.807.1) (2023-10-13)
+
+
+### Bug Fixes
+
+* always show current version in chart history ([#7448](https://github.com/lightdash/lightdash/issues/7448)) ([52de0c4](https://github.com/lightdash/lightdash/commit/52de0c4c5113fa8bb75fcdad7d3ed3158d2af30c))
+
+# [0.807.0](https://github.com/lightdash/lightdash/compare/0.806.0...0.807.0) (2023-10-12)
+
+
+### Features
+
+* field autocomplete to mantine ([#7358](https://github.com/lightdash/lightdash/issues/7358)) ([15bc4a5](https://github.com/lightdash/lightdash/commit/15bc4a578a331f950ef9229c1d0ebd6b05b370bc))
+
+# [0.806.0](https://github.com/lightdash/lightdash/compare/0.805.4...0.806.0) (2023-10-12)
+
+
+### Features
+
+* add new user activity charts ([#7432](https://github.com/lightdash/lightdash/issues/7432)) ([a6104d6](https://github.com/lightdash/lightdash/commit/a6104d6685df57df6f6bd2fdc0bd149d4d891eb4))
+
+## [0.805.4](https://github.com/lightdash/lightdash/compare/0.805.3...0.805.4) (2023-10-12)
+
+
+### Bug Fixes
+
+* fix default tooltip format ([#7426](https://github.com/lightdash/lightdash/issues/7426)) ([87ed0e6](https://github.com/lightdash/lightdash/commit/87ed0e6942bd2a745e543f44c9cae359c8fe14bf))
+* reference lines uuid ([#7443](https://github.com/lightdash/lightdash/issues/7443)) ([eb8adc7](https://github.com/lightdash/lightdash/commit/eb8adc73b3aa1e5b9756ec4ae72ab829848579d8))
+
+## [0.805.3](https://github.com/lightdash/lightdash/compare/0.805.2...0.805.3) (2023-10-12)
+
+
+### Bug Fixes
+
+* delete preview project on SIGINT ([#7437](https://github.com/lightdash/lightdash/issues/7437)) ([f8936ce](https://github.com/lightdash/lightdash/commit/f8936ce1e68b8824780de889dcafecae1ec5b4ff))
+
 ## [0.805.2](https://github.com/lightdash/lightdash/compare/0.805.1...0.805.2) (2023-10-11)
 
 

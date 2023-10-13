@@ -2,8 +2,8 @@ import { Popover2Props } from '@blueprintjs/popover2';
 import {
     DashboardFilterRule,
     DashboardTile,
+    Field,
     fieldId as getFieldId,
-    FilterableField,
     isDashboardChartTileType,
     matchFieldByType,
     matchFieldByTypeAndName,
@@ -20,21 +20,17 @@ import {
 } from '@mantine/core';
 import { FC, useCallback, useMemo } from 'react';
 import { FilterActions } from '.';
-import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
+import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { getChartIcon } from '../../common/ResourceIcon';
 
 type Props = {
     tiles: DashboardTile[];
-    availableTileFilters: Record<string, FilterableField[] | undefined>;
-    field: FilterableField;
+    availableTileFilters: Record<string, Field[] | undefined>;
+    field: Field;
     filterRule: DashboardFilterRule;
     popoverProps?: Popover2Props;
-    onChange: (
-        action: FilterActions,
-        tileUuid: string,
-        filter?: FilterableField,
-    ) => void;
+    onChange: (action: FilterActions, tileUuid: string, field?: Field) => void;
     onToggleAll: (checked: boolean) => void;
 };
 
@@ -43,7 +39,6 @@ const TileFilterConfiguration: FC<Props> = ({
     field,
     filterRule,
     availableTileFilters,
-    popoverProps,
     onChange,
     onToggleAll,
 }) => {
@@ -51,11 +46,9 @@ const TileFilterConfiguration: FC<Props> = ({
 
     const sortTilesByFieldMatch = useCallback(
         (
-            fieldMatcher: (
-                a: FilterableField,
-            ) => (b: FilterableField) => boolean,
-            a: FilterableField[] | undefined,
-            b: FilterableField[] | undefined,
+            fieldMatcher: (a: Field) => (b: Field) => boolean,
+            a: Field[] | undefined,
+            b: Field[] | undefined,
         ) => {
             if (!a || !b) return 0;
 
@@ -68,11 +61,9 @@ const TileFilterConfiguration: FC<Props> = ({
 
     const sortFieldsByMatch = useCallback(
         (
-            fieldMatcher: (
-                a: FilterableField,
-            ) => (b: FilterableField) => boolean,
-            a: FilterableField,
-            b: FilterableField,
+            fieldMatcher: (a: Field) => (b: Field) => boolean,
+            a: Field,
+            b: Field,
         ) => {
             const matchA = fieldMatcher(field)(a);
             const matchB = fieldMatcher(field)(b);
@@ -230,30 +221,16 @@ const TileFilterConfiguration: FC<Props> = ({
                                 mt="sm"
                                 display={!value.checked ? 'none' : 'auto'}
                             >
-                                <FieldAutoComplete
+                                <FieldSelect
+                                    size="xs"
                                     disabled={!value.checked}
-                                    popoverProps={{
-                                        lazy: true,
-                                        minimal: true,
-                                        matchTargetWidth: true,
-                                        ...popoverProps,
-                                    }}
-                                    inputProps={{
-                                        // TODO: Remove once this component is migrated to Mantine
-                                        style: {
-                                            borderRadius: '4px',
-                                            borderWidth: '1px',
-                                            boxShadow: 'none',
-                                            fontSize: theme.fontSizes.xs,
-                                        },
-                                    }}
-                                    fields={value.sortedFilters}
-                                    activeField={value.selectedField}
-                                    onChange={(newFilter) => {
+                                    item={value.selectedField}
+                                    items={value.sortedFilters}
+                                    onChange={(newField) => {
                                         onChange(
                                             FilterActions.ADD,
                                             value.tileUuid,
-                                            newFilter,
+                                            newField,
                                         );
                                     }}
                                 />

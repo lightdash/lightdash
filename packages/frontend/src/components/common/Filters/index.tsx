@@ -2,7 +2,6 @@ import { Colors, Divider, Tag } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     addFilterRule,
-    Field,
     FilterableDimension,
     FilterRule,
     Filters,
@@ -14,16 +13,14 @@ import {
     isFilterableField,
     isMetric,
     Metric,
-    TableCalculation,
 } from '@lightdash/common';
 import { ActionIcon, Button } from '@mantine/core';
 import { IconPlus, IconX } from '@tabler/icons-react';
-import React, { FC, useCallback, useMemo } from 'react';
+import { FC, useCallback, useMemo } from 'react';
 import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
+import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
-import FieldAutoComplete from './FieldAutoComplete';
-import { FieldAutoCompleteWrapper } from './FieldAutoComplete.styles';
 import FilterGroupForm from './FilterGroupForm';
 import { FieldWithSuggestions, useFiltersContext } from './FiltersProvider';
 import SimplifiedFilterGroupForm from './SimplifiedFilterGroupForm';
@@ -62,7 +59,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
         filterRulesPerFieldType.metrics.length >= 1;
 
     const addFieldRule = useCallback(
-        (field: Field | TableCalculation) => {
+        (field: FieldWithSuggestions) => {
             if (isField(field) && isFilterableField(field)) {
                 setFilters(addFilterRule({ filters, field }), false);
                 toggleFieldInput(false);
@@ -213,19 +210,24 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                 }}
             >
                 {isOpen && (
-                    <FieldAutoCompleteWrapper>
-                        <FieldAutoComplete
+                    <>
+                        <FieldSelect
                             autoFocus
-                            fields={fields}
-                            onChange={addFieldRule}
-                            onClosed={toggleFieldInput}
                             hasGrouping
+                            items={fields}
+                            onChange={(field) => {
+                                if (!field) return;
+                                addFieldRule(field);
+                            }}
+                            onClosed={toggleFieldInput}
                         />
+
                         <ActionIcon onClick={toggleFieldInput}>
                             <MantineIcon icon={IconX} />
                         </ActionIcon>
-                    </FieldAutoCompleteWrapper>
+                    </>
                 )}
+
                 {isEditMode && !isOpen && (
                     <Button
                         variant="light"

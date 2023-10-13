@@ -76,9 +76,7 @@ const getLabelFromField = (
 ) => {
     const item = findItem(fields, key);
     if (item) {
-        return isField(item)
-            ? getItemLabelWithoutTableName(item)
-            : item.displayName;
+        return getItemLabelWithoutTableName(item);
     } else if (key) {
         return friendlyName(key);
     } else {
@@ -267,11 +265,12 @@ const getFormattedValue = (
     value: any,
     key: string,
     items: Array<Field | TableCalculation>,
+    convertToUTC: boolean = true,
 ): string => {
     return formatItemValue(
         items.find((item) => getItemId(item) === key),
         value,
-        true,
+        convertToUTC,
     );
 };
 
@@ -1491,15 +1490,46 @@ const useEcharts = (
                         return '';
                     })
                     .join('');
-                const tooltipHeader =
-                    params[0].dimensionNames?.[0] !== undefined
-                        ? getFormattedValue(
-                              params[0].axisValueLabel,
-                              params[0].dimensionNames[0],
-                              items,
-                          )
-                        : params[0].axisValueLabel;
-                return `${tooltipHeader}<br/><table>${tooltipRows}</table>`;
+
+                const dimensionId = params[0].dimensionNames?.[0];
+
+                if (dimensionId !== undefined) {
+                    const field = items.find(
+                        (item) => getItemId(item) === dimensionId,
+                    );
+
+                    if (
+                        isDimension(field) &&
+                        (field.type === DimensionType.DATE ||
+                            field.type === DimensionType.TIMESTAMP)
+                    ) {
+                        const date = (params[0].data as Record<string, any>)[
+                            dimensionId
+                        ]; // get full timestamp from data
+                        const dateFormatted = getFormattedValue(
+                            date,
+                            dimensionId,
+                            items,
+                            false,
+                        );
+                        return `${dateFormatted}<br/><table>${tooltipRows}</table>`;
+                    }
+
+                    const hasFormat = isField(field)
+                        ? field.format !== undefined
+                        : false;
+
+                    if (hasFormat) {
+                        const tooltipHeader = getFormattedValue(
+                            params[0].axisValueLabel,
+                            dimensionId,
+                            items,
+                        );
+
+                        return `${tooltipHeader}<br/><table>${tooltipRows}</table>`;
+                    }
+                }
+                return `${params[0].axisValueLabel}<br/><table>${tooltipRows}</table>`;
             },
         }),
         [items],
