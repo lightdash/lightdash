@@ -109,6 +109,9 @@ export const lightdashConfigMock: LightdashConfig = {
         filePath: '',
         fileLevel: undefined,
     },
+    chart: {
+        versionHistory: { daysLimit: 3 },
+    },
 };
 
 const dbtCloudIDEProjectConfigMock: DbtCloudIDEProjectConfig = {
