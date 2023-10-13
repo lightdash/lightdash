@@ -9,8 +9,9 @@ import {
     Box,
     Button,
     Group,
-    LoadingOverlay,
+    Loader,
     Modal,
+    NativeSelect,
     Stack,
     Text,
     Title,
@@ -33,10 +34,11 @@ import { useAbilityContext } from '../common/Authorization';
 import MantineIcon from '../common/MantineIcon';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import {
+    EmailBox,
     ItemContent,
-    RoleSelectButton,
+    LoadingArea,
+    LoadingText,
     SectionWrapper,
-    UserEmail,
     UserInfo,
     UserName,
 } from './ProjectAccess.styles';
@@ -64,12 +66,17 @@ const UserListItem: FC<{
                         <UserName>
                             {firstName} {lastName}
                         </UserName>
-                        {email && <UserEmail minimal>{email}</UserEmail>}
+                        {email && <EmailBox>{email}</EmailBox>}
                     </UserInfo>
 
                     {relevantOrgRole && (
                         <Tooltip
+                            position="left"
+                            color="dark"
+                            withArrow
+                            arrowSize={10}
                             label={`This user inherits the organization role: ${relevantOrgRole}`}
+                            sx={{ padding: '10px', backgroundColor: '#57606a' }}
                         >
                             <MantineIcon
                                 icon={IconAlertTriangleFilled}
@@ -80,31 +87,48 @@ const UserListItem: FC<{
 
                     <Group spacing="xs" position="right">
                         {onUpdate ? (
-                            <RoleSelectButton
-                                fill
+                            <NativeSelect
                                 id="user-role"
-                                options={Object.values(ProjectMemberRole).map(
+                                data={Object.values(ProjectMemberRole).map(
                                     (orgMemberRole) => ({
                                         value: orgMemberRole,
                                         label: orgMemberRole.replace('_', ' '),
                                     }),
                                 )}
-                                required
                                 onChange={(e) => {
                                     const newRole = e.target
                                         .value as ProjectMemberRole;
                                     onUpdate(newRole);
                                 }}
+                                variant="filled"
+                                sx={{
+                                    marginRight: '0.5em',
+                                    boxSizing: 'border-box',
+                                    height: '30px',
+                                    fontSize: '14px',
+                                }}
                                 value={role}
                             />
                         ) : (
                             <Tooltip
+                                position="left"
+                                color="dark"
+                                withArrow
+                                arrowSize={10}
                                 label={roleTooltip ? roleTooltip : undefined}
+                                sx={{
+                                    padding: '10px',
+                                    backgroundColor: '#57606a',
+                                }}
                             >
                                 <Box
-                                    p="sm"
-                                    bg="#EFF0F3"
-                                    style={{ cursor: 'default' }}
+                                    sx={(theme) => ({
+                                        marginRight: '10px',
+                                        color: '#1c2127',
+                                        backgroundColor: '#8f99a826',
+                                        textAlign: 'center',
+                                        padding: theme.spacing.sm,
+                                    })}
                                 >
                                     {role}
                                 </Box>
@@ -222,10 +246,10 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
 
     if (isProjectAccessLoading || isProjectAccessLoading) {
         return (
-            <LoadingOverlay
-                visible={isProjectAccessLoading || isProjectAccessLoading}
-                overlayBlur={2}
-            />
+            <LoadingArea>
+                <Loader color="gray" size={50} />
+                <LoadingText>{'Loading...'}</LoadingText>
+            </LoadingArea>
         );
     }
     return (
