@@ -1,3 +1,10 @@
+## [0.808.2](https://github.com/lightdash/lightdash/compare/0.808.1...0.808.2) (2023-10-13)
+
+
+### Bug Fixes
+
+* adding missing await to query ([#7453](https://github.com/lightdash/lightdash/issues/7453)) ([1ac7a28](https://github.com/lightdash/lightdash/commit/1ac7a281489c58b29f3777a4acc9daba6a0511a0))
+
 ## [0.808.1](https://github.com/lightdash/lightdash/compare/0.808.0...0.808.1) (2023-10-13)
 
 
