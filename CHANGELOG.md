@@ -1,3 +1,10 @@
+# [0.808.0](https://github.com/lightdash/lightdash/compare/0.807.1...0.808.0) (2023-10-13)
+
+
+### Features
+
+* chat history feature flag ([#7449](https://github.com/lightdash/lightdash/issues/7449)) ([4b3da00](https://github.com/lightdash/lightdash/commit/4b3da00f185b4babc852418966391d5a93418be2))
+
 ## [0.807.1](https://github.com/lightdash/lightdash/compare/0.807.0...0.807.1) (2023-10-13)
 
 
