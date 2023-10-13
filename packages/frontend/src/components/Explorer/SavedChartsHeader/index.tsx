@@ -23,7 +23,7 @@ import {
     IconSend,
     IconTrash,
 } from '@tabler/icons-react';
-import { PostHogFeature } from 'posthog-js/react';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
@@ -74,6 +74,9 @@ const SavedChartsHeader: FC = () => {
     const dashboardUuid = useSearchParams('fromDashboard');
     const isFromDashboard = !!dashboardUuid;
     const spaceUuid = useSearchParams('fromSpace');
+    const isChartVersionHistoryEnabled = useFeatureFlagEnabled(
+        'chart-version-history',
+    );
 
     const history = useHistory();
     const isEditMode = useExplorerContext(
@@ -487,11 +490,8 @@ const SavedChartsHeader: FC = () => {
                                             }
                                         />
                                     ) : null}
-                                    {userCanManageCharts && (
-                                        <PostHogFeature
-                                            flag={'chart-version-history'}
-                                            match={true}
-                                        >
+                                    {userCanManageCharts &&
+                                        isChartVersionHistoryEnabled && (
                                             <MenuItem2
                                                 icon={<IconHistory />}
                                                 text="Version history"
@@ -501,8 +501,7 @@ const SavedChartsHeader: FC = () => {
                                                     })
                                                 }
                                             />
-                                        </PostHogFeature>
-                                    )}
+                                        )}
                                     <Divider />
                                     <Tooltip
                                         disabled={!getIsEditingDashboardChart()}
