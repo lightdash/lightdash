@@ -112,8 +112,10 @@ models:
               type: min
             date_of_most_recent_order:
               type: max
-      - name: status
-        description: "{{ doc(\"orders_status\") }}"
+      - name: 'STATUS'
+        label: 'status upper'
+        description: "desc"
+
         tests:
           - accepted_values:
               values:
