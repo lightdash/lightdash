@@ -282,6 +282,10 @@ program
     .command('preview')
     .description('Compile Lightdash resources')
     .option(
+        '--name <preview name>',
+        'Custom name for the preview. If a name is not provided, a unique, randomly generated name will be created.',
+    )
+    .option(
         '--project-dir <path>',
         'The directory of the dbt project',
         defaultProjectDir,

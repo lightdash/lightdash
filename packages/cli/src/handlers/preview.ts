@@ -87,15 +87,27 @@ export const previewHandler = async (
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
-    const name = uniqueNamesGenerator({
-        length: 2,
-        separator: ' ',
-        dictionaries: [adjectives, animals],
-    });
+    let name = options?.name;
+    if (name === undefined) {
+        name = uniqueNamesGenerator({
+            length: 2,
+            separator: ' ',
+            dictionaries: [adjectives, animals],
+        });
+    }
+
     console.error('');
     const spinner = GlobalState.startSpinner(
         `  Setting up preview environment`,
     );
+
+    const previewProject = await getPreviewProject(name);
+    if (previewProject) {
+        GlobalState.debug(`> Preview with the same name already running`);
+        spinner.fail();
+        throw new Error('Preview with the same name already running.');
+    }
+
     let project: Project | undefined;
 
     const config = await getConfig();
