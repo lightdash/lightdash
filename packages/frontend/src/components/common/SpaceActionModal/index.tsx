@@ -139,7 +139,6 @@ const SpaceModal: FC<ActionModalProps> = ({
                                                     'access',
                                                     undefined,
                                                 );
-                                                console.log(form.getValues());
                                                 setModalStep(
                                                     CreateModalStep.SET_NAME,
                                                 );
