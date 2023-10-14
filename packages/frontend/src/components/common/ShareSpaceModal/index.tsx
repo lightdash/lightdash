@@ -23,9 +23,14 @@ export interface ShareSpaceProps {
 
 const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
     const { data: organizationUsers } = useOrganizationUsers();
-    const [selectedAccess, setSelectedAccess] = useState<AccessOption>(
-        space.isPrivate ? SpaceAccessOptions[0] : SpaceAccessOptions[1],
-    );
+    let spaceAccess;
+    if (space.isPrivate) {
+        spaceAccess = space.access?.length === 0 ? SpaceAccessOptions[0] : SpaceAccessOptions[1];
+    }
+    else {
+        spaceAccess = SpaceAccessOptions[2];
+    }
+    const [selectedAccess, setSelectedAccess] = useState<AccessOption>(spaceAccess);
     const { user: sessionUser } = useApp();
 
     const [isOpen, setIsOpen] = useState<boolean>(false);
@@ -34,7 +39,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
         <>
             <Button
                 leftIcon={
-                    selectedAccess.value === SpaceAccessType.PRIVATE ? (
+                    selectedAccess.value !== SpaceAccessType.PUBLIC ? (
                         <IconLock size={18} />
                     ) : (
                         <IconUsers size={18} />
@@ -60,7 +65,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                 lazy
             >
                 <DialogBody>
-                    {selectedAccess.value === SpaceAccessType.PRIVATE ? (
+                    {selectedAccess.value === SpaceAccessType.SHARED ? (
                         <ShareSpaceAddUser
                             space={space}
                             projectUuid={projectUuid}
@@ -75,7 +80,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                         setSelectedAccess={setSelectedAccess}
                     />
 
-                    {selectedAccess.value === SpaceAccessType.PRIVATE && (
+                    {selectedAccess.value === SpaceAccessType.SHARED && (
                         <ShareSpaceUserList
                             projectUuid={projectUuid}
                             space={space}

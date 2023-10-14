@@ -80,6 +80,16 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
     );
 
     useEffect(() => {
+        if (usersSelected.length === 0) {
+            form?.setError('access', {
+                type: 'empty',
+                message: 'No members selected!'
+            })
+        }
+        else {
+            form?.clearErrors('access');
+            form?.trigger('access');
+        }
         form?.setValue(
             'access',
             usersSelected.map((userUuid) => ({

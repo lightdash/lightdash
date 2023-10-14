@@ -41,21 +41,29 @@ export const renderAccess: ItemRenderer<AccessOption> = (
 
 export const enum SpaceAccessType {
     PRIVATE = 'private',
+    SHARED = 'shared',
     PUBLIC = 'public',
 }
 
 export const SpaceAccessOptions: AccessOption[] = [
     {
-        title: 'Restricted access',
-        description: 'Only invited members and admins can access',
-        selectDescription: 'Only invited members and admins can access',
+        title: 'Private',
+        description: 'Only you and admins can access this space.',
+        selectDescription: 'Only you and admins can access this space.',
         value: SpaceAccessType.PRIVATE,
     },
     {
-        title: 'Full access',
-        description: 'All project members can access',
+        title: 'Shared',
+        description: 'Only invited members and admins can access this space.',
         selectDescription:
-            'All project members can access with their project permissions',
+            'Only invited members and admins can access this space.',
+        value: SpaceAccessType.SHARED,
+    },
+    {
+        title: 'Public',
+        description: 'Everyone can access space.',
+        selectDescription:
+            'Everyone can access space.',
         value: SpaceAccessType.PUBLIC,
     },
 ];

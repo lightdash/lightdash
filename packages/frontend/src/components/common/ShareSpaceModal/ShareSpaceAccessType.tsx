@@ -45,7 +45,7 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
             <ShareCircle>
                 <Icon
                     icon={
-                        selectedAccess.value === SpaceAccessType.PRIVATE
+                        selectedAccess.value !== SpaceAccessType.PUBLIC
                             ? 'lock'
                             : 'people'
                     }
@@ -67,10 +67,10 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
                     )}
                     onItemSelect={(item) => {
                         const isPrivate =
-                            item.value === SpaceAccessType.PRIVATE;
+                            item.value !== SpaceAccessType.PUBLIC;
 
+                        setSelectedAccess(item);
                         if (isPrivate !== space.isPrivate) {
-                            setSelectedAccess(item);
                             spaceMutation({
                                 name: space.name,
                                 isPrivate: isPrivate,

@@ -120,18 +120,35 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
                         <Radio
                             label="Private"
                             value={SpaceAccessType.PRIVATE}
-                            onClick={() => setIsShared(false)}
+                            onClick={() => {
+                                setIsShared(false)
+                                form.setValue('isPrivate', true)
+                            }}
                         />
                         <RadioDescription>
                             Only you and admins can access this space.
                         </RadioDescription>
                         <Radio
                             label="Shared"
-                            value={SpaceAccessType.PUBLIC}
-                            onClick={() => setIsShared(true)}
+                            value={SpaceAccessType.SHARED}
+                            onClick={() => {
+                                setIsShared(true)
+                                form.setValue('isPrivate', true)
+                            }}
                         />
                         <RadioDescription>
-                            Choose who can access this space.
+                            Only invited members and admins can access this space.
+                        </RadioDescription>
+                        <Radio
+                            label="Public"
+                            value={SpaceAccessType.PUBLIC}
+                            onClick={() => {
+                                setIsShared(false)
+                                form.setValue('isPrivate', false)
+                            }}
+                        />
+                        <RadioDescription>
+                            Everyone can access this space.
                         </RadioDescription>
                     </RadioGroup>
                 </>
@@ -146,18 +163,6 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
                             form={form}
                         />
                     )}
-
-                    <CreateSpaceSelectAccessType
-                        projectUuid={projectUuid}
-                        selectedAccess={selectedAccess}
-                        setSelectedAccess={(access) => {
-                            form?.setValue(
-                                'isPrivate',
-                                access.value === SpaceAccessType.PRIVATE,
-                            );
-                            setSelectedAccess(access);
-                        }}
-                    />
 
                     {adminUsers?.map((user) =>
                         renderUser({ ...user, role: ProjectMemberRole.ADMIN }),
