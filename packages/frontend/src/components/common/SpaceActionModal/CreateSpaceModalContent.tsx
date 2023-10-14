@@ -150,10 +150,7 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
         default:
             return (
                 <ShareSpaceWrapper>
-                    <CreateSpaceAddUser
-                        projectUuid={projectUuid}
-                        form={form}
-                    />
+                    <CreateSpaceAddUser projectUuid={projectUuid} form={form} />
 
                     {adminUsers?.map((user) =>
                         renderUser({ ...user, role: ProjectMemberRole.ADMIN }),
