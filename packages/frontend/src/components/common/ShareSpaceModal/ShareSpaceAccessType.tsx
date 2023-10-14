@@ -16,6 +16,7 @@ import {
 } from './ShareSpaceModal.style';
 import {
     AccessOption,
+    getSpacePermissionValue,
     renderAccess,
     SpaceAccessOptions,
     SpaceAccessType,
@@ -66,11 +67,19 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
                         (option) => option.value === selectedAccess.value,
                     )}
                     onItemSelect={(item) => {
-                        const isPrivate =
-                            item.value !== SpaceAccessType.PUBLIC;
-
                         setSelectedAccess(item);
-                        if (isPrivate !== space.isPrivate) {
+                        let spacePermission = getSpacePermissionValue(space);
+                        if (spacePermission !== item.value) {
+                            const isPrivate = spacePermission !== SpaceAccessType.PUBLIC ? true : false;
+                            // FIXME: this is a hack to empty `access` as switching from SHARED -> PRIVATE -> SHARED doesn't do anything as they both have `isPrivate === true`
+                            spaceMutation({
+                                name: space.name,
+                                isPrivate: isPrivate,
+                            });
+                            spaceMutation({
+                                name: space.name,
+                                isPrivate: !(isPrivate),
+                            });
                             spaceMutation({
                                 name: space.name,
                                 isPrivate: isPrivate,

@@ -1,3 +1,4 @@
+import { Space } from '@lightdash/common';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemRenderer } from '@blueprintjs/select';
 import {
@@ -10,6 +11,20 @@ export interface AccessOption {
     description?: string;
     selectDescription: string;
     value: string;
+}
+
+export const getSpacePermissionValue = (space: Space): SpaceAccessType => {
+    if (space.isPrivate) {
+        if (space.access?.length === 0) {
+            return SpaceAccessType.PRIVATE;
+        }
+        else {
+            return SpaceAccessType.SHARED;
+        }
+    }
+    else {
+        return SpaceAccessType.PUBLIC;
+    }
 }
 
 export const renderAccess: ItemRenderer<AccessOption> = (
