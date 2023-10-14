@@ -70,7 +70,10 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
                         setSelectedAccess(item);
                         let spacePermission = getSpacePermissionValue(space);
                         if (spacePermission !== item.value) {
-                            const isPrivate = spacePermission !== SpaceAccessType.PUBLIC ? true : false;
+                            const isPrivate =
+                                spacePermission !== SpaceAccessType.PUBLIC
+                                    ? true
+                                    : false;
                             // FIXME: this is a hack to empty `access` as switching from SHARED -> PRIVATE -> SHARED doesn't do anything as they both have `isPrivate === true`
                             spaceMutation({
                                 name: space.name,
@@ -78,7 +81,7 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
                             });
                             spaceMutation({
                                 name: space.name,
-                                isPrivate: !(isPrivate),
+                                isPrivate: !isPrivate,
                             });
                             spaceMutation({
                                 name: space.name,

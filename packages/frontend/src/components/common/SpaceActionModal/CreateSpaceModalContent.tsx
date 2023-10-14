@@ -121,8 +121,8 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
                             label="Private"
                             value={SpaceAccessType.PRIVATE}
                             onClick={() => {
-                                setIsShared(false)
-                                form.setValue('isPrivate', true)
+                                setIsShared(false);
+                                form.setValue('isPrivate', true);
                             }}
                         />
                         <RadioDescription>
@@ -132,19 +132,20 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
                             label="Shared"
                             value={SpaceAccessType.SHARED}
                             onClick={() => {
-                                setIsShared(true)
-                                form.setValue('isPrivate', true)
+                                setIsShared(true);
+                                form.setValue('isPrivate', true);
                             }}
                         />
                         <RadioDescription>
-                            Only invited members and admins can access this space.
+                            Only invited members and admins can access this
+                            space.
                         </RadioDescription>
                         <Radio
                             label="Public"
                             value={SpaceAccessType.PUBLIC}
                             onClick={() => {
-                                setIsShared(false)
-                                form.setValue('isPrivate', false)
+                                setIsShared(false);
+                                form.setValue('isPrivate', false);
                             }}
                         />
                         <RadioDescription>

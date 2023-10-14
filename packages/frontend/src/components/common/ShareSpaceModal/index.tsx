@@ -25,12 +25,15 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
     const { data: organizationUsers } = useOrganizationUsers();
     let spaceAccess;
     if (space.isPrivate) {
-        spaceAccess = space.access?.length === 0 ? SpaceAccessOptions[0] : SpaceAccessOptions[1];
-    }
-    else {
+        spaceAccess =
+            space.access?.length === 0
+                ? SpaceAccessOptions[0]
+                : SpaceAccessOptions[1];
+    } else {
         spaceAccess = SpaceAccessOptions[2];
     }
-    const [selectedAccess, setSelectedAccess] = useState<AccessOption>(spaceAccess);
+    const [selectedAccess, setSelectedAccess] =
+        useState<AccessOption>(spaceAccess);
     const { user: sessionUser } = useApp();
 
     const [isOpen, setIsOpen] = useState<boolean>(false);

@@ -1,6 +1,6 @@
-import { Space } from '@lightdash/common';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemRenderer } from '@blueprintjs/select';
+import { Space } from '@lightdash/common';
 import {
     PrimaryText,
     SecondaryTextWithMaxWidth,
@@ -17,15 +17,13 @@ export const getSpacePermissionValue = (space: Space): SpaceAccessType => {
     if (space.isPrivate) {
         if (space.access?.length === 0) {
             return SpaceAccessType.PRIVATE;
-        }
-        else {
+        } else {
             return SpaceAccessType.SHARED;
         }
-    }
-    else {
+    } else {
         return SpaceAccessType.PUBLIC;
     }
-}
+};
 
 export const renderAccess: ItemRenderer<AccessOption> = (
     access,
@@ -77,8 +75,7 @@ export const SpaceAccessOptions: AccessOption[] = [
     {
         title: 'Public',
         description: 'Everyone can access space.',
-        selectDescription:
-            'Everyone can access space.',
+        selectDescription: 'Everyone can access space.',
         value: SpaceAccessType.PUBLIC,
     },
 ];
