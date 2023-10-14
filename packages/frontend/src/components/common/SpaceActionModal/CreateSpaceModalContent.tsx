@@ -5,7 +5,7 @@ import {
     SpaceShare,
 } from '@lightdash/common';
 import upperFirst from 'lodash-es/upperFirst';
-import { FC, useMemo, useState } from 'react';
+import { FC, useMemo } from 'react';
 import { CreateSpaceModalBody } from '.';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useApp } from '../../../providers/AppProvider';
@@ -18,11 +18,7 @@ import {
     UserRole,
     YouLabel,
 } from '../ShareSpaceModal/ShareSpaceModal.style';
-import {
-    AccessOption,
-    SpaceAccessOptions,
-    SpaceAccessType,
-} from '../ShareSpaceModal/ShareSpaceSelect';
+import { SpaceAccessType } from '../ShareSpaceModal/ShareSpaceSelect';
 import { CreateSpaceAddUser } from './CreateSpaceAddUser';
 import { RadioDescription, ShareSpaceWrapper } from './SpaceActionModal.style';
 
