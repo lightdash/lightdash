@@ -24,7 +24,6 @@ import {
     SpaceAccessType,
 } from '../ShareSpaceModal/ShareSpaceSelect';
 import { CreateSpaceAddUser } from './CreateSpaceAddUser';
-import { CreateSpaceSelectAccessType } from './CreateSpaceSelectAccessType';
 import { RadioDescription, ShareSpaceWrapper } from './SpaceActionModal.style';
 
 export enum CreateModalStep {
@@ -63,9 +62,6 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
     const {
         user: { data: sessionUser },
     } = useApp();
-    const [selectedAccess, setSelectedAccess] = useState<AccessOption>(
-        SpaceAccessOptions[0],
-    );
 
     const { data: projectAccess } = useProjectAccess(projectUuid);
 
@@ -158,19 +154,16 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
         default:
             return (
                 <ShareSpaceWrapper>
-                    {selectedAccess?.value === SpaceAccessType.PRIVATE && (
-                        <CreateSpaceAddUser
-                            projectUuid={projectUuid}
-                            form={form}
-                        />
-                    )}
+                    <CreateSpaceAddUser
+                        projectUuid={projectUuid}
+                        form={form}
+                    />
 
                     {adminUsers?.map((user) =>
                         renderUser({ ...user, role: ProjectMemberRole.ADMIN }),
                     )}
 
                     {sessionUser &&
-                        selectedAccess?.value === SpaceAccessType.PRIVATE &&
                         renderUser({
                             ...sessionUser,
                             role: sessionUser.role!,

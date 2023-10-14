@@ -13,6 +13,12 @@ export interface AccessOption {
     value: string;
 }
 
+export const enum SpaceAccessType {
+    PRIVATE = 'private',
+    SHARED = 'shared',
+    PUBLIC = 'public',
+}
+
 export const getSpacePermissionValue = (space: Space): SpaceAccessType => {
     if (space.isPrivate) {
         if (space.access?.length === 0) {
@@ -51,12 +57,6 @@ export const renderAccess: ItemRenderer<AccessOption> = (
         />
     );
 };
-
-export const enum SpaceAccessType {
-    PRIVATE = 'private',
-    SHARED = 'shared',
-    PUBLIC = 'public',
-}
 
 export const SpaceAccessOptions: AccessOption[] = [
     {
