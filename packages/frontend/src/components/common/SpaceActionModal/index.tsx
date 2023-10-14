@@ -135,6 +135,11 @@ const SpaceModal: FC<ActionModalProps> = ({
                                         <SimpleButton
                                             text="Back"
                                             onClick={(ev) => {
+                                                form.setValue(
+                                                    'access',
+                                                    undefined,
+                                                );
+                                                console.log(form.getValues());
                                                 setModalStep(
                                                     CreateModalStep.SET_NAME,
                                                 );
