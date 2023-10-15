@@ -22,9 +22,3 @@ const commonTagStyle = css`
     justify-content: center;
     align-items: center;
 `;
-
-export const ShareCircle = styled.div`
-    ${commonTagStyle}
-    background-color: ${Colors.LIGHT_GRAY2};
-    color: ${Colors.GRAY1};
-`;

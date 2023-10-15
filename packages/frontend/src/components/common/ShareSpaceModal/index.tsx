@@ -11,8 +11,8 @@ import { ShareSpaceAddUser } from './ShareSpaceAddUser';
 import { DialogBody, DialogFooter } from './ShareSpaceModal.style';
 import {
     AccessOption,
-    SpaceAccessType,
     getSpaceAccess,
+    SpaceAccessType,
 } from './ShareSpaceSelect';
 import { ShareSpaceUserList } from './ShareSpaceUserList';
 

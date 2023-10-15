@@ -69,7 +69,11 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
                             let spaceAccess = getSpaceAccess(space);
                             setSelectedAccess(item);
                             if (spaceAccess.value !== item.value) {
-                                if (spaceAccess.value !== SpaceAccessType.PUBLIC && item.value !== SpaceAccessType.PUBLIC) {
+                                if (
+                                    spaceAccess.value !==
+                                        SpaceAccessType.PUBLIC &&
+                                    item.value !== SpaceAccessType.PUBLIC
+                                ) {
                                     // FIXME: this is a hack to empty `access` as switching from SHARED -> PRIVATE -> SHARED doesn't do anything as they both have `isPrivate === true`
                                     await spaceMutation({
                                         name: space.name,
@@ -79,15 +83,16 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
                                         name: space.name,
                                         isPrivate: space.isPrivate,
                                     });
-                                }
-                                else {
+                                } else {
                                     await spaceMutation({
                                         name: space.name,
-                                        isPrivate: item.value !== SpaceAccessType.PUBLIC,
+                                        isPrivate:
+                                            item.value !==
+                                            SpaceAccessType.PUBLIC,
                                     });
                                 }
                             }
-                        }
+                        };
                         itemSelectFunc();
                     }}
                     popoverProps={{

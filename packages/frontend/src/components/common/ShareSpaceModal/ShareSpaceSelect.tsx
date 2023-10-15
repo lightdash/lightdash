@@ -19,13 +19,41 @@ export const enum SpaceAccessType {
     PUBLIC = 'public',
 }
 
+export const SpaceAccessOptions: AccessOption[] = [
+    {
+        title: 'Private',
+        description: 'Only you and admins can access this space.',
+        selectDescription: 'Only you and admins can access this space.',
+        value: SpaceAccessType.PRIVATE,
+    },
+    {
+        title: 'Shared',
+        description: 'Only invited members and admins can access this space.',
+        selectDescription:
+            'Only invited members and admins can access this space.',
+        value: SpaceAccessType.SHARED,
+    },
+    {
+        title: 'Public',
+        description: 'Everyone can access space.',
+        selectDescription: 'Everyone can access space.',
+        value: SpaceAccessType.PUBLIC,
+    },
+];
+
 export const getSpaceAccess = (space: Space): AccessOption => {
     if (!space.isPrivate) {
-        return SpaceAccessOptions.find((access) => access.value === SpaceAccessType.PUBLIC) as AccessOption;
+        return SpaceAccessOptions.find(
+            (access) => access.value === SpaceAccessType.PUBLIC,
+        ) as AccessOption;
     } else if (space?.access !== undefined && space?.access.length > 1) {
-        return SpaceAccessOptions.find((access) => access.value === SpaceAccessType.SHARED) as AccessOption;
+        return SpaceAccessOptions.find(
+            (access) => access.value === SpaceAccessType.SHARED,
+        ) as AccessOption;
     } else {
-        return SpaceAccessOptions.find((access) => access.value === SpaceAccessType.PRIVATE) as AccessOption;
+        return SpaceAccessOptions.find(
+            (access) => access.value === SpaceAccessType.PRIVATE,
+        ) as AccessOption;
     }
 };
 
@@ -55,25 +83,3 @@ export const renderAccess: ItemRenderer<AccessOption> = (
         />
     );
 };
-
-export const SpaceAccessOptions: AccessOption[] = [
-    {
-        title: 'Private',
-        description: 'Only you and admins can access this space.',
-        selectDescription: 'Only you and admins can access this space.',
-        value: SpaceAccessType.PRIVATE,
-    },
-    {
-        title: 'Shared',
-        description: 'Only invited members and admins can access this space.',
-        selectDescription:
-            'Only invited members and admins can access this space.',
-        value: SpaceAccessType.SHARED,
-    },
-    {
-        title: 'Public',
-        description: 'Everyone can access space.',
-        selectDescription: 'Everyone can access space.',
-        value: SpaceAccessType.PUBLIC,
-    },
-];
