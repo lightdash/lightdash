@@ -30,10 +30,6 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
 
     const [isOpen, setIsOpen] = useState<boolean>(false);
 
-    useEffect(() => {
-        setSelectedAccess(getSpaceAccess(space));
-    }, [space]);
-
     return (
         <>
             <Button
@@ -46,6 +42,8 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                 }
                 onClick={() => {
                     setIsOpen(true);
+                    // if space permission is updated to be "shared" and the modal is closed, the space permission stays private
+                    setSelectedAccess(getSpaceAccess(space));
                 }}
                 variant="default"
             >
@@ -60,7 +58,11 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                 }}
                 title={`Share ’${space.name}’`}
                 isOpen={isOpen}
-                onClose={() => setIsOpen(false)}
+                onClose={() => {
+                    setIsOpen(false);
+                    // if space permission is updated to be "shared" and the modal is closed, the space permission stays private
+                    setSelectedAccess(getSpaceAccess(space));
+                }}
                 lazy
             >
                 <DialogBody>
