@@ -1,5 +1,5 @@
-import { Divider, Menu, Position } from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { Divider, Menu } from '@blueprintjs/core';
+import { MenuItem2 } from '@blueprintjs/popover2';
 import {
     fieldId,
     getItemId,
@@ -7,6 +7,7 @@ import {
     isFilterableField,
     TableCalculation,
 } from '@lightdash/common';
+import { Popover } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import { FC, useMemo, useState } from 'react';
 import { useFilters } from '../../../hooks/useFilters';
@@ -18,7 +19,7 @@ import {
     DeleteTableCalculationModal,
     UpdateTableCalculationModal,
 } from '../../TableCalculationModals';
-import { BolderLabel, FlatButton } from './ColumnHeaderContextMenu.styles';
+import { BolderLabel } from './ColumnHeaderContextMenu.styles';
 import ColumnHeaderSortMenuOptions from './ColumnHeaderSortMenuOptions';
 
 interface ContextMenuProps extends HeaderProps {
@@ -175,24 +176,18 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                     e.stopPropagation();
                 }}
             >
-                <Popover2
-                    lazy
-                    minimal
-                    position={Position.BOTTOM_RIGHT}
-                    content={
+                <Popover position="bottom" withArrow shadow="md">
+                    <Popover.Target>
+                        <IconChevronDown size={17} cursor="pointer" />
+                    </Popover.Target>
+                    <Popover.Dropdown sx={{ padding: '5px' }}>
                         <ContextMenu
                             header={header}
                             onToggleCalculationEditModal={setShowUpdate}
                             onToggleCalculationDeleteModal={setShowDelete}
                         />
-                    }
-                >
-                    <FlatButton
-                        minimal
-                        small
-                        icon={<IconChevronDown size={17} />}
-                    />
-                </Popover2>
+                    </Popover.Dropdown>
+                </Popover>
 
                 {showUpdate && (
                     <UpdateTableCalculationModal

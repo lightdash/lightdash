@@ -1,15 +1,10 @@
-import {
-    Button,
-    Classes,
-    Menu,
-    MenuDivider,
-    PopoverPosition,
-} from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { Classes } from '@blueprintjs/core';
 import {
     getHumanReadableCronExpression,
     SchedulerAndTargets,
 } from '@lightdash/common';
+import { Divider, Menu, rem } from '@mantine/core';
+import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
 import { FC } from 'react';
 import {
     InfoContainer,
@@ -40,30 +35,29 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                 className={Classes.TEXT_OVERFLOW_ELLIPSIS}
             >
                 <SchedulerName>{scheduler.name}</SchedulerName>
-                <Popover2
-                    content={
-                        <Menu>
-                            <MenuItem2
-                                icon="edit"
-                                text="Edit"
-                                onClick={() => onEdit(scheduler.schedulerUuid)}
-                            />
-                            <MenuDivider />
-                            <MenuItem2
-                                icon="delete"
-                                intent="danger"
-                                text="Delete"
-                                onClick={() =>
-                                    onDelete(scheduler.schedulerUuid)
-                                }
-                            />
-                        </Menu>
-                    }
-                    position={PopoverPosition.BOTTOM_RIGHT}
-                    lazy
-                >
-                    <Button minimal icon="more" />
-                </Popover2>
+                <Menu withArrow width={150} shadow="md">
+                    <Menu.Target>
+                        <IconDots size={rem(20)} cursor="pointer" />
+                    </Menu.Target>
+
+                    <Menu.Dropdown>
+                        <Menu.Item
+                            icon={<IconPencil size={rem(20)} />}
+                            onClick={() => onEdit(scheduler.schedulerUuid)}
+                        >
+                            Edit
+                        </Menu.Item>
+                        <Divider />
+
+                        <Menu.Item
+                            icon={<IconTrash size={rem(20)} color="red" />}
+                            onClick={() => onDelete(scheduler.schedulerUuid)}
+                            color="red"
+                        >
+                            Delete
+                        </Menu.Item>
+                    </Menu.Dropdown>
+                </Menu>
             </SchedulerDetailsContainer>
             <PageDetailsContainer>
                 <UpdatedInfoLabel>
