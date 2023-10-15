@@ -1,5 +1,5 @@
 import { Colors } from '@blueprintjs/core';
-import styled, { css } from 'styled-components';
+import styled from 'styled-components';
 
 export const RadioDescription = styled.p`
     color: ${Colors.GRAY3};
@@ -11,14 +11,4 @@ export const ShareSpaceWrapper = styled.div`
     flex: 1;
     display: flex;
     flex-direction: column;
-`;
-
-const commonTagStyle = css`
-    width: 35px;
-    height: 35px;
-    border-radius: 100%;
-    display: flex;
-    flex-shrink: 0;
-    justify-content: center;
-    align-items: center;
 `;

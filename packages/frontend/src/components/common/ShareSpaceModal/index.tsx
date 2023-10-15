@@ -2,7 +2,7 @@ import { Dialog } from '@blueprintjs/core';
 import { Space } from '@lightdash/common';
 import { Anchor, Button } from '@mantine/core';
 import { IconLock, IconUsers } from '@tabler/icons-react';
-import { FC, useEffect, useState } from 'react';
+import { FC, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useApp } from '../../../providers/AppProvider';
