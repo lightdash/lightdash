@@ -16,7 +16,7 @@ import {
 } from './ShareSpaceModal.style';
 import {
     AccessOption,
-    getSpacePermissionValue,
+    getSpaceAccess,
     renderAccess,
     SpaceAccessOptions,
     SpaceAccessType,
@@ -37,7 +37,7 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
 }) => {
     const { data: project } = useProject(projectUuid);
 
-    const { mutate: spaceMutation } = useUpdateMutation(
+    const { mutateAsync: spaceMutation } = useUpdateMutation(
         projectUuid,
         space.uuid,
     );
@@ -63,31 +63,32 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
                     filterable={false}
                     items={SpaceAccessOptions}
                     itemRenderer={renderAccess}
-                    activeItem={SpaceAccessOptions.find(
-                        (option) => option.value === selectedAccess.value,
-                    )}
+                    activeItem={selectedAccess}
                     onItemSelect={(item) => {
-                        setSelectedAccess(item);
-                        let spacePermission = getSpacePermissionValue(space);
-                        if (spacePermission !== item.value) {
-                            const isPrivate =
-                                spacePermission !== SpaceAccessType.PUBLIC
-                                    ? true
-                                    : false;
-                            // FIXME: this is a hack to empty `access` as switching from SHARED -> PRIVATE -> SHARED doesn't do anything as they both have `isPrivate === true`
-                            spaceMutation({
-                                name: space.name,
-                                isPrivate: isPrivate,
-                            });
-                            spaceMutation({
-                                name: space.name,
-                                isPrivate: !isPrivate,
-                            });
-                            spaceMutation({
-                                name: space.name,
-                                isPrivate: isPrivate,
-                            });
+                        const itemSelectFunc = async () => {
+                            let spaceAccess = getSpaceAccess(space);
+                            setSelectedAccess(item);
+                            if (spaceAccess.value !== item.value) {
+                                if (spaceAccess.value !== SpaceAccessType.PUBLIC && item.value !== SpaceAccessType.PUBLIC) {
+                                    // FIXME: this is a hack to empty `access` as switching from SHARED -> PRIVATE -> SHARED doesn't do anything as they both have `isPrivate === true`
+                                    await spaceMutation({
+                                        name: space.name,
+                                        isPrivate: !space.isPrivate,
+                                    });
+                                    await spaceMutation({
+                                        name: space.name,
+                                        isPrivate: space.isPrivate,
+                                    });
+                                }
+                                else {
+                                    await spaceMutation({
+                                        name: space.name,
+                                        isPrivate: item.value !== SpaceAccessType.PUBLIC,
+                                    });
+                                }
+                            }
                         }
+                        itemSelectFunc();
                     }}
                     popoverProps={{
                         minimal: true,

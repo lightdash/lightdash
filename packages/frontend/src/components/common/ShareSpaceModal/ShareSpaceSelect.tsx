@@ -19,15 +19,13 @@ export const enum SpaceAccessType {
     PUBLIC = 'public',
 }
 
-export const getSpacePermissionValue = (space: Space): SpaceAccessType => {
-    if (space.isPrivate) {
-        if (space.access?.length === 0) {
-            return SpaceAccessType.PRIVATE;
-        } else {
-            return SpaceAccessType.SHARED;
-        }
+export const getSpaceAccess = (space: Space): AccessOption => {
+    if (!space.isPrivate) {
+        return SpaceAccessOptions.find((access) => access.value === SpaceAccessType.PUBLIC) as AccessOption;
+    } else if (space?.access !== undefined && space?.access.length > 1) {
+        return SpaceAccessOptions.find((access) => access.value === SpaceAccessType.SHARED) as AccessOption;
     } else {
-        return SpaceAccessType.PUBLIC;
+        return SpaceAccessOptions.find((access) => access.value === SpaceAccessType.PRIVATE) as AccessOption;
     }
 };
 

@@ -2,7 +2,7 @@ import { Dialog } from '@blueprintjs/core';
 import { Space } from '@lightdash/common';
 import { Anchor, Button } from '@mantine/core';
 import { IconLock, IconUsers } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useApp } from '../../../providers/AppProvider';
@@ -11,8 +11,8 @@ import { ShareSpaceAddUser } from './ShareSpaceAddUser';
 import { DialogBody, DialogFooter } from './ShareSpaceModal.style';
 import {
     AccessOption,
-    SpaceAccessOptions,
     SpaceAccessType,
+    getSpaceAccess,
 } from './ShareSpaceSelect';
 import { ShareSpaceUserList } from './ShareSpaceUserList';
 
@@ -23,20 +23,16 @@ export interface ShareSpaceProps {
 
 const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
     const { data: organizationUsers } = useOrganizationUsers();
-    let spaceAccess;
-    if (space.isPrivate) {
-        spaceAccess =
-            space.access?.length === 0
-                ? SpaceAccessOptions[0]
-                : SpaceAccessOptions[1];
-    } else {
-        spaceAccess = SpaceAccessOptions[2];
-    }
+    let spaceAccess = getSpaceAccess(space);
     const [selectedAccess, setSelectedAccess] =
         useState<AccessOption>(spaceAccess);
     const { user: sessionUser } = useApp();
 
     const [isOpen, setIsOpen] = useState<boolean>(false);
+
+    useEffect(() => {
+        setSelectedAccess(getSpaceAccess(space));
+    }, [space]);
 
     return (
         <>
