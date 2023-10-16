@@ -267,24 +267,26 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         });
                     }}
                 />
-                {seriesGroup[0].stack && (
-                    <Stack spacing="xs" mt="two">
-                        <Text size="xs" fw={500}>
-                            Total
-                        </Text>
-                        <Switch
-                            size="xs"
-                            checked={seriesGroup[0].stackLabel?.show}
-                            onChange={() => {
-                                updateAllGroupedSeries(fieldKey, {
-                                    stackLabel: {
-                                        show: !seriesGroup[0].stackLabel?.show,
-                                    },
-                                });
-                            }}
-                        />
-                    </Stack>
-                )}
+                {seriesGroup[0].stack &&
+                    chartValue === CartesianSeriesType.BAR && (
+                        <Stack spacing="xs" mt="two">
+                            <Text size="xs" fw={500}>
+                                Total
+                            </Text>
+                            <Switch
+                                size="xs"
+                                checked={seriesGroup[0].stackLabel?.show}
+                                onChange={() => {
+                                    updateAllGroupedSeries(fieldKey, {
+                                        stackLabel: {
+                                            show: !seriesGroup[0].stackLabel
+                                                ?.show,
+                                        },
+                                    });
+                                }}
+                            />
+                        </Stack>
+                    )}
             </Group>
             {(chartValue === CartesianSeriesType.LINE ||
                 chartValue === CartesianSeriesType.AREA) && (
