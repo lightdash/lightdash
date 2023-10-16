@@ -7,7 +7,7 @@ import {
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { Dashboard, DashboardTileTypes, isChartTile } from '@lightdash/common';
-import { Tooltip } from '@mantine/core';
+import { Text, Tooltip } from '@mantine/core';
 import { useHover, useToggle } from '@mantine/hooks';
 import React, { ReactNode, useState } from 'react';
 import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/DeleteChartTileThatBelongsToDashboardModal';
@@ -24,6 +24,7 @@ import {
 
 type Props<T> = {
     isEditMode: boolean;
+    belongsToDashboard?: boolean;
     title: string;
     chartName?: string;
     titleHref?: string;
@@ -97,15 +98,21 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         >
                             <TitleWrapper $hovered={titleHovered}>
                                 {!hideTitle ? (
-                                    <TileTitleLink
-                                        ref={titleRef}
-                                        href={titleHref}
-                                        $hovered={titleHovered}
-                                        target="_blank"
-                                        className="non-draggable"
-                                    >
-                                        {title}
-                                    </TileTitleLink>
+                                    belongsToDashboard ? (
+                                        <Text fw={600} size="md">
+                                            {title}
+                                        </Text>
+                                    ) : (
+                                        <TileTitleLink
+                                            ref={titleRef}
+                                            href={titleHref}
+                                            $hovered={titleHovered}
+                                            target="_blank"
+                                            className="non-draggable"
+                                        >
+                                            {title}
+                                        </TileTitleLink>
+                                    )
                                 ) : null}
                             </TitleWrapper>
                         </Tooltip>
