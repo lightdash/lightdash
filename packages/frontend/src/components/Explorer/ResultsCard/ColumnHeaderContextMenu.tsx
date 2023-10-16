@@ -7,13 +7,14 @@ import {
     isFilterableField,
     TableCalculation,
 } from '@lightdash/common';
-import { Popover } from '@mantine/core';
+import { ActionIcon, Popover } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import { FC, useMemo, useState } from 'react';
 import { useFilters } from '../../../hooks/useFilters';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
+import MantineIcon from '../../common/MantineIcon';
 import { HeaderProps, TableColumn } from '../../common/Table/types';
 import {
     DeleteTableCalculationModal,
@@ -176,11 +177,13 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                     e.stopPropagation();
                 }}
             >
-                <Popover position="bottom" withArrow shadow="md">
+                <Popover withinPortal position="bottom" withArrow shadow="md">
                     <Popover.Target>
-                        <IconChevronDown size={17} cursor="pointer" />
+                        <ActionIcon size="xs" variant="light" bg="transparent">
+                            <MantineIcon icon={IconChevronDown} />
+                        </ActionIcon>
                     </Popover.Target>
-                    <Popover.Dropdown sx={{ padding: '5px' }}>
+                    <Popover.Dropdown p={0}>
                         <ContextMenu
                             header={header}
                             onToggleCalculationEditModal={setShowUpdate}

@@ -3,9 +3,10 @@ import {
     getHumanReadableCronExpression,
     SchedulerAndTargets,
 } from '@lightdash/common';
-import { Divider, Menu, rem } from '@mantine/core';
+import { Divider, Menu } from '@mantine/core';
 import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
 import { FC } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import {
     InfoContainer,
     PageDetailsContainer,
@@ -35,14 +36,14 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                 className={Classes.TEXT_OVERFLOW_ELLIPSIS}
             >
                 <SchedulerName>{scheduler.name}</SchedulerName>
-                <Menu withArrow width={150} shadow="md">
+                <Menu withArrow withinPortal width={100}>
                     <Menu.Target>
-                        <IconDots size={rem(20)} cursor="pointer" />
+                        <MantineIcon icon={IconDots} />
                     </Menu.Target>
 
                     <Menu.Dropdown>
                         <Menu.Item
-                            icon={<IconPencil size={rem(20)} />}
+                            icon={<MantineIcon icon={IconPencil} />}
                             onClick={() => onEdit(scheduler.schedulerUuid)}
                         >
                             Edit
@@ -50,7 +51,7 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                         <Divider />
 
                         <Menu.Item
-                            icon={<IconTrash size={rem(20)} color="red" />}
+                            icon={<MantineIcon color="red" icon={IconTrash} />}
                             onClick={() => onDelete(scheduler.schedulerUuid)}
                             color="red"
                         >
