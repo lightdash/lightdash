@@ -13,7 +13,7 @@ import {
 } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconChevronLeft, IconClock, IconCopy } from '@tabler/icons-react';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { FC, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useQueryClient } from 'react-query';
 import { useHistory } from 'react-router-dom';
@@ -108,8 +108,8 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
     useEffect(() => {
         if (isTokenCreated) return;
 
-        const expiresAt = moment().add(30, 'days').toDate();
-        const generatedAtString = moment().format(
+        const expiresAt = dayjs().add(30, 'days').toDate();
+        const generatedAtString = dayjs().format(
             getDateFormat(TimeFrames.SECOND),
         );
 
