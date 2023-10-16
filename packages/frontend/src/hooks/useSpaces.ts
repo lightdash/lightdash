@@ -107,7 +107,11 @@ export const useSpaceDeleteMutation = (projectUuid: string) => {
         {
             mutationKey: ['space_delete', projectUuid],
             onSuccess: async () => {
-                await queryClient.refetchQueries(['spaces', projectUuid]);
+                await queryClient.invalidateQueries([
+                    'projects',
+                    projectUuid,
+                    'spaces',
+                ]);
                 showToastSuccess({
                     title: `Success! Space was deleted.`,
                 });
