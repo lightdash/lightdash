@@ -282,6 +282,7 @@ export class SpaceModel {
             .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
             .select(
                 `${DashboardVersionsTableName}.created_at as dashboard_version_created_at`,
+                `${DashboardVersionsTableName}.dashboard_id as dashboard_id`,
             )
             .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
             .as('subQuery');
@@ -299,10 +300,10 @@ export class SpaceModel {
         } else {
             dashboardsQuery = dashboardsQuery.orderBy([
                 {
-                    column: `${DashboardVersionsTableName}.dashboard_id`,
+                    column: `dashboard_id`,
                 },
                 {
-                    column: `${DashboardVersionsTableName}.created_at`,
+                    column: `dashboard_version_created_at`,
                     order: 'desc',
                 },
             ]);
