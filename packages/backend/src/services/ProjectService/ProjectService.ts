@@ -240,9 +240,11 @@ export class ProjectService {
         ) {
             throw new ForbiddenError();
         }
-        const projects = await this.projectModel.getAllByOrganizationUuid(user.organizationUuid);
+        const projects = await this.projectModel.getAllByOrganizationUuid(
+            user.organizationUuid,
+        );
         if (projects.find((project) => project.name === data.name)) {
-            throw new ForbiddenError('Project with same name already exists')
+            throw new ForbiddenError('Project with same name already exists');
         }
 
         const createProject = await this._resolveWarehouseClientSshKeys(data);
@@ -321,9 +323,11 @@ export class ProjectService {
         ) {
             throw new ForbiddenError();
         }
-        const projects = await this.projectModel.getAllByOrganizationUuid(user.organizationUuid);
+        const projects = await this.projectModel.getAllByOrganizationUuid(
+            user.organizationUuid,
+        );
         if (projects.find((project) => project.name === data.name)) {
-            throw new ForbiddenError('Project with same name already exists')
+            throw new ForbiddenError('Project with same name already exists');
         }
 
         const createProject = await this._resolveWarehouseClientSshKeys(data);
