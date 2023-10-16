@@ -29,6 +29,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
     filterType,
     rule,
     disabled,
+    popoverProps,
     onChange,
 }: React.PropsWithChildren<FilterInputsProps<T>>) => {
     const { getField } = useFiltersContext();
@@ -64,6 +65,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                             placeholder={placeholder}
                             values={(rule.values || []).filter(isString)}
                             suggestions={suggestions || []}
+                            popoverProps={popoverProps}
                             onChange={(values) =>
                                 onChange({
                                     ...rule,
