@@ -210,28 +210,27 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                 }}
             >
                 {isOpen && (
-                    <>
-                        <FieldSelect
-                            autoFocus
-                            hasGrouping
-                            items={fields}
-                            onChange={(field) => {
-                                if (!field) return;
-                                addFieldRule(field);
-                            }}
-                            onClosed={toggleFieldInput}
-                        />
-
-                        <ActionIcon onClick={toggleFieldInput}>
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
-                    </>
+                    <FieldSelect
+                        autoFocus
+                        hasGrouping
+                        items={fields}
+                        onChange={(field) => {
+                            if (!field) return;
+                            addFieldRule(field);
+                        }}
+                        onClosed={toggleFieldInput}
+                        rightSection={
+                            <ActionIcon onClick={toggleFieldInput}>
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        }
+                    />
                 )}
 
                 {isEditMode && !isOpen && (
                     <Button
                         variant="light"
-                        size="xs"
+                        size="sm"
                         leftIcon={<MantineIcon icon={IconPlus} />}
                         disabled={fields.length <= 0}
                         onClick={toggleFieldInput}
