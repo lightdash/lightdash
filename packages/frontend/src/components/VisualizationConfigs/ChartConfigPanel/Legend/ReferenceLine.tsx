@@ -15,7 +15,7 @@ import {
     WeekDay,
 } from '@lightdash/common';
 import debounce from 'lodash/debounce';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { FC, useCallback, useMemo, useState } from 'react';
 
 import {
@@ -74,7 +74,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                 case TimeFrames.WEEK:
                     return (
                         <WeekPicker
-                            value={moment(value).toDate()}
+                            value={dayjs(value).toDate()}
                             popoverProps={{ usePortal: false }}
                             startOfWeek={startOfWeek}
                             onChange={(dateValue) => {
@@ -94,7 +94,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                     return (
                         <Group noWrap spacing={0}>
                             <MonthAndYearInput
-                                value={moment(value).toDate()}
+                                value={dayjs(value).toDate()}
                                 onChange={(dateValue: Date) => {
                                     onChange(
                                         formatDate(
@@ -111,7 +111,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                 case TimeFrames.YEAR:
                     return (
                         <YearInput
-                            value={moment(value).toDate()}
+                            value={dayjs(value).toDate()}
                             onChange={(dateValue: Date) => {
                                 onChange(
                                     formatDate(
@@ -137,7 +137,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                         str: string,
                         timeInterval: TimeFrames | undefined = TimeFrames.DAY,
                     ) => {
-                        return moment(
+                        return dayjs(
                             str,
                             getDateFormat(timeInterval),
                         ).toDate();
