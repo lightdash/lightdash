@@ -11,8 +11,8 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconArrowLeft, IconFolder, IconPlus } from '@tabler/icons-react';
-import { FC, useCallback, useEffect } from 'react';
+import { IconArrowLeft, IconFolder } from '@tabler/icons-react';
+import { FC, useCallback, useEffect, useState } from 'react';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import {
     useCreateMutation as useSpaceCreateMutation,
@@ -68,6 +68,12 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
             }
         },
     });
+    const [spacesData, setData] = useState(
+        spaces?.map((space) => ({
+            value: space.uuid,
+            label: space.name,
+        })) || [],
+    );
 
     const showNewSpaceInput =
         form.values.isCreatingNewSpace || spaces?.length === 0;
@@ -146,32 +152,30 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                         {!isLoadingSpaces && spaces && !showNewSpaceInput ? (
                             <Stack spacing="xs">
                                 <Select
+                                    searchable
+                                    creatable
                                     withinPortal
                                     label="Select a space"
-                                    data={spaces?.map((space) => ({
-                                        value: space.uuid,
-                                        label: space.name,
-                                    }))}
+                                    data={spacesData}
                                     icon={<MantineIcon icon={IconFolder} />}
                                     required
                                     placeholder="Select space"
-                                    nothingFound="Nothing found"
+                                    getCreateLabel={(query) =>
+                                        `+ Create new space ${query}`
+                                    }
+                                    onCreate={(query) => {
+                                        const item = {
+                                            value: query,
+                                            label: query,
+                                        };
+                                        setData((current) => [
+                                            ...current,
+                                            item,
+                                        ]);
+                                        return item;
+                                    }}
                                     {...form.getInputProps('spaceUuid')}
                                 />
-                                <Button
-                                    leftIcon={<MantineIcon icon={IconPlus} />}
-                                    variant="subtle"
-                                    mr="auto"
-                                    size="xs"
-                                    onClick={() =>
-                                        form.setFieldValue(
-                                            'isCreatingNewSpace',
-                                            true,
-                                        )
-                                    }
-                                >
-                                    Create new space
-                                </Button>
                             </Stack>
                         ) : (
                             <Stack spacing="xs">
