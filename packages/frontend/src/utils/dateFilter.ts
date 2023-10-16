@@ -7,7 +7,7 @@ import {
     getItemsFromFilterGroup,
     isFilterGroup,
 } from '@lightdash/common';
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 export const convertDateFilters = (filters: Filters): Filters => {
     // Fix original date time values on filters instead of converting dates into UTC when using JSON.stringify on API request
@@ -16,7 +16,7 @@ export const convertDateFilters = (filters: Filters): Filters => {
             ...filterRule,
             values: filterRule.values?.map((value) => {
                 if (value instanceof Date) {
-                    return moment(value).format('YYYY-MM-DDTHH:mm:ss') + 'Z';
+                    return dayjs(value).format('YYYY-MM-DDTHH:mm:ss') + 'Z';
                 }
                 return value;
             }),

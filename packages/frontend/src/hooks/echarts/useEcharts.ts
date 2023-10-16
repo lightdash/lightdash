@@ -42,7 +42,7 @@ import {
 } from 'echarts';
 import groupBy from 'lodash-es/groupBy';
 import toNumber from 'lodash-es/toNumber';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { useMemo } from 'react';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 import { defaultGrid } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid';
@@ -338,7 +338,7 @@ export const getMinAndMaxValues = (
             (acc, value) => {
                 if (
                     typeof value === 'string' &&
-                    moment(value, 'YYYY-MM-DD', false).isValid()
+                    dayjs(value, 'YYYY-MM-DD', false).isValid()
                 ) {
                     // is date
                     const min = minDate(acc[0], value);
