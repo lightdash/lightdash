@@ -142,6 +142,11 @@ export const useUpdateMutation = (projectUuid: string, spaceUuid: string) => {
         {
             mutationKey: ['space_update', projectUuid],
             onSuccess: async (data) => {
+                await queryClient.invalidateQueries([
+                    'projects',
+                    projectUuid,
+                    'spaces',
+                ]);
                 await queryClient.refetchQueries(['spaces', projectUuid]);
                 queryClient.setQueryData(
                     ['space', projectUuid, spaceUuid],
