@@ -54,7 +54,7 @@ describe('Dashboard', () => {
             .click()
             .type('payment method{downArrow}{enter}');
         cy.findByPlaceholderText('Start typing to filter results').type(
-            'credit_card{enter}{esc}',
+            'credit_card{enter}',
         );
         cy.findAllByRole('tab').eq(0).click();
         cy.contains('button', 'Apply').click();
@@ -131,7 +131,7 @@ describe('Dashboard', () => {
             .type('payment method{downArrow}{enter}');
         cy.get('label.mantine-Switch-track').click();
         cy.findByPlaceholderText('Start typing to filter results').type(
-            'credit_card{enter}{esc}',
+            'credit_card{enter}',
         );
         cy.contains('button', 'Apply').click();
 
