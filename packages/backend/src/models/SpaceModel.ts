@@ -206,7 +206,7 @@ export class SpaceModel {
             mostPopular?: boolean;
         },
     ): Promise<SpaceDashboard[]> {
-        let dashboardsQuery = this.database
+        const subQuery = this.database
             .table(DashboardsTableName)
             .leftJoin(
                 SpaceTableName,
@@ -280,31 +280,21 @@ export class SpaceModel {
                 `),
             ])
             .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
-            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids);
+            .select(
+                `${DashboardVersionsTableName}.created_at as dashboard_version_created_at`,
+            )
+            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+            .as('subQuery');
+
+        let dashboardsQuery = this.database.select('*').from(subQuery);
 
         if (filters?.recentlyUpdated || filters?.mostPopular) {
+            const sortByColumn = filters.mostPopular
+                ? 'views'
+                : 'dashboard_version_created_at';
+
             dashboardsQuery = dashboardsQuery
-                .orderBy(
-                    filters.mostPopular
-                        ? [
-                              {
-                                  column: `${DashboardVersionsTableName}.dashboard_id`,
-                              },
-                              {
-                                  column: 'views',
-                                  order: 'desc',
-                              },
-                          ]
-                        : [
-                              {
-                                  column: `${DashboardVersionsTableName}.dashboard_id`,
-                              },
-                              {
-                                  column: `${DashboardVersionsTableName}.created_at`,
-                                  order: 'desc',
-                              },
-                          ],
-                )
+                .orderBy(sortByColumn, 'desc')
                 .limit(this.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT);
         } else {
             dashboardsQuery = dashboardsQuery.orderBy([
