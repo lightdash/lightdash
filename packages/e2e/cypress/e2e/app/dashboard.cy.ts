@@ -129,7 +129,8 @@ describe('Dashboard', () => {
         cy.findByTestId('FilterConfiguration/FieldSelect')
             .click()
             .type('payment method{downArrow}{enter}');
-        cy.get('label.mantine-Switch-track').click();
+        // using force click here because this is a mantine switch and the actual checkbox is hidden
+        cy.findByLabelText('Provide default value').click({ force: true });
         cy.findByPlaceholderText('Start typing to filter results').type(
             'credit_card{enter}{esc}',
         );
