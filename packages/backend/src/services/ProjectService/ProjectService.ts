@@ -2218,7 +2218,6 @@ export class ProjectService {
 
         const mostPopular = await this.getMostPopular(allowedSpaces);
         const recentlyUpdated = await this.getRecentlyUpdated(allowedSpaces);
-        console.log({ mostPopular, recentlyUpdated });
 
         return {
             mostPopular: mostPopular
