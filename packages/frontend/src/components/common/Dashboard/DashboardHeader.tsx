@@ -1,11 +1,11 @@
-import { Classes, Divider, Menu } from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { Classes, Divider } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { Dashboard, SpaceSummary, UpdatedByUser } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
     Button,
+    Menu,
     Popover,
     Stack,
     Text,
@@ -13,6 +13,7 @@ import {
 } from '@mantine/core';
 import {
     IconCheck,
+    IconChevronRight,
     IconCopy,
     IconDots,
     IconFolders,
@@ -273,44 +274,79 @@ const DashboardHeader = ({
                         <ShareLinkButton url={`${window.location.href}`} />
                     )}
 
-                    <Popover2
-                        placement="bottom"
-                        content={
-                            <Menu>
-                                {!!userCanManageDashboard && (
-                                    <>
-                                        <MenuItem2
-                                            icon={<IconCopy />}
-                                            text="Duplicate"
-                                            onClick={onDuplicate}
-                                        />
-
-                                        <MenuItem2
-                                            icon={<IconFolders />}
-                                            text="Move to space"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
+                    <Menu
+                        position="bottom"
+                        withArrow
+                        shadow="md"
+                        closeOnItemClick={false}
+                    >
+                        <Menu.Target>
+                            {userCanExportData && (
+                                <ActionIcon variant="default">
+                                    <MantineIcon icon={IconDots} />
+                                </ActionIcon>
+                            )}
+                        </Menu.Target>
+                        {!!userCanManageDashboard && (
+                            <Menu.Dropdown pos={'fixed'}>
+                                <Menu.Item
+                                    icon={<IconCopy size={20} />}
+                                    onClick={onDuplicate}
+                                >
+                                    Duplicate
+                                </Menu.Item>
+                                <Menu.Item
+                                    icon={<IconFolders size={20} />}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                    }}
+                                >
+                                    <Menu
+                                        width={180}
+                                        withArrow
+                                        position="left-start"
+                                        shadow="md"
+                                        offset={40}
+                                        trigger="hover"
+                                    >
+                                        <Menu.Target>
+                                            <Box
+                                                sx={{
+                                                    display: 'flex',
+                                                    justifyContent:
+                                                        'space-between',
+                                                    alignItems: 'center',
+                                                }}
+                                            >
+                                                Move to space
+                                                <IconChevronRight size={20} />
+                                            </Box>
+                                        </Menu.Target>
+                                        <Menu.Dropdown
+                                            sx={{
+                                                position: 'fixed',
                                             }}
                                         >
                                             {spaces?.map((spaceToMove) => {
                                                 const isDisabled =
                                                     dashboardSpaceUuid ===
                                                     spaceToMove.uuid;
+                                                const color = isDisabled
+                                                    ? 'rgba(95, 107, 124, 0.6)'
+                                                    : '';
                                                 return (
-                                                    <MenuItem2
-                                                        key={spaceToMove.uuid}
-                                                        text={spaceToMove.name}
+                                                    <Menu.Item
                                                         icon={
                                                             isDisabled ? (
-                                                                <IconCheck />
+                                                                <IconCheck
+                                                                    size={20}
+                                                                />
                                                             ) : undefined
                                                         }
-                                                        className={
-                                                            isDisabled
-                                                                ? 'bp4-disabled'
-                                                                : ''
-                                                        }
+                                                        sx={{
+                                                            color,
+                                                        }}
                                                         onClick={(e) => {
                                                             e.preventDefault();
                                                             e.stopPropagation();
@@ -323,59 +359,68 @@ const DashboardHeader = ({
                                                                 );
                                                             }
                                                         }}
-                                                    />
+                                                        key={spaceToMove.uuid}
+                                                    >
+                                                        {spaceToMove.name}
+                                                    </Menu.Item>
                                                 );
                                             })}
+
                                             <Divider />
-                                            <MenuItem2
-                                                icon={<IconPlus />}
-                                                text="Create new"
+
+                                            <Menu.Item
+                                                icon={<IconPlus size={20} />}
                                                 onClick={(e) => {
                                                     e.preventDefault();
                                                     e.stopPropagation();
                                                     setIsCreatingNewSpace(true);
                                                 }}
-                                            />
-                                        </MenuItem2>
-                                        <MenuItem2
-                                            icon={<IconSend />}
-                                            text="Scheduled deliveries"
-                                            onClick={() => {
-                                                toggleScheduledDeliveriesModal(
-                                                    true,
-                                                );
-                                            }}
-                                        />
-                                    </>
-                                )}
+                                            >
+                                                {' '}
+                                                Create new
+                                            </Menu.Item>
+                                        </Menu.Dropdown>
+                                    </Menu>
+                                </Menu.Item>
+
+                                <Menu.Item
+                                    icon={<IconSend size={20} />}
+                                    onClick={() => {
+                                        toggleScheduledDeliveriesModal(true);
+                                    }}
+                                >
+                                    Scheduled deliveries
+                                </Menu.Item>
+
                                 {(userCanExportData ||
                                     userCanManageDashboard) && (
-                                    <MenuItem2
-                                        icon={<IconUpload />}
-                                        text="Export dashboard"
+                                    <Menu.Item
+                                        icon={<IconUpload size={20} />}
                                         onClick={onExport}
-                                    />
+                                    >
+                                        Export dashboard{' '}
+                                    </Menu.Item>
                                 )}
                                 {userCanManageDashboard && (
                                     <>
                                         <Divider />
-                                        <MenuItem2
-                                            icon={<IconTrash />}
-                                            text="Delete"
-                                            intent="danger"
+                                        <Menu.Item
+                                            icon={
+                                                <IconTrash
+                                                    color="red"
+                                                    size={20}
+                                                />
+                                            }
                                             onClick={onDelete}
-                                        />
+                                            color="red"
+                                        >
+                                            Delete
+                                        </Menu.Item>
                                     </>
                                 )}
-                            </Menu>
-                        }
-                    >
-                        {userCanExportData && (
-                            <ActionIcon variant="default">
-                                <MantineIcon icon={IconDots} />
-                            </ActionIcon>
+                            </Menu.Dropdown>
                         )}
-                    </Popover2>
+                    </Menu>
 
                     {isCreatingNewSpace && (
                         <SpaceActionModal
