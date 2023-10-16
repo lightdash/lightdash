@@ -135,9 +135,7 @@ export const hasMatchingConditionalRules = (
     if (isConditionalFormattingConfigWithColorRange(config)) {
         if (typeof convertedValue !== 'number') return false;
 
-        return (
-            convertedValue >= config.rule.min
-        );
+        return convertedValue >= config.rule.min;
     }
 
     return assertUnreachable(config, 'Unknown conditional formatting config');

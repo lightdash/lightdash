@@ -55,7 +55,7 @@ export const getColorFromRange = (
     const colors = getColorRange(config.color);
     if (!colors) return undefined;
 
-    value = clamp(value, config.rule.min, config.rule.max)
+    value = clamp(value, config.rule.min, config.rule.max);
 
     const min = config.rule.min;
     const inclusiveMax = config.rule.max + 1;
