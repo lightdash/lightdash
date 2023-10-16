@@ -136,8 +136,7 @@ export const hasMatchingConditionalRules = (
         if (typeof convertedValue !== 'number') return false;
 
         return (
-            convertedValue >= config.rule.min &&
-            convertedValue <= config.rule.max
+            convertedValue >= config.rule.min
         );
     }
 

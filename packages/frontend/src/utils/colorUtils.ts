@@ -1,4 +1,5 @@
 import Color from 'colorjs.io';
+import { clamp } from 'lodash-es';
 
 const IS_HEX_CODE_COLOR_REGEX = /^#([a-fA-F0-9]{3}|[a-fA-F0-9]{6})$/;
 export const isHexCodeColor = (color: string): boolean => {
@@ -53,6 +54,8 @@ export const getColorFromRange = (
 ): string | undefined => {
     const colors = getColorRange(config.color);
     if (!colors) return undefined;
+
+    value = clamp(value, config.rule.min, config.rule.max)
 
     const min = config.rule.min;
     const inclusiveMax = config.rule.max + 1;
