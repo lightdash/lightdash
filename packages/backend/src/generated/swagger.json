@@ -3211,6 +3211,9 @@
                         "required": ["color"],
                         "type": "object"
                     },
+                    "value": {
+                        "type": "string"
+                    },
                     "name": {
                         "type": "string"
                     },
@@ -3221,7 +3224,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["name"],
+                "required": ["value", "name"],
                 "type": "object"
             },
             "MarkLine": {
@@ -4406,7 +4409,6 @@
                 "required": [
                     "pinnedListOrder",
                     "pinnedListUuid",
-                    "access",
                     "dashboards",
                     "projectUuid",
                     "queries",
@@ -5145,7 +5147,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.800.2",
+        "version": "0.811.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

@@ -43,7 +43,7 @@ describe('Lightdash API', () => {
         const endpoints = [
             `/projects/${projectUuid}`,
             `/projects/${projectUuid}/explores`,
-            `/projects/${projectUuid}/spaces-and-content`,
+            `/projects/${projectUuid}/most-popular-and-recently-updated`,
             `/projects/${projectUuid}/dashboards`,
             `/projects/${projectUuid}/catalog`,
             `/projects/${projectUuid}/tablesConfiguration`,
