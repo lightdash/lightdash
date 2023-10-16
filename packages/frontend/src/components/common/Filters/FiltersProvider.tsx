@@ -32,7 +32,7 @@ const Context = createContext<FiltersContext | undefined>(undefined);
 type Props = {
     projectUuid?: string;
     fieldsMap?: Record<string, FieldWithSuggestions>;
-    startOfWeek?: WeekDay | null;
+    startOfWeek?: WeekDay;
     dashboardFilters?: DashboardFilters;
 };
 

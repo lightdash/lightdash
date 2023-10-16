@@ -147,7 +147,9 @@ const FiltersCard: FC = memo(() => {
             <FiltersProvider
                 projectUuid={projectUuid}
                 fieldsMap={fieldsWithSuggestions}
-                startOfWeek={project.data?.warehouseConnection?.startOfWeek}
+                startOfWeek={
+                    project.data?.warehouseConnection?.startOfWeek ?? undefined
+                }
             >
                 <FiltersForm
                     isEditMode={isEditMode}

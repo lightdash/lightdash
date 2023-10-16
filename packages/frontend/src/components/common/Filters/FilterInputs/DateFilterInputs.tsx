@@ -12,11 +12,12 @@ import {
     parseDate,
     TimeFrames,
 } from '@lightdash/common';
-import { Flex, NumberInput } from '@mantine/core';
+import { Flex, NumberInput, Text } from '@mantine/core';
 import moment from 'moment';
 import React from 'react';
 import MonthAndYearInput from '../../MonthAndYearInput';
 import WeekPicker, { convertWeekDayToDayPickerWeekDay } from '../../WeekPicker';
+import WeekPickerDuplicate from '../../WeekPickerDuplicate';
 import YearInput from '../../YearInput';
 import { useFiltersContext } from '../FiltersProvider';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
@@ -57,9 +58,29 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     case TimeFrames.WEEK:
                         return (
                             <Flex align="center" gap="xs" w="100%">
-                                <span style={{ whiteSpace: 'nowrap' }}>
+                                <Text
+                                    color="gray"
+                                    sx={{ whiteSpace: 'nowrap' }}
+                                >
                                     week commencing
-                                </span>
+                                </Text>
+
+                                <WeekPickerDuplicate
+                                    w="100%"
+                                    placeholder={placeholder}
+                                    disabled={disabled}
+                                    value={rule.values ? rule.values[0] : null}
+                                    startOfWeekDay={startOfWeek ?? undefined}
+                                    onChange={(value: Date | null) => {
+                                        onChange({
+                                            ...rule,
+                                            values:
+                                                value === null
+                                                    ? undefined
+                                                    : [moment(value).toDate()],
+                                        });
+                                    }}
+                                />
 
                                 <WeekPicker
                                     placeholder={placeholder}

@@ -58,7 +58,9 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
         <FiltersProvider
             projectUuid={projectUuid}
             fieldsMap={fieldsWithSuggestions}
-            startOfWeek={project.data?.warehouseConnection?.startOfWeek}
+            startOfWeek={
+                project.data?.warehouseConnection?.startOfWeek ?? undefined
+            }
             dashboardFilters={allFilters}
         >
             <Flex gap={3} mb={8} ml={8} wrap="wrap">
