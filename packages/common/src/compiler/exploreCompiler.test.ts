@@ -6,6 +6,7 @@ import {
     compiledJoinedExploreOverridingJoinAlias,
     compiledJoinedExploreOverridingJoinLabel,
     compiledJoinedExploreWithSubsetOfFields,
+    compiledJoinedExploreWithSubsetOfFieldsThatDontIncludeSqlFields,
     compiledSimpleJoinedExplore,
     exploreCircularDimensionReference,
     exploreCircularDimensionShortReference,
@@ -31,7 +32,7 @@ import {
     joinedExploreOverridingJoinAlias,
     joinedExploreOverridingJoinLabel,
     joinedExploreWithSubsetOfFields,
-    joinedExploreWithSubsetOfFieldsCausingError,
+    joinedExploreWithSubsetOfFieldsThatDontIncludeSqlFields,
     simpleJoinedExplore,
     tablesWithMetricsWithFilters,
     warehouseClientMock,
@@ -139,12 +140,14 @@ describe('Explores with a base table and joined table', () => {
             compiler.compileExplore(joinedExploreWithSubsetOfFields),
         ).toStrictEqual(compiledJoinedExploreWithSubsetOfFields);
     });
-    test('should throw error if referenced field is removed from join', () => {
-        expect(() =>
+    test('should compile with a subset of fields selected on join what dont include the fields in the join SQL', () => {
+        expect(
             compiler.compileExplore(
-                joinedExploreWithSubsetOfFieldsCausingError,
+                joinedExploreWithSubsetOfFieldsThatDontIncludeSqlFields,
             ),
-        ).toThrowError(CompileError);
+        ).toStrictEqual(
+            compiledJoinedExploreWithSubsetOfFieldsThatDontIncludeSqlFields,
+        );
     });
 });
 
