@@ -1,3 +1,10 @@
+## [0.812.1](https://github.com/lightdash/lightdash/compare/0.812.0...0.812.1) (2023-10-17)
+
+
+### Bug Fixes
+
+* hide add filter button if not in edit mode ([#7501](https://github.com/lightdash/lightdash/issues/7501)) ([cbf414d](https://github.com/lightdash/lightdash/commit/cbf414daff5027dedd6cd7f651eb65ad230fc52e))
+
 # [0.812.0](https://github.com/lightdash/lightdash/compare/0.811.0...0.812.0) (2023-10-17)
 
 
