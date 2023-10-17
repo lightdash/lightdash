@@ -82,7 +82,7 @@ export const ThirdPartySignInButton: FC<ThirdPartySignInButtonProps> = ({
                 <ThirdPartySignInButtonBase
                     loginPath={health.data.auth.google.loginPath}
                     redirect={
-                        location.state?.from?.pathname && health.data?.siteUrl
+                        location.state?.from?.pathname
                             ? `${health.data.siteUrl}${location.state.from.pathname}${location.state.from.search}`
                             : undefined
                     }

@@ -145,12 +145,15 @@ export const storeOIDCRedirect: RequestHandler = (req, res, next) => {
 };
 export const redirectOIDCSuccess: RequestHandler = (req, res) => {
     const { returnTo } = req.session.oauth || {};
-    req.session.oauth = {};
-    res.redirect(returnTo || '/');
+
+    const queryReturn =
+        typeof req.query.returnTo === 'string'
+            ? req.query.returnTo.toString()
+            : undefined;
+    res.redirect(queryReturn || returnTo || '/');
 };
 export const redirectOIDCFailure: RequestHandler = (req, res) => {
     const { returnTo } = req.session.oauth || {};
-    req.session.oauth = {};
     res.redirect(returnTo || '/');
 };
 export const googlePassportStrategy: GoogleStrategy | undefined = !(
@@ -179,7 +182,6 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
               try {
                   const issuer = 'https://accounts.google.com';
                   const { inviteCode } = req.session.oauth || {};
-                  req.session.oauth = {};
                   const [{ value: email }] = profile.emails || [];
                   const { id: subject } = profile;
                   if (!(email && subject)) {
@@ -206,7 +208,6 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                       inviteCode,
                       refreshToken,
                   );
-
                   return done(null, user);
               } catch (e) {
                   if (e instanceof LightdashError) {
