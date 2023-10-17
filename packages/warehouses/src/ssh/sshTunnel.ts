@@ -80,8 +80,27 @@ export class SshTunnel<T extends CreateWarehouseCredentials> {
 
     disconnect = async (): Promise<void> => {
         if (this.sshConnection) {
-            console.info('Closing SSH tunnel');
             await this.sshConnection.close();
+        }
+    };
+
+    testConnection = async (): Promise<void> => {
+        const { type } = this.originalCredentials;
+        switch (type) {
+            case WarehouseTypes.POSTGRES:
+            case WarehouseTypes.REDSHIFT:
+                if (
+                    this.sshConnection &&
+                    this.originalCredentials.useSshTunnel
+                ) {
+                    const port = await this.sshConnection.connect();
+                    if (Object.keys(port.activeTunnels).length === 0) {
+                        throw new Error('No active SSH tunnels');
+                    }
+                }
+                break;
+            default:
+                break;
         }
     };
 }
