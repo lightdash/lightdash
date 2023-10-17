@@ -634,9 +634,8 @@ export class ProjectService {
         } catch (e) {
             Logger.error(`Error testing project adapter: ${e}`);
             await adapter.destroy();
-            throw e;
-        } finally {
             await sshTunnel.disconnect();
+            throw e;
         }
         return { adapter, sshTunnel };
     }
