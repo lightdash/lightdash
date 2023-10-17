@@ -1,3 +1,10 @@
+## [0.812.3](https://github.com/lightdash/lightdash/compare/0.812.2...0.812.3) (2023-10-17)
+
+
+### Bug Fixes
+
+* revert adapter destroy on finally ([#7516](https://github.com/lightdash/lightdash/issues/7516)) ([8e1ba6b](https://github.com/lightdash/lightdash/commit/8e1ba6b827b71704c3612d48cb28aa14bad56a54))
+
 ## [0.812.2](https://github.com/lightdash/lightdash/compare/0.812.1...0.812.2) (2023-10-17)
 
 
