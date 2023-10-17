@@ -1,4 +1,4 @@
-import { Button, HTMLSelect, Icon, Tag } from '@blueprintjs/core';
+import { Button, HTMLSelect, Tag } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const ItemContent = styled.div`
@@ -37,8 +37,4 @@ export const RoleSelectButton = styled(HTMLSelect)`
 
 export const AddUserButton = styled(Button)`
     float: right;
-`;
-
-export const RelevantOrgRoleIcon = styled(Icon)`
-    margin-right: 10px;
 `;

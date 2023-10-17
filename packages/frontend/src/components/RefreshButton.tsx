@@ -1,12 +1,10 @@
-import { Classes } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
-import { Group, Kbd, Text } from '@mantine/core';
+import { Button, Group, Kbd, Text, Tooltip } from '@mantine/core';
 import { useHotkeys, useOs } from '@mantine/hooks';
+import { IconPlayerPlayFilled } from '@tabler/icons-react';
 import { memo, useCallback } from 'react';
 import { useExplorerContext } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
-import { BigButton } from './common/BigButton';
 
 export const RefreshButton = memo(() => {
     const os = useOs();
@@ -34,8 +32,8 @@ export const RefreshButton = memo(() => {
     useHotkeys([['mod + enter', onClick, { preventDefault: true }]]);
 
     return (
-        <Tooltip2
-            content={
+        <Tooltip
+            label={
                 <Group spacing="xxs">
                     <Kbd
                         fw={600}
@@ -65,19 +63,22 @@ export const RefreshButton = memo(() => {
                 </Group>
             }
             position="bottom"
+            withArrow
             disabled={isLoading || !isValidQuery}
+            sx={{ padding: '10px' }}
         >
-            <BigButton
-                style={{ width: 150 }}
-                icon="play"
-                intent="primary"
+            <Button
+                leftIcon={<IconPlayerPlayFilled size="1rem" />}
                 loading={isLoading}
-                // disabled button captures hover events
                 onClick={onClick}
-                className={!canRunQuery ? Classes.DISABLED : undefined}
+                sx={{
+                    '&[data-disabled]': { pointerEvents: 'all' },
+                    width: 150,
+                }}
+                disabled={!isLoading && !canRunQuery}
             >
                 Run query
-            </BigButton>
-        </Tooltip2>
+            </Button>
+        </Tooltip>
     );
 });

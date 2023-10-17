@@ -1,8 +1,7 @@
-import { Tooltip2 } from '@blueprintjs/popover2';
-import { Group, Kbd, Text } from '@mantine/core';
+import { Button, Group, Kbd, Text, Tooltip } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
+import { IconPlayerPlayFilled } from '@tabler/icons-react';
 import React, { FC } from 'react';
-import { BigButton } from '../common/BigButton';
 
 const RunSqlQueryButton: FC<{
     isLoading: boolean;
@@ -10,8 +9,8 @@ const RunSqlQueryButton: FC<{
 }> = ({ onSubmit, isLoading }) => {
     const os = useOs();
     return (
-        <Tooltip2
-            content={
+        <Tooltip
+            label={
                 <Group spacing="xxs">
                     <Kbd
                         fw={600}
@@ -40,18 +39,23 @@ const RunSqlQueryButton: FC<{
                     </Kbd>
                 </Group>
             }
+            position="left"
+            withArrow
             disabled={isLoading}
+            sx={{ padding: '10px' }}
         >
-            <BigButton
-                icon="play"
-                intent="primary"
-                style={{ width: 150 }}
-                onClick={onSubmit}
+            <Button
+                leftIcon={<IconPlayerPlayFilled size="1rem" />}
                 loading={isLoading}
+                onClick={onSubmit}
+                sx={{
+                    width: 150,
+                    height: '40px',
+                }}
             >
                 Run query
-            </BigButton>
-        </Tooltip2>
+            </Button>
+        </Tooltip>
     );
 };
 
