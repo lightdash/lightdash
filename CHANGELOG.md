@@ -1,3 +1,15 @@
+# [0.813.0](https://github.com/lightdash/lightdash/compare/0.812.3...0.813.0) (2023-10-17)
+
+
+### Bug Fixes
+
+* parsing all references ([#7523](https://github.com/lightdash/lightdash/issues/7523)) ([2267f7d](https://github.com/lightdash/lightdash/commit/2267f7d60f2d1f6da988ecab179c8518e273d26f))
+
+
+### Features
+
+* add a validation function to TagInput ([#7522](https://github.com/lightdash/lightdash/issues/7522)) ([3a98382](https://github.com/lightdash/lightdash/commit/3a983826339fe0dbb119f85498b08c9a2b76a9c7))
+
 ## [0.812.3](https://github.com/lightdash/lightdash/compare/0.812.2...0.812.3) (2023-10-17)
 
 
