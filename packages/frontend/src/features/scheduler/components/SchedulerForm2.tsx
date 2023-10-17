@@ -33,6 +33,7 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { TagInput } from '../../../components/common/TagInput/TagInput';
 import { hasRequiredScopes } from '../../../components/UserSettings/SlackSettingsPanel';
 import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
 import { useGetSlack } from '../../../hooks/useSlack';
@@ -56,9 +57,7 @@ enum SlackStates {
     MISSING_SCOPES,
 }
 
-const SlackErrorContent: FC<{ slackState: SlackStates }> = ({
-    slackState,
-}): JSX.Element => {
+const SlackErrorContent: FC<{ slackState: SlackStates }> = ({ slackState }) => {
     if (slackState === SlackStates.NO_SLACK) {
         return (
             <>
@@ -168,7 +167,9 @@ const SchedulerForm2: FC<{
         },
     });
     const health = useHealth();
-    const [emails, setEmails] = useState<string[]>([]);
+    const [emailValidationError, setEmailValidationError] = useState<
+        string | undefined
+    >();
     const [privateChannels, setPrivateChannels] = useState<
         Array<{
             label: string;
@@ -271,7 +272,7 @@ const SchedulerForm2: FC<{
                             <Text
                                 size="xs"
                                 color="gray.6"
-                                w="30%"
+                                w={185}
                                 sx={{ alignSelf: 'start' }}
                             >
                                 You must enable the
@@ -411,33 +412,34 @@ const SchedulerForm2: FC<{
                             >
                                 <HoverCard.Target>
                                     <Box w="100%">
-                                        <MultiSelect
+                                        <TagInput
+                                            clearable
+                                            error={emailValidationError || null}
                                             placeholder="Enter email addresses"
-                                            data={emails}
-                                            value={form.values?.emailTargets}
-                                            searchable
-                                            creatable
                                             disabled={isAddEmailDisabled}
-                                            getCreateLabel={(query) =>
-                                                `+ Add ${query}`
+                                            value={form.values?.emailTargets}
+                                            allowDuplicates={false}
+                                            splitChars={[',', ' ']}
+                                            validationFunction={validateEmail}
+                                            onBlur={() =>
+                                                setEmailValidationError(
+                                                    undefined,
+                                                )
                                             }
-                                            onCreate={(newItem) => {
-                                                setEmails((current) => [
-                                                    ...current,
-                                                    newItem,
-                                                ]);
-                                                return newItem;
-                                            }}
+                                            onValidationReject={(val) =>
+                                                setEmailValidationError(
+                                                    `'${val}' doesn't appear to be an email address`,
+                                                )
+                                            }
                                             onChange={(val) => {
+                                                setEmailValidationError(
+                                                    undefined,
+                                                );
                                                 form.setFieldValue(
                                                     'emailTargets',
                                                     val,
                                                 );
                                             }}
-                                            shouldCreate={(value) =>
-                                                validateEmail(value)
-                                            }
-                                            rightSection={<></>}
                                         />
                                     </Box>
                                 </HoverCard.Target>
@@ -517,7 +519,7 @@ const SchedulerForm2: FC<{
                                 </HoverCard>
                             </Group>
                             {!isAddSlackDisabled && (
-                                <Text size="xs" color="gray.6" ml={40}>
+                                <Text size="xs" color="gray.6" ml="3xl">
                                     If delivering to a private Slack channel,
                                     please type the name of the channel in the
                                     input box exactly as it appears in Slack.
