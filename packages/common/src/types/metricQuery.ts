@@ -28,6 +28,22 @@ export interface AdditionalMetric {
     percentile?: number;
 }
 
+export enum BinType {
+    FIXED_NUMBER = 'fixed_number',
+    // TODO not supported yet
+    // FIXED_WIDTH = 'fixed_width',
+    // CUSTOM_RANGE = 'custom_range',
+}
+
+export interface CustomDimension {
+    name: string;
+    dimensionId: FieldId; // Parent dimension id
+    binType: BinType;
+    binNumber?: number;
+    // binWidth?: number;
+    // binRange?: BinRange[];
+}
+
 export const isAdditionalMetric = (value: any): value is AdditionalMetric =>
     value?.table && value?.name && !value?.fieldType;
 
@@ -43,6 +59,7 @@ export type MetricQuery = {
     limit: number; // Max number of rows to return from query
     tableCalculations: TableCalculation[]; // calculations to append to results
     additionalMetrics?: AdditionalMetric[]; // existing metric type
+    customDimensions?: CustomDimension[];
 };
 export type CompiledMetricQuery = MetricQuery & {
     compiledTableCalculations: CompiledTableCalculation[];
@@ -95,4 +112,5 @@ export type MetricQueryResponse = {
     limit: number; // Max number of rows to return from query
     tableCalculations: TableCalculation[]; // calculations to append to results
     additionalMetrics?: AdditionalMetric[]; // existing metric type
+    customDimensions?: CustomDimension[];
 };
