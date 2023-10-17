@@ -512,6 +512,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
                 description={savedQueryWithDashboardFilters?.description}
                 isLoading={isLoading || isLoadingExplore}
+                belongsToDashboard={belongsToDashboard}
                 extraMenuItems={
                     savedChartUuid !== null &&
                     user.data?.ability?.can('manage', 'Explore') && (
