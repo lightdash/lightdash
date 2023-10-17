@@ -156,7 +156,7 @@ export const redirectOIDCSuccess: RequestHandler = (req, res) => {
 
     const { returnTo } = req.session.oauth || {};
 
-    res.redirect(queryReturn || returnTo || '/');
+    res.redirect(returnTo || '/');
 };
 export const redirectOIDCFailure: RequestHandler = (req, res) => {
     const { returnTo } = req.session.oauth || {};
