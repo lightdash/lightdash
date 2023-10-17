@@ -64,15 +64,25 @@ Play with our [demo app](https://demo.lightdash.com)!
 
 ### 1-click deploy
 
-Deploy Lightdash with 1-click on [Render](https://render.com) for free.
+- Deploy Lightdash with 1-click on [Render](https://render.com) for free.
 
-<div>
+  <div>
 
-<a href="https://render.com/deploy?repo=https://github.com/lightdash/lightdash-deploy-render">
-  <img src="https://render.com/images/deploy-to-render-button.svg" alt="Deploy to Render">
-</a>
+  <a href="https://render.com/deploy?repo=https://github.com/lightdash/lightdash-deploy-render">
+    <img src="https://render.com/images/deploy-to-render-button.svg" alt="Deploy to Render">
+  </a>
 
-</div>
+  </div><br/>
+
+- Deploy Lightdash with 1-click on [Elestio](https://elest.io) as a fully managed instance.
+
+  <div>
+
+  <a href="https://elest.io/open-source/lightdash">
+    <img src="https://pub-da36157c854648669813f3f76c526c2b.r2.dev/deploy-on-elestio-black.png" alt="Deploy to Render">
+  </a>
+
+  </div>
 
 ### Run locally
 
