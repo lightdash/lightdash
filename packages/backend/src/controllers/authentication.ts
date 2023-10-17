@@ -144,12 +144,16 @@ export const storeOIDCRedirect: RequestHandler = (req, res, next) => {
     next();
 };
 export const redirectOIDCSuccess: RequestHandler = (req, res) => {
-    const { returnTo } = req.session.oauth || {};
-
     const queryReturn =
         typeof req.query.returnTo === 'string'
             ? req.query.returnTo.toString()
             : undefined;
+    if (queryReturn && queryReturn.startsWith(lightdashConfig.siteUrl)) {
+        res.redirect(queryReturn);
+    }
+
+    const { returnTo } = req.session.oauth || {};
+
     res.redirect(queryReturn || returnTo || '/');
 };
 export const redirectOIDCFailure: RequestHandler = (req, res) => {
