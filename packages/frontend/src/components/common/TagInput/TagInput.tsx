@@ -76,8 +76,11 @@ export interface TagInputProps
 
     splitChars?: string[];
 
-    /** Called for validation when add tags */
+    /** Used for validation when adding tags */
     validationRegex?: RegExp;
+
+    /** Called for validation when adding tags */
+    validationFunction?: (data: string) => boolean;
 
     /** Called when validationRegex reject tags */
     onValidationReject?: (data: string[]) => void;
@@ -200,6 +203,7 @@ export const TagInput = forwardRef<HTMLInputElement, TagInputProps>(
             maxTags,
             splitChars,
             validationRegex,
+            validationFunction,
             searchValue,
             defaultSearchValue,
             onValidationReject,
@@ -279,9 +283,16 @@ export const TagInput = forwardRef<HTMLInputElement, TagInputProps>(
                 );
             }
 
-            const rejectedTags = tags.filter(
-                (tag) => !validationRegex!.test(tag),
-            );
+            const rejectedTags = tags.filter((tag) => {
+                if (validationFunction) {
+                    return (
+                        !validationRegex!.test(tag) ||
+                        (validationFunction ? !validationFunction(tag) : true)
+                    );
+                }
+
+                return !validationRegex!.test(tag);
+            });
 
             if (maxTags && maxTags >= 0) {
                 const remainingLimit = Math.max(maxTags - _value.length, 0);
@@ -447,6 +458,7 @@ export const TagInput = forwardRef<HTMLInputElement, TagInputProps>(
                 disabled={disabled}
                 // @ts-ignore
                 autoComplete="off"
+                data-1p-ignore
                 {...rest}
             />
         );
