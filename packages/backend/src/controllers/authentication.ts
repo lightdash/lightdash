@@ -146,10 +146,12 @@ export const storeOIDCRedirect: RequestHandler = (req, res, next) => {
 export const redirectOIDCSuccess: RequestHandler = (req, res) => {
     const queryReturn =
         typeof req.query.returnTo === 'string'
-            ? req.query.returnTo.toString()
+            ? decodeURIComponent(req.query.returnTo.toString())
             : undefined;
+
     if (queryReturn && queryReturn.startsWith(lightdashConfig.siteUrl)) {
         res.redirect(queryReturn);
+        return;
     }
 
     const { returnTo } = req.session.oauth || {};

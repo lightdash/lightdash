@@ -138,9 +138,12 @@ apiV1Router.get(
 apiV1Router.get(lightdashConfig.auth.google.callbackPath, (req, res, next) => {
     const { returnTo } = req.session.oauth || {};
 
+    const redirectQuery = returnTo
+        ? `?returnTo=${encodeURIComponent(returnTo)}`
+        : '';
     passport.authenticate('google', {
         failureRedirect: '/api/v1/oauth/failure',
-        successRedirect: `/api/v1/oauth/success?returnTo=${returnTo}`,
+        successRedirect: `/api/v1/oauth/success${redirectQuery}`,
         failureFlash: true,
         includeGrantedScopes: true,
     })(req, res, next);
