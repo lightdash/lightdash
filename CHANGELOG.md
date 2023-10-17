@@ -1,3 +1,10 @@
+## [0.813.1](https://github.com/lightdash/lightdash/compare/0.813.0...0.813.1) (2023-10-17)
+
+
+### Bug Fixes
+
+* disable redirect for charts in dashboards ([#7505](https://github.com/lightdash/lightdash/issues/7505)) ([715dd91](https://github.com/lightdash/lightdash/commit/715dd91d663d177fa4c7aa043c522dc75dfbdfb2))
+
 # [0.813.0](https://github.com/lightdash/lightdash/compare/0.812.3...0.813.0) (2023-10-17)
 
 
