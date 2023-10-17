@@ -1,3 +1,25 @@
+# [0.812.0](https://github.com/lightdash/lightdash/compare/0.811.0...0.812.0) (2023-10-17)
+
+
+### Bug Fixes
+
+* auto refresh on renaming a space from spaces page ([#7503](https://github.com/lightdash/lightdash/issues/7503)) ([16a385c](https://github.com/lightdash/lightdash/commit/16a385c4af3444e67ca01f1e3851f615ccff565f))
+* Disables total toggle for line/area/scatter charts, only show for bar charts. ([#7454](https://github.com/lightdash/lightdash/issues/7454)) ([fa63f6e](https://github.com/lightdash/lightdash/commit/fa63f6ebd191e35be4506e7f9e4fed60adeabec6))
+* explore filters field select x button alignment ([#7473](https://github.com/lightdash/lightdash/issues/7473)) ([5b5b928](https://github.com/lightdash/lightdash/commit/5b5b92878246013d51cd993da16a0fed3bc7533e))
+* google sheet delivery type error ([#7469](https://github.com/lightdash/lightdash/issues/7469)) ([9d7cc70](https://github.com/lightdash/lightdash/commit/9d7cc7091c60d3ff82f1f98a81994613013fa9f4))
+* New spaces don't appear on "space" page unless I refresh the page ([#7474](https://github.com/lightdash/lightdash/issues/7474)) ([41b127b](https://github.com/lightdash/lightdash/commit/41b127b822573e8b625f07aee063004952e1a0f6))
+* Replace Tooltip2 with Mantine ([#7478](https://github.com/lightdash/lightdash/issues/7478)) ([30ba840](https://github.com/lightdash/lightdash/commit/30ba8402574451bfb098601457c5fab0e88e6312))
+* scrolling issue ([#7455](https://github.com/lightdash/lightdash/issues/7455)) ([097108a](https://github.com/lightdash/lightdash/commit/097108a55bcabc3188e7f2726f8e4696dcfa06a1))
+* spaces delete not updating ([#7467](https://github.com/lightdash/lightdash/issues/7467)) ([8bdb2d6](https://github.com/lightdash/lightdash/commit/8bdb2d6528b13956151aa816cc580b60d9459613))
+* ssh test connection before run query ([#7496](https://github.com/lightdash/lightdash/issues/7496)) ([9ee6fb8](https://github.com/lightdash/lightdash/commit/9ee6fb88128c54850d2cdcce695d20f9bf4cd141))
+
+
+### Features
+
+* filter inputs tag input to mantine ([#7452](https://github.com/lightdash/lightdash/issues/7452)) ([1e6ed22](https://github.com/lightdash/lightdash/commit/1e6ed22731989be2266abdb30219f7daaf9acc8d))
+* improve create space ux when creating dashboard modal ([#7483](https://github.com/lightdash/lightdash/issues/7483)) ([aa3fd7a](https://github.com/lightdash/lightdash/commit/aa3fd7aeafc3fd515d37e038a6c2284f2009a641))
+* replace with menus + popover for dashboard header, scheduler and column header ([#7481](https://github.com/lightdash/lightdash/issues/7481)) ([955e900](https://github.com/lightdash/lightdash/commit/955e90006c036afb3bc6b7c79f1ab7c9984e2fb7))
+
 # [0.811.0](https://github.com/lightdash/lightdash/compare/0.810.0...0.811.0) (2023-10-13)
 
 
