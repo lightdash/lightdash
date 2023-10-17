@@ -1,3 +1,10 @@
+## [0.812.2](https://github.com/lightdash/lightdash/compare/0.812.1...0.812.2) (2023-10-17)
+
+
+### Bug Fixes
+
+* google sso redirection ([#7495](https://github.com/lightdash/lightdash/issues/7495)) ([df692b2](https://github.com/lightdash/lightdash/commit/df692b28de1d94422b8f36bd278e075fe89ed0df))
+
 ## [0.812.1](https://github.com/lightdash/lightdash/compare/0.812.0...0.812.1) (2023-10-17)
 
 
