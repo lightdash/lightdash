@@ -11,7 +11,6 @@ import {
     CompiledDimension,
     CompiledMetric,
     Dimension,
-    fieldId,
     friendlyName,
     isNonAggregateMetric,
     Metric,
@@ -182,7 +181,6 @@ export class ExploreCompiler {
             },
             { [baseTable]: tables[baseTable] },
         );
-        console.log('includedTables', includedTables);
 
         const compiledTables: Record<string, CompiledTable> = aliases.reduce(
             (prev, tableName) => ({
