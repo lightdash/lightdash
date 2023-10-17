@@ -46,9 +46,10 @@ export const parseAllReferences = (
     raw: string,
     currentTable: string,
 ): Reference[] =>
-    (raw.match(lightdashVariablePattern) || []).map((value) =>
-        getParsedReference(value.slice(2), currentTable),
-    );
+    (raw.match(lightdashVariablePattern) || []).map((value) => {
+        const valueWithoutBrackets = value.slice(2, value.length - 1);
+        return getParsedReference(valueWithoutBrackets, currentTable);
+    });
 
 export type UncompiledExplore = {
     name: string;
