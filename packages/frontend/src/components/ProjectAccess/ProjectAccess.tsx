@@ -12,7 +12,6 @@ import {
     ProjectMemberRole,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Badge,
     Button,
     Group,
@@ -78,9 +77,13 @@ const UserListItem: FC<{
                             label={`This user inherits the organization role: ${relevantOrgRole}`}
                             position="left"
                         >
-                            <ActionIcon color="orange" size="lg">
-                                <MantineIcon icon={IconAlertTriangleFilled} />
-                            </ActionIcon>
+                            <MantineIcon
+                                icon={IconAlertTriangleFilled}
+                                style={{
+                                    marginRight: 8,
+                                    color: 'orange',
+                                }}
+                            />
                         </Tooltip>
                     )}
 
@@ -105,7 +108,8 @@ const UserListItem: FC<{
                             />
                         ) : (
                             <Tooltip
-                                label={roleTooltip ? roleTooltip : undefined}
+                                label={roleTooltip}
+                                disabled={!roleTooltip}
                                 position="left"
                             >
                                 <Badge
@@ -115,7 +119,6 @@ const UserListItem: FC<{
                                     color="gray.3"
                                     sx={{
                                         textTransform: 'unset',
-                                        fontWeight: 'normal',
                                         color: 'black',
                                     }}
                                 >

@@ -502,8 +502,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             }
                             position="bottom-end"
                             withArrow
+                            withinPortal
                         >
-                            <MantineIcon icon={IconFilter} size={20} />
+                            <MantineIcon icon={IconFilter} />
                         </Tooltip>
                     )
                 }

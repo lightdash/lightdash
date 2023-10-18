@@ -1,10 +1,11 @@
-import { Button, Group, Kbd, Text, Tooltip } from '@mantine/core';
+import { Classes } from '@blueprintjs/core';
+import { Box, Group, Kbd, MantineProvider, Text, Tooltip } from '@mantine/core';
 import { useHotkeys, useOs } from '@mantine/hooks';
-import { IconPlayerPlayFilled } from '@tabler/icons-react';
 import { memo, useCallback } from 'react';
 import { useExplorerContext } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
+import { BigButton } from './common/BigButton';
 
 export const RefreshButton = memo(() => {
     const os = useOs();
@@ -34,51 +35,36 @@ export const RefreshButton = memo(() => {
     return (
         <Tooltip
             label={
-                <Group spacing="xxs">
-                    <Kbd
-                        fw={600}
-                        sx={{
-                            backgroundColor: '#2C2E33',
-                            color: '#C1C2C5',
-                            border: 'none',
-                        }}
-                    >
-                        {os === 'macos' || os === 'ios' ? '⌘' : 'ctrl'}
-                    </Kbd>
+                <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
+                    <Group spacing="xxs">
+                        <Kbd fw={600}>
+                            {os === 'macos' || os === 'ios' ? '⌘' : 'ctrl'}
+                        </Kbd>
 
-                    <Text color="dimmed" fw={600}>
-                        +
-                    </Text>
+                        <Text fw={600}>+</Text>
 
-                    <Kbd
-                        fw={600}
-                        sx={{
-                            backgroundColor: '#2C2E33',
-                            color: '#C1C2C5',
-                            border: 'none',
-                        }}
-                    >
-                        enter
-                    </Kbd>
-                </Group>
+                        <Kbd fw={600}>Enter</Kbd>
+                    </Group>
+                </MantineProvider>
             }
             position="bottom"
             withArrow
+            withinPortal
             disabled={isLoading || !isValidQuery}
-            sx={{ padding: '10px' }}
         >
-            <Button
-                leftIcon={<IconPlayerPlayFilled size="1rem" />}
-                loading={isLoading}
-                onClick={onClick}
-                sx={{
-                    '&[data-disabled]': { pointerEvents: 'all' },
-                    width: 150,
-                }}
-                disabled={!isLoading && !canRunQuery}
-            >
-                Run query
-            </Button>
+            <Box>
+                <BigButton
+                    style={{ width: 150 }}
+                    icon="play"
+                    intent="primary"
+                    loading={isLoading}
+                    // disabled button captures hover events
+                    onClick={onClick}
+                    className={!canRunQuery ? Classes.DISABLED : undefined}
+                >
+                    Run query
+                </BigButton>
+            </Box>
         </Tooltip>
     );
 });
