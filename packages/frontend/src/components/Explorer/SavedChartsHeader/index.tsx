@@ -372,7 +372,6 @@ const SavedChartsHeader: FC = () => {
                             withArrow
                             withinPortal
                             shadow="md"
-                            closeOnItemClick={false}
                             width={200}
                             disabled={!unsavedChartVersion.tableName}
                         >
@@ -433,7 +432,11 @@ const SavedChartsHeader: FC = () => {
                                         icon={
                                             <MantineIcon icon={IconFolders} />
                                         }
-                                        onClick={() => setIsMovingChart(true)}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setIsMovingChart(true);
+                                        }}
                                     >
                                         <Menu
                                             width={250}
