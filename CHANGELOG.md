@@ -1,3 +1,10 @@
+## [0.814.1](https://github.com/lightdash/lightdash/compare/0.814.0...0.814.1) (2023-10-18)
+
+
+### Bug Fixes
+
+* improve recently updated & most popular query performance ([#7370](https://github.com/lightdash/lightdash/issues/7370)) ([39f1ab2](https://github.com/lightdash/lightdash/commit/39f1ab28500f2caf62fb2b40e65466a403be565d))
+
 # [0.814.0](https://github.com/lightdash/lightdash/compare/0.813.3...0.814.0) (2023-10-18)
 
 
