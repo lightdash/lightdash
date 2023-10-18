@@ -263,6 +263,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                                         addCustomDimension({
                                             name: `${item.name} bins`, //TODO customize on modal
                                             dimensionId: fieldId(item),
+                                            table: item.table,
                                             binType: BinType.FIXED_NUMBER,
                                             binNumber: 3, // TODO customize on modal
                                         });

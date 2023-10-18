@@ -38,6 +38,7 @@ export enum BinType {
 export interface CustomDimension {
     name: string;
     dimensionId: FieldId; // Parent dimension id
+    table: string; // Table of parent dimension
     binType: BinType;
     binNumber?: number;
     // binWidth?: number;

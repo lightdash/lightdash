@@ -67,8 +67,10 @@ export const getItemLabel = (item: Item) =>
     getItemLabelWithoutTableName(item);
 
 export const getItemIcon = (
-    item: Field | TableCalculation | AdditionalMetric,
+    item: Field | TableCalculation | AdditionalMetric | CustomDimension,
 ) => {
+    if (isCustomDimension(item)) return 'numerical';
+
     if (isField(item)) {
         return isDimension(item) ? 'tag' : 'numerical';
     }
@@ -76,8 +78,9 @@ export const getItemIcon = (
 };
 
 export const getItemColor = (
-    item: Field | TableCalculation | AdditionalMetric,
+    item: Field | TableCalculation | AdditionalMetric | CustomDimension,
 ) => {
+    if (isCustomDimension(item)) return '#0E5A8A';
     if (isField(item)) {
         return isDimension(item) ? '#0E5A8A' : '#A66321';
     }

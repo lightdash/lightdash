@@ -7,6 +7,7 @@ import {
     friendlyName,
     getItemMap,
     isAdditionalMetric,
+    isCustomDimension,
     isDimension,
     isField,
     isNumericItem,
@@ -24,8 +25,9 @@ import useColumnTotals from './useColumnTotals';
 import { useExplore } from './useExplore';
 
 export const getItemBgColor = (
-    item: Field | AdditionalMetric | TableCalculation,
+    item: Field | AdditionalMetric | TableCalculation | CustomDimension,
 ): string => {
+    if (isCustomDimension(item)) return '#d2dbe9';
     if (isField(item) || isAdditionalMetric(item)) {
         return isDimension(item) ? '#d2dbe9' : '#e4dad0';
     } else {

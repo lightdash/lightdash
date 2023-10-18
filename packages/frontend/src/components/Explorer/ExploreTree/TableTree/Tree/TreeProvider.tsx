@@ -1,5 +1,6 @@
 import {
     AdditionalMetric,
+    CustomDimension,
     Dimension,
     fieldId,
     isCustomDimension,
@@ -150,7 +151,7 @@ export type NodeMap = Record<string, Node>;
 export const isGroupNode = (node: Node): node is GroupNode =>
     'children' in node;
 
-type Item = Dimension | Metric | AdditionalMetric;
+type Item = Dimension | Metric | AdditionalMetric | CustomDimension;
 
 type Props = {
     orderFieldsBy?: OrderFieldsByStrategy;
