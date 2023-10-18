@@ -513,7 +513,7 @@ const SchedulerForm2: FC<{
                                         </HoverCard.Dropdown>
                                     </HoverCard>
                                 </Group>
-                                <Stack spacing="xs" mb="md">
+                                <Stack spacing="xs" mb="sm">
                                     <Group noWrap>
                                         <SlackIcon
                                             style={{ margin: '5px 2px' }}
