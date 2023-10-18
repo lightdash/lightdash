@@ -7,6 +7,7 @@ import {
     CustomDimension,
     deepEqual,
     Dimension,
+    DimensionType,
     FieldId,
     fieldId as getFieldId,
     getCustomDimensionId,
@@ -73,6 +74,7 @@ export enum ActionType {
     SET_CHART_CONFIG,
     TOGGLE_EXPANDED_SECTION,
     ADD_CUSTOM_DIMENSION,
+    TOGGLE_CUSTOM_DIMENSION_MODAL,
 }
 
 type Action =
@@ -169,6 +171,13 @@ type Action =
     | {
           type: ActionType.ADD_CUSTOM_DIMENSION;
           payload: CustomDimension;
+      }
+    | {
+          type: ActionType.TOGGLE_CUSTOM_DIMENSION_MODAL;
+          payload?: Omit<
+              ExplorerReduceState['modals']['customDimension'],
+              'isOpen'
+          >;
       };
 
 export interface ExplorerReduceState {
@@ -182,6 +191,12 @@ export interface ExplorerReduceState {
             isEditing?: boolean;
             item?: Dimension | AdditionalMetric;
             type?: MetricType;
+        };
+        customDimension: {
+            isOpen: boolean;
+            isEditing?: boolean;
+            item?: Dimension;
+            type?: DimensionType;
         };
     };
 }
@@ -246,6 +261,12 @@ export interface ExplorerContext {
         fetchResults: () => void;
         toggleExpandedSection: (section: ExplorerSection) => void;
         addCustomDimension: (customDimension: CustomDimension) => void;
+        toggleCustomDimensionModal: (
+            additionalMetricModalData?: Omit<
+                ExplorerReduceState['modals']['customDimension'],
+                'isOpen'
+            >,
+        ) => void;
     };
 }
 
@@ -277,6 +298,9 @@ const defaultState: ExplorerReduceState = {
     },
     modals: {
         additionalMetric: {
+            isOpen: false,
+        },
+        customDimension: {
             isOpen: false,
         },
     },
@@ -674,6 +698,19 @@ function reducer(
                                 ),
                             ],
                         ),
+                    },
+                },
+            };
+        }
+
+        case ActionType.TOGGLE_CUSTOM_DIMENSION_MODAL: {
+            return {
+                ...state,
+                modals: {
+                    ...state.modals,
+                    customDimension: {
+                        isOpen: !state.modals.customDimension.isOpen,
+                        ...(action.payload && { ...action.payload }),
                     },
                 },
             };
@@ -1223,6 +1260,23 @@ export const ExplorerProvider: FC<{
         [],
     );
 
+    const toggleCustomDimensionModal = useCallback(
+        (
+            customDimensionModalData?: Omit<
+                ExplorerReduceState['modals']['customDimension'],
+                'isOpen'
+            >,
+        ) => {
+            dispatch({
+                type: ActionType.TOGGLE_CUSTOM_DIMENSION_MODAL,
+                ...(customDimensionModalData && {
+                    payload: customDimensionModalData,
+                }),
+            });
+        },
+        [],
+    );
+
     const hasUnsavedChanges = useMemo<boolean>(() => {
         if (savedChart) {
             return !deepEqual(
@@ -1359,6 +1413,7 @@ export const ExplorerProvider: FC<{
             fetchResults,
             toggleExpandedSection,
             addCustomDimension,
+            toggleCustomDimensionModal,
         }),
         [
             clearExplore,
@@ -1388,6 +1443,7 @@ export const ExplorerProvider: FC<{
             fetchResults,
             toggleExpandedSection,
             addCustomDimension,
+            toggleCustomDimensionModal,
         ],
     );
 
