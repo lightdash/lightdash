@@ -85,8 +85,7 @@ const getDataAndColumns = ({
                                 <TableHeaderBoldLabel>
                                     {item === undefined
                                         ? 'Undefined'
-                                        : item.displayName ||
-                                          friendlyName(item.name)}
+                                        : item.name || friendlyName(item.name)}
                                 </TableHeaderBoldLabel>
                             )}
                         </TableHeaderLabelContainer>

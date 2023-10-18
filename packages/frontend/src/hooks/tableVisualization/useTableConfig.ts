@@ -86,6 +86,7 @@ const useTableConfig = (
             explore,
             resultsData?.metricQuery.additionalMetrics,
             resultsData?.metricQuery.tableCalculations,
+            resultsData?.metricQuery.customDimensions,
         );
     }, [explore, resultsData]);
 

@@ -9,6 +9,7 @@ import {
     Dimension,
     FieldId,
     fieldId as getFieldId,
+    getCustomDimensionId,
     isBigNumberConfig,
     isCartesianChartConfig,
     isPieChartConfig,
@@ -637,17 +638,36 @@ function reducer(
         }
 
         case ActionType.ADD_CUSTOM_DIMENSION: {
+            const newCustomDimensions = [
+                ...(state.unsavedChartVersion.metricQuery.customDimensions ||
+                    []),
+                action.payload,
+            ];
             return {
                 ...state,
                 unsavedChartVersion: {
                     ...state.unsavedChartVersion,
                     metricQuery: {
                         ...state.unsavedChartVersion.metricQuery,
-                        customDimensions: [
-                            ...(state.unsavedChartVersion.metricQuery
-                                .customDimensions || []),
-                            action.payload,
-                        ],
+                        customDimensions: newCustomDimensions,
+                    },
+                    tableConfig: {
+                        ...state.unsavedChartVersion.tableConfig,
+                        columnOrder: calcColumnOrder(
+                            state.unsavedChartVersion.tableConfig.columnOrder,
+                            [
+                                ...state.unsavedChartVersion.metricQuery
+                                    .dimensions,
+                                ...newCustomDimensions.map(
+                                    getCustomDimensionId,
+                                ),
+                                ...state.unsavedChartVersion.metricQuery
+                                    .metrics,
+                                ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
+                                    ({ name }) => name,
+                                ),
+                            ],
+                        ),
                     },
                 },
             };

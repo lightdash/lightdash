@@ -78,6 +78,7 @@ export class RunViewChartQueryController extends Controller {
             limit: body.limit,
             tableCalculations: body.tableCalculations,
             additionalMetrics: body.additionalMetrics,
+            customDimensions: body.customDimensions,
         };
         const results: ApiQueryResults =
             await projectService.runUnderlyingDataQuery(
@@ -120,6 +121,7 @@ export class RunViewChartQueryController extends Controller {
             limit: body.limit,
             tableCalculations: body.tableCalculations,
             additionalMetrics: body.additionalMetrics,
+            customDimensions: body.customDimensions,
         };
         const results: ApiQueryResults = await projectService.runExploreQuery(
             req.user!,

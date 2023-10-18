@@ -8,7 +8,13 @@ import {
     MetricType,
     TableCalculation,
 } from '../types/field';
-import { AdditionalMetric, isAdditionalMetric } from '../types/metricQuery';
+import {
+    AdditionalMetric,
+    CustomDimension,
+    getCustomDimensionId,
+    isAdditionalMetric,
+    isCustomDimension,
+} from '../types/metricQuery';
 
 export const isNumericItem = (
     item: Field | AdditionalMetric | TableCalculation | undefined,
@@ -42,8 +48,14 @@ export const findItem = (
         isField(item) ? fieldId(item) === id : item.name === id,
     );
 
-export const getItemId = (item: Field | AdditionalMetric | TableCalculation) =>
-    isField(item) || isAdditionalMetric(item) ? fieldId(item) : item.name;
+export const getItemId = (
+    item: Field | AdditionalMetric | TableCalculation | CustomDimension,
+) => {
+    if (isCustomDimension(item)) return getCustomDimensionId(item);
+    return isField(item) || isAdditionalMetric(item)
+        ? fieldId(item)
+        : item.name;
+};
 
 export const getItemLabelWithoutTableName = (item: Item) =>
     isField(item) || isAdditionalMetric(item)

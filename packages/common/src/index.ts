@@ -21,6 +21,8 @@ import {
 } from './types/field';
 import {
     AdditionalMetric,
+    CustomDimension,
+    getCustomDimensionId,
     isAdditionalMetric,
     MetricQuery,
 } from './types/metricQuery';
@@ -727,6 +729,7 @@ export function getItemMap(
     explore: Explore,
     additionalMetrics: AdditionalMetric[] = [],
     tableCalculations: TableCalculation[] = [],
+    customDimensions: CustomDimension[] = [],
 ): Record<string, Field | TableCalculation> {
     const convertedAdditionalMetrics = (additionalMetrics || []).reduce<
         Metric[]
@@ -745,6 +748,7 @@ export function getItemMap(
         ...getFields(explore),
         ...convertedAdditionalMetrics,
         ...tableCalculations,
+        ...customDimensions,
     ].reduce(
         (acc, item) => ({
             ...acc,
@@ -763,6 +767,7 @@ export function itemsInMetricQuery(
               ...metricQuery.metrics,
               ...metricQuery.dimensions,
               ...(metricQuery.tableCalculations || []).map((tc) => tc.name),
+              ...(metricQuery.customDimensions || []).map(getCustomDimensionId),
           ];
 }
 

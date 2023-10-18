@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    BinType,
     CompiledDimension,
     CompiledMetricQuery,
     DbtModelJoinType,
@@ -11,6 +12,7 @@ import {
     FilterGroup,
     FilterRule,
     ForbiddenError,
+    getCustomDimensionId,
     getCustomMetricDimensionId,
     getDimensions,
     getFilterRulesFromGroup,
@@ -157,6 +159,40 @@ export const buildQuery = ({
         return `  ${dimension.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
     });
 
+    const customDimensionSelects =
+        compiledMetricQuery.customDimensions?.map((customDimension) => {
+            const dimension = getDimensionFromId(
+                customDimension.dimensionId,
+                explore,
+            );
+            // Check required attribute permission for parent dimension
+            assertValidDimensionRequiredAttribute(
+                dimension,
+                userAttributes,
+                `custom dimension: "${customDimension.name}"`,
+            );
+
+            const customDimensionName = `${fieldQuoteChar}${getCustomDimensionId(
+                customDimension,
+            )}${fieldQuoteChar}`;
+            switch (customDimension.binType) {
+                case BinType.FIXED_NUMBER:
+                    // return `-- ${customDimensionName}  FROM ( SELECT ${dimension.compiledSql}, INTEGER(${dimension.compiledSql} / ${customDimension.binNumber}) AS  ${customDimensionName} FROM ${dimension.table} )`
+                    //    return `APPROX_QUANTILES(${dimension.compiledSql}, ${customDimension.binNumber}) AS ${customDimensionName}`
+
+                    // TODO test this on other warehouses
+                    return `
+                ntile(${customDimension.binNumber}) OVER (ORDER BY ${dimension.compiledSql}) AS ${customDimensionName}
+                `;
+                default:
+                    assertUnreachable(
+                        customDimension.binType,
+                        `Unknown bin type: ${customDimension.binType}`,
+                    );
+            }
+            return '';
+        }) || '';
+
     const metricSelects = metrics.map((field) => {
         const alias = field;
         const metric = getMetricFromId(field, explore, compiledMetricQuery);
@@ -286,7 +322,9 @@ export const buildQuery = ({
         ...dimensionSelects,
         ...metricSelects,
         ...filteredMetricSelects,
+        ...customDimensionSelects,
     ].join(',\n')}`;
+
     const sqlGroupBy =
         dimensionSelects.length > 0
             ? `GROUP BY ${dimensionSelects.map((val, i) => i + 1).join(',')}`

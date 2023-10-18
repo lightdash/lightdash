@@ -8,6 +8,7 @@ import {
     Dimension,
     Explore,
     fieldId,
+    getCustomDimensionId,
     getDimensions,
     getMetrics,
     isNumericItem,
@@ -199,6 +200,9 @@ const VisualizationProvider: FC<Props> = ({
                           ...metricQuery.tableCalculations.map(
                               ({ name }) => name,
                           ),
+                          ...(metricQuery.customDimensions?.map(
+                              getCustomDimensionId,
+                          ) || []),
                       ]
                     : [];
             return metricQueryFields;
