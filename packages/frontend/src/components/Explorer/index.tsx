@@ -6,6 +6,7 @@ import { useExplorerContext } from '../../providers/ExplorerProvider';
 import DrillDownModal from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
+import { CustomDimensionModal } from './CustomDimensionModal';
 import { CustomMetricModal } from './CustomMetricModal';
 import ExplorerHeader from './ExplorerHeader';
 import FiltersCard from './FiltersCard/FiltersCard';
@@ -43,6 +44,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 <UnderlyingDataModal />
                 <DrillDownModal />
                 <CustomMetricModal />
+                <CustomDimensionModal />
             </MetricQueryDataProvider>
         );
     },

@@ -1,6 +1,5 @@
 import {
     AdditionalMetric,
-    BinType,
     Dimension,
     DimensionType,
     fieldId,
@@ -80,11 +79,11 @@ const TreeSingleNodeActions: FC<Props> = ({
     const removeAdditionalMetric = useExplorerContext(
         (context) => context.actions.removeAdditionalMetric,
     );
-    const addCustomDimension = useExplorerContext(
-        (context) => context.actions.addCustomDimension,
-    );
     const toggleAdditionalMetricModal = useExplorerContext(
         (context) => context.actions.toggleAdditionalMetricModal,
+    );
+    const toggleCustomDimensionModal = useExplorerContext(
+        (context) => context.actions.toggleCustomDimensionModal,
     );
 
     const [customMetricsMenuItemBgColor, toggle] = useToggle([
@@ -245,7 +244,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                                         </Box>
                                     }
                                 >
-                                    Add custom dimension
+                                    Add custom dimensions
                                 </Menu.Item>
                             </Menu.Target>
 
@@ -256,16 +255,10 @@ const TreeSingleNodeActions: FC<Props> = ({
                                     onClick={(e) => {
                                         e.stopPropagation();
 
-                                        /*track({
-                                                    name: EventName.ADD_CUSTOM_METRIC_CLICKED,
-                                                });*/
-                                        // TODO open modal with config
-                                        addCustomDimension({
-                                            name: `${item.name} bins`, //TODO customize on modal
-                                            dimensionId: fieldId(item),
-                                            table: item.table,
-                                            binType: BinType.FIXED_NUMBER,
-                                            binNumber: 3, // TODO customize on modal
+                                        // TODO: track event e.g. name: EventName.ADD_CUSTOM_DIMENSION_CLICKED,
+                                        toggleCustomDimensionModal({
+                                            item,
+                                            isEditing: false,
                                         });
                                     }}
                                 >

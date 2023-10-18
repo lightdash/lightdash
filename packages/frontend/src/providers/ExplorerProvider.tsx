@@ -7,7 +7,6 @@ import {
     CustomDimension,
     deepEqual,
     Dimension,
-    DimensionType,
     FieldId,
     fieldId as getFieldId,
     getCustomDimensionId,
@@ -196,7 +195,6 @@ export interface ExplorerReduceState {
             isOpen: boolean;
             isEditing?: boolean;
             item?: Dimension;
-            type?: DimensionType;
         };
     };
 }
