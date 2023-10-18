@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     LightdashMode,
     MostPopularAndRecentlyUpdated,
+    ResourceItemCategory,
     ResourceViewItemType,
     wrapResource,
 } from '@lightdash/common';
@@ -29,23 +30,25 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
 
     const mostPopularAndRecentlyUpdatedItems = useMemo(() => {
         const mostPopularItems =
-            data?.mostPopular.map((item) =>
-                wrapResource(
+            data?.mostPopular.map((item) => ({
+                ...wrapResource(
                     item,
                     'chartType' in item
                         ? ResourceViewItemType.CHART
                         : ResourceViewItemType.DASHBOARD,
                 ),
-            ) ?? [];
+                category: ResourceItemCategory.MOST_POPULAR,
+            })) ?? [];
         const recentlyUpdatedItems =
-            data?.recentlyUpdated.map((item) =>
-                wrapResource(
+            data?.recentlyUpdated.map((item) => ({
+                ...wrapResource(
                     item,
                     'chartType' in item
                         ? ResourceViewItemType.CHART
                         : ResourceViewItemType.DASHBOARD,
                 ),
-            ) ?? [];
+                category: ResourceItemCategory.RECENTLY_UPDATED,
+            })) ?? [];
         return [...mostPopularItems, ...recentlyUpdatedItems];
     }, [data?.mostPopular, data?.recentlyUpdated]);
 
@@ -71,14 +74,16 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
                 {
                     id: 'most-popular',
                     name: 'Most popular',
-                    filter: (_item, index) =>
-                        index < MAX_NUMBER_OF_ITEMS_IN_PANEL, // Get first 10 - most popular items
+                    filter: (item) =>
+                        'category' in item &&
+                        item.category === ResourceItemCategory.MOST_POPULAR,
                 },
                 {
                     id: 'recently-updated',
                     name: 'Recently updated',
-                    filter: (_item, index) =>
-                        index >= MAX_NUMBER_OF_ITEMS_IN_PANEL, // Get second 10 - recently-updated items
+                    filter: (item) =>
+                        'category' in item &&
+                        item.category === ResourceItemCategory.RECENTLY_UPDATED,
                 },
             ]}
             listProps={{
