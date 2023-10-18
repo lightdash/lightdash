@@ -112,6 +112,15 @@ export class ExploreCompiler {
                     join.label ||
                     (join.alias && friendlyName(join.alias)) ||
                     tables[join.table].label;
+                const requiredDimensionsForJoin = parseAllReferences(
+                    join.sqlOn,
+                    join.table,
+                ).reduce<string[]>((acc, reference) => {
+                    if (reference.refTable === join.table) {
+                        acc.push(reference.refName);
+                    }
+                    return acc;
+                }, []);
 
                 const tableDimensions = tables[join.table].dimensions;
                 return {
@@ -120,29 +129,30 @@ export class ExploreCompiler {
                         ...tables[join.table],
                         name: joinTableName,
                         label: joinTableLabel,
-                        dimensions: Object.keys(tableDimensions)
-                            .filter(
-                                (d) =>
-                                    join.fields === undefined ||
-                                    join.fields.includes(d) ||
-                                    (tableDimensions[d].group !== undefined &&
-                                        join.fields.includes(
-                                            tableDimensions[d].group!,
-                                        )),
-                            )
-                            .reduce<Record<string, Dimension>>(
-                                (prevDimensions, dimensionKey) => ({
-                                    ...prevDimensions,
-                                    [dimensionKey]: {
-                                        ...tables[join.table].dimensions[
-                                            dimensionKey
-                                        ],
-                                        table: joinTableName,
-                                        tableLabel: joinTableLabel,
-                                    },
-                                }),
-                                {},
-                            ),
+                        dimensions: Object.keys(tableDimensions).reduce<
+                            Record<string, Dimension>
+                        >((acc, dimensionKey) => {
+                            const dimension = tableDimensions[dimensionKey];
+                            const isRequired =
+                                requiredDimensionsForJoin.includes(
+                                    dimensionKey,
+                                );
+                            const isVisible =
+                                join.fields === undefined ||
+                                join.fields.includes(dimensionKey) ||
+                                (dimension.group !== undefined &&
+                                    join.fields.includes(dimension.group));
+
+                            if (isRequired || isVisible) {
+                                acc[dimensionKey] = {
+                                    ...dimension,
+                                    hidden: !isVisible,
+                                    table: joinTableName,
+                                    tableLabel: joinTableLabel,
+                                };
+                            }
+                            return acc;
+                        }, {}),
                         metrics: Object.keys(tables[join.table].metrics)
                             .filter(
                                 (d) =>
