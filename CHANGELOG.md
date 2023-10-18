@@ -1,3 +1,10 @@
+## [0.813.2](https://github.com/lightdash/lightdash/compare/0.813.1...0.813.2) (2023-10-18)
+
+
+### Bug Fixes
+
+* allow vertical big number resizing ([#7442](https://github.com/lightdash/lightdash/issues/7442)) ([7bcd51c](https://github.com/lightdash/lightdash/commit/7bcd51c5d33294fdbdee71c756e4ba4944ce13fc))
+
 ## [0.813.1](https://github.com/lightdash/lightdash/compare/0.813.0...0.813.1) (2023-10-17)
 
 
