@@ -106,6 +106,9 @@ const MinimalSavedExplorer: FC = () => {
                               additionalMetric: {
                                   isOpen: false,
                               },
+                              customDimension: {
+                                  isOpen: false,
+                              },
                           },
                       }
                     : undefined
