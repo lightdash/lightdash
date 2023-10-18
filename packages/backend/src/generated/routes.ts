@@ -2845,6 +2845,7 @@ const models: TsoaRoute.Models = {
                         color: { dataType: 'string', required: true },
                     },
                 },
+                value: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
                 xAxis: { dataType: 'string' },
                 yAxis: { dataType: 'string' },
@@ -3825,8 +3826,14 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 access: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'SpaceShare' },
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'SpaceShare' },
+                        },
+                        { dataType: 'undefined' },
+                    ],
                     required: true,
                 },
                 dashboards: {

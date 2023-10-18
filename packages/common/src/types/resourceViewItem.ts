@@ -9,6 +9,11 @@ export enum ResourceViewItemType {
     SPACE = 'space',
 }
 
+export enum ResourceItemCategory {
+    MOST_POPULAR = 'mostPopular',
+    RECENTLY_UPDATED = 'recentlyUpdated',
+}
+
 export type ResourceViewChartItem = {
     type: ResourceViewItemType.CHART;
     data: Pick<
@@ -26,6 +31,7 @@ export type ResourceViewChartItem = {
         | 'updatedByUser'
         | 'validationErrors'
     >;
+    category?: ResourceItemCategory;
 };
 
 export type ResourceViewDashboardItem = {
@@ -44,6 +50,7 @@ export type ResourceViewDashboardItem = {
         | 'updatedByUser'
         | 'validationErrors'
     >;
+    category?: ResourceItemCategory;
 };
 
 export type ResourceViewSpaceItem = {
@@ -125,3 +132,8 @@ export const spaceToResourceViewItem = (
     chartCount: space.chartCount,
     access: space.access,
 });
+
+export type MostPopularAndRecentlyUpdated = {
+    mostPopular: (DashboardBasicDetails | SpaceQuery)[];
+    recentlyUpdated: (DashboardBasicDetails | SpaceQuery)[];
+};

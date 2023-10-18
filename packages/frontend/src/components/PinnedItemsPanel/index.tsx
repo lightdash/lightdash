@@ -1,9 +1,4 @@
-import {
-    DashboardBasicDetails,
-    PinnedItems,
-    ResourceViewItemType,
-    SpaceQuery,
-} from '@lightdash/common';
+import { PinnedItems, ResourceViewItemType } from '@lightdash/common';
 import { Card, Group, Text } from '@mantine/core';
 import { IconPin } from '@tabler/icons-react';
 import { FC } from 'react';
@@ -14,18 +9,11 @@ import ResourceView, { ResourceViewType } from '../common/ResourceView';
 
 interface Props {
     pinnedItems: PinnedItems;
-    dashboards: DashboardBasicDetails[];
-    savedCharts: SpaceQuery[];
+    isEnabled: boolean;
 }
 
-const PinnedItemsPanel: FC<Props> = ({
-    pinnedItems,
-    dashboards,
-    savedCharts,
-}) => {
+const PinnedItemsPanel: FC<Props> = ({ pinnedItems, isEnabled }) => {
     const { userCanManage } = usePinnedItemsContext();
-
-    const enablePinnedPanel = dashboards.length + savedCharts.length > 0;
 
     return pinnedItems && pinnedItems.length > 0 ? (
         <ResourceView
@@ -49,7 +37,7 @@ const PinnedItemsPanel: FC<Props> = ({
             }}
         />
     ) : ((userCanManage && pinnedItems.length <= 0) || !pinnedItems) &&
-      enablePinnedPanel ? (
+      isEnabled ? (
         // FIXME: update width with Mantine widths
         <Card
             withBorder

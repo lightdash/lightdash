@@ -59,6 +59,8 @@ export class DashboardService {
 
     savedChartModel: SavedChartModel;
 
+    RECENTLY_UPDATED_DASHBOARDS_LIMIT: number;
+
     constructor({
         dashboardModel,
         spaceModel,
@@ -73,6 +75,7 @@ export class DashboardService {
         this.pinnedListModel = pinnedListModel;
         this.schedulerModel = schedulerModel;
         this.savedChartModel = savedChartModel;
+        this.RECENTLY_UPDATED_DASHBOARDS_LIMIT = 10;
     }
 
     static getCreateEventProperties(
@@ -166,6 +169,46 @@ export class DashboardService {
             const dashboardSpace = spaces.find(
                 (space) => space.uuid === dashboard.spaceUuid,
             );
+            return (
+                hasAbility &&
+                dashboardSpace &&
+                hasSpaceAccess(user, dashboardSpace, includePrivate)
+            );
+        });
+    }
+
+    async getRecentlyUpdatedByProject(
+        user: SessionUser,
+        projectUuid: string,
+        chartUuid?: string,
+        includePrivate?: boolean,
+    ): Promise<DashboardBasicDetails[]> {
+        const dashboards = await this.dashboardModel.getAllByProject(
+            projectUuid,
+            chartUuid,
+            this.RECENTLY_UPDATED_DASHBOARDS_LIMIT,
+        );
+
+        const spaceUuids = [
+            ...new Set(dashboards.map((dashboard) => dashboard.spaceUuid)),
+        ];
+        const spaces = await Promise.all(
+            spaceUuids.map((spaceUuid) =>
+                this.spaceModel.getSpaceSummary(spaceUuid),
+            ),
+        );
+
+        const spaceMap = new Map();
+        spaces.forEach((space) => {
+            spaceMap.set(space.uuid, space);
+        });
+
+        return dashboards.filter((dashboard) => {
+            const hasAbility = user.ability.can(
+                'view',
+                subject('Dashboard', dashboard),
+            );
+            const dashboardSpace = spaceMap.get(dashboard.spaceUuid);
             return (
                 hasAbility &&
                 dashboardSpace &&

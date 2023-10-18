@@ -34,7 +34,7 @@ type TabType = {
     icon?: JSX.Element;
     infoTooltipText?: string;
     sort?: (a: ResourceViewItem, b: ResourceViewItem) => number;
-    filter?: (item: ResourceViewItem) => boolean;
+    filter?: (item: ResourceViewItem, index: number) => boolean;
 };
 
 interface ResourceHeaderProps {
