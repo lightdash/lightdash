@@ -14,6 +14,9 @@ import { useForm } from '@mantine/form';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 
+// TODO: edit custom dimension
+// TODO: preview custom dimension results
+
 export const CustomDimensionModal = () => {
     const { showToastSuccess } = useToaster();
     const { isOpen, isEditing, item } = useExplorerContext(
