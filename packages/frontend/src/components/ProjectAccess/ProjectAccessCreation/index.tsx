@@ -1,4 +1,3 @@
-import { Card, Intent } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
 import {
@@ -8,7 +7,7 @@ import {
     ProjectMemberRole,
     validateEmail,
 } from '@lightdash/common';
-import { Button } from '@mantine/core';
+import { Button, NativeSelect, Paper } from '@mantine/core';
 import { IconChevronLeft } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -20,13 +19,7 @@ import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import InviteSuccess from '../../UserSettings/UserManagementPanel/InviteSuccess';
-import {
-    EmailForm,
-    Panel,
-    ProjectAccessForm,
-    RoleSelectButton,
-    SubmitButton,
-} from './ProjectAccessCreation';
+import { EmailForm, Panel, ProjectAccessForm } from './ProjectAccessCreation';
 
 const renderItem: ItemRenderer<string> = (item, { modifiers, handleClick }) => {
     if (!modifiers.matchesPredicate) {
@@ -79,6 +72,7 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
     const [emailSelected, setEmailSelected] = useState<string>('');
     const [addNewMember, setAddNewMember] = useState<boolean>(false);
     const [inviteLink, setInviteLink] = useState<InviteLink | undefined>();
+    const [selectedRole, setSelectedRole] = useState(ProjectMemberRole.VIEWER);
 
     const { data: organizationUsers } = useOrganizationUsers();
     const orgUserEmails =
@@ -145,7 +139,7 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
                 Back
             </Button>
 
-            <Card>
+            <Paper shadow="xs" p="md" withBorder>
                 <ProjectAccessForm
                     name="add_saved_charts_to_dashboard"
                     methods={methods}
@@ -212,29 +206,45 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
                             }}
                         />
                     </EmailForm>
-
-                    <RoleSelectButton
+                    <NativeSelect
                         name="role"
                         disabled={isLoading}
-                        options={Object.values(ProjectMemberRole).map(
+                        variant="filled"
+                        data={Object.values(ProjectMemberRole).map(
                             (orgMemberRole) => ({
                                 value: orgMemberRole,
                                 label: orgMemberRole.replace('_', ' '),
                             }),
                         )}
-                        rules={{
-                            required: 'Required field',
+                        onChange={(e) => {
+                            setSelectedRole(
+                                e.target.value as ProjectMemberRole,
+                            );
+                            methods.setValue(
+                                'role',
+                                e.target.value as ProjectMemberRole,
+                            );
                         }}
+                        size="xs"
+                        sx={{
+                            marginTop: '18px',
+                            marginLeft: '7px',
+                        }}
+                        value={selectedRole}
                     />
-
-                    <SubmitButton
-                        intent={Intent.PRIMARY}
-                        text="Give access"
-                        type="submit"
+                    <Button
                         disabled={isLoading || isInvitationLoading}
-                    />
+                        type="submit"
+                        size="xs"
+                        sx={{
+                            marginTop: '18px',
+                            marginLeft: '7px',
+                        }}
+                    >
+                        Give access
+                    </Button>
                 </ProjectAccessForm>
-            </Card>
+            </Paper>
 
             {inviteLink && <InviteSuccess invite={inviteLink} hasMarginTop />}
         </Panel>

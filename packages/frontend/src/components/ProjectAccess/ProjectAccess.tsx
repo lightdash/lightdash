@@ -1,9 +1,4 @@
-import {
-    ButtonGroup,
-    Classes,
-    NonIdealState,
-    Spinner,
-} from '@blueprintjs/core';
+import { Classes } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import {
     OrganizationMemberProfile,
@@ -14,8 +9,11 @@ import {
 import {
     Badge,
     Button,
+    Flex,
     Group,
+    Loader,
     Modal,
+    NativeSelect,
     Stack,
     Text,
     Title,
@@ -39,9 +37,7 @@ import MantineIcon from '../common/MantineIcon';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import {
     ItemContent,
-    RoleSelectButton,
     SectionWrapper,
-    UserEmail,
     UserInfo,
     UserName,
 } from './ProjectAccess.styles';
@@ -69,7 +65,20 @@ const UserListItem: FC<{
                         <UserName className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
                             {firstName} {lastName}
                         </UserName>
-                        {email && <UserEmail minimal>{email}</UserEmail>}
+                        {email && (
+                            <Badge
+                                radius="xs"
+                                variant="filled"
+                                color="gray.2"
+                                sx={{
+                                    textTransform: 'unset',
+                                    fontWeight: 'normal',
+                                    color: 'black',
+                                }}
+                            >
+                                {email}
+                            </Badge>
+                        )}
                     </UserInfo>
 
                     {relevantOrgRole && (
@@ -87,18 +96,17 @@ const UserListItem: FC<{
                         </Tooltip>
                     )}
 
-                    <ButtonGroup>
+                    <Flex gap="sm" align="center" mr="xs" h="xxl">
                         {onUpdate ? (
-                            <RoleSelectButton
-                                fill
+                            <NativeSelect
+                                variant="filled"
                                 id="user-role"
-                                options={Object.values(ProjectMemberRole).map(
+                                data={Object.values(ProjectMemberRole).map(
                                     (orgMemberRole) => ({
                                         value: orgMemberRole,
                                         label: orgMemberRole.replace('_', ' '),
                                     }),
                                 )}
-                                required
                                 onChange={(e) => {
                                     const newRole = e.target
                                         .value as ProjectMemberRole;
@@ -137,7 +145,7 @@ const UserListItem: FC<{
                                 <MantineIcon icon={IconTrash} />
                             </Button>
                         )}
-                    </ButtonGroup>
+                    </Flex>
                 </SectionWrapper>
             </ItemContent>
             <Modal
@@ -238,7 +246,14 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
     );
 
     if (isProjectAccessLoading || isOrganizationUsersLoading) {
-        return <NonIdealState title="Loading..." icon={<Spinner />} />;
+        return (
+            <Stack my="xs" align="center">
+                <Loader size="lg" color="gray" mt="xs" />
+                <Title order={4} fw={500} color="gray.7">
+                    Loading...
+                </Title>
+            </Stack>
+        );
     }
     return (
         <Stack>
