@@ -1,3 +1,12 @@
+## [0.813.3](https://github.com/lightdash/lightdash/compare/0.813.2...0.813.3) (2023-10-18)
+
+
+### Bug Fixes
+
+* filter value aucomplete order and multiple searches ([#7533](https://github.com/lightdash/lightdash/issues/7533)) ([c17ddb1](https://github.com/lightdash/lightdash/commit/c17ddb1e60d00c7143b84d264d0dd4ddc6ddfbe4))
+* Replace Popover2 with Mantine (save chart header & Add tile button) ([#7518](https://github.com/lightdash/lightdash/issues/7518)) ([d18c1b6](https://github.com/lightdash/lightdash/commit/d18c1b6a0e939574d79be0d2d2c07e9ed1f8c08e))
+* replace Tooltip2 with Mantine (not in tables) ([#7511](https://github.com/lightdash/lightdash/issues/7511)) ([a93345f](https://github.com/lightdash/lightdash/commit/a93345f2ae84bb0943f81d83e209c4f7554eae25))
+
 ## [0.813.2](https://github.com/lightdash/lightdash/compare/0.813.1...0.813.2) (2023-10-18)
 
 
