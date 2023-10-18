@@ -2,6 +2,7 @@ import {
     AdditionalMetric,
     ApiErrorPayload,
     ApiQueryResults,
+    CustomDimension,
     FieldId,
     MetricQuery,
     MetricQueryResponse,
@@ -45,6 +46,7 @@ type RunQueryRequest = {
     tableCalculations: TableCalculation[]; // calculations to append to results
     additionalMetrics?: AdditionalMetric[]; // existing metric type
     csvLimit?: number;
+    customDimensions?: CustomDimension[];
 };
 
 @Route('/api/v1/projects/{projectUuid}')

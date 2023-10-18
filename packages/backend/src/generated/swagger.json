@@ -418,8 +418,38 @@
                 "type": "object",
                 "additionalProperties": false
             },
+            "BinType": {
+                "enum": ["fixed_number"],
+                "type": "string"
+            },
+            "CustomDimension": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "dimensionId": {
+                        "$ref": "#/components/schemas/FieldId"
+                    },
+                    "binType": {
+                        "$ref": "#/components/schemas/BinType"
+                    },
+                    "binNumber": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["name", "dimensionId", "binType"],
+                "type": "object",
+                "additionalProperties": false
+            },
             "MetricQueryResponse": {
                 "properties": {
+                    "customDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/CustomDimension"
+                        },
+                        "type": "array"
+                    },
                     "additionalMetrics": {
                         "items": {
                             "$ref": "#/components/schemas/AdditionalMetric"
@@ -2475,6 +2505,12 @@
             },
             "RunQueryRequest": {
                 "properties": {
+                    "customDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/CustomDimension"
+                        },
+                        "type": "array"
+                    },
                     "csvLimit": {
                         "type": "number",
                         "format": "double"
@@ -2702,6 +2738,12 @@
             },
             "MetricQuery": {
                 "properties": {
+                    "customDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/CustomDimension"
+                        },
+                        "type": "array"
+                    },
                     "additionalMetrics": {
                         "items": {
                             "$ref": "#/components/schemas/AdditionalMetric"
@@ -3211,6 +3253,9 @@
                         "required": ["color"],
                         "type": "object"
                     },
+                    "value": {
+                        "type": "string"
+                    },
                     "name": {
                         "type": "string"
                     },
@@ -3221,7 +3266,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["name"],
+                "required": ["value", "name"],
                 "type": "object"
             },
             "MarkLine": {
@@ -4406,7 +4451,6 @@
                 "required": [
                     "pinnedListOrder",
                     "pinnedListUuid",
-                    "access",
                     "dashboards",
                     "projectUuid",
                     "queries",
@@ -5145,7 +5189,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.800.0",
+        "version": "0.811.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

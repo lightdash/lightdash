@@ -1,5 +1,6 @@
 import {
     AdditionalMetric,
+    BinType,
     Dimension,
     DimensionType,
     fieldId,
@@ -79,7 +80,9 @@ const TreeSingleNodeActions: FC<Props> = ({
     const removeAdditionalMetric = useExplorerContext(
         (context) => context.actions.removeAdditionalMetric,
     );
-
+    const addCustomDimension = useExplorerContext(
+        (context) => context.actions.addCustomDimension,
+    );
     const toggleAdditionalMetricModal = useExplorerContext(
         (context) => context.actions.toggleAdditionalMetricModal,
     );
@@ -89,6 +92,10 @@ const TreeSingleNodeActions: FC<Props> = ({
         'gray.1',
     ]);
 
+    const [customDimensionMenuItemBgColor, toggleCustomDimension] = useToggle([
+        'default',
+        'gray.1',
+    ]);
     const customMetrics = useMemo(
         () => (isDimension(item) ? getCustomMetricType(item.type) : []),
         [item],
@@ -208,6 +215,61 @@ const TreeSingleNodeActions: FC<Props> = ({
                                         {friendlyName(metric)}
                                     </Menu.Item>
                                 ))}
+                            </Menu.Dropdown>
+                        </Menu>
+                    </>
+                ) : null}
+
+                {isDimension(item) && item.type === DimensionType.NUMBER ? (
+                    <>
+                        <Menu
+                            withinPortal
+                            trigger="hover"
+                            position="right-start"
+                            shadow="md"
+                            closeOnItemClick
+                            onOpen={() => toggleCustomDimension()}
+                            onClose={() => toggleCustomDimension()}
+                        >
+                            <Menu.Target>
+                                <Menu.Item
+                                    bg={customDimensionMenuItemBgColor}
+                                    component="button"
+                                    role="menuitem"
+                                    icon={<MantineIcon icon={IconSparkles} />}
+                                    rightSection={
+                                        <Box ml="xs">
+                                            <MantineIcon
+                                                icon={IconChevronRight}
+                                            />
+                                        </Box>
+                                    }
+                                >
+                                    Add custom dimension
+                                </Menu.Item>
+                            </Menu.Target>
+
+                            <Menu.Dropdown>
+                                <Menu.Item
+                                    key={'bin'}
+                                    component="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+
+                                        /*track({
+                                                    name: EventName.ADD_CUSTOM_METRIC_CLICKED,
+                                                });*/
+                                        // TODO open modal with config
+                                        addCustomDimension({
+                                            name: `${item.name} bins`, //TODO customize on modal
+                                            dimensionId: fieldId(item),
+                                            binType: BinType.FIXED_NUMBER,
+                                            binNumber: 3, // TODO customize on modal
+                                        });
+                                    }}
+                                >
+                                    {'Bin'}
+                                </Menu.Item>
                             </Menu.Dropdown>
                         </Menu>
                     </>

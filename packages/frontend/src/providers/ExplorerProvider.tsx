@@ -4,6 +4,7 @@ import {
     ChartConfig,
     ChartType,
     CreateSavedChartVersion,
+    CustomDimension,
     deepEqual,
     Dimension,
     FieldId,
@@ -70,6 +71,7 @@ export enum ActionType {
     SET_CHART_TYPE,
     SET_CHART_CONFIG,
     TOGGLE_EXPANDED_SECTION,
+    ADD_CUSTOM_DIMENSION,
 }
 
 type Action =
@@ -162,6 +164,10 @@ type Action =
     | {
           type: ActionType.SET_CHART_CONFIG;
           payload: ChartConfig['config'] | undefined;
+      }
+    | {
+          type: ActionType.ADD_CUSTOM_DIMENSION;
+          payload: CustomDimension;
       };
 
 export interface ExplorerReduceState {
@@ -238,6 +244,7 @@ export interface ExplorerContext {
         ) => void;
         fetchResults: () => void;
         toggleExpandedSection: (section: ExplorerSection) => void;
+        addCustomDimension: (customDimension: CustomDimension) => void;
     };
 }
 
@@ -624,6 +631,23 @@ function reducer(
                                       .additionalMetrics || []),
                                   action.payload,
                               ],
+                    },
+                },
+            };
+        }
+
+        case ActionType.ADD_CUSTOM_DIMENSION: {
+            return {
+                ...state,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        customDimensions: [
+                            ...(state.unsavedChartVersion.metricQuery
+                                .customDimensions || []),
+                            action.payload,
+                        ],
                     },
                 },
             };
@@ -1156,6 +1180,20 @@ export const ExplorerProvider: FC<{
         });
     }, []);
 
+    const addCustomDimension = useCallback(
+        (customDimension: CustomDimension) => {
+            dispatch({
+                type: ActionType.ADD_CUSTOM_DIMENSION,
+                payload: customDimension,
+            });
+            /* dispatch({
+                type: ActionType.TOGGLE_METRIC,
+                payload: getFieldId(customDimension),
+            });*/
+        },
+        [],
+    );
+
     const hasUnsavedChanges = useMemo<boolean>(() => {
         if (savedChart) {
             return !deepEqual(
@@ -1291,6 +1329,7 @@ export const ExplorerProvider: FC<{
             setChartConfig,
             fetchResults,
             toggleExpandedSection,
+            addCustomDimension,
         }),
         [
             clearExplore,
@@ -1319,6 +1358,7 @@ export const ExplorerProvider: FC<{
             setChartConfig,
             fetchResults,
             toggleExpandedSection,
+            addCustomDimension,
         ],
     );
 
