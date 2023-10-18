@@ -29,7 +29,6 @@ const BOX_MIN_WIDTH = 150;
 const BOX_MAX_WIDTH = 1000;
 
 const BOX_MIN_HEIGHT = 25;
-//TODO: Decide what value is good for max height
 const BOX_MAX_HEIGHT = 1000;
 
 const VALUE_SIZE_MIN = 24;
