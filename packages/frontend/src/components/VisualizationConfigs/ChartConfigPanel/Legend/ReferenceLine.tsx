@@ -14,8 +14,8 @@ import {
     TimeFrames,
     WeekDay,
 } from '@lightdash/common';
-import debounce from 'lodash/debounce';
 import dayjs from 'dayjs';
+import debounce from 'lodash/debounce';
 import { FC, useCallback, useMemo, useState } from 'react';
 
 import {
@@ -137,10 +137,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                         str: string,
                         timeInterval: TimeFrames | undefined = TimeFrames.DAY,
                     ) => {
-                        return dayjs(
-                            str,
-                            getDateFormat(timeInterval),
-                        ).toDate();
+                        return dayjs(str, getDateFormat(timeInterval)).toDate();
                     }}
                     defaultValue={new Date().toString()}
                     onChange={(dateValue: string | null) => {
