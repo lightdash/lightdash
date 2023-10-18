@@ -2,6 +2,7 @@ import { Icon } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     AdditionalMetric,
+    CustomDimension,
     Field,
     formatItemValue,
     friendlyName,
@@ -76,6 +77,7 @@ export const useColumns = (): TableColumn[] => {
                 tableCalculations,
                 customDimensions,
             );
+
             return Array.from(activeFields).reduce<{
                 activeItemsMap: Record<string, Field | TableCalculation>;
                 invalidActiveItems: string[];
@@ -109,6 +111,7 @@ export const useColumns = (): TableColumn[] => {
         customDimensions,
     ]);
 
+    // TODO add totals for custom dimensions ?
     const totals = useColumnTotals({
         resultsData,
         itemsMap: activeItemsMap,

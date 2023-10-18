@@ -52,6 +52,7 @@ export const getItemId = (
     item: Field | AdditionalMetric | TableCalculation | CustomDimension,
 ) => {
     if (isCustomDimension(item)) return getCustomDimensionId(item);
+
     return isField(item) || isAdditionalMetric(item)
         ? fieldId(item)
         : item.name;

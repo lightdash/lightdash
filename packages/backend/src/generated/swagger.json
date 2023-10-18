@@ -430,6 +430,9 @@
                     "dimensionId": {
                         "$ref": "#/components/schemas/FieldId"
                     },
+                    "table": {
+                        "type": "string"
+                    },
                     "binType": {
                         "$ref": "#/components/schemas/BinType"
                     },
@@ -438,7 +441,7 @@
                         "format": "double"
                     }
                 },
-                "required": ["name", "dimensionId", "binType"],
+                "required": ["name", "dimensionId", "table", "binType"],
                 "type": "object",
                 "additionalProperties": false
             },

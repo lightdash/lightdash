@@ -419,6 +419,7 @@ const models: TsoaRoute.Models = {
         properties: {
             name: { dataType: 'string', required: true },
             dimensionId: { ref: 'FieldId', required: true },
+            table: { dataType: 'string', required: true },
             binType: { ref: 'BinType', required: true },
             binNumber: { dataType: 'double' },
         },
