@@ -45,7 +45,7 @@ export interface CustomDimension {
 }
 
 export const getCustomDimensionId = (dimension: CustomDimension) =>
-    dimension.name.replace(' ', '_');
+    `${dimension.dimensionId}_bins`;
 
 export const isAdditionalMetric = (value: any): value is AdditionalMetric =>
     value?.table && value?.name && !value?.fieldType;

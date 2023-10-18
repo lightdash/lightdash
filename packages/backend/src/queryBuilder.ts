@@ -138,8 +138,15 @@ export const buildQuery = ({
 }: BuildQueryProps): { query: string; hasExampleMetric: boolean } => {
     let hasExampleMetric: boolean = false;
     const adapterType: SupportedDbtAdapter = warehouseClient.getAdapterType();
-    const { dimensions, metrics, filters, sorts, limit, additionalMetrics } =
-        compiledMetricQuery;
+    const {
+        dimensions,
+        metrics,
+        filters,
+        sorts,
+        limit,
+        additionalMetrics,
+        customDimensions,
+    } = compiledMetricQuery;
     const baseTable = explore.tables[explore.baseTable].sqlTable;
     const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
     const stringQuoteChar = warehouseClient.getStringQuoteChar();
@@ -160,7 +167,7 @@ export const buildQuery = ({
     });
 
     const customDimensionSelects =
-        compiledMetricQuery.customDimensions?.map((customDimension) => {
+        customDimensions?.map((customDimension) => {
             const dimension = getDimensionFromId(
                 customDimension.dimensionId,
                 explore,

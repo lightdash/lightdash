@@ -44,6 +44,10 @@ export const useColumns = (): TableColumn[] => {
         (context) =>
             context.state.unsavedChartVersion.metricQuery.tableCalculations,
     );
+    const customDimensions = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.customDimensions,
+    );
     const additionalMetrics = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.additionalMetrics,
@@ -68,6 +72,7 @@ export const useColumns = (): TableColumn[] => {
                 exploreData,
                 additionalMetrics,
                 tableCalculations,
+                customDimensions,
             );
             return Array.from(activeFields).reduce<{
                 activeItemsMap: Record<string, Field | TableCalculation>;
@@ -94,7 +99,13 @@ export const useColumns = (): TableColumn[] => {
             );
         }
         return { activeItemsMap: {}, invalidActiveItems: [] };
-    }, [additionalMetrics, exploreData, tableCalculations, activeFields]);
+    }, [
+        additionalMetrics,
+        exploreData,
+        tableCalculations,
+        activeFields,
+        customDimensions,
+    ]);
 
     const totals = useColumnTotals({
         resultsData,

@@ -1,4 +1,8 @@
-import { AdditionalMetric, CompiledTable } from '@lightdash/common';
+import {
+    AdditionalMetric,
+    CompiledTable,
+    CustomDimension,
+} from '@lightdash/common';
 import { Group, MantineProvider, NavLink, Text, Tooltip } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import { FC } from 'react';
@@ -57,6 +61,7 @@ type Props = {
     additionalMetrics: AdditionalMetric[];
     selectedItems: Set<string>;
     onSelectedNodeChange: (itemId: string, isDimension: boolean) => void;
+    customDimensions?: CustomDimension[];
 };
 
 const EmptyWrapper: FC = ({ children }) => <>{children}</>;
@@ -82,6 +87,8 @@ const TableTree: FC<Props> = ({
     showTableLabel,
     table,
     additionalMetrics,
+    customDimensions,
+
     ...rest
 }) => {
     const Wrapper = showTableLabel ? TableTreeWrapper : EmptyWrapper;
@@ -93,6 +100,7 @@ const TableTree: FC<Props> = ({
                     <TableTreeSections
                         table={table}
                         additionalMetrics={additionalMetrics}
+                        customDimensions={customDimensions}
                         {...rest}
                     />
                 </Wrapper>
