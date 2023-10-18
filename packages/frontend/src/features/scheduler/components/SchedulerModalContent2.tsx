@@ -1,10 +1,11 @@
 import {
     ApiError,
+    CreateSchedulerAndTargets,
     CreateSchedulerAndTargetsWithoutIds,
     SchedulerAndTargets,
 } from '@lightdash/common';
-import { Box, Button, Group } from '@mantine/core';
-import { FC, useEffect, useState } from 'react';
+import { Box } from '@mantine/core';
+import { FC, useCallback, useEffect, useState } from 'react';
 import {
     UseMutationResult,
     UseQueryResult,
@@ -13,78 +14,19 @@ import { useHistory, useLocation } from 'react-router-dom';
 import { getSchedulerUuidFromUrlParams } from '../utils';
 import SchedulersList from './SchedulersList';
 
-import { IconChevronLeft, IconSend } from '@tabler/icons-react';
-import MantineIcon from '../../../components/common/MantineIcon';
+import useUser from '../../../hooks/user/useUser';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
+import { useSendNowScheduler } from '../hooks/useScheduler';
 import SchedulerForm2 from './SchedulerForm2';
 import { UpdateStateContent } from './SchedulerModalContent';
+import SchedulersModalFooter from './SchedulerModalFooter';
 
 enum States {
     LIST,
     CREATE,
     EDIT,
 }
-
-interface FooterProps {
-    confirmText?: string;
-    onBack?: () => void;
-    onSendNow?: () => void;
-    onCancel?: () => void;
-    onConfirm?: () => void;
-    loading?: boolean;
-}
-
-const ScheduledDeliveriesFooter = ({
-    confirmText = 'Confirm',
-    onBack,
-    onCancel,
-    onSendNow,
-    onConfirm,
-    loading,
-}: FooterProps) => {
-    return (
-        <Group
-            position="apart"
-            sx={(theme) => ({
-                position: 'sticky',
-                backgroundColor: 'white',
-                borderTop: `1px solid ${theme.colors.gray[4]}`,
-                bottom: 0,
-                padding: theme.spacing.md,
-            })}
-        >
-            {!!onBack ? (
-                <Button
-                    onClick={onBack}
-                    variant="subtle"
-                    leftIcon={<MantineIcon icon={IconChevronLeft} />}
-                >
-                    Back
-                </Button>
-            ) : (
-                <Box />
-            )}
-            <Group>
-                {!!onCancel && (
-                    <Button onClick={onCancel} variant="outline">
-                        Cancel
-                    </Button>
-                )}
-                {!!onSendNow && (
-                    <Button
-                        variant="light"
-                        leftIcon={<MantineIcon icon={IconSend} />}
-                        onClick={onSendNow}
-                    >
-                        Send now
-                    </Button>
-                )}
-                <Button type="submit" loading={loading} onClick={onConfirm}>
-                    {confirmText}
-                </Button>
-            </Group>
-        </Group>
-    );
-};
 
 const ListStateContent: FC<{
     schedulersQuery: UseQueryResult<SchedulerAndTargets[], ApiError>;
@@ -105,7 +47,7 @@ const ListStateContent: FC<{
                     onEdit={onEdit}
                 />
             </Box>
-            <ScheduledDeliveriesFooter
+            <SchedulersModalFooter
                 confirmText="Create new"
                 onConfirm={onConfirm}
                 onCancel={onClose}
@@ -123,7 +65,7 @@ const CreateStateContent: FC<{
     >;
     isChart: boolean;
     onBack: () => void;
-}> = ({ resourceUuid, createMutation, onBack }) => {
+}> = ({ resourceUuid, createMutation, isChart, onBack }) => {
     useEffect(() => {
         if (createMutation.isSuccess) {
             createMutation.reset();
@@ -133,20 +75,43 @@ const CreateStateContent: FC<{
     const handleSubmit = (data: CreateSchedulerAndTargetsWithoutIds) => {
         createMutation.mutate({ resourceUuid, data });
     };
+    const { data: user } = useUser(true);
+    const { track } = useTracking();
+    const { mutate: sendNow } = useSendNowScheduler();
+
+    const handleSendNow = useCallback(
+        (schedulerData: CreateSchedulerAndTargetsWithoutIds) => {
+            if (user?.userUuid === undefined) return;
+            const resource = isChart
+                ? {
+                      savedChartUuid: resourceUuid,
+                      dashboardUuid: null,
+                  }
+                : {
+                      dashboardUuid: resourceUuid,
+                      savedChartUuid: null,
+                  };
+            const unsavedScheduler: CreateSchedulerAndTargets = {
+                ...schedulerData,
+                ...resource,
+                createdBy: user.userUuid,
+            };
+            track({
+                name: EventName.SCHEDULER_SEND_NOW_BUTTON,
+            });
+            sendNow(unsavedScheduler);
+        },
+        [isChart, resourceUuid, track, sendNow, user],
+    );
+
     return (
         <SchedulerForm2
             disabled={createMutation.isLoading}
             onSubmit={handleSubmit}
-            footer={
-                <ScheduledDeliveriesFooter
-                    confirmText="Create schedule"
-                    onBack={onBack}
-                    onSendNow={() => {
-                        //TODO: implement send now
-                    }}
-                    loading={createMutation.isLoading}
-                />
-            }
+            confirmText="Create schedule"
+            onBack={onBack}
+            onSendNow={handleSendNow}
+            loading={createMutation.isLoading}
         />
     );
 };

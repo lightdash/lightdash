@@ -1,4 +1,5 @@
 import {
+    CreateSchedulerAndTargetsWithoutIds,
     CreateSchedulerTarget,
     SchedulerFormat,
     validateEmail,
@@ -22,7 +23,7 @@ import {
     Text,
     TextInput,
 } from '@mantine/core';
-import React, { FC, ReactNode, useMemo, useState } from 'react';
+import React, { FC, useCallback, useMemo, useState } from 'react';
 import useHealth from '../../../hooks/health/useHealth';
 
 import { useForm } from '@mantine/form';
@@ -37,6 +38,7 @@ import { hasRequiredScopes } from '../../../components/UserSettings/SlackSetting
 import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
 import { useGetSlack } from '../../../hooks/useSlack';
 import { SlackIcon } from './SchedulerModalBase.styles';
+import SchedulersModalFooter from './SchedulerModalFooter';
 
 export enum Limit {
     TABLE = 'table',
@@ -97,8 +99,11 @@ const SlackErrorContent: FC<{ slackState: SlackStates }> = ({
 const SchedulerForm2: FC<{
     disabled: boolean;
     onSubmit: (data: any) => void;
-    footer: ReactNode;
-}> = ({ disabled, onSubmit, footer }) => {
+    onSendNow: (data: CreateSchedulerAndTargetsWithoutIds) => void;
+    onBack?: () => void;
+    loading?: boolean;
+    confirmText?: string;
+}> = ({ disabled, onSubmit, onSendNow, onBack, loading, confirmText }) => {
     // TODO: Implement edit mode. In Edit mode these default
     // values should come from the existing schedule
     const form = useForm({
@@ -119,6 +124,9 @@ const SchedulerForm2: FC<{
         validateInputOnBlur: ['options.customLimit'],
 
         validate: {
+            name: (value) => {
+                return value.length > 0 ? null : 'Name is required';
+            },
             options: {
                 customLimit: (value, values) => {
                     return values.options.limit === Limit.CUSTOM &&
@@ -129,8 +137,8 @@ const SchedulerForm2: FC<{
             },
         },
 
-        transformValues: (values) => {
-            let options;
+        transformValues: (values): CreateSchedulerAndTargetsWithoutIds => {
+            let options = {};
             if (values.format === SchedulerFormat.CSV) {
                 options = {
                     formatted: values.options.formatted,
@@ -216,6 +224,14 @@ const SchedulerForm2: FC<{
             })
             .concat(privateChannels);
     }, [slackChannelsQuery.data, privateChannels]);
+
+    const handleSendNow = useCallback(() => {
+        if (form.isValid()) {
+            onSendNow(form.getTransformedValues(form.values));
+        } else {
+            form.validate();
+        }
+    }, [form, onSendNow]);
 
     const isAddSlackDisabled = disabled || slackState !== SlackStates.SUCCESS;
     const isAddEmailDisabled = disabled || !health.data?.hasEmailClient;
@@ -533,7 +549,12 @@ const SchedulerForm2: FC<{
                   TODO: Implement second tab with <SchedulerAdvancedOptions />
                 */}
             </Stack>
-            {footer}
+            <SchedulersModalFooter
+                confirmText={confirmText}
+                onBack={onBack}
+                onSendNow={handleSendNow}
+                loading={loading}
+            />
         </form>
     );
 };
