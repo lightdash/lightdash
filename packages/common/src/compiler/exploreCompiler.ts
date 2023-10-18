@@ -132,8 +132,7 @@ export class ExploreCompiler {
                         dimensions: Object.keys(tableDimensions).reduce<
                             Record<string, Dimension>
                         >((acc, dimensionKey) => {
-                            const dimension =
-                                tables[join.table].dimensions[dimensionKey];
+                            const dimension = tableDimensions[dimensionKey];
                             const isRequired =
                                 requiredDimensionsForJoin.includes(
                                     dimensionKey,
@@ -141,11 +140,8 @@ export class ExploreCompiler {
                             const isVisible =
                                 join.fields === undefined ||
                                 join.fields.includes(dimensionKey) ||
-                                (tableDimensions[dimensionKey].group !==
-                                    undefined &&
-                                    join.fields.includes(
-                                        tableDimensions[dimensionKey].group!,
-                                    ));
+                                (dimension.group !== undefined &&
+                                    join.fields.includes(dimension.group));
 
                             if (isRequired || isVisible) {
                                 acc[dimensionKey] = {
