@@ -280,7 +280,6 @@ const DashboardHeader = ({
                         withArrow
                         withinPortal
                         shadow="md"
-                        closeOnItemClick={false}
                         disabled={!userCanManageDashboard && !userCanExportData}
                     >
                         <Menu.Target>
