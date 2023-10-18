@@ -1,3 +1,10 @@
+# [0.814.0](https://github.com/lightdash/lightdash/compare/0.813.3...0.814.0) (2023-10-18)
+
+
+### Features
+
+* joined table fields can now omit fields used in the SQL ([#7525](https://github.com/lightdash/lightdash/issues/7525)) ([e9ad989](https://github.com/lightdash/lightdash/commit/e9ad98968780e0073654d3b8951e5b3e082e120c))
+
 ## [0.813.3](https://github.com/lightdash/lightdash/compare/0.813.2...0.813.3) (2023-10-18)
 
 
