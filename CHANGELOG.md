@@ -1,3 +1,81 @@
+## [0.813.3](https://github.com/lightdash/lightdash/compare/0.813.2...0.813.3) (2023-10-18)
+
+
+### Bug Fixes
+
+* filter value aucomplete order and multiple searches ([#7533](https://github.com/lightdash/lightdash/issues/7533)) ([c17ddb1](https://github.com/lightdash/lightdash/commit/c17ddb1e60d00c7143b84d264d0dd4ddc6ddfbe4))
+* Replace Popover2 with Mantine (save chart header & Add tile button) ([#7518](https://github.com/lightdash/lightdash/issues/7518)) ([d18c1b6](https://github.com/lightdash/lightdash/commit/d18c1b6a0e939574d79be0d2d2c07e9ed1f8c08e))
+* replace Tooltip2 with Mantine (not in tables) ([#7511](https://github.com/lightdash/lightdash/issues/7511)) ([a93345f](https://github.com/lightdash/lightdash/commit/a93345f2ae84bb0943f81d83e209c4f7554eae25))
+
+## [0.813.2](https://github.com/lightdash/lightdash/compare/0.813.1...0.813.2) (2023-10-18)
+
+
+### Bug Fixes
+
+* allow vertical big number resizing ([#7442](https://github.com/lightdash/lightdash/issues/7442)) ([7bcd51c](https://github.com/lightdash/lightdash/commit/7bcd51c5d33294fdbdee71c756e4ba4944ce13fc))
+
+## [0.813.1](https://github.com/lightdash/lightdash/compare/0.813.0...0.813.1) (2023-10-17)
+
+
+### Bug Fixes
+
+* disable redirect for charts in dashboards ([#7505](https://github.com/lightdash/lightdash/issues/7505)) ([715dd91](https://github.com/lightdash/lightdash/commit/715dd91d663d177fa4c7aa043c522dc75dfbdfb2))
+
+# [0.813.0](https://github.com/lightdash/lightdash/compare/0.812.3...0.813.0) (2023-10-17)
+
+
+### Bug Fixes
+
+* parsing all references ([#7523](https://github.com/lightdash/lightdash/issues/7523)) ([2267f7d](https://github.com/lightdash/lightdash/commit/2267f7d60f2d1f6da988ecab179c8518e273d26f))
+
+
+### Features
+
+* add a validation function to TagInput ([#7522](https://github.com/lightdash/lightdash/issues/7522)) ([3a98382](https://github.com/lightdash/lightdash/commit/3a983826339fe0dbb119f85498b08c9a2b76a9c7))
+
+## [0.812.3](https://github.com/lightdash/lightdash/compare/0.812.2...0.812.3) (2023-10-17)
+
+
+### Bug Fixes
+
+* revert adapter destroy on finally ([#7516](https://github.com/lightdash/lightdash/issues/7516)) ([8e1ba6b](https://github.com/lightdash/lightdash/commit/8e1ba6b827b71704c3612d48cb28aa14bad56a54))
+
+## [0.812.2](https://github.com/lightdash/lightdash/compare/0.812.1...0.812.2) (2023-10-17)
+
+
+### Bug Fixes
+
+* google sso redirection ([#7495](https://github.com/lightdash/lightdash/issues/7495)) ([df692b2](https://github.com/lightdash/lightdash/commit/df692b28de1d94422b8f36bd278e075fe89ed0df))
+
+## [0.812.1](https://github.com/lightdash/lightdash/compare/0.812.0...0.812.1) (2023-10-17)
+
+
+### Bug Fixes
+
+* hide add filter button if not in edit mode ([#7501](https://github.com/lightdash/lightdash/issues/7501)) ([cbf414d](https://github.com/lightdash/lightdash/commit/cbf414daff5027dedd6cd7f651eb65ad230fc52e))
+
+# [0.812.0](https://github.com/lightdash/lightdash/compare/0.811.0...0.812.0) (2023-10-17)
+
+
+### Bug Fixes
+
+* auto refresh on renaming a space from spaces page ([#7503](https://github.com/lightdash/lightdash/issues/7503)) ([16a385c](https://github.com/lightdash/lightdash/commit/16a385c4af3444e67ca01f1e3851f615ccff565f))
+* Disables total toggle for line/area/scatter charts, only show for bar charts. ([#7454](https://github.com/lightdash/lightdash/issues/7454)) ([fa63f6e](https://github.com/lightdash/lightdash/commit/fa63f6ebd191e35be4506e7f9e4fed60adeabec6))
+* explore filters field select x button alignment ([#7473](https://github.com/lightdash/lightdash/issues/7473)) ([5b5b928](https://github.com/lightdash/lightdash/commit/5b5b92878246013d51cd993da16a0fed3bc7533e))
+* google sheet delivery type error ([#7469](https://github.com/lightdash/lightdash/issues/7469)) ([9d7cc70](https://github.com/lightdash/lightdash/commit/9d7cc7091c60d3ff82f1f98a81994613013fa9f4))
+* New spaces don't appear on "space" page unless I refresh the page ([#7474](https://github.com/lightdash/lightdash/issues/7474)) ([41b127b](https://github.com/lightdash/lightdash/commit/41b127b822573e8b625f07aee063004952e1a0f6))
+* Replace Tooltip2 with Mantine ([#7478](https://github.com/lightdash/lightdash/issues/7478)) ([30ba840](https://github.com/lightdash/lightdash/commit/30ba8402574451bfb098601457c5fab0e88e6312))
+* scrolling issue ([#7455](https://github.com/lightdash/lightdash/issues/7455)) ([097108a](https://github.com/lightdash/lightdash/commit/097108a55bcabc3188e7f2726f8e4696dcfa06a1))
+* spaces delete not updating ([#7467](https://github.com/lightdash/lightdash/issues/7467)) ([8bdb2d6](https://github.com/lightdash/lightdash/commit/8bdb2d6528b13956151aa816cc580b60d9459613))
+* ssh test connection before run query ([#7496](https://github.com/lightdash/lightdash/issues/7496)) ([9ee6fb8](https://github.com/lightdash/lightdash/commit/9ee6fb88128c54850d2cdcce695d20f9bf4cd141))
+
+
+### Features
+
+* filter inputs tag input to mantine ([#7452](https://github.com/lightdash/lightdash/issues/7452)) ([1e6ed22](https://github.com/lightdash/lightdash/commit/1e6ed22731989be2266abdb30219f7daaf9acc8d))
+* improve create space ux when creating dashboard modal ([#7483](https://github.com/lightdash/lightdash/issues/7483)) ([aa3fd7a](https://github.com/lightdash/lightdash/commit/aa3fd7aeafc3fd515d37e038a6c2284f2009a641))
+* replace with menus + popover for dashboard header, scheduler and column header ([#7481](https://github.com/lightdash/lightdash/issues/7481)) ([955e900](https://github.com/lightdash/lightdash/commit/955e90006c036afb3bc6b7c79f1ab7c9984e2fb7))
+
 # [0.811.0](https://github.com/lightdash/lightdash/compare/0.810.0...0.811.0) (2023-10-13)
 
 

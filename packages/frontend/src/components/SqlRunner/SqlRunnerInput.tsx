@@ -1,11 +1,10 @@
-import { Button, PopoverPosition } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
 import { ProjectCatalog } from '@lightdash/common';
+import { ActionIcon, CopyButton, Tooltip } from '@mantine/core';
+import { IconCheck, IconClipboard } from '@tabler/icons-react';
 import 'ace-builds/src-noconflict/mode-sql';
 import 'ace-builds/src-noconflict/theme-github';
-import React, { FC, useState } from 'react';
+import React, { FC } from 'react';
 import AceEditor from 'react-ace';
-import { CopyToClipboard } from 'react-copy-to-clipboard';
 import { useProjectCatalogAceEditorCompleter } from '../../hooks/useProjectCatalogAceEditorCompleter';
 
 const SqlRunnerInput: FC<{
@@ -14,7 +13,6 @@ const SqlRunnerInput: FC<{
     onChange: (value: string) => void;
     projectCatalog: ProjectCatalog | undefined;
 }> = ({ sql, onChange, isDisabled, projectCatalog }) => {
-    const [copied, setCopied] = useState<boolean>(false);
     const { setAceEditor } =
         useProjectCatalogAceEditorCompleter(projectCatalog);
 
@@ -37,7 +35,6 @@ const SqlRunnerInput: FC<{
                 enableLiveAutocompletion
                 onChange={(value: string) => {
                     onChange(value);
-                    setCopied(false);
                 }}
                 onLoad={setAceEditor}
             />
@@ -48,16 +45,27 @@ const SqlRunnerInput: FC<{
                     right: 0,
                 }}
             >
-                <Tooltip2
-                    isOpen={copied}
-                    content="Copied to clipboard!"
-                    intent="success"
-                    position={PopoverPosition.RIGHT}
-                >
-                    <CopyToClipboard text={sql} onCopy={() => setCopied(true)}>
-                        <Button minimal icon="clipboard" />
-                    </CopyToClipboard>
-                </Tooltip2>
+                <CopyButton value={sql} timeout={2000}>
+                    {({ copied, copy }) => (
+                        <Tooltip
+                            label={copied ? 'Copied to clipboard!' : 'Copy'}
+                            withArrow
+                            position="right"
+                            color={copied ? 'green' : 'dark'}
+                        >
+                            <ActionIcon
+                                color={copied ? 'teal' : 'gray'}
+                                onClick={copy}
+                            >
+                                {copied ? (
+                                    <IconCheck size="1rem" />
+                                ) : (
+                                    <IconClipboard size="1rem" />
+                                )}
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+                </CopyButton>
             </div>
         </div>
     );

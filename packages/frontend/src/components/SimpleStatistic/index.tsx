@@ -28,6 +28,9 @@ interface SimpleStatisticsProps extends HTMLAttributes<HTMLDivElement> {
 const BOX_MIN_WIDTH = 150;
 const BOX_MAX_WIDTH = 1000;
 
+const BOX_MIN_HEIGHT = 25;
+const BOX_MAX_HEIGHT = 1000;
+
 const VALUE_SIZE_MIN = 24;
 const VALUE_SIZE_MAX = 64;
 
@@ -41,12 +44,23 @@ const calculateFontSize = (
     fontSizeMin: number,
     fontSizeMax: number,
     boundWidth: number,
-) =>
-    Math.floor(
-        fontSizeMin +
-            ((fontSizeMax - fontSizeMin) * (boundWidth - BOX_MIN_WIDTH)) /
-                (BOX_MAX_WIDTH - BOX_MIN_WIDTH),
+    boundHeight: number,
+) => {
+    const widthScale =
+        (boundWidth - BOX_MIN_WIDTH) / (BOX_MAX_WIDTH - BOX_MIN_WIDTH);
+    const heightScale =
+        (boundHeight - BOX_MIN_HEIGHT) / (BOX_MAX_HEIGHT - BOX_MIN_HEIGHT);
+
+    const scalingFactor = Math.min(widthScale, heightScale);
+
+    // assert : 0 <= scalingFactor <= 1
+
+    const fontSize = Math.floor(
+        fontSizeMin + (fontSizeMax - fontSizeMin) * scalingFactor,
     );
+
+    return fontSize;
+};
 
 const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     minimal = false,
@@ -82,22 +96,31 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             BOX_MAX_WIDTH,
         );
 
+        const boundHeight = clamp(
+            observerElementSize?.height || 0,
+            BOX_MIN_HEIGHT,
+            BOX_MAX_HEIGHT,
+        );
+
         const valueSize = calculateFontSize(
             VALUE_SIZE_MIN,
             VALUE_SIZE_MAX,
             boundWidth,
+            boundHeight,
         );
 
         const labelSize = calculateFontSize(
             LABEL_SIZE_MIN,
             LABEL_SIZE_MAX,
             boundWidth,
+            boundHeight,
         );
 
         const comparisonValueSize = calculateFontSize(
             COMPARISON_VALUE_SIZE_MIN,
             COMPARISON_VALUE_SIZE_MAX,
             boundWidth,
+            boundHeight,
         );
 
         return {

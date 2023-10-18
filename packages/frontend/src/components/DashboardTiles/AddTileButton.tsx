@@ -1,8 +1,21 @@
-import { Menu, MenuDivider, PopoverPosition } from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { PopoverPosition } from '@blueprintjs/core';
 import { Dashboard, DashboardTileTypes } from '@lightdash/common';
-import { Button, ButtonProps, Group, Text, Tooltip } from '@mantine/core';
-import { IconInfoCircle, IconPlus } from '@tabler/icons-react';
+import {
+    Button,
+    ButtonProps,
+    Divider,
+    Group,
+    Menu,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import {
+    IconChartBar,
+    IconInfoCircle,
+    IconMarkdown,
+    IconPlus,
+    IconVideo,
+} from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
@@ -16,11 +29,7 @@ type Props = {
     popoverPosition?: PopoverPosition;
 } & Pick<ButtonProps, 'disabled'>;
 
-const AddTileButton: FC<Props> = ({
-    onAddTiles,
-    popoverPosition,
-    disabled,
-}) => {
+const AddTileButton: FC<Props> = ({ onAddTiles, disabled }) => {
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
@@ -48,80 +57,80 @@ const AddTileButton: FC<Props> = ({
 
     return (
         <>
-            <Popover2
-                className="non-draggable"
-                content={
-                    <Menu>
-                        <MenuItem2
-                            icon="timeline-line-chart"
-                            text="Saved chart"
-                            onClick={() => setIsAddChartTilesModalOpen(true)}
-                        />
-
-                        <MenuDivider />
-
-                        <MenuItem2
-                            icon="series-add"
-                            text={
-                                <Group spacing="xxs">
-                                    <Text>New chart</Text>
-                                    <Tooltip label="Charts generated from here are exclusive to this dashboard">
-                                        <MantineIcon
-                                            icon={IconInfoCircle}
-                                            color="gray.6"
-                                        />
-                                    </Tooltip>
-                                </Group>
-                            }
-                            onClick={() => {
-                                storeDashboard(
-                                    dashboardTiles,
-                                    dashboardFilters,
-                                    haveTilesChanged,
-                                    haveFiltersChanged,
-                                    dashboard?.uuid,
-                                    dashboard?.name,
-                                );
-                                history.push(`/projects/${projectUuid}/tables`);
-                            }}
-                        />
-                        <MenuDivider />
-
-                        <MenuItem2
-                            icon="new-text-box"
-                            text="Markdown"
-                            onClick={() =>
-                                setAddTileType(DashboardTileTypes.MARKDOWN)
-                            }
-                        />
-
-                        <MenuDivider />
-
-                        <MenuItem2
-                            icon="mobile-video"
-                            text="Loom video"
-                            onClick={() =>
-                                setAddTileType(DashboardTileTypes.LOOM)
-                            }
-                        />
-                    </Menu>
-                }
-                position={
-                    popoverPosition
-                        ? popoverPosition
-                        : PopoverPosition.BOTTOM_RIGHT
-                }
-                lazy
+            <Menu
+                position="bottom"
+                withArrow
+                withinPortal
+                shadow="md"
+                closeOnItemClick={false}
+                width={200}
             >
-                <Button
-                    size="xs"
-                    variant="default"
-                    disabled={disabled}
-                    leftIcon={<MantineIcon icon={IconPlus} />}
-                >
-                    Add tile
-                </Button>
-            </Popover2>
+                <Menu.Target>
+                    <Button
+                        size="xs"
+                        variant="default"
+                        disabled={disabled}
+                        leftIcon={<MantineIcon icon={IconPlus} />}
+                    >
+                        Add tile
+                    </Button>
+                </Menu.Target>
+                <Menu.Dropdown>
+                    <Menu.Item
+                        onClick={() => setIsAddChartTilesModalOpen(true)}
+                        icon={<MantineIcon icon={IconChartBar} />}
+                    >
+                        Saved chart
+                    </Menu.Item>
+
+                    <Divider />
+
+                    <Menu.Item
+                        onClick={() => {
+                            storeDashboard(
+                                dashboardTiles,
+                                dashboardFilters,
+                                haveTilesChanged,
+                                haveFiltersChanged,
+                                dashboard?.uuid,
+                                dashboard?.name,
+                            );
+                            history.push(`/projects/${projectUuid}/tables`);
+                        }}
+                        icon={<MantineIcon icon={IconPlus} />}
+                    >
+                        <Group spacing="xxs">
+                            <Text>New chart</Text>
+                            <Tooltip label="Charts generated from here are exclusive to this dashboard">
+                                <MantineIcon
+                                    icon={IconInfoCircle}
+                                    color="gray.6"
+                                />
+                            </Tooltip>
+                        </Group>
+                    </Menu.Item>
+
+                    <Divider />
+
+                    <Menu.Item
+                        onClick={() =>
+                            setAddTileType(DashboardTileTypes.MARKDOWN)
+                        }
+                        icon={<MantineIcon icon={IconMarkdown} />}
+                    >
+                        Markdown
+                    </Menu.Item>
+
+                    <Divider />
+
+                    <Menu.Item
+                        onClick={() => setAddTileType(DashboardTileTypes.LOOM)}
+                        icon={<MantineIcon icon={IconVideo} />}
+                    >
+                        Loom video
+                    </Menu.Item>
+                </Menu.Dropdown>
+            </Menu>
 
             {isAddChartTilesModalOpen && (
                 <AddChartTilesModal

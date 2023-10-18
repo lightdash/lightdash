@@ -1,5 +1,6 @@
 import { Dashboard, Space } from '@lightdash/common';
 import {
+    ActionIcon,
     Button,
     Group,
     MantineProvider,
@@ -7,12 +8,13 @@ import {
     ModalProps,
     Select,
     Stack,
+    Text,
     TextInput,
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconArrowLeft, IconFolder, IconPlus } from '@tabler/icons-react';
-import { FC, useCallback, useEffect } from 'react';
+import { IconFolder, IconX } from '@tabler/icons-react';
+import { FC, useCallback, useEffect, useState } from 'react';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import {
     useCreateMutation as useSpaceCreateMutation,
@@ -50,6 +52,11 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
         },
     });
 
+    const [searchValue, onSearchChange] = useState('');
+    const [spacesOptions, setSpacesOptions] = useState<
+        { value: string; label: string }[]
+    >([]);
+
     const {
         data: spaces,
         isLoading: isLoadingSpaces,
@@ -57,6 +64,12 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     } = useSpaceSummaries(projectUuid, true, {
         onSuccess: (data) => {
             if (data.length > 0) {
+                setSpacesOptions(
+                    data.map((space) => ({
+                        value: space.uuid,
+                        label: space.name,
+                    })),
+                );
                 const currentSpace = defaultSpaceUuid
                     ? data.find((space) => space.uuid === defaultSpaceUuid)
                     : data[0];
@@ -69,9 +82,6 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
         },
     });
 
-    const showNewSpaceInput =
-        form.values.isCreatingNewSpace || spaces?.length === 0;
-
     const handleClose = () => {
         form.reset();
         onClose?.();
@@ -83,9 +93,9 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
         if (isSuccess && modalProps.opened) {
             setFieldValue(
                 'spaceUuid',
-                spaces.find((space) => space.uuid === defaultSpaceUuid)?.uuid ??
-                    spaces[0].uuid ??
-                    '',
+                spaces?.find((space) => space.uuid === defaultSpaceUuid)
+                    ?.uuid ??
+                    ((spaces && spaces[0].uuid) || ''),
             );
         }
     }, [defaultSpaceUuid, isSuccess, modalProps.opened, setFieldValue, spaces]);
@@ -143,64 +153,110 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                             disabled={isCreatingDashboard}
                             {...form.getInputProps('dashboardDescription')}
                         />
-                        {!isLoadingSpaces && spaces && !showNewSpaceInput ? (
+                        {!isLoadingSpaces && spaces ? (
                             <Stack spacing="xs">
                                 <Select
+                                    searchable
+                                    creatable
+                                    clearable
                                     withinPortal
-                                    label="Select a space"
-                                    data={spaces?.map((space) => ({
-                                        value: space.uuid,
-                                        label: space.name,
-                                    }))}
+                                    label={
+                                        form.values.isCreatingNewSpace
+                                            ? 'Moving to new space'
+                                            : 'Select a space'
+                                    }
+                                    data={spacesOptions}
                                     icon={<MantineIcon icon={IconFolder} />}
                                     required
+                                    clearButtonProps={{
+                                        onClick: () => {
+                                            onSearchChange('');
+                                            setFieldValue(
+                                                'isCreatingNewSpace',
+                                                false,
+                                            );
+                                            setFieldValue('newSpaceName', '');
+                                        },
+                                    }}
+                                    onSearchChange={(query) => {
+                                        console.log('changed', query);
+
+                                        if (!query) {
+                                            setFieldValue(
+                                                'isCreatingNewSpace',
+                                                false,
+                                            );
+                                            setFieldValue('newSpaceName', '');
+                                        }
+                                        onSearchChange(query);
+                                    }}
+                                    searchValue={searchValue}
                                     placeholder="Select space"
-                                    nothingFound="Nothing found"
-                                    {...form.getInputProps('spaceUuid')}
-                                />
-                                <Button
-                                    leftIcon={<MantineIcon icon={IconPlus} />}
-                                    variant="subtle"
-                                    mr="auto"
-                                    size="xs"
-                                    onClick={() =>
+                                    getCreateLabel={(query) => (
+                                        <Text component="b">
+                                            + Create new space{' '}
+                                            <Text span color="blue">
+                                                {query}
+                                            </Text>
+                                        </Text>
+                                    )}
+                                    readOnly={form.values.isCreatingNewSpace}
+                                    rightSection={
+                                        form.values.isCreatingNewSpace ||
+                                        !!form.values.spaceUuid ? (
+                                            <ActionIcon
+                                                variant="transparent"
+                                                onClick={() => {
+                                                    setSpacesOptions((prev) =>
+                                                        prev.filter(
+                                                            ({ label }) =>
+                                                                label !==
+                                                                searchValue,
+                                                        ),
+                                                    );
+
+                                                    onSearchChange('');
+                                                    setFieldValue(
+                                                        'isCreatingNewSpace',
+                                                        false,
+                                                    );
+                                                    setFieldValue(
+                                                        'newSpaceName',
+                                                        '',
+                                                    );
+                                                    setFieldValue(
+                                                        'spaceUuid',
+                                                        '',
+                                                    );
+                                                }}
+                                            >
+                                                <MantineIcon icon={IconX} />
+                                            </ActionIcon>
+                                        ) : null
+                                    }
+                                    onCreate={(query) => {
+                                        const item = {
+                                            value: query,
+                                            label: query,
+                                        };
+
                                         form.setFieldValue(
                                             'isCreatingNewSpace',
                                             true,
-                                        )
-                                    }
-                                >
-                                    Create new space
-                                </Button>
-                            </Stack>
-                        ) : (
-                            <Stack spacing="xs">
-                                <TextInput
-                                    icon={<MantineIcon icon={IconFolder} />}
-                                    label="Name your space"
-                                    placeholder="eg. KPIs"
-                                    required
-                                    {...form.getInputProps('newSpaceName')}
-                                />
-                                <Button
-                                    leftIcon={
-                                        <MantineIcon icon={IconArrowLeft} />
-                                    }
-                                    onClick={() =>
+                                        );
                                         form.setFieldValue(
-                                            'isCreatingNewSpace',
-                                            false,
-                                        )
-                                    }
-                                    variant="subtle"
-                                    color="gray"
-                                    mr="auto"
-                                    size="xs"
-                                >
-                                    Save to existing space instead
-                                </Button>
+                                            'newSpaceName',
+                                            query,
+                                        );
+
+                                        spacesOptions.push(item);
+
+                                        return item;
+                                    }}
+                                    {...form.getInputProps('spaceUuid')}
+                                />
                             </Stack>
-                        )}
+                        ) : null}
                     </Stack>
 
                     <Group position="right">

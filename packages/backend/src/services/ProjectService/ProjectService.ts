@@ -633,10 +633,9 @@ export class ProjectService {
             await adapter.test();
         } catch (e) {
             Logger.error(`Error testing project adapter: ${e}`);
-            throw e;
-        } finally {
             await adapter.destroy();
             await sshTunnel.disconnect();
+            throw e;
         }
         return { adapter, sshTunnel };
     }
@@ -1161,7 +1160,10 @@ export class ProjectService {
                             metricQuery: JSON.stringify(metricQuery),
                             type: warehouseClient.credentials.type,
                         },
-                        async () => warehouseClient.runQuery(query, queryTags),
+                        async () => {
+                            await sshTunnel.testConnection();
+                            return warehouseClient.runQuery(query, queryTags);
+                        },
                     );
                     await sshTunnel.disconnect();
                     return rows;
@@ -1210,6 +1212,7 @@ export class ProjectService {
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
         };
+        await sshTunnel.testConnection();
         const results = await warehouseClient.runQuery(sql, queryTags);
         await sshTunnel.disconnect();
         return results;
@@ -1319,6 +1322,7 @@ export class ProjectService {
             user_uuid: user.userUuid,
             project_uuid: projectUuid,
         };
+        await sshTunnel.testConnection();
         const { rows } = await warehouseClient.runQuery(query, queryTags);
         await sshTunnel.disconnect();
 
