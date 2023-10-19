@@ -10,7 +10,7 @@ import {
     Task,
     TaskList,
 } from 'graphile-worker';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { schedulerClient } from '../clients/clients';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
@@ -74,7 +74,7 @@ const traceTask = (taskName: string, task: Task): Task => {
                 if (job.locked_at) {
                     span.setAttribute(
                         'worker.job.locked_at',
-                        moment(job.locked_at).toISOString(),
+                        dayjs(job.locked_at).toISOString(),
                     );
                 }
                 if (job.created_at) {
@@ -130,9 +130,9 @@ export const getDailyDatesFromCron = (
     when = new Date(),
 ): Date[] => {
     const arr = stringToArray(cron);
-    const startOfMinute = moment(when).startOf('minute').toDate(); // round down to the nearest minute so we can even process 00:00 on daily jobs
+    const startOfMinute = dayjs(when).startOf('minute').toDate(); // round down to the nearest minute so we can even process 00:00 on daily jobs
     const schedule = getSchedule(arr, startOfMinute, 'UTC');
-    const tomorrow = moment(startOfMinute)
+    const tomorrow = dayjs(startOfMinute)
         .add(1, 'day')
         .startOf('day')
         .toDate();
