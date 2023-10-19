@@ -8,10 +8,10 @@ import {
     parseDate,
     WeekDay,
 } from '@lightdash/common';
-import { FC, useState } from 'react';
-import { createGlobalStyle } from 'styled-components';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
+import { FC, useState } from 'react';
+import { createGlobalStyle } from 'styled-components';
 
 dayjs.extend(isoWeek);
 
