@@ -26,8 +26,6 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
     const schedulersQuery = useDashboardSchedulers(dashboardUuid);
     const createMutation = useDashboardSchedulerCreateMutation();
 
-    console.log(useFeatureFlagEnabled('new-scheduler-ui'));
-
     // TODO: this is a feature flag while we are refactoring
     // the scheduled deliveries UI. Remove it when that is done.
     const SchedulerView = useFeatureFlagEnabled('new-scheduler-ui')
