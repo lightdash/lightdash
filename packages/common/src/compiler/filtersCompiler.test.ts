@@ -1,4 +1,4 @@
-import moment from 'moment/moment';
+import dayjs from 'dayjs';
 import { FilterOperator, UnitOfTime } from '../types/filter';
 import { WeekDay } from '../utils/timeFrames';
 import {
@@ -75,7 +75,7 @@ import {
 } from './filtersCompiler.mock';
 
 const formatTimestamp = (date: Date): string =>
-    moment(date).format('YYYY-MM-DD HH:mm:ss');
+    dayjs(date).format('YYYY-MM-DD HH:mm:ss');
 
 describe('Filter SQL', () => {
     beforeAll(() => {
