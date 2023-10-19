@@ -1,14 +1,6 @@
 import { PopoverPosition } from '@blueprintjs/core';
 import { Dashboard, DashboardTileTypes } from '@lightdash/common';
-import {
-    Button,
-    ButtonProps,
-    Divider,
-    Group,
-    Menu,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { Button, ButtonProps, Group, Menu, Text, Tooltip } from '@mantine/core';
 import {
     IconChartBar,
     IconInfoCircle,
@@ -83,8 +75,6 @@ const AddTileButton: FC<Props> = ({ onAddTiles, disabled }) => {
                         Saved chart
                     </Menu.Item>
 
-                    <Divider />
-
                     <Menu.Item
                         onClick={() => {
                             storeDashboard(
@@ -110,8 +100,6 @@ const AddTileButton: FC<Props> = ({ onAddTiles, disabled }) => {
                         </Group>
                     </Menu.Item>
 
-                    <Divider />
-
                     <Menu.Item
                         onClick={() =>
                             setAddTileType(DashboardTileTypes.MARKDOWN)
@@ -120,8 +108,6 @@ const AddTileButton: FC<Props> = ({ onAddTiles, disabled }) => {
                     >
                         Markdown
                     </Menu.Item>
-
-                    <Divider />
 
                     <Menu.Item
                         onClick={() => setAddTileType(DashboardTileTypes.LOOM)}
