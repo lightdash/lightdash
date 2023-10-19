@@ -1,4 +1,4 @@
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { getFilterRuleWithDefaultValue, getPasswordSchema } from '.';
 import {
     dateDayDimension,
@@ -12,7 +12,7 @@ describe('Common index', () => {
     describe('default values on filter rule', () => {
         // TODO mock some timezones
         test('should return right default day value', async () => {
-            const date = moment().format('YYYY-MM-DD');
+            const date = dayjs().format('YYYY-MM-DD');
 
             expect(
                 getFilterRuleWithDefaultValue(
@@ -24,7 +24,7 @@ describe('Common index', () => {
         });
 
         test('should return right default month value', async () => {
-            const date = moment().format('YYYY-MM-01');
+            const date = dayjs().format('YYYY-MM-01');
 
             expect(
                 getFilterRuleWithDefaultValue(
@@ -36,7 +36,7 @@ describe('Common index', () => {
         });
 
         test('should return right default year value', async () => {
-            const date = moment().format('YYYY-01-01');
+            const date = dayjs().format('YYYY-01-01');
 
             expect(
                 getFilterRuleWithDefaultValue(
