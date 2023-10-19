@@ -2213,7 +2213,7 @@ export class ProjectService {
         const allowedSpaces = spaces.filter(
             (space) =>
                 space.projectUuid === projectUuid &&
-                hasSpaceAccess(user, space, true),
+                hasSpaceAccess(user, space, false), // NOTE: We don't check for admin access to the space - exclude private spaces from this panel if admin
         );
 
         const mostPopular = await this.getMostPopular(allowedSpaces);
