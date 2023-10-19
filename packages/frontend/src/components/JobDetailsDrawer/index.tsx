@@ -5,6 +5,9 @@ import {
     JobStep,
     JobStepStatusType,
 } from '@lightdash/common';
+import dayjs from 'dayjs';
+import duration from 'dayjs/plugin/duration';
+import utc from 'dayjs/plugin/utc';
 import React, { FC } from 'react';
 import {
     jobStatusLabel,
@@ -25,9 +28,6 @@ import {
     StepStatusWrapper,
     StepsWrapper,
 } from './JobDetailsDrawer.styles';
-import dayjs from 'dayjs';
-import utc from 'dayjs/plugin/utc';
-import duration from 'dayjs/plugin/duration';
 dayjs.extend(utc);
 dayjs.extend(duration);
 

@@ -21,14 +21,14 @@ import {
     ValidateProjectPayload,
 } from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import { makeWorkerUtils, WorkerUtils } from 'graphile-worker';
 import { analytics } from '../analytics/client';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { SchedulerModel } from '../models/SchedulerModel';
-import dayjs from 'dayjs';
-import utc from 'dayjs/plugin/utc';
 dayjs.extend(utc);
 
 type SchedulerClientDependencies = {
