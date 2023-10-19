@@ -5,7 +5,6 @@ import {
     JobStep,
     JobStepStatusType,
 } from '@lightdash/common';
-import moment from 'moment';
 import React, { FC } from 'react';
 import {
     jobStatusLabel,
@@ -26,15 +25,20 @@ import {
     StepStatusWrapper,
     StepsWrapper,
 } from './JobDetailsDrawer.styles';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import duration from 'dayjs/plugin/duration';
+dayjs.extend(utc);
+dayjs.extend(duration);
 
 const durationSince = (
     startTime: Date,
     endTime: Date | undefined = undefined,
 ) => {
-    return moment
+    return dayjs
         .utc(
-            moment
-                .duration(moment(endTime).diff(moment(startTime)))
+            dayjs
+                .duration(dayjs(endTime).diff(dayjs(startTime)))
                 .asMilliseconds(),
         )
         .format('HH:mm:ss');
