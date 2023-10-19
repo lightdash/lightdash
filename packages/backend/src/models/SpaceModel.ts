@@ -278,13 +278,20 @@ export class SpaceModel {
                         ), '[]'
                     ) as validation_errors
                 `),
-            ])
-            .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
-            .select(
                 `${DashboardVersionsTableName}.created_at as dashboard_version_created_at`,
                 `${DashboardVersionsTableName}.dashboard_id as dashboard_id`,
-            )
+            ])
+            .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
             .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+            .orderBy([
+                {
+                    column: `dashboard_id`,
+                },
+                {
+                    column: `dashboard_version_created_at`,
+                    order: 'desc',
+                },
+            ])
             .as('subQuery');
 
         let dashboardsQuery = this.database.select('*').from(subQuery);
@@ -297,16 +304,6 @@ export class SpaceModel {
             dashboardsQuery = dashboardsQuery
                 .orderBy(sortByColumn, 'desc')
                 .limit(this.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT);
-        } else {
-            dashboardsQuery = dashboardsQuery.orderBy([
-                {
-                    column: `dashboard_id`,
-                },
-                {
-                    column: `dashboard_version_created_at`,
-                    order: 'desc',
-                },
-            ]);
         }
 
         const dashboards = await dashboardsQuery;
