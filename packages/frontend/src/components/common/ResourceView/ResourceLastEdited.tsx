@@ -1,5 +1,5 @@
 import { Text, Tooltip } from '@mantine/core';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { FC } from 'react';
 
 import {
@@ -23,7 +23,7 @@ const ResourceLastEdited: FC<ResourceLastEditedProps> = ({
         <div>
             <Tooltip
                 position="top-start"
-                label={moment(updatedAt).format('YYYY-MM-DD HH:mm:ss')}
+                label={dayjs(updatedAt).format('YYYY-MM-DD HH:mm:ss')}
             >
                 <Text fz={12} fw={500} color="gray.7">
                     {timeAgo}
