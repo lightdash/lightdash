@@ -1,3 +1,10 @@
+## [0.814.2](https://github.com/lightdash/lightdash/compare/0.814.1...0.814.2) (2023-10-19)
+
+
+### Bug Fixes
+
+* close dashbaord action menu on click ([#7539](https://github.com/lightdash/lightdash/issues/7539)) ([f0471a6](https://github.com/lightdash/lightdash/commit/f0471a6cc60c945cba2432dc32f525d5fa350525))
+
 ## [0.814.1](https://github.com/lightdash/lightdash/compare/0.814.0...0.814.1) (2023-10-18)
 
 
