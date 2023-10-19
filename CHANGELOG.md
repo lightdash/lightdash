@@ -1,3 +1,11 @@
+## [0.814.5](https://github.com/lightdash/lightdash/compare/0.814.4...0.814.5) (2023-10-19)
+
+
+### Bug Fixes
+
+* add indices to saved chart tables ([#7556](https://github.com/lightdash/lightdash/issues/7556)) ([561c9f0](https://github.com/lightdash/lightdash/commit/561c9f0b3f4c6d85867e6873911dfe0abde182c0))
+* do not include private resources if admin ([#7555](https://github.com/lightdash/lightdash/issues/7555)) ([8d4b46b](https://github.com/lightdash/lightdash/commit/8d4b46b0eebcbc3699a8170dafe692375238b897))
+
 ## [0.814.4](https://github.com/lightdash/lightdash/compare/0.814.3...0.814.4) (2023-10-19)
 
 
