@@ -3,8 +3,9 @@ import {
     CreateSchedulerAndTargets,
     CreateSchedulerAndTargetsWithoutIds,
     SchedulerAndTargets,
+    UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
-import { Box } from '@mantine/core';
+import { Box, Loader, Stack, Text } from '@mantine/core';
 import { FC, useCallback, useEffect, useState } from 'react';
 import {
     UseMutationResult,
@@ -14,12 +15,13 @@ import { useHistory, useLocation } from 'react-router-dom';
 import { getSchedulerUuidFromUrlParams } from '../utils';
 import SchedulersList from './SchedulersList';
 
+import ErrorState from '../../../components/common/ErrorState';
 import useUser from '../../../hooks/user/useUser';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import { useSendNowScheduler } from '../hooks/useScheduler';
+import { useScheduler, useSendNowScheduler } from '../hooks/useScheduler';
+import { useSchedulersUpdateMutation } from '../hooks/useSchedulersUpdateMutation';
 import SchedulerForm2 from './SchedulerForm2';
-import { UpdateStateContent } from './SchedulerModalContent';
 import SchedulersModalFooter from './SchedulerModalFooter';
 
 enum States {
@@ -112,6 +114,77 @@ const CreateStateContent: FC<{
             onBack={onBack}
             onSendNow={handleSendNow}
             loading={createMutation.isLoading}
+        />
+    );
+};
+
+const UpdateStateContent: FC<{
+    schedulerUuid: string;
+    onBack: () => void;
+}> = ({ schedulerUuid, onBack }) => {
+    const scheduler = useScheduler(schedulerUuid);
+
+    const mutation = useSchedulersUpdateMutation(schedulerUuid);
+    useEffect(() => {
+        if (mutation.isSuccess) {
+            mutation.reset();
+            onBack();
+        }
+    }, [mutation, mutation.isSuccess, onBack]);
+
+    const handleSubmit = (data: UpdateSchedulerAndTargetsWithoutId) => {
+        mutation.mutate(data);
+    };
+
+    const { data: user } = useUser(true);
+    const { track } = useTracking();
+    const { mutate: sendNow } = useSendNowScheduler();
+
+    const handleSendNow = useCallback(
+        (schedulerData: CreateSchedulerAndTargetsWithoutIds) => {
+            if (scheduler.data === undefined) return;
+            if (user?.userUuid === undefined) return;
+            const unsavedScheduler: CreateSchedulerAndTargets = {
+                ...schedulerData,
+                savedChartUuid: scheduler.data.savedChartUuid,
+                dashboardUuid: scheduler.data.dashboardUuid,
+                createdBy: user.userUuid,
+            };
+
+            track({
+                name: EventName.SCHEDULER_SEND_NOW_BUTTON,
+            });
+            sendNow(unsavedScheduler);
+        },
+        [scheduler.data, user?.userUuid, track, sendNow],
+    );
+
+    if (scheduler.isLoading || scheduler.error) {
+        return (
+            <>
+                <Box m="xl">
+                    {scheduler.isLoading ? (
+                        <Stack h={300} w="100%" align="center">
+                            <Text fw={600}>Loading scheduler</Text>
+                            <Loader size="lg" />
+                        </Stack>
+                    ) : (
+                        <ErrorState error={scheduler.error.error} />
+                    )}
+                </Box>
+                <SchedulersModalFooter onBack={onBack} />
+            </>
+        );
+    }
+    return (
+        <SchedulerForm2
+            disabled={mutation.isLoading}
+            savedSchedulerData={scheduler.data}
+            onSubmit={handleSubmit}
+            confirmText="Save"
+            onBack={onBack}
+            onSendNow={handleSendNow}
+            loading={mutation.isLoading || scheduler.isLoading}
         />
     );
 };

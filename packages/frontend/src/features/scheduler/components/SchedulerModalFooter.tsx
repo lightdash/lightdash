@@ -13,7 +13,7 @@ interface FooterProps {
 }
 
 const SchedulersModalFooter = ({
-    confirmText = 'Confirm',
+    confirmText,
     onBack,
     onCancel,
     onSendNow,
@@ -53,13 +53,16 @@ const SchedulersModalFooter = ({
                         variant="light"
                         leftIcon={<MantineIcon icon={IconSend} />}
                         onClick={onSendNow}
+                        disabled={loading}
                     >
                         Send now
                     </Button>
                 )}
-                <Button type="submit" loading={loading} onClick={onConfirm}>
-                    {confirmText}
-                </Button>
+                {!!confirmText && (
+                    <Button type="submit" loading={loading} onClick={onConfirm}>
+                        {confirmText}
+                    </Button>
+                )}
             </Group>
         </Group>
     );

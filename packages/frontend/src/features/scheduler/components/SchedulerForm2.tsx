@@ -1,6 +1,10 @@
 import {
     CreateSchedulerAndTargetsWithoutIds,
     CreateSchedulerTarget,
+    isSchedulerCsvOptions,
+    isSchedulerImageOptions,
+    isSlackTarget,
+    SchedulerAndTargets,
     SchedulerFormat,
     validateEmail,
 } from '@lightdash/common';
@@ -61,6 +65,67 @@ enum SlackStates {
     MISSING_SCOPES,
 }
 
+const DEFAULT_VALUES = {
+    name: '',
+    message: '',
+    format: SchedulerFormat.CSV,
+    cron: '0 9 * * 1',
+    options: {
+        formatted: Values.FORMATTED,
+        limit: Limit.TABLE,
+        customLimit: 1,
+        withPdf: false,
+    },
+    emailTargets: [] as string[],
+    slackTargets: [] as string[],
+};
+
+const getFormValuesFromScheduler = (
+    schedulerData: SchedulerAndTargets,
+): any => {
+    const options = schedulerData.options;
+
+    const formOptions = DEFAULT_VALUES.options;
+
+    if (isSchedulerCsvOptions(options)) {
+        formOptions.formatted = options.formatted
+            ? Values.FORMATTED
+            : Values.RAW;
+        formOptions.limit =
+            options.limit === Limit.TABLE
+                ? Limit.TABLE
+                : options.limit === Limit.ALL
+                ? Limit.ALL
+                : Limit.CUSTOM;
+        if (formOptions.limit === Limit.CUSTOM) {
+            formOptions.customLimit = options.limit as number;
+        }
+    } else if (isSchedulerImageOptions(options)) {
+        formOptions.withPdf = options.withPdf || false;
+    }
+
+    const emailTargets: string[] = [];
+    const slackTargets: string[] = [];
+
+    schedulerData.targets.forEach((target) => {
+        if (isSlackTarget(target)) {
+            slackTargets.push(target.channel);
+        } else {
+            emailTargets.push(target.recipient);
+        }
+    });
+
+    return {
+        name: schedulerData.name,
+        message: schedulerData.message,
+        format: schedulerData.format,
+        cron: schedulerData.cron,
+        options: formOptions,
+        emailTargets: emailTargets,
+        slackTargets: slackTargets,
+    };
+};
+
 const SlackErrorContent: FC<{ slackState: SlackStates }> = ({ slackState }) => {
     if (slackState === SlackStates.NO_SLACK) {
         return (
@@ -99,29 +164,26 @@ const SlackErrorContent: FC<{ slackState: SlackStates }> = ({ slackState }) => {
 
 const SchedulerForm2: FC<{
     disabled: boolean;
+    savedSchedulerData?: SchedulerAndTargets;
     onSubmit: (data: any) => void;
     onSendNow: (data: CreateSchedulerAndTargetsWithoutIds) => void;
     onBack?: () => void;
     loading?: boolean;
     confirmText?: string;
-}> = ({ disabled, onSubmit, onSendNow, onBack, loading, confirmText }) => {
-    // TODO: Implement edit mode. In Edit mode these default
-    // values should come from the existing schedule
+}> = ({
+    disabled,
+    savedSchedulerData,
+    onSubmit,
+    onSendNow,
+    onBack,
+    loading,
+    confirmText,
+}) => {
     const form = useForm({
-        initialValues: {
-            name: '',
-            message: '',
-            format: SchedulerFormat.CSV,
-            cron: '0 9 * * 1',
-            options: {
-                formatted: Values.FORMATTED,
-                limit: Limit.TABLE,
-                customLimit: 1,
-                withPdf: false,
-            },
-            emailTargets: [] as string[],
-            slackTargets: [] as string[],
-        },
+        initialValues:
+            savedSchedulerData !== undefined
+                ? getFormValuesFromScheduler(savedSchedulerData)
+                : DEFAULT_VALUES,
         validateInputOnBlur: ['options.customLimit'],
 
         validate: {
@@ -154,13 +216,15 @@ const SchedulerForm2: FC<{
                 };
             }
 
-            const emailTargets = values.emailTargets.map((email) => ({
+            const emailTargets = values.emailTargets.map((email: string) => ({
                 recipient: email,
             }));
 
-            const slackTargets = values.slackTargets.map((channelId) => ({
-                channel: channelId,
-            }));
+            const slackTargets = values.slackTargets.map(
+                (channelId: string) => ({
+                    channel: channelId,
+                }),
+            );
 
             const targets: CreateSchedulerTarget[] = [
                 ...emailTargets,
@@ -461,8 +525,7 @@ const SchedulerForm2: FC<{
                                                         isAddEmailDisabled
                                                     }
                                                     value={
-                                                        form.values
-                                                            ?.emailTargets
+                                                        form.values.emailTargets
                                                     }
                                                     allowDuplicates={false}
                                                     splitChars={[',', ' ']}
@@ -531,6 +594,10 @@ const SchedulerForm2: FC<{
                                                         data={slackChannels}
                                                         searchable
                                                         creatable
+                                                        value={
+                                                            form.values
+                                                                .slackTargets
+                                                        }
                                                         rightSection={
                                                             slackChannelsQuery.isLoading ?? (
                                                                 <Loader size="sm" />
