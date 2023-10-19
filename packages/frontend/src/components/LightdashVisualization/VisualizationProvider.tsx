@@ -214,7 +214,6 @@ const VisualizationProvider: FC<Props> = ({
             return metricQueryFields;
         }
     }, [resultsData?.metricQuery, columnOrder]);
-
     const tableConfig = useTableConfig(
         initialChartConfig?.type === ChartType.TABLE
             ? initialChartConfig.config

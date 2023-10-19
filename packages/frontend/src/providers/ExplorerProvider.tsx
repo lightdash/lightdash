@@ -351,6 +351,7 @@ const calcColumnOrder = (
     const missingColumns = fieldIds.filter(
         (fieldId) => !cleanColumnOrder.includes(fieldId),
     );
+
     if (dimensions !== undefined) {
         const positionDimensionColumn = Math.max(
             ...dimensions.map((d) => cleanColumnOrder.indexOf(d)),
@@ -459,6 +460,9 @@ function reducer(
                             state.unsavedChartVersion.tableConfig.columnOrder,
                             [
                                 ...dimensions,
+                                ...(state.unsavedChartVersion.metricQuery.customDimensions?.map(
+                                    getCustomDimensionId,
+                                ) || []),
                                 ...state.unsavedChartVersion.metricQuery
                                     .metrics,
                                 ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
@@ -494,6 +498,9 @@ function reducer(
                             [
                                 ...state.unsavedChartVersion.metricQuery
                                     .dimensions,
+                                ...(state.unsavedChartVersion.metricQuery.customDimensions?.map(
+                                    getCustomDimensionId,
+                                ) || []),
                                 ...metrics,
                                 ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
                                     ({ name }) => name,
@@ -792,6 +799,9 @@ function reducer(
                         ...state.unsavedChartVersion.tableConfig,
                         columnOrder: calcColumnOrder(action.payload, [
                             ...state.unsavedChartVersion.metricQuery.dimensions,
+                            ...(state.unsavedChartVersion.metricQuery.customDimensions?.map(
+                                getCustomDimensionId,
+                            ) || []),
                             ...state.unsavedChartVersion.metricQuery.metrics,
                             ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
                                 ({ name }) => name,
@@ -821,6 +831,9 @@ function reducer(
                             [
                                 ...state.unsavedChartVersion.metricQuery
                                     .dimensions,
+                                ...(state.unsavedChartVersion.metricQuery.customDimensions?.map(
+                                    getCustomDimensionId,
+                                ) || []),
                                 ...state.unsavedChartVersion.metricQuery
                                     .metrics,
                                 ...newTableCalculations.map(({ name }) => name),
@@ -894,6 +907,9 @@ function reducer(
                             [
                                 ...state.unsavedChartVersion.metricQuery
                                     .dimensions,
+                                ...(state.unsavedChartVersion.metricQuery.customDimensions?.map(
+                                    getCustomDimensionId,
+                                ) || []),
                                 ...state.unsavedChartVersion.metricQuery
                                     .metrics,
                                 ...newTableCalculations.map(({ name }) => name),
