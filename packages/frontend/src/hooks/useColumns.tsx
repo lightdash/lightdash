@@ -1,5 +1,3 @@
-import { Icon } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     AdditionalMetric,
     Field,
@@ -12,7 +10,10 @@ import {
     isNumericItem,
     TableCalculation,
 } from '@lightdash/common';
+import { Tooltip } from '@mantine/core';
+import { IconAlertTriangle } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import MantineIcon from '../components/common/MantineIcon';
 import {
     TableHeaderBoldLabel,
     TableHeaderLabelContainer,
@@ -167,16 +168,12 @@ export const useColumns = (): TableColumn[] => {
                         id: fieldId,
                         header: () => (
                             <TableHeaderLabelContainer>
-                                <Tooltip2
-                                    content="This field was not found in the dbt project."
-                                    position="top"
-                                >
-                                    <Icon
-                                        icon="warning-sign"
-                                        intent="warning"
+                                <Tooltip label="This field was not found in the dbt project.">
+                                    <MantineIcon
+                                        icon={IconAlertTriangle}
+                                        color="yellow.9"
                                     />
-                                </Tooltip2>
-
+                                </Tooltip>
                                 <TableHeaderBoldLabel
                                     style={{ marginLeft: 10 }}
                                 >
