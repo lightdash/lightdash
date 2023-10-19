@@ -22,7 +22,6 @@ import {
 } from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
 import { makeWorkerUtils, WorkerUtils } from 'graphile-worker';
-import moment from 'moment';
 import { analytics } from '../analytics/client';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
