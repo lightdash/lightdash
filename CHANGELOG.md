@@ -1,3 +1,10 @@
+## [0.814.3](https://github.com/lightdash/lightdash/compare/0.814.2...0.814.3) (2023-10-19)
+
+
+### Bug Fixes
+
+* order on dashboards subquery first ([#7546](https://github.com/lightdash/lightdash/issues/7546)) ([cd46239](https://github.com/lightdash/lightdash/commit/cd46239e3a89bb46e4bc6b0bff9b3e1a75e11ba2))
+
 ## [0.814.2](https://github.com/lightdash/lightdash/compare/0.814.1...0.814.2) (2023-10-19)
 
 
