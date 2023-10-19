@@ -14,7 +14,6 @@ import {
     getItemMap,
     isDashboardChartTileType,
     isField,
-    isMomentInput,
     isTableChartConfig,
     MetricQuery,
     SchedulerCsvOptions,
@@ -29,7 +28,6 @@ import { stringify } from 'csv-stringify';
 import * as fs from 'fs';
 import * as fsPromise from 'fs/promises';
 
-import moment, { MomentInput } from 'moment';
 import { nanoid } from 'nanoid';
 import { pipeline, Readable, Transform, TransformCallback } from 'stream';
 import { Worker } from 'worker_threads';
