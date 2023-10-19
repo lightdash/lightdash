@@ -73,7 +73,7 @@ export const isLineSeriesOption = (obj: unknown): obj is LineSeriesOption =>
     typeof obj === 'object' && obj !== null && 'showSymbol' in obj;
 
 const getLabelFromField = (
-    fields: Array<Field | TableCalculation>,
+    fields: Array<Field | TableCalculation | CustomDimension>,
     key: string | undefined,
 ) => {
     const item = findItem(fields, key);
@@ -120,7 +120,7 @@ const getAxisTypeFromField = (
 
 type GetAxisTypeArg = {
     validCartesianConfig: CartesianChart;
-    itemMap: Record<string, Field | TableCalculation>;
+    itemMap: Record<string, Field | TableCalculation | CustomDimension>;
     topAxisXId?: string;
     bottomAxisXId?: string;
     rightAxisYId?: string;
@@ -269,7 +269,7 @@ export type EChartSeries = {
 const getFormattedValue = (
     value: any,
     key: string,
-    items: Array<Field | TableCalculation>,
+    items: Array<Field | TableCalculation | CustomDimension>,
     convertToUTC: boolean = true,
 ): string => {
     return formatItemValue(
@@ -280,7 +280,10 @@ const getFormattedValue = (
 };
 
 const valueFormatter =
-    (yFieldId: string, items: Array<Field | TableCalculation>) =>
+    (
+        yFieldId: string,
+        items: Array<Field | TableCalculation | CustomDimension>,
+    ) =>
     (rawValue: any) => {
         return getFormattedValue(rawValue, yFieldId, items);
     };
@@ -391,7 +394,7 @@ const getMinAndMaxReferenceLines = (
     bottomAxisXId: string | undefined,
     resultsData: ApiQueryResults | undefined,
     series: Series[] | undefined,
-    items: Array<Field | TableCalculation>,
+    items: Array<Field | TableCalculation | CustomDimension>,
 ) => {
     if (resultsData === undefined || series === undefined) return {};
     // Skip method if there are no reference lines
@@ -546,7 +549,7 @@ const getMinAndMaxReferenceLines = (
 };
 type GetPivotSeriesArg = {
     series: Series;
-    items: Array<Field | TableCalculation>;
+    items: Array<Field | TableCalculation | CustomDimension>;
     formats: Record<string, TableCalculation | Field> | undefined;
 
     cartesianChart: CartesianChart;
@@ -617,6 +620,9 @@ const getPivotSeries = ({
                     formats[series.encode.yRef.field] && {
                         formatter: (value: any) => {
                             const field = formats[series.encode.yRef.field];
+                            if (isCustomDimension(field)) {
+                                return value;
+                            }
                             if (isTableCalculation(field)) {
                                 return formatTableCalculationValue(
                                     field as TableCalculation,
@@ -641,8 +647,10 @@ const getPivotSeries = ({
 
 type GetSimpleSeriesArg = {
     series: Series;
-    items: Array<Field | TableCalculation>;
-    formats: Record<string, TableCalculation | Field> | undefined;
+    items: Array<Field | TableCalculation | CustomDimension>;
+    formats:
+        | Record<string, TableCalculation | Field | CustomDimension>
+        | undefined;
     flipAxes: boolean | undefined;
     yFieldHash: string;
     xFieldHash: string;
@@ -691,6 +699,9 @@ const getSimpleSeries = ({
                 formats[yFieldHash] && {
                     formatter: (value: any) => {
                         const field = formats[yFieldHash];
+                        if (isCustomDimension(field)) {
+                            return value;
+                        }
                         if (isTableCalculation(field)) {
                             return formatTableCalculationValue(
                                 field as TableCalculation,
@@ -713,7 +724,7 @@ const getSimpleSeries = ({
 });
 
 const getEchartsSeries = (
-    items: Array<Field | TableCalculation>,
+    items: Array<Field | TableCalculation | CustomDimension>,
     originalData: ApiQueryResults['rows'],
     cartesianChart: CartesianChart,
     pivotKeys: string[] | undefined,
@@ -775,11 +786,13 @@ const getEchartAxis = ({
     resultsData,
 }: {
     validCartesianConfig: CartesianChart;
-    items: Array<Field | TableCalculation>;
+    items: Array<Field | TableCalculation | CustomDimension>;
     series: EChartSeries[];
     resultsData: ApiQueryResults | undefined;
 }) => {
-    const itemMap = items.reduce<Record<string, Field | TableCalculation>>(
+    const itemMap = items.reduce<
+        Record<string, Field | TableCalculation | CustomDimension>
+    >(
         (acc, item) => ({
             ...acc,
             [getItemId(item)]: item,
@@ -829,7 +842,7 @@ const getEchartAxis = ({
     );
 
     const getAxisFormatter = (
-        axisItem: Field | TableCalculation | undefined,
+        axisItem: Field | TableCalculation | CustomDimension | undefined,
     ) => {
         const field =
             axisItem &&
@@ -1179,7 +1192,7 @@ const getStackTotalRows = (
 const getStackTotalSeries = (
     rows: ResultRow[],
     seriesWithStack: EChartSeries[],
-    items: Array<Field | TableCalculation>,
+    items: Array<Field | TableCalculation | CustomDimension>,
     flipAxis: boolean | undefined,
     selectedLegendNames: LegendValues,
 ) => {

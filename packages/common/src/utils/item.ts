@@ -46,7 +46,7 @@ export const isNumericItem = (
 };
 
 export const findItem = (
-    items: Array<Field | TableCalculation>,
+    items: Array<Field | TableCalculation | CustomDimension>,
     id: string | undefined,
 ) =>
     items.find((item) =>
