@@ -28,6 +28,9 @@ import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { SchedulerModel } from '../models/SchedulerModel';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+dayjs.extend(utc);
 
 type SchedulerClientDependencies = {
     lightdashConfig: LightdashConfig;
@@ -39,10 +42,10 @@ export const getDailyDatesFromCron = (
     when = new Date(),
 ): Date[] => {
     const arr = stringToArray(cron);
-    const startOfMinute = moment(when).startOf('minute').toDate(); // round down to the nearest minute so we can even process 00:00 on daily jobs
+    const startOfMinute = dayjs(when).startOf('minute').toDate(); // round down to the nearest minute so we can even process 00:00 on daily jobs
     const schedule = getSchedule(arr, startOfMinute, 'UTC');
 
-    const tomorrow = moment(startOfMinute)
+    const tomorrow = dayjs(startOfMinute)
         .utc()
         .add(1, 'day')
         .startOf('day')
