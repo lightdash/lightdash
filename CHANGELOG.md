@@ -1,3 +1,10 @@
+## [0.814.4](https://github.com/lightdash/lightdash/compare/0.814.3...0.814.4) (2023-10-19)
+
+
+### Bug Fixes
+
+* incorrectly created shared space when private selected ([#7476](https://github.com/lightdash/lightdash/issues/7476)) ([648ebc3](https://github.com/lightdash/lightdash/commit/648ebc3893804292b3e72d400d4a81849259dc43))
+
 ## [0.814.3](https://github.com/lightdash/lightdash/compare/0.814.2...0.814.3) (2023-10-19)
 
 
