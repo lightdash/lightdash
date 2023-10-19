@@ -34,6 +34,7 @@ import {
     TableCalculation,
     timeFrameConfigs,
 } from '@lightdash/common';
+import dayjs from 'dayjs';
 import {
     DefaultLabelFormatterCallbackParams,
     LineSeriesOption,
@@ -42,7 +43,6 @@ import {
 } from 'echarts';
 import groupBy from 'lodash-es/groupBy';
 import toNumber from 'lodash-es/toNumber';
-import dayjs from 'dayjs';
 import { useMemo } from 'react';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 import { defaultGrid } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid';
