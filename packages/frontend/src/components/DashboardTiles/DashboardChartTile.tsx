@@ -1,9 +1,8 @@
-import { Button, Menu, NonIdealState, Portal, Tag } from '@blueprintjs/core';
+import { Menu, NonIdealState, Portal, Tag } from '@blueprintjs/core';
 import {
     MenuItem2,
     Popover2,
     Popover2TargetProps,
-    Tooltip2,
 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import {
@@ -28,7 +27,7 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { Box, Text, Tooltip } from '@mantine/core';
-import { IconFolders } from '@tabler/icons-react';
+import { IconFilter, IconFolders } from '@tabler/icons-react';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useParams } from 'react-router-dom';
@@ -53,6 +52,7 @@ import { Can } from '../common/Authorization';
 import ErrorState from '../common/ErrorState';
 import { getConditionalRuleLabel } from '../common/Filters/configs';
 import LinkMenuItem from '../common/LinkMenuItem';
+import MantineIcon from '../common/MantineIcon';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
 import ExportCSVModal from '../ExportCSV/ExportCSVModal';
 import LightdashVisualization from '../LightdashVisualization';
@@ -487,8 +487,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             <TileBase
                 extraHeaderElement={
                     appliedFilterRules.length > 0 && (
-                        <Tooltip2
-                            content={
+                        <Tooltip
+                            label={
                                 <FilterWrapper>
                                     <FilterLabel>
                                         Dashboard filter
@@ -500,11 +500,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     {appliedFilterRules.map(renderFilterRule)}
                                 </FilterWrapper>
                             }
-                            interactionKind="hover"
-                            placement="bottom-end"
+                            position="bottom-end"
+                            withArrow
+                            withinPortal
                         >
-                            <Button minimal small icon="filter" />
-                        </Tooltip2>
+                            <MantineIcon icon={IconFilter} />
+                        </Tooltip>
                     )
                 }
                 title={title || savedQueryWithDashboardFilters?.name || ''}
@@ -512,6 +513,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
                 description={savedQueryWithDashboardFilters?.description}
                 isLoading={isLoading || isLoadingExplore}
+                belongsToDashboard={belongsToDashboard}
                 extraMenuItems={
                     savedChartUuid !== null &&
                     user.data?.ability?.can('manage', 'Explore') && (

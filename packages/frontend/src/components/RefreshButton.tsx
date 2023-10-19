@@ -1,6 +1,5 @@
 import { Classes } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
-import { Group, Kbd, Text } from '@mantine/core';
+import { Box, Group, Kbd, MantineProvider, Text, Tooltip } from '@mantine/core';
 import { useHotkeys, useOs } from '@mantine/hooks';
 import { memo, useCallback } from 'react';
 import { useExplorerContext } from '../providers/ExplorerProvider';
@@ -34,50 +33,38 @@ export const RefreshButton = memo(() => {
     useHotkeys([['mod + enter', onClick, { preventDefault: true }]]);
 
     return (
-        <Tooltip2
-            content={
-                <Group spacing="xxs">
-                    <Kbd
-                        fw={600}
-                        sx={{
-                            backgroundColor: '#2C2E33',
-                            color: '#C1C2C5',
-                            border: 'none',
-                        }}
-                    >
-                        {os === 'macos' || os === 'ios' ? '⌘' : 'ctrl'}
-                    </Kbd>
+        <Tooltip
+            label={
+                <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
+                    <Group spacing="xxs">
+                        <Kbd fw={600}>
+                            {os === 'macos' || os === 'ios' ? '⌘' : 'ctrl'}
+                        </Kbd>
 
-                    <Text color="dimmed" fw={600}>
-                        +
-                    </Text>
+                        <Text fw={600}>+</Text>
 
-                    <Kbd
-                        fw={600}
-                        sx={{
-                            backgroundColor: '#2C2E33',
-                            color: '#C1C2C5',
-                            border: 'none',
-                        }}
-                    >
-                        enter
-                    </Kbd>
-                </Group>
+                        <Kbd fw={600}>Enter</Kbd>
+                    </Group>
+                </MantineProvider>
             }
             position="bottom"
+            withArrow
+            withinPortal
             disabled={isLoading || !isValidQuery}
         >
-            <BigButton
-                style={{ width: 150 }}
-                icon="play"
-                intent="primary"
-                loading={isLoading}
-                // disabled button captures hover events
-                onClick={onClick}
-                className={!canRunQuery ? Classes.DISABLED : undefined}
-            >
-                Run query
-            </BigButton>
-        </Tooltip2>
+            <Box>
+                <BigButton
+                    style={{ width: 150 }}
+                    icon="play"
+                    intent="primary"
+                    loading={isLoading}
+                    // disabled button captures hover events
+                    onClick={onClick}
+                    className={!canRunQuery ? Classes.DISABLED : undefined}
+                >
+                    Run query
+                </BigButton>
+            </Box>
+        </Tooltip>
     );
 });

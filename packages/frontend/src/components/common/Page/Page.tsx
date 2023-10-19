@@ -2,6 +2,9 @@ import { Box, createStyles } from '@mantine/core';
 import { FC } from 'react';
 import { Helmet } from 'react-helmet';
 
+import { ProjectType } from '@lightdash/common';
+import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
+import { useProjects } from '../../../hooks/useProjects';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import AboutFooter, { FOOTER_HEIGHT, FOOTER_MARGIN } from '../../AboutFooter';
@@ -36,7 +39,7 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
         containerHeight = `calc(${containerHeight} - ${PAGE_HEADER_HEIGHT}px)`;
     }
     if (params.hasBanner) {
-        containerHeight = `calc(${containerHeight} + ${BANNER_HEIGHT}px)`;
+        containerHeight = `calc(${containerHeight} - ${BANNER_HEIGHT}px)`;
     }
 
     return {
@@ -153,6 +156,18 @@ const Page: FC<Props> = ({
 
     children,
 }) => {
+    const { activeProjectUuid } = useActiveProjectUuid({
+        refetchOnMount: true,
+    });
+    const { data: projects } = useProjects();
+    const isCurrentProjectPreview = !!projects?.find(
+        (project) =>
+            project.projectUuid === activeProjectUuid &&
+            project.type === ProjectType.PREVIEW,
+    );
+
+    hasBanner = hasBanner || isCurrentProjectPreview;
+
     const { classes } = usePageStyles(
         {
             withCenteredContent,

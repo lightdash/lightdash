@@ -6,18 +6,20 @@ import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import LandingPanel from '../components/Home/LandingPanel';
+import { MostPopularAndRecentlyUpdatedPanel } from '../components/Home/MostPopularAndRecentlyUpdatedPanel';
 import OnboardingPanel from '../components/Home/OnboardingPanel/index';
-import RecentlyUpdatedPanel from '../components/Home/RecentlyUpdatedPanel';
 import PageSpinner from '../components/PageSpinner';
 import PinnedItemsPanel from '../components/PinnedItemsPanel';
-import { useDashboards } from '../hooks/dashboard/useDashboards';
+
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
 import {
     useOnboardingStatus,
     useProjectSavedChartStatus,
 } from '../hooks/useOnboardingStatus';
-import { useProject } from '../hooks/useProject';
-import { useSavedCharts } from '../hooks/useSpaces';
+import {
+    useMostPopularAndRecentlyUpdated,
+    useProject,
+} from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
 import { PinnedItemsProvider } from '../providers/PinnedItemsProvider';
 
@@ -31,12 +33,10 @@ const Home: FC = () => {
     const { data: pinnedItems = [], isLoading: pinnedItemsLoading } =
         usePinnedItems(selectedProjectUuid, project.data?.pinnedListUuid);
 
-    // only used for recently updated panel - could be faster
-    const { data: dashboards = [], isLoading: dashboardsLoading } =
-        useDashboards(selectedProjectUuid);
-    const { data: savedCharts = [], isLoading: chartsLoading } =
-        useSavedCharts(selectedProjectUuid);
-    // -----
+    const {
+        data: mostPopularAndRecentlyUpdated,
+        isLoading: isMostPopularAndRecentlyUpdatedLoading,
+    } = useMostPopularAndRecentlyUpdated(selectedProjectUuid);
 
     const { user } = useApp();
 
@@ -44,8 +44,7 @@ const Home: FC = () => {
         onboarding.isLoading ||
         project.isLoading ||
         savedChartStatus.isLoading ||
-        dashboardsLoading ||
-        chartsLoading ||
+        isMostPopularAndRecentlyUpdatedLoading ||
         pinnedItemsLoading;
     const error = onboarding.error || project.error || savedChartStatus.error;
 
@@ -88,12 +87,16 @@ const Home: FC = () => {
                         >
                             <PinnedItemsPanel
                                 pinnedItems={pinnedItems}
-                                dashboards={dashboards}
-                                savedCharts={savedCharts}
+                                isEnabled={Boolean(
+                                    mostPopularAndRecentlyUpdated?.mostPopular
+                                        .length ||
+                                        mostPopularAndRecentlyUpdated
+                                            ?.recentlyUpdated.length,
+                                )}
                             />
                         </PinnedItemsProvider>
-                        <RecentlyUpdatedPanel
-                            data={{ dashboards, savedCharts }}
+                        <MostPopularAndRecentlyUpdatedPanel
+                            data={mostPopularAndRecentlyUpdated}
                             projectUuid={project.data.projectUuid}
                         />
                     </>

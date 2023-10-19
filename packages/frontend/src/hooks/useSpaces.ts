@@ -107,7 +107,11 @@ export const useSpaceDeleteMutation = (projectUuid: string) => {
         {
             mutationKey: ['space_delete', projectUuid],
             onSuccess: async () => {
-                await queryClient.refetchQueries(['spaces', projectUuid]);
+                await queryClient.invalidateQueries([
+                    'projects',
+                    projectUuid,
+                    'spaces',
+                ]);
                 showToastSuccess({
                     title: `Success! Space was deleted.`,
                 });
@@ -142,6 +146,11 @@ export const useUpdateMutation = (projectUuid: string, spaceUuid: string) => {
         {
             mutationKey: ['space_update', projectUuid],
             onSuccess: async (data) => {
+                await queryClient.invalidateQueries([
+                    'projects',
+                    projectUuid,
+                    'spaces',
+                ]);
                 await queryClient.refetchQueries(['spaces', projectUuid]);
                 queryClient.setQueryData(
                     ['space', projectUuid, spaceUuid],
@@ -183,7 +192,11 @@ export const useCreateMutation = (
         {
             mutationKey: ['space_create', projectUuid],
             onSuccess: async (space) => {
-                await queryClient.refetchQueries(['spaces', projectUuid]);
+                await queryClient.invalidateQueries([
+                    'projects',
+                    projectUuid,
+                    'spaces',
+                ]);
 
                 options?.onSuccess?.(space);
 

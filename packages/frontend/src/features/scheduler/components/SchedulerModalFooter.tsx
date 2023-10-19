@@ -1,0 +1,68 @@
+import { Box, Button, Group } from '@mantine/core';
+import { IconChevronLeft, IconSend } from '@tabler/icons-react';
+import React from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
+
+interface FooterProps {
+    confirmText?: string;
+    onBack?: () => void;
+    onSendNow?: () => void;
+    onCancel?: () => void;
+    onConfirm?: () => void;
+    loading?: boolean;
+}
+
+const SchedulersModalFooter = ({
+    confirmText = 'Confirm',
+    onBack,
+    onCancel,
+    onSendNow,
+    onConfirm,
+    loading,
+}: FooterProps) => {
+    return (
+        <Group
+            position="apart"
+            sx={(theme) => ({
+                position: 'sticky',
+                backgroundColor: 'white',
+                borderTop: `1px solid ${theme.colors.gray[4]}`,
+                bottom: 0,
+                padding: theme.spacing.md,
+            })}
+        >
+            {!!onBack ? (
+                <Button
+                    onClick={onBack}
+                    variant="subtle"
+                    leftIcon={<MantineIcon icon={IconChevronLeft} />}
+                >
+                    Back
+                </Button>
+            ) : (
+                <Box />
+            )}
+            <Group>
+                {!!onCancel && (
+                    <Button onClick={onCancel} variant="outline">
+                        Cancel
+                    </Button>
+                )}
+                {!!onSendNow && (
+                    <Button
+                        variant="light"
+                        leftIcon={<MantineIcon icon={IconSend} />}
+                        onClick={onSendNow}
+                    >
+                        Send now
+                    </Button>
+                )}
+                <Button type="submit" loading={loading} onClick={onConfirm}>
+                    {confirmText}
+                </Button>
+            </Group>
+        </Group>
+    );
+};
+
+export default SchedulersModalFooter;

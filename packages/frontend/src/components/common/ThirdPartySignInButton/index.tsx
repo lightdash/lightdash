@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { Button, ButtonProps, Image } from '@mantine/core';
 import { FC } from 'react';
+import { useLocation } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useFlashMessages } from '../../../hooks/useFlashMessages';
 import { useApp } from '../../../providers/AppProvider';
@@ -19,9 +20,18 @@ const ThirdPartySignInButtonBase: FC<
         loginPath: string;
         logo: string;
         providerName: string;
+        redirect?: string;
     } & Pick<ThirdPartySignInButtonProps, 'inviteCode' | 'intent'> &
         ButtonProps
-> = ({ loginPath, inviteCode, logo, providerName, intent, ...props }) => {
+> = ({
+    loginPath,
+    inviteCode,
+    logo,
+    providerName,
+    intent,
+    redirect,
+    ...props
+}) => {
     const { showToastError } = useToaster();
     const flashMessages = useFlashMessages();
 
@@ -38,7 +48,7 @@ const ThirdPartySignInButtonBase: FC<
             color="gray"
             component="a"
             href={`/api/v1${loginPath}?redirect=${encodeURIComponent(
-                window.location.href,
+                redirect || window.location.href,
             )}${
                 inviteCode
                     ? `&inviteCode=${encodeURIComponent(inviteCode)}`
@@ -64,12 +74,18 @@ export const ThirdPartySignInButton: FC<ThirdPartySignInButtonProps> = ({
     ...props
 }) => {
     const { health } = useApp();
+    const location = useLocation<{ from?: Location } | undefined>();
 
     switch (providerName) {
         case OpenIdIdentityIssuerType.GOOGLE:
             return health.data?.auth.google.enabled ? (
                 <ThirdPartySignInButtonBase
                     loginPath={health.data.auth.google.loginPath}
+                    redirect={
+                        location.state?.from?.pathname
+                            ? `${health.data.siteUrl}${location.state.from.pathname}${location.state.from.search}`
+                            : undefined
+                    }
                     intent={intent}
                     inviteCode={inviteCode}
                     providerName="Google"

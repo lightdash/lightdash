@@ -1,12 +1,9 @@
 import {
     ButtonGroup,
     Classes,
-    Intent,
     NonIdealState,
     Spinner,
-    Tag,
 } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import {
     OrganizationMemberProfile,
@@ -14,8 +11,21 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
 } from '@lightdash/common';
-import { Button, Group, Modal, Stack, Text, Title } from '@mantine/core';
-import { IconKey, IconTrash } from '@tabler/icons-react';
+import {
+    Badge,
+    Button,
+    Group,
+    Modal,
+    Stack,
+    Text,
+    Title,
+    Tooltip,
+} from '@mantine/core';
+import {
+    IconAlertTriangleFilled,
+    IconKey,
+    IconTrash,
+} from '@tabler/icons-react';
 import { FC, useMemo, useState } from 'react';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import {
@@ -29,7 +39,6 @@ import MantineIcon from '../common/MantineIcon';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import {
     ItemContent,
-    RelevantOrgRoleIcon,
     RoleSelectButton,
     SectionWrapper,
     UserEmail,
@@ -64,14 +73,18 @@ const UserListItem: FC<{
                     </UserInfo>
 
                     {relevantOrgRole && (
-                        <Tooltip2
-                            content={`This user inherits the organization role: ${relevantOrgRole}`}
+                        <Tooltip
+                            label={`This user inherits the organization role: ${relevantOrgRole}`}
+                            position="left"
                         >
-                            <RelevantOrgRoleIcon
-                                icon="warning-sign"
-                                intent={Intent.WARNING}
+                            <MantineIcon
+                                icon={IconAlertTriangleFilled}
+                                style={{
+                                    marginRight: 8,
+                                    color: 'orange',
+                                }}
                             />
-                        </Tooltip2>
+                        </Tooltip>
                     )}
 
                     <ButtonGroup>
@@ -94,13 +107,24 @@ const UserListItem: FC<{
                                 value={role}
                             />
                         ) : (
-                            <Tooltip2
-                                content={roleTooltip ? roleTooltip : undefined}
+                            <Tooltip
+                                label={roleTooltip}
+                                disabled={!roleTooltip}
+                                position="left"
                             >
-                                <Tag minimal large>
+                                <Badge
+                                    radius="xs"
+                                    size="lg"
+                                    variant="filled"
+                                    color="gray.3"
+                                    sx={{
+                                        textTransform: 'unset',
+                                        color: 'black',
+                                    }}
+                                >
                                     {role}
-                                </Tag>
-                            </Tooltip2>
+                                </Badge>
+                            </Tooltip>
                         )}
                         {onDelete && (
                             <Button

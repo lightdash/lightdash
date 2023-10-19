@@ -1,4 +1,4 @@
-import { Intent, NonIdealState, PopoverPosition } from '@blueprintjs/core';
+import { Intent, NonIdealState } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { Dashboard } from '@lightdash/common';
 import { FC } from 'react';
@@ -41,10 +41,7 @@ const SavedChartsAvailable: FC<SavedChartsAvailableProps> = ({
                     : 'Dashboard is empty.'}
             </Title>
             {userCanManageDashboard && isEditMode ? (
-                <AddTileButton
-                    onAddTiles={onAddTiles}
-                    popoverPosition={PopoverPosition.BOTTOM}
-                />
+                <AddTileButton onAddTiles={onAddTiles} />
             ) : null}
         </EmptyStateWrapper>
     );

@@ -6,6 +6,7 @@ import {
     compiledJoinedExploreOverridingJoinAlias,
     compiledJoinedExploreOverridingJoinLabel,
     compiledJoinedExploreWithSubsetOfFields,
+    compiledJoinedExploreWithSubsetOfFieldsThatDontIncludeSqlFields,
     compiledSimpleJoinedExplore,
     exploreCircularDimensionReference,
     exploreCircularDimensionShortReference,
@@ -31,7 +32,7 @@ import {
     joinedExploreOverridingJoinAlias,
     joinedExploreOverridingJoinLabel,
     joinedExploreWithSubsetOfFields,
-    joinedExploreWithSubsetOfFieldsCausingError,
+    joinedExploreWithSubsetOfFieldsThatDontIncludeSqlFields,
     simpleJoinedExplore,
     tablesWithMetricsWithFilters,
     warehouseClientMock,
@@ -139,12 +140,14 @@ describe('Explores with a base table and joined table', () => {
             compiler.compileExplore(joinedExploreWithSubsetOfFields),
         ).toStrictEqual(compiledJoinedExploreWithSubsetOfFields);
     });
-    test('should throw error if referenced field is removed from join', () => {
-        expect(() =>
+    test('should compile with a subset of fields selected on join what dont include the fields in the join SQL', () => {
+        expect(
             compiler.compileExplore(
-                joinedExploreWithSubsetOfFieldsCausingError,
+                joinedExploreWithSubsetOfFieldsThatDontIncludeSqlFields,
             ),
-        ).toThrowError(CompileError);
+        ).toStrictEqual(
+            compiledJoinedExploreWithSubsetOfFieldsThatDontIncludeSqlFields,
+        );
     });
 });
 
@@ -211,15 +214,15 @@ describe('Compile metrics with filters', () => {
 describe('Parse dimension reference', () => {
     test('should parse dimensions', () => {
         expect(parseAllReferences('${dimension} == 1', 'table')).toStrictEqual([
-            { refName: 'dimension}', refTable: 'table' },
+            { refName: 'dimension', refTable: 'table' },
         ]);
         expect(parseAllReferences('${table.dimension}', 'table')).toStrictEqual(
-            [{ refName: 'dimension}', refTable: 'table' }],
+            [{ refName: 'dimension', refTable: 'table' }],
         );
     });
     test('should parse TABLE', () => {
         expect(parseAllReferences('${TABLE}', 'table')).toStrictEqual([
-            { refName: 'TABLE}', refTable: 'table' },
+            { refName: 'TABLE', refTable: 'table' },
         ]);
     });
     test('should not parse lightdash attribute', () => {
@@ -238,12 +241,12 @@ describe('Parse dimension reference', () => {
         expect(
             parseAllReferences('${lightdash_dimension} == 1', 'table'),
         ).toStrictEqual([
-            { refName: 'lightdash_dimension}', refTable: 'table' },
+            { refName: 'lightdash_dimension', refTable: 'table' },
         ]);
         expect(
             parseAllReferences('${dimension_lightdash} == 1', 'table'),
         ).toStrictEqual([
-            { refName: 'dimension_lightdash}', refTable: 'table' },
+            { refName: 'dimension_lightdash', refTable: 'table' },
         ]);
         expect(
             parseAllReferences(
@@ -251,7 +254,7 @@ describe('Parse dimension reference', () => {
                 'lightdash_table',
             ),
         ).toStrictEqual([
-            { refName: 'dimension}', refTable: 'lightdash_table' },
+            { refName: 'dimension', refTable: 'lightdash_table' },
         ]);
         expect(
             parseAllReferences(
@@ -259,13 +262,13 @@ describe('Parse dimension reference', () => {
                 'table_lightdash',
             ),
         ).toStrictEqual([
-            { refName: 'dimension}', refTable: 'table_lightdash' },
+            { refName: 'dimension', refTable: 'table_lightdash' },
         ]);
         expect(
             parseAllReferences('${ld_dimension} == 1', 'table'),
-        ).toStrictEqual([{ refName: 'ld_dimension}', refTable: 'table' }]);
+        ).toStrictEqual([{ refName: 'ld_dimension', refTable: 'table' }]);
         expect(
             parseAllReferences('${ld_table.ld_dimension} == 1', 'ld_table'),
-        ).toStrictEqual([{ refName: 'ld_dimension}', refTable: 'ld_table' }]);
+        ).toStrictEqual([{ refName: 'ld_dimension', refTable: 'ld_table' }]);
     });
 });
