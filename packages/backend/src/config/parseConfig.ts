@@ -1,4 +1,9 @@
-import { isLightdashMode, LightdashMode, ParseError } from '@lightdash/common';
+import {
+    isLightdashMode,
+    LightdashMode,
+    ParseError,
+    PIVOT_TABLE_MAX_COLUMN_LIMIT,
+} from '@lightdash/common';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import lightdashV1JsonSchema from '../jsonSchemas/lightdashConfig/v1.json';
@@ -95,6 +100,9 @@ export type LightdashConfig = {
     query: {
         maxLimit: number;
         csvCellsLimit: number;
+    };
+    pivotTable: {
+        maxColumnLimit: number;
     };
     chart: {
         versionHistory: {
@@ -360,6 +368,12 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                         'LIGHTDASH_CHART_VERSION_HISTORY_DAYS_LIMIT',
                     ) || 3,
             },
+        },
+        pivotTable: {
+            maxColumnLimit:
+                getIntegerFromEnvironmentVariable(
+                    'LIGHTDASH_PIVOT_TABLE_MAX_COLUMN_LIMIT',
+                ) || PIVOT_TABLE_MAX_COLUMN_LIMIT,
         },
         s3: {
             region: process.env.S3_REGION,

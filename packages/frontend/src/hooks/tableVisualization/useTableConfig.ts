@@ -17,6 +17,7 @@ import {
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TableColumn, TableHeader } from '../../components/common/Table/types';
+import useHealth from '../health/useHealth';
 import { isSummable } from '../useColumnTotals';
 import getDataAndColumns from './getDataAndColumns';
 
@@ -31,6 +32,8 @@ const useTableConfig = (
     columnOrder: string[],
     pivotDimensions: string[] | undefined,
 ) => {
+    const { data: health, isLoading: isHealthLoading } = useHealth();
+
     const [showColumnCalculation, setShowColumnCalculation] = useState<boolean>(
         !!tableChartConfig?.showColumnCalculation,
     );
@@ -207,6 +210,15 @@ const useTableConfig = (
     });
 
     useEffect(() => {
+        if (isHealthLoading || !health) {
+            setPivotTableData({
+                loading: true,
+                data: undefined,
+                error: undefined,
+            });
+            return;
+        }
+
         if (
             !pivotDimensions ||
             pivotDimensions.length === 0 ||
@@ -267,6 +279,9 @@ const useTableConfig = (
                 },
                 metricQuery: resultsData.metricQuery,
                 rows: resultsData.rows,
+                options: {
+                    maxColumns: health.pivotTable.maxColumnLimit,
+                },
             })
             .then((data) => {
                 setPivotTableData({
@@ -293,6 +308,8 @@ const useTableConfig = (
         tableChartConfig?.showColumnCalculation,
         tableChartConfig?.showRowCalculation,
         worker,
+        health,
+        isHealthLoading,
     ]);
 
     // Remove columnProperties from map if the column has been removed from results

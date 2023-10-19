@@ -152,6 +152,7 @@ export * from './utils/filters';
 export * from './utils/formatting';
 export * from './utils/github';
 export * from './utils/item';
+export * from './utils/pivot';
 export * from './utils/scheduler';
 export * from './utils/time';
 export * from './utils/timeFrames';
@@ -628,6 +629,9 @@ export type HealthState = {
     query: {
         maxLimit: number;
         csvCellsLimit: number;
+    };
+    pivotTable: {
+        maxColumnLimit: number;
     };
     hasSlack: boolean;
     hasHeadlessBrowser: boolean;

@@ -3,13 +3,12 @@ import {
     MetricQuery,
     PivotConfig,
     PivotData,
+    PIVOT_TABLE_MAX_COLUMN_LIMIT,
     ResultRow,
     ResultValue,
 } from '@lightdash/common';
 import { isNumber } from 'lodash-es';
 import { Entries } from 'type-fest';
-
-const MAX_COLUMNS = 60;
 
 type PivotQueryResultsArgs = {
     pivotConfig: PivotConfig;
@@ -18,6 +17,9 @@ type PivotQueryResultsArgs = {
         'dimensions' | 'metrics' | 'tableCalculations' | 'additionalMetrics'
     >;
     rows: ResultRow[];
+    options?: {
+        maxColumns: number;
+    };
 };
 
 type RecursiveRecord<T = unknown> = {
@@ -191,6 +193,9 @@ export const pivotQueryResults = ({
     pivotConfig,
     metricQuery,
     rows,
+    options = {
+        maxColumns: PIVOT_TABLE_MAX_COLUMN_LIMIT,
+    },
 }: PivotQueryResultsArgs): PivotData => {
     if (rows.length === 0) {
         throw new Error('Cannot pivot results with no rows');
@@ -331,9 +336,9 @@ export const pivotQueryResults = ({
             ) {
                 columnCount++;
 
-                if (columnCount > MAX_COLUMNS) {
+                if (columnCount > options.maxColumns) {
                     throw new Error(
-                        `Cannot pivot results with more than ${MAX_COLUMNS} columns. Try adding a filter to limit your results.`,
+                        `Cannot pivot results with more than ${options.maxColumns} columns. Try adding a filter to limit your results.`,
                     );
                 }
 
