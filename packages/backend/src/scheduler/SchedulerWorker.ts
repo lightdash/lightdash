@@ -1,6 +1,7 @@
 import { SchedulerJobStatus } from '@lightdash/common';
 import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
 import { getSchedule, stringToArray } from 'cron-converter';
+import dayjs from 'dayjs';
 import {
     JobHelpers,
     Logger as GraphileLogger,
@@ -10,7 +11,6 @@ import {
     Task,
     TaskList,
 } from 'graphile-worker';
-import dayjs from 'dayjs';
 import { schedulerClient } from '../clients/clients';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
@@ -132,10 +132,7 @@ export const getDailyDatesFromCron = (
     const arr = stringToArray(cron);
     const startOfMinute = dayjs(when).startOf('minute').toDate(); // round down to the nearest minute so we can even process 00:00 on daily jobs
     const schedule = getSchedule(arr, startOfMinute, 'UTC');
-    const tomorrow = dayjs(startOfMinute)
-        .add(1, 'day')
-        .startOf('day')
-        .toDate();
+    const tomorrow = dayjs(startOfMinute).add(1, 'day').startOf('day').toDate();
     const dailyDates: Date[] = [];
     while (schedule.next() < tomorrow) {
         dailyDates.push(schedule.date.toJSDate());
