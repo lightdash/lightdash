@@ -62,7 +62,6 @@ const AddTileButton: FC<Props> = ({ onAddTiles, disabled }) => {
                 withArrow
                 withinPortal
                 shadow="md"
-                closeOnItemClick={false}
                 width={200}
             >
                 <Menu.Target>
