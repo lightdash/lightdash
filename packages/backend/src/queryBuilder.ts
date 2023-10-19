@@ -152,7 +152,7 @@ export const buildQuery = ({
     const stringQuoteChar = warehouseClient.getStringQuoteChar();
     const escapeStringQuoteChar = warehouseClient.getEscapeStringQuoteChar();
     const startOfWeek = warehouseClient.getStartOfWeek();
-    const sqlFrom = `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
+    const baseSqlFrom = `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
 
     const dimensionSelects = dimensions.map((field) => {
         const alias = field;
@@ -165,6 +165,14 @@ export const buildQuery = ({
         );
         return `  ${dimension.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
     });
+
+    const custonDimensionColumns =
+        customDimensions?.map(
+            (customDimension) =>
+                `${fieldQuoteChar}${getCustomDimensionId(
+                    customDimension,
+                )}${fieldQuoteChar}`,
+        ) || '';
 
     const customDimensionSelects =
         customDimensions?.map((customDimension) => {
@@ -188,16 +196,23 @@ export const buildQuery = ({
                     //    return `APPROX_QUANTILES(${dimension.compiledSql}, ${customDimension.binNumber}) AS ${customDimensionName}`
 
                     // TODO test this on other warehouses
-                    return `
-                ntile(${customDimension.binNumber}) OVER (ORDER BY ${dimension.compiledSql}) AS ${customDimensionName}
-                `;
+                    return `ntile(${customDimension.binNumber}) OVER (ORDER BY ${dimension.compiledSql}) AS ${customDimensionName}`;
+                /* return `CASE 
+                        WHEN ${dimension.compiledSql} >= 0 AND ${dimension.compiledSql} < 10 THEN 1
+                        when ${dimension.compiledSql} >= 10 and ${dimension.compiledSql} < 20 then 2
+                        ELSE 3 end AS ${customDimensionName}
+                    ` */
+                /* return `
+                    width_bucket(${dimension.compiledSql}, MIN(${dimension.compiledSql}), MAX(${dimension.compiledSql}), 3) as ${customDimensionName}
+                    ` */
+
                 default:
                     assertUnreachable(
                         customDimension.binType,
                         `Unknown bin type: ${customDimension.binType}`,
                     );
             }
-            return '';
+            return ``;
         }) || '';
 
     const metricSelects = metrics.map((field) => {
@@ -325,18 +340,41 @@ export const buildQuery = ({
         return acc.includes(renderedSql) ? acc : [...acc, renderedSql];
     }, []);
 
+    const customDimensionCTE =
+        customDimensions &&
+        customDimensions.length > 0 &&
+        customDimensionSelects
+            ? `
+    WITH custom_dimensions AS (
+        SELECT
+            ${customDimensionSelects.join(',\n')},
+            * 
+        FROM ${baseTable}
+    ) `
+            : undefined;
+
+    const sqlFrom =
+        customDimensions && customDimensions.length
+            ? `FROM custom_dimensions as ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`
+            : baseSqlFrom;
+
     const sqlSelect = `SELECT\n${[
         ...dimensionSelects,
+        ...custonDimensionColumns,
         ...metricSelects,
         ...filteredMetricSelects,
-        ...customDimensionSelects,
     ].join(',\n')}`;
 
+    const groups = [
+        ...(dimensionSelects.length > 0 ? dimensionSelects : []),
+        ...(custonDimensionColumns && custonDimensionColumns.length > 0
+            ? custonDimensionColumns
+            : []),
+    ];
     const sqlGroupBy =
-        dimensionSelects.length > 0
-            ? `GROUP BY ${dimensionSelects.map((val, i) => i + 1).join(',')}`
+        groups.length > 0
+            ? `GROUP BY ${groups.map((val, i) => i + 1).join(',')}`
             : '';
-
     const fieldOrders = sorts.map(
         (sort) =>
             `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar}${
@@ -432,7 +470,7 @@ export const buildQuery = ({
     ) {
         const cteSql = [
             sqlSelect,
-            sqlFrom,
+            baseSqlFrom,
             sqlJoins,
             sqlWhere,
             sqlGroupBy,
@@ -462,6 +500,7 @@ export const buildQuery = ({
     }
 
     const metricQuerySql = [
+        customDimensionCTE,
         sqlSelect,
         sqlFrom,
         sqlJoins,
@@ -470,6 +509,7 @@ export const buildQuery = ({
         sqlOrderBy,
         sqlLimit,
     ].join('\n');
+
     return {
         query: metricQuerySql,
         hasExampleMetric,
