@@ -29,6 +29,7 @@ import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { SchedulerModel } from '../models/SchedulerModel';
+
 dayjs.extend(utc);
 
 type SchedulerClientDependencies = {

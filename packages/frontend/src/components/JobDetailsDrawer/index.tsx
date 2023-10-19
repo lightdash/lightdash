@@ -28,6 +28,7 @@ import {
     StepStatusWrapper,
     StepsWrapper,
 } from './JobDetailsDrawer.styles';
+
 dayjs.extend(utc);
 dayjs.extend(duration);
 
