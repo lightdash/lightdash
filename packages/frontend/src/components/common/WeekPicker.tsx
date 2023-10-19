@@ -8,9 +8,12 @@ import {
     parseDate,
     WeekDay,
 } from '@lightdash/common';
-import moment from 'moment';
 import { FC, useState } from 'react';
 import { createGlobalStyle } from 'styled-components';
+import dayjs from 'dayjs';
+import isoWeek from 'dayjs/plugin/isoWeek';
+
+dayjs.extend(isoWeek);
 
 const SelectedWeekStyles = createGlobalStyle`
   .WeekPicker .DayPicker-Month {
@@ -59,7 +62,7 @@ const SelectedWeekStyles = createGlobalStyle`
 function getWeekDays(weekStart: Date): Date[] {
     const days = [weekStart];
     for (let i = 1; i < 7; i += 1) {
-        days.push(moment(weekStart).add(i, 'days').toDate());
+        days.push(dayjs(weekStart).add(i, 'days').toDate());
     }
     return days;
 }
@@ -80,28 +83,28 @@ type WeekRange = { from: Date; to: Date };
 function getWeekRange(date: Date, startOfWeek?: WeekDay | null): WeekRange {
     if (isWeekDay(startOfWeek)) {
         const convertedStartOfWeek = convertWeekDayToMomentWeekDay(startOfWeek);
-        const valueWeekDay = moment(date).isoWeekday(); //  1 (Monday) to 7 (Sunday)
-        let from = moment(date);
+        const valueWeekDay = dayjs(date).isoWeekday(); //  1 (Monday) to 7 (Sunday)
+        let from = dayjs(date);
         if (valueWeekDay > convertedStartOfWeek) {
-            from = moment(date).subtract(
+            from = dayjs(date).subtract(
                 valueWeekDay - convertedStartOfWeek,
                 'days',
             );
         } else if (convertedStartOfWeek > valueWeekDay) {
-            from = moment(date).subtract(
+            from = dayjs(date).subtract(
                 7 - convertedStartOfWeek + valueWeekDay,
                 'days',
             );
         }
         return {
             from: from.toDate(),
-            to: moment(from).add(6, 'day').toDate(),
+            to: dayjs(from).add(6, 'day').toDate(),
         };
     }
 
     return {
-        from: moment(date).startOf('week').toDate(),
-        to: moment(date).endOf('week').toDate(),
+        from: dayjs(date).startOf('week').toDate(),
+        to: dayjs(date).endOf('week').toDate(),
     };
 }
 
@@ -120,7 +123,7 @@ const WeekPicker: FC<Props> = ({
     placeholder,
     startOfWeek,
 }) => {
-    const value = dateValue ? moment(dateValue).toDate() : null;
+    const value = dateValue ? dayjs(dateValue).toDate() : null;
     //Filtering a dimension returns a date, but filtering on a table returns a string on UTC
     const formattedDate = value ? formatDate(value) : null;
     const [hoverRange, setHoverRange] = useState<WeekRange>();
