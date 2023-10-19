@@ -1,5 +1,6 @@
 import {
     CartesianSeriesType,
+    CustomDimension,
     Field,
     getItemId,
     isDimension,
@@ -25,7 +26,7 @@ import { useVisualizationContext } from '../../LightdashVisualization/Visualizat
 import { MAX_PIVOTS } from '../TableConfigPanel/GeneralSettings';
 
 type Props = {
-    items: (Field | TableCalculation)[];
+    items: (Field | TableCalculation | CustomDimension)[];
 };
 
 const FieldLayoutOptions: FC<Props> = ({ items }) => {

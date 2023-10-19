@@ -1,6 +1,7 @@
 import {
     CartesianChartLayout,
     CartesianSeriesType,
+    CustomDimension,
     Field,
     formatItemValue,
     getItemId,
@@ -84,7 +85,7 @@ const DraggablePortalHandler: FC<DraggablePortalHandlerProps> = ({
 type GroupedSeriesConfigurationProps = {
     layout?: CartesianChartLayout;
     seriesGroup: Series[];
-    item: Field | TableCalculation;
+    item: Field | TableCalculation | CustomDimension;
     items: Array<Field | TableCalculation>;
     dragHandleProps?: DraggableProvidedDragHandleProps;
     getSeriesColor: (key: string) => string | undefined;

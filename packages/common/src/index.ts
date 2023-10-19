@@ -11,6 +11,7 @@ import {
     CompiledDimension,
     CompiledField,
     CompiledMetric,
+    CustomDimension,
     DimensionType,
     Field,
     FieldId,
@@ -21,7 +22,6 @@ import {
 } from './types/field';
 import {
     AdditionalMetric,
-    CustomDimension,
     getCustomDimensionId,
     isAdditionalMetric,
     MetricQuery,
@@ -696,7 +696,7 @@ export const getAxisName = ({
     axisIndex: number;
     axisName?: string;
     series?: Series[];
-    items: Array<Field | TableCalculation>;
+    items: Array<Field | TableCalculation | CustomDimension>;
 }): string | undefined => {
     const defaultItem = items.find(
         (item) =>

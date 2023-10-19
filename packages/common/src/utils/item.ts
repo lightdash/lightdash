@@ -1,4 +1,5 @@
 import {
+    CustomDimension,
     DimensionType,
     Field,
     fieldId,
@@ -10,14 +11,18 @@ import {
 } from '../types/field';
 import {
     AdditionalMetric,
-    CustomDimension,
     getCustomDimensionId,
     isAdditionalMetric,
     isCustomDimension,
 } from '../types/metricQuery';
 
 export const isNumericItem = (
-    item: Field | AdditionalMetric | TableCalculation | undefined,
+    item:
+        | Field
+        | AdditionalMetric
+        | TableCalculation
+        | CustomDimension
+        | undefined,
 ): boolean => {
     if (!item) {
         return false;
@@ -58,10 +63,12 @@ export const getItemId = (
         : item.name;
 };
 
-export const getItemLabelWithoutTableName = (item: Item) =>
-    isField(item) || isAdditionalMetric(item)
+export const getItemLabelWithoutTableName = (item: Item) => {
+    if (isCustomDimension(item)) return item.name;
+    return isField(item) || isAdditionalMetric(item)
         ? `${item.label}`
         : item.displayName;
+};
 
 export const getItemLabel = (item: Item) =>
     (isField(item) ? `${item.tableLabel} ` : '') +

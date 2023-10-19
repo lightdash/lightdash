@@ -45,7 +45,7 @@ const getFieldIcon = (
     field: Field | TableCalculation | AdditionalMetric | CustomDimension,
 ) => {
     if (isCustomDimension(field)) {
-        return 'numerical';
+        return 'citation';
     }
     if (isField(field) && (isDimension(field) || isMetric(field))) {
         return getItemIconName(field.type);

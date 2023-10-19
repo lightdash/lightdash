@@ -3,6 +3,7 @@ import {
     CartesianChart,
     CartesianSeriesType,
     convertAdditionalMetric,
+    CustomDimension,
     DimensionType,
     ECHARTS_DEFAULT_COLORS,
     Field,
@@ -21,6 +22,7 @@ import {
     getResultValueArray,
     hashFieldReference,
     isCompleteLayout,
+    isCustomDimension,
     isDimension,
     isField,
     isPivotReferenceWithValues,
@@ -84,7 +86,10 @@ const getLabelFromField = (
     }
 };
 
-const getAxisTypeFromField = (item?: Field | TableCalculation): string => {
+const getAxisTypeFromField = (
+    item?: Field | TableCalculation | CustomDimension,
+): string => {
+    if (item && isCustomDimension(item)) return 'category';
     if (item && isField(item)) {
         switch (item.type) {
             case DimensionType.NUMBER:
@@ -781,6 +786,7 @@ const getEchartAxis = ({
         }),
         {},
     );
+
     const xAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.yField?.[0]
         : validCartesianConfig.layout?.xField;
@@ -1302,6 +1308,7 @@ const useEcharts = (
                 return acc;
             }, []),
             ...(resultsData?.metricQuery.tableCalculations || []),
+            ...(resultsData?.metricQuery.customDimensions || []),
         ];
     }, [explore, resultsData]);
 

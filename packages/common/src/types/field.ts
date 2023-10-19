@@ -77,7 +77,23 @@ export function findCompactConfig(
     );
 }
 
-export type Item = Field | TableCalculation;
+export enum BinType {
+    FIXED_NUMBER = 'fixed_number',
+    // TODO not supported yet
+    // FIXED_WIDTH = 'fixed_width',
+    // CUSTOM_RANGE = 'custom_range',
+}
+export interface CustomDimension {
+    name: string;
+    dimensionId: FieldId; // Parent dimension id
+    table: string; // Table of parent dimension
+    binType: BinType;
+    binNumber?: number;
+    // binWidth?: number;
+    // binRange?: BinRange[];
+}
+
+export type Item = Field | TableCalculation | CustomDimension;
 
 export enum TableCalculationFormatType {
     DEFAULT = 'default',
@@ -103,7 +119,12 @@ export type TableCalculation = {
 };
 
 export const isTableCalculation = (item: Item): item is TableCalculation =>
-    item ? !!item.sql && !('type' in item) && !('tableName' in item) : false;
+    item
+        ? !('binType' in item) &&
+          !!item.sql &&
+          !('type' in item) &&
+          !('tableName' in item)
+        : false;
 
 export type CompiledTableCalculation = TableCalculation & {
     compiledSql: string;

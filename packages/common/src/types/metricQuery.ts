@@ -2,6 +2,7 @@ import {
     CompactOrAlias,
     CompiledMetric,
     CompiledTableCalculation,
+    CustomDimension,
     FieldId,
     Format,
     friendlyName,
@@ -26,23 +27,6 @@ export interface AdditionalMetric {
     baseDimensionName?: string;
     uuid?: string | null;
     percentile?: number;
-}
-
-export enum BinType {
-    FIXED_NUMBER = 'fixed_number',
-    // TODO not supported yet
-    // FIXED_WIDTH = 'fixed_width',
-    // CUSTOM_RANGE = 'custom_range',
-}
-
-export interface CustomDimension {
-    name: string;
-    dimensionId: FieldId; // Parent dimension id
-    table: string; // Table of parent dimension
-    binType: BinType;
-    binNumber?: number;
-    // binWidth?: number;
-    // binRange?: BinRange[];
 }
 
 export const getCustomDimensionId = (dimension: CustomDimension) =>
