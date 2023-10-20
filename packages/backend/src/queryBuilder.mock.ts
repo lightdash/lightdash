@@ -1,4 +1,5 @@
 import {
+    BinType,
     CompiledDimension,
     CompiledMetricQuery,
     CompiledTable,
@@ -562,6 +563,27 @@ export const METRIC_QUERY: CompiledMetricQuery = {
         },
     ],
     compiledAdditionalMetrics: [],
+};
+
+export const METRIC_QUERY_WITH_CUSTOM_DIMENSION: CompiledMetricQuery = {
+    dimensions: ['table1_dim1'],
+    metrics: ['table1_metric1'],
+    filters: {},
+    sorts: [{ fieldId: 'table1_metric1', descending: true }],
+    limit: 10,
+    compiledAdditionalMetrics: [],
+    compiledTableCalculations: [],
+    tableCalculations: [],
+    customDimensions: [
+        {
+            id: 'age_range',
+            name: 'Age range',
+            dimensionId: 'table1_dim1',
+            table: 'table1',
+            binType: BinType.FIXED_NUMBER,
+            binNumber: 3,
+        },
+    ],
 };
 
 export const METRIC_QUERY_TWO_TABLES: CompiledMetricQuery = {
