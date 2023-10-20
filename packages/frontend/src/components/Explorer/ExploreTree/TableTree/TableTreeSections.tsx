@@ -6,6 +6,7 @@ import {
     getItemId,
 } from '@lightdash/common';
 import { Center, Group, Text } from '@mantine/core';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, useMemo } from 'react';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import { getSearchResults, TreeProvider } from './Tree/TreeProvider';
@@ -27,6 +28,9 @@ const TableTreeSections: FC<Props> = ({
     selectedItems,
     onSelectedNodeChange,
 }) => {
+    const isCustomDimensionsFeatureEnabled =
+        useFeatureFlagEnabled('custom-dimensions');
+
     const dimensions = useMemo(() => {
         return Object.values(table.dimensions).reduce(
             (acc, item) => ({ ...acc, [getItemId(item)]: item }),
@@ -178,7 +182,8 @@ const TableTreeSections: FC<Props> = ({
                 </TreeProvider>
             ) : null}
 
-            {hasCustomDimensions &&
+            {isCustomDimensionsFeatureEnabled &&
+            hasCustomDimensions &&
             customDimensionsMap &&
             !(
                 isSearching &&

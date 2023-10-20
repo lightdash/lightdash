@@ -1,7 +1,11 @@
 import {
+    isAdditionalMetric,
+    isCustomDimension,
     isDimension,
     isField,
+    isMetric,
     isTimeInterval,
+    Item,
     timeFrameConfigs,
 } from '@lightdash/common';
 import { Group, Highlight, NavLink, Text, Tooltip } from '@mantine/core';
@@ -55,6 +59,13 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
     const description = isField(item) ? item.description : undefined;
     const bgColor = getItemBgColor(item);
 
+    const getFieldIconColor = (field: Item) => {
+        if (isCustomDimension(field) || isDimension(field)) return 'blue.9';
+        if (isAdditionalMetric(field) || isMetric(field)) return 'yellow.9';
+
+        return 'yellow.9';
+    };
+
     return (
         <NavLink
             noWrap
@@ -69,7 +80,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
             icon={
                 <FieldIcon
                     item={item}
-                    color={isDimension(item) ? 'blue.9' : 'yellow.9'}
+                    color={getFieldIconColor(item)}
                     size="md"
                 />
             }
