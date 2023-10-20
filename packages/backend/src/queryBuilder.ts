@@ -3,6 +3,7 @@ import {
     BinType,
     CompiledDimension,
     CompiledMetricQuery,
+    CustomDimension,
     DbtModelJoinType,
     Explore,
     fieldId,
@@ -130,66 +131,46 @@ const getJoinType = (type: DbtModelJoinType = 'left') => {
     }
 };
 
-export const buildQuery = ({
+export const getCustomDimensionSql = ({
     explore,
     compiledMetricQuery,
-    warehouseClient,
+    fieldQuoteChar,
+    baseTable,
     userAttributes = {},
-}: BuildQueryProps): { query: string; hasExampleMetric: boolean } => {
-    let hasExampleMetric: boolean = false;
-    const adapterType: SupportedDbtAdapter = warehouseClient.getAdapterType();
-    const {
-        dimensions,
-        metrics,
-        filters,
-        sorts,
-        limit,
-        additionalMetrics,
-        customDimensions,
-    } = compiledMetricQuery;
-    const baseTable = explore.tables[explore.baseTable].sqlTable;
-    const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
-    const stringQuoteChar = warehouseClient.getStringQuoteChar();
-    const escapeStringQuoteChar = warehouseClient.getEscapeStringQuoteChar();
-    const startOfWeek = warehouseClient.getStartOfWeek();
+}: {
+    explore: Explore;
+    compiledMetricQuery: CompiledMetricQuery;
+    fieldQuoteChar: string;
+    userAttributes: UserAttributeValueMap | undefined;
+    baseTable: string;
+}): { ctes: string[]; columns: string[]; selects: string[] } | undefined => {
+    const { customDimensions } = compiledMetricQuery;
 
-    const dimensionSelects = dimensions.map((field) => {
-        const alias = field;
-        const dimension = getDimensionFromId(field, explore);
+    if (customDimensions === undefined || customDimensions.length === 0)
+        return undefined;
 
-        assertValidDimensionRequiredAttribute(
-            dimension,
-            userAttributes,
-            `dimension: "${field}"`,
+    const getCteReference = (customDimension: CustomDimension) =>
+        `${getCustomDimensionId(customDimension)}_cte`;
+
+    const ctes = customDimensions.map((customDimension) => {
+        const dimension = getDimensionFromId(
+            customDimension.dimensionId,
+            explore,
         );
-        return `  ${dimension.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
-    });
-
-    const customDimensionCTEs =
-        customDimensions?.map((customDimension) => {
-            const dimension = getDimensionFromId(
-                customDimension.dimensionId,
-                explore,
-            );
-            return ` ${getCustomDimensionId(customDimension)}_cte AS (
+        return ` ${getCteReference(customDimension)} AS (
             SELECT
                 MIN(${dimension.compiledSql}) AS min_id,
                 MAX(${dimension.compiledSql}) AS max_id
-            FROM "postgres"."jaffle"."${customDimension.table}"
+            FROM ${baseTable} AS ${fieldQuoteChar}${
+            explore.baseTable
+        }${fieldQuoteChar}
         )`;
-        }) || [];
-    const customDimensionCTE =
-        customDimensionCTEs.length > 0
-            ? `WITH ${customDimensionCTEs.join(',\n')}`
-            : ``;
-    const customDimensionFrom =
-        customDimensions?.map(
-            (customDimension) => `${getCustomDimensionId(customDimension)}_cte`,
-        ) || [];
+    });
 
-    // TODO unify these 3 custom dimension in a single reduce
-    const customDimensionSelects =
-        customDimensions?.reduce<string[]>((acc, customDimension) => {
+    const columns = customDimensions.map(getCteReference);
+
+    const selects = customDimensions.reduce<string[]>(
+        (acc, customDimension) => {
             const dimension = getDimensionFromId(
                 customDimension.dimensionId,
                 explore,
@@ -204,11 +185,9 @@ export const buildQuery = ({
             const customDimensionName = `${fieldQuoteChar}${getCustomDimensionId(
                 customDimension,
             )}${fieldQuoteChar}`;
-            const cte = `${getCustomDimensionId(customDimension)}_cte`;
+            const cte = `${getCteReference(customDimension)}`;
             switch (customDimension.binType) {
                 case BinType.FIXED_NUMBER:
-                    // return `-- ${customDimensionName}  FROM ( SELECT ${dimension.compiledSql}, INTEGER(${dimension.compiledSql} / ${customDimension.binNumber}) AS  ${customDimensionName} FROM ${dimension.table} )`
-                    //    return `APPROX_QUANTILES(${dimension.compiledSql}, ${customDimension.binNumber}) AS ${customDimensionName}`
                     if (!customDimension.binNumber) {
                         throw new Error(
                             `Undefined binNumber for custom dimension ${BinType.FIXED_NUMBER} `,
@@ -230,22 +209,14 @@ export const buildQuery = ({
                     return [
                         ...acc,
                         `CASE
-                        ${whens.join('\n')}
-                        ELSE CONCAT(${ratio} * ${
-                            customDimension.binNumber - 1
-                        } / ${
+                    ${whens.join('\n')}
+                    ELSE CONCAT(${ratio} * ${customDimension.binNumber - 1} / ${
                             customDimension.binNumber
                         }, ' to ', ${cte}.max_id) END
-                        AS ${customDimensionName}
-                    `,
+                    AS ${customDimensionName}
+                `,
                     ];
 
-                /* return [...acc, `CASE 
-                    WHEN ${dimension.compiledSql} >= ${cte}.min_id AND ${dimension.compiledSql} <  ${ratio} / 3 THEN ${1}
-                    WHEN ${dimension.compiledSql} >= ${ratio} / 3 AND ${dimension.compiledSql} < ${ratio}* 2/3 THEN ${2}
-                    ELSE 3 END
-                    AS ${customDimensionName} `] */
-                // return `  ntile(${customDimension.binNumber}) OVER (ORDER BY ${dimension.compiledSql}) AS ${customDimensionName}`;
                 default:
                     assertUnreachable(
                         customDimension.binType,
@@ -253,13 +224,54 @@ export const buildQuery = ({
                     );
             }
             return acc;
-        }, []) || [];
+        },
+        [],
+    );
+
+    return { ctes, columns, selects };
+};
+
+export const buildQuery = ({
+    explore,
+    compiledMetricQuery,
+    warehouseClient,
+    userAttributes = {},
+}: BuildQueryProps): { query: string; hasExampleMetric: boolean } => {
+    let hasExampleMetric: boolean = false;
+    const adapterType: SupportedDbtAdapter = warehouseClient.getAdapterType();
+    const { dimensions, metrics, filters, sorts, limit, additionalMetrics } =
+        compiledMetricQuery;
+    const baseTable = explore.tables[explore.baseTable].sqlTable;
+    const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
+    const stringQuoteChar = warehouseClient.getStringQuoteChar();
+    const escapeStringQuoteChar = warehouseClient.getEscapeStringQuoteChar();
+    const startOfWeek = warehouseClient.getStartOfWeek();
+
+    const dimensionSelects = dimensions.map((field) => {
+        const alias = field;
+        const dimension = getDimensionFromId(field, explore);
+
+        assertValidDimensionRequiredAttribute(
+            dimension,
+            userAttributes,
+            `dimension: "${field}"`,
+        );
+        return `  ${dimension.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
+    });
+
+    const customDimensionSql = getCustomDimensionSql({
+        explore,
+        compiledMetricQuery,
+        fieldQuoteChar,
+        userAttributes,
+        baseTable,
+    });
 
     const froms = [
         `${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`,
-        ...customDimensionFrom,
+        ...(customDimensionSql?.columns || []),
     ];
-    const sqlFrom = `FROM ${froms.join(',')}`;
+    const sqlFrom = `FROM ${froms.join(', ')}`;
 
     const metricSelects = metrics.map((field) => {
         const alias = field;
@@ -388,16 +400,14 @@ export const buildQuery = ({
 
     const sqlSelect = `SELECT\n${[
         ...dimensionSelects,
-        ...customDimensionSelects,
+        ...(customDimensionSql?.selects || []),
         ...metricSelects,
         ...filteredMetricSelects,
     ].join(',\n')}`;
 
     const groups = [
         ...(dimensionSelects.length > 0 ? dimensionSelects : []),
-        ...(customDimensionSelects && customDimensionSelects.length > 0
-            ? customDimensionSelects
-            : []),
+        ...(customDimensionSql?.selects || []),
     ];
     const sqlGroupBy =
         groups.length > 0
@@ -505,7 +515,10 @@ export const buildQuery = ({
             sqlGroupBy,
         ].join('\n');
         const cteName = 'metrics';
-        const ctes = [...customDimensionCTEs, `${cteName} AS (\n${cteSql})`];
+        const ctes = [
+            ...(customDimensionSql?.ctes || []),
+            `${cteName} AS (\n${cteSql})`,
+        ];
         const cte = `WITH ${ctes.join(',\n')}`;
         const tableCalculationSelects =
             compiledMetricQuery.compiledTableCalculations.map(
@@ -530,7 +543,7 @@ export const buildQuery = ({
     }
 
     const metricQuerySql = [
-        customDimensionCTE,
+        customDimensionSql ? `WITH ${customDimensionSql.ctes.join(',\n')}` : '',
         sqlSelect,
         sqlFrom,
         sqlJoins,
