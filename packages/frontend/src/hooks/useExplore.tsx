@@ -30,7 +30,8 @@ export const useExplore = (
         onError: (result) => setErrorResponse(result),
         retry: false,
         ...(isStaleTimeFeatureEnabled && {
-            staleTime: 1000 * 60 * 60,
+            staleTime: 1000 * 60 * 15,
+            cacheTime: 1000 * 60 * 20,
         }),
         ...useQueryOptions,
     });
