@@ -22,9 +22,3 @@ export const DaysInput = styled(NumericInput)`
         width: 50px !important;
     }
 `;
-
-export const MinutesInput = styled(NumericInput)`
-    input {
-        width: 50px !important;
-    }
-`;

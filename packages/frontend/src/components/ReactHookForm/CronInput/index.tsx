@@ -19,10 +19,11 @@ import HourlyInputs from './HourlyInputs';
 import MonthlyInputs from './MonthlyInputs';
 import WeeklyInputs from './WeeklyInputs';
 
-const CronInternalInputs: FC<
+export const CronInternalInputs: FC<
     {
         disabled: boolean | undefined;
-    } & ControllerRenderProps<FieldValues, string>
+        //TODO: this type is not good
+    } & Omit<ControllerRenderProps<FieldValues, string>, 'ref'>
 > = ({ value, disabled, onChange, name }) => {
     const [frequency, setFrequency] = useState<Frequency>(
         mapCronExpressionToFrequency(value),
@@ -41,6 +42,8 @@ const CronInternalInputs: FC<
         },
         [onChange, value],
     );
+
+    console.log(frequency);
 
     return (
         <div>

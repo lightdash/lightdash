@@ -1,5 +1,6 @@
 import { Classes, FormGroup } from '@blueprintjs/core';
-import { TimePicker } from '@blueprintjs/datetime';
+import { TimeInput } from '@mantine/dates';
+import dayjs from 'dayjs';
 import React, { FC } from 'react';
 import { InlinedInputs, InlinedLabel } from './CronInput.styles';
 import {
@@ -15,8 +16,13 @@ const DailyInputs: FC<{
 }> = ({ disabled, cronExpression, onChange }) => {
     const { minutes, hours } = parseCronExpression(cronExpression);
 
-    const onTimeChange = (date: Date) => {
-        if (date) {
+    const onTimeChange = (timeString: string) => {
+        const parts = timeString.split(':');
+        const date = new Date();
+        date.setHours(Number(parts[0]));
+        date.setMinutes(Number(parts[1]));
+
+        if (date && date.toString() !== 'Invalid Date') {
             onChange(
                 getDailyCronExpression(date.getMinutes(), date.getHours()),
             );
@@ -26,11 +32,12 @@ const DailyInputs: FC<{
     return (
         <InlinedInputs>
             <FormGroup inline label={'at'} disabled={disabled}>
-                <TimePicker
-                    useAmPm
+                <TimeInput
                     disabled={disabled}
-                    value={getTimePickerValue(hours, minutes)}
-                    onChange={onTimeChange}
+                    value={dayjs(getTimePickerValue(hours, minutes)).format(
+                        'HH:mm',
+                    )}
+                    onChange={(val) => onTimeChange(val.target.value)}
                 />
             </FormGroup>
             <InlinedLabel className={Classes.LABEL}>UTC</InlinedLabel>
