@@ -1412,6 +1412,8 @@ const useEcharts = (
         try {
             if (!explore) return results;
             const dimensions = getDimensions(explore);
+            const customDimensions =
+                resultsData?.metricQuery.customDimensions || [];
 
             const xFieldId = validCartesianConfig?.layout?.xField;
             if (xFieldId === undefined) return results;
@@ -1420,16 +1422,34 @@ const useEcharts = (
                 resultsData?.metricQuery.sorts?.[0]?.fieldId === xFieldId;
             if (alreadySorted) return results;
 
-            const xField = dimensions.find(
+            const xField = [...dimensions, ...customDimensions].find(
                 (dimension) => getItemId(dimension) === xFieldId,
             );
             const hasTotal = validCartesianConfig?.eChartsConfig?.series?.some(
                 (s) => s.stackLabel?.show,
             );
+
             // If there is a total, we don't sort the results because we need to keep the same order on results
             // This could still cause issues if there is a total on bar chart axis, the sorting is wrong and one of the axis is a line chart
             if (hasTotal) return results;
 
+            if (isCustomDimension(xField)) {
+                return results.sort((a, b) => {
+                    if (
+                        typeof a[xFieldId] === 'string' &&
+                        typeof b[xFieldId] === 'string'
+                    ) {
+                        const startA = parseInt(
+                            (a[xFieldId] as string).split(' ')[0],
+                        );
+                        const startB = parseInt(
+                            (b[xFieldId] as string).split(' ')[0],
+                        );
+                        return startA - startB;
+                    }
+                    return 0;
+                });
+            }
             if (
                 xField !== undefined &&
                 results.length >= 0 &&
@@ -1461,6 +1481,7 @@ const useEcharts = (
         resultsData?.metricQuery.sorts,
         explore,
         validCartesianConfig?.eChartsConfig?.series,
+        resultsData?.metricQuery.customDimensions,
     ]);
 
     const tooltip = useMemo<TooltipOption>(
