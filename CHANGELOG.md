@@ -1,3 +1,10 @@
+# [0.816.0](https://github.com/lightdash/lightdash/compare/0.815.0...0.816.0) (2023-10-20)
+
+
+### Features
+
+* add stale time and cacheTime to useExplore ([#7567](https://github.com/lightdash/lightdash/issues/7567)) ([478d936](https://github.com/lightdash/lightdash/commit/478d936cbe4c429bc72e2f23e51521737aae4b5a))
+
 # [0.815.0](https://github.com/lightdash/lightdash/compare/0.814.5...0.815.0) (2023-10-20)
 
 
