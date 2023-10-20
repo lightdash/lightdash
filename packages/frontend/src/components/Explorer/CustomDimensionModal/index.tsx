@@ -53,7 +53,10 @@ export const CustomDimensionModal = () => {
         if (isEditing && isCustomDimension(item)) {
             setFieldValue('customDimensionLabel', item.name);
             setFieldValue('binType', item.binType);
-            setFieldValue('binConfig.fixedNumber.binNumber', item.binNumber);
+            setFieldValue(
+                'binConfig.fixedNumber.binNumber',
+                item.binNumber ? +item.binNumber : 0,
+            );
         }
     }, [setFieldValue, item, isEditing]);
 
