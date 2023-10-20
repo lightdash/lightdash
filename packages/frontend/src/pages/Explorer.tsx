@@ -40,7 +40,8 @@ const ExplorerWithUrlParams = memo(() => {
             sidebar={<ExploreSideBar />}
             withFullHeight
             withPaddedContent
-            hasBanner={getIsEditingDashboardChart()}
+            withNavbar={!getIsEditingDashboardChart()}
+            withBanner={getIsEditingDashboardChart()}
         >
             <Explorer />
         </Page>

@@ -6,7 +6,7 @@ import { FC, useState } from 'react';
 import { Link, Redirect } from 'react-router-dom';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import {
-    useActiveProject,
+    useLastActiveProject,
     useUpdateActiveProjectMutation,
 } from '../../../hooks/useActiveProject';
 import { useProjects } from '../../../hooks/useProjects';
@@ -100,7 +100,7 @@ const ProjectManagementPanel: FC = () => {
 
     const { data: projects = [], isLoading: isLoadingProjects } = useProjects();
     const { data: lastProjectUuid, isLoading: isLoadingLastProject } =
-        useActiveProject();
+        useLastActiveProject();
 
     const [deletingProjectUuid, setDeletingProjectUuid] = useState<string>();
 

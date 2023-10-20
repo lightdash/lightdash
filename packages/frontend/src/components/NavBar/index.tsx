@@ -17,8 +17,7 @@ import { PostHogFeature } from 'posthog-js/react';
 import { FC, memo, useEffect, useMemo } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
-import { useActiveProjectUuid } from '../../hooks/useActiveProject';
-import { useProjects } from '../../hooks/useProjects';
+import { useActiveProject } from '../../hooks/useActiveProject';
 import { ReactComponent as Logo } from '../../svgs/logo-icon.svg';
 import MantineIcon from '../common/MantineIcon';
 import BrowseMenu from './BrowseMenu';
@@ -31,17 +30,29 @@ import ProjectSwitcher from './ProjectSwitcher';
 import SettingsMenu from './SettingsMenu';
 import UserMenu from './UserMenu';
 
-export const NAVBAR_HEIGHT = 50;
 export const BANNER_HEIGHT = 35;
+export const NAVBAR_HEIGHT = 50;
+
+const Banner: FC = ({ children }) => (
+    <Center
+        pos="fixed"
+        w="100%"
+        h={BANNER_HEIGHT}
+        bg="blue.6"
+        sx={{ zIndex: getDefaultZIndex('app') }}
+    >
+        {children}
+    </Center>
+);
 
 const PreviewBanner = () => (
-    <Center pos="fixed" w="100%" h={BANNER_HEIGHT} bg="blue.6">
+    <Banner>
         <MantineIcon icon={IconTool} color="white" size="sm" />
         <Text color="white" fw={500} fz="xs" mx="xxs">
             This is a preview environment. Any changes you make here will not
             affect production.
         </Text>
-    </Center>
+    </Banner>
 );
 
 const DashboardExplorerBanner: FC<{
@@ -70,7 +81,7 @@ const DashboardExplorerBanner: FC<{
     }, [savedQueryUuid, mode]);
 
     return (
-        <Center w="100%" h={BANNER_HEIGHT} bg="blue.6">
+        <Banner>
             <MantineIcon icon={IconInfoCircle} color="white" size="sm" />
             <Text color="white" fw={500} fz="xs" mx="xxs">
                 You are {action} this chart from within "{dashboardName}"
@@ -97,15 +108,14 @@ const DashboardExplorerBanner: FC<{
                     Cancel
                 </Button>
             </Tooltip>
-        </Center>
+        </Banner>
     );
 };
 
 const NavBar = memo(() => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: projects } = useProjects();
-    const { activeProjectUuid, isLoading: isLoadingActiveProject } =
-        useActiveProjectUuid({ refetchOnMount: true });
+    const { activeProject, isLoading: isLoadingActiveProject } =
+        useActiveProject({ refetchOnMount: true });
+
     const {
         getIsEditingDashboardChart,
         getEditingDashboardInfo,
@@ -114,15 +124,11 @@ const NavBar = memo(() => {
 
     const dashboardInfo = getEditingDashboardInfo();
 
-    const homeUrl = activeProjectUuid
-        ? `/projects/${activeProjectUuid}/home`
+    const homeUrl = activeProject
+        ? `/projects/${activeProject.projectUuid}/home`
         : '/';
 
-    const isCurrentProjectPreview = !!projects?.find(
-        (project) =>
-            project.projectUuid === activeProjectUuid &&
-            project.type === ProjectType.PREVIEW,
-    );
+    const isPreviewProject = activeProject?.type === ProjectType.PREVIEW;
 
     useEffect(() => {
         window.addEventListener('unload', clearDashboardStorage);
@@ -130,11 +136,11 @@ const NavBar = memo(() => {
             window.removeEventListener('unload', clearDashboardStorage);
     }, [clearDashboardStorage]);
 
-    if (getIsEditingDashboardChart()) {
+    if (activeProject && getIsEditingDashboardChart()) {
         return (
             <DashboardExplorerBanner
                 dashboardName={dashboardInfo.name || ''}
-                projectUuid={projectUuid}
+                projectUuid={activeProject.projectUuid}
                 dashboardUuid={dashboardInfo.dashboardUuid || ''}
             />
         );
@@ -142,18 +148,14 @@ const NavBar = memo(() => {
 
     return (
         <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
-            {isCurrentProjectPreview ? <PreviewBanner /> : null}
-            {/* hack to make navbar fixed and maintain space */}
-            <Box
-                h={
-                    NAVBAR_HEIGHT +
-                    (isCurrentProjectPreview ? BANNER_HEIGHT : 0)
-                }
-            />
+            {activeProject?.type === ProjectType.PREVIEW ? (
+                <PreviewBanner />
+            ) : null}
+
             <Header
                 height={NAVBAR_HEIGHT}
                 fixed
-                mt={isCurrentProjectPreview ? BANNER_HEIGHT : 'none'}
+                top={isPreviewProject ? BANNER_HEIGHT : 'none'}
                 display="flex"
                 px="md"
                 zIndex={getDefaultZIndex('app')}
@@ -173,11 +175,15 @@ const NavBar = memo(() => {
                         <Logo />
                     </ActionIcon>
 
-                    {!isLoadingActiveProject && activeProjectUuid ? (
+                    {!isLoadingActiveProject && activeProject ? (
                         <>
                             <Button.Group>
-                                <ExploreMenu projectUuid={activeProjectUuid} />
-                                <BrowseMenu projectUuid={activeProjectUuid} />
+                                <ExploreMenu
+                                    projectUuid={activeProject.projectUuid}
+                                />
+                                <BrowseMenu
+                                    projectUuid={activeProject.projectUuid}
+                                />
                             </Button.Group>
 
                             <Divider
@@ -186,7 +192,9 @@ const NavBar = memo(() => {
                                 color="gray.8"
                             />
 
-                            <GlobalSearch projectUuid={activeProjectUuid} />
+                            <GlobalSearch
+                                projectUuid={activeProject.projectUuid}
+                            />
                         </>
                     ) : null}
                 </Group>
@@ -203,16 +211,18 @@ const NavBar = memo(() => {
                     <Button.Group>
                         <SettingsMenu />
 
-                        {!isLoadingActiveProject && activeProjectUuid ? (
+                        {!isLoadingActiveProject && activeProject ? (
                             <NotificationsMenu
-                                projectUuid={activeProjectUuid}
+                                projectUuid={activeProject.projectUuid}
                             />
                         ) : null}
 
                         <HelpMenu />
 
-                        {!isLoadingActiveProject && activeProjectUuid ? (
-                            <HeadwayMenuItem projectUuid={activeProjectUuid} />
+                        {!isLoadingActiveProject && activeProject ? (
+                            <HeadwayMenuItem
+                                projectUuid={activeProject.projectUuid}
+                            />
                         ) : null}
                     </Button.Group>
 

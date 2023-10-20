@@ -11,7 +11,7 @@ import { useDefaultProject, useProjects } from './useProjects';
 
 const LAST_PROJECT_KEY = 'lastProject';
 
-export const useActiveProject = () => {
+export const useLastActiveProject = () => {
     return useQuery<string | undefined>(
         ['activeProject'],
         () =>
@@ -59,7 +59,7 @@ export const useDeleteActiveProjectMutation = () => {
     });
 };
 
-export const useActiveProjectUuid = (
+export const useActiveProject = (
     useQueryFetchOptions?: UseQueryFetchOptions,
 ) => {
     const params = useParams<{ projectUuid?: string }>();
@@ -68,7 +68,7 @@ export const useActiveProjectUuid = (
     const { data: defaultProject, isLoading: isLoadingDefaultProject } =
         useDefaultProject(useQueryFetchOptions);
     const { data: lastProjectUuid, isLoading: isLoadingLastProject } =
-        useActiveProject();
+        useLastActiveProject();
     const { mutate } = useUpdateActiveProjectMutation();
 
     const isLoading =
@@ -105,9 +105,15 @@ export const useActiveProjectUuid = (
 
     return {
         isLoading: false,
-        activeProjectUuid:
-            paramProject?.projectUuid ||
-            lastProject?.projectUuid ||
-            defaultProject?.projectUuid,
+        activeProject: paramProject ?? lastProject ?? defaultProject,
+    };
+};
+
+export const useActiveProjectUuid = () => {
+    const { isLoading, activeProject } = useActiveProject();
+
+    return {
+        isLoading,
+        activeProjectUuid: activeProject?.projectUuid,
     };
 };

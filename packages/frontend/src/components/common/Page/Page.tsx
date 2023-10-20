@@ -3,8 +3,7 @@ import { FC } from 'react';
 import { Helmet } from 'react-helmet';
 
 import { ProjectType } from '@lightdash/common';
-import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
-import { useProjects } from '../../../hooks/useProjects';
+import { useActiveProject } from '../../../hooks/useActiveProject';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import AboutFooter, { FOOTER_HEIGHT, FOOTER_MARGIN } from '../../AboutFooter';
@@ -23,35 +22,36 @@ type StyleProps = {
     withPaddedContent?: boolean;
     withSidebar?: boolean;
     withSidebarFooter?: boolean;
-    hasBanner?: boolean;
+    withBanner?: boolean;
 };
 
 export const PAGE_CONTENT_WIDTH = 900;
 const PAGE_MIN_CONTENT_WIDTH = 600;
 
 const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
-    let containerHeight = '100vh';
+    let contentOffset = 0;
 
     if (params.withNavbar) {
-        containerHeight = `calc(${containerHeight} - ${NAVBAR_HEIGHT}px)`;
+        contentOffset += NAVBAR_HEIGHT;
     }
     if (params.withHeader) {
-        containerHeight = `calc(${containerHeight} - ${PAGE_HEADER_HEIGHT}px)`;
+        contentOffset += PAGE_HEADER_HEIGHT;
     }
-    if (params.hasBanner) {
-        containerHeight = `calc(${containerHeight} - ${BANNER_HEIGHT}px)`;
+    if (params.withBanner) {
+        contentOffset += BANNER_HEIGHT;
     }
+
+    const containerHeight = '100vh';
 
     return {
         root: {
+            height: containerHeight,
+
             ...(params.withFullHeight
                 ? {
-                      height: containerHeight,
                       maxHeight: containerHeight,
                   }
                 : {
-                      height: containerHeight,
-
                       overflowY: 'auto',
                   }),
 
@@ -66,6 +66,8 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
         content: {
             paddingTop: theme.spacing.lg,
             paddingBottom: theme.spacing.lg,
+
+            marginTop: contentOffset,
 
             width: '100%',
             minWidth: PAGE_CONTENT_WIDTH,
@@ -152,21 +154,11 @@ const Page: FC<Props> = ({
     withNavbar = true,
     withPaddedContent = false,
     withSidebarFooter = false,
-    hasBanner = false,
+    withBanner = false,
 
     children,
 }) => {
-    const { activeProjectUuid } = useActiveProjectUuid({
-        refetchOnMount: true,
-    });
-    const { data: projects } = useProjects();
-    const isCurrentProjectPreview = !!projects?.find(
-        (project) =>
-            project.projectUuid === activeProjectUuid &&
-            project.type === ProjectType.PREVIEW,
-    );
-
-    hasBanner = hasBanner || isCurrentProjectPreview;
+    const { activeProject } = useActiveProject({ refetchOnMount: true });
 
     const { classes } = usePageStyles(
         {
@@ -180,7 +172,8 @@ const Page: FC<Props> = ({
             withPaddedContent,
             withSidebar: !!sidebar,
             withSidebarFooter,
-            hasBanner,
+            withBanner:
+                withBanner || activeProject?.type === ProjectType.PREVIEW,
         },
         { name: 'Page' },
     );
