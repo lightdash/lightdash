@@ -44,7 +44,7 @@ export const CustomDimensionModal = () => {
             binType: BinType.FIXED_NUMBER,
             binConfig: {
                 fixedNumber: {
-                    binNumber: 0,
+                    binNumber: 2,
                 },
             },
         },
@@ -82,8 +82,6 @@ export const CustomDimensionModal = () => {
 
     const handleOnSubmit = form.onSubmit((values) => {
         if (item) {
-            console.log(values.customDimensionLabel);
-
             const sanitizedId = values.customDimensionLabel
                 .toLowerCase()
                 .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
@@ -133,7 +131,10 @@ export const CustomDimensionModal = () => {
             size="lg"
             onClick={(e) => e.stopPropagation()}
             opened={isOpen}
-            onClose={() => toggleModal(undefined)}
+            onClose={() => {
+                toggleModal(undefined);
+                form.reset();
+            }}
             title={
                 <Title order={4}>
                     {isEditing ? 'Edit' : 'Create'} Custom Dimension -{' '}
@@ -183,7 +184,7 @@ export const CustomDimensionModal = () => {
                             w={100}
                             label="Bin number"
                             required
-                            min={1}
+                            min={2}
                             type="number"
                             {...form.getInputProps(
                                 'binConfig.fixedNumber.binNumber',
