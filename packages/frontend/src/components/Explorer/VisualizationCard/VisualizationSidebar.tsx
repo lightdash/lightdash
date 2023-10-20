@@ -2,7 +2,7 @@ import { assertUnreachable, ChartType } from '@lightdash/common';
 import { Button, Drawer, Group, Stack, Text } from '@mantine/core';
 import {
     IconLayoutSidebarLeftCollapse,
-    IconLayoutSidebarLeftExpandFilled,
+    IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
 import { FC, memo, useState } from 'react';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard';
@@ -28,7 +28,7 @@ const VisualizationSidebar: FC<{ chartType: ChartType }> = memo(
                             icon={
                                 isOpen
                                     ? IconLayoutSidebarLeftCollapse
-                                    : IconLayoutSidebarLeftExpandFilled
+                                    : IconLayoutSidebarLeftExpand
                             }
                         />
                     }
@@ -38,8 +38,10 @@ const VisualizationSidebar: FC<{ chartType: ChartType }> = memo(
 
                 <Drawer
                     title={<Text fw={600}>Configure chart</Text>}
+                    zIndex={100}
                     opened={isOpen}
                     withOverlay={false}
+                    shadow="lg"
                     size={410}
                     styles={(theme) => ({
                         header: {

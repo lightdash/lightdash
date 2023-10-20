@@ -1,8 +1,8 @@
 import { Tabs } from '@mantine/core';
-import React from 'react';
+import React, { memo } from 'react';
 import ConditionalFormattingList from './ConditionalFormattingList';
 import GeneralSettings from './GeneralSettings';
-const TableConfigTabs: React.FC = () => {
+const TableConfigTabs: React.FC = memo(() => {
     return (
         <Tabs defaultValue="general">
             <Tabs.List mb="sm">
@@ -20,6 +20,6 @@ const TableConfigTabs: React.FC = () => {
             </Tabs.Panel>
         </Tabs>
     );
-};
+});
 
 export default TableConfigTabs;

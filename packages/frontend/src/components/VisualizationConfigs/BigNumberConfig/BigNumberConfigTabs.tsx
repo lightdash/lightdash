@@ -14,6 +14,7 @@ import {
     TextInput,
 } from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
+import { memo } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
@@ -26,7 +27,7 @@ const StyleOptions = [
     })),
 ];
 
-const BigNumberConfigTabs = () => {
+const BigNumberConfigTabs = memo(() => {
     const {
         bigNumberConfig: {
             bigNumberLabel,
@@ -171,6 +172,6 @@ const BigNumberConfigTabs = () => {
             </Tabs.Panel>
         </Tabs>
     );
-};
+});
 
 export default BigNumberConfigTabs;

@@ -1,10 +1,10 @@
 import { Tabs } from '@mantine/core';
-import React from 'react';
+import React, { memo } from 'react';
 import PieChartDisplayConfig from './PieChartDisplayConfig';
 import PieChartLayoutConfig from './PieChartLayoutConfig';
 import PieChartSeriesConfig from './PieChartSeriesConfig';
 
-const PieChartConfigTabs: React.FC = () => {
+const PieChartConfigTabs: React.FC = memo(() => {
     return (
         <Tabs defaultValue="layout">
             <Tabs.List mb="sm">
@@ -26,6 +26,6 @@ const PieChartConfigTabs: React.FC = () => {
             </Tabs.Panel>
         </Tabs>
     );
-};
+});
 
 export default PieChartConfigTabs;
