@@ -44,7 +44,7 @@ export const CustomDimensionModal = () => {
             binType: BinType.FIXED_NUMBER,
             binConfig: {
                 fixedNumber: {
-                    binNumber: 0,
+                    binNumber: 1,
                 },
             },
         },
@@ -133,7 +133,10 @@ export const CustomDimensionModal = () => {
             size="lg"
             onClick={(e) => e.stopPropagation()}
             opened={isOpen}
-            onClose={() => toggleModal(undefined)}
+            onClose={() => {
+                toggleModal(undefined);
+                form.reset();
+            }}
             title={
                 <Title order={4}>
                     {isEditing ? 'Edit' : 'Create'} Custom Dimension -{' '}
