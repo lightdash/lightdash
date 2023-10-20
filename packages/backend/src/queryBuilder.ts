@@ -135,15 +135,13 @@ export const getCustomDimensionSql = ({
     explore,
     compiledMetricQuery,
     fieldQuoteChar,
-    baseTable,
     userAttributes = {},
 }: {
     explore: Explore;
     compiledMetricQuery: CompiledMetricQuery;
     fieldQuoteChar: string;
     userAttributes: UserAttributeValueMap | undefined;
-    baseTable: string;
-}): { ctes: string[]; columns: string[]; selects: string[] } | undefined => {
+}): { ctes: string[]; joins: string[]; selects: string[] } | undefined => {
     const { customDimensions } = compiledMetricQuery;
 
     if (customDimensions === undefined || customDimensions.length === 0)
@@ -157,17 +155,18 @@ export const getCustomDimensionSql = ({
             customDimension.dimensionId,
             explore,
         );
+        const baseTable = explore.tables[customDimension.table].sqlTable;
         return ` ${getCteReference(customDimension)} AS (
             SELECT
                 MIN(${dimension.compiledSql}) AS min_id,
                 MAX(${dimension.compiledSql}) AS max_id
             FROM ${baseTable} AS ${fieldQuoteChar}${
-            explore.baseTable
+            customDimension.table
         }${fieldQuoteChar}
         )`;
     });
 
-    const columns = customDimensions.map(getCteReference);
+    const joins = customDimensions.map(getCteReference);
 
     const selects = customDimensions.reduce<string[]>(
         (acc, customDimension) => {
@@ -228,7 +227,7 @@ export const getCustomDimensionSql = ({
         [],
     );
 
-    return { ctes, columns, selects };
+    return { ctes, joins, selects };
 };
 
 export const buildQuery = ({
@@ -264,14 +263,9 @@ export const buildQuery = ({
         compiledMetricQuery,
         fieldQuoteChar,
         userAttributes,
-        baseTable,
     });
 
-    const froms = [
-        `${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`,
-        ...(customDimensionSql?.columns || []),
-    ];
-    const sqlFrom = `FROM ${froms.join(', ')}`;
+    const sqlFrom = `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
 
     const metricSelects = metrics.map((field) => {
         const alias = field;
@@ -411,7 +405,7 @@ export const buildQuery = ({
     ];
     const sqlGroupBy =
         groups.length > 0
-            ? `GROUP BY ${groups.map((val, i) => i + 1).join(',')}`
+            ? `GROUP BY ${groups.map((val, i) => i + 1).join(',')}\n`
             : '';
 
     const fieldOrders = sorts.map(
@@ -547,6 +541,9 @@ export const buildQuery = ({
         sqlSelect,
         sqlFrom,
         sqlJoins,
+        customDimensionSql
+            ? `CROSS JOIN ${customDimensionSql.joins.join(',\n')}`
+            : '',
         sqlWhere,
         sqlGroupBy,
         sqlOrderBy,
