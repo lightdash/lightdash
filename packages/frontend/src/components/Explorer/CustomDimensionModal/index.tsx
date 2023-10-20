@@ -110,7 +110,7 @@ export const CustomDimensionModal = () => {
 
     return !!item ? (
         <Modal
-            size="xl"
+            size="lg"
             onClick={(e) => e.stopPropagation()}
             opened={isOpen}
             onClose={() => toggleModal(undefined)}
