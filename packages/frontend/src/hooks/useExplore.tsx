@@ -25,6 +25,7 @@ export const useExplore = (
         enabled: !!activeTableName,
         onError: (result) => setErrorResponse(result),
         retry: false,
+        staleTime: 1000 * 60 * 60,
         ...useQueryOptions,
     });
 };
