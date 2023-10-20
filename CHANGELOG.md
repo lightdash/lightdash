@@ -1,3 +1,10 @@
+# [0.815.0](https://github.com/lightdash/lightdash/compare/0.814.5...0.815.0) (2023-10-20)
+
+
+### Features
+
+* add google disclosure ([#7541](https://github.com/lightdash/lightdash/issues/7541)) ([76870c9](https://github.com/lightdash/lightdash/commit/76870c951841fb61fb28e30623f52e790b1fbd44))
+
 ## [0.814.5](https://github.com/lightdash/lightdash/compare/0.814.4...0.814.5) (2023-10-19)
 
 
