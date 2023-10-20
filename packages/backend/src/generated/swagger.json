@@ -424,6 +424,9 @@
             },
             "CustomDimension": {
                 "properties": {
+                    "id": {
+                        "type": "string"
+                    },
                     "name": {
                         "type": "string"
                     },
@@ -441,7 +444,7 @@
                         "format": "double"
                     }
                 },
-                "required": ["name", "dimensionId", "table", "binType"],
+                "required": ["id", "name", "dimensionId", "table", "binType"],
                 "type": "object",
                 "additionalProperties": false
             },

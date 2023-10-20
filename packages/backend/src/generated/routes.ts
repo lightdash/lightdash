@@ -417,6 +417,7 @@ const models: TsoaRoute.Models = {
     CustomDimension: {
         dataType: 'refObject',
         properties: {
+            id: { dataType: 'string', required: true },
             name: { dataType: 'string', required: true },
             dimensionId: { ref: 'FieldId', required: true },
             table: { dataType: 'string', required: true },

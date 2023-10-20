@@ -84,6 +84,7 @@ export enum BinType {
     // CUSTOM_RANGE = 'custom_range',
 }
 export interface CustomDimension {
+    id: string;
     name: string;
     dimensionId: FieldId; // Parent dimension id
     table: string; // Table of parent dimension

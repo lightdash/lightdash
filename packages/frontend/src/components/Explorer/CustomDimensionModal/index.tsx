@@ -44,7 +44,13 @@ export const CustomDimensionModal = () => {
 
     const handleOnSubmit = form.onSubmit((values) => {
         if (item) {
+            const sanitizedId = values.customDimensionLabel
+                .toLowerCase()
+                .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
+                .replace(/_{2,}/g, '_') // Replace multiple underscores with a single one
+                .replace(/^_|_$/g, ''); // Remove leading and trailing underscores
             addCustomDimension({
+                id: sanitizedId,
                 name: values.customDimensionLabel,
                 dimensionId: fieldId(item),
                 binType: values.binType,
