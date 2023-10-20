@@ -1,5 +1,6 @@
 import {
     AdditionalMetric,
+    CustomDimension,
     Dimension,
     DimensionType,
     fieldId,
@@ -59,7 +60,7 @@ const getCustomMetricType = (type: DimensionType): MetricType[] => {
 };
 
 type Props = {
-    item: Metric | Dimension | AdditionalMetric;
+    item: Metric | Dimension | AdditionalMetric | CustomDimension;
     isHovered: boolean;
     isSelected: boolean;
     isOpened: MenuProps['opened'];

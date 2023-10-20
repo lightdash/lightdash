@@ -51,8 +51,8 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
 
     const isFiltered = isField(item) && isFilteredField(item);
 
-    const label = timeIntervalLabel || item.label || item.name;
-
+    const label = isField(item) ? timeIntervalLabel || item.label : item.name;
+    const description = isField(item) ? item.description : undefined;
     const bgColor = getItemBgColor(item);
 
     return (
@@ -82,8 +82,8 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                         withinPortal
                         multiline
                         sx={{ whiteSpace: 'normal' }}
-                        disabled={!item.description}
-                        label={item.description}
+                        disabled={!description}
+                        label={description}
                         position="top-start"
                         maw={700}
                     >
@@ -107,7 +107,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                         </Tooltip>
                     ) : null}
 
-                    {item.hidden ? (
+                    {isField(item) && item.hidden ? (
                         <Tooltip
                             withinPortal
                             label="This field has been hidden in the dbt project. It's recommend to remove it from the query"

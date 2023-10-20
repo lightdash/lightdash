@@ -120,7 +120,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     );
 
     const handleOnChangeOfXAxisField = useCallback(
-        (newValue: Field | TableCalculation | undefined) => {
+        (newValue: Field | TableCalculation | CustomDimension | undefined) => {
             const fieldId = newValue ? getItemId(newValue) : undefined;
             setXField(fieldId ?? undefined);
 
