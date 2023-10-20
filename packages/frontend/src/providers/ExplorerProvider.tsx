@@ -1347,10 +1347,7 @@ export const ExplorerProvider: FC<{
                 },
             });
 
-            dispatch({
-                type: ActionType.TOGGLE_METRIC,
-                payload: getFieldId(customDimension),
-            });
+            // TODO: add dispatch toggle
         },
         [],
     );
@@ -1364,10 +1361,7 @@ export const ExplorerProvider: FC<{
                 type: ActionType.EDIT_CUSTOM_DIMENSION,
                 payload: { customDimension, previousCustomDimensionName },
             });
-            dispatch({
-                type: ActionType.TOGGLE_METRIC,
-                payload: getFieldId(customDimension),
-            });
+            // TODO: add dispatch toggle
         },
         [],
     );
