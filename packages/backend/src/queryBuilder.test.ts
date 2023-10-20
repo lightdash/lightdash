@@ -1,4 +1,4 @@
-import { ForbiddenError } from '@lightdash/common';
+import { BinType, ForbiddenError } from '@lightdash/common';
 import {
     assertValidDimensionRequiredAttribute,
     buildQuery,
@@ -430,6 +430,42 @@ WHEN "table1".dim1 >= age_range_cte.min_id + (age_range_cte.max_id - age_range_c
                     ELSE CONCAT(age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 2 / 3, ' to ', age_range_cte.max_id) END
                     AS "age_range"
                 `,
+            ],
+        });
+    });
+
+    it('getCustomDimensionSql with only 1 bin', async () => {
+        expect(
+            getCustomDimensionSql({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+                    customDimensions: [
+                        {
+                            id: 'age_range',
+                            name: 'Age range',
+                            dimensionId: 'table1_dim1',
+                            table: 'table1',
+                            binType: BinType.FIXED_NUMBER,
+                            binNumber: 1,
+                        },
+                    ],
+                },
+                fieldQuoteChar: '"',
+                userAttributes: {},
+            }),
+        ).toStrictEqual({
+            ctes: [
+                ` age_range_cte AS (
+            SELECT
+                MIN("table1".dim1) AS min_id,
+                MAX("table1".dim1) AS max_id
+            FROM "db"."schema"."table1" AS "table1"
+        )`,
+            ],
+            joins: ['age_range_cte'],
+            selects: [
+                `CONCAT(age_range_cte.min_id, ' to ', age_range_cte.max_id) AS "age_range"`,
             ],
         });
     });

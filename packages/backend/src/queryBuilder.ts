@@ -196,6 +196,13 @@ export const getCustomDimensionSql = ({
                     // TODO test this on other warehouses
                     const ratio = `${cte}.min_id + (${cte}.max_id - ${cte}.min_id )`;
 
+                    if (customDimension.binNumber <= 1) {
+                        // Edge case, bin number with only one bucket does not need a CASE statement
+                        return [
+                            ...acc,
+                            `CONCAT(${cte}.min_id, ' to ', ${cte}.max_id) AS ${customDimensionName}`,
+                        ];
+                    }
                     const whens = Array.from(
                         Array(customDimension.binNumber - 1).keys(),
                     ).map((i) => {
