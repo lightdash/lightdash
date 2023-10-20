@@ -1,9 +1,11 @@
 import {
+    AdditionalMetric,
     isAdditionalMetric,
     isCustomDimension,
     isDimension,
     isField,
     isMetric,
+    isTableCalculation,
     isTimeInterval,
     Item,
     timeFrameConfigs,
@@ -59,9 +61,11 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
     const description = isField(item) ? item.description : undefined;
     const bgColor = getItemBgColor(item);
 
-    const getFieldIconColor = (field: Item) => {
+    const getFieldIconColor = (field: Item | AdditionalMetric) => {
         if (isCustomDimension(field) || isDimension(field)) return 'blue.9';
-        if (isAdditionalMetric(field) || isMetric(field)) return 'yellow.9';
+        if (isAdditionalMetric(field)) return 'yellow.9';
+        if (isTableCalculation(field)) return 'green.9';
+        if (isMetric(field)) return 'yellow.9';
 
         return 'yellow.9';
     };
