@@ -160,6 +160,7 @@ export const CustomDimensionModal = () => {
 
                     {form.values.binType === BinType.FIXED_NUMBER && (
                         <NumberInput
+                            w={100}
                             label="Bin number"
                             required
                             min={1}
