@@ -26,6 +26,11 @@ export const CustomDimensionModal = () => {
     const toggleModal = useExplorerContext(
         (context) => context.actions.toggleCustomDimensionModal,
     );
+
+    const customDimensions = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.customDimensions,
+    );
     const addCustomDimension = useExplorerContext(
         (context) => context.actions.addCustomDimension,
     );
@@ -43,8 +48,23 @@ export const CustomDimensionModal = () => {
                 },
             },
         },
+        validate: {
+            customDimensionLabel: (label) => {
+                if (!label) return null;
 
-        // TODO: add validation to ensure unique custom dimension label
+                if (!item) return null;
+
+                if (isEditing && label === item.name) {
+                    return null;
+                }
+
+                return customDimensions?.some(
+                    (customDimension) => customDimension.name === label,
+                )
+                    ? 'Dimension with this label already exists'
+                    : null;
+            },
+        },
     });
 
     const { setFieldValue } = form;
@@ -53,7 +73,10 @@ export const CustomDimensionModal = () => {
         if (isEditing && isCustomDimension(item)) {
             setFieldValue('customDimensionLabel', item.name);
             setFieldValue('binType', item.binType);
-            setFieldValue('binConfig.fixedNumber.binNumber', item.binNumber);
+            setFieldValue(
+                'binConfig.fixedNumber.binNumber',
+                item.binNumber ? +item.binNumber : 0,
+            );
         }
     }, [setFieldValue, item, isEditing]);
 
@@ -107,7 +130,7 @@ export const CustomDimensionModal = () => {
 
     return !!item ? (
         <Modal
-            size="xl"
+            size="lg"
             onClick={(e) => e.stopPropagation()}
             opened={isOpen}
             onClose={() => toggleModal(undefined)}
@@ -157,6 +180,7 @@ export const CustomDimensionModal = () => {
 
                     {form.values.binType === BinType.FIXED_NUMBER && (
                         <NumberInput
+                            w={100}
                             label="Bin number"
                             required
                             min={1}
