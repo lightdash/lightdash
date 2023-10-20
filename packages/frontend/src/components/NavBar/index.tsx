@@ -1,6 +1,7 @@
 import { ProjectType } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Box,
     Button,
     Center,
@@ -194,9 +195,11 @@ const NavBar = memo(() => {
                 <Box sx={{ flexGrow: 1 }} />
 
                 <PostHogFeature flag={'lightdash-team-flair'} match={true}>
-                    <Group sx={{ flexShrink: 0 }}>
-                        <span style={{ color: 'white' }}>LIGHTDASH TEAM</span>
-                    </Group>
+                    <Box mx="sm">
+                        <Badge color="violet" variant="filled">
+                            LIGHTDASH TEAM
+                        </Badge>
+                    </Box>
                 </PostHogFeature>
 
                 <Group sx={{ flexShrink: 0 }}>
