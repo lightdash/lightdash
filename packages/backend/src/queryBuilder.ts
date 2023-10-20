@@ -175,7 +175,7 @@ export const buildQuery = ({
             SELECT
                 MIN(${dimension.compiledSql}) AS min_id,
                 MAX(${dimension.compiledSql}) AS max_id
-            FROM "postgres"."jaffle"."orders"
+            FROM "postgres"."jaffle"."${customDimension.table}"
         )`;
         }) || [];
     const customDimensionFrom =
@@ -519,7 +519,13 @@ export const buildQuery = ({
         const secondQuery = [finalSelect, finalFrom, finalSqlWhere].join('\n');
 
         return {
-            query: [cte, secondQuery, sqlOrderBy, sqlLimit].join('\n'),
+            query: [
+                customDimensionCTEs,
+                cte,
+                secondQuery,
+                sqlOrderBy,
+                sqlLimit,
+            ].join('\n'),
             hasExampleMetric,
         };
     }
