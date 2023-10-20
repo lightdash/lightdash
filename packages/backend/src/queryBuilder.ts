@@ -405,9 +405,8 @@ export const buildQuery = ({
     ];
     const sqlGroupBy =
         groups.length > 0
-            ? `GROUP BY ${groups.map((val, i) => i + 1).join(',')}\n`
+            ? `GROUP BY ${groups.map((val, i) => i + 1).join(',')}`
             : '';
-
     const fieldOrders = sorts.map(
         (sort) =>
             `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar}${
@@ -511,7 +510,7 @@ export const buildQuery = ({
         const cteName = 'metrics';
         const ctes = [
             ...(customDimensionSql?.ctes || []),
-            `${cteName} AS (\n${cteSql})`,
+            `${cteName} AS (\n${cteSql}\n)`,
         ];
         const cte = `WITH ${ctes.join(',\n')}`;
         const tableCalculationSelects =
@@ -537,18 +536,22 @@ export const buildQuery = ({
     }
 
     const metricQuerySql = [
-        customDimensionSql ? `WITH ${customDimensionSql.ctes.join(',\n')}` : '',
+        customDimensionSql
+            ? `WITH ${customDimensionSql.ctes.join(',\n')}`
+            : undefined,
         sqlSelect,
         sqlFrom,
         sqlJoins,
         customDimensionSql
             ? `CROSS JOIN ${customDimensionSql.joins.join(',\n')}`
-            : '',
+            : undefined,
         sqlWhere,
         sqlGroupBy,
         sqlOrderBy,
         sqlLimit,
-    ].join('\n');
+    ]
+        .filter((l) => l !== undefined)
+        .join('\n');
 
     return {
         query: metricQuerySql,
