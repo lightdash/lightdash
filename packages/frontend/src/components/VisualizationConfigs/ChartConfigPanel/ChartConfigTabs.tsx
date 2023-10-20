@@ -56,7 +56,7 @@ const ChartConfigTabs: FC = () => {
     const items = [...dimensionsInMetricQuery, ...metricsAndTableCalculations];
 
     return (
-        <Tabs w={335} defaultValue="layout">
+        <Tabs defaultValue="layout">
             <Tabs.List mb="sm">
                 <Tabs.Tab px="sm" value="layout">
                     Layout

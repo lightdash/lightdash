@@ -55,7 +55,7 @@ const BigNumberConfigTabs = () => {
     const selectedField = getField(selectedFieldId);
 
     return (
-        <Tabs w={320} defaultValue="layout">
+        <Tabs defaultValue="layout">
             <Tabs.List>
                 <Tabs.Tab value="layout">Layout</Tabs.Tab>
                 <Tabs.Tab value="comparison">Comparison</Tabs.Tab>
