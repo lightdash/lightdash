@@ -15,6 +15,7 @@ import {
     CreateProjectMember,
     CreateWarehouseCredentials,
     DashboardAvailableFilters,
+    DashboardBasicDetails,
     DbtProjectType,
     deepEqual,
     DefaultSupportedDbtVersion,
@@ -45,6 +46,7 @@ import {
     MetricQuery,
     MetricType,
     MissingWarehouseCredentialsError,
+    MostPopularAndRecentlyUpdated,
     NotExistsError,
     NotFoundError,
     ParameterError,
@@ -54,8 +56,10 @@ import {
     ProjectMemberRole,
     ProjectType,
     RequestMethod,
+    ResourceViewItemType,
     ResultRow,
     SessionUser,
+    SpaceQuery,
     SpaceSummary,
     SummaryExplore,
     TableCalculationFormatType,
@@ -66,6 +70,7 @@ import {
     UserAttributeValueMap,
     WarehouseClient,
     WarehouseTypes,
+    wrapResource,
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
 import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
@@ -633,10 +638,9 @@ export class ProjectService {
             await adapter.test();
         } catch (e) {
             Logger.error(`Error testing project adapter: ${e}`);
-            throw e;
-        } finally {
             await adapter.destroy();
             await sshTunnel.disconnect();
+            throw e;
         }
         return { adapter, sshTunnel };
     }
@@ -2187,6 +2191,89 @@ export class ProjectService {
             spaceUuids: allowedSpaces.map((s) => s.uuid),
         });
         return charts;
+    }
+
+    async getMostPopularAndRecentlyUpdated(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<MostPopularAndRecentlyUpdated> {
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const spaces = await this.spaceModel.find({ projectUuid });
+        const allowedSpaces = spaces.filter(
+            (space) =>
+                space.projectUuid === projectUuid &&
+                hasSpaceAccess(user, space, false), // NOTE: We don't check for admin access to the space - exclude private spaces from this panel if admin
+        );
+
+        const mostPopular = await this.getMostPopular(allowedSpaces);
+        const recentlyUpdated = await this.getRecentlyUpdated(allowedSpaces);
+
+        return {
+            mostPopular: mostPopular
+                .sort((a, b) => b.views - a.views)
+                .slice(
+                    0,
+                    this.spaceModel.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT,
+                ),
+            recentlyUpdated: recentlyUpdated
+                .sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt))
+                .slice(
+                    0,
+                    this.spaceModel.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT,
+                ),
+        };
+    }
+
+    async getMostPopular(
+        allowedSpaces: SpaceSummary[],
+    ): Promise<(SpaceQuery | DashboardBasicDetails)[]> {
+        const mostPopularCharts = await this.spaceModel.getSpaceQueries(
+            allowedSpaces.map(({ uuid }) => uuid),
+            {
+                mostPopular: true,
+            },
+        );
+
+        const mostPopularDashboards = await this.spaceModel.getSpaceDashboards(
+            allowedSpaces.map(({ uuid }) => uuid),
+            {
+                mostPopular: true,
+            },
+        );
+
+        return [...mostPopularCharts, ...mostPopularDashboards];
+    }
+
+    async getRecentlyUpdated(
+        allowedSpaces: SpaceSummary[],
+    ): Promise<(SpaceQuery | DashboardBasicDetails)[]> {
+        const recentlyUpdatedCharts = await this.spaceModel.getSpaceQueries(
+            allowedSpaces.map(({ uuid }) => uuid),
+            {
+                recentlyUpdated: true,
+            },
+        );
+
+        const recentlyUpdatedDashboards =
+            await this.spaceModel.getSpaceDashboards(
+                allowedSpaces.map(({ uuid }) => uuid),
+                {
+                    recentlyUpdated: true,
+                },
+            );
+
+        return [...recentlyUpdatedCharts, ...recentlyUpdatedDashboards];
     }
 
     async getSpaces(

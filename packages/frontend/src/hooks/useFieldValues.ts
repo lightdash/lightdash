@@ -78,12 +78,15 @@ export const useFieldValues = (
             });
 
             setResults((oldSet) => {
-                return new Set([...oldSet, ...data.results]);
+                return new Set(
+                    [...oldSet, ...data.results].sort((a, b) =>
+                        a.localeCompare(b),
+                    ),
+                );
             });
         },
         [filters, initialData],
     );
-
     const query = useQuery<FieldValueSearchResult, ApiError>(
         ['project', projectId, tableName, fieldName, 'search', debouncedSearch],
         () =>
@@ -96,7 +99,6 @@ export const useFieldValues = (
             ),
         {
             // make sure we don't cache for too long
-            staleTime: 60 * 1000, // 1 minute
             cacheTime: 60 * 1000, // 1 minute
             ...useQueryOptions,
             enabled: !!tableName,

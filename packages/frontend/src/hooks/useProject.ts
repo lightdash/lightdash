@@ -2,6 +2,7 @@ import {
     ApiError,
     ApiJobStartedResults,
     CreateProject,
+    MostPopularAndRecentlyUpdated,
     Project,
     UpdateProject,
 } from '@lightdash/common';
@@ -90,3 +91,16 @@ export const useCreateMutation = () => {
         },
     );
 };
+
+const getMostPopularAndRecentlyUpdated = async (projectUuid: string) =>
+    lightdashApi<MostPopularAndRecentlyUpdated>({
+        url: `/projects/${projectUuid}/most-popular-and-recently-updated`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useMostPopularAndRecentlyUpdated = (projectUuid: string) =>
+    useQuery<MostPopularAndRecentlyUpdated, ApiError>({
+        queryKey: ['most-popular-and-recently-updated', projectUuid],
+        queryFn: () => getMostPopularAndRecentlyUpdated(projectUuid || ''),
+    });

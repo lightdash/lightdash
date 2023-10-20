@@ -907,17 +907,6 @@ export const joinedExploreWithSubsetOfFields: UncompiledExplore = {
     ],
 };
 
-export const joinedExploreWithSubsetOfFieldsCausingError: UncompiledExplore = {
-    ...exploreReferenceInJoin,
-    joinedTables: [
-        {
-            table: 'b',
-            sqlOn: '${a.dim1} = ${b.dim1}',
-            fields: ['dim2'], // not possible because it dim1 is also needed for the join sql
-        },
-    ],
-};
-
 export const compiledJoinedExploreWithSubsetOfFields: Explore = {
     ...exploreReferenceInJoinCompiled,
     tables: {
@@ -932,6 +921,40 @@ export const compiledJoinedExploreWithSubsetOfFields: Explore = {
         },
     },
 };
+
+export const joinedExploreWithSubsetOfFieldsThatDontIncludeSqlFields: UncompiledExplore =
+    {
+        ...exploreReferenceInJoin,
+        joinedTables: [
+            {
+                table: 'b',
+                sqlOn: '${a.dim1} = ${b.dim1}',
+                fields: ['dim2'], // doesn't include "dim1" that is required for join SQL
+            },
+        ],
+    };
+
+export const compiledJoinedExploreWithSubsetOfFieldsThatDontIncludeSqlFields: Explore =
+    {
+        ...exploreReferenceInJoinCompiled,
+        tables: {
+            ...exploreReferenceInJoinCompiled.tables,
+            b: {
+                ...exploreReferenceInJoinCompiled.tables.b,
+                dimensions: {
+                    dim1: {
+                        ...exploreReferenceInJoinCompiled.tables.b.dimensions
+                            .dim1,
+                        hidden: true,
+                    },
+                    dim2: {
+                        ...exploreReferenceInJoinCompiled.tables.b.dimensions
+                            .dim2,
+                    },
+                },
+            },
+        },
+    };
 
 export const exploreWithMetricNumber: UncompiledExplore = {
     ...exploreBase,

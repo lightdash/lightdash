@@ -28,6 +28,9 @@ export const useSpacePinningMutation = (projectUuid: string) => {
                     space.projectUuid,
                     space.uuid,
                 ]);
+                await queryClient.invalidateQueries(
+                    'most-popular-and-recently-updated',
+                );
 
                 if (space.pinnedListUuid) {
                     showToastSuccess({
