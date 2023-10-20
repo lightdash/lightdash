@@ -171,13 +171,16 @@ export const buildQuery = ({
                 customDimension.dimensionId,
                 explore,
             );
-            return `WITH ${getCustomDimensionId(customDimension)}_cte AS (
+            return ` ${getCustomDimensionId(customDimension)}_cte AS (
             SELECT
                 MIN(${dimension.compiledSql}) AS min_id,
                 MAX(${dimension.compiledSql}) AS max_id
             FROM "postgres"."jaffle"."${customDimension.table}"
         )`;
         }) || [];
+    const customDimensionCTE = customDimensionCTEs
+        ? `WITH ${customDimensionCTEs.join(',\n')}`
+        : ``;
     const customDimensionFrom =
         customDimensions?.map(
             (customDimension) => `${getCustomDimensionId(customDimension)}_cte`,
@@ -501,7 +504,8 @@ export const buildQuery = ({
             sqlGroupBy,
         ].join('\n');
         const cteName = 'metrics';
-        const cte = `WITH ${cteName} AS (\n${cteSql}\n)`;
+        const ctes = [...customDimensionCTEs, `${cteName} AS (\n${cteSql})`];
+        const cte = `WITH ${ctes.join(',\n')}`;
         const tableCalculationSelects =
             compiledMetricQuery.compiledTableCalculations.map(
                 (tableCalculation) => {
@@ -519,19 +523,13 @@ export const buildQuery = ({
         const secondQuery = [finalSelect, finalFrom, finalSqlWhere].join('\n');
 
         return {
-            query: [
-                customDimensionCTEs,
-                cte,
-                secondQuery,
-                sqlOrderBy,
-                sqlLimit,
-            ].join('\n'),
+            query: [cte, secondQuery, sqlOrderBy, sqlLimit].join('\n'),
             hasExampleMetric,
         };
     }
 
     const metricQuerySql = [
-        customDimensionCTEs,
+        customDimensionCTE,
         sqlSelect,
         sqlFrom,
         sqlJoins,
