@@ -87,6 +87,9 @@ const TreeSingleNodeActions: FC<Props> = ({
     const toggleAdditionalMetricModal = useExplorerContext(
         (context) => context.actions.toggleAdditionalMetricModal,
     );
+    const removeCustomDimension = useExplorerContext(
+        (context) => context.actions.removeCustomDimension,
+    );
     const toggleCustomDimensionModal = useExplorerContext(
         (context) => context.actions.toggleCustomDimensionModal,
     );
@@ -302,8 +305,8 @@ const TreeSingleNodeActions: FC<Props> = ({
                                 // track({
                                 //     name: EventName.REMOVE_CUSTOM_DIMENSION_CLICKED,
                                 // });
-                                // TODO: Add remove custom dimension
-                                // removeCustomDimension(fieldId(item));
+
+                                removeCustomDimension(fieldId(item));
                             }}
                         >
                             Remove custom dimension

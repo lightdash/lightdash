@@ -74,6 +74,7 @@ export enum ActionType {
     TOGGLE_EXPANDED_SECTION,
     ADD_CUSTOM_DIMENSION,
     EDIT_CUSTOM_DIMENSION,
+    REMOVE_CUSTOM_DIMENSION,
     TOGGLE_CUSTOM_DIMENSION_MODAL,
 }
 
@@ -180,6 +181,10 @@ type Action =
           };
       }
     | {
+          type: ActionType.REMOVE_CUSTOM_DIMENSION;
+          payload: FieldId;
+      }
+    | {
           type: ActionType.TOGGLE_CUSTOM_DIMENSION_MODAL;
           payload?: Omit<
               ExplorerReduceState['modals']['customDimension'],
@@ -271,6 +276,7 @@ export interface ExplorerContext {
             customDimension: CustomDimension,
             previousCustomDimensionName: string,
         ) => void;
+        removeCustomDimension: (key: FieldId) => void;
         toggleCustomDimensionModal: (
             additionalMetricModalData?: Omit<
                 ExplorerReduceState['modals']['customDimension'],
@@ -740,6 +746,39 @@ function reducer(
                                     action.payload.previousCustomDimensionName
                                         ? action.payload.customDimension
                                         : customDimension,
+                            ),
+                    },
+                },
+            };
+        }
+
+        case ActionType.REMOVE_CUSTOM_DIMENSION: {
+            return {
+                ...state,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        customDimensions: (
+                            state.unsavedChartVersion.metricQuery
+                                .customDimensions || []
+                        ).filter(
+                            (customDimension) =>
+                                getFieldId(customDimension) !== action.payload,
+                        ),
+                        dimensions:
+                            state.unsavedChartVersion.metricQuery.dimensions.filter(
+                                (dimension) => dimension !== action.payload,
+                            ),
+                        sorts: state.unsavedChartVersion.metricQuery.sorts.filter(
+                            (sort) => sort.fieldId !== action.payload,
+                        ),
+                    },
+                    tableConfig: {
+                        ...state.unsavedChartVersion.tableConfig,
+                        columnOrder:
+                            state.unsavedChartVersion.tableConfig.columnOrder.filter(
+                                (fieldId) => fieldId !== action.payload,
                             ),
                     },
                 },
@@ -1325,13 +1364,20 @@ export const ExplorerProvider: FC<{
                 type: ActionType.EDIT_CUSTOM_DIMENSION,
                 payload: { customDimension, previousCustomDimensionName },
             });
-            /* dispatch({
+            dispatch({
                 type: ActionType.TOGGLE_METRIC,
                 payload: getFieldId(customDimension),
-            });*/
+            });
         },
         [],
     );
+
+    const removeCustomDimension = useCallback((key: FieldId) => {
+        dispatch({
+            type: ActionType.REMOVE_CUSTOM_DIMENSION,
+            payload: key,
+        });
+    }, []);
 
     const toggleCustomDimensionModal = useCallback(
         (
@@ -1487,6 +1533,7 @@ export const ExplorerProvider: FC<{
             toggleExpandedSection,
             addCustomDimension,
             editCustomDimension,
+            removeCustomDimension,
             toggleCustomDimensionModal,
         }),
         [
@@ -1518,6 +1565,7 @@ export const ExplorerProvider: FC<{
             toggleExpandedSection,
             addCustomDimension,
             editCustomDimension,
+            removeCustomDimension,
             toggleCustomDimensionModal,
         ],
     );
