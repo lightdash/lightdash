@@ -1,9 +1,4 @@
-import {
-    isLightdashMode,
-    LightdashMode,
-    ParseError,
-    PIVOT_TABLE_MAX_COLUMN_LIMIT,
-} from '@lightdash/common';
+import { isLightdashMode, LightdashMode, ParseError } from '@lightdash/common';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import lightdashV1JsonSchema from '../jsonSchemas/lightdashConfig/v1.json';
@@ -373,7 +368,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             maxColumnLimit:
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_PIVOT_TABLE_MAX_COLUMN_LIMIT',
-                ) || PIVOT_TABLE_MAX_COLUMN_LIMIT,
+                ) || 60,
         },
         s3: {
             region: process.env.S3_REGION,

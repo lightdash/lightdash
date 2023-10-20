@@ -3,7 +3,6 @@ import {
     MetricQuery,
     PivotConfig,
     PivotData,
-    PIVOT_TABLE_MAX_COLUMN_LIMIT,
     ResultRow,
     ResultValue,
 } from '@lightdash/common';
@@ -17,7 +16,7 @@ type PivotQueryResultsArgs = {
         'dimensions' | 'metrics' | 'tableCalculations' | 'additionalMetrics'
     >;
     rows: ResultRow[];
-    options?: {
+    options: {
         maxColumns: number;
     };
 };
@@ -193,9 +192,7 @@ export const pivotQueryResults = ({
     pivotConfig,
     metricQuery,
     rows,
-    options = {
-        maxColumns: PIVOT_TABLE_MAX_COLUMN_LIMIT,
-    },
+    options,
 }: PivotQueryResultsArgs): PivotData => {
     if (rows.length === 0) {
         throw new Error('Cannot pivot results with no rows');
