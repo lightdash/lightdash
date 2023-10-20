@@ -43,6 +43,8 @@ export const CustomDimensionModal = () => {
                 },
             },
         },
+
+        // TODO: add validation to ensure unique custom dimension label
     });
 
     const { setFieldValue } = form;
