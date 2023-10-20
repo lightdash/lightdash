@@ -1,1 +1,0 @@
-export const PIVOT_TABLE_MAX_COLUMN_LIMIT = 60;
