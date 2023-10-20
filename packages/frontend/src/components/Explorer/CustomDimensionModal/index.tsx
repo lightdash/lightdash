@@ -1,4 +1,4 @@
-import { BinType, fieldId } from '@lightdash/common';
+import { BinType, fieldId, isCustomDimension } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -11,6 +11,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { useEffect } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 
@@ -22,8 +23,14 @@ export const CustomDimensionModal = () => {
     const { isOpen, isEditing, item } = useExplorerContext(
         (context) => context.state.modals.customDimension,
     );
+    const toggleModal = useExplorerContext(
+        (context) => context.actions.toggleCustomDimensionModal,
+    );
     const addCustomDimension = useExplorerContext(
         (context) => context.actions.addCustomDimension,
+    );
+    const editCustomDimension = useExplorerContext(
+        (context) => context.actions.editCustomDimension,
     );
 
     const form = useForm({
@@ -38,33 +45,61 @@ export const CustomDimensionModal = () => {
         },
     });
 
-    const toggleModal = useExplorerContext(
-        (context) => context.actions.toggleCustomDimensionModal,
-    );
+    const { setFieldValue } = form;
+
+    useEffect(() => {
+        if (isEditing && isCustomDimension(item)) {
+            setFieldValue('customDimensionLabel', item.name);
+            setFieldValue('binType', item.binType);
+            setFieldValue('binConfig.fixedNumber.binNumber', item.binNumber);
+        }
+    }, [setFieldValue, item, isEditing]);
 
     const handleOnSubmit = form.onSubmit((values) => {
         if (item) {
+            console.log(values.customDimensionLabel);
+
             const sanitizedId = values.customDimensionLabel
                 .toLowerCase()
                 .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
                 .replace(/_{2,}/g, '_') // Replace multiple underscores with a single one
                 .replace(/^_|_$/g, ''); // Remove leading and trailing underscores
-            addCustomDimension({
-                id: sanitizedId,
-                name: values.customDimensionLabel,
-                dimensionId: fieldId(item),
-                binType: values.binType,
-                binNumber: values.binConfig.fixedNumber.binNumber,
-                table: item.table,
 
-                // TODO: consider renaming some properties to match `addCustomMetric` logic
-            });
+            if (isEditing && isCustomDimension(item)) {
+                editCustomDimension(
+                    {
+                        id: sanitizedId,
+                        name: values.customDimensionLabel,
+                        dimensionId: item.dimensionId,
+                        binType: values.binType,
+                        binNumber: values.binConfig.fixedNumber.binNumber,
+                        table: item.table,
+                    },
+                    item.name,
+                );
 
-            showToastSuccess({
-                title: 'Custom dimension added successfully',
-            });
+                showToastSuccess({
+                    title: 'Custom dimension edited successfully',
+                });
+            } else {
+                addCustomDimension({
+                    id: sanitizedId,
+                    name: values.customDimensionLabel,
+                    dimensionId: fieldId(item),
+                    binType: values.binType,
+                    binNumber: values.binConfig.fixedNumber.binNumber,
+                    table: item.table,
+
+                    // TODO: consider renaming some properties to match `addCustomMetric` logic
+                });
+
+                showToastSuccess({
+                    title: 'Custom dimension added successfully',
+                });
+            }
         }
 
+        form.reset();
         toggleModal();
     });
 
@@ -122,6 +157,8 @@ export const CustomDimensionModal = () => {
                         <NumberInput
                             label="Bin number"
                             required
+                            min={1}
+                            type="number"
                             {...form.getInputProps(
                                 'binConfig.fixedNumber.binNumber',
                             )}

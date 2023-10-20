@@ -6,6 +6,7 @@ import {
     fieldId,
     friendlyName,
     isAdditionalMetric,
+    isCustomDimension,
     isDimension,
     isField,
     isFilterableField,
@@ -268,12 +269,47 @@ const TreeSingleNodeActions: FC<Props> = ({
                                         });
                                     }}
                                 >
-                                    {'Bin'}
+                                    Bin
                                 </Menu.Item>
                             </Menu.Dropdown>
                         </Menu>
                     </>
                 ) : null}
+
+                {isCustomDimensionsFeatureEnabled && isCustomDimension(item) && (
+                    <>
+                        <Menu.Item
+                            component="button"
+                            icon={<MantineIcon icon={IconEdit} />}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                toggleCustomDimensionModal({
+                                    item,
+                                    isEditing: true,
+                                });
+                            }}
+                        >
+                            Edit custom dimension
+                        </Menu.Item>
+                        <Menu.Item
+                            color="red"
+                            component="button"
+                            icon={<MantineIcon icon={IconTrash} />}
+                            onClick={(e) => {
+                                e.stopPropagation();
+
+                                // TODO: Add tracking
+                                // track({
+                                //     name: EventName.REMOVE_CUSTOM_DIMENSION_CLICKED,
+                                // });
+                                // TODO: Add remove custom dimension
+                                // removeCustomDimension(fieldId(item));
+                            }}
+                        >
+                            Remove custom dimension
+                        </Menu.Item>
+                    </>
+                )}
             </Menu.Dropdown>
 
             {/* prevents bubbling of click event to NavLink */}

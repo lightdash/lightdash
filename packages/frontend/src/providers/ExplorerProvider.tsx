@@ -73,6 +73,7 @@ export enum ActionType {
     SET_CHART_CONFIG,
     TOGGLE_EXPANDED_SECTION,
     ADD_CUSTOM_DIMENSION,
+    EDIT_CUSTOM_DIMENSION,
     TOGGLE_CUSTOM_DIMENSION_MODAL,
 }
 
@@ -172,6 +173,13 @@ type Action =
           payload: CustomDimension;
       }
     | {
+          type: ActionType.EDIT_CUSTOM_DIMENSION;
+          payload: {
+              customDimension: CustomDimension;
+              previousCustomDimensionName: string;
+          };
+      }
+    | {
           type: ActionType.TOGGLE_CUSTOM_DIMENSION_MODAL;
           payload?: Omit<
               ExplorerReduceState['modals']['customDimension'],
@@ -194,7 +202,7 @@ export interface ExplorerReduceState {
         customDimension: {
             isOpen: boolean;
             isEditing?: boolean;
-            item?: Dimension;
+            item?: Dimension | CustomDimension;
         };
     };
 }
@@ -259,6 +267,10 @@ export interface ExplorerContext {
         fetchResults: () => void;
         toggleExpandedSection: (section: ExplorerSection) => void;
         addCustomDimension: (customDimension: CustomDimension) => void;
+        editCustomDimension: (
+            customDimension: CustomDimension,
+            previousCustomDimensionName: string,
+        ) => void;
         toggleCustomDimensionModal: (
             additionalMetricModalData?: Omit<
                 ExplorerReduceState['modals']['customDimension'],
@@ -703,6 +715,32 @@ function reducer(
                                 ),
                             ],
                         ),
+                    },
+                },
+            };
+        }
+
+        case ActionType.EDIT_CUSTOM_DIMENSION: {
+            return {
+                ...state,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        dimensions:
+                            state.unsavedChartVersion.metricQuery.dimensions.filter(
+                                (dimension) =>
+                                    dimension !==
+                                    action.payload.previousCustomDimensionName,
+                            ),
+                        customDimensions:
+                            state.unsavedChartVersion.metricQuery.customDimensions?.map(
+                                (customDimension) =>
+                                    customDimension.name ===
+                                    action.payload.previousCustomDimensionName
+                                        ? action.payload.customDimension
+                                        : customDimension,
+                            ),
                     },
                 },
             };
@@ -1265,6 +1303,27 @@ export const ExplorerProvider: FC<{
             dispatch({
                 type: ActionType.ADD_CUSTOM_DIMENSION,
                 payload: customDimension,
+                options: {
+                    shouldFetchResults: true,
+                },
+            });
+
+            dispatch({
+                type: ActionType.TOGGLE_METRIC,
+                payload: getFieldId(customDimension),
+            });
+        },
+        [],
+    );
+
+    const editCustomDimension = useCallback(
+        (
+            customDimension: CustomDimension,
+            previousCustomDimensionName: string,
+        ) => {
+            dispatch({
+                type: ActionType.EDIT_CUSTOM_DIMENSION,
+                payload: { customDimension, previousCustomDimensionName },
             });
             /* dispatch({
                 type: ActionType.TOGGLE_METRIC,
@@ -1427,6 +1486,7 @@ export const ExplorerProvider: FC<{
             fetchResults,
             toggleExpandedSection,
             addCustomDimension,
+            editCustomDimension,
             toggleCustomDimensionModal,
         }),
         [
@@ -1457,6 +1517,7 @@ export const ExplorerProvider: FC<{
             fetchResults,
             toggleExpandedSection,
             addCustomDimension,
+            editCustomDimension,
             toggleCustomDimensionModal,
         ],
     );
