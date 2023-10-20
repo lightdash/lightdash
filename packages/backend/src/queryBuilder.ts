@@ -178,9 +178,10 @@ export const buildQuery = ({
             FROM "postgres"."jaffle"."${customDimension.table}"
         )`;
         }) || [];
-    const customDimensionCTE = customDimensionCTEs
-        ? `WITH ${customDimensionCTEs.join(',\n')}`
-        : ``;
+    const customDimensionCTE =
+        customDimensionCTEs.length > 0
+            ? `WITH ${customDimensionCTEs.join(',\n')}`
+            : ``;
     const customDimensionFrom =
         customDimensions?.map(
             (customDimension) => `${getCustomDimensionId(customDimension)}_cte`,
