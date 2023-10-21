@@ -129,7 +129,7 @@ export const storeOIDCRedirect: RequestHandler = (req, res, next) => {
     }
     if (typeof redirect === 'string') {
         try {
-            const redirectUrl = new URL(redirect);
+            const redirectUrl = new URL(redirect, lightdashConfig.siteUrl);
             const originUrl = new URL(lightdashConfig.siteUrl);
             if (
                 redirectUrl.host === originUrl.host ||
@@ -149,15 +149,15 @@ export const redirectOIDCSuccess: RequestHandler = (req, res) => {
             ? decodeURIComponent(req.query.returnTo.toString())
             : undefined;
 
-    if (queryReturn && queryReturn.startsWith(lightdashConfig.siteUrl)) {
+    if (
+        queryReturn &&
+        new URL(queryReturn, lightdashConfig.siteUrl).host ===
+            new URL(lightdashConfig.siteUrl).host
+    ) {
         res.redirect(queryReturn);
-        return;
     }
-
-    const { returnTo } = req.session.oauth || {};
-
-    res.redirect(returnTo || '/');
 };
+
 export const redirectOIDCFailure: RequestHandler = (req, res) => {
     const { returnTo } = req.session.oauth || {};
     res.redirect(returnTo || '/');

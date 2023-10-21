@@ -4,7 +4,6 @@ import {
 } from '@lightdash/common';
 import { Button, ButtonProps, Image } from '@mantine/core';
 import { FC } from 'react';
-import { useLocation } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useFlashMessages } from '../../../hooks/useFlashMessages';
 import { useApp } from '../../../providers/AppProvider';
@@ -13,6 +12,8 @@ type ThirdPartySignInButtonProps = {
     inviteCode?: string;
     intent?: 'signin' | 'add' | 'signup';
     providerName: OpenIdIdentitySummary['issuerType'];
+    // Default redirect is the current window.location.href
+    redirect?: string;
 } & ButtonProps;
 
 const ThirdPartySignInButtonBase: FC<
@@ -71,21 +72,17 @@ export const ThirdPartySignInButton: FC<ThirdPartySignInButtonProps> = ({
     inviteCode,
     intent = 'signin',
     providerName,
+    redirect,
     ...props
 }) => {
     const { health } = useApp();
-    const location = useLocation<{ from?: Location } | undefined>();
 
     switch (providerName) {
         case OpenIdIdentityIssuerType.GOOGLE:
             return health.data?.auth.google.enabled ? (
                 <ThirdPartySignInButtonBase
                     loginPath={health.data.auth.google.loginPath}
-                    redirect={
-                        location.state?.from?.pathname
-                            ? `${health.data.siteUrl}${location.state.from.pathname}${location.state.from.search}`
-                            : undefined
-                    }
+                    redirect={redirect}
                     intent={intent}
                     inviteCode={inviteCode}
                     providerName="Google"
@@ -98,6 +95,7 @@ export const ThirdPartySignInButton: FC<ThirdPartySignInButtonProps> = ({
             return health.data?.auth.okta.enabled ? (
                 <ThirdPartySignInButtonBase
                     loginPath={health.data.auth.okta.loginPath}
+                    redirect={redirect}
                     intent={intent}
                     inviteCode={inviteCode}
                     providerName="Okta"
@@ -109,6 +107,7 @@ export const ThirdPartySignInButton: FC<ThirdPartySignInButtonProps> = ({
             return health.data?.auth.oneLogin.enabled ? (
                 <ThirdPartySignInButtonBase
                     loginPath={health.data.auth.oneLogin.loginPath}
+                    redirect={redirect}
                     intent={intent}
                     inviteCode={inviteCode}
                     providerName="OneLogin"
@@ -121,6 +120,7 @@ export const ThirdPartySignInButton: FC<ThirdPartySignInButtonProps> = ({
             return health.data?.auth.azuread.enabled ? (
                 <ThirdPartySignInButtonBase
                     loginPath={health.data.auth.azuread.loginPath}
+                    redirect={redirect}
                     intent={intent}
                     inviteCode={inviteCode}
                     providerName="Azure AD"
