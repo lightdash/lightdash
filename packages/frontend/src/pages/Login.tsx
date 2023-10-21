@@ -45,6 +45,10 @@ const Login: FC = () => {
     const location = useLocation<{ from?: Location } | undefined>();
     const { health } = useApp();
     const { showToastError } = useToaster();
+    const redirectUrl = location.state?.from
+        ? `${location.state.from.pathname}${location.state.from.search}`
+        : '/';
+
     const form = useForm<LoginParams>({
         initialValues: {
             email: '',
@@ -66,9 +70,7 @@ const Login: FC = () => {
         mutationKey: ['login'],
         onSuccess: (data) => {
             identify({ id: data.userUuid });
-            window.location.href = location.state?.from
-                ? `${location.state.from.pathname}${location.state.from.search}`
-                : '/';
+            window.location.href = redirectUrl;
         },
         onError: (error) => {
             form.reset();
@@ -100,14 +102,14 @@ const Login: FC = () => {
             <Redirect
                 to={{
                     pathname: '/register',
-                    state: { from: location.state?.from },
+                    state: { from: redirectUrl },
                 }}
             />
         );
     }
 
     if (health.status === 'success' && health.data?.isAuthenticated) {
-        return <Redirect to={{ pathname: '/' }} />;
+        return <Redirect to={redirectUrl} />;
     }
 
     const ssoAvailable =
@@ -121,6 +123,7 @@ const Login: FC = () => {
                 <ThirdPartySignInButton
                     key={providerName}
                     providerName={providerName}
+                    redirect={redirectUrl}
                 />
             ))}
         </Stack>
