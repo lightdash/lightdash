@@ -102,7 +102,7 @@ const Login: FC = () => {
             <Redirect
                 to={{
                     pathname: '/register',
-                    state: { from: redirectUrl },
+                    state: { from: location.state?.from },
                 }}
             />
         );
