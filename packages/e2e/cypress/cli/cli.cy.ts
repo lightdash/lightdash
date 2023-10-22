@@ -280,7 +280,7 @@ describe('CLI', () => {
         cy.login();
         cy.getApiToken().then((apiToken) => {
             cy.exec(
-                `${cliCommand} deploy --create --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
+                `${cliCommand} deploy --create "test-project" --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
                 {
                     failOnNonZeroExit: false,
                     env: {
