@@ -248,7 +248,12 @@ export class ProjectService {
         const projects = await this.projectModel.getAllByOrganizationUuid(
             user.organizationUuid,
         );
-        if (projects.find((project) => project.name === data.name)) {
+
+        const anotherProjectWithSameName = !!projects.find(
+            (project) => project.name === data.name,
+        );
+
+        if (anotherProjectWithSameName) {
             throw new ForbiddenError('Project with same name already exists');
         }
 
@@ -331,7 +336,12 @@ export class ProjectService {
         const projects = await this.projectModel.getAllByOrganizationUuid(
             user.organizationUuid,
         );
-        if (projects.find((project) => project.name === data.name)) {
+
+        const anotherProjectWithSameName = !!projects.find(
+            (project) => project.name === data.name,
+        );
+
+        if (anotherProjectWithSameName) {
             throw new ForbiddenError('Project with same name already exists');
         }
 
@@ -474,7 +484,15 @@ export class ProjectService {
         const projects = await this.projectModel.getAllByOrganizationUuid(
             user.organizationUuid,
         );
-        if (projects.find((project) => project.name === data.name)) {
+
+        const nameChanged: boolean =
+            projects.find((project) => project.projectUuid === projectUuid)
+                ?.name !== data.name;
+        const anotherProjectWithSameName = !!projects.find(
+            (project) => project.name === data.name,
+        );
+
+        if (nameChanged && anotherProjectWithSameName) {
             throw new ForbiddenError('Project with same name already exists');
         }
         const savedProject = await this.projectModel.getWithSensitiveFields(
