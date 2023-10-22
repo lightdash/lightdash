@@ -471,6 +471,12 @@ export class ProjectService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+        const projects = await this.projectModel.getAllByOrganizationUuid(
+            user.organizationUuid,
+        );
+        if (projects.find((project) => project.name === data.name)) {
+            throw new ForbiddenError('Project with same name already exists');
+        }
         const savedProject = await this.projectModel.getWithSensitiveFields(
             projectUuid,
         );
