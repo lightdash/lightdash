@@ -141,6 +141,9 @@ export const useUpdateDashboard = (
             mutationKey: ['dashboard_update'],
             onSuccess: async (_, variables) => {
                 await queryClient.invalidateQueries(['space', projectUuid]);
+                await queryClient.invalidateQueries(
+                    'most-popular-and-recently-updated',
+                );
 
                 await queryClient.invalidateQueries('dashboards');
                 await queryClient.invalidateQueries(
@@ -196,6 +199,9 @@ export const useMoveDashboardMutation = () => {
             onSuccess: async (data) => {
                 await queryClient.invalidateQueries(['space']);
                 await queryClient.invalidateQueries(['dashboards']);
+                await queryClient.invalidateQueries(
+                    'most-popular-and-recently-updated',
+                );
                 queryClient.setQueryData(
                     ['saved_dashboard_query', data.uuid],
                     data,
@@ -239,6 +245,9 @@ export const useCreateMutation = (
                 await queryClient.invalidateQueries('dashboards');
                 await queryClient.invalidateQueries(
                     'dashboards-containing-chart',
+                );
+                await queryClient.invalidateQueries(
+                    'most-popular-and-recently-updated',
                 );
                 showToastSuccess({
                     title: `Success! Dashboard was created.`,
@@ -287,6 +296,9 @@ export const useDuplicateDashboardMutation = (
                 await queryClient.invalidateQueries(
                     'dashboards-containing-chart',
                 );
+                await queryClient.invalidateQueries(
+                    'most-popular-and-recently-updated',
+                );
                 showToastSuccess({
                     title: `Dashboard successfully duplicated!`,
                     action: options?.showRedirectButton
@@ -320,6 +332,9 @@ export const useDashboardDeleteMutation = () => {
             await queryClient.invalidateQueries('space');
 
             await queryClient.invalidateQueries('dashboards-containing-chart');
+            await queryClient.invalidateQueries(
+                'most-popular-and-recently-updated',
+            );
             showToastSuccess({
                 title: `Deleted! Dashboard was deleted.`,
             });

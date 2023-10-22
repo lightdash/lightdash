@@ -342,6 +342,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/karan0handa"><img src="https://avatars.githubusercontent.com/u/79533543?v=4?s=100" width="100px;" alt="Karan Handa"/><br /><sub><b>Karan Handa</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=karan0handa" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/rohitverma007"><img src="https://avatars.githubusercontent.com/u/3745109?v=4?s=100" width="100px;" alt="Rohit Verma"/><br /><sub><b>Rohit Verma</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=rohitverma007" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

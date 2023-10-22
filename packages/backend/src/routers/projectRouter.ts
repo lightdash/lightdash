@@ -362,6 +362,23 @@ projectRouter.get(
     },
 );
 
+projectRouter.get(
+    '/most-popular-and-recently-updated',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        projectService
+            .getMostPopularAndRecentlyUpdated(req.user!, req.params.projectUuid)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
+
 projectRouter.patch(
     '/spaces/:spaceUuid/pinning',
     allowApiKeyAuthentication,

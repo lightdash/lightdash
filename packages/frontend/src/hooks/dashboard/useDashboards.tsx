@@ -90,6 +90,9 @@ export const useUpdateMultipleDashboard = (projectUuid: string) => {
                 await queryClient.invalidateQueries(
                     'dashboards-containing-chart',
                 );
+                await queryClient.invalidateQueries(
+                    'most-popular-and-recently-updated',
+                );
 
                 const invalidateQueries = variables.map((dashboard) => [
                     'saved_dashboard_query',

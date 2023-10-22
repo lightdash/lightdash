@@ -1,5 +1,4 @@
-import { Colors, Divider, Tag } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
+import { Colors, Divider } from '@blueprintjs/core';
 import {
     addFilterRule,
     FilterableDimension,
@@ -14,7 +13,7 @@ import {
     isMetric,
     Metric,
 } from '@lightdash/common';
-import { ActionIcon, Button } from '@mantine/core';
+import { ActionIcon, Badge, Button, Tooltip } from '@mantine/core';
 import { IconPlus, IconX } from '@tabler/icons-react';
 import { FC, useCallback, useMemo } from 'react';
 import { useToggle } from 'react-use';
@@ -155,19 +154,20 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                                     />
                                 )}
                             {showMandatoryAndOperator && (
-                                <Tooltip2 content="You can only use the 'and' operator when combining metrics & dimensions">
-                                    <Tag
-                                        minimal
-                                        round
-                                        style={{
+                                <Tooltip label="You can only use the 'and' operator when combining metrics & dimensions">
+                                    <Badge
+                                        sx={{
                                             background: Colors.LIGHT_GRAY2,
                                             marginLeft: 10,
                                             marginBottom: 10,
+                                            textTransform: 'unset',
+                                            fontWeight: 'normal',
                                         }}
+                                        color="dark"
                                     >
                                         and
-                                    </Tag>
-                                </Tooltip2>
+                                    </Badge>
+                                </Tooltip>
                             )}
 
                             {filters.metrics &&
@@ -210,28 +210,27 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                 }}
             >
                 {isOpen && (
-                    <>
-                        <FieldSelect
-                            autoFocus
-                            hasGrouping
-                            items={fields}
-                            onChange={(field) => {
-                                if (!field) return;
-                                addFieldRule(field);
-                            }}
-                            onClosed={toggleFieldInput}
-                        />
-
-                        <ActionIcon onClick={toggleFieldInput}>
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
-                    </>
+                    <FieldSelect
+                        autoFocus
+                        hasGrouping
+                        items={fields}
+                        onChange={(field) => {
+                            if (!field) return;
+                            addFieldRule(field);
+                        }}
+                        onClosed={toggleFieldInput}
+                        rightSection={
+                            <ActionIcon onClick={toggleFieldInput}>
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        }
+                    />
                 )}
 
                 {isEditMode && !isOpen && (
                     <Button
                         variant="light"
-                        size="xs"
+                        size="sm"
                         leftIcon={<MantineIcon icon={IconPlus} />}
                         disabled={fields.length <= 0}
                         onClick={toggleFieldInput}

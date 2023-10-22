@@ -381,7 +381,7 @@ export class SavedChartModel {
         const { daysLimit } = this.lightdashConfig.chart.versionHistory;
         const chartVersions = await this.getVersionSummaryQuery()
             .where(`${SavedChartsTableName}.saved_query_uuid`, chartUuid)
-            .andWhere(function () {
+            .andWhere(function whereRecentVersionsOrCurrentVersion() {
                 // get all versions from the last X days + the current version ( in case is older than X days )
                 this.whereRaw(
                     `${SavedChartVersionsTableName}.created_at >= DATE(current_timestamp - interval '?? days')`,

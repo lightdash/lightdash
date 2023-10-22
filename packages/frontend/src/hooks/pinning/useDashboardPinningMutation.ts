@@ -29,6 +29,7 @@ export const useDashboardPinningMutation = () => {
                     dashboard.projectUuid,
                     dashboard.spaceUuid,
                 ]);
+
                 if (dashboard.pinnedListUuid) {
                     showToastSuccess({
                         title: 'Success! Dashboard was pinned to homepage',

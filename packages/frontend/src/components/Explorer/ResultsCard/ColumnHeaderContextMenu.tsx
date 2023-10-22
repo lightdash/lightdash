@@ -1,5 +1,5 @@
-import { Divider, Menu, Position } from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { Divider, Menu } from '@blueprintjs/core';
+import { MenuItem2 } from '@blueprintjs/popover2';
 import {
     fieldId,
     getItemId,
@@ -7,18 +7,20 @@ import {
     isFilterableField,
     TableCalculation,
 } from '@lightdash/common';
+import { ActionIcon, Popover } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import { FC, useMemo, useState } from 'react';
 import { useFilters } from '../../../hooks/useFilters';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
+import MantineIcon from '../../common/MantineIcon';
 import { HeaderProps, TableColumn } from '../../common/Table/types';
 import {
     DeleteTableCalculationModal,
     UpdateTableCalculationModal,
 } from '../../TableCalculationModals';
-import { BolderLabel, FlatButton } from './ColumnHeaderContextMenu.styles';
+import { BolderLabel } from './ColumnHeaderContextMenu.styles';
 import ColumnHeaderSortMenuOptions from './ColumnHeaderSortMenuOptions';
 
 interface ContextMenuProps extends HeaderProps {
@@ -175,24 +177,20 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                     e.stopPropagation();
                 }}
             >
-                <Popover2
-                    lazy
-                    minimal
-                    position={Position.BOTTOM_RIGHT}
-                    content={
+                <Popover withinPortal position="bottom" withArrow shadow="md">
+                    <Popover.Target>
+                        <ActionIcon size="xs" variant="light" bg="transparent">
+                            <MantineIcon icon={IconChevronDown} />
+                        </ActionIcon>
+                    </Popover.Target>
+                    <Popover.Dropdown p={0}>
                         <ContextMenu
                             header={header}
                             onToggleCalculationEditModal={setShowUpdate}
                             onToggleCalculationDeleteModal={setShowDelete}
                         />
-                    }
-                >
-                    <FlatButton
-                        minimal
-                        small
-                        icon={<IconChevronDown size={17} />}
-                    />
-                </Popover2>
+                    </Popover.Dropdown>
+                </Popover>
 
                 {showUpdate && (
                     <UpdateTableCalculationModal

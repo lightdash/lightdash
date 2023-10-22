@@ -69,6 +69,7 @@ import {
     ProjectType,
     WarehouseCredentials,
 } from './types/projects';
+import { MostPopularAndRecentlyUpdated } from './types/resourceViewItem';
 import { ResultRow } from './types/results';
 import {
     ApiJobScheduledResponse,
@@ -535,7 +536,8 @@ type ApiResults =
     | ChartVersion
     | ApiJobStatusResponse['results']
     | ApiJobScheduledResponse['results']
-    | ApiSshKeyPairResponse['results'];
+    | ApiSshKeyPairResponse['results']
+    | MostPopularAndRecentlyUpdated;
 
 export type ApiResponse = {
     status: 'ok';
