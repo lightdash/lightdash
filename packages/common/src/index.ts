@@ -573,6 +573,11 @@ export enum LightdashInstallType {
     UNKNOWN = 'unknown',
 }
 
+export type ApiHealthState = {
+    status: 'ok';
+    results: HealthState;
+};
+
 export type HealthState = {
     healthy: boolean;
     mode: LightdashMode;
