@@ -1,4 +1,4 @@
-import { ApiUserActivity, ApiErrorPayload } from '@lightdash/common';
+import { ApiErrorPayload, ApiUserActivity } from '@lightdash/common';
 import { Get } from '@tsoa/runtime';
 import express from 'express';
 import {
@@ -35,7 +35,10 @@ export class AnalyticsController extends Controller {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await analyticsService.getUserActivity(projectUuid, req.user!),
+            results: await analyticsService.getUserActivity(
+                projectUuid,
+                req.user!,
+            ),
         };
     }
 }
