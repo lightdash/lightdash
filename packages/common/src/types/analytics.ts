@@ -33,6 +33,11 @@ export type UserActivity = {
     chartViews: ActivityViews[];
 };
 
+export type ApiUserActivity = {
+    status: 'ok';
+    results: UserActivity;
+};
+
 export type ViewStatistics = {
     views: number;
     firstViewedAt: Date | string | null;
