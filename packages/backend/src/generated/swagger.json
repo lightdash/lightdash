@@ -602,6 +602,572 @@
             "UpdateGroup": {
                 "$ref": "#/components/schemas/Pick_Group.name_"
             },
+            "LightdashMode": {
+                "enum": ["default", "demo", "pr", "cloud_beta", "development"],
+                "type": "string"
+            },
+            "DbtProjectType.DBT": {
+                "enum": ["dbt"],
+                "type": "string"
+            },
+            "DbtProjectEnvironmentVariable": {
+                "properties": {
+                    "value": {
+                        "type": "string"
+                    },
+                    "key": {
+                        "type": "string"
+                    }
+                },
+                "required": ["value", "key"],
+                "type": "object"
+            },
+            "DbtProjectType": {
+                "enum": [
+                    "dbt",
+                    "dbt_cloud_ide",
+                    "github",
+                    "gitlab",
+                    "bitbucket",
+                    "azure_devops",
+                    "none"
+                ],
+                "type": "string"
+            },
+            "DbtLocalProjectConfig": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DbtProjectType.DBT"
+                    },
+                    "target": {
+                        "type": "string"
+                    },
+                    "environment": {
+                        "items": {
+                            "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
+                        },
+                        "type": "array"
+                    },
+                    "profiles_dir": {
+                        "type": "string"
+                    },
+                    "project_dir": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type"],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "DbtProjectType.DBT_CLOUD_IDE": {
+                "enum": ["dbt_cloud_ide"],
+                "type": "string"
+            },
+            "DbtCloudIDEProjectConfig": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DbtProjectType.DBT_CLOUD_IDE"
+                    },
+                    "api_key": {
+                        "type": "string"
+                    },
+                    "account_id": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        ]
+                    },
+                    "environment_id": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        ]
+                    },
+                    "project_id": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        ]
+                    }
+                },
+                "required": [
+                    "type",
+                    "api_key",
+                    "account_id",
+                    "environment_id",
+                    "project_id"
+                ],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "DbtProjectType.GITHUB": {
+                "enum": ["github"],
+                "type": "string"
+            },
+            "DbtGithubProjectConfig": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DbtProjectType.GITHUB"
+                    },
+                    "target": {
+                        "type": "string"
+                    },
+                    "environment": {
+                        "items": {
+                            "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
+                        },
+                        "type": "array"
+                    },
+                    "personal_access_token": {
+                        "type": "string"
+                    },
+                    "repository": {
+                        "type": "string"
+                    },
+                    "branch": {
+                        "type": "string"
+                    },
+                    "project_sub_path": {
+                        "type": "string"
+                    },
+                    "host_domain": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type",
+                    "personal_access_token",
+                    "repository",
+                    "branch",
+                    "project_sub_path"
+                ],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "DbtProjectType.BITBUCKET": {
+                "enum": ["bitbucket"],
+                "type": "string"
+            },
+            "DbtBitBucketProjectConfig": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DbtProjectType.BITBUCKET"
+                    },
+                    "target": {
+                        "type": "string"
+                    },
+                    "environment": {
+                        "items": {
+                            "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
+                        },
+                        "type": "array"
+                    },
+                    "username": {
+                        "type": "string"
+                    },
+                    "personal_access_token": {
+                        "type": "string"
+                    },
+                    "repository": {
+                        "type": "string"
+                    },
+                    "branch": {
+                        "type": "string"
+                    },
+                    "project_sub_path": {
+                        "type": "string"
+                    },
+                    "host_domain": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type",
+                    "username",
+                    "personal_access_token",
+                    "repository",
+                    "branch",
+                    "project_sub_path"
+                ],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "DbtProjectType.GITLAB": {
+                "enum": ["gitlab"],
+                "type": "string"
+            },
+            "DbtGitlabProjectConfig": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DbtProjectType.GITLAB"
+                    },
+                    "target": {
+                        "type": "string"
+                    },
+                    "environment": {
+                        "items": {
+                            "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
+                        },
+                        "type": "array"
+                    },
+                    "personal_access_token": {
+                        "type": "string"
+                    },
+                    "repository": {
+                        "type": "string"
+                    },
+                    "branch": {
+                        "type": "string"
+                    },
+                    "project_sub_path": {
+                        "type": "string"
+                    },
+                    "host_domain": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type",
+                    "personal_access_token",
+                    "repository",
+                    "branch",
+                    "project_sub_path"
+                ],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "DbtProjectType.AZURE_DEVOPS": {
+                "enum": ["azure_devops"],
+                "type": "string"
+            },
+            "DbtAzureDevOpsProjectConfig": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DbtProjectType.AZURE_DEVOPS"
+                    },
+                    "target": {
+                        "type": "string"
+                    },
+                    "environment": {
+                        "items": {
+                            "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
+                        },
+                        "type": "array"
+                    },
+                    "personal_access_token": {
+                        "type": "string"
+                    },
+                    "organization": {
+                        "type": "string"
+                    },
+                    "project": {
+                        "type": "string"
+                    },
+                    "repository": {
+                        "type": "string"
+                    },
+                    "branch": {
+                        "type": "string"
+                    },
+                    "project_sub_path": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type",
+                    "personal_access_token",
+                    "organization",
+                    "project",
+                    "repository",
+                    "branch",
+                    "project_sub_path"
+                ],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "DbtProjectType.NONE": {
+                "enum": ["none"],
+                "type": "string"
+            },
+            "DbtNoneProjectConfig": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DbtProjectType.NONE"
+                    },
+                    "target": {
+                        "type": "string"
+                    },
+                    "environment": {
+                        "items": {
+                            "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
+                        },
+                        "type": "array"
+                    },
+                    "hideRefreshButton": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["type"],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "DbtProjectConfig": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/DbtLocalProjectConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DbtCloudIDEProjectConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DbtGithubProjectConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DbtBitBucketProjectConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DbtGitlabProjectConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DbtAzureDevOpsProjectConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DbtNoneProjectConfig"
+                    }
+                ]
+            },
+            "HealthState": {
+                "properties": {
+                    "hasHeadlessBrowser": {
+                        "type": "boolean"
+                    },
+                    "hasSlack": {
+                        "type": "boolean"
+                    },
+                    "query": {
+                        "properties": {
+                            "csvCellsLimit": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "maxLimit": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["csvCellsLimit", "maxLimit"],
+                        "type": "object"
+                    },
+                    "staticIp": {
+                        "type": "string"
+                    },
+                    "intercom": {
+                        "properties": {
+                            "apiBase": {
+                                "type": "string"
+                            },
+                            "appId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["apiBase", "appId"],
+                        "type": "object"
+                    },
+                    "siteUrl": {
+                        "type": "string"
+                    },
+                    "posthog": {
+                        "properties": {
+                            "apiHost": {
+                                "type": "string"
+                            },
+                            "projectApiKey": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["apiHost", "projectApiKey"],
+                        "type": "object"
+                    },
+                    "auth": {
+                        "properties": {
+                            "azuread": {
+                                "properties": {
+                                    "loginPath": {
+                                        "type": "string"
+                                    },
+                                    "enabled": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "required": ["loginPath", "enabled"],
+                                "type": "object"
+                            },
+                            "oneLogin": {
+                                "properties": {
+                                    "loginPath": {
+                                        "type": "string"
+                                    },
+                                    "enabled": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "required": ["loginPath", "enabled"],
+                                "type": "object"
+                            },
+                            "okta": {
+                                "properties": {
+                                    "loginPath": {
+                                        "type": "string"
+                                    },
+                                    "enabled": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "required": ["loginPath", "enabled"],
+                                "type": "object"
+                            },
+                            "google": {
+                                "properties": {
+                                    "enabled": {
+                                        "type": "boolean"
+                                    },
+                                    "googleDriveApiKey": {
+                                        "type": "string"
+                                    },
+                                    "loginPath": {
+                                        "type": "string"
+                                    },
+                                    "oauth2ClientId": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["enabled", "loginPath"],
+                                "type": "object"
+                            },
+                            "disablePasswordAuthentication": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": [
+                            "azuread",
+                            "oneLogin",
+                            "okta",
+                            "google",
+                            "disablePasswordAuthentication"
+                        ],
+                        "type": "object"
+                    },
+                    "sentry": {
+                        "properties": {
+                            "release": {
+                                "type": "string"
+                            },
+                            "environment": {
+                                "type": "string"
+                            },
+                            "dsn": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["release", "environment", "dsn"],
+                        "type": "object"
+                    },
+                    "rudder": {
+                        "properties": {
+                            "dataPlaneUrl": {
+                                "type": "string"
+                            },
+                            "writeKey": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["dataPlaneUrl", "writeKey"],
+                        "type": "object"
+                    },
+                    "latest": {
+                        "properties": {
+                            "version": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "hasEmailClient": {
+                        "type": "boolean"
+                    },
+                    "requiresOrgRegistration": {
+                        "type": "boolean"
+                    },
+                    "isAuthenticated": {
+                        "type": "boolean"
+                    },
+                    "defaultProject": {
+                        "$ref": "#/components/schemas/DbtProjectConfig"
+                    },
+                    "localDbtEnabled": {
+                        "type": "boolean"
+                    },
+                    "version": {
+                        "type": "string"
+                    },
+                    "mode": {
+                        "$ref": "#/components/schemas/LightdashMode"
+                    },
+                    "healthy": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "hasHeadlessBrowser",
+                    "hasSlack",
+                    "query",
+                    "staticIp",
+                    "intercom",
+                    "siteUrl",
+                    "posthog",
+                    "auth",
+                    "sentry",
+                    "rudder",
+                    "latest",
+                    "hasEmailClient",
+                    "requiresOrgRegistration",
+                    "isAuthenticated",
+                    "localDbtEnabled",
+                    "version",
+                    "mode",
+                    "healthy"
+                ],
+                "type": "object"
+            },
+            "ApiHealthState": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/HealthState"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Organization": {
                 "properties": {
                     "defaultProjectUuid": {
@@ -1378,351 +1944,6 @@
                 },
                 "required": ["data", "type"],
                 "type": "object"
-            },
-            "DbtProjectType.DBT": {
-                "enum": ["dbt"],
-                "type": "string"
-            },
-            "DbtProjectEnvironmentVariable": {
-                "properties": {
-                    "value": {
-                        "type": "string"
-                    },
-                    "key": {
-                        "type": "string"
-                    }
-                },
-                "required": ["value", "key"],
-                "type": "object"
-            },
-            "DbtProjectType": {
-                "enum": [
-                    "dbt",
-                    "dbt_cloud_ide",
-                    "github",
-                    "gitlab",
-                    "bitbucket",
-                    "azure_devops",
-                    "none"
-                ],
-                "type": "string"
-            },
-            "DbtLocalProjectConfig": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/DbtProjectType.DBT"
-                    },
-                    "target": {
-                        "type": "string"
-                    },
-                    "environment": {
-                        "items": {
-                            "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
-                        },
-                        "type": "array"
-                    },
-                    "profiles_dir": {
-                        "type": "string"
-                    },
-                    "project_dir": {
-                        "type": "string"
-                    }
-                },
-                "required": ["type"],
-                "type": "object",
-                "additionalProperties": false
-            },
-            "DbtProjectType.DBT_CLOUD_IDE": {
-                "enum": ["dbt_cloud_ide"],
-                "type": "string"
-            },
-            "DbtCloudIDEProjectConfig": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/DbtProjectType.DBT_CLOUD_IDE"
-                    },
-                    "api_key": {
-                        "type": "string"
-                    },
-                    "account_id": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "number",
-                                "format": "double"
-                            }
-                        ]
-                    },
-                    "environment_id": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "number",
-                                "format": "double"
-                            }
-                        ]
-                    },
-                    "project_id": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "number",
-                                "format": "double"
-                            }
-                        ]
-                    }
-                },
-                "required": [
-                    "type",
-                    "api_key",
-                    "account_id",
-                    "environment_id",
-                    "project_id"
-                ],
-                "type": "object",
-                "additionalProperties": false
-            },
-            "DbtProjectType.GITHUB": {
-                "enum": ["github"],
-                "type": "string"
-            },
-            "DbtGithubProjectConfig": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/DbtProjectType.GITHUB"
-                    },
-                    "target": {
-                        "type": "string"
-                    },
-                    "environment": {
-                        "items": {
-                            "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
-                        },
-                        "type": "array"
-                    },
-                    "personal_access_token": {
-                        "type": "string"
-                    },
-                    "repository": {
-                        "type": "string"
-                    },
-                    "branch": {
-                        "type": "string"
-                    },
-                    "project_sub_path": {
-                        "type": "string"
-                    },
-                    "host_domain": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "type",
-                    "personal_access_token",
-                    "repository",
-                    "branch",
-                    "project_sub_path"
-                ],
-                "type": "object",
-                "additionalProperties": false
-            },
-            "DbtProjectType.BITBUCKET": {
-                "enum": ["bitbucket"],
-                "type": "string"
-            },
-            "DbtBitBucketProjectConfig": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/DbtProjectType.BITBUCKET"
-                    },
-                    "target": {
-                        "type": "string"
-                    },
-                    "environment": {
-                        "items": {
-                            "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
-                        },
-                        "type": "array"
-                    },
-                    "username": {
-                        "type": "string"
-                    },
-                    "personal_access_token": {
-                        "type": "string"
-                    },
-                    "repository": {
-                        "type": "string"
-                    },
-                    "branch": {
-                        "type": "string"
-                    },
-                    "project_sub_path": {
-                        "type": "string"
-                    },
-                    "host_domain": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "type",
-                    "username",
-                    "personal_access_token",
-                    "repository",
-                    "branch",
-                    "project_sub_path"
-                ],
-                "type": "object",
-                "additionalProperties": false
-            },
-            "DbtProjectType.GITLAB": {
-                "enum": ["gitlab"],
-                "type": "string"
-            },
-            "DbtGitlabProjectConfig": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/DbtProjectType.GITLAB"
-                    },
-                    "target": {
-                        "type": "string"
-                    },
-                    "environment": {
-                        "items": {
-                            "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
-                        },
-                        "type": "array"
-                    },
-                    "personal_access_token": {
-                        "type": "string"
-                    },
-                    "repository": {
-                        "type": "string"
-                    },
-                    "branch": {
-                        "type": "string"
-                    },
-                    "project_sub_path": {
-                        "type": "string"
-                    },
-                    "host_domain": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "type",
-                    "personal_access_token",
-                    "repository",
-                    "branch",
-                    "project_sub_path"
-                ],
-                "type": "object",
-                "additionalProperties": false
-            },
-            "DbtProjectType.AZURE_DEVOPS": {
-                "enum": ["azure_devops"],
-                "type": "string"
-            },
-            "DbtAzureDevOpsProjectConfig": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/DbtProjectType.AZURE_DEVOPS"
-                    },
-                    "target": {
-                        "type": "string"
-                    },
-                    "environment": {
-                        "items": {
-                            "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
-                        },
-                        "type": "array"
-                    },
-                    "personal_access_token": {
-                        "type": "string"
-                    },
-                    "organization": {
-                        "type": "string"
-                    },
-                    "project": {
-                        "type": "string"
-                    },
-                    "repository": {
-                        "type": "string"
-                    },
-                    "branch": {
-                        "type": "string"
-                    },
-                    "project_sub_path": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "type",
-                    "personal_access_token",
-                    "organization",
-                    "project",
-                    "repository",
-                    "branch",
-                    "project_sub_path"
-                ],
-                "type": "object",
-                "additionalProperties": false
-            },
-            "DbtProjectType.NONE": {
-                "enum": ["none"],
-                "type": "string"
-            },
-            "DbtNoneProjectConfig": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/DbtProjectType.NONE"
-                    },
-                    "target": {
-                        "type": "string"
-                    },
-                    "environment": {
-                        "items": {
-                            "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
-                        },
-                        "type": "array"
-                    },
-                    "hideRefreshButton": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["type"],
-                "type": "object",
-                "additionalProperties": false
-            },
-            "DbtProjectConfig": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/DbtLocalProjectConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DbtCloudIDEProjectConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DbtGithubProjectConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DbtBitBucketProjectConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DbtGitlabProjectConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DbtAzureDevOpsProjectConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DbtNoneProjectConfig"
-                    }
-                ]
             },
             "WarehouseTypes.SNOWFLAKE": {
                 "enum": ["snowflake"],
@@ -5157,7 +5378,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.814.1",
+        "version": "0.816.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -5665,6 +5886,37 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/health": {
+            "get": {
+                "operationId": "getHealth",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiHealthState"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get server health status",
+                "tags": ["User Groups"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/projects/{projectUuid}/dbtsemanticlayer": {

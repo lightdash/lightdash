@@ -20,6 +20,8 @@ import { GoogleDriveController } from './../controllers/googleDriveController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { GroupsController } from './../controllers/groupsController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { HealthController } from './../controllers/healthController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { MetricFlowController } from './../controllers/metricFlowController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { OrganizationController } from './../controllers/organizationController';
@@ -544,6 +546,398 @@ const models: TsoaRoute.Models = {
     UpdateGroup: {
         dataType: 'refAlias',
         type: { ref: 'Pick_Group.name_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    LightdashMode: {
+        dataType: 'refEnum',
+        enums: ['default', 'demo', 'pr', 'cloud_beta', 'development'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'DbtProjectType.DBT': {
+        dataType: 'refEnum',
+        enums: ['dbt'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DbtProjectEnvironmentVariable: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                value: { dataType: 'string', required: true },
+                key: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DbtProjectType: {
+        dataType: 'refEnum',
+        enums: [
+            'dbt',
+            'dbt_cloud_ide',
+            'github',
+            'gitlab',
+            'bitbucket',
+            'azure_devops',
+            'none',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DbtLocalProjectConfig: {
+        dataType: 'refObject',
+        properties: {
+            type: { ref: 'DbtProjectType.DBT', required: true },
+            target: { dataType: 'string' },
+            environment: {
+                dataType: 'array',
+                array: {
+                    dataType: 'refAlias',
+                    ref: 'DbtProjectEnvironmentVariable',
+                },
+            },
+            profiles_dir: { dataType: 'string' },
+            project_dir: { dataType: 'string' },
+        },
+        additionalProperties: false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'DbtProjectType.DBT_CLOUD_IDE': {
+        dataType: 'refEnum',
+        enums: ['dbt_cloud_ide'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DbtCloudIDEProjectConfig: {
+        dataType: 'refObject',
+        properties: {
+            type: { ref: 'DbtProjectType.DBT_CLOUD_IDE', required: true },
+            api_key: { dataType: 'string', required: true },
+            account_id: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'double' }],
+                required: true,
+            },
+            environment_id: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'double' }],
+                required: true,
+            },
+            project_id: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'double' }],
+                required: true,
+            },
+        },
+        additionalProperties: false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'DbtProjectType.GITHUB': {
+        dataType: 'refEnum',
+        enums: ['github'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DbtGithubProjectConfig: {
+        dataType: 'refObject',
+        properties: {
+            type: { ref: 'DbtProjectType.GITHUB', required: true },
+            target: { dataType: 'string' },
+            environment: {
+                dataType: 'array',
+                array: {
+                    dataType: 'refAlias',
+                    ref: 'DbtProjectEnvironmentVariable',
+                },
+            },
+            personal_access_token: { dataType: 'string', required: true },
+            repository: { dataType: 'string', required: true },
+            branch: { dataType: 'string', required: true },
+            project_sub_path: { dataType: 'string', required: true },
+            host_domain: { dataType: 'string' },
+        },
+        additionalProperties: false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'DbtProjectType.BITBUCKET': {
+        dataType: 'refEnum',
+        enums: ['bitbucket'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DbtBitBucketProjectConfig: {
+        dataType: 'refObject',
+        properties: {
+            type: { ref: 'DbtProjectType.BITBUCKET', required: true },
+            target: { dataType: 'string' },
+            environment: {
+                dataType: 'array',
+                array: {
+                    dataType: 'refAlias',
+                    ref: 'DbtProjectEnvironmentVariable',
+                },
+            },
+            username: { dataType: 'string', required: true },
+            personal_access_token: { dataType: 'string', required: true },
+            repository: { dataType: 'string', required: true },
+            branch: { dataType: 'string', required: true },
+            project_sub_path: { dataType: 'string', required: true },
+            host_domain: { dataType: 'string' },
+        },
+        additionalProperties: false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'DbtProjectType.GITLAB': {
+        dataType: 'refEnum',
+        enums: ['gitlab'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DbtGitlabProjectConfig: {
+        dataType: 'refObject',
+        properties: {
+            type: { ref: 'DbtProjectType.GITLAB', required: true },
+            target: { dataType: 'string' },
+            environment: {
+                dataType: 'array',
+                array: {
+                    dataType: 'refAlias',
+                    ref: 'DbtProjectEnvironmentVariable',
+                },
+            },
+            personal_access_token: { dataType: 'string', required: true },
+            repository: { dataType: 'string', required: true },
+            branch: { dataType: 'string', required: true },
+            project_sub_path: { dataType: 'string', required: true },
+            host_domain: { dataType: 'string' },
+        },
+        additionalProperties: false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'DbtProjectType.AZURE_DEVOPS': {
+        dataType: 'refEnum',
+        enums: ['azure_devops'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DbtAzureDevOpsProjectConfig: {
+        dataType: 'refObject',
+        properties: {
+            type: { ref: 'DbtProjectType.AZURE_DEVOPS', required: true },
+            target: { dataType: 'string' },
+            environment: {
+                dataType: 'array',
+                array: {
+                    dataType: 'refAlias',
+                    ref: 'DbtProjectEnvironmentVariable',
+                },
+            },
+            personal_access_token: { dataType: 'string', required: true },
+            organization: { dataType: 'string', required: true },
+            project: { dataType: 'string', required: true },
+            repository: { dataType: 'string', required: true },
+            branch: { dataType: 'string', required: true },
+            project_sub_path: { dataType: 'string', required: true },
+        },
+        additionalProperties: false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'DbtProjectType.NONE': {
+        dataType: 'refEnum',
+        enums: ['none'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DbtNoneProjectConfig: {
+        dataType: 'refObject',
+        properties: {
+            type: { ref: 'DbtProjectType.NONE', required: true },
+            target: { dataType: 'string' },
+            environment: {
+                dataType: 'array',
+                array: {
+                    dataType: 'refAlias',
+                    ref: 'DbtProjectEnvironmentVariable',
+                },
+            },
+            hideRefreshButton: { dataType: 'boolean' },
+        },
+        additionalProperties: false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DbtProjectConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'DbtLocalProjectConfig' },
+                { ref: 'DbtCloudIDEProjectConfig' },
+                { ref: 'DbtGithubProjectConfig' },
+                { ref: 'DbtBitBucketProjectConfig' },
+                { ref: 'DbtGitlabProjectConfig' },
+                { ref: 'DbtAzureDevOpsProjectConfig' },
+                { ref: 'DbtNoneProjectConfig' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HealthState: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                hasHeadlessBrowser: { dataType: 'boolean', required: true },
+                hasSlack: { dataType: 'boolean', required: true },
+                query: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        csvCellsLimit: { dataType: 'double', required: true },
+                        maxLimit: { dataType: 'double', required: true },
+                    },
+                    required: true,
+                },
+                staticIp: { dataType: 'string', required: true },
+                intercom: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        apiBase: { dataType: 'string', required: true },
+                        appId: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                siteUrl: { dataType: 'string', required: true },
+                posthog: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        apiHost: { dataType: 'string', required: true },
+                        projectApiKey: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                auth: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        azuread: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                loginPath: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                enabled: {
+                                    dataType: 'boolean',
+                                    required: true,
+                                },
+                            },
+                            required: true,
+                        },
+                        oneLogin: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                loginPath: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                enabled: {
+                                    dataType: 'boolean',
+                                    required: true,
+                                },
+                            },
+                            required: true,
+                        },
+                        okta: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                loginPath: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                enabled: {
+                                    dataType: 'boolean',
+                                    required: true,
+                                },
+                            },
+                            required: true,
+                        },
+                        google: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                enabled: {
+                                    dataType: 'boolean',
+                                    required: true,
+                                },
+                                googleDriveApiKey: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'string' },
+                                        { dataType: 'undefined' },
+                                    ],
+                                    required: true,
+                                },
+                                loginPath: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                oauth2ClientId: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'string' },
+                                        { dataType: 'undefined' },
+                                    ],
+                                    required: true,
+                                },
+                            },
+                            required: true,
+                        },
+                        disablePasswordAuthentication: {
+                            dataType: 'boolean',
+                            required: true,
+                        },
+                    },
+                    required: true,
+                },
+                sentry: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        release: { dataType: 'string', required: true },
+                        environment: { dataType: 'string', required: true },
+                        dsn: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                rudder: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        dataPlaneUrl: { dataType: 'string', required: true },
+                        writeKey: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                latest: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: { version: { dataType: 'string' } },
+                    required: true,
+                },
+                hasEmailClient: { dataType: 'boolean', required: true },
+                requiresOrgRegistration: {
+                    dataType: 'boolean',
+                    required: true,
+                },
+                isAuthenticated: { dataType: 'boolean', required: true },
+                defaultProject: { ref: 'DbtProjectConfig' },
+                localDbtEnabled: { dataType: 'boolean', required: true },
+                version: { dataType: 'string', required: true },
+                mode: { ref: 'LightdashMode', required: true },
+                healthy: { dataType: 'boolean', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiHealthState: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'HealthState', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Organization: {
@@ -1255,228 +1649,6 @@ const models: TsoaRoute.Models = {
                 },
                 type: { ref: 'ResourceViewItemType', required: true },
             },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'DbtProjectType.DBT': {
-        dataType: 'refEnum',
-        enums: ['dbt'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DbtProjectEnvironmentVariable: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                value: { dataType: 'string', required: true },
-                key: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DbtProjectType: {
-        dataType: 'refEnum',
-        enums: [
-            'dbt',
-            'dbt_cloud_ide',
-            'github',
-            'gitlab',
-            'bitbucket',
-            'azure_devops',
-            'none',
-        ],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DbtLocalProjectConfig: {
-        dataType: 'refObject',
-        properties: {
-            type: { ref: 'DbtProjectType.DBT', required: true },
-            target: { dataType: 'string' },
-            environment: {
-                dataType: 'array',
-                array: {
-                    dataType: 'refAlias',
-                    ref: 'DbtProjectEnvironmentVariable',
-                },
-            },
-            profiles_dir: { dataType: 'string' },
-            project_dir: { dataType: 'string' },
-        },
-        additionalProperties: false,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'DbtProjectType.DBT_CLOUD_IDE': {
-        dataType: 'refEnum',
-        enums: ['dbt_cloud_ide'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DbtCloudIDEProjectConfig: {
-        dataType: 'refObject',
-        properties: {
-            type: { ref: 'DbtProjectType.DBT_CLOUD_IDE', required: true },
-            api_key: { dataType: 'string', required: true },
-            account_id: {
-                dataType: 'union',
-                subSchemas: [{ dataType: 'string' }, { dataType: 'double' }],
-                required: true,
-            },
-            environment_id: {
-                dataType: 'union',
-                subSchemas: [{ dataType: 'string' }, { dataType: 'double' }],
-                required: true,
-            },
-            project_id: {
-                dataType: 'union',
-                subSchemas: [{ dataType: 'string' }, { dataType: 'double' }],
-                required: true,
-            },
-        },
-        additionalProperties: false,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'DbtProjectType.GITHUB': {
-        dataType: 'refEnum',
-        enums: ['github'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DbtGithubProjectConfig: {
-        dataType: 'refObject',
-        properties: {
-            type: { ref: 'DbtProjectType.GITHUB', required: true },
-            target: { dataType: 'string' },
-            environment: {
-                dataType: 'array',
-                array: {
-                    dataType: 'refAlias',
-                    ref: 'DbtProjectEnvironmentVariable',
-                },
-            },
-            personal_access_token: { dataType: 'string', required: true },
-            repository: { dataType: 'string', required: true },
-            branch: { dataType: 'string', required: true },
-            project_sub_path: { dataType: 'string', required: true },
-            host_domain: { dataType: 'string' },
-        },
-        additionalProperties: false,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'DbtProjectType.BITBUCKET': {
-        dataType: 'refEnum',
-        enums: ['bitbucket'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DbtBitBucketProjectConfig: {
-        dataType: 'refObject',
-        properties: {
-            type: { ref: 'DbtProjectType.BITBUCKET', required: true },
-            target: { dataType: 'string' },
-            environment: {
-                dataType: 'array',
-                array: {
-                    dataType: 'refAlias',
-                    ref: 'DbtProjectEnvironmentVariable',
-                },
-            },
-            username: { dataType: 'string', required: true },
-            personal_access_token: { dataType: 'string', required: true },
-            repository: { dataType: 'string', required: true },
-            branch: { dataType: 'string', required: true },
-            project_sub_path: { dataType: 'string', required: true },
-            host_domain: { dataType: 'string' },
-        },
-        additionalProperties: false,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'DbtProjectType.GITLAB': {
-        dataType: 'refEnum',
-        enums: ['gitlab'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DbtGitlabProjectConfig: {
-        dataType: 'refObject',
-        properties: {
-            type: { ref: 'DbtProjectType.GITLAB', required: true },
-            target: { dataType: 'string' },
-            environment: {
-                dataType: 'array',
-                array: {
-                    dataType: 'refAlias',
-                    ref: 'DbtProjectEnvironmentVariable',
-                },
-            },
-            personal_access_token: { dataType: 'string', required: true },
-            repository: { dataType: 'string', required: true },
-            branch: { dataType: 'string', required: true },
-            project_sub_path: { dataType: 'string', required: true },
-            host_domain: { dataType: 'string' },
-        },
-        additionalProperties: false,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'DbtProjectType.AZURE_DEVOPS': {
-        dataType: 'refEnum',
-        enums: ['azure_devops'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DbtAzureDevOpsProjectConfig: {
-        dataType: 'refObject',
-        properties: {
-            type: { ref: 'DbtProjectType.AZURE_DEVOPS', required: true },
-            target: { dataType: 'string' },
-            environment: {
-                dataType: 'array',
-                array: {
-                    dataType: 'refAlias',
-                    ref: 'DbtProjectEnvironmentVariable',
-                },
-            },
-            personal_access_token: { dataType: 'string', required: true },
-            organization: { dataType: 'string', required: true },
-            project: { dataType: 'string', required: true },
-            repository: { dataType: 'string', required: true },
-            branch: { dataType: 'string', required: true },
-            project_sub_path: { dataType: 'string', required: true },
-        },
-        additionalProperties: false,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'DbtProjectType.NONE': {
-        dataType: 'refEnum',
-        enums: ['none'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DbtNoneProjectConfig: {
-        dataType: 'refObject',
-        properties: {
-            type: { ref: 'DbtProjectType.NONE', required: true },
-            target: { dataType: 'string' },
-            environment: {
-                dataType: 'array',
-                array: {
-                    dataType: 'refAlias',
-                    ref: 'DbtProjectEnvironmentVariable',
-                },
-            },
-            hideRefreshButton: { dataType: 'boolean' },
-        },
-        additionalProperties: false,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DbtProjectConfig: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { ref: 'DbtLocalProjectConfig' },
-                { ref: 'DbtCloudIDEProjectConfig' },
-                { ref: 'DbtGithubProjectConfig' },
-                { ref: 'DbtBitBucketProjectConfig' },
-                { ref: 'DbtGitlabProjectConfig' },
-                { ref: 'DbtAzureDevOpsProjectConfig' },
-                { ref: 'DbtNoneProjectConfig' },
-            ],
             validators: {},
         },
     },
@@ -5045,6 +5217,46 @@ export function RegisterRoutes(app: express.Router) {
                 const controller = new GroupsController();
 
                 const promise = controller.updateGroup.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, undefined, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/health',
+        ...fetchMiddlewares<RequestHandler>(HealthController),
+        ...fetchMiddlewares<RequestHandler>(
+            HealthController.prototype.getHealth,
+        ),
+
+        function HealthController_getHealth(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new HealthController();
+
+                const promise = controller.getHealth.apply(
                     controller,
                     validatedArgs as any,
                 );
