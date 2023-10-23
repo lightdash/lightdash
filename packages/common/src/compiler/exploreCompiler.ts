@@ -11,9 +11,9 @@ import {
     CompiledDimension,
     CompiledMetric,
     Dimension,
+    Metric,
     friendlyName,
     isNonAggregateMetric,
-    Metric,
 } from '../types/field';
 import { WarehouseClient } from '../types/warehouse';
 
@@ -362,7 +362,7 @@ export class ExploreCompiler {
                     this.warehouseClient.getAdapterType(),
                 );
             });
-            renderedSql = `CASE WHEN (${conditions.join(
+            renderedSql = `CASE WHEN (${conditions.map(cond => `(${cond})`).join(
                 ' AND ',
             )}) THEN (${renderedSql}) ELSE NULL END`;
         }
