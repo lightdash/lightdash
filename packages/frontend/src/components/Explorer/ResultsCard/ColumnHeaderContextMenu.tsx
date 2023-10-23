@@ -193,7 +193,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                                 onToggleCalculationDeleteModal(true);
                             }}
                         >
-                            Delete
+                            Remove
                         </Menu.Item>
                     </>
                 )}
