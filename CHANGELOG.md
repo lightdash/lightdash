@@ -1,3 +1,10 @@
+# [0.819.0](https://github.com/lightdash/lightdash/compare/0.818.0...0.819.0) (2023-10-23)
+
+
+### Features
+
+* pivot table max column env variable ([#7554](https://github.com/lightdash/lightdash/issues/7554)) ([8e15457](https://github.com/lightdash/lightdash/commit/8e154571201a4261426c9e44151cc5917fe0d66a))
+
 # [0.818.0](https://github.com/lightdash/lightdash/compare/0.817.0...0.818.0) (2023-10-23)
 
 
