@@ -1,3 +1,10 @@
+# [0.818.0](https://github.com/lightdash/lightdash/compare/0.817.0...0.818.0) (2023-10-23)
+
+
+### Features
+
+* [Custom dimension] Binning with fixed number ([#7515](https://github.com/lightdash/lightdash/issues/7515)) ([7f786d5](https://github.com/lightdash/lightdash/commit/7f786d567fdf059a8c6acb5e0e1a65666c4d82d8))
+
 # [0.817.0](https://github.com/lightdash/lightdash/compare/0.816.4...0.817.0) (2023-10-23)
 
 
