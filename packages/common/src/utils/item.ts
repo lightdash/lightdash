@@ -27,6 +27,7 @@ export const isNumericItem = (
     if (!item) {
         return false;
     }
+    if (isCustomDimension(item)) return false;
     if (isField(item) || isAdditionalMetric(item)) {
         const numericTypes: string[] = [
             DimensionType.NUMBER,
@@ -77,7 +78,7 @@ export const getItemLabel = (item: Item) =>
 export const getItemIcon = (
     item: Field | TableCalculation | AdditionalMetric | CustomDimension,
 ) => {
-    if (isCustomDimension(item)) return 'numerical';
+    if (isCustomDimension(item)) return 'tag';
 
     if (isField(item)) {
         return isDimension(item) ? 'tag' : 'numerical';
