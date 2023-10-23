@@ -2,12 +2,12 @@ import express from 'express';
 import passport from 'passport';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
-    redirectOIDCFailure,
-    redirectOIDCSuccess,
+    getSuccessURLWithReturnTo,
+    redirectOIDC,
     storeOIDCRedirect,
 } from '../controllers/authentication';
 import { UserModel } from '../models/UserModel';
-import { healthService, userService } from '../services/services';
+import { healthService } from '../services/services';
 import { analyticsRouter } from './analyticsRouter';
 import { dashboardRouter } from './dashboardRouter';
 import { headlessBrowserRouter } from './headlessBrowser';
@@ -68,13 +68,12 @@ apiV1Router.get(
     }),
 );
 
-apiV1Router.get(
-    lightdashConfig.auth.okta.callbackPath,
+apiV1Router.get(lightdashConfig.auth.okta.callbackPath, (req, res, next) =>
     passport.authenticate('okta', {
         failureRedirect: '/api/v1/oauth/failure',
-        successRedirect: '/api/v1/oauth/success',
+        successRedirect: getSuccessURLWithReturnTo(req),
         failureFlash: true,
-    }),
+    })(req, res, next),
 );
 
 apiV1Router.get(
@@ -85,13 +84,12 @@ apiV1Router.get(
     }),
 );
 
-apiV1Router.get(
-    lightdashConfig.auth.azuread.callbackPath,
+apiV1Router.get(lightdashConfig.auth.azuread.callbackPath, (req, res, next) =>
     passport.authenticate('azuread', {
         failureRedirect: '/api/v1/oauth/failure',
-        successRedirect: '/api/v1/oauth/success',
+        successRedirect: getSuccessURLWithReturnTo(req),
         failureFlash: true,
-    }),
+    })(req, res, next),
 );
 
 apiV1Router.get(
@@ -102,13 +100,12 @@ apiV1Router.get(
     }),
 );
 
-apiV1Router.get(
-    lightdashConfig.auth.oneLogin.callbackPath,
+apiV1Router.get(lightdashConfig.auth.oneLogin.callbackPath, (req, res, next) =>
     passport.authenticate('oneLogin', {
         failureRedirect: '/api/v1/oauth/failure',
-        successRedirect: '/api/v1/oauth/success',
+        successRedirect: getSuccessURLWithReturnTo(req),
         failureFlash: true,
-    }),
+    })(req, res, next),
 );
 
 apiV1Router.get(
@@ -136,20 +133,15 @@ apiV1Router.get(
 );
 
 apiV1Router.get(lightdashConfig.auth.google.callbackPath, (req, res, next) => {
-    const { returnTo } = req.session.oauth || {};
-
-    const redirectQuery = returnTo
-        ? `?returnTo=${encodeURIComponent(returnTo)}`
-        : '';
     passport.authenticate('google', {
         failureRedirect: '/api/v1/oauth/failure',
-        successRedirect: `/api/v1/oauth/success${redirectQuery}`,
+        successRedirect: getSuccessURLWithReturnTo(req),
         failureFlash: true,
         includeGrantedScopes: true,
     })(req, res, next);
 });
-apiV1Router.get('/oauth/failure', redirectOIDCFailure);
-apiV1Router.get('/oauth/success', redirectOIDCSuccess);
+apiV1Router.get('/oauth/failure', redirectOIDC);
+apiV1Router.get('/oauth/success', redirectOIDC);
 
 apiV1Router.get('/logout', (req, res, next) => {
     req.logout((err) => {

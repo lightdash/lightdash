@@ -1,3 +1,45 @@
+# [0.817.0](https://github.com/lightdash/lightdash/compare/0.816.4...0.817.0) (2023-10-23)
+
+
+### Features
+
+* replace popover with menu on results table ([#7593](https://github.com/lightdash/lightdash/issues/7593)) ([161d259](https://github.com/lightdash/lightdash/commit/161d259b9ec29d9f270335dbb71dc548da53df88))
+
+## [0.816.4](https://github.com/lightdash/lightdash/compare/0.816.3...0.816.4) (2023-10-23)
+
+
+### Bug Fixes
+
+* revert "feat: add stale time and cacheTime to useExplore ([#7567](https://github.com/lightdash/lightdash/issues/7567))" ([#7599](https://github.com/lightdash/lightdash/issues/7599)) ([07811e8](https://github.com/lightdash/lightdash/commit/07811e8bf2da30435a90bbfc696ce64436c4e9dc))
+
+## [0.816.3](https://github.com/lightdash/lightdash/compare/0.816.2...0.816.3) (2023-10-23)
+
+
+### Bug Fixes
+
+* cli onboarding code blocks ([#7578](https://github.com/lightdash/lightdash/issues/7578)) ([3bd535a](https://github.com/lightdash/lightdash/commit/3bd535a588168b9e617bfbda11dd118c4a460eb0))
+
+## [0.816.2](https://github.com/lightdash/lightdash/compare/0.816.1...0.816.2) (2023-10-23)
+
+
+### Bug Fixes
+
+* explore models tooltip ([#7582](https://github.com/lightdash/lightdash/issues/7582)) ([7169b14](https://github.com/lightdash/lightdash/commit/7169b14d75cb5c4db28b51f61293a193129280bd))
+
+## [0.816.1](https://github.com/lightdash/lightdash/compare/0.816.0...0.816.1) (2023-10-23)
+
+
+### Bug Fixes
+
+* redirect on register ([#7572](https://github.com/lightdash/lightdash/issues/7572)) ([92d6b90](https://github.com/lightdash/lightdash/commit/92d6b90bff38bd138f2aed9c04e483a2a8b8cd72))
+
+# [0.816.0](https://github.com/lightdash/lightdash/compare/0.815.0...0.816.0) (2023-10-20)
+
+
+### Features
+
+* add stale time and cacheTime to useExplore ([#7567](https://github.com/lightdash/lightdash/issues/7567)) ([478d936](https://github.com/lightdash/lightdash/commit/478d936cbe4c429bc72e2f23e51521737aae4b5a))
+
 # [0.815.0](https://github.com/lightdash/lightdash/compare/0.814.5...0.815.0) (2023-10-20)
 
 

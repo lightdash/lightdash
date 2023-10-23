@@ -106,6 +106,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                             withinPortal
                             position="right"
                             label={explore.description}
+                            multiline
                         >
                             <MantineIcon
                                 icon={IconInfoCircle}
