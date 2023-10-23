@@ -171,6 +171,7 @@ const ValidDashboardChartTile: FC<{
     } = useChartResults(data.uuid, data.metricQuery.filters);
     const { addSuggestions } = useDashboardContext();
     const { data: explore } = useExplore(data.tableName);
+    const { health } = useApp();
 
     useEffect(() => {
         if (resultData) {
@@ -190,6 +191,10 @@ const ValidDashboardChartTile: FC<{
         }
     }, [addSuggestions, resultData]);
 
+    if (health.isLoading || !health.data) {
+        return null;
+    }
+
     if (error) {
         return <ErrorState error={error.error} />;
     }
@@ -204,6 +209,7 @@ const ValidDashboardChartTile: FC<{
             isLoading={isLoading}
             onSeriesContextMenu={onSeriesContextMenu}
             columnOrder={data.tableConfig.columnOrder}
+            pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
         >
             <LightdashVisualization
                 isDashboard
@@ -227,6 +233,12 @@ const ValidDashboardChartTileMinimal: FC<{
     } = useChartResults(data.uuid, data.metricQuery.filters);
     const { data: explore } = useExplore(data.tableName);
 
+    const { health } = useApp();
+
+    if (health.isLoading || !health.data) {
+        return null;
+    }
+
     if (error) {
         return <ErrorState error={error.error} />;
     }
@@ -241,6 +253,7 @@ const ValidDashboardChartTileMinimal: FC<{
             explore={explore}
             isLoading={isLoading}
             columnOrder={data.tableConfig.columnOrder}
+            pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
         >
             <LightdashVisualization
                 tileUuid={tileUuid}
