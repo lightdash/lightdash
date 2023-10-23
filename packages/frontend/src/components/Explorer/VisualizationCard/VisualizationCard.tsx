@@ -33,6 +33,9 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
         // FEATURE FLAG: remove when chart config sidebar is complete
         const useSidebar = useFeatureFlagEnabled('sidebar-chart-config');
 
+        const savedChart = useExplorerContext(
+            (context) => context.state.savedChart,
+        );
         const unsavedChartVersion = useExplorerContext(
             (context) => context.state.unsavedChartVersion,
         );
@@ -168,6 +171,7 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
                                     useSidebar ? (
                                         <VisualizationSidebar
                                             chartType={chartType}
+                                            savedChart={savedChart}
                                             isEditingDashboardChart={getIsEditingDashboardChart()}
                                         />
                                     ) : (

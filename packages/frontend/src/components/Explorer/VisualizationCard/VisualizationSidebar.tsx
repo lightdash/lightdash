@@ -1,4 +1,4 @@
-import { assertUnreachable, ChartType } from '@lightdash/common';
+import { assertUnreachable, ChartType, SavedChart } from '@lightdash/common';
 import { Button, Drawer, Group, Stack, Text } from '@mantine/core';
 import {
     IconLayoutSidebarLeftCollapse,
@@ -15,9 +15,14 @@ import VisualizationCardOptions from '../VisualizationCardOptions';
 
 const VisualizationSidebar: FC<{
     chartType: ChartType;
+    savedChart?: SavedChart;
     isEditingDashboardChart: boolean;
-}> = memo(({ chartType, isEditingDashboardChart }) => {
+}> = memo(({ chartType, savedChart, isEditingDashboardChart }) => {
     const [isOpen, setIsOpen] = useState(false);
+
+    const sidebarVerticalOffset =
+        (isEditingDashboardChart ? 35 : 50) + // Normal header or dashboardChart header
+        (savedChart === undefined ? 0 : 80); // Include the saved chart header or not
 
     return (
         <>
@@ -51,7 +56,7 @@ const VisualizationSidebar: FC<{
                         borderTop: `1px solid ${theme.colors.gray[2]}`,
                     },
                     inner: {
-                        marginTop: isEditingDashboardChart ? '35px' : '130px',
+                        marginTop: sidebarVerticalOffset,
                     },
                 })}
                 onClose={() => setIsOpen((old) => !old)}
