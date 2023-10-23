@@ -173,7 +173,7 @@ declare module 'knex/types/tables' {
         [SavedChartVersionsTableName]: SavedChartVersionsTable;
         [SavedChartVersionFieldsTableName]: SavedChartVersionFieldsTable;
         [SavedChartVersionSortsTableName]: SavedChartVersionSortsTable;
-        [SavedChartTableCalculationTableName]: SavedQueryTableCalculationTable;
+        [SavedChartTableCalculationTableName]: SavedChartTableCalculationTable;
         [SavedChartAdditionalMetricTableName]: SavedChartAdditionalMetricTable;
         [SpaceTableName]: SpaceTable;
         [DashboardsTableName]: DashboardTable;
