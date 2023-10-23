@@ -27,7 +27,7 @@ describe('Explore', () => {
             .click();
 
         // sort `Customers First-Name` by ascending
-        cy.findByRole('option', { name: 'Sort A-Z' }).click();
+        cy.findByRole('menuitem', { name: 'Sort A-Z' }).click();
 
         // wait for query to finish
         cy.findByText('Loading results').should('not.exist');
@@ -161,7 +161,7 @@ describe('Explore', () => {
                 .find('button')
                 .click();
             // sort `Orders Unique order count` by ascending
-            cy.findByRole('option', { name: 'Sort 1-9' }).click();
+            cy.findByRole('menuitem', { name: 'Sort 1-9' }).click();
 
             cy.get('span').contains('Sorted by 1 field').should('exist');
 
@@ -171,7 +171,7 @@ describe('Explore', () => {
                 .find('button')
                 .click();
             // sort `Customers First name` by ascending
-            cy.findByRole('option', { name: 'Sort Z-A' }).click();
+            cy.findByRole('menuitem', { name: 'Sort Z-A' }).click();
 
             cy.get('span').contains('Sorted by 2 fields').should('exist');
 
