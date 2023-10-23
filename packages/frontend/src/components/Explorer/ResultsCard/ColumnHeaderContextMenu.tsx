@@ -66,6 +66,26 @@ const ContextMenu: FC<ContextMenuProps> = ({
         (context) => context.actions.toggleAdditionalMetricModal,
     );
 
+    const customDimensions = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.customDimensions,
+    );
+
+    // TODO: Refactor into a function that gets a Map() of custom IDs and checks if the item is in the map
+    const customDimension = useMemo(
+        () =>
+            !!customDimensions &&
+            !!item &&
+            customDimensions.find((cd) => getItemId(cd) === getItemId(item)),
+        [customDimensions, item],
+    );
+
+    const isItemCustomDimension = !!customDimension;
+
+    const toggleCustomDimensionModal = useExplorerContext(
+        (context) => context.actions.toggleCustomDimensionModal,
+    );
+
     if (item && isField(item) && isFilterableField(item)) {
         const itemFieldId = fieldId(item);
         return (
@@ -129,38 +149,54 @@ const ContextMenu: FC<ContextMenuProps> = ({
     } else if (item && !isField(item)) {
         return (
             <>
-                <Menu.Item
-                    icon={<MantineIcon icon={IconPencil} />}
-                    onClick={() => {
-                        track({
-                            name: EventName.EDIT_TABLE_CALCULATION_BUTTON_CLICKED,
-                        });
+                {isItemCustomDimension ? (
+                    <Menu.Item
+                        icon={<MantineIcon icon={IconPencil} />}
+                        onClick={() => {
+                            toggleCustomDimensionModal({
+                                item: customDimension,
+                                isEditing: true,
+                            });
+                        }}
+                    >
+                        Edit custom dimension
+                    </Menu.Item>
+                ) : (
+                    <>
+                        <Menu.Item
+                            icon={<MantineIcon icon={IconPencil} />}
+                            onClick={() => {
+                                track({
+                                    name: EventName.EDIT_TABLE_CALCULATION_BUTTON_CLICKED,
+                                });
 
-                        onToggleCalculationEditModal(true);
-                    }}
-                >
-                    Edit calculation
-                </Menu.Item>
+                                onToggleCalculationEditModal(true);
+                            }}
+                        >
+                            Edit calculation
+                        </Menu.Item>
 
-                <Menu />
+                        <Menu.Divider />
 
-                <ColumnHeaderSortMenuOptions item={item} sort={sort} />
+                        <ColumnHeaderSortMenuOptions item={item} sort={sort} />
 
-                <Menu.Divider />
+                        <Menu.Divider />
 
-                <Menu.Item
-                    icon={<MantineIcon icon={IconTrash} />}
-                    color="red"
-                    onClick={() => {
-                        track({
-                            name: EventName.DELETE_TABLE_CALCULATION_BUTTON_CLICKED,
-                        });
+                        <Menu.Item
+                            icon={<MantineIcon icon={IconTrash} />}
+                            color="red"
+                            onClick={() => {
+                                track({
+                                    name: EventName.DELETE_TABLE_CALCULATION_BUTTON_CLICKED,
+                                });
 
-                        onToggleCalculationDeleteModal(true);
-                    }}
-                >
-                    Remove
-                </Menu.Item>
+                                onToggleCalculationDeleteModal(true);
+                            }}
+                        >
+                            Delete
+                        </Menu.Item>
+                    </>
+                )}
             </>
         );
     } else {
