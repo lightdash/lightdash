@@ -1,8 +1,7 @@
-import { Classes, FormGroup } from '@blueprintjs/core';
+import { Group, Input } from '@mantine/core';
 import { TimeInput } from '@mantine/dates';
 import dayjs from 'dayjs';
 import React, { FC } from 'react';
-import { InlinedInputs, InlinedLabel } from './CronInput.styles';
 import {
     getDailyCronExpression,
     getTimePickerValue,
@@ -30,18 +29,18 @@ const DailyInputs: FC<{
     };
 
     return (
-        <InlinedInputs>
-            <FormGroup inline label={'at'} disabled={disabled}>
-                <TimeInput
-                    disabled={disabled}
-                    value={dayjs(getTimePickerValue(hours, minutes)).format(
-                        'HH:mm',
-                    )}
-                    onChange={(val) => onTimeChange(val.target.value)}
-                />
-            </FormGroup>
-            <InlinedLabel className={Classes.LABEL}>UTC</InlinedLabel>
-        </InlinedInputs>
+        <Group spacing="xs">
+            <Input.Label>at</Input.Label>
+            <TimeInput
+                w="7xl"
+                disabled={disabled}
+                value={dayjs(getTimePickerValue(hours, minutes)).format(
+                    'HH:mm',
+                )}
+                onChange={(val) => onTimeChange(val.target.value)}
+            />
+            <Input.Label>UTC</Input.Label>
+        </Group>
     );
 };
 export default DailyInputs;
