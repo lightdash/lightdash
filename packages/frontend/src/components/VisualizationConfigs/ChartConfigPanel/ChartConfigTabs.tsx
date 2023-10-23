@@ -24,6 +24,8 @@ const ChartConfigTabs: FC = memo(() => {
           )
         : [];
 
+    const customDimensions = resultsData?.metricQuery.customDimensions || [];
+
     const metricsAndTableCalculations: Array<Metric | TableCalculation> =
         useMemo(() => {
             return explore
@@ -59,7 +61,11 @@ const ChartConfigTabs: FC = memo(() => {
             resultsData?.metricQuery.tableCalculations,
         ]);
 
-    const items = [...dimensionsInMetricQuery, ...metricsAndTableCalculations];
+    const items = [
+        ...dimensionsInMetricQuery,
+        ...customDimensions,
+        ...metricsAndTableCalculations,
+    ];
 
     return (
         <Tabs defaultValue="layout" keepMounted={false}>

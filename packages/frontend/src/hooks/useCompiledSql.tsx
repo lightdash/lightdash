@@ -40,6 +40,7 @@ export const useCompiledSql = () => {
         limit,
         tableCalculations,
         additionalMetrics,
+        customDimensions,
     } = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery,
     );
@@ -53,6 +54,7 @@ export const useCompiledSql = () => {
         limit: limit || 500,
         tableCalculations,
         additionalMetrics,
+        customDimensions,
     };
     const queryKey = ['compiledQuery', tableId, metricQuery, projectUuid];
     return useQuery<ApiCompiledQueryResults, ApiError>({

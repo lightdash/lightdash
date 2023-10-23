@@ -1,7 +1,13 @@
 import {
+    AdditionalMetric,
+    isAdditionalMetric,
+    isCustomDimension,
     isDimension,
     isField,
+    isMetric,
+    isTableCalculation,
     isTimeInterval,
+    Item,
     timeFrameConfigs,
 } from '@lightdash/common';
 import { Group, Highlight, NavLink, Text, Tooltip } from '@mantine/core';
@@ -51,9 +57,19 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
 
     const isFiltered = isField(item) && isFilteredField(item);
 
-    const label = timeIntervalLabel || item.label || item.name;
-
+    const label = isField(item) ? timeIntervalLabel || item.label : item.name;
+    const description = isField(item) ? item.description : undefined;
     const bgColor = getItemBgColor(item);
+
+    // TODO: Add getFieldType function to common which should return FieldType enum (which should also have CUSTOM_METRIC, CUSTOM_DIMENSION, and TABLE_CALCULATION)
+    const getFieldIconColor = (field: Item | AdditionalMetric) => {
+        if (isCustomDimension(field) || isDimension(field)) return 'blue.9';
+        if (isAdditionalMetric(field)) return 'yellow.9';
+        if (isTableCalculation(field)) return 'green.9';
+        if (isMetric(field)) return 'yellow.9';
+
+        return 'yellow.9';
+    };
 
     return (
         <NavLink
@@ -69,7 +85,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
             icon={
                 <FieldIcon
                     item={item}
-                    color={isDimension(item) ? 'blue.9' : 'yellow.9'}
+                    color={getFieldIconColor(item)}
                     size="md"
                 />
             }
@@ -82,8 +98,8 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                         withinPortal
                         multiline
                         sx={{ whiteSpace: 'normal' }}
-                        disabled={!item.description}
-                        label={item.description}
+                        disabled={!description}
+                        label={description}
                         position="top-start"
                         maw={700}
                     >
@@ -107,7 +123,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                         </Tooltip>
                     ) : null}
 
-                    {item.hidden ? (
+                    {isField(item) && item.hidden ? (
                         <Tooltip
                             withinPortal
                             label="This field has been hidden in the dbt project. It's recommend to remove it from the query"

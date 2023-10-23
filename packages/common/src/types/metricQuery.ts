@@ -2,6 +2,7 @@ import {
     CompactOrAlias,
     CompiledMetric,
     CompiledTableCalculation,
+    CustomDimension,
     FieldId,
     Format,
     friendlyName,
@@ -28,11 +29,17 @@ export interface AdditionalMetric {
     percentile?: number;
 }
 
+export const getCustomDimensionId = (dimension: CustomDimension) =>
+    dimension.id;
+
 export const isAdditionalMetric = (value: any): value is AdditionalMetric =>
-    value?.table && value?.name && !value?.fieldType;
+    value?.table && value?.name && !value?.fieldType && !value.binType;
 
 export const getCustomMetricDimensionId = (metric: AdditionalMetric) =>
     `${metric.table}_${metric.baseDimensionName}`;
+
+export const isCustomDimension = (value: any): value is CustomDimension =>
+    'binType' in value;
 
 // Object used to query an explore. Queries only happen within a single explore
 export type MetricQuery = {
@@ -43,6 +50,7 @@ export type MetricQuery = {
     limit: number; // Max number of rows to return from query
     tableCalculations: TableCalculation[]; // calculations to append to results
     additionalMetrics?: AdditionalMetric[]; // existing metric type
+    customDimensions?: CustomDimension[];
 };
 export type CompiledMetricQuery = MetricQuery & {
     compiledTableCalculations: CompiledTableCalculation[];
@@ -95,4 +103,5 @@ export type MetricQueryResponse = {
     limit: number; // Max number of rows to return from query
     tableCalculations: TableCalculation[]; // calculations to append to results
     additionalMetrics?: AdditionalMetric[]; // existing metric type
+    customDimensions?: CustomDimension[];
 };

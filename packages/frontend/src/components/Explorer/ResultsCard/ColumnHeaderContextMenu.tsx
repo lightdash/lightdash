@@ -1,5 +1,3 @@
-import { Divider, Menu } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
 import {
     fieldId,
     getItemId,
@@ -7,8 +5,13 @@ import {
     isFilterableField,
     TableCalculation,
 } from '@lightdash/common';
-import { ActionIcon, Popover } from '@mantine/core';
-import { IconChevronDown } from '@tabler/icons-react';
+import { ActionIcon, Menu } from '@mantine/core';
+import {
+    IconChevronDown,
+    IconFilter,
+    IconPencil,
+    IconTrash,
+} from '@tabler/icons-react';
 import { FC, useMemo, useState } from 'react';
 import { useFilters } from '../../../hooks/useFilters';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
@@ -66,30 +69,26 @@ const ContextMenu: FC<ContextMenuProps> = ({
     if (item && isField(item) && isFilterableField(item)) {
         const itemFieldId = fieldId(item);
         return (
-            <Menu>
-                <MenuItem2
-                    text={
-                        <>
-                            Filter by <BolderLabel>{item.label}</BolderLabel>
-                        </>
-                    }
-                    icon="filter"
+            <>
+                <Menu.Item
+                    icon={<MantineIcon icon={IconFilter} />}
                     onClick={() => {
                         track({ name: EventName.ADD_FILTER_CLICKED });
                         addFilter(item, undefined, false);
                     }}
-                />
+                >
+                    Filter by <BolderLabel>{item.label}</BolderLabel>
+                </Menu.Item>
 
-                <Divider />
+                <Menu.Divider />
 
                 <ColumnHeaderSortMenuOptions item={item} sort={sort} />
 
-                <Divider />
+                <Menu.Divider />
 
                 {isItemAdditionalMetric ? (
-                    <MenuItem2
-                        text={<>Edit custom metric</>}
-                        icon="edit"
+                    <Menu.Item
+                        icon={<MantineIcon icon={IconPencil} />}
                         onClick={() => {
                             toggleAdditionalMetricModal({
                                 item: additionalMetric,
@@ -97,38 +96,41 @@ const ContextMenu: FC<ContextMenuProps> = ({
                                 isEditing: true,
                             });
                         }}
-                    />
+                    >
+                        Edit custom metric
+                    </Menu.Item>
                 ) : null}
 
-                <MenuItem2
-                    text="Remove"
-                    icon="cross"
-                    intent="danger"
+                <Menu.Item
+                    icon={<MantineIcon icon={IconTrash} />}
+                    color="red"
                     onClick={() => {
                         removeActiveField(itemFieldId);
                     }}
-                />
-            </Menu>
+                >
+                    Remove
+                </Menu.Item>
+            </>
         );
     } else if (meta?.isInvalidItem) {
         return (
-            <Menu>
-                <MenuItem2
-                    text="Remove"
-                    icon="cross"
-                    intent="danger"
+            <>
+                <Menu.Item
+                    icon={<MantineIcon icon={IconTrash} />}
+                    color="red"
                     onClick={() => {
                         removeActiveField(header.column.id);
                     }}
-                />
-            </Menu>
+                >
+                    Remove
+                </Menu.Item>
+            </>
         );
     } else if (item && !isField(item)) {
         return (
-            <Menu>
-                <MenuItem2
-                    text="Edit calculation"
-                    icon="edit"
+            <>
+                <Menu.Item
+                    icon={<MantineIcon icon={IconPencil} />}
                     onClick={() => {
                         track({
                             name: EventName.EDIT_TABLE_CALCULATION_BUTTON_CLICKED,
@@ -136,18 +138,19 @@ const ContextMenu: FC<ContextMenuProps> = ({
 
                         onToggleCalculationEditModal(true);
                     }}
-                />
+                >
+                    Edit calculation
+                </Menu.Item>
 
-                <Divider />
+                <Menu />
 
                 <ColumnHeaderSortMenuOptions item={item} sort={sort} />
 
-                <Divider />
+                <Menu.Divider />
 
-                <MenuItem2
-                    text="Remove"
-                    icon="cross"
-                    intent="danger"
+                <Menu.Item
+                    icon={<MantineIcon icon={IconTrash} />}
+                    color="red"
                     onClick={() => {
                         track({
                             name: EventName.DELETE_TABLE_CALCULATION_BUTTON_CLICKED,
@@ -155,8 +158,10 @@ const ContextMenu: FC<ContextMenuProps> = ({
 
                         onToggleCalculationDeleteModal(true);
                     }}
-                />
-            </Menu>
+                >
+                    Remove
+                </Menu.Item>
+            </>
         );
     } else {
         return null;
@@ -177,20 +182,21 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                     e.stopPropagation();
                 }}
             >
-                <Popover withinPortal position="bottom" withArrow shadow="md">
-                    <Popover.Target>
+                <Menu withinPortal withArrow>
+                    <Menu.Target>
                         <ActionIcon size="xs" variant="light" bg="transparent">
                             <MantineIcon icon={IconChevronDown} />
                         </ActionIcon>
-                    </Popover.Target>
-                    <Popover.Dropdown p={0}>
+                    </Menu.Target>
+
+                    <Menu.Dropdown>
                         <ContextMenu
                             header={header}
                             onToggleCalculationEditModal={setShowUpdate}
                             onToggleCalculationDeleteModal={setShowDelete}
                         />
-                    </Popover.Dropdown>
-                </Popover>
+                    </Menu.Dropdown>
+                </Menu>
 
                 {showUpdate && (
                     <UpdateTableCalculationModal

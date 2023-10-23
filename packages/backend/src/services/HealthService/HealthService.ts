@@ -61,6 +61,7 @@ export class HealthService {
             staticIp: this.lightdashConfig.staticIp,
             posthog: this.lightdashConfig.posthog,
             query: this.lightdashConfig.query,
+            pivotTable: this.lightdashConfig.pivotTable,
             hasSlack: this.hasSlackConfig(),
             auth: {
                 disablePasswordAuthentication:

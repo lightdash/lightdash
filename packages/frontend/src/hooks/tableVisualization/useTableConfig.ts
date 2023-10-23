@@ -30,6 +30,7 @@ const useTableConfig = (
     explore: Explore | undefined,
     columnOrder: string[],
     pivotDimensions: string[] | undefined,
+    pivotTableMaxColumnLimit: number,
 ) => {
     const [showColumnCalculation, setShowColumnCalculation] = useState<boolean>(
         !!tableChartConfig?.showColumnCalculation,
@@ -86,6 +87,7 @@ const useTableConfig = (
             explore,
             resultsData?.metricQuery.additionalMetrics,
             resultsData?.metricQuery.tableCalculations,
+            resultsData?.metricQuery.customDimensions,
         );
     }, [explore, resultsData]);
 
@@ -267,6 +269,9 @@ const useTableConfig = (
                 },
                 metricQuery: resultsData.metricQuery,
                 rows: resultsData.rows,
+                options: {
+                    maxColumns: pivotTableMaxColumnLimit,
+                },
             })
             .then((data) => {
                 setPivotTableData({
@@ -293,6 +298,7 @@ const useTableConfig = (
         tableChartConfig?.showColumnCalculation,
         tableChartConfig?.showRowCalculation,
         worker,
+        pivotTableMaxColumnLimit,
     ]);
 
     // Remove columnProperties from map if the column has been removed from results

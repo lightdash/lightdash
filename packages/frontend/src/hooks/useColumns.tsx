@@ -2,11 +2,13 @@ import { Icon } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     AdditionalMetric,
+    CustomDimension,
     Field,
     formatItemValue,
     friendlyName,
     getItemMap,
     isAdditionalMetric,
+    isCustomDimension,
     isDimension,
     isField,
     isNumericItem,
@@ -24,8 +26,9 @@ import useColumnTotals from './useColumnTotals';
 import { useExplore } from './useExplore';
 
 export const getItemBgColor = (
-    item: Field | AdditionalMetric | TableCalculation,
+    item: Field | AdditionalMetric | TableCalculation | CustomDimension,
 ): string => {
+    if (isCustomDimension(item)) return '#d2dbe9';
     if (isField(item) || isAdditionalMetric(item)) {
         return isDimension(item) ? '#d2dbe9' : '#e4dad0';
     } else {
@@ -43,6 +46,10 @@ export const useColumns = (): TableColumn[] => {
     const tableCalculations = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.tableCalculations,
+    );
+    const customDimensions = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.customDimensions,
     );
     const additionalMetrics = useExplorerContext(
         (context) =>
@@ -68,7 +75,9 @@ export const useColumns = (): TableColumn[] => {
                 exploreData,
                 additionalMetrics,
                 tableCalculations,
+                customDimensions,
             );
+
             return Array.from(activeFields).reduce<{
                 activeItemsMap: Record<string, Field | TableCalculation>;
                 invalidActiveItems: string[];
@@ -94,8 +103,15 @@ export const useColumns = (): TableColumn[] => {
             );
         }
         return { activeItemsMap: {}, invalidActiveItems: [] };
-    }, [additionalMetrics, exploreData, tableCalculations, activeFields]);
+    }, [
+        additionalMetrics,
+        exploreData,
+        tableCalculations,
+        activeFields,
+        customDimensions,
+    ]);
 
+    // TODO add totals for custom dimensions ?
     const totals = useColumnTotals({
         resultsData,
         itemsMap: activeItemsMap,

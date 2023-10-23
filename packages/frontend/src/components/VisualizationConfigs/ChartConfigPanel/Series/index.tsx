@@ -1,4 +1,5 @@
 import {
+    CustomDimension,
     Field,
     getDefaultSeriesColor,
     getItemId,
@@ -37,7 +38,7 @@ const DraggablePortalHandler: FC<DraggablePortalHandlerProps> = ({
 };
 
 type Props = {
-    items: (Field | TableCalculation)[];
+    items: (Field | TableCalculation | CustomDimension)[];
 };
 
 const SeriesTab: FC<Props> = ({ items }) => {

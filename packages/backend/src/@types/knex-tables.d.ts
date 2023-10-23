@@ -83,16 +83,18 @@ import {
 import {
     SavedChartAdditionalMetricTable,
     SavedChartAdditionalMetricTableName,
+    SavedChartCustomDimensionsTable,
+    SavedChartCustomDimensionsTableName,
     SavedChartsTableName,
     SavedChartTable,
+    SavedChartTableCalculationTable,
+    SavedChartTableCalculationTableName,
     SavedChartVersionFieldsTable,
     SavedChartVersionFieldsTableName,
     SavedChartVersionSortsTable,
     SavedChartVersionSortsTableName,
     SavedChartVersionsTable,
     SavedChartVersionsTableName,
-    SavedQueryTableCalculationTable,
-    SavedQueryTableCalculationTableName,
 } from '../database/entities/savedCharts';
 import { SessionTable, SessionTableName } from '../database/entities/sessions';
 import { ShareTable, ShareTableName } from '../database/entities/share';
@@ -171,7 +173,7 @@ declare module 'knex/types/tables' {
         [SavedChartVersionsTableName]: SavedChartVersionsTable;
         [SavedChartVersionFieldsTableName]: SavedChartVersionFieldsTable;
         [SavedChartVersionSortsTableName]: SavedChartVersionSortsTable;
-        [SavedQueryTableCalculationTableName]: SavedQueryTableCalculationTable;
+        [SavedChartTableCalculationTableName]: SavedChartTableCalculationTable;
         [SavedChartAdditionalMetricTableName]: SavedChartAdditionalMetricTable;
         [SpaceTableName]: SpaceTable;
         [DashboardsTableName]: DashboardTable;
@@ -216,5 +218,6 @@ declare module 'knex/types/tables' {
         [SshKeyPairTableName]: SshKeyPairTable;
         [UserAttributesTable]: DbUserAttribute;
         [OrganizationMemberUserAttributesTable]: DbOrganizationMemberUserAttribute;
+        [SavedChartCustomDimensionsTableName]: SavedChartCustomDimensionsTable;
     }
 }

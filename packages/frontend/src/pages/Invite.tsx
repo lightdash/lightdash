@@ -96,6 +96,7 @@ const Invite: FC = () => {
     const { showToastError } = useToaster();
     const { search } = useLocation();
     const { identify } = useTracking();
+    const redirectUrl = '/';
     const [isLinkFromEmail, setIsLinkFromEmail] = useState<boolean>(false);
     const { isLoading, mutate, isSuccess } = useMutation<
         LightdashUser,
@@ -105,7 +106,7 @@ const Invite: FC = () => {
         mutationKey: ['create_user'],
         onSuccess: (data) => {
             identify({ id: data.userUuid });
-            window.location.href = '/';
+            window.location.href = redirectUrl;
         },
         onError: (error) => {
             showToastError({
@@ -132,7 +133,7 @@ const Invite: FC = () => {
     }
 
     if (health.status === 'success' && health.data?.isAuthenticated) {
-        return <Redirect to={{ pathname: '/' }} />;
+        return <Redirect to={{ pathname: redirectUrl }} />;
     }
 
     const ssoAvailable =
@@ -148,6 +149,7 @@ const Invite: FC = () => {
                     providerName={providerName}
                     inviteCode={inviteCode}
                     intent="signup"
+                    redirect={redirectUrl}
                 />
             ))}
         </Stack>

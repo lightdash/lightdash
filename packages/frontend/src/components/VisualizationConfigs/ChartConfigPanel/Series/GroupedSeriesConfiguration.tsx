@@ -1,11 +1,13 @@
 import {
     CartesianChartLayout,
     CartesianSeriesType,
+    CustomDimension,
     Field,
     formatItemValue,
     getItemId,
     getItemLabelWithoutTableName,
     getSeriesId,
+    isCustomDimension,
     isSeriesWithMixedChartTypes,
     Series,
     TableCalculation,
@@ -63,9 +65,11 @@ const CHART_TYPE_OPTIONS = [
 const getFormatterValue = (
     value: any,
     key: string,
-    items: Array<Field | TableCalculation>,
+    items: Array<Field | TableCalculation | CustomDimension>,
 ) => {
     const item = items.find((i) => getItemId(i) === key);
+    if (isCustomDimension(item)) return value;
+
     return formatItemValue(item, value);
 };
 
@@ -84,8 +88,8 @@ const DraggablePortalHandler: FC<DraggablePortalHandlerProps> = ({
 type GroupedSeriesConfigurationProps = {
     layout?: CartesianChartLayout;
     seriesGroup: Series[];
-    item: Field | TableCalculation;
-    items: Array<Field | TableCalculation>;
+    item: Field | TableCalculation | CustomDimension;
+    items: Array<Field | TableCalculation | CustomDimension>;
     dragHandleProps?: DraggableProvidedDragHandleProps;
     getSeriesColor: (key: string) => string | undefined;
     updateAllGroupedSeries: (fieldKey: string, series: Partial<Series>) => void;

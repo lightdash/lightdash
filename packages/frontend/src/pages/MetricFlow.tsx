@@ -40,7 +40,7 @@ const MOCK_TABLE_NAME = 'metricflow';
 
 const MetricFlowPage = () => {
     const { showToastError } = useToaster();
-    const { user } = useApp();
+    const { user, health } = useApp();
     const { activeProjectUuid } = useActiveProjectUuid();
     const [selectedMetrics, setSelectedMetrics] = useState<Record<string, {}>>(
         {},
@@ -169,9 +169,15 @@ const MetricFlowPage = () => {
         }),
     );
 
-    if (user.isLoading || !activeProjectUuid) {
+    if (
+        user.isLoading ||
+        !activeProjectUuid ||
+        health.isLoading ||
+        !health.data
+    ) {
         return <LoadingState title="Loading metricflow" />;
     }
+
     if (cannotViewProject) {
         return <ForbiddenPanel />;
     }
@@ -325,6 +331,9 @@ const MetricFlowPage = () => {
                     columnOrder={columnOrder}
                     explore={explore}
                     isSqlRunner={true}
+                    pivotTableMaxColumnLimit={
+                        health.data.pivotTable.maxColumnLimit
+                    }
                 >
                     <CollapsableCard
                         title="Charts"

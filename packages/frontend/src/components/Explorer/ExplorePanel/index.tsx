@@ -32,6 +32,10 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         (context) =>
             context.state.unsavedChartVersion.metricQuery.additionalMetrics,
     );
+    const customDimensions = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.customDimensions,
+    );
     const activeFields = useExplorerContext(
         (context) => context.state.activeFields,
     );
@@ -83,6 +87,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                 additionalMetrics={additionalMetrics || []}
                 selectedNodes={activeFields}
                 onSelectedFieldChange={toggleActiveField}
+                customDimensions={customDimensions}
             />
         </>
     );

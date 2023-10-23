@@ -3,18 +3,11 @@ import {
     OrganizationProject,
     TimeFrames,
 } from '@lightdash/common';
-import {
-    Avatar,
-    Box,
-    Button,
-    LoadingOverlay,
-    Stack,
-    Text,
-} from '@mantine/core';
-import { useClipboard } from '@mantine/hooks';
-import { IconChevronLeft, IconClock, IconCopy } from '@tabler/icons-react';
+import { Avatar, Button, LoadingOverlay, Stack, Text } from '@mantine/core';
+import { Prism } from '@mantine/prism';
+import { IconChevronLeft, IconClock } from '@tabler/icons-react';
 import moment from 'moment';
-import { FC, useCallback, useEffect, useMemo, useRef } from 'react';
+import { FC, useCallback, useEffect, useRef } from 'react';
 import { useQueryClient } from 'react-query';
 import { useHistory } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -24,7 +17,6 @@ import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
-import CodeBlock from './common/CodeBlock';
 import { OnboardingTitle } from './common/OnboardingTitle';
 import OnboardingWrapper from './common/OnboardingWrapper';
 
@@ -33,26 +25,6 @@ interface ConnectUsingCliProps {
     version: string;
     onBack: () => void;
 }
-
-const codeBlock = ({
-    siteUrl,
-    loginToken,
-    version,
-}: {
-    siteUrl: string;
-    loginToken?: string;
-    version: string;
-}) =>
-    String.raw`
-#1 install lightdash CLI
-npm install -g @lightdash/cli@${version}
-
-#2 login to lightdash
-lightdash login ${siteUrl} --token ${loginToken}
-
-#3 create project
-lightdash deploy --create
-`.trim();
 
 const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
     siteUrl,
@@ -65,7 +37,6 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
     const { showToastSuccess } = useToaster();
     const queryClient = useQueryClient();
     const { track } = useTracking();
-    const clipboard = useClipboard({ timeout: 200 });
 
     useProjects({
         refetchInterval: 3000,
@@ -120,20 +91,10 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
         });
     }, [mutateAccessToken, isTokenCreated]);
 
-    const codeBlockText = useMemo(() => {
-        return codeBlock({
-            siteUrl,
-            version,
-            loginToken: tokenData?.token,
-        });
-    }, [siteUrl, version, tokenData?.token]);
-
     const handleCopy = useCallback(() => {
-        clipboard.copy(codeBlockText);
-
         showToastSuccess({ title: 'Commands copied to clipboard!' });
         track({ name: EventName.COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED });
-    }, [showToastSuccess, track, clipboard, codeBlockText]);
+    }, [showToastSuccess, track]);
 
     return (
         <OnboardingWrapper>
@@ -154,7 +115,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                     overlayBlur={2}
                 />
 
-                <Stack>
+                <Stack spacing="xl">
                     <Stack align="center" spacing="sm">
                         <Avatar size="lg" radius="xl">
                             <MantineIcon
@@ -168,27 +129,47 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                         <Stack spacing="xxs">
                             <OnboardingTitle>Waiting for data</OnboardingTitle>
 
-                            <Text color="dimmed">
-                                Inside your dbt project, run:
-                            </Text>
+                            <Text>Inside your dbt project, run:</Text>
                         </Stack>
                     </Stack>
 
-                    <Box pos="relative">
-                        <CodeBlock>{codeBlockText}</CodeBlock>
+                    <Stack ta="left">
+                        <Stack spacing="xs">
+                            <Text fw={500}>1. Install lightdash CLI:</Text>
 
-                        <Button
-                            pos="absolute"
-                            right={12}
-                            bottom={12}
-                            variant="outline"
-                            size="xs"
-                            leftIcon={<MantineIcon icon={IconCopy} />}
-                            onClick={handleCopy}
-                        >
-                            Copy
-                        </Button>
-                    </Box>
+                            <Prism
+                                language="bash"
+                                onCopy={handleCopy}
+                                styles={{ copy: { right: 0 } }}
+                            >
+                                {`npm install -g @lightdash/cli@${version}`}
+                            </Prism>
+                        </Stack>
+
+                        <Stack spacing="xs">
+                            <Text fw={500}>2. Login to lightdash:</Text>
+
+                            <Prism
+                                language="bash"
+                                onCopy={handleCopy}
+                                styles={{ copy: { right: 0 } }}
+                            >
+                                {`lightdash login ${siteUrl} --token ${tokenData?.token}`}
+                            </Prism>
+                        </Stack>
+
+                        <Stack spacing="xs">
+                            <Text fw={500}>3. Create project:</Text>
+
+                            <Prism
+                                language="bash"
+                                onCopy={handleCopy}
+                                styles={{ copy: { right: 0 } }}
+                            >
+                                lightdash deploy --create
+                            </Prism>
+                        </Stack>
+                    </Stack>
                 </Stack>
             </ProjectCreationCard>
 

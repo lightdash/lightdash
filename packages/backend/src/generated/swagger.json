@@ -418,8 +418,44 @@
                 "type": "object",
                 "additionalProperties": false
             },
+            "BinType": {
+                "enum": ["fixed_number"],
+                "type": "string"
+            },
+            "CustomDimension": {
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "dimensionId": {
+                        "$ref": "#/components/schemas/FieldId"
+                    },
+                    "table": {
+                        "type": "string"
+                    },
+                    "binType": {
+                        "$ref": "#/components/schemas/BinType"
+                    },
+                    "binNumber": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["id", "name", "dimensionId", "table", "binType"],
+                "type": "object",
+                "additionalProperties": false
+            },
             "MetricQueryResponse": {
                 "properties": {
+                    "customDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/CustomDimension"
+                        },
+                        "type": "array"
+                    },
                     "additionalMetrics": {
                         "items": {
                             "$ref": "#/components/schemas/AdditionalMetric"
@@ -1109,15 +1145,8 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "ResourceItemCategory": {
-                "enum": ["mostPopular", "recentlyUpdated"],
-                "type": "string"
-            },
             "ResourceViewDashboardItem": {
                 "properties": {
-                    "category": {
-                        "$ref": "#/components/schemas/ResourceItemCategory"
-                    },
                     "data": {
                         "$ref": "#/components/schemas/Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors_"
                     },
@@ -1217,9 +1246,6 @@
             },
             "ResourceViewChartItem": {
                 "properties": {
-                    "category": {
-                        "$ref": "#/components/schemas/ResourceItemCategory"
-                    },
                     "data": {
                         "$ref": "#/components/schemas/Pick_SpaceQuery.uuid-or-name-or-chartType-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors_"
                     },
@@ -2485,6 +2511,12 @@
             },
             "RunQueryRequest": {
                 "properties": {
+                    "customDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/CustomDimension"
+                        },
+                        "type": "array"
+                    },
                     "csvLimit": {
                         "type": "number",
                         "format": "double"
@@ -2712,6 +2744,12 @@
             },
             "MetricQuery": {
                 "properties": {
+                    "customDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/CustomDimension"
+                        },
+                        "type": "array"
+                    },
                     "additionalMetrics": {
                         "items": {
                             "$ref": "#/components/schemas/AdditionalMetric"
@@ -5157,7 +5195,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.814.1",
+        "version": "0.815.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
