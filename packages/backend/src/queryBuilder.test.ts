@@ -418,16 +418,17 @@ describe('with custom dimensions', () => {
                 ` age_range_cte AS (
             SELECT
                 MIN("table1".dim1) AS min_id,
-                MAX("table1".dim1) AS max_id
+                MAX("table1".dim1) AS max_id,
+                MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) as ratio
             FROM "db"."schema"."table1" AS "table1"
         )`,
             ],
             joins: ['age_range_cte'],
             selects: [
                 `CASE
-                    WHEN "table1".dim1 >= age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 0 / 3 AND "table1".dim1 < age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 1 / 3 THEN CONCAT(age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 0 / 3, ' to ', age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 1 / 3)
-WHEN "table1".dim1 >= age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 1 / 3 AND "table1".dim1 < age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 2 / 3 THEN CONCAT(age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 1 / 3, ' to ', age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 2 / 3)
-                    ELSE CONCAT(age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 2 / 3, ' to ', age_range_cte.max_id) END
+                    WHEN "table1".dim1 >= age_range_cte.ratio * 0 / 3 AND "table1".dim1 < age_range_cte.ratio * 1 / 3 THEN CONCAT(age_range_cte.ratio * 0 / 3, ' to ', age_range_cte.ratio * 1 / 3)
+WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_cte.ratio * 2 / 3 THEN CONCAT(age_range_cte.ratio * 1 / 3, ' to ', age_range_cte.ratio * 2 / 3)
+                    ELSE CONCAT(age_range_cte.ratio * 2 / 3, ' to ', age_range_cte.max_id) END
                     AS "age_range"
                 `,
             ],
@@ -459,7 +460,8 @@ WHEN "table1".dim1 >= age_range_cte.min_id + (age_range_cte.max_id - age_range_c
                 ` age_range_cte AS (
             SELECT
                 MIN("table1".dim1) AS min_id,
-                MAX("table1".dim1) AS max_id
+                MAX("table1".dim1) AS max_id,
+                MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) as ratio
             FROM "db"."schema"."table1" AS "table1"
         )`,
             ],
@@ -481,15 +483,16 @@ WHEN "table1".dim1 >= age_range_cte.min_id + (age_range_cte.max_id - age_range_c
         ).toStrictEqual(`WITH  age_range_cte AS (
             SELECT
                 MIN("table1".dim1) AS min_id,
-                MAX("table1".dim1) AS max_id
+                MAX("table1".dim1) AS max_id,
+                MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) as ratio
             FROM "db"."schema"."table1" AS "table1"
         )
 SELECT
   "table1".dim1 AS "table1_dim1",
 CASE
-                    WHEN "table1".dim1 >= age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 0 / 3 AND "table1".dim1 < age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 1 / 3 THEN CONCAT(age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 0 / 3, ' to ', age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 1 / 3)
-WHEN "table1".dim1 >= age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 1 / 3 AND "table1".dim1 < age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 2 / 3 THEN CONCAT(age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 1 / 3, ' to ', age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 2 / 3)
-                    ELSE CONCAT(age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 2 / 3, ' to ', age_range_cte.max_id) END
+                    WHEN "table1".dim1 >= age_range_cte.ratio * 0 / 3 AND "table1".dim1 < age_range_cte.ratio * 1 / 3 THEN CONCAT(age_range_cte.ratio * 0 / 3, ' to ', age_range_cte.ratio * 1 / 3)
+WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_cte.ratio * 2 / 3 THEN CONCAT(age_range_cte.ratio * 1 / 3, ' to ', age_range_cte.ratio * 2 / 3)
+                    ELSE CONCAT(age_range_cte.ratio * 2 / 3, ' to ', age_range_cte.max_id) END
                     AS "age_range"
                 ,
   MAX("table1".number_column) AS "table1_metric1"

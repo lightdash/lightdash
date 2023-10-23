@@ -159,7 +159,10 @@ export const getCustomDimensionSql = ({
         return ` ${getCteReference(customDimension)} AS (
             SELECT
                 MIN(${dimension.compiledSql}) AS min_id,
-                MAX(${dimension.compiledSql}) AS max_id
+                MAX(${dimension.compiledSql}) AS max_id,
+                MIN(${dimension.compiledSql}) + (MAX(${
+            dimension.compiledSql
+        }) - MIN(${dimension.compiledSql}) ) as ratio
             FROM ${baseTable} AS ${fieldQuoteChar}${
             customDimension.table
         }${fieldQuoteChar}
@@ -194,7 +197,7 @@ export const getCustomDimensionSql = ({
                     }
 
                     // TODO test this on other warehouses
-                    const ratio = `${cte}.min_id + (${cte}.max_id - ${cte}.min_id )`;
+                    const ratio = `${cte}.ratio`;
 
                     if (customDimension.binNumber <= 1) {
                         // Edge case, bin number with only one bucket does not need a CASE statement
