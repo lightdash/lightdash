@@ -1,3 +1,10 @@
+# [0.817.0](https://github.com/lightdash/lightdash/compare/0.816.4...0.817.0) (2023-10-23)
+
+
+### Features
+
+* replace popover with menu on results table ([#7593](https://github.com/lightdash/lightdash/issues/7593)) ([161d259](https://github.com/lightdash/lightdash/commit/161d259b9ec29d9f270335dbb71dc548da53df88))
+
 ## [0.816.4](https://github.com/lightdash/lightdash/compare/0.816.3...0.816.4) (2023-10-23)
 
 
