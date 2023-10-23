@@ -1,3 +1,10 @@
+## [0.816.3](https://github.com/lightdash/lightdash/compare/0.816.2...0.816.3) (2023-10-23)
+
+
+### Bug Fixes
+
+* cli onboarding code blocks ([#7578](https://github.com/lightdash/lightdash/issues/7578)) ([3bd535a](https://github.com/lightdash/lightdash/commit/3bd535a588168b9e617bfbda11dd118c4a460eb0))
+
 ## [0.816.2](https://github.com/lightdash/lightdash/compare/0.816.1...0.816.2) (2023-10-23)
 
 
