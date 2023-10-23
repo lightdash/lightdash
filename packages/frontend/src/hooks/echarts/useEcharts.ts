@@ -3,6 +3,7 @@ import {
     CartesianChart,
     CartesianSeriesType,
     convertAdditionalMetric,
+    CustomDimension,
     DimensionType,
     ECHARTS_DEFAULT_COLORS,
     Field,
@@ -21,6 +22,7 @@ import {
     getResultValueArray,
     hashFieldReference,
     isCompleteLayout,
+    isCustomDimension,
     isDimension,
     isField,
     isPivotReferenceWithValues,
@@ -71,7 +73,7 @@ export const isLineSeriesOption = (obj: unknown): obj is LineSeriesOption =>
     typeof obj === 'object' && obj !== null && 'showSymbol' in obj;
 
 const getLabelFromField = (
-    fields: Array<Field | TableCalculation>,
+    fields: Array<Field | TableCalculation | CustomDimension>,
     key: string | undefined,
 ) => {
     const item = findItem(fields, key);
@@ -84,7 +86,10 @@ const getLabelFromField = (
     }
 };
 
-const getAxisTypeFromField = (item?: Field | TableCalculation): string => {
+const getAxisTypeFromField = (
+    item?: Field | TableCalculation | CustomDimension,
+): string => {
+    if (item && isCustomDimension(item)) return 'category';
     if (item && isField(item)) {
         switch (item.type) {
             case DimensionType.NUMBER:
@@ -115,7 +120,7 @@ const getAxisTypeFromField = (item?: Field | TableCalculation): string => {
 
 type GetAxisTypeArg = {
     validCartesianConfig: CartesianChart;
-    itemMap: Record<string, Field | TableCalculation>;
+    itemMap: Record<string, Field | TableCalculation | CustomDimension>;
     topAxisXId?: string;
     bottomAxisXId?: string;
     rightAxisYId?: string;
@@ -264,7 +269,7 @@ export type EChartSeries = {
 const getFormattedValue = (
     value: any,
     key: string,
-    items: Array<Field | TableCalculation>,
+    items: Array<Field | TableCalculation | CustomDimension>,
     convertToUTC: boolean = true,
 ): string => {
     return formatItemValue(
@@ -275,7 +280,10 @@ const getFormattedValue = (
 };
 
 const valueFormatter =
-    (yFieldId: string, items: Array<Field | TableCalculation>) =>
+    (
+        yFieldId: string,
+        items: Array<Field | TableCalculation | CustomDimension>,
+    ) =>
     (rawValue: any) => {
         return getFormattedValue(rawValue, yFieldId, items);
     };
@@ -386,7 +394,7 @@ const getMinAndMaxReferenceLines = (
     bottomAxisXId: string | undefined,
     resultsData: ApiQueryResults | undefined,
     series: Series[] | undefined,
-    items: Array<Field | TableCalculation>,
+    items: Array<Field | TableCalculation | CustomDimension>,
 ) => {
     if (resultsData === undefined || series === undefined) return {};
     // Skip method if there are no reference lines
@@ -541,7 +549,7 @@ const getMinAndMaxReferenceLines = (
 };
 type GetPivotSeriesArg = {
     series: Series;
-    items: Array<Field | TableCalculation>;
+    items: Array<Field | TableCalculation | CustomDimension>;
     formats: Record<string, TableCalculation | Field> | undefined;
 
     cartesianChart: CartesianChart;
@@ -612,6 +620,9 @@ const getPivotSeries = ({
                     formats[series.encode.yRef.field] && {
                         formatter: (value: any) => {
                             const field = formats[series.encode.yRef.field];
+                            if (isCustomDimension(field)) {
+                                return value;
+                            }
                             if (isTableCalculation(field)) {
                                 return formatTableCalculationValue(
                                     field as TableCalculation,
@@ -636,8 +647,10 @@ const getPivotSeries = ({
 
 type GetSimpleSeriesArg = {
     series: Series;
-    items: Array<Field | TableCalculation>;
-    formats: Record<string, TableCalculation | Field> | undefined;
+    items: Array<Field | TableCalculation | CustomDimension>;
+    formats:
+        | Record<string, TableCalculation | Field | CustomDimension>
+        | undefined;
     flipAxes: boolean | undefined;
     yFieldHash: string;
     xFieldHash: string;
@@ -686,6 +699,9 @@ const getSimpleSeries = ({
                 formats[yFieldHash] && {
                     formatter: (value: any) => {
                         const field = formats[yFieldHash];
+                        if (isCustomDimension(field)) {
+                            return value;
+                        }
                         if (isTableCalculation(field)) {
                             return formatTableCalculationValue(
                                 field as TableCalculation,
@@ -708,7 +724,7 @@ const getSimpleSeries = ({
 });
 
 const getEchartsSeries = (
-    items: Array<Field | TableCalculation>,
+    items: Array<Field | TableCalculation | CustomDimension>,
     originalData: ApiQueryResults['rows'],
     cartesianChart: CartesianChart,
     pivotKeys: string[] | undefined,
@@ -770,17 +786,20 @@ const getEchartAxis = ({
     resultsData,
 }: {
     validCartesianConfig: CartesianChart;
-    items: Array<Field | TableCalculation>;
+    items: Array<Field | TableCalculation | CustomDimension>;
     series: EChartSeries[];
     resultsData: ApiQueryResults | undefined;
 }) => {
-    const itemMap = items.reduce<Record<string, Field | TableCalculation>>(
+    const itemMap = items.reduce<
+        Record<string, Field | TableCalculation | CustomDimension>
+    >(
         (acc, item) => ({
             ...acc,
             [getItemId(item)]: item,
         }),
         {},
     );
+
     const xAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.yField?.[0]
         : validCartesianConfig.layout?.xField;
@@ -823,7 +842,7 @@ const getEchartAxis = ({
     );
 
     const getAxisFormatter = (
-        axisItem: Field | TableCalculation | undefined,
+        axisItem: Field | TableCalculation | CustomDimension | undefined,
     ) => {
         const field =
             axisItem &&
@@ -1173,7 +1192,7 @@ const getStackTotalRows = (
 const getStackTotalSeries = (
     rows: ResultRow[],
     seriesWithStack: EChartSeries[],
-    items: Array<Field | TableCalculation>,
+    items: Array<Field | TableCalculation | CustomDimension>,
     flipAxis: boolean | undefined,
     selectedLegendNames: LegendValues,
 ) => {
@@ -1302,6 +1321,7 @@ const useEcharts = (
                 return acc;
             }, []),
             ...(resultsData?.metricQuery.tableCalculations || []),
+            ...(resultsData?.metricQuery.customDimensions || []),
         ];
     }, [explore, resultsData]);
 
@@ -1392,6 +1412,8 @@ const useEcharts = (
         try {
             if (!explore) return results;
             const dimensions = getDimensions(explore);
+            const customDimensions =
+                resultsData?.metricQuery.customDimensions || [];
 
             const xFieldId = validCartesianConfig?.layout?.xField;
             if (xFieldId === undefined) return results;
@@ -1400,16 +1422,34 @@ const useEcharts = (
                 resultsData?.metricQuery.sorts?.[0]?.fieldId === xFieldId;
             if (alreadySorted) return results;
 
-            const xField = dimensions.find(
+            const xField = [...dimensions, ...customDimensions].find(
                 (dimension) => getItemId(dimension) === xFieldId,
             );
             const hasTotal = validCartesianConfig?.eChartsConfig?.series?.some(
                 (s) => s.stackLabel?.show,
             );
+
             // If there is a total, we don't sort the results because we need to keep the same order on results
             // This could still cause issues if there is a total on bar chart axis, the sorting is wrong and one of the axis is a line chart
             if (hasTotal) return results;
 
+            if (isCustomDimension(xField)) {
+                return results.sort((a, b) => {
+                    if (
+                        typeof a[xFieldId] === 'string' &&
+                        typeof b[xFieldId] === 'string'
+                    ) {
+                        const startA = parseInt(
+                            (a[xFieldId] as string).split(' ')[0],
+                        );
+                        const startB = parseInt(
+                            (b[xFieldId] as string).split(' ')[0],
+                        );
+                        return startA - startB;
+                    }
+                    return 0;
+                });
+            }
             if (
                 xField !== undefined &&
                 results.length >= 0 &&
@@ -1441,6 +1481,7 @@ const useEcharts = (
         resultsData?.metricQuery.sorts,
         explore,
         validCartesianConfig?.eChartsConfig?.series,
+        resultsData?.metricQuery.customDimensions,
     ]);
 
     const tooltip = useMemo<TooltipOption>(

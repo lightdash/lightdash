@@ -1,5 +1,6 @@
 import {
     CompiledDimension,
+    CustomDimension,
     EchartsLegend,
     Field,
     TableCalculation,
@@ -33,7 +34,7 @@ enum Units {
 
 const units = Object.values(Units);
 type Props = {
-    items: (Field | TableCalculation | CompiledDimension)[];
+    items: (Field | TableCalculation | CompiledDimension | CustomDimension)[];
 };
 const LegendPanel: FC<Props> = ({ items }) => {
     const {

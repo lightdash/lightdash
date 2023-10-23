@@ -70,6 +70,9 @@ const SavedExplorer = () => {
                               additionalMetric: {
                                   isOpen: false,
                               },
+                              customDimension: {
+                                  isOpen: false,
+                              },
                           },
                       }
                     : undefined

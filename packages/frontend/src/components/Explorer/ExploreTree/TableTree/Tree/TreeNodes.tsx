@@ -1,5 +1,6 @@
 import {
     AdditionalMetric,
+    CustomDimension,
     Dimension,
     isDimension,
     Metric,
@@ -19,7 +20,10 @@ import TreeSingleNode from './TreeSingleNode';
 const sortNodes =
     (
         orderStrategy: OrderFieldsByStrategy,
-        itemsMap: Record<string, Dimension | Metric | AdditionalMetric>,
+        itemsMap: Record<
+            string,
+            Dimension | Metric | AdditionalMetric | CustomDimension
+        >,
     ) =>
     (a: Node, b: Node) => {
         if (orderStrategy === OrderFieldsByStrategy.INDEX) {

@@ -127,6 +127,9 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                         additionalMetric: {
                             isOpen: false,
                         },
+                        customDimension: {
+                            isOpen: false,
+                        },
                     },
                 };
             } catch (e: any) {

@@ -409,11 +409,33 @@ const models: TsoaRoute.Models = {
         additionalProperties: false,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    BinType: {
+        dataType: 'refEnum',
+        enums: ['fixed_number'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CustomDimension: {
+        dataType: 'refObject',
+        properties: {
+            id: { dataType: 'string', required: true },
+            name: { dataType: 'string', required: true },
+            dimensionId: { ref: 'FieldId', required: true },
+            table: { dataType: 'string', required: true },
+            binType: { ref: 'BinType', required: true },
+            binNumber: { dataType: 'double' },
+        },
+        additionalProperties: false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MetricQueryResponse: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                customDimensions: {
+                    dataType: 'array',
+                    array: { dataType: 'refObject', ref: 'CustomDimension' },
+                },
                 additionalMetrics: {
                     dataType: 'array',
                     array: { dataType: 'refObject', ref: 'AdditionalMetric' },
@@ -998,17 +1020,11 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ResourceItemCategory: {
-        dataType: 'refEnum',
-        enums: ['mostPopular', 'recentlyUpdated'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ResourceViewDashboardItem: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                category: { ref: 'ResourceItemCategory' },
                 data: {
                     ref: 'Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors_',
                     required: true,
@@ -1102,7 +1118,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                category: { ref: 'ResourceItemCategory' },
                 data: {
                     ref: 'Pick_SpaceQuery.uuid-or-name-or-chartType-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors_',
                     required: true,
@@ -2175,6 +2190,10 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                customDimensions: {
+                    dataType: 'array',
+                    array: { dataType: 'refObject', ref: 'CustomDimension' },
+                },
                 csvLimit: { dataType: 'double' },
                 additionalMetrics: {
                     dataType: 'array',
@@ -2376,6 +2395,10 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                customDimensions: {
+                    dataType: 'array',
+                    array: { dataType: 'refObject', ref: 'CustomDimension' },
+                },
                 additionalMetrics: {
                     dataType: 'array',
                     array: { dataType: 'refObject', ref: 'AdditionalMetric' },

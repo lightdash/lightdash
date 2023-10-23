@@ -239,6 +239,9 @@ const ChartHistory = () => {
                             additionalMetric: {
                                 isOpen: false,
                             },
+                            customDimension: {
+                                isOpen: false,
+                            },
                         },
                     }}
                     savedChart={chartVersionQuery.data?.chart}

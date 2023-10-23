@@ -1,4 +1,5 @@
 import {
+    CustomDimension,
     Field,
     getAxisName,
     getItemId,
@@ -80,7 +81,7 @@ const AxisMinMax: FC<MinMaxProps> = ({ label, min, max, setMin, setMax }) => {
 };
 
 type Props = {
-    items: (Field | TableCalculation)[];
+    items: (Field | TableCalculation | CustomDimension)[];
 };
 
 const AxesOptions: FC<Props> = ({ items }) => {

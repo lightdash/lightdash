@@ -2,6 +2,7 @@ import moment, { MomentInput } from 'moment';
 import {
     CompactConfigMap,
     CompactOrAlias,
+    CustomDimension,
     DimensionType,
     Field,
     findCompactConfig,
@@ -437,7 +438,12 @@ export function formatTableCalculationValue(
 }
 
 export function formatItemValue(
-    item: Field | AdditionalMetric | TableCalculation | undefined,
+    item:
+        | Field
+        | AdditionalMetric
+        | TableCalculation
+        | CustomDimension
+        | undefined,
     value: unknown,
     convertToUTC?: boolean,
 ): string {

@@ -1,6 +1,7 @@
 import {
     AdditionalMetric,
     CompiledTable,
+    CustomDimension,
     Dimension,
     Explore,
     getItemId,
@@ -18,6 +19,7 @@ type ExploreTreeProps = {
     additionalMetrics: AdditionalMetric[];
     onSelectedFieldChange: (fieldId: string, isDimension: boolean) => void;
     selectedNodes: Set<string>;
+    customDimensions?: CustomDimension[];
 };
 
 type Records = Record<string, AdditionalMetric | Dimension | Metric>;
@@ -27,6 +29,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
     additionalMetrics,
     selectedNodes,
     onSelectedFieldChange,
+    customDimensions,
 }) => {
     const [search, setSearch] = useState<string>('');
     const isSearching = !!search && search !== '';
@@ -84,6 +87,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                             additionalMetrics={additionalMetrics}
                             selectedItems={selectedNodes}
                             onSelectedNodeChange={onSelectedFieldChange}
+                            customDimensions={customDimensions}
                         />
                     ))
                 ) : (

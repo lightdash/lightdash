@@ -1,5 +1,6 @@
 import {
     CartesianChartLayout,
+    CustomDimension,
     Field,
     getItemLabelWithoutTableName,
     getSeriesId,
@@ -17,7 +18,7 @@ type BasicSeriesConfigurationProps = {
     isSingle: boolean;
     layout?: CartesianChartLayout;
     series: Series;
-    item: Field | TableCalculation;
+    item: Field | TableCalculation | CustomDimension;
     getSeriesColor: (key: string) => string | undefined;
     updateSingleSeries: (series: Series) => void;
     dragHandleProps?: DraggableProvidedDragHandleProps;

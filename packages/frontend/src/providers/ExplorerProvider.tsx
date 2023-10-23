@@ -4,10 +4,12 @@ import {
     ChartConfig,
     ChartType,
     CreateSavedChartVersion,
+    CustomDimension,
     deepEqual,
     Dimension,
     FieldId,
     fieldId as getFieldId,
+    getCustomDimensionId,
     isBigNumberConfig,
     isCartesianChartConfig,
     isPieChartConfig,
@@ -70,6 +72,10 @@ export enum ActionType {
     SET_CHART_TYPE,
     SET_CHART_CONFIG,
     TOGGLE_EXPANDED_SECTION,
+    ADD_CUSTOM_DIMENSION,
+    EDIT_CUSTOM_DIMENSION,
+    REMOVE_CUSTOM_DIMENSION,
+    TOGGLE_CUSTOM_DIMENSION_MODAL,
 }
 
 type Action =
@@ -162,6 +168,28 @@ type Action =
     | {
           type: ActionType.SET_CHART_CONFIG;
           payload: ChartConfig['config'] | undefined;
+      }
+    | {
+          type: ActionType.ADD_CUSTOM_DIMENSION;
+          payload: CustomDimension;
+      }
+    | {
+          type: ActionType.EDIT_CUSTOM_DIMENSION;
+          payload: {
+              customDimension: CustomDimension;
+              previousCustomDimensionName: string;
+          };
+      }
+    | {
+          type: ActionType.REMOVE_CUSTOM_DIMENSION;
+          payload: FieldId;
+      }
+    | {
+          type: ActionType.TOGGLE_CUSTOM_DIMENSION_MODAL;
+          payload?: Omit<
+              ExplorerReduceState['modals']['customDimension'],
+              'isOpen'
+          >;
       };
 
 export interface ExplorerReduceState {
@@ -175,6 +203,11 @@ export interface ExplorerReduceState {
             isEditing?: boolean;
             item?: Dimension | AdditionalMetric;
             type?: MetricType;
+        };
+        customDimension: {
+            isOpen: boolean;
+            isEditing?: boolean;
+            item?: Dimension | CustomDimension;
         };
     };
 }
@@ -238,6 +271,18 @@ export interface ExplorerContext {
         ) => void;
         fetchResults: () => void;
         toggleExpandedSection: (section: ExplorerSection) => void;
+        addCustomDimension: (customDimension: CustomDimension) => void;
+        editCustomDimension: (
+            customDimension: CustomDimension,
+            previousCustomDimensionName: string,
+        ) => void;
+        removeCustomDimension: (key: FieldId) => void;
+        toggleCustomDimensionModal: (
+            additionalMetricModalData?: Omit<
+                ExplorerReduceState['modals']['customDimension'],
+                'isOpen'
+            >,
+        ) => void;
     };
 }
 
@@ -269,6 +314,9 @@ const defaultState: ExplorerReduceState = {
     },
     modals: {
         additionalMetric: {
+            isOpen: false,
+        },
+        customDimension: {
             isOpen: false,
         },
     },
@@ -321,6 +369,7 @@ const calcColumnOrder = (
     const missingColumns = fieldIds.filter(
         (fieldId) => !cleanColumnOrder.includes(fieldId),
     );
+
     if (dimensions !== undefined) {
         const positionDimensionColumn = Math.max(
             ...dimensions.map((d) => cleanColumnOrder.indexOf(d)),
@@ -429,6 +478,9 @@ function reducer(
                             state.unsavedChartVersion.tableConfig.columnOrder,
                             [
                                 ...dimensions,
+                                ...(state.unsavedChartVersion.metricQuery.customDimensions?.map(
+                                    getCustomDimensionId,
+                                ) || []),
                                 ...state.unsavedChartVersion.metricQuery
                                     .metrics,
                                 ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
@@ -464,6 +516,9 @@ function reducer(
                             [
                                 ...state.unsavedChartVersion.metricQuery
                                     .dimensions,
+                                ...(state.unsavedChartVersion.metricQuery.customDimensions?.map(
+                                    getCustomDimensionId,
+                                ) || []),
                                 ...metrics,
                                 ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
                                     ({ name }) => name,
@@ -482,6 +537,9 @@ function reducer(
                 ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
                     (tc) => tc.name,
                 ),
+                ...(state.unsavedChartVersion.metricQuery.customDimensions?.map(
+                    getCustomDimensionId,
+                ) || []),
             ]);
             if (!activeFields.has(sortFieldId)) {
                 return state;
@@ -533,6 +591,9 @@ function reducer(
                 ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
                     (tc) => tc.name,
                 ),
+                ...(state.unsavedChartVersion.metricQuery.customDimensions?.map(
+                    getCustomDimensionId,
+                ) || []),
             ]);
             return {
                 ...state,
@@ -629,6 +690,114 @@ function reducer(
             };
         }
 
+        case ActionType.ADD_CUSTOM_DIMENSION: {
+            const newCustomDimensions = [
+                ...(state.unsavedChartVersion.metricQuery.customDimensions ||
+                    []),
+                action.payload,
+            ];
+            return {
+                ...state,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        customDimensions: newCustomDimensions,
+                    },
+                    tableConfig: {
+                        ...state.unsavedChartVersion.tableConfig,
+                        columnOrder: calcColumnOrder(
+                            state.unsavedChartVersion.tableConfig.columnOrder,
+                            [
+                                ...state.unsavedChartVersion.metricQuery
+                                    .dimensions,
+                                ...newCustomDimensions.map(
+                                    getCustomDimensionId,
+                                ),
+                                ...state.unsavedChartVersion.metricQuery
+                                    .metrics,
+                                ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
+                                    ({ name }) => name,
+                                ),
+                            ],
+                        ),
+                    },
+                },
+            };
+        }
+
+        case ActionType.EDIT_CUSTOM_DIMENSION: {
+            return {
+                ...state,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        dimensions:
+                            state.unsavedChartVersion.metricQuery.dimensions.filter(
+                                (dimension) =>
+                                    dimension !==
+                                    action.payload.previousCustomDimensionName,
+                            ),
+                        customDimensions:
+                            state.unsavedChartVersion.metricQuery.customDimensions?.map(
+                                (customDimension) =>
+                                    customDimension.name ===
+                                    action.payload.previousCustomDimensionName
+                                        ? action.payload.customDimension
+                                        : customDimension,
+                            ),
+                    },
+                },
+            };
+        }
+
+        case ActionType.REMOVE_CUSTOM_DIMENSION: {
+            return {
+                ...state,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        customDimensions: (
+                            state.unsavedChartVersion.metricQuery
+                                .customDimensions || []
+                        ).filter(
+                            (customDimension) =>
+                                getFieldId(customDimension) !== action.payload,
+                        ),
+                        dimensions:
+                            state.unsavedChartVersion.metricQuery.dimensions.filter(
+                                (dimension) => dimension !== action.payload,
+                            ),
+                        sorts: state.unsavedChartVersion.metricQuery.sorts.filter(
+                            (sort) => sort.fieldId !== action.payload,
+                        ),
+                    },
+                    tableConfig: {
+                        ...state.unsavedChartVersion.tableConfig,
+                        columnOrder:
+                            state.unsavedChartVersion.tableConfig.columnOrder.filter(
+                                (fieldId) => fieldId !== action.payload,
+                            ),
+                    },
+                },
+            };
+        }
+
+        case ActionType.TOGGLE_CUSTOM_DIMENSION_MODAL: {
+            return {
+                ...state,
+                modals: {
+                    ...state.modals,
+                    customDimension: {
+                        isOpen: !state.modals.customDimension.isOpen,
+                        ...(action.payload && { ...action.payload }),
+                    },
+                },
+            };
+        }
+
         case ActionType.EDIT_ADDITIONAL_METRIC: {
             return {
                 ...state,
@@ -707,6 +876,9 @@ function reducer(
                         ...state.unsavedChartVersion.tableConfig,
                         columnOrder: calcColumnOrder(action.payload, [
                             ...state.unsavedChartVersion.metricQuery.dimensions,
+                            ...(state.unsavedChartVersion.metricQuery.customDimensions?.map(
+                                getCustomDimensionId,
+                            ) || []),
                             ...state.unsavedChartVersion.metricQuery.metrics,
                             ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
                                 ({ name }) => name,
@@ -736,6 +908,9 @@ function reducer(
                             [
                                 ...state.unsavedChartVersion.metricQuery
                                     .dimensions,
+                                ...(state.unsavedChartVersion.metricQuery.customDimensions?.map(
+                                    getCustomDimensionId,
+                                ) || []),
                                 ...state.unsavedChartVersion.metricQuery
                                     .metrics,
                                 ...newTableCalculations.map(({ name }) => name),
@@ -809,6 +984,9 @@ function reducer(
                             [
                                 ...state.unsavedChartVersion.metricQuery
                                     .dimensions,
+                                ...(state.unsavedChartVersion.metricQuery.customDimensions?.map(
+                                    getCustomDimensionId,
+                                ) || []),
                                 ...state.unsavedChartVersion.metricQuery
                                     .metrics,
                                 ...newTableCalculations.map(({ name }) => name),
@@ -894,6 +1072,9 @@ export const ExplorerProvider: FC<{
             ...unsavedChartVersion.metricQuery.tableCalculations.map(
                 ({ name }) => name,
             ),
+            ...(unsavedChartVersion.metricQuery.customDimensions?.map(
+                getCustomDimensionId,
+            ) || []),
         ]);
         return [fields, fields.size > 0];
     }, [unsavedChartVersion]);
@@ -1156,6 +1337,59 @@ export const ExplorerProvider: FC<{
         });
     }, []);
 
+    const addCustomDimension = useCallback(
+        (customDimension: CustomDimension) => {
+            dispatch({
+                type: ActionType.ADD_CUSTOM_DIMENSION,
+                payload: customDimension,
+                options: {
+                    shouldFetchResults: true,
+                },
+            });
+
+            // TODO: add dispatch toggle
+        },
+        [],
+    );
+
+    const editCustomDimension = useCallback(
+        (
+            customDimension: CustomDimension,
+            previousCustomDimensionName: string,
+        ) => {
+            dispatch({
+                type: ActionType.EDIT_CUSTOM_DIMENSION,
+                payload: { customDimension, previousCustomDimensionName },
+            });
+            // TODO: add dispatch toggle
+        },
+        [],
+    );
+
+    const removeCustomDimension = useCallback((key: FieldId) => {
+        dispatch({
+            type: ActionType.REMOVE_CUSTOM_DIMENSION,
+            payload: key,
+        });
+    }, []);
+
+    const toggleCustomDimensionModal = useCallback(
+        (
+            customDimensionModalData?: Omit<
+                ExplorerReduceState['modals']['customDimension'],
+                'isOpen'
+            >,
+        ) => {
+            dispatch({
+                type: ActionType.TOGGLE_CUSTOM_DIMENSION_MODAL,
+                ...(customDimensionModalData && {
+                    payload: customDimensionModalData,
+                }),
+            });
+        },
+        [],
+    );
+
     const hasUnsavedChanges = useMemo<boolean>(() => {
         if (savedChart) {
             return !deepEqual(
@@ -1291,6 +1525,10 @@ export const ExplorerProvider: FC<{
             setChartConfig,
             fetchResults,
             toggleExpandedSection,
+            addCustomDimension,
+            editCustomDimension,
+            removeCustomDimension,
+            toggleCustomDimensionModal,
         }),
         [
             clearExplore,
@@ -1319,6 +1557,10 @@ export const ExplorerProvider: FC<{
             setChartConfig,
             fetchResults,
             toggleExpandedSection,
+            addCustomDimension,
+            editCustomDimension,
+            removeCustomDimension,
+            toggleCustomDimensionModal,
         ],
     );
 

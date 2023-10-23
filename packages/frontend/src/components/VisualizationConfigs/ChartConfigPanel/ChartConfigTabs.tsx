@@ -25,6 +25,8 @@ const ChartConfigTabs: FC = () => {
           )
         : [];
 
+    const customDimensions = resultsData?.metricQuery.customDimensions || [];
+
     const metricsAndTableCalculations: Array<Metric | TableCalculation> =
         explore
             ? [
@@ -53,7 +55,11 @@ const ChartConfigTabs: FC = () => {
               })
             : [];
 
-    const items = [...dimensionsInMetricQuery, ...metricsAndTableCalculations];
+    const items = [
+        ...dimensionsInMetricQuery,
+        ...customDimensions,
+        ...metricsAndTableCalculations,
+    ];
 
     return (
         <Tabs w={335} defaultValue="layout">

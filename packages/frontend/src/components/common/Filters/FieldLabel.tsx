@@ -1,7 +1,9 @@
 import {
     AdditionalMetric,
+    CustomDimension,
     Field,
     isAdditionalMetric,
+    isCustomDimension,
     isField,
     TableCalculation,
 } from '@lightdash/common';
@@ -9,7 +11,7 @@ import { Text } from '@mantine/core';
 import { FC } from 'react';
 
 interface FieldLabelProps {
-    item: Field | TableCalculation | AdditionalMetric;
+    item: Field | TableCalculation | AdditionalMetric | CustomDimension;
 }
 
 const FieldLabel: FC<FieldLabelProps> = ({ item }) => {
@@ -18,9 +20,12 @@ const FieldLabel: FC<FieldLabelProps> = ({ item }) => {
             {isField(item) ? `${item.tableLabel} ` : ''}
 
             <Text span fw={500}>
-                {isField(item) || isAdditionalMetric(item)
-                    ? item.label
-                    : item.displayName}
+                {() => {
+                    if (isCustomDimension(item)) return item.name;
+                    if (isField(item) || isAdditionalMetric(item))
+                        return item.label;
+                    return item.displayName;
+                }}
             </Text>
         </Text>
     );

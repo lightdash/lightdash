@@ -1,10 +1,12 @@
 import {
     AdditionalMetric,
+    CustomDimension,
     Dimension,
     DimensionType,
     fieldId,
     friendlyName,
     isAdditionalMetric,
+    isCustomDimension,
     isDimension,
     isField,
     isFilterableField,
@@ -21,6 +23,7 @@ import {
     IconSparkles,
     IconTrash,
 } from '@tabler/icons-react';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, useMemo } from 'react';
 import { useFilters } from '../../../../../hooks/useFilters';
 import { useExplorerContext } from '../../../../../providers/ExplorerProvider';
@@ -59,7 +62,7 @@ const getCustomMetricType = (type: DimensionType): MetricType[] => {
 };
 
 type Props = {
-    item: Metric | Dimension | AdditionalMetric;
+    item: Metric | Dimension | AdditionalMetric | CustomDimension;
     isHovered: boolean;
     isSelected: boolean;
     isOpened: MenuProps['opened'];
@@ -73,15 +76,22 @@ const TreeSingleNodeActions: FC<Props> = ({
     isOpened,
     onMenuChange,
 }) => {
+    const isCustomDimensionsFeatureEnabled =
+        useFeatureFlagEnabled('custom-dimensions');
     const { addFilter } = useFilters();
     const { track } = useTracking();
 
     const removeAdditionalMetric = useExplorerContext(
         (context) => context.actions.removeAdditionalMetric,
     );
-
     const toggleAdditionalMetricModal = useExplorerContext(
         (context) => context.actions.toggleAdditionalMetricModal,
+    );
+    const removeCustomDimension = useExplorerContext(
+        (context) => context.actions.removeCustomDimension,
+    );
+    const toggleCustomDimensionModal = useExplorerContext(
+        (context) => context.actions.toggleCustomDimensionModal,
     );
 
     const [customMetricsMenuItemBgColor, toggle] = useToggle([
@@ -89,6 +99,10 @@ const TreeSingleNodeActions: FC<Props> = ({
         'gray.1',
     ]);
 
+    const [customDimensionMenuItemBgColor, toggleCustomDimension] = useToggle([
+        'default',
+        'gray.1',
+    ]);
     const customMetrics = useMemo(
         () => (isDimension(item) ? getCustomMetricType(item.type) : []),
         [item],
@@ -212,6 +226,93 @@ const TreeSingleNodeActions: FC<Props> = ({
                         </Menu>
                     </>
                 ) : null}
+
+                {isCustomDimensionsFeatureEnabled &&
+                isDimension(item) &&
+                item.type === DimensionType.NUMBER ? (
+                    <>
+                        <Menu
+                            withinPortal
+                            trigger="hover"
+                            position="right-start"
+                            shadow="md"
+                            closeOnItemClick
+                            onOpen={() => toggleCustomDimension()}
+                            onClose={() => toggleCustomDimension()}
+                        >
+                            <Menu.Target>
+                                <Menu.Item
+                                    bg={customDimensionMenuItemBgColor}
+                                    component="button"
+                                    role="menuitem"
+                                    icon={<MantineIcon icon={IconSparkles} />}
+                                    rightSection={
+                                        <Box ml="xs">
+                                            <MantineIcon
+                                                icon={IconChevronRight}
+                                            />
+                                        </Box>
+                                    }
+                                >
+                                    Add custom dimensions
+                                </Menu.Item>
+                            </Menu.Target>
+
+                            <Menu.Dropdown>
+                                <Menu.Item
+                                    key={'bin'}
+                                    component="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+
+                                        // TODO: track event e.g. name: EventName.ADD_CUSTOM_DIMENSION_CLICKED,
+                                        toggleCustomDimensionModal({
+                                            item,
+                                            isEditing: false,
+                                        });
+                                    }}
+                                >
+                                    Bin
+                                </Menu.Item>
+                            </Menu.Dropdown>
+                        </Menu>
+                    </>
+                ) : null}
+
+                {isCustomDimensionsFeatureEnabled && isCustomDimension(item) && (
+                    <>
+                        <Menu.Item
+                            component="button"
+                            icon={<MantineIcon icon={IconEdit} />}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                toggleCustomDimensionModal({
+                                    item,
+                                    isEditing: true,
+                                });
+                            }}
+                        >
+                            Edit custom dimension
+                        </Menu.Item>
+                        <Menu.Item
+                            color="red"
+                            component="button"
+                            icon={<MantineIcon icon={IconTrash} />}
+                            onClick={(e) => {
+                                e.stopPropagation();
+
+                                // TODO: Add tracking
+                                // track({
+                                //     name: EventName.REMOVE_CUSTOM_DIMENSION_CLICKED,
+                                // });
+
+                                removeCustomDimension(fieldId(item));
+                            }}
+                        >
+                            Remove custom dimension
+                        </Menu.Item>
+                    </>
+                )}
             </Menu.Dropdown>
 
             {/* prevents bubbling of click event to NavLink */}
