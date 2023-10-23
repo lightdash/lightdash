@@ -1,3 +1,10 @@
+## [0.819.1](https://github.com/lightdash/lightdash/compare/0.819.0...0.819.1) (2023-10-23)
+
+
+### Bug Fixes
+
+* replace hyphens custom dimension ([#7597](https://github.com/lightdash/lightdash/issues/7597)) ([42040c4](https://github.com/lightdash/lightdash/commit/42040c48b625a96a9f4e82d1e804d4710d7d66cc))
+
 # [0.819.0](https://github.com/lightdash/lightdash/compare/0.818.0...0.819.0) (2023-10-23)
 
 
