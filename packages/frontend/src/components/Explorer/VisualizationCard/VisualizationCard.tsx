@@ -6,6 +6,7 @@ import { downloadCsv } from '../../../api/csv';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useExplore } from '../../../hooks/useExplore';
+import { useApp } from '../../../providers/AppProvider';
 import {
     ExplorerSection,
     useExplorerContext,
@@ -27,6 +28,8 @@ export type EchartsClickEvent = {
 
 const VisualizationCard: FC<{ projectUuid?: string }> = memo(
     ({ projectUuid: fallBackUUid }) => {
+        const { health } = useApp();
+
         const unsavedChartVersion = useExplorerContext(
             (context) => context.state.unsavedChartVersion,
         );
@@ -132,6 +135,11 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
             }
             throw new NotFoundError('no metric query defined');
         };
+
+        if (health.isLoading || !health.data) {
+            return null;
+        }
+
         return (
             <VisualizationProvider
                 initialChartConfig={unsavedChartVersion.chartConfig}
@@ -147,6 +155,7 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
                 onPivotDimensionsChange={setPivotFields}
                 columnOrder={unsavedChartVersion.tableConfig.columnOrder}
                 onSeriesContextMenu={onSeriesContextMenu}
+                pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
             >
                 <CollapsableCard
                     title="Charts"

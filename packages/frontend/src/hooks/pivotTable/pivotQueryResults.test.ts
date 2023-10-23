@@ -95,6 +95,7 @@ describe('Should pivot data', () => {
             pivotConfig,
             metricQuery: METRIC_QUERY_1DIM_2METRIC,
             rows: RESULT_ROWS_1DIM_2METRIC,
+            options: { maxColumns: 60 },
         });
         expect(result).toEqual(expected);
     });
@@ -169,6 +170,7 @@ describe('Should pivot data', () => {
             pivotConfig,
             metricQuery: METRIC_QUERY_1DIM_2METRIC,
             rows: RESULT_ROWS_1DIM_2METRIC,
+            options: { maxColumns: 60 },
         });
         expect(result).toEqual(expected);
     });
@@ -232,6 +234,7 @@ describe('Should pivot data', () => {
             pivotConfig,
             metricQuery: METRIC_QUERY_1DIM_2METRIC,
             rows: RESULT_ROWS_1DIM_2METRIC,
+            options: { maxColumns: 60 },
         });
         expect(result).toEqual(expected);
     });
@@ -342,6 +345,7 @@ describe('Should pivot data', () => {
             pivotConfig,
             metricQuery: METRIC_QUERY_2DIM_2METRIC,
             rows: RESULT_ROWS_2DIM_2METRIC,
+            options: { maxColumns: 60 },
         });
 
         expect(result).toEqual(expected);
@@ -483,6 +487,7 @@ describe('Should pivot data', () => {
             pivotConfig,
             metricQuery: METRIC_QUERY_2DIM_2METRIC,
             rows: RESULT_ROWS_2DIM_2METRIC,
+            options: { maxColumns: 60 },
         });
         expect(result).toStrictEqual(expected);
     });
@@ -515,6 +520,7 @@ describe('Should pivot data', () => {
             pivotConfig,
             metricQuery: METRIC_QUERY_0DIM_2METRIC,
             rows: RESULT_ROWS_0DIM_2METRIC,
+            options: { maxColumns: 60 },
         });
         expect(results).toStrictEqual(expected);
     });

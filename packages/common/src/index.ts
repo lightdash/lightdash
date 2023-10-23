@@ -631,6 +631,9 @@ export type HealthState = {
         maxLimit: number;
         csvCellsLimit: number;
     };
+    pivotTable: {
+        maxColumnLimit: number;
+    };
     hasSlack: boolean;
     hasHeadlessBrowser: boolean;
 };
