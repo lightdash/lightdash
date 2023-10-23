@@ -1,3 +1,10 @@
+## [0.816.1](https://github.com/lightdash/lightdash/compare/0.816.0...0.816.1) (2023-10-23)
+
+
+### Bug Fixes
+
+* redirect on register ([#7572](https://github.com/lightdash/lightdash/issues/7572)) ([92d6b90](https://github.com/lightdash/lightdash/commit/92d6b90bff38bd138f2aed9c04e483a2a8b8cd72))
+
 # [0.816.0](https://github.com/lightdash/lightdash/compare/0.815.0...0.816.0) (2023-10-20)
 
 
