@@ -4,6 +4,7 @@ import { FC, memo, useCallback, useMemo, useState } from 'react';
 import { Space } from '@mantine/core';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { downloadCsv } from '../../../api/csv';
+import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useExplore } from '../../../hooks/useExplore';
@@ -78,6 +79,8 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
 
         const [echartsClickEvent, setEchartsClickEvent] =
             useState<EchartsClickEvent>();
+
+        const { getIsEditingDashboardChart } = useDashboardStorage();
 
         const onSeriesContextMenu = useCallback(
             (e: EchartSeriesClickEvent, series: EChartSeries[]) => {
@@ -165,6 +168,7 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
                                     useSidebar ? (
                                         <VisualizationSidebar
                                             chartType={chartType}
+                                            isEditingDashboardChart={getIsEditingDashboardChart()}
                                         />
                                     ) : (
                                         <>

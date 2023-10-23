@@ -56,7 +56,7 @@ const BigNumberConfigTabs = memo(() => {
     const selectedField = getField(selectedFieldId);
 
     return (
-        <Tabs defaultValue="layout">
+        <Tabs defaultValue="layout" keepMounted={false}>
             <Tabs.List>
                 <Tabs.Tab value="layout">Layout</Tabs.Tab>
                 <Tabs.Tab value="comparison">Comparison</Tabs.Tab>

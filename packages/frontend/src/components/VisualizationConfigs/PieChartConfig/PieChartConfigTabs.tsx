@@ -6,7 +6,7 @@ import PieChartSeriesConfig from './PieChartSeriesConfig';
 
 const PieChartConfigTabs: React.FC = memo(() => {
     return (
-        <Tabs defaultValue="layout">
+        <Tabs defaultValue="layout" keepMounted={false}>
             <Tabs.List mb="sm">
                 <Tabs.Tab value="layout">Layout</Tabs.Tab>
                 <Tabs.Tab value="series">Series</Tabs.Tab>

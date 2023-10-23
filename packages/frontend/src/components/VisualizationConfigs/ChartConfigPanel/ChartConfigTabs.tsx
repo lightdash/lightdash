@@ -62,7 +62,7 @@ const ChartConfigTabs: FC = memo(() => {
     const items = [...dimensionsInMetricQuery, ...metricsAndTableCalculations];
 
     return (
-        <Tabs defaultValue="layout">
+        <Tabs defaultValue="layout" keepMounted={false}>
             <Tabs.List mb="sm">
                 <Tabs.Tab px="sm" value="layout">
                     Layout

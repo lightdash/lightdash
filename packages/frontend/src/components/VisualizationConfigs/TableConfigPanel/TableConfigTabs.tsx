@@ -4,7 +4,7 @@ import ConditionalFormattingList from './ConditionalFormattingList';
 import GeneralSettings from './GeneralSettings';
 const TableConfigTabs: React.FC = memo(() => {
     return (
-        <Tabs defaultValue="general">
+        <Tabs defaultValue="general" keepMounted={false}>
             <Tabs.List mb="sm">
                 <Tabs.Tab value="general">General</Tabs.Tab>
                 <Tabs.Tab value="conditional-formatting">
