@@ -394,7 +394,7 @@ describe('assertValidDimensionRequiredAttribute', () => {
 });
 
 describe('with custom dimensions', () => {
-    it('getCustomDimensionSql with empty custom dimension', async () => {
+    it('getCustomDimensionSql with empty custom dimension', () => {
         expect(
             getCustomDimensionSql({
                 explore: EXPLORE,
@@ -405,7 +405,7 @@ describe('with custom dimensions', () => {
         ).toStrictEqual(undefined);
     });
 
-    it('getCustomDimensionSql with custom dimension', async () => {
+    it('getCustomDimensionSql with custom dimension', () => {
         expect(
             getCustomDimensionSql({
                 explore: EXPLORE,
@@ -435,7 +435,7 @@ WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_
         });
     });
 
-    it('getCustomDimensionSql with only 1 bin', async () => {
+    it('getCustomDimensionSql with only 1 bin', () => {
         expect(
             getCustomDimensionSql({
                 explore: EXPLORE,
@@ -472,7 +472,7 @@ WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_
         });
     });
 
-    it('buildQuery with custom dimension', async () => {
+    it('buildQuery with custom dimension', () => {
         expect(
             buildQuery({
                 explore: EXPLORE,
