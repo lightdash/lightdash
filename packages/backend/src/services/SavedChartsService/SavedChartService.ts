@@ -380,7 +380,7 @@ export class SavedChartService {
         projectUuid: string,
         data: UpdateMultipleSavedChart[],
     ): Promise<SavedChart[]> {
-        const project = await this.projectModel.get(projectUuid);
+        const project = await this.projectModel.getSummary(projectUuid);
 
         if (
             user.ability.cannot(
@@ -497,7 +497,9 @@ export class SavedChartService {
         projectUuid: string,
         savedChart: CreateSavedChart,
     ): Promise<SavedChart> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'create',

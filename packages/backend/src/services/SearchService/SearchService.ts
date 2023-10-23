@@ -43,7 +43,9 @@ export class SearchService {
         projectUuid: string,
         query: string,
     ): Promise<SearchResults> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
