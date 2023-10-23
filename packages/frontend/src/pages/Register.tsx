@@ -33,6 +33,9 @@ const Register: FC = () => {
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
     const { identify } = useTracking();
+    const redirectUrl = location.state?.from
+        ? `${location.state.from.pathname}${location.state.from.search}`
+        : '/';
     const { isLoading, mutate, isSuccess } = useMutation<
         LightdashUser,
         ApiError,
@@ -41,9 +44,7 @@ const Register: FC = () => {
         mutationKey: ['login'],
         onSuccess: (data) => {
             identify({ id: data.userUuid });
-            window.location.href = location.state?.from
-                ? `${location.state.from.pathname}${location.state.from.search}`
-                : '/';
+            window.location.href = redirectUrl;
         },
         onError: (error) => {
             showToastError({
@@ -69,6 +70,7 @@ const Register: FC = () => {
                     key={providerName}
                     providerName={providerName}
                     intent="signup"
+                    redirect={redirectUrl}
                 />
             ))}
         </Stack>
