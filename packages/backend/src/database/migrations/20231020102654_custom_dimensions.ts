@@ -17,7 +17,7 @@ export async function up(knex: Knex): Promise<void> {
                 tableBuilder.text('table').notNullable();
                 tableBuilder.integer('order').notNullable();
                 tableBuilder.text('bin_type').notNullable();
-                tableBuilder.text('bin_number').nullable();
+                tableBuilder.integer('bin_number').nullable();
                 tableBuilder
                     .integer('saved_queries_version_id')
                     .notNullable()

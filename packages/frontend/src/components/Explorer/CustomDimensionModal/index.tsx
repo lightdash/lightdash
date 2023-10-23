@@ -15,10 +15,10 @@ import { useEffect } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 
-// TODO: edit custom dimension
 // TODO: preview custom dimension results
 
 export const CustomDimensionModal = () => {
+    const MIN_OF_FIXED_NUMBER_BINS = 1;
     const { showToastSuccess } = useToaster();
     const { isOpen, isEditing, item } = useExplorerContext(
         (context) => context.state.modals.customDimension,
@@ -44,7 +44,7 @@ export const CustomDimensionModal = () => {
             binType: BinType.FIXED_NUMBER,
             binConfig: {
                 fixedNumber: {
-                    binNumber: 2,
+                    binNumber: MIN_OF_FIXED_NUMBER_BINS,
                 },
             },
         },
@@ -75,7 +75,7 @@ export const CustomDimensionModal = () => {
             setFieldValue('binType', item.binType);
             setFieldValue(
                 'binConfig.fixedNumber.binNumber',
-                item.binNumber ? +item.binNumber : 0,
+                item.binNumber ? +item.binNumber : MIN_OF_FIXED_NUMBER_BINS,
             );
         }
     }, [setFieldValue, item, isEditing]);
@@ -184,7 +184,7 @@ export const CustomDimensionModal = () => {
                             w={100}
                             label="Bin number"
                             required
-                            min={2}
+                            min={MIN_OF_FIXED_NUMBER_BINS}
                             type="number"
                             {...form.getInputProps(
                                 'binConfig.fixedNumber.binNumber',
