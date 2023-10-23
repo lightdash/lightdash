@@ -511,9 +511,14 @@ export const buildQuery = ({
             sqlSelect,
             sqlFrom,
             sqlJoins,
+            customDimensionSql
+                ? `CROSS JOIN ${customDimensionSql.joins.join(',\n')}`
+                : undefined,
             sqlWhere,
             sqlGroupBy,
-        ].join('\n');
+        ]
+            .filter((l) => l !== undefined)
+            .join('\n');
         const cteName = 'metrics';
         const ctes = [
             ...(customDimensionSql?.ctes || []),
