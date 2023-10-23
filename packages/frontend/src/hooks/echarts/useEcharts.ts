@@ -1440,10 +1440,10 @@ const useEcharts = (
                         typeof b[xFieldId] === 'string'
                     ) {
                         const startA = parseInt(
-                            (a[xFieldId] as string).split(' ')[0],
+                            (a[xFieldId] as string).split('-')[0],
                         );
                         const startB = parseInt(
-                            (b[xFieldId] as string).split(' ')[0],
+                            (b[xFieldId] as string).split('-')[0],
                         );
                         return startA - startB;
                     }
