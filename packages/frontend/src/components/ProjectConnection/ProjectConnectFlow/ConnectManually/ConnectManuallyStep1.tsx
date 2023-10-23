@@ -1,19 +1,20 @@
 import { Button, Stack, Text, Tooltip } from '@mantine/core';
+import { Prism } from '@mantine/prism';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useTracking } from '../../../../providers/TrackingProvider';
 import { EventName } from '../../../../types/Events';
 import MantineIcon from '../../../common/MantineIcon';
 import { ProjectCreationCard } from '../../../common/Settings/SettingsCard';
-import CodeBlock from '../common/CodeBlock';
 import { OnboardingConnectTitle } from '../common/OnboardingTitle';
 import OnboardingWrapper from '../common/OnboardingWrapper';
 
-const codeBlock = String.raw`models:
-- name: my_model
+const codeBlock = String.raw`
+models:
+  - name: my_model
     columns:
-    - name: my_column_1
-    - name: my_column_2
+      - name: my_column_1
+      - name: my_column_2
 `;
 
 interface ConnectManuallyStep1Props {
@@ -53,7 +54,9 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
                         .yml to see a table in Lightdash. eg:
                     </Text>
 
-                    <CodeBlock>{codeBlock}</CodeBlock>
+                    <Prism ta="left" noCopy language="yaml">
+                        {codeBlock}
+                    </Prism>
 
                     <Stack spacing="xs">
                         <Tooltip
