@@ -1,3 +1,10 @@
+## [0.816.2](https://github.com/lightdash/lightdash/compare/0.816.1...0.816.2) (2023-10-23)
+
+
+### Bug Fixes
+
+* explore models tooltip ([#7582](https://github.com/lightdash/lightdash/issues/7582)) ([7169b14](https://github.com/lightdash/lightdash/commit/7169b14d75cb5c4db28b51f61293a193129280bd))
+
 ## [0.816.1](https://github.com/lightdash/lightdash/compare/0.816.0...0.816.1) (2023-10-23)
 
 
