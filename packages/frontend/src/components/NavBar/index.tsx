@@ -1,7 +1,6 @@
 import { ProjectType } from '@lightdash/common';
 import {
     ActionIcon,
-    Badge,
     Box,
     Button,
     Center,
@@ -14,7 +13,6 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconInfoCircle, IconTool } from '@tabler/icons-react';
-import { PostHogFeature } from 'posthog-js/react';
 import { FC, memo, useEffect, useMemo } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
@@ -193,14 +191,6 @@ const NavBar = memo(() => {
                 </Group>
 
                 <Box sx={{ flexGrow: 1 }} />
-
-                <PostHogFeature flag={'lightdash-team-flair'} match={true}>
-                    <Box mx="sm">
-                        <Badge color="violet" variant="filled">
-                            LIGHTDASH TEAM
-                        </Badge>
-                    </Box>
-                </PostHogFeature>
 
                 <Group sx={{ flexShrink: 0 }}>
                     <Button.Group>
