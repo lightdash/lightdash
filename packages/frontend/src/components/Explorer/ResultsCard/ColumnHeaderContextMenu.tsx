@@ -1,6 +1,7 @@
 import {
     fieldId,
     getItemId,
+    isCustomDimension,
     isField,
     isFilterableField,
     TableCalculation,
@@ -66,21 +67,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
         (context) => context.actions.toggleAdditionalMetricModal,
     );
 
-    const customDimensions = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.customDimensions,
-    );
-
-    // TODO: Refactor into a function that gets a Map() of custom IDs and checks if the item is in the map
-    const customDimension = useMemo(
-        () =>
-            !!customDimensions &&
-            !!item &&
-            customDimensions.find((cd) => getItemId(cd) === getItemId(item)),
-        [customDimensions, item],
-    );
-
-    const isItemCustomDimension = !!customDimension;
+    const isItemCustomDimension = isCustomDimension(item);
 
     const toggleCustomDimensionModal = useExplorerContext(
         (context) => context.actions.toggleCustomDimensionModal,
@@ -154,7 +141,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                         icon={<MantineIcon icon={IconPencil} />}
                         onClick={() => {
                             toggleCustomDimensionModal({
-                                item: customDimension,
+                                item,
                                 isEditing: true,
                             });
                         }}
