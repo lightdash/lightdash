@@ -1,4 +1,4 @@
-import { Button, Popover } from '@mantine/core';
+import { Box, Button, Popover } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import {
     COLLAPSABLE_CARD_BUTTON_PROPS,
@@ -36,7 +36,9 @@ const ChartConfigPanel: React.FC = () => {
             </Popover.Target>
 
             <Popover.Dropdown>
-                <ChartConfigTabs />
+                <Box w={335}>
+                    <ChartConfigTabs />
+                </Box>
             </Popover.Dropdown>
         </Popover>
     );

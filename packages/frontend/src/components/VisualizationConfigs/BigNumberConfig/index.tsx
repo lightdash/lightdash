@@ -1,4 +1,4 @@
-import { Button, Popover } from '@mantine/core';
+import { Box, Button, Popover } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import React from 'react';
 import {
@@ -30,7 +30,9 @@ const BigNumberConfig: React.FC = () => {
             </Popover.Target>
 
             <Popover.Dropdown>
-                <BigNumberConfigTabs />
+                <Box w={320}>
+                    <BigNumberConfigTabs />
+                </Box>
             </Popover.Dropdown>
         </Popover>
     );

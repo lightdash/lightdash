@@ -1,4 +1,4 @@
-import { Button, Popover, Tabs } from '@mantine/core';
+import { Box, Button, Popover } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import React from 'react';
 import {
@@ -7,8 +7,8 @@ import {
 } from '../../common/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import ConditionalFormattingList from './ConditionalFormattingList';
-import GeneralSettings from './GeneralSettings';
+
+import TableConfigTabs from './TableConfigTabs';
 
 const TableConfigPanel: React.FC = () => {
     const { resultsData } = useVisualizationContext();
@@ -29,21 +29,9 @@ const TableConfigPanel: React.FC = () => {
             </Popover.Target>
 
             <Popover.Dropdown>
-                <Tabs w={320} defaultValue="general">
-                    <Tabs.List mb="sm">
-                        <Tabs.Tab value="general">General</Tabs.Tab>
-                        <Tabs.Tab value="conditional-formatting">
-                            Conditional formatting
-                        </Tabs.Tab>
-                    </Tabs.List>
-
-                    <Tabs.Panel value="general">
-                        <GeneralSettings />
-                    </Tabs.Panel>
-                    <Tabs.Panel value="conditional-formatting">
-                        <ConditionalFormattingList />
-                    </Tabs.Panel>
-                </Tabs>
+                <Box w={320}>
+                    <TableConfigTabs />
+                </Box>
             </Popover.Dropdown>
         </Popover>
     );
