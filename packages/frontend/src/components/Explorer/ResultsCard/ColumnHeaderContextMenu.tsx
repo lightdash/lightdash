@@ -182,7 +182,7 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                     e.stopPropagation();
                 }}
             >
-                <Menu>
+                <Menu withinPortal withArrow>
                     <Menu.Target>
                         <ActionIcon size="xs" variant="light" bg="transparent">
                             <MantineIcon icon={IconChevronDown} />
