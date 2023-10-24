@@ -120,6 +120,7 @@ export const CustomDimensionModal = () => {
                     dimensionId: fieldId(item),
                     binType: values.binType,
                     binNumber: values.binConfig.fixedNumber.binNumber,
+                    binWidth: values.binConfig.fixedWidth.binWidth,
                     table: item.table,
 
                     // TODO: consider renaming some properties to match `addCustomMetric` logic

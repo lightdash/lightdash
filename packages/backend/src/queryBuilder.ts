@@ -233,7 +233,7 @@ export const getCustomDimensionSql = ({
                     const width = customDimension.binWidth;
                     return [
                         ...acc,
-                        `    FLOOR(${dimension.compiledSql} / ${width}) * ${width} || '-' || (FLOOR(${dimension.compiledSql} / ${width}) + 1) * ${width} - 1 AS ${customDimensionName}`,
+                        `    CONCAT(FLOOR(${dimension.compiledSql} / ${width}) * ${width}, '-', (FLOOR(${dimension.compiledSql} / ${width}) + 1) * ${width} - 1) AS ${customDimensionName}`,
                     ];
                 case BinType.FIXED_NUMBER:
                     if (!customDimension.binNumber) {
