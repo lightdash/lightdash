@@ -73,6 +73,10 @@ const ContextMenu: FC<ContextMenuProps> = ({
         (context) => context.actions.toggleCustomDimensionModal,
     );
 
+    const removeCustomDimension = useExplorerContext(
+        (context) => context.actions.removeCustomDimension,
+    );
+
     if (item && isField(item) && isFilterableField(item)) {
         const itemFieldId = fieldId(item);
         return (
@@ -168,22 +172,25 @@ const ContextMenu: FC<ContextMenuProps> = ({
                         <ColumnHeaderSortMenuOptions item={item} sort={sort} />
 
                         <Menu.Divider />
-
-                        <Menu.Item
-                            icon={<MantineIcon icon={IconTrash} />}
-                            color="red"
-                            onClick={() => {
-                                track({
-                                    name: EventName.DELETE_TABLE_CALCULATION_BUTTON_CLICKED,
-                                });
-
-                                onToggleCalculationDeleteModal(true);
-                            }}
-                        >
-                            Remove
-                        </Menu.Item>
                     </>
                 )}
+                <Menu.Item
+                    icon={<MantineIcon icon={IconTrash} />}
+                    color="red"
+                    onClick={() => {
+                        if (isItemCustomDimension) {
+                            removeCustomDimension(fieldId(item));
+                        } else {
+                            track({
+                                name: EventName.DELETE_TABLE_CALCULATION_BUTTON_CLICKED,
+                            });
+
+                            onToggleCalculationDeleteModal(true);
+                        }
+                    }}
+                >
+                    Remove
+                </Menu.Item>
             </>
         );
     } else {
