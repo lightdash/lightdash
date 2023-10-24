@@ -1,3 +1,10 @@
+## [0.820.1](https://github.com/lightdash/lightdash/compare/0.820.0...0.820.1) (2023-10-24)
+
+
+### Bug Fixes
+
+* optimize get project summary ([#7615](https://github.com/lightdash/lightdash/issues/7615)) ([0920321](https://github.com/lightdash/lightdash/commit/09203219f6660d3e7fc670c84d816a53b4b32c10))
+
 # [0.820.0](https://github.com/lightdash/lightdash/compare/0.819.1...0.820.0) (2023-10-23)
 
 
