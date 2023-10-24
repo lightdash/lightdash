@@ -80,7 +80,7 @@ const ChartHistory = () => {
 
     return (
         <Page
-            title="Chart History"
+            title="Chart version history"
             withSidebarFooter
             withFullHeight
             withPaddedContent
