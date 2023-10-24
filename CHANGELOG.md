@@ -1,3 +1,10 @@
+## [0.820.2](https://github.com/lightdash/lightdash/compare/0.820.1...0.820.2) (2023-10-24)
+
+
+### Bug Fixes
+
+* reference line undefined custom dimension ([#7627](https://github.com/lightdash/lightdash/issues/7627)) ([b81f48f](https://github.com/lightdash/lightdash/commit/b81f48f6bd0c4af968d2556466025f13446ce6a1))
+
 ## [0.820.1](https://github.com/lightdash/lightdash/compare/0.820.0...0.820.1) (2023-10-24)
 
 
