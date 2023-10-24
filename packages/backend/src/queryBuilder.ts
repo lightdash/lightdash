@@ -141,7 +141,9 @@ export const getCustomDimensionSql = ({
     compiledMetricQuery: CompiledMetricQuery;
     fieldQuoteChar: string;
     userAttributes: UserAttributeValueMap | undefined;
-}): { ctes: string[]; joins: string[]; selects: string[] } | undefined => {
+}):
+    | { ctes: string[]; joins: string[]; tables: string[]; selects: string[] }
+    | undefined => {
     const { customDimensions } = compiledMetricQuery;
 
     if (customDimensions === undefined || customDimensions.length === 0)
@@ -200,6 +202,9 @@ export const getCustomDimensionSql = ({
         return acc;
     }, []);
 
+    const tables = customDimensions.map(
+        (customDimension) => customDimension.table,
+    );
     const selects = customDimensions.reduce<string[]>(
         (acc, customDimension) => {
             const dimension = getDimensionFromId(
@@ -238,7 +243,7 @@ export const getCustomDimensionSql = ({
                     }
 
                     // TODO test this on other warehouses
-                    const ratio = `${cte}.min_id + (${cte}.max_id - ${cte}.min_id )`;
+                    const ratio = `${cte}.ratio`;
 
                     if (customDimension.binNumber <= 1) {
                         // Edge case, bin number with only one bucket does not need a CASE statement
@@ -278,7 +283,7 @@ export const getCustomDimensionSql = ({
         [],
     );
 
-    return { ctes, joins, selects };
+    return { ctes, joins, tables: [...new Set(tables)], selects };
 };
 
 export const buildQuery = ({
@@ -353,6 +358,7 @@ export const buildQuery = ({
             const dim = getDimensionFromId(field, explore);
             return [...acc, ...(dim.tablesReferences || [dim.table])];
         }, []),
+        ...(customDimensionSql?.tables || []),
         ...getFilterRulesFromGroup(filters.dimensions).reduce<string[]>(
             (acc, filterRule) => {
                 const dim = getDimensionFromId(
@@ -401,7 +407,6 @@ export const buildQuery = ({
         );
         return [...allNewReferences, ...getJoinedTables(allNewReferences)];
     };
-
     const joinedTables = new Set([
         ...selectedTables,
         ...getJoinedTables([...selectedTables]),
