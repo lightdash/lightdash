@@ -29,193 +29,185 @@ export type EchartsClickEvent = {
     series: EChartSeries[];
 };
 
-const VisualizationCard: FC<{ projectUuid?: string }> = memo(
-    ({ projectUuid: fallBackUUid }) => {
-        const { health } = useApp();
+const VisualizationCard: FC<{
+    projectUuid?: string;
+    isProjectPreview?: boolean;
+}> = memo(({ projectUuid: fallBackUUid, isProjectPreview }) => {
+    const { health } = useApp();
 
-        // FEATURE FLAG: remove when chart config sidebar is complete
-        const useSidebar = useFeatureFlagEnabled('sidebar-chart-config');
+    // FEATURE FLAG: remove when chart config sidebar is complete
+    const useSidebar = useFeatureFlagEnabled('sidebar-chart-config');
 
-        const savedChart = useExplorerContext(
-            (context) => context.state.savedChart,
-        );
+    const savedChart = useExplorerContext(
+        (context) => context.state.savedChart,
+    );
 
-        const unsavedChartVersion = useExplorerContext(
-            (context) => context.state.unsavedChartVersion,
-        );
-        const isLoadingQueryResults = useExplorerContext(
-            (context) => context.queryResults.isLoading,
-        );
-        const queryResults = useExplorerContext(
-            (context) => context.queryResults.data,
-        );
-        const setPivotFields = useExplorerContext(
-            (context) => context.actions.setPivotFields,
-        );
-        const setChartType = useExplorerContext(
-            (context) => context.actions.setChartType,
-        );
-        const setChartConfig = useExplorerContext(
-            (context) => context.actions.setChartConfig,
-        );
-        const expandedSections = useExplorerContext(
-            (context) => context.state.expandedSections,
-        );
-        const isEditMode = useExplorerContext(
-            (context) => context.state.isEditMode,
-        );
-        const toggleExpandedSection = useExplorerContext(
-            (context) => context.actions.toggleExpandedSection,
-        );
-        const chartType = useExplorerContext(
-            (context) => context.state.unsavedChartVersion.chartConfig.type,
-        );
-        const isOpen = useMemo(
-            () => expandedSections.includes(ExplorerSection.VISUALIZATION),
-            [expandedSections],
-        );
-        const toggleSection = useCallback(
-            () => toggleExpandedSection(ExplorerSection.VISUALIZATION),
-            [toggleExpandedSection],
-        );
-        const projectUuid = useExplorerContext(
-            (context) => context.state.savedChart?.projectUuid || fallBackUUid,
-        );
+    const unsavedChartVersion = useExplorerContext(
+        (context) => context.state.unsavedChartVersion,
+    );
+    const isLoadingQueryResults = useExplorerContext(
+        (context) => context.queryResults.isLoading,
+    );
+    const queryResults = useExplorerContext(
+        (context) => context.queryResults.data,
+    );
+    const setPivotFields = useExplorerContext(
+        (context) => context.actions.setPivotFields,
+    );
+    const setChartType = useExplorerContext(
+        (context) => context.actions.setChartType,
+    );
+    const setChartConfig = useExplorerContext(
+        (context) => context.actions.setChartConfig,
+    );
+    const expandedSections = useExplorerContext(
+        (context) => context.state.expandedSections,
+    );
+    const isEditMode = useExplorerContext(
+        (context) => context.state.isEditMode,
+    );
+    const toggleExpandedSection = useExplorerContext(
+        (context) => context.actions.toggleExpandedSection,
+    );
+    const chartType = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.chartConfig.type,
+    );
+    const isOpen = useMemo(
+        () => expandedSections.includes(ExplorerSection.VISUALIZATION),
+        [expandedSections],
+    );
+    const toggleSection = useCallback(
+        () => toggleExpandedSection(ExplorerSection.VISUALIZATION),
+        [toggleExpandedSection],
+    );
+    const projectUuid = useExplorerContext(
+        (context) => context.state.savedChart?.projectUuid || fallBackUUid,
+    );
 
-        const { data: explore } = useExplore(unsavedChartVersion.tableName);
+    const { data: explore } = useExplore(unsavedChartVersion.tableName);
 
-        const [echartsClickEvent, setEchartsClickEvent] =
-            useState<EchartsClickEvent>();
+    const [echartsClickEvent, setEchartsClickEvent] =
+        useState<EchartsClickEvent>();
 
-        const { getIsEditingDashboardChart } = useDashboardStorage();
+    const { getIsEditingDashboardChart } = useDashboardStorage();
 
-        const onSeriesContextMenu = useCallback(
-            (e: EchartSeriesClickEvent, series: EChartSeries[]) => {
-                setEchartsClickEvent({
-                    event: e,
-                    dimensions: unsavedChartVersion.metricQuery.dimensions,
-                    series,
-                });
-            },
-            [unsavedChartVersion],
-        );
+    const onSeriesContextMenu = useCallback(
+        (e: EchartSeriesClickEvent, series: EChartSeries[]) => {
+            setEchartsClickEvent({
+                event: e,
+                dimensions: unsavedChartVersion.metricQuery.dimensions,
+                series,
+            });
+        },
+        [unsavedChartVersion],
+    );
 
-        if (!unsavedChartVersion.tableName) {
-            return <CollapsableCard title="Charts" disabled />;
+    if (!unsavedChartVersion.tableName) {
+        return <CollapsableCard title="Charts" disabled />;
+    }
+
+    const getCsvLink = async (
+        csvLimit: number | null,
+        onlyRaw: boolean,
+        showTableNames: boolean,
+        columnOrder: string[],
+        customLabels?: Record<string, string>,
+    ) => {
+        if (explore?.name && unsavedChartVersion?.metricQuery && projectUuid) {
+            const csvResponse = await downloadCsv({
+                projectUuid,
+                tableId: explore?.name,
+                query: unsavedChartVersion?.metricQuery,
+                csvLimit,
+                onlyRaw,
+                showTableNames,
+                columnOrder,
+                customLabels,
+            });
+            return csvResponse;
         }
-
-        const getCsvLink = async (
-            csvLimit: number | null,
-            onlyRaw: boolean,
-            showTableNames: boolean,
-            columnOrder: string[],
-            customLabels?: Record<string, string>,
-        ) => {
-            if (
-                explore?.name &&
-                unsavedChartVersion?.metricQuery &&
-                projectUuid
-            ) {
-                const csvResponse = await downloadCsv({
-                    projectUuid,
-                    tableId: explore?.name,
-                    query: unsavedChartVersion?.metricQuery,
-                    csvLimit,
-                    onlyRaw,
-                    showTableNames,
-                    columnOrder,
-                    customLabels,
-                });
-                return csvResponse;
-            }
-            throw new NotFoundError('no metric query defined');
-        };
-        const getGsheetLink = async (columnOrder: string[]) => {
-            if (
-                explore?.name &&
-                unsavedChartVersion?.metricQuery &&
-                projectUuid
-            ) {
-                const gsheetResponse = await uploadGsheet({
-                    projectUuid,
-                    exploreId: explore?.name,
-                    metricQuery: unsavedChartVersion?.metricQuery,
-                    columnOrder,
-                    showTableNames: true,
-                });
-                return gsheetResponse;
-            }
-            throw new NotFoundError('no metric query defined');
-        };
-
-        if (health.isLoading || !health.data) {
-            return null;
+        throw new NotFoundError('no metric query defined');
+    };
+    const getGsheetLink = async (columnOrder: string[]) => {
+        if (explore?.name && unsavedChartVersion?.metricQuery && projectUuid) {
+            const gsheetResponse = await uploadGsheet({
+                projectUuid,
+                exploreId: explore?.name,
+                metricQuery: unsavedChartVersion?.metricQuery,
+                columnOrder,
+                showTableNames: true,
+            });
+            return gsheetResponse;
         }
+        throw new NotFoundError('no metric query defined');
+    };
 
-        return (
-            <VisualizationProvider
-                initialChartConfig={unsavedChartVersion.chartConfig}
-                chartType={unsavedChartVersion.chartConfig.type}
-                initialPivotDimensions={
-                    unsavedChartVersion.pivotConfig?.columns
-                }
-                explore={explore}
-                resultsData={queryResults}
-                isLoading={isLoadingQueryResults}
-                onChartConfigChange={setChartConfig}
-                onChartTypeChange={setChartType}
-                onPivotDimensionsChange={setPivotFields}
-                columnOrder={unsavedChartVersion.tableConfig.columnOrder}
-                onSeriesContextMenu={onSeriesContextMenu}
-                pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
-            >
-                <CollapsableCard
-                    title="Charts"
-                    isOpen={isOpen}
-                    shouldExpand
-                    onToggle={toggleSection}
-                    rightHeaderElement={
-                        isOpen && (
-                            <>
-                                {isEditMode ? (
-                                    useSidebar ? (
-                                        <VisualizationSidebar
+    if (health.isLoading || !health.data) {
+        return null;
+    }
+
+    return (
+        <VisualizationProvider
+            initialChartConfig={unsavedChartVersion.chartConfig}
+            chartType={unsavedChartVersion.chartConfig.type}
+            initialPivotDimensions={unsavedChartVersion.pivotConfig?.columns}
+            explore={explore}
+            resultsData={queryResults}
+            isLoading={isLoadingQueryResults}
+            onChartConfigChange={setChartConfig}
+            onChartTypeChange={setChartType}
+            onPivotDimensionsChange={setPivotFields}
+            columnOrder={unsavedChartVersion.tableConfig.columnOrder}
+            onSeriesContextMenu={onSeriesContextMenu}
+            pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
+        >
+            <CollapsableCard
+                title="Charts"
+                isOpen={isOpen}
+                shouldExpand
+                onToggle={toggleSection}
+                rightHeaderElement={
+                    isOpen && (
+                        <>
+                            {isEditMode ? (
+                                useSidebar ? (
+                                    <VisualizationSidebar
+                                        chartType={chartType}
+                                        savedChart={savedChart}
+                                        isEditingDashboardChart={getIsEditingDashboardChart()}
+                                        isProjectPreview={isProjectPreview}
+                                    />
+                                ) : (
+                                    <>
+                                        <VisualizationCardOptions />
+                                        <VisualizationConfigPanel
                                             chartType={chartType}
-                                            savedChart={savedChart}
-                                            isEditingDashboardChart={getIsEditingDashboardChart()}
                                         />
-                                    ) : (
-                                        <>
-                                            <VisualizationCardOptions />
-                                            <VisualizationConfigPanel
-                                                chartType={chartType}
-                                            />
-                                        </>
-                                    )
-                                ) : null}
-                                <ChartDownloadMenu
-                                    getCsvLink={getCsvLink}
-                                    projectUuid={projectUuid!}
-                                    getGsheetLink={getGsheetLink}
-                                />
-                            </>
-                        )
-                    }
-                >
-                    <Space h="sm" />
-                    <LightdashVisualization
-                        className="sentry-block ph-no-capture"
-                        data-testid="visualization"
-                    />
-                    <SeriesContextMenu
-                        echartSeriesClickEvent={echartsClickEvent?.event}
-                        dimensions={echartsClickEvent?.dimensions}
-                        series={echartsClickEvent?.series}
-                    />
-                </CollapsableCard>
-            </VisualizationProvider>
-        );
-    },
-);
+                                    </>
+                                )
+                            ) : null}
+                            <ChartDownloadMenu
+                                getCsvLink={getCsvLink}
+                                projectUuid={projectUuid!}
+                                getGsheetLink={getGsheetLink}
+                            />
+                        </>
+                    )
+                }
+            >
+                <Space h="sm" />
+                <LightdashVisualization
+                    className="sentry-block ph-no-capture"
+                    data-testid="visualization"
+                />
+                <SeriesContextMenu
+                    echartSeriesClickEvent={echartsClickEvent?.event}
+                    dimensions={echartsClickEvent?.dimensions}
+                    series={echartsClickEvent?.series}
+                />
+            </CollapsableCard>
+        </VisualizationProvider>
+    );
+});
 
 export default VisualizationCard;
