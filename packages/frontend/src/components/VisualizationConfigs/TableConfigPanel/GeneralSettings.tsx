@@ -169,9 +169,12 @@ const GeneralSettings: FC = () => {
             <Tooltip
                 disabled={!!canUsePivotTable}
                 label={
-                    'To use metrics as rows, you need to move a dimension to "Columns".'
+                    'To use metrics as rows, you need to move a dimension to "Columns"'
                 }
-                position="top"
+                w={300}
+                multiline
+                withinPortal
+                position="top-start"
             >
                 <Box my="sm">
                     <Checkbox

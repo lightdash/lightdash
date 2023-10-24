@@ -263,7 +263,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                         <Text fw={500}>Rule {configIndex + 1}</Text>
                     </Group>
 
-                    <Tooltip label="Remove rule" position="left">
+                    <Tooltip label="Remove rule" position="left" withinPortal>
                         <ActionIcon onClick={handleRemove} size="sm">
                             <MantineIcon icon={IconX} />
                         </ActionIcon>

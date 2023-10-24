@@ -81,6 +81,7 @@ const ValueOptions: FC<ValueOptionsProps> = ({
             position="top-start"
             disabled={valueLabel !== 'hidden'}
             label="Enable Value label to configure this option"
+            withinPortal
         >
             <div>
                 <Checkbox
@@ -99,6 +100,7 @@ const ValueOptions: FC<ValueOptionsProps> = ({
             position="top-start"
             disabled={valueLabel !== 'hidden'}
             label="Enable Value label to configure this option"
+            withinPortal
         >
             <div>
                 <Checkbox
@@ -205,7 +207,7 @@ const GroupItem = forwardRef<HTMLDivElement, StackProps & GroupItemProps>(
                         }}
                     />
 
-                    <Tooltip label="Override value label options">
+                    <Tooltip label="Override value label options" withinPortal>
                         <ActionIcon onClick={toggle} size="sm">
                             <MantineIcon
                                 icon={opened ? IconChevronUp : IconChevronDown}

@@ -47,6 +47,7 @@ const ColumnConfiguration: React.FC<{ fieldId: string }> = ({ fieldId }) => {
             <Tooltip
                 position="top"
                 opened={isShowTooltipVisible}
+                withinPortal
                 label={
                     isPivotingDimension
                         ? "Can't hide pivot dimensions"
@@ -95,6 +96,7 @@ const ColumnConfiguration: React.FC<{ fieldId: string }> = ({ fieldId }) => {
             {!pivotDimensions ? (
                 <Tooltip
                     position="top"
+                    withinPortal
                     opened={isFreezeTooltipVisible}
                     label={
                         isColumnFrozen(fieldId)

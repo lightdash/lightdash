@@ -60,7 +60,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                 </Group>
 
                 {hasRemove && (
-                    <Tooltip label="Remove rule" position="left">
+                    <Tooltip label="Remove rule" position="left" withinPortal>
                         <ActionIcon onClick={onRemoveRule} size="sm">
                             <MantineIcon icon={IconX} />
                         </ActionIcon>
