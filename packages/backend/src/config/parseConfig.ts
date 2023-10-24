@@ -96,6 +96,9 @@ export type LightdashConfig = {
         maxLimit: number;
         csvCellsLimit: number;
     };
+    pivotTable: {
+        maxColumnLimit: number;
+    };
     chart: {
         versionHistory: {
             daysLimit: number;
@@ -360,6 +363,12 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                         'LIGHTDASH_CHART_VERSION_HISTORY_DAYS_LIMIT',
                     ) || 3,
             },
+        },
+        pivotTable: {
+            maxColumnLimit:
+                getIntegerFromEnvironmentVariable(
+                    'LIGHTDASH_PIVOT_TABLE_MAX_COLUMN_LIMIT',
+                ) || 60,
         },
         s3: {
             region: process.env.S3_REGION,

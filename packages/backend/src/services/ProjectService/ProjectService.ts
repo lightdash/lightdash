@@ -959,28 +959,27 @@ export class ProjectService {
         );
 
         // If there are more than 500 rows, we need to format them in a background job
-        const formattedRows =
-            rows.length > 500
-                ? await wrapSentryTransaction<ResultRow[]>(
-                      'formatted rows',
-                      {
-                          rows: rows.length,
-                          warehouse: warehouseConnection?.type,
-                      },
-                      async () =>
-                          runWorkerThread<ResultRow[]>(
-                              new Worker(
-                                  './dist/services/ProjectService/formatRows.js',
-                                  {
-                                      workerData: {
-                                          rows,
-                                          itemMap,
-                                      },
+        const formattedRows = await wrapSentryTransaction<ResultRow[]>(
+            'formatted rows',
+            {
+                rows: rows.length,
+                warehouse: warehouseConnection?.type,
+            },
+            async () =>
+                rows.length > 500
+                    ? runWorkerThread<ResultRow[]>(
+                          new Worker(
+                              './dist/services/ProjectService/formatRows.js',
+                              {
+                                  workerData: {
+                                      rows,
+                                      itemMap,
                                   },
-                              ),
+                              },
                           ),
-                  )
-                : formatRows(rows, itemMap);
+                      )
+                    : formatRows(rows, itemMap),
+        );
 
         return {
             rows: formattedRows,

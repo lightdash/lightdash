@@ -7,6 +7,7 @@ import VisualizationProvider from '../components/LightdashVisualization/Visualiz
 import { useExplore } from '../hooks/useExplore';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useSavedQuery } from '../hooks/useSavedQuery';
+import { useApp } from '../providers/AppProvider';
 import {
     ExplorerProvider,
     ExplorerSection,
@@ -24,6 +25,8 @@ const themeOverride: MantineThemeOverride = {
     }),
 };
 const MinimalExplorer: FC = () => {
+    const { health } = useApp();
+
     const queryResults = useExplorerContext(
         (context) => context.queryResults.data,
     );
@@ -38,7 +41,7 @@ const MinimalExplorer: FC = () => {
 
     const { data: explore } = useExplore(savedChart?.tableName);
 
-    if (!savedChart) {
+    if (!savedChart || health.isLoading || !health.data) {
         return null;
     }
 
@@ -52,6 +55,7 @@ const MinimalExplorer: FC = () => {
             resultsData={queryResults}
             isLoading={isLoadingQueryResults}
             columnOrder={savedChart.tableConfig.columnOrder}
+            pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
         >
             <MantineProvider inherit theme={themeOverride}>
                 <StyledLightdashVisualization

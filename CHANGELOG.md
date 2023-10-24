@@ -1,3 +1,31 @@
+# [0.820.0](https://github.com/lightdash/lightdash/compare/0.819.1...0.820.0) (2023-10-23)
+
+
+### Features
+
+* can edit custom dimension on results table ([#7590](https://github.com/lightdash/lightdash/issues/7590)) ([4ab3f7e](https://github.com/lightdash/lightdash/commit/4ab3f7e7bba9fcc9a5f8d266541cbbff7a4ca087))
+
+## [0.819.1](https://github.com/lightdash/lightdash/compare/0.819.0...0.819.1) (2023-10-23)
+
+
+### Bug Fixes
+
+* replace hyphens custom dimension ([#7597](https://github.com/lightdash/lightdash/issues/7597)) ([42040c4](https://github.com/lightdash/lightdash/commit/42040c48b625a96a9f4e82d1e804d4710d7d66cc))
+
+# [0.819.0](https://github.com/lightdash/lightdash/compare/0.818.0...0.819.0) (2023-10-23)
+
+
+### Features
+
+* pivot table max column env variable ([#7554](https://github.com/lightdash/lightdash/issues/7554)) ([8e15457](https://github.com/lightdash/lightdash/commit/8e154571201a4261426c9e44151cc5917fe0d66a))
+
+# [0.818.0](https://github.com/lightdash/lightdash/compare/0.817.0...0.818.0) (2023-10-23)
+
+
+### Features
+
+* [Custom dimension] Binning with fixed number ([#7515](https://github.com/lightdash/lightdash/issues/7515)) ([7f786d5](https://github.com/lightdash/lightdash/commit/7f786d567fdf059a8c6acb5e0e1a65666c4d82d8))
+
 # [0.817.0](https://github.com/lightdash/lightdash/compare/0.816.4...0.817.0) (2023-10-23)
 
 

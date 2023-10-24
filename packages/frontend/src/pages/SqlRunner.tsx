@@ -55,7 +55,7 @@ enum SqlRunnerCards {
 }
 
 const SqlRunnerPage = () => {
-    const { user } = useApp();
+    const { user, health } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const initialState = useSqlRunnerUrlState();
     const sqlQueryMutation = useSqlQueryMutation();
@@ -171,6 +171,10 @@ const SqlRunnerPage = () => {
         throw new NotFoundError('no SQL query defined');
     };
 
+    if (health.isLoading || !health.data) {
+        return null;
+    }
+
     return (
         <Page
             title="SQL Runner"
@@ -257,6 +261,9 @@ const SqlRunnerPage = () => {
                     columnOrder={columnOrder}
                     explore={explore}
                     isSqlRunner={true}
+                    pivotTableMaxColumnLimit={
+                        health.data.pivotTable.maxColumnLimit
+                    }
                 >
                     <CollapsableCard
                         title="Charts"

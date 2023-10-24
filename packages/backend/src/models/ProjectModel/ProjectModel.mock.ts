@@ -112,6 +112,9 @@ export const lightdashConfigMock: LightdashConfig = {
     chart: {
         versionHistory: { daysLimit: 3 },
     },
+    pivotTable: {
+        maxColumnLimit: 60,
+    },
 };
 
 const dbtCloudIDEProjectConfigMock: DbtCloudIDEProjectConfig = {

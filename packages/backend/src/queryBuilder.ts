@@ -208,7 +208,7 @@ export const getCustomDimensionSql = ({
                         // Edge case, bin number with only one bucket does not need a CASE statement
                         return [
                             ...acc,
-                            `CONCAT(${cte}.min_id, ' to ', ${cte}.max_id) AS ${customDimensionName}`,
+                            `CONCAT(${cte}.min_id, '-', ${cte}.max_id) AS ${customDimensionName}`,
                         ];
                     }
                     const whens = Array.from(
@@ -218,7 +218,7 @@ export const getCustomDimensionSql = ({
                         const to = `${ratio} * ${i + 1} / ${
                             customDimension.binNumber
                         }`;
-                        return `WHEN ${dimension.compiledSql} >= ${from} AND ${dimension.compiledSql} < ${to} THEN CONCAT(${from}, ' to ', ${to})`;
+                        return `WHEN ${dimension.compiledSql} >= ${from} AND ${dimension.compiledSql} < ${to} THEN CONCAT(${from}, '-', ${to})`;
                     });
                     return [
                         ...acc,
@@ -226,7 +226,7 @@ export const getCustomDimensionSql = ({
                     ${whens.join('\n')}
                     ELSE CONCAT(${ratio} * ${customDimension.binNumber - 1} / ${
                             customDimension.binNumber
-                        }, ' to ', ${cte}.max_id) END
+                        }, '-', ${cte}.max_id) END
                     AS ${customDimensionName}
                 `,
                     ];

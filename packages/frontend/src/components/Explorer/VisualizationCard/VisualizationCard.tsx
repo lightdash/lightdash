@@ -2,10 +2,13 @@ import { NotFoundError } from '@lightdash/common';
 import { FC, memo, useCallback, useMemo, useState } from 'react';
 
 import { Space } from '@mantine/core';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { downloadCsv } from '../../../api/csv';
+import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useExplore } from '../../../hooks/useExplore';
+import { useApp } from '../../../providers/AppProvider';
 import {
     ExplorerSection,
     useExplorerContext,
@@ -18,6 +21,7 @@ import { EchartSeriesClickEvent } from '../../SimpleChart';
 import VisualizationCardOptions from '../VisualizationCardOptions';
 import { SeriesContextMenu } from './SeriesContextMenu';
 import VisualizationConfigPanel from './VisualizationConfigPanel';
+import VisualizationSidebar from './VisualizationSidebar';
 
 export type EchartsClickEvent = {
     event: EchartSeriesClickEvent;
@@ -27,6 +31,15 @@ export type EchartsClickEvent = {
 
 const VisualizationCard: FC<{ projectUuid?: string }> = memo(
     ({ projectUuid: fallBackUUid }) => {
+        const { health } = useApp();
+
+        // FEATURE FLAG: remove when chart config sidebar is complete
+        const useSidebar = useFeatureFlagEnabled('sidebar-chart-config');
+
+        const savedChart = useExplorerContext(
+            (context) => context.state.savedChart,
+        );
+
         const unsavedChartVersion = useExplorerContext(
             (context) => context.state.unsavedChartVersion,
         );
@@ -73,6 +86,8 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
 
         const [echartsClickEvent, setEchartsClickEvent] =
             useState<EchartsClickEvent>();
+
+        const { getIsEditingDashboardChart } = useDashboardStorage();
 
         const onSeriesContextMenu = useCallback(
             (e: EchartSeriesClickEvent, series: EChartSeries[]) => {
@@ -132,6 +147,11 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
             }
             throw new NotFoundError('no metric query defined');
         };
+
+        if (health.isLoading || !health.data) {
+            return null;
+        }
+
         return (
             <VisualizationProvider
                 initialChartConfig={unsavedChartVersion.chartConfig}
@@ -147,6 +167,7 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
                 onPivotDimensionsChange={setPivotFields}
                 columnOrder={unsavedChartVersion.tableConfig.columnOrder}
                 onSeriesContextMenu={onSeriesContextMenu}
+                pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
             >
                 <CollapsableCard
                     title="Charts"
@@ -156,14 +177,22 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
                     rightHeaderElement={
                         isOpen && (
                             <>
-                                {isEditMode && (
-                                    <>
-                                        <VisualizationCardOptions />
-                                        <VisualizationConfigPanel
+                                {isEditMode ? (
+                                    useSidebar ? (
+                                        <VisualizationSidebar
                                             chartType={chartType}
+                                            savedChart={savedChart}
+                                            isEditingDashboardChart={getIsEditingDashboardChart()}
                                         />
-                                    </>
-                                )}
+                                    ) : (
+                                        <>
+                                            <VisualizationCardOptions />
+                                            <VisualizationConfigPanel
+                                                chartType={chartType}
+                                            />
+                                        </>
+                                    )
+                                ) : null}
                                 <ChartDownloadMenu
                                     getCsvLink={getCsvLink}
                                     projectUuid={projectUuid!}
