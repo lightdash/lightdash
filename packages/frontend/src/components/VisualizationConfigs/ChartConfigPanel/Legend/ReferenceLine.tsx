@@ -275,7 +275,11 @@ export const ReferenceLine: FC<Props> = ({
                     <Text fw={500}>Line {index}</Text>
                 </Group>
 
-                <Tooltip label="Remove reference line" position="left">
+                <Tooltip
+                    label="Remove reference line"
+                    position="left"
+                    withinPortal
+                >
                     <ActionIcon
                         onClick={() =>
                             removeReferenceLine(referenceLine.data.name)

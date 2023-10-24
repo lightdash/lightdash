@@ -233,6 +233,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             <Tooltip
                 label="You need at least one metric in your chart to add a group"
                 position="left"
+                withinPortal
                 disabled={chartHasMetricOrTableCalc}
             >
                 <Stack spacing="xs" mb="md">
@@ -314,6 +315,8 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             {pivotDimensions && pivotDimensions.length > 0 && canBeStacked && (
                 <Tooltip
                     label="x-axis must be non-numeric to enable stacking"
+                    withinPortal
+                    position="top-start"
                     disabled={!isXAxisFieldNumeric}
                 >
                     <Stack spacing="xs">
