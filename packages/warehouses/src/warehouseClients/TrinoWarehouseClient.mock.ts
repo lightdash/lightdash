@@ -62,8 +62,8 @@ export const queryResponse = {
             new Date('2021-03-10T00:00:00.000Z'),
             new Date('1990-03-02T08:30:00.010Z'),
             false,
-            '1,2,3',
-            '[object Object]',
+            ['1', '2', '3'],
+            { test: '1' },
         ],
     ],
 };
