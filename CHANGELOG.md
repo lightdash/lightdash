@@ -1,3 +1,15 @@
+# [0.822.0](https://github.com/lightdash/lightdash/compare/0.821.0...0.822.0) (2023-10-24)
+
+
+### Bug Fixes
+
+* tooltips in config sidebar ([#7635](https://github.com/lightdash/lightdash/issues/7635)) ([6ecf335](https://github.com/lightdash/lightdash/commit/6ecf335d626ec696853d2f7739769a448a6e1cfe))
+
+
+### Features
+
+* allow deletion of custom dimension in results table ([#7622](https://github.com/lightdash/lightdash/issues/7622)) ([4da858f](https://github.com/lightdash/lightdash/commit/4da858f61ad2fb42ab59d2a78d8113d8dcc1b5d2))
+
 # [0.821.0](https://github.com/lightdash/lightdash/compare/0.820.2...0.821.0) (2023-10-24)
 
 
