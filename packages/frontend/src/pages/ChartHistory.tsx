@@ -3,6 +3,7 @@ import { subject } from '@casl/ability';
 import { formatTimestamp, TimeFrames } from '@lightdash/common';
 import {
     ActionIcon,
+    Alert,
     Badge,
     Button,
     Flex,
@@ -15,7 +16,12 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { IconDots, IconFileAnalytics, IconHistory } from '@tabler/icons-react';
+import {
+    IconDots,
+    IconFileAnalytics,
+    IconHistory,
+    IconInfoCircle,
+} from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { Can } from '../components/common/Authorization';
@@ -220,6 +226,18 @@ const ChartHistory = () => {
                             />
                         ))}
                     </Stack>
+                    <Alert
+                        icon={<MantineIcon icon={IconInfoCircle} size={'md'} />}
+                        title="Data freshness"
+                        color="gray"
+                        variant="light"
+                    >
+                        <p>
+                            Version history preview changes chart configuration
+                            and setup, but always queries the latest version of
+                            the data itself
+                        </p>
+                    </Alert>
                 </Stack>
             }
         >
