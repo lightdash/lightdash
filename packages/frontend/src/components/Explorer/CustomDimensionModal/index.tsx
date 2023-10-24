@@ -78,12 +78,12 @@ export const CustomDimensionModal = () => {
             setFieldValue('binType', item.binType);
             setFieldValue(
                 'binConfig.fixedNumber.binNumber',
-                item.binNumber ? +item.binNumber : MIN_OF_FIXED_NUMBER_BINS,
+                item.binNumber ? item.binNumber : MIN_OF_FIXED_NUMBER_BINS,
             );
 
             setFieldValue(
                 'binConfig.fixedWidth.binWidth',
-                item.binWidth ? +item.binWidth : MIN_OF_FIXED_NUMBER_BINS,
+                item.binWidth ? item.binWidth : MIN_OF_FIXED_NUMBER_BINS,
             );
         }
     }, [setFieldValue, item, isEditing]);
