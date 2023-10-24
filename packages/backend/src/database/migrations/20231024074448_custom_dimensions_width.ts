@@ -11,7 +11,11 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
-    await knex.schema.alterTable(CUSTOM_DIMENSIONS_TABLE_NAME, (t) => {
-        t.dropColumns('bin_width');
-    });
+    if (
+        await knex.schema.hasColumn(CUSTOM_DIMENSIONS_TABLE_NAME, 'bin_width')
+    ) {
+        await knex.schema.alterTable(CUSTOM_DIMENSIONS_TABLE_NAME, (t) => {
+            t.dropColumns('bin_width');
+        });
+    }
 }
