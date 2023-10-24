@@ -46,6 +46,9 @@ export const CustomDimensionModal = () => {
                 fixedNumber: {
                     binNumber: MIN_OF_FIXED_NUMBER_BINS,
                 },
+                fixedWidth: {
+                    binWidth: MIN_OF_FIXED_NUMBER_BINS,
+                },
             },
         },
         validate: {
@@ -77,6 +80,11 @@ export const CustomDimensionModal = () => {
                 'binConfig.fixedNumber.binNumber',
                 item.binNumber ? +item.binNumber : MIN_OF_FIXED_NUMBER_BINS,
             );
+
+            setFieldValue(
+                'binConfig.fixedWidth.binWidth',
+                item.binWidth ? +item.binWidth : MIN_OF_FIXED_NUMBER_BINS,
+            );
         }
     }, [setFieldValue, item, isEditing]);
 
@@ -96,6 +104,7 @@ export const CustomDimensionModal = () => {
                         dimensionId: item.dimensionId,
                         binType: values.binType,
                         binNumber: values.binConfig.fixedNumber.binNumber,
+                        binWidth: values.binConfig.fixedWidth.binWidth,
                         table: item.table,
                     },
                     item.name,
@@ -162,13 +171,10 @@ export const CustomDimensionModal = () => {
                                 value={BinType.FIXED_NUMBER}
                                 label="Fixed number of bins"
                             />
-                            <Tooltip label="Coming soon">
-                                <Radio
-                                    disabled
-                                    value="fixed width"
-                                    label="Fixed Width"
-                                />
-                            </Tooltip>
+                            <Radio
+                                value={BinType.FIXED_WIDTH}
+                                label="Fixed Width"
+                            />
                             <Tooltip label="Coming soon">
                                 <Radio
                                     disabled
@@ -188,6 +194,19 @@ export const CustomDimensionModal = () => {
                             type="number"
                             {...form.getInputProps(
                                 'binConfig.fixedNumber.binNumber',
+                            )}
+                        />
+                    )}
+
+                    {form.values.binType === BinType.FIXED_WIDTH && (
+                        <NumberInput
+                            w={100}
+                            label="Bin width"
+                            required
+                            min={MIN_OF_FIXED_NUMBER_BINS}
+                            type="number"
+                            {...form.getInputProps(
+                                'binConfig.fixedWidth.binWidth',
                             )}
                         />
                     )}
