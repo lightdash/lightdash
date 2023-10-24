@@ -100,9 +100,6 @@ const ChartHistory = () => {
                                 { title: 'History', active: true },
                             ]}
                         />
-                        <Badge size="sm" variant="light">
-                            BETA
-                        </Badge>
                     </Flex>
                     <Stack spacing="xs" sx={{ flexGrow: 1, overflowY: 'auto' }}>
                         {historyQuery.data?.history.map((version, index) => (
