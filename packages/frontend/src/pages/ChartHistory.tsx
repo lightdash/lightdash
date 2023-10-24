@@ -97,7 +97,7 @@ const ChartHistory = () => {
                                     title: 'Chart',
                                     to: `/projects/${projectUuid}/saved/${savedQueryUuid}/view`,
                                 },
-                                { title: 'History', active: true },
+                                { title: 'Version history', active: true },
                             ]}
                         />
                     </Flex>
