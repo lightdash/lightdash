@@ -39,7 +39,7 @@ export const getCustomMetricDimensionId = (metric: AdditionalMetric) =>
     `${metric.table}_${metric.baseDimensionName}`;
 
 export const isCustomDimension = (value: any): value is CustomDimension =>
-    'binType' in value;
+    value !== undefined && 'binType' in value;
 
 // Object used to query an explore. Queries only happen within a single explore
 export type MetricQuery = {

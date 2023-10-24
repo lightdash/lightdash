@@ -75,7 +75,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
     startOfWeek,
     onChange,
 }) => {
-    if (field && isCustomDimension(field)) return <></>;
+    if (isCustomDimension(field)) return <></>;
     if (isDateItem(field)) {
         if (isDimension(field) && field.timeInterval) {
             switch (field.timeInterval.toUpperCase()) {
