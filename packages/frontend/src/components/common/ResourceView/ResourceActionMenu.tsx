@@ -127,9 +127,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
             offset={-4}
             closeOnItemClick
             closeOnClickOutside
-            onClose={() => {
-                setIsMenuOpen(false);
-            }}
+            onClose={() => setIsMenuOpen(false)}
             onOpen={() => setIsMenuOpen(true)}
         >
             <Menu.Target>
