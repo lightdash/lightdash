@@ -279,7 +279,7 @@ export class ProjectService {
 
         if (data.copiedFromProjectUuid) {
             try {
-                const project = await this.projectModel.get(
+                const { organizationUuid } = await this.projectModel.getSummary(
                     data.copiedFromProjectUuid,
                 );
                 // We only allow copying from projects if the user is an admin until we remove the `createProjectAccess` call above
@@ -287,7 +287,7 @@ export class ProjectService {
                     user.ability.cannot(
                         'manage',
                         subject('Project', {
-                            organizationUuid: project.organizationUuid,
+                            organizationUuid,
                             projectUuid: data.copiedFromProjectUuid,
                         }),
                     )
@@ -430,7 +430,9 @@ export class ProjectService {
         projectUuid: string,
         explores: (Explore | ExploreError)[],
     ): Promise<void> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'update',
@@ -1037,9 +1039,7 @@ export class ProjectService {
                     }
 
                     const { organizationUuid } =
-                        await this.projectModel.getWithSensitiveFields(
-                            projectUuid,
-                        );
+                        await this.projectModel.getSummary(projectUuid);
 
                     if (
                         user.ability.cannot(
@@ -1189,8 +1189,9 @@ export class ProjectService {
         projectUuid: string,
         sql: string,
     ): Promise<ApiSqlQueryResults> {
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -1231,8 +1232,9 @@ export class ProjectService {
         limit: number,
         filters: AndFilterGroup | undefined,
     ): Promise<Array<unknown>> {
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -1500,8 +1502,9 @@ export class ProjectService {
         const job = await this.jobModel.get(jobUuid);
 
         if (job.projectUuid) {
-            const { organizationUuid } =
-                await this.projectModel.getWithSensitiveFields(job.projectUuid);
+            const { organizationUuid } = await this.projectModel.getSummary(
+                job.projectUuid,
+            );
             if (
                 user.ability.cannot(
                     'view',
@@ -1525,7 +1528,9 @@ export class ProjectService {
         projectUuid: string,
         requestMethod: RequestMethod,
     ): Promise<{ jobUuid: string }> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot('create', 'Job') ||
             user.ability.cannot(
@@ -1570,7 +1575,9 @@ export class ProjectService {
         requestMethod: RequestMethod,
         jobUuid: string,
     ) {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot('create', 'Job') ||
             user.ability.cannot(
@@ -1630,7 +1637,9 @@ export class ProjectService {
         projectUuid: string,
         filtered: boolean,
     ): Promise<SummaryExplore[]> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'view',
@@ -1709,7 +1718,7 @@ export class ProjectService {
             description: 'Gets a single explore from the cache',
         });
         try {
-            const { organizationUuid } = await this.projectModel.get(
+            const { organizationUuid } = await this.projectModel.getSummary(
                 projectUuid,
             );
             if (
@@ -1753,7 +1762,9 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<ProjectCatalog> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'view',
@@ -1787,7 +1798,9 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<TablesConfiguration> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'view',
@@ -1805,7 +1818,9 @@ export class ProjectService {
         projectUuid: string,
         data: TablesConfiguration,
     ): Promise<TablesConfiguration> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'update',
@@ -1951,7 +1966,9 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<boolean> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'view',
@@ -1973,7 +1990,9 @@ export class ProjectService {
         projectUuid: string,
         userUuid: string,
     ): Promise<ProjectMemberProfile> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'view',
@@ -2003,7 +2022,9 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<ProjectMemberProfile[]> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'view',
@@ -2023,7 +2044,9 @@ export class ProjectService {
         projectUuid: string,
         data: CreateProjectMember,
     ): Promise<void> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'manage',
@@ -2041,7 +2064,7 @@ export class ProjectService {
             data.email,
             data.role,
         );
-        const project = await this.projectModel.get(projectUuid);
+        const project = await this.projectModel.getSummary(projectUuid);
         const projectUrl = new URL(
             `/projects/${projectUuid}/home`,
             lightdashConfig.siteUrl,
@@ -2062,7 +2085,9 @@ export class ProjectService {
         userUuid: string,
         data: UpdateProjectMember,
     ): Promise<void> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'manage',
@@ -2087,7 +2112,9 @@ export class ProjectService {
         projectUuid: string,
         userUuid: string,
     ): Promise<void> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'manage',
@@ -2108,7 +2135,9 @@ export class ProjectService {
         projectUuid: string,
         integration: CreateDbtCloudIntegration,
     ) {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'manage',
@@ -2132,7 +2161,9 @@ export class ProjectService {
     }
 
     async deleteDbtCloudIntegration(user: SessionUser, projectUuid: string) {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'manage',
@@ -2152,7 +2183,9 @@ export class ProjectService {
     }
 
     async findDbtCloudIntegration(user: SessionUser, projectUuid: string) {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'manage',
@@ -2168,7 +2201,9 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<ChartSummary[]> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'view',
@@ -2279,7 +2314,9 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<SpaceSummary[]> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'view',

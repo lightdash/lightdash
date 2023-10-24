@@ -59,7 +59,7 @@ export class PinningService {
         projectUuid: string,
         pinnedListUuid: string,
     ): Promise<PinnedItems> {
-        const project = await this.projectModel.get(projectUuid);
+        const project = await this.projectModel.getSummary(projectUuid);
         if (user.ability.cannot('view', subject('Project', project))) {
             throw new ForbiddenError();
         }

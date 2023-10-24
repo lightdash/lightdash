@@ -524,7 +524,9 @@ export class ValidationService {
         context?: RequestMethod,
         explores?: (Explore | ExploreError)[],
     ): Promise<string> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
