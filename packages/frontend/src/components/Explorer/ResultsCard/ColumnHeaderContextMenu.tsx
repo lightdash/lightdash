@@ -1,6 +1,7 @@
 import {
     fieldId,
     getItemId,
+    isCustomDimension,
     isField,
     isFilterableField,
     TableCalculation,
@@ -66,6 +67,12 @@ const ContextMenu: FC<ContextMenuProps> = ({
         (context) => context.actions.toggleAdditionalMetricModal,
     );
 
+    const isItemCustomDimension = isCustomDimension(item);
+
+    const toggleCustomDimensionModal = useExplorerContext(
+        (context) => context.actions.toggleCustomDimensionModal,
+    );
+
     if (item && isField(item) && isFilterableField(item)) {
         const itemFieldId = fieldId(item);
         return (
@@ -129,38 +136,54 @@ const ContextMenu: FC<ContextMenuProps> = ({
     } else if (item && !isField(item)) {
         return (
             <>
-                <Menu.Item
-                    icon={<MantineIcon icon={IconPencil} />}
-                    onClick={() => {
-                        track({
-                            name: EventName.EDIT_TABLE_CALCULATION_BUTTON_CLICKED,
-                        });
+                {isItemCustomDimension ? (
+                    <Menu.Item
+                        icon={<MantineIcon icon={IconPencil} />}
+                        onClick={() => {
+                            toggleCustomDimensionModal({
+                                item,
+                                isEditing: true,
+                            });
+                        }}
+                    >
+                        Edit custom dimension
+                    </Menu.Item>
+                ) : (
+                    <>
+                        <Menu.Item
+                            icon={<MantineIcon icon={IconPencil} />}
+                            onClick={() => {
+                                track({
+                                    name: EventName.EDIT_TABLE_CALCULATION_BUTTON_CLICKED,
+                                });
 
-                        onToggleCalculationEditModal(true);
-                    }}
-                >
-                    Edit calculation
-                </Menu.Item>
+                                onToggleCalculationEditModal(true);
+                            }}
+                        >
+                            Edit calculation
+                        </Menu.Item>
 
-                <Menu />
+                        <Menu.Divider />
 
-                <ColumnHeaderSortMenuOptions item={item} sort={sort} />
+                        <ColumnHeaderSortMenuOptions item={item} sort={sort} />
 
-                <Menu.Divider />
+                        <Menu.Divider />
 
-                <Menu.Item
-                    icon={<MantineIcon icon={IconTrash} />}
-                    color="red"
-                    onClick={() => {
-                        track({
-                            name: EventName.DELETE_TABLE_CALCULATION_BUTTON_CLICKED,
-                        });
+                        <Menu.Item
+                            icon={<MantineIcon icon={IconTrash} />}
+                            color="red"
+                            onClick={() => {
+                                track({
+                                    name: EventName.DELETE_TABLE_CALCULATION_BUTTON_CLICKED,
+                                });
 
-                        onToggleCalculationDeleteModal(true);
-                    }}
-                >
-                    Remove
-                </Menu.Item>
+                                onToggleCalculationDeleteModal(true);
+                            }}
+                        >
+                            Remove
+                        </Menu.Item>
+                    </>
+                )}
             </>
         );
     } else {
