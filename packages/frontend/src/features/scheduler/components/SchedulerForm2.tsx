@@ -45,6 +45,7 @@ import { CronInternalInputs } from '../../../components/ReactHookForm/CronInput'
 import { hasRequiredScopes } from '../../../components/UserSettings/SlackSettingsPanel';
 import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
 import { useGetSlack } from '../../../hooks/useSlack';
+import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import { SlackIcon } from './SchedulerModalBase.styles';
 import SchedulersModalFooter from './SchedulerModalFooter';
 
@@ -199,6 +200,11 @@ const SchedulerForm2: FC<{
                         : null;
                 },
             },
+            cron: (cronExpression) => {
+                return isInvalidCronExpression('Cron expression')(
+                    cronExpression,
+                );
+            },
         },
 
         transformValues: (values): CreateSchedulerAndTargetsWithoutIds => {
@@ -335,14 +341,13 @@ const SchedulerForm2: FC<{
                             {...form.getInputProps('name')}
                         />
                         <Input.Wrapper label="Delivery frequency">
-                            <CronInternalInputs
-                                disabled={disabled}
-                                {...form.getInputProps('cron')}
-                                // onChange={}
-                                onBlur={() => {}}
-                                // value={form.values.cron}
-                                name="cron"
-                            />
+                            <Box mt="xxs">
+                                <CronInternalInputs
+                                    disabled={disabled}
+                                    {...form.getInputProps('cron')}
+                                    name="cron"
+                                />
+                            </Box>
                         </Input.Wrapper>
                         <Stack spacing={0}>
                             <Input.Label mb="xxs"> Format </Input.Label>

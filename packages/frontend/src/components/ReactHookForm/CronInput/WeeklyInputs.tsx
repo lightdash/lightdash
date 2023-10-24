@@ -1,12 +1,7 @@
-import { Classes, FormGroup } from '@blueprintjs/core';
-import { TimePicker } from '@blueprintjs/datetime';
+import { Group, Input } from '@mantine/core';
 import React, { FC } from 'react';
-import { InlinedInputs, InlinedLabel } from './CronInput.styles';
-import {
-    getTimePickerValue,
-    getWeeklyCronExpression,
-    parseCronExpression,
-} from './cronInputUtils';
+import { getWeeklyCronExpression, parseCronExpression } from './cronInputUtils';
+import TimePicker from './TimePicker';
 import WeekDaySelect from './WeekDaySelect';
 
 const WeeklyInputs: FC<{
@@ -20,30 +15,23 @@ const WeeklyInputs: FC<{
         onChange(getWeeklyCronExpression(minutes, hours, newWeekday));
     };
 
-    const onTimeChange = (date: Date) => {
+    const onTimeChange = (newTime: { hours: number; minutes: number }) => {
         onChange(
-            getWeeklyCronExpression(
-                date.getMinutes(),
-                date.getHours(),
-                weekDay,
-            ),
+            getWeeklyCronExpression(newTime.minutes, newTime.hours, weekDay),
         );
     };
     return (
-        <InlinedInputs>
-            <FormGroup inline label={'on'} disabled={disabled}>
-                <WeekDaySelect value={weekDay} onChange={onDayChange} />
-            </FormGroup>
-            <FormGroup inline label={'at'} disabled={disabled}>
-                <TimePicker
-                    useAmPm
-                    disabled={disabled}
-                    value={getTimePickerValue(hours, minutes)}
-                    onChange={onTimeChange}
-                />
-            </FormGroup>
-            <InlinedLabel className={Classes.LABEL}>UTC</InlinedLabel>
-        </InlinedInputs>
+        <Group spacing="xs">
+            <Input.Label>on</Input.Label>
+            <WeekDaySelect value={weekDay} onChange={onDayChange} />
+            <Input.Label>at</Input.Label>
+            <TimePicker
+                disabled={disabled}
+                cronExpression={cronExpression}
+                onChange={onTimeChange}
+            />
+            <Input.Label>UTC</Input.Label>
+        </Group>
     );
 };
 export default WeeklyInputs;

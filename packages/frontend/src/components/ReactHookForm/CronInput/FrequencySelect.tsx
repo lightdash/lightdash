@@ -39,6 +39,7 @@ const FrequencySelect: FC<{
         <Select
             data={FrequencyItems}
             value={value}
+            withinPortal
             disabled={disabled}
             onChange={onChange}
         />
