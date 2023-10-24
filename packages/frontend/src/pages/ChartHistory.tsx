@@ -16,7 +16,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconDots, IconFileAnalytics, IconHistory } from '@tabler/icons-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { Can } from '../components/common/Authorization';
 import { EmptyState } from '../components/common/EmptyState';
@@ -48,6 +48,13 @@ const ChartHistory = () => {
     const [selectedVersionUuid, selectVersionUuid] = useState<string>();
     const [isRollbackModalOpen, setIsRollbackModalOpen] = useState(false);
     const historyQuery = useChartHistory(savedQueryUuid);
+
+    useEffect(() => {
+        const currentVersion = historyQuery.data?.history[0];
+        if (currentVersion && !selectedVersionUuid) {
+            selectVersionUuid(currentVersion.versionUuid);
+        }
+    }, [selectedVersionUuid, historyQuery.data]);
 
     const chartVersionQuery = useChartVersion(
         savedQueryUuid,
