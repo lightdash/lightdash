@@ -529,7 +529,7 @@ LIMIT 10`);
             }).query,
         ).toStrictEqual(`SELECT
   "table1".dim1 AS "table1_dim1",
-    FLOOR("table1".dim1 / 10) * 10 || '-' || (FLOOR("table1".dim1 / 10) + 1) * 10 - 1 AS "age_range",
+    CONCAT(FLOOR("table1".dim1 / 10) * 10, '-', (FLOOR("table1".dim1 / 10) + 1) * 10 - 1) AS "age_range",
   MAX("table1".number_column) AS "table1_metric1"
 FROM "db"."schema"."table1" AS "table1"
 
