@@ -18,7 +18,7 @@ import {
     IconPlus,
     IconTrash,
 } from '@tabler/icons-react';
-import { FC, Fragment, useMemo } from 'react';
+import { FC, Fragment, useMemo, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
@@ -57,6 +57,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     onClose,
     onAction,
 }) => {
+    const [isMenuOpen, setIsMenuOpen] = useState(isOpen);
     const { user } = useApp();
     const location = useLocation();
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -118,7 +119,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     return (
         <Menu
             withinPortal
-            opened={isOpen}
+            opened={isMenuOpen}
             position="bottom-start"
             withArrow
             arrowPosition="center"
@@ -126,10 +127,13 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
             offset={-4}
             closeOnItemClick
             closeOnClickOutside
-            onClose={onClose}
+            onClose={() => {
+                setIsMenuOpen(false);
+            }}
+            onOpen={() => setIsMenuOpen(true)}
         >
             <Menu.Target>
-                <Box onClick={isOpen ? onClose : onOpen}>
+                <Box onClick={isMenuOpen ? onClose : onOpen}>
                     <ActionIcon
                         sx={(theme) => ({
                             ':hover': {
