@@ -418,19 +418,21 @@ describe('with custom dimensions', () => {
                 ` age_range_cte AS (
             SELECT
                 MIN("table1".dim1) AS min_id,
-                MAX("table1".dim1) AS max_id
+                MAX("table1".dim1) AS max_id,
+                MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) as ratio
             FROM "db"."schema"."table1" AS "table1"
         )`,
             ],
             joins: ['age_range_cte'],
             selects: [
                 `CASE
-                    WHEN "table1".dim1 >= age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 0 / 3 AND "table1".dim1 < age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 1 / 3 THEN CONCAT(age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 0 / 3, '-', age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 1 / 3)
-WHEN "table1".dim1 >= age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 1 / 3 AND "table1".dim1 < age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 2 / 3 THEN CONCAT(age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 1 / 3, '-', age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 2 / 3)
-                    ELSE CONCAT(age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 2 / 3, '-', age_range_cte.max_id) END
+                    WHEN "table1".dim1 >= age_range_cte.ratio * 0 / 3 AND "table1".dim1 < age_range_cte.ratio * 1 / 3 THEN CONCAT(age_range_cte.ratio * 0 / 3, '-', age_range_cte.ratio * 1 / 3)
+WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_cte.ratio * 2 / 3 THEN CONCAT(age_range_cte.ratio * 1 / 3, '-', age_range_cte.ratio * 2 / 3)
+                    ELSE CONCAT(age_range_cte.ratio * 2 / 3, '-', age_range_cte.max_id) END
                     AS "age_range"
                 `,
             ],
+            tables: ['table1'],
         });
     });
 
@@ -459,7 +461,8 @@ WHEN "table1".dim1 >= age_range_cte.min_id + (age_range_cte.max_id - age_range_c
                 ` age_range_cte AS (
             SELECT
                 MIN("table1".dim1) AS min_id,
-                MAX("table1".dim1) AS max_id
+                MAX("table1".dim1) AS max_id,
+                MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) as ratio
             FROM "db"."schema"."table1" AS "table1"
         )`,
             ],
@@ -467,6 +470,7 @@ WHEN "table1".dim1 >= age_range_cte.min_id + (age_range_cte.max_id - age_range_c
             selects: [
                 `CONCAT(age_range_cte.min_id, '-', age_range_cte.max_id) AS "age_range"`,
             ],
+            tables: ['table1'],
         });
     });
 
@@ -481,15 +485,16 @@ WHEN "table1".dim1 >= age_range_cte.min_id + (age_range_cte.max_id - age_range_c
         ).toStrictEqual(`WITH  age_range_cte AS (
             SELECT
                 MIN("table1".dim1) AS min_id,
-                MAX("table1".dim1) AS max_id
+                MAX("table1".dim1) AS max_id,
+                MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) as ratio
             FROM "db"."schema"."table1" AS "table1"
         )
 SELECT
   "table1".dim1 AS "table1_dim1",
 CASE
-                    WHEN "table1".dim1 >= age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 0 / 3 AND "table1".dim1 < age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 1 / 3 THEN CONCAT(age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 0 / 3, '-', age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 1 / 3)
-WHEN "table1".dim1 >= age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 1 / 3 AND "table1".dim1 < age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 2 / 3 THEN CONCAT(age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 1 / 3, '-', age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 2 / 3)
-                    ELSE CONCAT(age_range_cte.min_id + (age_range_cte.max_id - age_range_cte.min_id ) * 2 / 3, '-', age_range_cte.max_id) END
+                    WHEN "table1".dim1 >= age_range_cte.ratio * 0 / 3 AND "table1".dim1 < age_range_cte.ratio * 1 / 3 THEN CONCAT(age_range_cte.ratio * 0 / 3, '-', age_range_cte.ratio * 1 / 3)
+WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_cte.ratio * 2 / 3 THEN CONCAT(age_range_cte.ratio * 1 / 3, '-', age_range_cte.ratio * 2 / 3)
+                    ELSE CONCAT(age_range_cte.ratio * 2 / 3, '-', age_range_cte.max_id) END
                     AS "age_range"
                 ,
   MAX("table1".number_column) AS "table1_metric1"
@@ -498,6 +503,64 @@ FROM "db"."schema"."table1" AS "table1"
 CROSS JOIN age_range_cte
 
 GROUP BY 1,2
+ORDER BY "table1_metric1" DESC
+LIMIT 10`);
+    });
+
+    it('buildQuery with custom dimension and table calculation', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+                    tableCalculations: [
+                        {
+                            name: 'calc3',
+                            displayName: '',
+                            sql: '${table1.dim1} + 1',
+                        },
+                    ],
+                    compiledTableCalculations: [
+                        {
+                            name: 'calc3',
+                            displayName: '',
+                            sql: '${table1.dim1} + 1',
+                            compiledSql: 'table1_dim1 + 1',
+                        },
+                    ],
+                },
+
+                warehouseClient: warehouseClientMock,
+                userAttributes: {},
+            }).query,
+        ).toStrictEqual(`WITH  age_range_cte AS (
+            SELECT
+                MIN("table1".dim1) AS min_id,
+                MAX("table1".dim1) AS max_id,
+                MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) as ratio
+            FROM "db"."schema"."table1" AS "table1"
+        ),
+metrics AS (
+SELECT
+  "table1".dim1 AS "table1_dim1",
+CASE
+                    WHEN "table1".dim1 >= age_range_cte.ratio * 0 / 3 AND "table1".dim1 < age_range_cte.ratio * 1 / 3 THEN CONCAT(age_range_cte.ratio * 0 / 3, '-', age_range_cte.ratio * 1 / 3)
+WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_cte.ratio * 2 / 3 THEN CONCAT(age_range_cte.ratio * 1 / 3, '-', age_range_cte.ratio * 2 / 3)
+                    ELSE CONCAT(age_range_cte.ratio * 2 / 3, '-', age_range_cte.max_id) END
+                    AS "age_range"
+                ,
+  MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
+CROSS JOIN age_range_cte
+
+GROUP BY 1,2
+)
+SELECT
+  *,
+  table1_dim1 + 1 AS "calc3"
+FROM metrics
+
 ORDER BY "table1_metric1" DESC
 LIMIT 10`);
     });

@@ -103,7 +103,9 @@ export class SpaceService {
         user: SessionUser,
         space: CreateSpace,
     ): Promise<Space> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'create',

@@ -29,6 +29,7 @@ import {
     expectedSqlResults,
     job,
     lightdashConfigWithNoSMTP,
+    projectSummary,
     projectWithSensitiveFields,
     spacesWithSavedCharts,
     tablesConfiguration,
@@ -49,6 +50,7 @@ jest.mock('../../models/models', () => ({
     projectModel: {
         getWithSensitiveFields: jest.fn(async () => projectWithSensitiveFields),
         get: jest.fn(async () => projectWithSensitiveFields),
+        getSummary: jest.fn(async () => projectSummary),
         getTablesConfiguration: jest.fn(async () => tablesConfiguration),
         updateTablesConfiguration: jest.fn(),
         getExploresFromCache: jest.fn(async () => allExplores),

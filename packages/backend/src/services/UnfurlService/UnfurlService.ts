@@ -163,7 +163,7 @@ export class UnfurlService {
                     chartType: chart.chartType,
                 };
             case LightdashPage.EXPLORE:
-                const project = await this.projectModel.get(
+                const project = await this.projectModel.getSummary(
                     parsedUrl.projectUuid!,
                 );
 

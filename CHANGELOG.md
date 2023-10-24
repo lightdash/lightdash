@@ -1,3 +1,24 @@
+# [0.821.0](https://github.com/lightdash/lightdash/compare/0.820.2...0.821.0) (2023-10-24)
+
+
+### Features
+
+* account for preview banner in chart sidebar ([#7626](https://github.com/lightdash/lightdash/issues/7626)) ([423d6a5](https://github.com/lightdash/lightdash/commit/423d6a5b9c52e2d08659fb47225b015ad517067c))
+
+## [0.820.2](https://github.com/lightdash/lightdash/compare/0.820.1...0.820.2) (2023-10-24)
+
+
+### Bug Fixes
+
+* reference line undefined custom dimension ([#7627](https://github.com/lightdash/lightdash/issues/7627)) ([b81f48f](https://github.com/lightdash/lightdash/commit/b81f48f6bd0c4af968d2556466025f13446ce6a1))
+
+## [0.820.1](https://github.com/lightdash/lightdash/compare/0.820.0...0.820.1) (2023-10-24)
+
+
+### Bug Fixes
+
+* optimize get project summary ([#7615](https://github.com/lightdash/lightdash/issues/7615)) ([0920321](https://github.com/lightdash/lightdash/commit/09203219f6660d3e7fc670c84d816a53b4b32c10))
+
 # [0.820.0](https://github.com/lightdash/lightdash/compare/0.819.1...0.820.0) (2023-10-23)
 
 
