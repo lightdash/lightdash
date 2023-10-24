@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import React, { FC } from 'react';
 import { parseCronExpression } from './cronInputUtils';
 
-export const getTimePickerValue = (hours: number, minutes: number) => {
+const getTimePickerValue = (hours: number, minutes: number) => {
     const date = new Date();
     date.setHours(hours);
     date.setMinutes(minutes);
