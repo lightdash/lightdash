@@ -1,22 +1,12 @@
 import { WeekDay } from '@lightdash/common';
 import { DateInput, DateInputProps, DayOfWeek } from '@mantine/dates';
 import dayjs from 'dayjs';
-import isoWeekPlugin from 'dayjs/plugin/isoWeek';
-import isSameOrAfterPlugin from 'dayjs/plugin/isSameOrAfter';
-import isSameOrBeforePlugin from 'dayjs/plugin/isSameOrBefore';
-import weekdayPlugin from 'dayjs/plugin/weekday';
 import { FC, useMemo, useState } from 'react';
-
-dayjs.extend(weekdayPlugin);
-dayjs.extend(isoWeekPlugin);
-dayjs.extend(isSameOrBeforePlugin);
-dayjs.extend(isSameOrAfterPlugin);
 
 //
 // date input accepts start of the week day
 // prop is firstDayOfWeek: number 0-6
 // 0 – Sunday, 6 – Saturday, defaults to 1 – Monday
-//
 // our internal WeekDay enum is a range from 0 (Monday) to 6 (Sunday)
 //
 
@@ -25,20 +15,30 @@ const convertWeekDayToDayOfWeek = (weekDay: WeekDay): DayOfWeek => {
     return (converted <= 6 ? converted : 0) as DayOfWeek;
 };
 
-const startOfWeek = (date: Date, weekDay: WeekDay) => {
-    return dayjs(date).weekday(weekDay).startOf('isoWeek').toDate();
+const startOfWeek = (date: Date, startOfWeekDay: WeekDay) => {
+    return dayjs(date)
+        .locale('custom', { weekStart: startOfWeekDay })
+        .startOf('week')
+        .toDate();
 };
 
 const endOfWeek = (date: Date, weekDay: WeekDay) => {
-    return dayjs(date).weekday(weekDay).endOf('isoWeek').toDate();
+    return dayjs(date)
+        .locale('custom', { weekStart: weekDay })
+        .endOf('week')
+        .toDate();
 };
 
 const isInWeekRange = (date: Date, value: Date | null, weekDay: WeekDay) => {
     if (!value) return false;
+    const startOfWeekDate = startOfWeek(value, weekDay);
+    const endOfWeekDate = endOfWeek(value, weekDay);
 
     return (
-        dayjs(date).isSameOrAfter(startOfWeek(value, weekDay)) &&
-        dayjs(date).isSameOrBefore(endOfWeek(value, weekDay))
+        (dayjs(date).isSame(startOfWeekDate) ||
+            dayjs(date).isAfter(startOfWeekDate)) &&
+        (dayjs(date).isSame(endOfWeekDate) ||
+            dayjs(date).isBefore(endOfWeekDate))
     );
 };
 
@@ -72,15 +72,10 @@ const WeekPicker: FC<Props> = ({
 
     const convertedStartOfWeekDay = convertWeekDayToDayOfWeek(startOfWeekDay);
 
-    const selectedDate = useMemo(() => {
+    const currentStartOfWeek = useMemo(() => {
         if (!dateValue) return null;
         return startOfWeek(dateValue, convertedStartOfWeekDay);
     }, [dateValue, convertedStartOfWeekDay]);
-
-    console.log({
-        startOfWeekDay,
-        convertedStartOfWeekDay,
-    });
 
     return (
         <DateInput
@@ -91,8 +86,12 @@ const WeekPicker: FC<Props> = ({
                 const isHovered = hoveredDate
                     ? isInWeekRange(date, hoveredDate, convertedStartOfWeekDay)
                     : false;
-                const isSelected = selectedDate
-                    ? isInWeekRange(date, selectedDate, convertedStartOfWeekDay)
+                const isSelected = currentStartOfWeek
+                    ? isInWeekRange(
+                          date,
+                          currentStartOfWeek,
+                          convertedStartOfWeekDay,
+                      )
                     : false;
 
                 const isInRange = isHovered || isSelected;
@@ -117,17 +116,9 @@ const WeekPicker: FC<Props> = ({
             }}
             {...rest}
             firstDayOfWeek={convertedStartOfWeekDay}
-            value={selectedDate}
+            value={dateValue}
             onChange={(date) => {
                 if (!date) return;
-
-                console.log({
-                    startOfWeekDay,
-                    convertedStartOfWeekDay,
-                    date,
-                    startOfWeek: startOfWeek(date, convertedStartOfWeekDay),
-                });
-
                 onChange(startOfWeek(date, convertedStartOfWeekDay));
             }}
         />
