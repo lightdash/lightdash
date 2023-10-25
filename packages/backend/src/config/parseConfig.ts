@@ -106,6 +106,10 @@ export type LightdashConfig = {
     };
     s3?: S3Config;
     headlessBrowser?: HeadlessBrowserConfig;
+    resultsCache?: {
+        enabled: boolean;
+        cacheStateTimeSeconds: number;
+    };
     slack?: SlackConfig;
     scheduler: {
         enabled: boolean;
@@ -384,6 +388,13 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         headlessBrowser: {
             port: process.env.HEADLESS_BROWSER_PORT,
             host: process.env.HEADLESS_BROWSER_HOST,
+        },
+        resultsCache: {
+            enabled: process.env.RESULTS_CACHE_ENABLED === 'true',
+            cacheStateTimeSeconds: parseInt(
+                process.env.CACHE_STALE_TIME_SECONDS || '86400', // A day in seconds
+                10,
+            ),
         },
         slack: {
             appToken: process.env.SLACK_APP_TOKEN,

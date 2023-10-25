@@ -20,6 +20,7 @@ import {
     DbtProjectType,
     deepEqual,
     DefaultSupportedDbtVersion,
+    DimensionType,
     Explore,
     ExploreError,
     fieldId as getFieldId,
@@ -104,6 +105,23 @@ import {
     exploreHasFilteredAttribute,
     filterDimensionsFromExplore,
 } from '../UserAttributesService/UserAttributeUtils';
+
+// These should live somewhere else
+const resultsCache: Record<
+    string,
+    {
+        time: Date;
+        data: {
+            fields: Record<
+                string,
+                {
+                    type: DimensionType;
+                }
+            >;
+            rows: Record<string, any>[];
+        };
+    }
+> = {};
 
 type RunQueryTags = {
     project_uuid?: string;
@@ -1040,6 +1058,60 @@ export class ProjectService {
         );
     }
 
+    static async getResultsFromCacheOrWarehouse({
+        warehouseClient,
+        query,
+        queryTags,
+    }: {
+        warehouseClient: WarehouseClient;
+        query: any;
+        queryTags?: RunQueryTags;
+    }): Promise<{
+        fields: Record<
+            string,
+            {
+                type: DimensionType;
+            }
+        >;
+        rows: Record<string, any>[];
+    }> {
+        const queryHash = query;
+        if (
+            queryHash in resultsCache &&
+            lightdashConfig.resultsCache?.enabled
+        ) {
+            // Make this async
+            const cacheEntry = resultsCache[queryHash];
+            if (
+                new Date().getTime() - new Date(cacheEntry.time).getTime() <
+                lightdashConfig.resultsCache.cacheStateTimeSeconds * 1000
+            ) {
+                console.log('getting data from cache');
+
+                // Log a cache hit
+                return cacheEntry.data;
+            }
+        }
+        // Wrap this with sentry
+        const warehouseResults = await warehouseClient.runQuery(
+            query,
+            queryTags,
+        );
+
+        console.log('data from warehouse');
+
+        // Log writing to cache
+        // Make async fire and forget
+        if (lightdashConfig.resultsCache?.enabled) {
+            resultsCache[queryHash] = {
+                time: new Date(),
+                data: warehouseResults,
+            };
+        }
+
+        return warehouseResults;
+    }
+
     async runMetricQuery(
         user: SessionUser,
         metricQuery: MetricQuery,
@@ -1189,7 +1261,15 @@ export class ProjectService {
                             metricQuery: JSON.stringify(metricQuery),
                             type: warehouseClient.credentials.type,
                         },
-                        async () => warehouseClient.runQuery(query, queryTags),
+                        async () => {
+                            return ProjectService.getResultsFromCacheOrWarehouse(
+                                {
+                                    warehouseClient,
+                                    query,
+                                    queryTags,
+                                },
+                            );
+                        },
                     );
 
                     await sshTunnel.disconnect();
