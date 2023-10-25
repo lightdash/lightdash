@@ -1167,7 +1167,6 @@ export class ProjectService {
                         warehouseClient.credentials.type,
                     );
 
-                    // add 5 seconds delay with promise
                     const { rows } = await wrapSentryTransaction(
                         'runWarehouseQuery',
                         {
