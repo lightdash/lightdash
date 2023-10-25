@@ -1,4 +1,5 @@
 import { ResultRow } from '@lightdash/common';
+import { testCustomDimensions } from './customDimensions.cy';
 
 const warehouseConfig = {
     postgresSQL: {
@@ -264,14 +265,6 @@ const testPercentile = (
             ).to.eq(value);
         });
     });
-};
-
-const testCustomDimensions = (projectUuid: string) => {
-    // Test custom dimension by going into an existing chart with custom dimensions and running the query
-    cy.visit(`/projects/${projectUuid}/saved`);
-    cy.contains('How do payment methods vary').click();
-    cy.contains('0-6');
-    cy.contains('6-12');
 };
 
 const testTimeIntervalsResults = (

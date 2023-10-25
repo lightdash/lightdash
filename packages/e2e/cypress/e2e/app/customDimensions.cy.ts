@@ -1,8 +1,21 @@
 import { SEED_PROJECT } from '@lightdash/common';
 
+// eslint-disable-next-line import/prefer-default-export
+export const testCustomDimensions = (projectUuid) => {
+    // Test custom dimension by going into an existing chart with custom dimensions and running the query
+    // This is also used in createProject.cy.ts to test custom dimensions against all warehouses
+    cy.visit(`/projects/${projectUuid}/saved`);
+    cy.contains('How do payment methods vary').click();
+    cy.contains('0-6');
+    cy.contains('6-12');
+};
 describe('Custom dimensions', () => {
     beforeEach(() => {
         cy.login();
+    });
+
+    it('I can view an existing custom dimension chart', () => {
+        testCustomDimensions(SEED_PROJECT.project_uuid);
     });
     // For testing custom dimensions on different warehouses, see createProject.cy.ts
     it('I can create a bin number', () => {
