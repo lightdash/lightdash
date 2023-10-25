@@ -183,10 +183,6 @@ export class PostgresClient<
                     return;
                 }
 
-                client.on('error', (e) => {
-                    reject(e);
-                    done();
-                });
                 // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
                 //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
                 const stream = client.query(
