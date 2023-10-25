@@ -16,11 +16,11 @@ import { Flex, NumberInput, Text } from '@mantine/core';
 import moment from 'moment';
 import React from 'react';
 import MonthAndYearInput from '../../MonthAndYearInput';
-import WeekPicker, { convertWeekDayToDayPickerWeekDay } from '../../WeekPicker';
-import WeekPickerDuplicate from '../../WeekPickerDuplicate';
+import WeekPicker from '../../WeekPicker';
 import YearInput from '../../YearInput';
 import { useFiltersContext } from '../FiltersProvider';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
+import { convertWeekDayToDayOfWeek } from './dateUtils';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
 import {
     MultipleInputsWrapper,
@@ -65,29 +65,12 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                     week commencing
                                 </Text>
 
-                                <WeekPickerDuplicate
+                                <WeekPicker
                                     w="100%"
                                     placeholder={placeholder}
                                     disabled={disabled}
                                     value={rule.values ? rule.values[0] : null}
                                     startOfWeekDay={startOfWeek ?? undefined}
-                                    onChange={(value: Date | null) => {
-                                        onChange({
-                                            ...rule,
-                                            values:
-                                                value === null
-                                                    ? undefined
-                                                    : [moment(value).toDate()],
-                                        });
-                                    }}
-                                />
-
-                                <WeekPicker
-                                    placeholder={placeholder}
-                                    disabled={disabled}
-                                    value={rule.values ? rule.values[0] : null}
-                                    popoverProps={popoverProps}
-                                    startOfWeek={startOfWeek}
                                     onChange={(value: Date | null) => {
                                         onChange({
                                             ...rule,
@@ -211,7 +194,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         }}
                         dayPickerProps={{
                             firstDayOfWeek: isWeekDay(startOfWeek)
-                                ? convertWeekDayToDayPickerWeekDay(startOfWeek)
+                                ? convertWeekDayToDayOfWeek(startOfWeek)
                                 : undefined,
                         }}
                         maxDate={moment(new Date()).add(7, 'years').toDate()}
@@ -248,7 +231,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     }}
                     dayPickerProps={{
                         firstDayOfWeek: isWeekDay(startOfWeek)
-                            ? convertWeekDayToDayPickerWeekDay(startOfWeek)
+                            ? convertWeekDayToDayOfWeek(startOfWeek)
                             : undefined,
                     }}
                     maxDate={moment(new Date()).add(7, 'years').toDate()}
@@ -360,9 +343,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             }}
                             dayPickerProps={{
                                 firstDayOfWeek: isWeekDay(startOfWeek)
-                                    ? convertWeekDayToDayPickerWeekDay(
-                                          startOfWeek,
-                                      )
+                                    ? convertWeekDayToDayOfWeek(startOfWeek)
                                     : undefined,
                             }}
                             closeOnSelection={false}
@@ -444,7 +425,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         }}
                         dayPickerProps={{
                             firstDayOfWeek: isWeekDay(startOfWeek)
-                                ? convertWeekDayToDayPickerWeekDay(startOfWeek)
+                                ? convertWeekDayToDayOfWeek(startOfWeek)
                                 : undefined,
                         }}
                         closeOnSelection={true}
