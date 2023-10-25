@@ -23,7 +23,6 @@ import {
     ExploreError,
     fieldId as getFieldId,
     FilterableField,
-    FilterGroup,
     FilterGroupItem,
     FilterOperator,
     Filters,
@@ -56,7 +55,6 @@ import {
     ProjectMemberRole,
     ProjectType,
     RequestMethod,
-    ResourceViewItemType,
     ResultRow,
     SessionUser,
     SpaceQuery,
@@ -70,7 +68,6 @@ import {
     UserAttributeValueMap,
     WarehouseClient,
     WarehouseTypes,
-    wrapResource,
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
 import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
@@ -96,7 +93,11 @@ import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
 import { ProjectAdapter } from '../../types';
-import { runWorkerThread, wrapSentryTransaction } from '../../utils';
+import {
+    runWorkerThread,
+    wrapOtelSpan,
+    wrapSentryTransaction,
+} from '../../utils';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 import {
     exploreHasFilteredAttribute,
@@ -939,61 +940,83 @@ export class ProjectService {
         context: QueryExecutionContext,
         queryTags?: RunQueryTags,
     ): Promise<ApiQueryResults> {
-        const rows = await this.runMetricQuery(
-            user,
-            metricQuery,
-            projectUuid,
-            exploreName,
-            csvLimit,
-            context,
-            queryTags,
-        );
+        return wrapOtelSpan(
+            'ProjectService.runQueryAndFormatRows',
+            {},
+            async (span) => {
+                const rows = await this.runMetricQuery(
+                    user,
+                    metricQuery,
+                    projectUuid,
+                    exploreName,
+                    csvLimit,
+                    context,
+                    queryTags,
+                );
+                span.setAttribute('rows', rows.length);
 
-        const { warehouseConnection } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+                const { warehouseConnection } =
+                    await this.projectModel.getWithSensitiveFields(projectUuid);
+                if (warehouseConnection) {
+                    span.setAttribute('warehouse', warehouseConnection?.type);
+                }
 
-        const explore = await this.getExplore(user, projectUuid, exploreName);
+                const explore = await this.getExplore(
+                    user,
+                    projectUuid,
+                    exploreName,
+                );
 
-        const itemMap = getItemMap(
-            explore,
-            metricQuery.additionalMetrics,
-            metricQuery.tableCalculations,
-        );
+                const itemMap = getItemMap(
+                    explore,
+                    metricQuery.additionalMetrics,
+                    metricQuery.tableCalculations,
+                );
 
-        // If there are more than 500 rows, we need to format them in a background job
-        const formattedRows = await wrapSentryTransaction<ResultRow[]>(
-            'formatted rows',
-            {
-                rows: rows.length,
-                warehouse: warehouseConnection?.type,
+                // If there are more than 500 rows, we need to format them in a background job
+                const formattedRows = await wrapOtelSpan(
+                    'formatted rows',
+                    {
+                        rows: rows.length,
+                        warehouse: warehouseConnection?.type,
+                    },
+                    async () =>
+                        wrapSentryTransaction<ResultRow[]>(
+                            'formatted rows',
+                            {
+                                rows: rows.length,
+                                warehouse: warehouseConnection?.type,
+                            },
+                            async () =>
+                                rows.length > 500
+                                    ? runWorkerThread<ResultRow[]>(
+                                          new Worker(
+                                              './dist/services/ProjectService/formatRows.js',
+                                              {
+                                                  workerData: {
+                                                      rows,
+                                                      itemMap,
+                                                  },
+                                              },
+                                          ),
+                                      )
+                                    : formatRows(rows, itemMap),
+                        ),
+                );
+
+                return {
+                    rows: formattedRows,
+                    metricQuery,
+                };
             },
-            async () =>
-                rows.length > 500
-                    ? runWorkerThread<ResultRow[]>(
-                          new Worker(
-                              './dist/services/ProjectService/formatRows.js',
-                              {
-                                  workerData: {
-                                      rows,
-                                      itemMap,
-                                  },
-                              },
-                          ),
-                      )
-                    : formatRows(rows, itemMap),
         );
-
-        return {
-            rows: formattedRows,
-            metricQuery,
-        };
     }
 
     async getResultsForChart(
         user: SessionUser,
         chartUuid: string,
     ): Promise<Record<string, any>[]> {
-        const rows = await wrapSentryTransaction(
+        return wrapSentryTransaction(
             'getResultsForChartWithWarehouseQuery',
             {
                 userUuid: user.userUuid,
@@ -1014,8 +1037,6 @@ export class ProjectService {
                 );
             },
         );
-
-        return rows;
     }
 
     async runMetricQuery(
@@ -1718,41 +1739,48 @@ export class ProjectService {
             description: 'Gets a single explore from the cache',
         });
         try {
-            const { organizationUuid } = await this.projectModel.getSummary(
-                projectUuid,
-            );
-            if (
-                user.ability.cannot(
-                    'view',
-                    subject('Project', {
-                        organizationUuid,
+            return await wrapOtelSpan(
+                'ProjectService.getExplore',
+                {},
+                async () => {
+                    const { organizationUuid } =
+                        await this.projectModel.getSummary(projectUuid);
+                    if (
+                        user.ability.cannot(
+                            'view',
+                            subject('Project', {
+                                organizationUuid,
+                                projectUuid,
+                            }),
+                        )
+                    ) {
+                        throw new ForbiddenError();
+                    }
+                    const explore = await this.projectModel.getExploreFromCache(
                         projectUuid,
-                    }),
-                )
-            ) {
-                throw new ForbiddenError();
-            }
-            const explore = await this.projectModel.getExploreFromCache(
-                projectUuid,
-                exploreName,
+                        exploreName,
+                    );
+
+                    if (isExploreError(explore)) {
+                        throw new NotExistsError(
+                            `Explore "${exploreName}" does not exist.`,
+                        );
+                    }
+
+                    if (!exploreHasFilteredAttribute(explore)) {
+                        return explore;
+                    }
+                    const userAttributes =
+                        await this.userAttributesModel.getAttributeValuesForOrgMember(
+                            {
+                                organizationUuid,
+                                userUuid: user.userUuid,
+                            },
+                        );
+
+                    return filterDimensionsFromExplore(explore, userAttributes);
+                },
             );
-
-            if (isExploreError(explore)) {
-                throw new NotExistsError(
-                    `Explore "${exploreName}" does not exist.`,
-                );
-            }
-
-            if (!exploreHasFilteredAttribute(explore)) {
-                return explore;
-            }
-            const userAttributes =
-                await this.userAttributesModel.getAttributeValuesForOrgMember({
-                    organizationUuid,
-                    userUuid: user.userUuid,
-                });
-
-            return filterDimensionsFromExplore(explore, userAttributes);
         } finally {
             span?.finish();
         }
