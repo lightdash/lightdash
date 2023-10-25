@@ -103,16 +103,6 @@ import {
     filterDimensionsFromExplore,
 } from '../UserAttributesService/UserAttributeUtils';
 
-process.on('uncaughtException', (err) => {
-    console.error(
-        `${new Date().toUTCString()} uncaughtException:`,
-        err.message,
-    );
-    console.error(err.stack);
-    // Send the error log to your email
-    process.exit(1);
-});
-
 type RunQueryTags = {
     project_uuid?: string;
     user_uuid?: string;
