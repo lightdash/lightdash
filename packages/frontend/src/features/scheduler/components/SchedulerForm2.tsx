@@ -668,7 +668,6 @@ const SchedulerForm2: FC<{
 
                     <MDEditor
                         preview="edit"
-                        placeholder="Customize delivery message body"
                         commands={[
                             commands.bold,
                             commands.italic,
