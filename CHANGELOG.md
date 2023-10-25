@@ -1,3 +1,10 @@
+# [0.823.0](https://github.com/lightdash/lightdash/compare/0.822.0...0.823.0) (2023-10-25)
+
+
+### Features
+
+* update cron inputs in new scheduled deliveries ([#7621](https://github.com/lightdash/lightdash/issues/7621)) ([b957f6b](https://github.com/lightdash/lightdash/commit/b957f6b7bbba41b445c2cc95ecbd25e3e368e209))
+
 # [0.822.0](https://github.com/lightdash/lightdash/compare/0.821.0...0.822.0) (2023-10-24)
 
 
