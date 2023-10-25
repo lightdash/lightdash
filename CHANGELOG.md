@@ -1,3 +1,10 @@
+## [0.824.2](https://github.com/lightdash/lightdash/compare/0.824.1...0.824.2) (2023-10-25)
+
+
+### Bug Fixes
+
+* page scroll with sidebar open ([#7659](https://github.com/lightdash/lightdash/issues/7659)) ([434645d](https://github.com/lightdash/lightdash/commit/434645d5bdb8e3baa0ea5df62a8dce511ff4ad58))
+
 ## [0.824.1](https://github.com/lightdash/lightdash/compare/0.824.0...0.824.1) (2023-10-25)
 
 
