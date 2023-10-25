@@ -232,7 +232,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
 
             <Tooltip
                 label="You need at least one metric in your chart to add a group"
-                position="left"
+                position="top-start"
                 withinPortal
                 disabled={chartHasMetricOrTableCalc}
             >

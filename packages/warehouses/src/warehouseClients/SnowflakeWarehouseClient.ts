@@ -100,11 +100,16 @@ const parseCell = (cell: any) => {
     return cell;
 };
 
-const parseRow = (row: Record<string, any>) =>
-    Object.fromEntries(
-        Object.entries(row).map(([name, value]) => [name, parseCell(value)]),
-    );
-const parseRows = (rows: Record<string, any>[]) => rows.map(parseRow);
+const parseRow = (row: Record<string, any>, columnsToParse: string[]) => {
+    if (columnsToParse.length <= 0) {
+        return row;
+    }
+    const parsedRow = row;
+    columnsToParse.forEach((column) => {
+        parsedRow[column] = parseCell(row[column]);
+    });
+    return parsedRow;
+};
 
 export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflakeCredentials> {
     connectionOptions: ConnectionOptions;
@@ -206,13 +211,37 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                         reject(new WarehouseQueryError(err.message));
                     }
                     const rows: any[] = [];
-
+                    const columns = stmt.getColumns();
+                    const columnsToParse: string[] = [];
+                    const fields = columns
+                        ? columns.reduce<
+                              Record<string, { type: DimensionType }>
+                          >((acc, column) => {
+                              const dimensionType = mapFieldType(
+                                  column.getType().toUpperCase(),
+                              );
+                              if (
+                                  [
+                                      DimensionType.DATE,
+                                      DimensionType.TIMESTAMP,
+                                  ].includes(dimensionType)
+                              ) {
+                                  columnsToParse.push(column.getName());
+                              }
+                              return {
+                                  ...acc,
+                                  [column.getName()]: {
+                                      type: dimensionType,
+                                  },
+                              };
+                          }, {})
+                        : {};
                     pipeline(
                         stmt.streamRows(),
                         new Transform({
                             objectMode: true,
                             transform(chunk, encoding, callback) {
-                                callback(null, parseRow(chunk));
+                                callback(null, parseRow(chunk, columnsToParse));
                             },
                         }),
                         new Writable({
@@ -226,23 +255,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                             if (error) {
                                 reject(new WarehouseQueryError(error.message));
                             } else {
-                                const columns = stmt.getColumns();
-                                const fields = columns
-                                    ? columns.reduce(
-                                          (acc, column) => ({
-                                              ...acc,
-                                              [column.getName()]: {
-                                                  type: mapFieldType(
-                                                      column
-                                                          .getType()
-                                                          .toUpperCase(),
-                                                  ),
-                                              },
-                                          }),
-                                          {},
-                                      )
-                                    : {};
-
                                 resolve({ fields, rows });
                             }
                         },
@@ -276,7 +288,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                             }),
                             {},
                         );
-                        resolve({ fields, rows: parseRows(data) });
+                        resolve({ fields, rows: data });
                     } else {
                         reject(
                             new WarehouseQueryError(

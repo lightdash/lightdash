@@ -1,3 +1,29 @@
+## [0.824.1](https://github.com/lightdash/lightdash/compare/0.824.0...0.824.1) (2023-10-25)
+
+
+### Bug Fixes
+
+* increase error alert timeout to 1 minute ([#7647](https://github.com/lightdash/lightdash/issues/7647)) ([ef06563](https://github.com/lightdash/lightdash/commit/ef06563aea1c76d10a80de4c4507e37cd37253f2))
+
+# [0.824.0](https://github.com/lightdash/lightdash/compare/0.823.1...0.824.0) (2023-10-25)
+
+
+### Bug Fixes
+
+* only parse necessary columns ([#7624](https://github.com/lightdash/lightdash/issues/7624)) ([4be3e39](https://github.com/lightdash/lightdash/commit/4be3e3906db056f13fc1863fb213385093f64b46))
+
+
+### Features
+
+* chart version history ([#7629](https://github.com/lightdash/lightdash/issues/7629)) ([ae81052](https://github.com/lightdash/lightdash/commit/ae81052a1f33ee5580c18db136ac38fb83f1fe15))
+
+## [0.823.1](https://github.com/lightdash/lightdash/compare/0.823.0...0.823.1) (2023-10-25)
+
+
+### Bug Fixes
+
+* incorrect tooltip position in config ([#7643](https://github.com/lightdash/lightdash/issues/7643)) ([1fb23a4](https://github.com/lightdash/lightdash/commit/1fb23a4a259c9b46e392f4fc4288549b64207455))
+
 # [0.823.0](https://github.com/lightdash/lightdash/compare/0.822.0...0.823.0) (2023-10-25)
 
 
