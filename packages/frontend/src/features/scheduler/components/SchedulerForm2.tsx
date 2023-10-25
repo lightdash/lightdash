@@ -41,9 +41,11 @@ import {
 import MDEditor, { commands } from '@uiw/react-md-editor';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
+import { CronInternalInputs } from '../../../components/ReactHookForm/CronInput';
 import { hasRequiredScopes } from '../../../components/UserSettings/SlackSettingsPanel';
 import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
 import { useGetSlack } from '../../../hooks/useSlack';
+import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import { SlackIcon } from './SchedulerModalBase.styles';
 import SchedulersModalFooter from './SchedulerModalFooter';
 
@@ -198,6 +200,11 @@ const SchedulerForm2: FC<{
                         : null;
                 },
             },
+            cron: (cronExpression) => {
+                return isInvalidCronExpression('Cron expression')(
+                    cronExpression,
+                );
+            },
         },
 
         transformValues: (values): CreateSchedulerAndTargetsWithoutIds => {
@@ -334,12 +341,13 @@ const SchedulerForm2: FC<{
                             {...form.getInputProps('name')}
                         />
                         <Input.Wrapper label="Delivery frequency">
-                            {/* TODO: Cron inputs */}
-                            <TextInput
-                                disabled
-                                placeholder="Always Monday at 9am for now"
-                                mt={3}
-                            ></TextInput>
+                            <Box mt="xxs">
+                                <CronInternalInputs
+                                    disabled={disabled}
+                                    {...form.getInputProps('cron')}
+                                    name="cron"
+                                />
+                            </Box>
                         </Input.Wrapper>
                         <Stack spacing={0}>
                             <Input.Label mb="xxs"> Format </Input.Label>
