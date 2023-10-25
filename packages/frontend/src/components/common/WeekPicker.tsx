@@ -9,7 +9,10 @@ import {
 } from './Filters/FilterInputs/dateUtils';
 
 interface Props
-    extends Omit<DateInputProps, 'firstDayOfWeek' | 'value' | 'onChange'> {
+    extends Omit<
+        DateInputProps,
+        'firstDayOfWeek' | 'getDayProps' | 'value' | 'onChange'
+    > {
     value: unknown;
     onChange: (value: Date) => void;
     startOfWeek?: WeekDay;
@@ -46,7 +49,8 @@ const WeekPicker: FC<Props> = ({
     return (
         <DateInput
             size="xs"
-            popoverProps={{ shadow: 'sm' }}
+            {...rest}
+            popoverProps={{ ...rest.popoverProps, shadow: 'sm' }}
             getDayProps={(date) => {
                 const isHovered = hoveredDate
                     ? isInWeekRange(date, hoveredDate, convertedStartOfWeekDay)
@@ -79,7 +83,6 @@ const WeekPicker: FC<Props> = ({
                     selected: isSelected,
                 };
             }}
-            {...rest}
             firstDayOfWeek={convertedStartOfWeekDay}
             value={dateValue}
             onChange={(date) => {
