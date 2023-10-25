@@ -96,6 +96,14 @@ export const CustomDimensionModal = () => {
                 .replace(/_{2,}/g, '_') // Replace multiple underscores with a single one
                 .replace(/^_|_$/g, ''); // Remove leading and trailing underscores
 
+            if (/^[0-9]/.test(sanitizedId)) {
+                form.setFieldError(
+                    'customDimensionLabel',
+                    'Custom dimension label must start with a letter',
+                );
+                return;
+            }
+
             if (isEditing && isCustomDimension(item)) {
                 editCustomDimension(
                     {
