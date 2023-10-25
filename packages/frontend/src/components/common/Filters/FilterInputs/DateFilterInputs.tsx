@@ -20,6 +20,7 @@ import WeekPicker from '../../WeekPicker';
 import YearInput from '../../YearInput';
 import { useFiltersContext } from '../FiltersProvider';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
+import DatePicker from './DatePicker';
 import { getFirstDayOfWeek, normalizeWeekDay } from './dateUtils';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
 import {
@@ -220,38 +221,27 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
             }
 
             return (
-                <DateInput2
-                    className={disabled ? 'disabled-filter' : ''}
-                    placeholder={placeholder}
+                <DatePicker
                     disabled={disabled}
-                    fill
-                    value={
-                        rule.values && rule.values.length > 0
-                            ? formatDate(rule.values?.[0], undefined, false)
-                            : null
-                    }
-                    formatDate={(value: Date) =>
-                        formatDate(value, undefined, false)
-                    }
-                    parseDate={parseDate}
-                    onChange={(value: string | null) => {
-                        if (value) {
-                            onChange({
-                                ...rule,
-                                values: [formatDate(value, undefined, false)],
-                            });
-                        }
-                    }}
+                    placeholder={placeholder}
+                    startOfWeek={startOfWeek ?? undefined}
+                    // FIXME: remove this once we migrate off of Blueprint
+                    // we are doing type conversion here because Blueprint expects DOM element
+                    // Mantine does not provide a DOM element on onOpen/onClose
                     popoverProps={{
-                        placement: 'bottom',
-                        ...popoverProps,
+                        onOpen: () => popoverProps?.onOpened?.(null as any),
+                        onClose: () => popoverProps?.onClose?.(null as any),
                     }}
-                    dayPickerProps={{
-                        firstDayOfWeek: isWeekDay(startOfWeek)
-                            ? normalizeWeekDay(startOfWeek)
-                            : undefined,
+                    value={rule.values ? rule.values[0] : null}
+                    onChange={(value: Date | null) => {
+                        onChange({
+                            ...rule,
+                            values:
+                                value === null
+                                    ? undefined
+                                    : [moment(value).toDate()],
+                        });
                     }}
-                    maxDate={moment(new Date()).add(7, 'years').toDate()}
                 />
             );
         case FilterOperator.IN_THE_PAST:
