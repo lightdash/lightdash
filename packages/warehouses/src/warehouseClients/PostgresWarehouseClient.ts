@@ -16,16 +16,6 @@ import { rootCertificates } from 'tls';
 import QueryStream from './PgQueryStream';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
-process.on('uncaughtException', (err) => {
-    console.error(
-        `${new Date().toUTCString()} uncaughtException:`,
-        err.message,
-    );
-    console.error(err.stack);
-    // Send the error log to your email
-    process.exit(1);
-});
-
 const POSTGRES_CA_BUNDLES = [
     ...rootCertificates,
     readFileSync(path.resolve(__dirname, './ca-bundle-aws-rds-global.pem')),
