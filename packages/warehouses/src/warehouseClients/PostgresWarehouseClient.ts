@@ -171,10 +171,6 @@ export class PostgresClient<
         }>((resolve, reject) => {
             pool = new pg.Pool(this.config);
 
-            pool.on('error', (err) => {
-                console.error('Postgres error', err);
-            });
-
             pool.connect((err, client, done) => {
                 if (!client) {
                     reject(new Error('client undefined'));
