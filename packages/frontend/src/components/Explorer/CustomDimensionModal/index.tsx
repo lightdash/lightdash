@@ -17,6 +17,13 @@ import { useExplorerContext } from '../../../providers/ExplorerProvider';
 
 // TODO: preview custom dimension results
 
+const sanitizeId = (label: string) => {
+    return label
+        .toLowerCase()
+        .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
+        .replace(/_{2,}/g, '_') // Replace multiple underscores with a single one
+        .replace(/^_|_$/g, ''); // Remove leading and trailing underscores
+};
 export const CustomDimensionModal = () => {
     const MIN_OF_FIXED_NUMBER_BINS = 1;
     const { showToastSuccess } = useToaster();
@@ -60,6 +67,10 @@ export const CustomDimensionModal = () => {
                 if (isEditing && label === item.name) {
                     return null;
                 }
+                const sanitizedId = sanitizeId(label);
+                if (/^[0-9]/.test(sanitizedId)) {
+                    return 'Custom dimension label must start with a letter';
+                }
 
                 return customDimensions?.some(
                     (customDimension) => customDimension.name === label,
@@ -90,11 +101,7 @@ export const CustomDimensionModal = () => {
 
     const handleOnSubmit = form.onSubmit((values) => {
         if (item) {
-            const sanitizedId = values.customDimensionLabel
-                .toLowerCase()
-                .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
-                .replace(/_{2,}/g, '_') // Replace multiple underscores with a single one
-                .replace(/^_|_$/g, ''); // Remove leading and trailing underscores
+            const sanitizedId = sanitizeId(values.customDimensionLabel);
 
             if (isEditing && isCustomDimension(item)) {
                 editCustomDimension(
