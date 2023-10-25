@@ -1228,6 +1228,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "iMac7",
+      "name": "iMac",
+      "avatar_url": "https://avatars.githubusercontent.com/u/76876702?v=4",
+      "profile": "https://github.com/iMac7",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
