@@ -51,6 +51,7 @@ const VisualizationSidebar: FC<{
                     zIndex={100}
                     opened={isOpen}
                     withOverlay={false}
+                    lockScroll={false}
                     shadow="lg"
                     size={410}
                     styles={(theme) => ({
