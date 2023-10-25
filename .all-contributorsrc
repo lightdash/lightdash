@@ -1219,6 +1219,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "chodera",
+      "name": "David Witkowski",
+      "avatar_url": "https://avatars.githubusercontent.com/u/43667775?v=4",
+      "profile": "http://dwitkowski.eu",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
