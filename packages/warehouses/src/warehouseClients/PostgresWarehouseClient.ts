@@ -16,12 +16,15 @@ import { rootCertificates } from 'tls';
 import QueryStream from './PgQueryStream';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
-process.on('uncaughtException', function (err) {
-    console.error((new Date).toUTCString() + ' uncaughtException:', err.message);
+process.on('uncaughtException', (err) => {
+    console.error(
+        `${new Date().toUTCString()} uncaughtException:`,
+        err.message,
+    );
     console.error(err.stack);
     // Send the error log to your email
     process.exit(1);
-  })
+});
 
 const POSTGRES_CA_BUNDLES = [
     ...rootCertificates,
@@ -176,30 +179,24 @@ export class PostgresClient<
             fields: Record<string, { type: DimensionType }>;
             rows: Record<string, any>[];
         }>((resolve, reject) => {
-            console.log('runQuery before pool')
-
             pool = new pg.Pool(this.config);
-            console.log('runQuery before pool connect', pool.idleCount, pool.totalCount, pool.waitingCount)
 
-            try{
+            try {
                 pool.on('error', (err) => {
-                    console.error('pg.Pool emitted error', err)
-                    reject(new Error('Could not connect to postgres'));
-                })
-                  
+                    console.error('Postgres error', err);
+                });
+
                 pool.connect((err, client, done) => {
-                    console.log('runQuery after connect')
-    
                     if (!client) {
-                        console.log('undefined client', client)
-    
-                        reject(new Error('Could not connect to postgres'));
+                        reject(
+                            new Error(
+                                'Could not connect to postgres: client undefined',
+                            ),
+                        );
                         done();
                         return;
                     }
                     if (err) {
-                        console.log('runQuery on errr', err)
-    
                         reject(err);
                         done();
                         return;
@@ -241,17 +238,13 @@ export class PostgresClient<
                         }),
                     );
                 });
-            }catch(e){
-                console.log('UNANDLED', e)
-
+            } catch (e) {
                 throw new WarehouseQueryError(
                     `Error running postgres query: ${e}`,
                 );
             }
         })
             .catch((e) => {
-                console.log('runQuery on catch', e)
-
                 throw new WarehouseQueryError(
                     `Error running postgres query: ${e}`,
                 );
