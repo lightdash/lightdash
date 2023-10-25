@@ -15,14 +15,14 @@ export const convertWeekDayToDayOfWeek = (weekDay: WeekDay): DayOfWeek => {
 
 export const startOfWeek = (date: Date, startOfWeekDay: WeekDay) => {
     return dayjs(date)
-        .locale('custom', { weekStart: startOfWeekDay })
+        .locale(dayjs.locale(), { weekStart: startOfWeekDay })
         .startOf('week')
         .toDate();
 };
 
-export const endOfWeek = (date: Date, weekDay: WeekDay) => {
+export const endOfWeek = (date: Date, startOfWeekDay: WeekDay) => {
     return dayjs(date)
-        .locale('custom', { weekStart: weekDay })
+        .locale(dayjs.locale(), { weekStart: startOfWeekDay })
         .endOf('week')
         .toDate();
 };
