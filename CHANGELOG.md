@@ -1,3 +1,10 @@
+## [0.823.1](https://github.com/lightdash/lightdash/compare/0.823.0...0.823.1) (2023-10-25)
+
+
+### Bug Fixes
+
+* incorrect tooltip position in config ([#7643](https://github.com/lightdash/lightdash/issues/7643)) ([1fb23a4](https://github.com/lightdash/lightdash/commit/1fb23a4a259c9b46e392f4fc4288549b64207455))
+
 # [0.823.0](https://github.com/lightdash/lightdash/compare/0.822.0...0.823.0) (2023-10-25)
 
 
