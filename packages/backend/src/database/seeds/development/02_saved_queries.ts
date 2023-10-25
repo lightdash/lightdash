@@ -1,4 +1,5 @@
 import {
+    BinType,
     CartesianSeriesType,
     ChartType,
     ConditionalOperator,
@@ -464,6 +465,80 @@ export async function seed(knex: Knex): Promise<void> {
                 ],
             },
             updatedByUser,
+        },
+    );
+
+    // Custom dimensions (bins)
+    await savedChartModel.create(
+        SEED_PROJECT.project_uuid,
+        SEED_ORG_1_ADMIN.user_uuid,
+        {
+            name: 'How do payment methods vary across different amount ranges?"',
+            description: 'Payment range by amount',
+            tableName: 'payments',
+            metricQuery: {
+                dimensions: ['payments_payment_method'],
+                metrics: ['orders_total_order_amount'],
+                filters: {},
+                sorts: [
+                    { fieldId: 'orders_total_order_amount', descending: true },
+                ],
+                limit: 500,
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [
+                    {
+                        id: 'amount_range',
+                        name: 'amount range',
+                        dimensionId: 'payments_amount',
+                        binType: BinType.FIXED_NUMBER,
+                        binNumber: 5,
+                        table: 'payments',
+                    } /* {
+                        "id":"customer_id_range",
+                        "name":"customer id range",
+                        "dimensionId":"customers_customer_id",
+                        "binType": BinType.FIXED_WIDTH,
+                        "binWidth": 10,
+                        "table":"customers"
+                    } */,
+                ],
+            },
+            chartConfig: {
+                type: ChartType.CARTESIAN,
+                config: {
+                    layout: {
+                        flipAxes: false,
+                        xField: 'amount_range',
+                        yField: ['orders_total_order_amount'],
+                    },
+                    eChartsConfig: {
+                        series: [
+                            {
+                                encode: {
+                                    xRef: { field: 'amount_range' },
+                                    yRef: {
+                                        field: 'orders_total_order_amount',
+                                    },
+                                },
+                                type: CartesianSeriesType.BAR,
+                                yAxisIndex: 0,
+                            },
+                        ],
+                    },
+                },
+            },
+            tableConfig: {
+                columnOrder: [
+                    'amount_range',
+                    'orders_total_order_amount',
+                    'payments_payment_method',
+                ],
+            },
+            updatedByUser,
+            pivotConfig: {
+                columns: ['payments_payment_method'],
+            },
         },
     );
 }

@@ -266,6 +266,14 @@ const testPercentile = (
     });
 };
 
+const testCustomDimensions = (projectUuid: string) => {
+    // Test custom dimension by going into an existing chart with custom dimensions and running the query
+    cy.visit(`/projects/${projectUuid}/saved`);
+    cy.contains('How do payment methods vary').click();
+    cy.contains('0-6');
+    cy.contains('6-12');
+};
+
 const testTimeIntervalsResults = (
     projectUuid: string,
     rowValues = defaultRowValues,
@@ -359,6 +367,8 @@ describe('Create projects', () => {
             testFilterStringEscaping(projectUuid);
             testTimeIntervalsResults(projectUuid);
             testPercentile(projectUuid);
+
+            testCustomDimensions(projectUuid);
         });
     });
     it('Should create a Redshift project', () => {
@@ -379,6 +389,7 @@ describe('Create projects', () => {
             testFilterStringEscaping(projectUuid);
             testTimeIntervalsResults(projectUuid);
             testPercentile(projectUuid);
+            testCustomDimensions(projectUuid);
         });
     });
     it('Should create a Bigquery project', () => {
@@ -465,6 +476,7 @@ describe('Create projects', () => {
 
             testTimeIntervalsResults(projectUuid, trinoRowValues);
             testPercentile(projectUuid);
+            testCustomDimensions(projectUuid);
         });
     });
     it.skip('Should create a Databricks project', () => {
@@ -504,6 +516,7 @@ describe('Create projects', () => {
 
             testTimeIntervalsResults(projectUuid, databricksRowValues);
             testPercentile(projectUuid);
+            testCustomDimensions(projectUuid);
         });
     });
 
@@ -550,6 +563,7 @@ describe('Create projects', () => {
                 '1,999',
                 '10,999,999',
             ]);
+            testCustomDimensions(projectUuid);
         });
     });
 });
