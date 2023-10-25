@@ -16,6 +16,13 @@ import { rootCertificates } from 'tls';
 import QueryStream from './PgQueryStream';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
+process.on('uncaughtException', function (err) {
+    console.error((new Date).toUTCString() + ' uncaughtException:', err.message);
+    console.error(err.stack);
+    // Send the error log to your email
+    process.exit(1);
+  })
+
 const POSTGRES_CA_BUNDLES = [
     ...rootCertificates,
     readFileSync(path.resolve(__dirname, './ca-bundle-aws-rds-global.pem')),
@@ -169,52 +176,82 @@ export class PostgresClient<
             fields: Record<string, { type: DimensionType }>;
             rows: Record<string, any>[];
         }>((resolve, reject) => {
+            console.log('runQuery before pool')
+
             pool = new pg.Pool(this.config);
-            pool.connect((err, client, done) => {
-                if (err) {
-                    reject(err);
-                    done();
-                    return;
-                }
-                // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
-                //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
-                const stream = client.query(
-                    new QueryStream(this.getSQLWithMetadata(sql, tags)),
-                );
-                const rows: any[] = [];
-                let fields: QueryResult<any>['fields'] = [];
-                // release the client when the stream is finished
-                stream.on('end', () => {
-                    done();
-                    resolve({
-                        rows,
-                        fields: this.convertQueryResultFields(fields),
+            console.log('runQuery before pool connect', pool.idleCount, pool.totalCount, pool.waitingCount)
+
+            try{
+                pool.on('error', (err) => {
+                    console.error('pg.Pool emitted error', err)
+                    reject(new Error('Could not connect to postgres'));
+                })
+                  
+                pool.connect((err, client, done) => {
+                    console.log('runQuery after connect')
+    
+                    if (!client) {
+                        console.log('undefined client', client)
+    
+                        reject(new Error('Could not connect to postgres'));
+                        done();
+                        return;
+                    }
+                    if (err) {
+                        console.log('runQuery on errr', err)
+    
+                        reject(err);
+                        done();
+                        return;
+                    }
+                    // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
+                    //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
+                    const stream = client.query(
+                        new QueryStream(this.getSQLWithMetadata(sql, tags)),
+                    );
+                    const rows: any[] = [];
+                    let fields: QueryResult<any>['fields'] = [];
+                    // release the client when the stream is finished
+                    stream.on('end', () => {
+                        done();
+                        resolve({
+                            rows,
+                            fields: this.convertQueryResultFields(fields),
+                        });
                     });
-                });
-                stream.on('error', (err2) => {
-                    reject(err2);
-                    done();
-                });
-                stream.pipe(
-                    new Writable({
-                        objectMode: true,
-                        write(
-                            chunk: {
-                                row: any;
-                                fields: QueryResult<any>['fields'];
+                    stream.on('error', (err2) => {
+                        reject(err2);
+                        done();
+                    });
+                    stream.pipe(
+                        new Writable({
+                            objectMode: true,
+                            write(
+                                chunk: {
+                                    row: any;
+                                    fields: QueryResult<any>['fields'];
+                                },
+                                encoding,
+                                callback,
+                            ) {
+                                rows.push(chunk.row);
+                                fields = chunk.fields;
+                                callback();
                             },
-                            encoding,
-                            callback,
-                        ) {
-                            rows.push(chunk.row);
-                            fields = chunk.fields;
-                            callback();
-                        },
-                    }),
+                        }),
+                    );
+                });
+            }catch(e){
+                console.log('UNANDLED', e)
+
+                throw new WarehouseQueryError(
+                    `Error running postgres query: ${e}`,
                 );
-            });
+            }
         })
             .catch((e) => {
+                console.log('runQuery on catch', e)
+
                 throw new WarehouseQueryError(
                     `Error running postgres query: ${e}`,
                 );

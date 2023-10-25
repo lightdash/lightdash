@@ -103,6 +103,14 @@ import {
     filterDimensionsFromExplore,
 } from '../UserAttributesService/UserAttributeUtils';
 
+process.on('uncaughtException', function (err) {
+    console.error((new Date).toUTCString() + ' uncaughtException:', err.message);
+    console.error(err.stack);
+    // Send the error log to your email
+    process.exit(1);
+  })
+
+  
 type RunQueryTags = {
     project_uuid?: string;
     user_uuid?: string;
@@ -1028,6 +1036,7 @@ export class ProjectService {
         queryTags?: RunQueryTags,
     ): Promise<Record<string, any>[]> {
         const tracer = opentelemetry.trace.getTracer('default');
+        const randomId = parseInt(`${Math.random() * 1000}`)
         return tracer.startActiveSpan(
             'ProjectService.runMetricQuery',
             async (span) => {
@@ -1058,9 +1067,16 @@ export class ProjectService {
                             metricQuery,
                             csvLimit,
                         );
+                        console.log('BEFORE sshTunnel',randomId)
+                        await new Promise((resolve) => setTimeout(resolve, Math.random() * 1000));
 
                     const { warehouseClient, sshTunnel } =
                         await this._getWarehouseClient(projectUuid);
+                        console.log('AFTER getExplore',randomId)
+
+                        await new Promise((resolve) => setTimeout(resolve, Math.random() * 1000));
+                        console.log('BEFORE getExplore',randomId)
+
                     const explore = await this.getExplore(
                         user,
                         projectUuid,
@@ -1155,6 +1171,11 @@ export class ProjectService {
                         'warehouse.type',
                         warehouseClient.credentials.type,
                     );
+
+
+                    await new Promise((resolve) => setTimeout(resolve, Math.random() * 1000));
+
+                    // add 5 seconds delay with promise
                     const { rows } = await wrapSentryTransaction(
                         'runWarehouseQuery',
                         {
@@ -1165,10 +1186,16 @@ export class ProjectService {
                             type: warehouseClient.credentials.type,
                         },
                         async () => {
+
+                            await new Promise((resolve) => setTimeout(resolve, Math.random() * 1000));
+                            console.log('BEFORE testConnection',randomId)
+
                             await sshTunnel.testConnection();
                             return warehouseClient.runQuery(query, queryTags);
                         },
                     );
+                    await new Promise((resolve) => setTimeout(resolve, Math.random() * 1000));
+
                     await sshTunnel.disconnect();
                     return rows;
                 } catch (e) {
