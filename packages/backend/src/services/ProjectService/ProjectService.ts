@@ -1061,13 +1061,17 @@ export class ProjectService {
 
     static async getResultsFromCacheOrWarehouse({
         projectUuid,
+        context,
         warehouseClient,
         query,
+        metricQuery,
         queryTags,
     }: {
         projectUuid: string;
+        context: QueryExecutionContext;
         warehouseClient: WarehouseClient;
         query: any;
+        metricQuery: MetricQuery;
         queryTags?: RunQueryTags;
     }): Promise<{
         fields: Record<
@@ -1088,29 +1092,33 @@ export class ProjectService {
             queryHash in resultsCache &&
             lightdashConfig.resultsCache?.enabled
         ) {
-            // Make this async
+            // TODO: write data somewhere real
             const cacheEntry = resultsCache[queryHash];
             if (
                 new Date().getTime() - new Date(cacheEntry.time).getTime() <
                 lightdashConfig.resultsCache.cacheStateTimeSeconds * 1000
             ) {
-                console.log('getting data from cache');
-
-                // Log a cache hit
+                Logger.debug(`Returning data from cache with key ${queryHash}`);
                 return cacheEntry.data;
             }
         }
-        // Wrap this with sentry
-        const warehouseResults = await warehouseClient.runQuery(
-            query,
-            queryTags,
+
+        Logger.debug(`Run query against warehouse warehouse`);
+        const warehouseResults = await wrapSentryTransaction(
+            'runWarehouseQuery',
+            {
+                query,
+                queryTags,
+                context,
+                metricQuery: JSON.stringify(metricQuery),
+                type: warehouseClient.credentials.type,
+            },
+            async () => warehouseClient.runQuery(query, queryTags),
         );
 
-        console.log('data from warehouse');
-
-        // Log writing to cache
-        // Make async fire and forget
+        Logger.debug(`Writing data to cache with key ${queryHash}`);
         if (lightdashConfig.resultsCache?.enabled) {
+            // TODO: make catch write async fire and forget
             resultsCache[queryHash] = {
                 time: new Date(),
                 data: warehouseResults,
@@ -1252,7 +1260,7 @@ export class ProjectService {
                         },
                     });
 
-                    Logger.debug(`Run query against warehouse`);
+                    Logger.debug(`Fetch query results from cache or warehouse`);
                     span.setAttribute('generatedSql', query);
                     span.setAttribute('lightdash.projectUuid', projectUuid);
                     span.setAttribute(
@@ -1260,27 +1268,15 @@ export class ProjectService {
                         warehouseClient.credentials.type,
                     );
 
-                    const { rows } = await wrapSentryTransaction(
-                        'runWarehouseQuery',
-                        {
+                    const { rows } =
+                        await ProjectService.getResultsFromCacheOrWarehouse({
+                            projectUuid,
+                            context,
+                            warehouseClient,
+                            metricQuery,
                             query,
                             queryTags,
-                            context,
-                            metricQuery: JSON.stringify(metricQuery),
-                            type: warehouseClient.credentials.type,
-                        },
-                        async () => {
-                            return ProjectService.getResultsFromCacheOrWarehouse(
-                                {
-                                    projectUuid,
-                                    warehouseClient,
-                                    query,
-                                    queryTags,
-                                },
-                            );
-                        },
-                    );
-
+                        });
                     await sshTunnel.disconnect();
                     return rows;
                 } catch (e) {
