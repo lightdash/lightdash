@@ -50,7 +50,7 @@ You must set the following two environment variables:
 export LIGHTDASH_SECRET="not very secret" 
 export PGPASSWORD="password"
 
-docker-compose -f docker-compose.yml up --env-file .env --detach --remove-orphans
+docker-compose -f docker-compose.yml --env-file .env up --detach --remove-orphans
 ```
 
 :::info
