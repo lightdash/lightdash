@@ -59,11 +59,15 @@ const postDashboardsAvailableFilters = async (savedQueryUuids: string[]) =>
         body: JSON.stringify(savedQueryUuids),
     });
 
-const exportDashboard = async (id: string, queryFilters: string) =>
+const exportDashboard = async (
+    id: string,
+    queryFilters: string,
+    asPdf: boolean,
+) =>
     lightdashApi<string>({
         url: `/dashboards/${id}/export`,
         method: 'POST',
-        body: JSON.stringify({ queryFilters }),
+        body: JSON.stringify({ queryFilters, asPdf }),
     });
 
 export const useDashboardsAvailableFilters = (savedQueryUuids: string[]) =>
@@ -93,32 +97,36 @@ export const useExportDashboard = () => {
     return useMutation<
         string,
         ApiError,
-        { dashboard: Dashboard; queryFilters: string }
-    >((data) => exportDashboard(data.dashboard.uuid, data.queryFilters), {
-        mutationKey: ['export_dashboard'],
-        onMutate: (data) => {
-            showToast({
-                key: 'dashboard_export_toast',
-                intent: Intent.PRIMARY,
-                title: `${data.dashboard.name} is being exported. This might take a few seconds.`,
-                timeout: 0,
-            });
+        { dashboard: Dashboard; queryFilters: string; asPdf: boolean }
+    >(
+        (data) =>
+            exportDashboard(data.dashboard.uuid, data.queryFilters, data.asPdf),
+        {
+            mutationKey: ['export_dashboard'],
+            onMutate: (data) => {
+                showToast({
+                    key: 'dashboard_export_toast',
+                    intent: Intent.PRIMARY,
+                    title: `${data.dashboard.name} is being exported. This might take a few seconds.`,
+                    timeout: 0,
+                });
+            },
+            onSuccess: async (url, data) => {
+                if (url) window.open(url, '_blank');
+                showToastSuccess({
+                    key: 'dashboard_export_toast',
+                    title: `Success! ${data.dashboard.name} was exported.`,
+                });
+            },
+            onError: (error, data) => {
+                showToastError({
+                    key: 'dashboard_export_toast',
+                    title: `Failed to export ${data.dashboard.name}`,
+                    subtitle: error.error.message,
+                });
+            },
         },
-        onSuccess: async (url, data) => {
-            if (url) window.open(url, '_blank');
-            showToastSuccess({
-                key: 'dashboard_export_toast',
-                title: `Success! ${data.dashboard.name} was exported.`,
-            });
-        },
-        onError: (error, data) => {
-            showToastError({
-                key: 'dashboard_export_toast',
-                title: `Failed to export ${data.dashboard.name}`,
-                subtitle: error.error.message,
-            });
-        },
-    });
+    );
 };
 
 export const useUpdateDashboard = (

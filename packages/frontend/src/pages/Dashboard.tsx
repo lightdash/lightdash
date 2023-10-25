@@ -380,9 +380,9 @@ const Dashboard: FC = () => {
         setIsDeleteModalOpen(true);
     };
 
-    const handleExportDashboard = () => {
+    const handleExportDashboard = ({ asPdf }: { asPdf: boolean }) => {
         if (!dashboard) return;
-        exportDashboard({ dashboard, queryFilters: location.search });
+        exportDashboard({ dashboard, queryFilters: location.search, asPdf });
     };
 
     const [isSaveWarningModalOpen, setIsSaveWarningModalOpen] =

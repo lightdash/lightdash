@@ -72,7 +72,7 @@ type DashboardHeaderProps = {
     onDelete: () => void;
     onDuplicate: () => void;
     onMoveToSpace: (spaceUuid: string) => void;
-    onExport: () => void;
+    onExport: ({ asPdf }: { asPdf: boolean }) => void;
 };
 
 const DashboardHeader = ({
@@ -407,9 +407,56 @@ const DashboardHeader = ({
                             {(userCanExportData || userCanManageDashboard) && (
                                 <Menu.Item
                                     icon={<MantineIcon icon={IconUpload} />}
-                                    onClick={onExport}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                    }}
                                 >
-                                    Export dashboard{' '}
+                                    <Menu
+                                        withArrow
+                                        position="left-start"
+                                        shadow="md"
+                                        offset={40}
+                                        trigger="hover"
+                                    >
+                                        <Menu.Target>
+                                            <Flex
+                                                justify="space-between"
+                                                align="center"
+                                            >
+                                                Export dashboard
+                                                <MantineIcon
+                                                    icon={IconChevronRight}
+                                                />
+                                            </Flex>
+                                        </Menu.Target>
+                                        <Menu.Dropdown>
+                                            <Menu.Item
+                                                icon={
+                                                    <MantineIcon
+                                                        icon={IconUpload}
+                                                    />
+                                                }
+                                                onClick={() =>
+                                                    onExport({ asPdf: false })
+                                                }
+                                            >
+                                                Image
+                                            </Menu.Item>
+                                            <Menu.Item
+                                                icon={
+                                                    <MantineIcon
+                                                        icon={IconUpload}
+                                                    />
+                                                }
+                                                onClick={() =>
+                                                    onExport({ asPdf: true })
+                                                }
+                                            >
+                                                PDF
+                                            </Menu.Item>
+                                        </Menu.Dropdown>
+                                    </Menu>
                                 </Menu.Item>
                             )}
 

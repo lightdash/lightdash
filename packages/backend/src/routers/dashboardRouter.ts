@@ -180,6 +180,7 @@ dashboardRouter.post(
                 req.params.dashboardUuid,
                 req.body.queryFilters,
                 req.user!,
+                req.body.asPdf,
             );
 
             res.json({

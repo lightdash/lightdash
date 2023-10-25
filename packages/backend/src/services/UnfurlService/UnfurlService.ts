@@ -231,7 +231,7 @@ export class UnfurlService {
         imageId: string,
         authUserUuid: string,
         withPdf: boolean = false,
-    ): Promise<{ imageUrl?: string; pdfPath?: string }> {
+    ): Promise<{ imageUrl?: string; pdfPath?: string; pdfUrl?: string }> {
         const cookie = await this.getUserCookie(authUserUuid);
         const details = await this.unfurlDetails(url);
         const buffer = await this.saveScreenshot(
@@ -245,9 +245,12 @@ export class UnfurlService {
 
         let imageUrl;
         let pdfPath;
+        let pdfUrl;
         if (buffer !== undefined) {
-            if (withPdf)
+            if (withPdf) {
                 pdfPath = await UnfurlService.createImagePdf(imageId, buffer);
+                pdfUrl = `${this.lightdashConfig.siteUrl}/api/v1/slack/pdf/${imageId}.pdf`;
+            }
 
             if (this.s3Service.isEnabled()) {
                 imageUrl = await this.s3Service.uploadImage(buffer, imageId);
@@ -257,13 +260,14 @@ export class UnfurlService {
             }
         }
 
-        return { imageUrl, pdfPath };
+        return { imageUrl, pdfPath, pdfUrl };
     }
 
     async exportDashboard(
         dashboardUuid: string,
         queryFilters: string,
         user: SessionUser,
+        asPdf: boolean,
     ): Promise<string> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
         const { organizationUuid, projectUuid, name, minimalUrl, pageType } = {
@@ -284,9 +288,18 @@ export class UnfurlService {
         const unfurlImage = await this.unfurlImage(
             minimalUrl,
             pageType,
-            `slack-image_${snakeCaseName(name)}_${useNanoid()}`, // In order to use local images from slackRouter, image needs to start with slack-image
+            `slack-${asPdf ? 'pdf' : 'image'}_${snakeCaseName(
+                name,
+            )}_${useNanoid()}`, // In order to use local files from slackRouter, image needs to start with slack-image / slack-pdf
             user.userUuid,
+            asPdf,
         );
+        if (asPdf) {
+            if (unfurlImage.pdfUrl === undefined) {
+                throw new Error('Unable to unfurl pdf');
+            }
+            return unfurlImage.pdfUrl;
+        }
         if (unfurlImage.imageUrl === undefined) {
             throw new Error('Unable to unfurl image');
         }
