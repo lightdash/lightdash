@@ -74,6 +74,7 @@ import {
 import { SshTunnel } from '@lightdash/warehouses';
 import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
+import * as crypto from 'crypto';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
@@ -1059,10 +1060,12 @@ export class ProjectService {
     }
 
     static async getResultsFromCacheOrWarehouse({
+        projectUuid,
         warehouseClient,
         query,
         queryTags,
     }: {
+        projectUuid: string;
         warehouseClient: WarehouseClient;
         query: any;
         queryTags?: RunQueryTags;
@@ -1075,7 +1078,12 @@ export class ProjectService {
         >;
         rows: Record<string, any>[];
     }> {
-        const queryHash = query;
+        // TODO: put this hash function in a util somewhere
+        const queryHash = crypto
+            .createHash('sha256')
+            .update(`${projectUuid}.${query}`)
+            .digest('hex');
+
         if (
             queryHash in resultsCache &&
             lightdashConfig.resultsCache?.enabled
@@ -1264,6 +1272,7 @@ export class ProjectService {
                         async () => {
                             return ProjectService.getResultsFromCacheOrWarehouse(
                                 {
+                                    projectUuid,
                                     warehouseClient,
                                     query,
                                     queryTags,
