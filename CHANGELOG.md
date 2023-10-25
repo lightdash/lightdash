@@ -1,3 +1,10 @@
+## [0.824.1](https://github.com/lightdash/lightdash/compare/0.824.0...0.824.1) (2023-10-25)
+
+
+### Bug Fixes
+
+* increase error alert timeout to 1 minute ([#7647](https://github.com/lightdash/lightdash/issues/7647)) ([ef06563](https://github.com/lightdash/lightdash/commit/ef06563aea1c76d10a80de4c4507e37cd37253f2))
+
 # [0.824.0](https://github.com/lightdash/lightdash/compare/0.823.1...0.824.0) (2023-10-25)
 
 
