@@ -109,6 +109,7 @@ export type LightdashConfig = {
     resultsCache?: {
         enabled: boolean;
         cacheStateTimeSeconds: number;
+        s3Bucket?: string;
     };
     slack?: SlackConfig;
     scheduler: {
@@ -395,6 +396,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 process.env.CACHE_STALE_TIME_SECONDS || '86400', // A day in seconds
                 10,
             ),
+            s3Bucket: process.env.RESULTS_CACHE_S3_BUCKET,
         },
         slack: {
             appToken: process.env.SLACK_APP_TOKEN,

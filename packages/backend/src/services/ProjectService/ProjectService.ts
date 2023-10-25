@@ -80,6 +80,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
 import { analytics } from '../../analytics/client';
 import { QueryExecutionContext } from '../../analytics/LightdashAnalytics';
+import { S3Service } from '../../clients/Aws/s3';
 import { schedulerClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
@@ -107,23 +108,6 @@ import {
     filterDimensionsFromExplore,
 } from '../UserAttributesService/UserAttributeUtils';
 
-// These should live somewhere else
-const resultsCache: Record<
-    string,
-    {
-        time: Date;
-        data: {
-            fields: Record<
-                string,
-                {
-                    type: DimensionType;
-                }
-            >;
-            rows: Record<string, any>[];
-        };
-    }
-> = {};
-
 type RunQueryTags = {
     project_uuid?: string;
     user_uuid?: string;
@@ -140,6 +124,7 @@ type ProjectServiceDependencies = {
     spaceModel: SpaceModel;
     sshKeyPairModel: SshKeyPairModel;
     userAttributesModel: UserAttributesModel;
+    s3Client: S3Service;
 };
 
 export class ProjectService {
@@ -161,6 +146,8 @@ export class ProjectService {
 
     userAttributesModel: UserAttributesModel;
 
+    s3Client: S3Service;
+
     constructor({
         projectModel,
         onboardingModel,
@@ -170,6 +157,7 @@ export class ProjectService {
         spaceModel,
         sshKeyPairModel,
         userAttributesModel,
+        s3Client,
     }: ProjectServiceDependencies) {
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
@@ -180,6 +168,7 @@ export class ProjectService {
         this.spaceModel = spaceModel;
         this.sshKeyPairModel = sshKeyPairModel;
         this.userAttributesModel = userAttributesModel;
+        this.s3Client = s3Client;
     }
 
     private async _resolveWarehouseClientSshKeys<
@@ -1059,7 +1048,7 @@ export class ProjectService {
         );
     }
 
-    static async getResultsFromCacheOrWarehouse({
+    private async getResultsFromCacheOrWarehouse({
         projectUuid,
         context,
         warehouseClient,
@@ -1088,18 +1077,32 @@ export class ProjectService {
             .update(`${projectUuid}.${query}`)
             .digest('hex');
 
-        if (
-            queryHash in resultsCache &&
-            lightdashConfig.resultsCache?.enabled
-        ) {
-            // TODO: write data somewhere real
-            const cacheEntry = resultsCache[queryHash];
+        if (lightdashConfig.resultsCache?.enabled) {
+            const cacheEntryMetadata = await this.s3Client.getResultsMetadata(
+                queryHash,
+            );
+
             if (
-                new Date().getTime() - new Date(cacheEntry.time).getTime() <
-                lightdashConfig.resultsCache.cacheStateTimeSeconds * 1000
+                cacheEntryMetadata?.LastModified &&
+                new Date().getTime() -
+                    cacheEntryMetadata.LastModified.getTime() <
+                    lightdashConfig.resultsCache.cacheStateTimeSeconds * 1000
             ) {
-                Logger.debug(`Returning data from cache with key ${queryHash}`);
-                return cacheEntry.data;
+                console.log('getting data from cache');
+
+                // Log a cache hit
+                const cacheEntry = await this.s3Client.getResults(queryHash);
+                const stringResults =
+                    await cacheEntry.Body?.transformToString();
+                if (stringResults) {
+                    try {
+                        console.log('cache hit');
+                        return JSON.parse(stringResults);
+                    } catch (e) {
+                        console.error(e);
+                        // catch error and get results from warehouse
+                    }
+                }
             }
         }
 
@@ -1118,11 +1121,11 @@ export class ProjectService {
 
         Logger.debug(`Writing data to cache with key ${queryHash}`);
         if (lightdashConfig.resultsCache?.enabled) {
-            // TODO: make catch write async fire and forget
-            resultsCache[queryHash] = {
-                time: new Date(),
-                data: warehouseResults,
-            };
+            const buffer = Buffer.from(JSON.stringify(warehouseResults));
+            // fire and forget
+            this.s3Client
+                .uploadResults(queryHash, buffer, queryTags)
+                .catch((e) => undefined); // ignore since error is tracked in s3Client
         }
 
         return warehouseResults;
@@ -1268,15 +1271,14 @@ export class ProjectService {
                         warehouseClient.credentials.type,
                     );
 
-                    const { rows } =
-                        await ProjectService.getResultsFromCacheOrWarehouse({
-                            projectUuid,
-                            context,
-                            warehouseClient,
-                            metricQuery,
-                            query,
-                            queryTags,
-                        });
+                    const { rows } = await this.getResultsFromCacheOrWarehouse({
+                        projectUuid,
+                        context,
+                        warehouseClient,
+                        metricQuery,
+                        query,
+                        queryTags,
+                    });
                     await sshTunnel.disconnect();
                     return rows;
                 } catch (e) {
