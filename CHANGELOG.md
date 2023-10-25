@@ -1,3 +1,15 @@
+# [0.824.0](https://github.com/lightdash/lightdash/compare/0.823.1...0.824.0) (2023-10-25)
+
+
+### Bug Fixes
+
+* only parse necessary columns ([#7624](https://github.com/lightdash/lightdash/issues/7624)) ([4be3e39](https://github.com/lightdash/lightdash/commit/4be3e3906db056f13fc1863fb213385093f64b46))
+
+
+### Features
+
+* chart version history ([#7629](https://github.com/lightdash/lightdash/issues/7629)) ([ae81052](https://github.com/lightdash/lightdash/commit/ae81052a1f33ee5580c18db136ac38fb83f1fe15))
+
 ## [0.823.1](https://github.com/lightdash/lightdash/compare/0.823.0...0.823.1) (2023-10-25)
 
 
