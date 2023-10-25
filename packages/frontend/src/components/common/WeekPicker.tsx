@@ -2,9 +2,10 @@ import { WeekDay } from '@lightdash/common';
 import { DateInput, DateInputProps } from '@mantine/dates';
 import { FC, useMemo, useState } from 'react';
 import {
-    convertWeekDayToDayOfWeek,
     endOfWeek,
+    getDateValueFromUnknown,
     isInWeekRange,
+    normalizeWeekDay,
     startOfWeek,
 } from './Filters/FilterInputs/dateUtils';
 
@@ -25,21 +26,16 @@ const WeekPicker: FC<Props> = ({
     ...rest
 }) => {
     const [hoveredDate, setHoveredDate] = useState<Date>();
-    const dateValue = useMemo(() => {
-        if (!stringOrDateValue) return null;
 
-        if (typeof stringOrDateValue === 'string') {
-            return new Date(stringOrDateValue);
-        } else if (stringOrDateValue instanceof Date) {
-            return stringOrDateValue;
-        } else {
-            throw new Error(
-                `Invalid date value: ${stringOrDateValue} (${typeof stringOrDateValue})`,
-            );
-        }
-    }, [stringOrDateValue]);
+    const dateValue = useMemo(
+        () => getDateValueFromUnknown(stringOrDateValue),
+        [stringOrDateValue],
+    );
 
-    const convertedStartOfWeekDay = convertWeekDayToDayOfWeek(startOfWeekDay);
+    const convertedStartOfWeekDay = useMemo(
+        () => normalizeWeekDay(startOfWeekDay),
+        [startOfWeekDay],
+    );
 
     const currentStartOfWeek = useMemo(() => {
         if (!dateValue) return null;
@@ -48,6 +44,7 @@ const WeekPicker: FC<Props> = ({
 
     return (
         <DateInput
+            w="100%"
             size="xs"
             {...rest}
             popoverProps={{ ...rest.popoverProps, shadow: 'sm' }}

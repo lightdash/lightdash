@@ -3,12 +3,10 @@ import { DayOfWeek } from '@mantine/dates';
 import dayjs from 'dayjs';
 
 //
-// date inputs accepts start of the week day
-// prop is firstDayOfWeek: number 0-6
-// 0 – Sunday, 6 – Saturday, defaults to 1 – Monday
-// our internal WeekDay enum is a range from 0 (Monday) to 6 (Sunday)
+// internally we use WeekDay enum with values from 0 (Monday) to 6 (Sunday)
+// normalized values are from 0 (Sunday) to 6 (Saturday)
 //
-export const convertWeekDayToDayOfWeek = (weekDay: WeekDay): DayOfWeek => {
+export const normalizeWeekDay = (weekDay: WeekDay): DayOfWeek => {
     const converted = weekDay + 1;
     return (converted <= 6 ? converted : 0) as DayOfWeek;
 };
@@ -42,4 +40,16 @@ export const isInWeekRange = (
         (dayjs(date).isSame(endOfWeekDate) ||
             dayjs(date).isBefore(endOfWeekDate))
     );
+};
+
+export const getDateValueFromUnknown = (value: unknown): Date | null => {
+    if (!value) return null;
+
+    if (typeof value === 'string') {
+        return new Date(value);
+    } else if (value instanceof Date) {
+        return value;
+    } else {
+        throw new Error(`Invalid date value: ${value} (${typeof value})`);
+    }
 };
