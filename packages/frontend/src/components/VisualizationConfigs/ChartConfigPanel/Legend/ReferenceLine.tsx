@@ -83,8 +83,8 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                     return (
                         <WeekPicker
                             value={moment(value).toDate()}
-                            popoverProps={{ usePortal: false }}
-                            startOfWeek={startOfWeek}
+                            popoverProps={{ withinPortal: false }}
+                            startOfWeek={startOfWeek ?? undefined}
                             onChange={(dateValue) => {
                                 if (!dateValue) return;
 

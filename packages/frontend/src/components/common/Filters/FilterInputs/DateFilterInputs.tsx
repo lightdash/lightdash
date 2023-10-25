@@ -70,7 +70,20 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                     placeholder={placeholder}
                                     disabled={disabled}
                                     value={rule.values ? rule.values[0] : null}
-                                    startOfWeekDay={startOfWeek ?? undefined}
+                                    startOfWeek={startOfWeek ?? undefined}
+                                    // FIXME: remove this once we migrate off of Blueprint
+                                    // we are doing type conversion here because Blueprint expects DOM element
+                                    // Mantine does not provide a DOM element on onOpen/onClose
+                                    popoverProps={{
+                                        onOpen: () =>
+                                            popoverProps?.onOpened?.(
+                                                null as any,
+                                            ),
+                                        onClose: () =>
+                                            popoverProps?.onClose?.(
+                                                null as any,
+                                            ),
+                                    }}
                                     onChange={(value: Date | null) => {
                                         onChange({
                                             ...rule,

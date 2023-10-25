@@ -12,11 +12,11 @@ interface Props
     extends Omit<DateInputProps, 'firstDayOfWeek' | 'value' | 'onChange'> {
     value: unknown;
     onChange: (value: Date) => void;
-    startOfWeekDay?: WeekDay;
+    startOfWeek?: WeekDay;
 }
 
 const WeekPicker: FC<Props> = ({
-    startOfWeekDay = WeekDay.SUNDAY,
+    startOfWeek: startOfWeekDay = WeekDay.SUNDAY,
     value: stringOrDateValue,
     onChange,
     ...rest
