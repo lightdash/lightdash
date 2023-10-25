@@ -1,4 +1,5 @@
 import { SEED_PROJECT } from '@lightdash/common';
+import dayjs = require('dayjs');
 import moment = require('moment');
 
 function leadingZero(value: string | number) {
@@ -408,20 +409,24 @@ describe('Date tests', () => {
         cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by week
-        function startOfTheWeek(): string {
+        function startOfTheWeek(): Date {
             const curr = new Date();
             const first = curr.getDate() - curr.getDay();
-            const firstday = new Date(curr.setDate(first));
-            return getLocalISOString(firstday);
+            return new Date(curr.setDate(first));
         }
 
         const weekDate = startOfTheWeek();
         cy.findByRole('button', { name: 'Week' }).findByRole('button').click();
         cy.findByRole('menuitem', { name: 'Add filter' }).click();
 
-        cy.get('.bp4-date-input input').should('have.value', weekDate);
+        cy.get('.mantine-DateInput-root input').should(
+            'have.value',
+            dayjs(weekDate).format('MMMM D, YYYY'),
+        );
         cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('WEEK', "orders".order_date)) = ('${weekDate}')`,
+            `(DATE_TRUNC('WEEK', "orders".order_date)) = ('${getLocalISOString(
+                weekDate,
+            )}')`,
         );
         cy.get('.tabler-icon-x').click({ multiple: true });
 
