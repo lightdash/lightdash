@@ -58,6 +58,7 @@ const useToaster = () => {
             showToast({
                 intent: Intent.DANGER,
                 icon: 'error',
+                timeout: 60000,
                 ...props,
             });
         },
