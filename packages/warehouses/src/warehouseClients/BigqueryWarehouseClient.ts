@@ -162,6 +162,12 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             >((acc, field) => {
                 if (field.name) {
                     const dimensionType = mapFieldType(field.type);
+
+                    // Big numbers can't be cloned by the Node Worker so we need to parse them
+                    if (field.type === BigqueryFieldType.BIGNUMERIC) {
+                        columnsToParse.push(field.name);
+                    }
+
                     if (
                         [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
                             dimensionType,
