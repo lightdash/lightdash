@@ -1,4 +1,4 @@
-import { ApiQueryResults } from '@lightdash/common';
+import { ApiQueryResults, getCustomDimensionId } from '@lightdash/common';
 import { useMemo, useState } from 'react';
 
 const usePivotDimensions = (
@@ -12,8 +12,14 @@ const usePivotDimensions = (
     const validPivotDimensions = useMemo(() => {
         if (resultsData) {
             const availableDimensions = resultsData
-                ? resultsData.metricQuery.dimensions
+                ? [
+                      ...resultsData.metricQuery.dimensions,
+                      ...(resultsData.metricQuery.customDimensions?.map(
+                          getCustomDimensionId,
+                      ) || []),
+                  ]
                 : [];
+
             if (
                 dirtyPivotDimensions &&
                 dirtyPivotDimensions.some((key) =>

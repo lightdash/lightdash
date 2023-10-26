@@ -1,3 +1,4 @@
+import { getCustomDimensionId } from '@lightdash/common';
 import { Box, Checkbox, Stack, Title, Tooltip } from '@mantine/core';
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
@@ -38,7 +39,7 @@ const GeneralSettings: FC = () => {
     const [isDragging, setIsDragging] = useState<boolean>(false);
     const { showToastError } = useToaster();
     const {
-        metricQuery: { dimensions },
+        metricQuery: { dimensions, customDimensions },
     } = resultsData || { metricQuery: { dimensions: [] as string[] } };
 
     const {
@@ -48,9 +49,10 @@ const GeneralSettings: FC = () => {
     }: { columns: string[]; rows: string[]; metrics: string[] } =
         useMemo(() => {
             const columnFields = pivotDimensions ?? [];
-            const rowsFields = dimensions?.filter(
-                (itemId) => !pivotDimensions?.includes(itemId),
-            );
+            const rowsFields = [
+                ...dimensions,
+                ...(customDimensions?.map(getCustomDimensionId) || []),
+            ].filter((itemId) => !pivotDimensions?.includes(itemId));
             const metricsFields = (selectedItemIds ?? []).filter(
                 (id) => ![...columnFields, ...rowsFields].includes(id),
             );
@@ -59,7 +61,7 @@ const GeneralSettings: FC = () => {
                 rows: rowsFields,
                 metrics: metricsFields,
             };
-        }, [pivotDimensions, dimensions, selectedItemIds]);
+        }, [pivotDimensions, dimensions, selectedItemIds, customDimensions]);
 
     const handleToggleMetricsAsRows = useCallback(() => {
         const newValue = !metricsAsRows;

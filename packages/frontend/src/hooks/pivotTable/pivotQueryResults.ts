@@ -1,5 +1,6 @@
 import {
     FieldType,
+    getCustomDimensionId,
     MetricQuery,
     PivotConfig,
     PivotData,
@@ -13,7 +14,11 @@ type PivotQueryResultsArgs = {
     pivotConfig: PivotConfig;
     metricQuery: Pick<
         MetricQuery,
-        'dimensions' | 'metrics' | 'tableCalculations' | 'additionalMetrics'
+        | 'dimensions'
+        | 'metrics'
+        | 'tableCalculations'
+        | 'additionalMetrics'
+        | 'customDimensions'
     >;
     rows: ResultRow[];
     options: {
@@ -205,9 +210,14 @@ export const pivotQueryResults = ({
         return !hiddenMetricFieldIds.includes(id);
     });
 
+    const dimensions = [
+        ...metricQuery.dimensions,
+        ...(metricQuery.customDimensions?.map(getCustomDimensionId) || []),
+    ];
+
     // Headers (column index)
     const headerDimensions = pivotConfig.pivotDimensions.filter(
-        (pivotDimension) => metricQuery.dimensions.includes(pivotDimension),
+        (pivotDimension) => dimensions.includes(pivotDimension),
     );
     const headerDimensionValueTypes = headerDimensions.map<{
         type: FieldType.DIMENSION;
@@ -224,7 +234,7 @@ export const pivotQueryResults = ({
     ];
 
     // Indices (row index)
-    const indexDimensions = metricQuery.dimensions
+    const indexDimensions = dimensions
         .filter((d) => !pivotConfig.pivotDimensions.includes(d))
         .slice()
         .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b));
