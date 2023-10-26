@@ -1,3 +1,10 @@
+## [0.825.1](https://github.com/lightdash/lightdash/compare/0.825.0...0.825.1) (2023-10-26)
+
+
+### Bug Fixes
+
+* scheduled deliveries message value ([#7670](https://github.com/lightdash/lightdash/issues/7670)) ([9188cd9](https://github.com/lightdash/lightdash/commit/9188cd996a7a0a30e1331dea7abf3e2ea2851335))
+
 # [0.825.0](https://github.com/lightdash/lightdash/compare/0.824.3...0.825.0) (2023-10-26)
 
 
