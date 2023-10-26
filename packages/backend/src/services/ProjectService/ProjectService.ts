@@ -1061,6 +1061,7 @@ export class ProjectService {
 
                     const { warehouseClient, sshTunnel } =
                         await this._getWarehouseClient(projectUuid);
+
                     const explore = await this.getExplore(
                         user,
                         projectUuid,
@@ -1155,6 +1156,7 @@ export class ProjectService {
                         'warehouse.type',
                         warehouseClient.credentials.type,
                     );
+
                     const { rows } = await wrapSentryTransaction(
                         'runWarehouseQuery',
                         {
@@ -1164,11 +1166,9 @@ export class ProjectService {
                             metricQuery: JSON.stringify(metricQuery),
                             type: warehouseClient.credentials.type,
                         },
-                        async () => {
-                            await sshTunnel.testConnection();
-                            return warehouseClient.runQuery(query, queryTags);
-                        },
+                        async () => warehouseClient.runQuery(query, queryTags),
                     );
+
                     await sshTunnel.disconnect();
                     return rows;
                 } catch (e) {
@@ -1217,7 +1217,6 @@ export class ProjectService {
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
         };
-        await sshTunnel.testConnection();
         const results = await warehouseClient.runQuery(sql, queryTags);
         await sshTunnel.disconnect();
         return results;
@@ -1328,7 +1327,6 @@ export class ProjectService {
             user_uuid: user.userUuid,
             project_uuid: projectUuid,
         };
-        await sshTunnel.testConnection();
         const { rows } = await warehouseClient.runQuery(query, queryTags);
         await sshTunnel.disconnect();
 

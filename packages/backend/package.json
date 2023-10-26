@@ -20,7 +20,7 @@
         "@types/passport-local": "^1.0.34",
         "@types/passport-oauth2-refresh": "^1.1.1",
         "@types/passport-strategy": "^0.2.35",
-        "@types/pg": "^8.6.1",
+        "@types/pg": "^8.10.7",
         "copyfiles": "^2.4.1",
         "jest-fetch-mock": "^3.0.3",
         "knex-mock-client": "^1.11.0"
@@ -93,7 +93,7 @@
         "passport-openidconnect": "^0.1.1",
         "passport-strategy": "^1.0.0",
         "pdf-lib": "^1.17.1",
-        "pg": "^8.7.1",
+        "pg": "^8.11.3",
         "pg-connection-string": "^2.5.0",
         "puppeteer": "^21.3.1",
         "redoc-express": "^1.0.0",
