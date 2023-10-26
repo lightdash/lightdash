@@ -220,6 +220,7 @@ const createSavedChartVersion = async (
                     table: customDimension.table,
                     bin_type: customDimension.binType,
                     bin_number: customDimension.binNumber || null,
+                    bin_width: customDimension.binWidth || null,
                     order: tableConfig.columnOrder.findIndex(
                         (column) =>
                             column === getCustomDimensionId(customDimension), // TODO test if it works
@@ -781,6 +782,7 @@ export class SavedChartModel {
                         table: cd.table,
                         binType: cd.bin_type,
                         binNumber: cd.bin_number,
+                        binWidth: cd.bin_width,
                     })),
                 },
                 chartConfig,

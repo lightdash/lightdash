@@ -416,12 +416,12 @@ describe('with custom dimensions', () => {
         ).toStrictEqual({
             ctes: [
                 ` age_range_cte AS (
-            SELECT
-                MIN("table1".dim1) AS min_id,
-                MAX("table1".dim1) AS max_id,
-                MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) as ratio
-            FROM "db"."schema"."table1" AS "table1"
-        )`,
+                    SELECT
+                        MIN("table1".dim1) AS min_id,
+                        MAX("table1".dim1) AS max_id,
+                        MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) as ratio
+                    FROM "db"."schema"."table1" AS "table1"
+                )`,
             ],
             joins: ['age_range_cte'],
             selects: [
@@ -459,12 +459,12 @@ WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_
         ).toStrictEqual({
             ctes: [
                 ` age_range_cte AS (
-            SELECT
-                MIN("table1".dim1) AS min_id,
-                MAX("table1".dim1) AS max_id,
-                MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) as ratio
-            FROM "db"."schema"."table1" AS "table1"
-        )`,
+                    SELECT
+                        MIN("table1".dim1) AS min_id,
+                        MAX("table1".dim1) AS max_id,
+                        MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) as ratio
+                    FROM "db"."schema"."table1" AS "table1"
+                )`,
             ],
             joins: ['age_range_cte'],
             selects: [
@@ -474,7 +474,7 @@ WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_
         });
     });
 
-    it('buildQuery with custom dimension', () => {
+    it('buildQuery with custom dimension bin number', () => {
         expect(
             buildQuery({
                 explore: EXPLORE,
@@ -483,12 +483,12 @@ WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_
                 userAttributes: {},
             }).query,
         ).toStrictEqual(`WITH  age_range_cte AS (
-            SELECT
-                MIN("table1".dim1) AS min_id,
-                MAX("table1".dim1) AS max_id,
-                MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) as ratio
-            FROM "db"."schema"."table1" AS "table1"
-        )
+                    SELECT
+                        MIN("table1".dim1) AS min_id,
+                        MAX("table1".dim1) AS max_id,
+                        MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) as ratio
+                    FROM "db"."schema"."table1" AS "table1"
+                )
 SELECT
   "table1".dim1 AS "table1_dim1",
 CASE
@@ -501,6 +501,38 @@ WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_
 FROM "db"."schema"."table1" AS "table1"
 
 CROSS JOIN age_range_cte
+
+GROUP BY 1,2
+ORDER BY "table1_metric1" DESC
+LIMIT 10`);
+    });
+
+    it('buildQuery with custom dimension bin width', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+                    customDimensions: [
+                        {
+                            id: 'age_range',
+                            name: 'Age range',
+                            dimensionId: 'table1_dim1',
+                            table: 'table1',
+                            binType: BinType.FIXED_WIDTH,
+                            binWidth: 10,
+                        },
+                    ],
+                },
+                warehouseClient: warehouseClientMock,
+                userAttributes: {},
+            }).query,
+        ).toStrictEqual(`SELECT
+  "table1".dim1 AS "table1_dim1",
+    CONCAT(FLOOR("table1".dim1 / 10) * 10, '-', (FLOOR("table1".dim1 / 10) + 1) * 10 - 1) AS "age_range",
+  MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
 
 GROUP BY 1,2
 ORDER BY "table1_metric1" DESC
@@ -534,12 +566,12 @@ LIMIT 10`);
                 userAttributes: {},
             }).query,
         ).toStrictEqual(`WITH  age_range_cte AS (
-            SELECT
-                MIN("table1".dim1) AS min_id,
-                MAX("table1".dim1) AS max_id,
-                MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) as ratio
-            FROM "db"."schema"."table1" AS "table1"
-        ),
+                    SELECT
+                        MIN("table1".dim1) AS min_id,
+                        MAX("table1".dim1) AS max_id,
+                        MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) as ratio
+                    FROM "db"."schema"."table1" AS "table1"
+                ),
 metrics AS (
 SELECT
   "table1".dim1 AS "table1_dim1",
