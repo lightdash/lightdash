@@ -8,6 +8,7 @@ import {
     ApiSqlQueryResults,
     ChartSummary,
     CompiledDimension,
+    countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
     CreateDbtCloudIntegration,
     CreateJob,
@@ -56,7 +57,6 @@ import {
     ProjectMemberRole,
     ProjectType,
     RequestMethod,
-    ResourceViewItemType,
     ResultRow,
     SessionUser,
     SpaceQuery,
@@ -70,7 +70,6 @@ import {
     UserAttributeValueMap,
     WarehouseClient,
     WarehouseTypes,
-    wrapResource,
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
 import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
@@ -1146,6 +1145,7 @@ export class ProjectService {
                                     metric.filters.length > 0,
                             ).length,
                             context,
+                            ...countCustomDimensionsInMetricQuery(metricQuery),
                         },
                     });
 

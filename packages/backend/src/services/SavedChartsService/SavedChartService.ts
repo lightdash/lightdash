@@ -5,6 +5,7 @@ import {
     ChartSummary,
     ChartType,
     ChartVersion,
+    countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
     CreateSavedChart,
     CreateSavedChartVersion,
@@ -183,6 +184,7 @@ export class SavedChartService {
                           showLegend: echartsConfig?.legend?.show !== false,
                       }
                     : undefined,
+            ...countCustomDimensionsInMetricQuery(savedChart.metricQuery),
         };
     }
 
