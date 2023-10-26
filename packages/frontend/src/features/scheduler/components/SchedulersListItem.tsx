@@ -1,23 +1,19 @@
-import { Classes } from '@blueprintjs/core';
 import {
     getHumanReadableCronExpression,
     SchedulerAndTargets,
 } from '@lightdash/common';
-import { Divider, Menu } from '@mantine/core';
-import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Box,
+    Group,
+    Paper,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import { IconCircleFilled, IconPencil, IconTrash } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import {
-    InfoContainer,
-    PageDetailsContainer,
-    SeparatorDot,
-    UpdatedInfoLabel,
-} from '../../../components/common/PageHeader';
-import {
-    SchedulerContainer,
-    SchedulerDetailsContainer,
-    SchedulerName,
-} from './SchedulerModalBase.styles';
 
 type SchedulersListItemProps = {
     scheduler: SchedulerAndTargets;
@@ -31,47 +27,53 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
     onDelete,
 }) => {
     return (
-        <SchedulerContainer>
-            <SchedulerDetailsContainer
-                className={Classes.TEXT_OVERFLOW_ELLIPSIS}
-            >
-                <SchedulerName>{scheduler.name}</SchedulerName>
-                <Menu withArrow withinPortal width={100}>
-                    <Menu.Target>
-                        <MantineIcon icon={IconDots} />
-                    </Menu.Target>
+        <Paper p="sm" mb="xs" withBorder sx={{ overflow: 'hidden' }}>
+            <Group noWrap position="apart">
+                <Stack spacing="xs" w={475}>
+                    <Text fw={600} truncate>
+                        {scheduler.name}
+                    </Text>
+                    <Group>
+                        <Text color="gray" size={12}>
+                            {getHumanReadableCronExpression(scheduler.cron)}
+                        </Text>
 
-                    <Menu.Dropdown>
-                        <Menu.Item
-                            icon={<MantineIcon icon={IconPencil} />}
+                        {/* TODO: This icon should use Mantine icon,
+                            but MantineIcon doesn't support filled icons atm.
+                            Util we fix that, this style is imperfect
+                        */}
+                        <Box
+                            sx={(theme) => ({
+                                color: theme.colors.gray[4],
+                                marginTop: '-6px',
+                            })}
+                        >
+                            <IconCircleFilled style={{ width: 5, height: 5 }} />
+                        </Box>
+
+                        <Text color="gray" size={12}>
+                            {scheduler.targets.length} recipients
+                        </Text>
+                    </Group>
+                </Stack>
+                <Group noWrap spacing="xs">
+                    <Tooltip label="Edit">
+                        <ActionIcon
+                            variant="light"
                             onClick={() => onEdit(scheduler.schedulerUuid)}
                         >
-                            Edit
-                        </Menu.Item>
-                        <Divider />
-
-                        <Menu.Item
-                            icon={<MantineIcon color="red" icon={IconTrash} />}
-                            onClick={() => onDelete(scheduler.schedulerUuid)}
-                            color="red"
-                        >
-                            Delete
-                        </Menu.Item>
-                    </Menu.Dropdown>
-                </Menu>
-            </SchedulerDetailsContainer>
-            <PageDetailsContainer>
-                <UpdatedInfoLabel>
-                    {getHumanReadableCronExpression(scheduler.cron)}
-                </UpdatedInfoLabel>
-
-                <SeparatorDot icon="dot" size={6} />
-
-                <InfoContainer>
-                    {scheduler.targets.length} recipients
-                </InfoContainer>
-            </PageDetailsContainer>
-        </SchedulerContainer>
+                            <MantineIcon icon={IconPencil} />
+                        </ActionIcon>
+                    </Tooltip>
+                    <ActionIcon
+                        variant="light"
+                        onClick={() => onDelete(scheduler.schedulerUuid)}
+                    >
+                        <MantineIcon color="red" icon={IconTrash} />
+                    </ActionIcon>
+                </Group>
+            </Group>
+        </Paper>
     );
 };
 
