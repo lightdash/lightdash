@@ -31,8 +31,6 @@ const WeekPicker: FC<Props> = ({
         return getDateValueFromUnknown(dateValue);
     }, [dateValue]);
 
-    console.log({ selectedDate });
-
     return (
         <DateInput
             w="100%"
