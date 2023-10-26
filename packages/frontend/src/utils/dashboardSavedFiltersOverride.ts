@@ -1,5 +1,10 @@
-import { DashboardFilterRule } from '@lightdash/common';
+import { ConditionalOperator, DashboardFilterRule } from '@lightdash/common';
 import { isEqual } from 'lodash-es';
+
+const noValueRequiredOperators = [
+    ConditionalOperator.NULL,
+    ConditionalOperator.NOT_NULL,
+];
 
 const getDifferences = (
     original: DashboardFilterRule,
@@ -31,7 +36,8 @@ const constructOverrideString = (
     if (
         diffs.includes('values') &&
         updated.values &&
-        updated.values?.length > 0
+        updated.values?.length > 0 &&
+        !noValueRequiredOperators.includes(updated.operator)
     ) {
         overrideString += `:${encodeURI(
             Array.isArray(updated.values)

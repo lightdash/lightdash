@@ -47,7 +47,7 @@ describe('dashboardSavedFiltersOverride', () => {
                     values: [false],
                 },
             ),
-        ).toBe('orders_is_completed.notNull:false');
+        ).toBe('orders_is_completed.notNull');
 
         // If no change to original filter, return null
         expect(
