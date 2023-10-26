@@ -675,6 +675,7 @@ const SchedulerForm2: FC<{
                             commands.divider,
                             commands.link,
                         ]}
+                        value={form.values.message}
                         onChange={(value) =>
                             form.setFieldValue('message', value || '')
                         }
