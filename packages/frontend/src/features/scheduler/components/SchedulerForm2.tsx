@@ -664,6 +664,8 @@ const SchedulerForm2: FC<{
                     </Stack>
                 </Tabs.Panel>
                 <Tabs.Panel value="customization">
+                    <Text m="md">Customize delivery message body</Text>
+
                     <MDEditor
                         preview="edit"
                         commands={[
@@ -673,7 +675,6 @@ const SchedulerForm2: FC<{
                             commands.divider,
                             commands.link,
                         ]}
-                        value={form.values.message}
                         onChange={(value) =>
                             form.setFieldValue('message', value || '')
                         }
