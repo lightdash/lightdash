@@ -1,3 +1,10 @@
+## [0.824.3](https://github.com/lightdash/lightdash/compare/0.824.2...0.824.3) (2023-10-26)
+
+
+### Bug Fixes
+
+* ssh reconnect ([#7653](https://github.com/lightdash/lightdash/issues/7653)) ([6182b49](https://github.com/lightdash/lightdash/commit/6182b49a5f098230f8b5c7fa9cadf2ab47bc1d56))
+
 ## [0.824.2](https://github.com/lightdash/lightdash/compare/0.824.1...0.824.2) (2023-10-25)
 
 
