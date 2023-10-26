@@ -1,4 +1,5 @@
 import {
+    BinType,
     CompactOrAlias,
     CompiledMetric,
     CompiledTableCalculation,
@@ -105,3 +106,17 @@ export type MetricQueryResponse = {
     additionalMetrics?: AdditionalMetric[]; // existing metric type
     customDimensions?: CustomDimension[];
 };
+
+export const countCustomDimensionsInMetricQuery = (
+    metricQuery: MetricQuery,
+) => ({
+    numFixedWidthBinCustomDimensions:
+        metricQuery.customDimensions?.filter(
+            (dimension) => dimension.binType === BinType.FIXED_NUMBER,
+        ).length || 0,
+    numFixedBinsBinCustomDimensions:
+        metricQuery.customDimensions?.filter(
+            (dimension) => dimension.binType === BinType.FIXED_WIDTH,
+        ).length || 0,
+    numCustomRangeBinCustomDimensions: 0, // TODO complete when custom range bin is implemented
+});
