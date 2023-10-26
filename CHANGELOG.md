@@ -1,3 +1,10 @@
+# [0.826.0](https://github.com/lightdash/lightdash/compare/0.825.1...0.826.0) (2023-10-26)
+
+
+### Features
+
+* add otel traces to metric query functions ([#7649](https://github.com/lightdash/lightdash/issues/7649)) ([d1cc49a](https://github.com/lightdash/lightdash/commit/d1cc49a2323846417a384bf688d906d9b527d54d))
+
 ## [0.825.1](https://github.com/lightdash/lightdash/compare/0.825.0...0.825.1) (2023-10-26)
 
 
