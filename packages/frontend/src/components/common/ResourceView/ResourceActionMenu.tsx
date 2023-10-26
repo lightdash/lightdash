@@ -117,7 +117,6 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
 
     return (
         <Menu
-            withinPortal
             opened={isOpen}
             position="bottom-start"
             withArrow
@@ -142,7 +141,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                 </Box>
             </Menu.Target>
 
-            <Menu.Dropdown maw={320}>
+            <Menu.Dropdown maw={320} pos="fixed">
                 <Menu.Item
                     component="button"
                     role="menuitem"
