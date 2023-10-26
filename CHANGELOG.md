@@ -1,3 +1,10 @@
+# [0.825.0](https://github.com/lightdash/lightdash/compare/0.824.3...0.825.0) (2023-10-26)
+
+
+### Features
+
+* custom dimension bin width ([#7619](https://github.com/lightdash/lightdash/issues/7619)) ([c2e51f9](https://github.com/lightdash/lightdash/commit/c2e51f97ed2eee48b95c9fc9da19c4ca602a0d34)), closes [#7639](https://github.com/lightdash/lightdash/issues/7639)
+
 ## [0.824.3](https://github.com/lightdash/lightdash/compare/0.824.2...0.824.3) (2023-10-26)
 
 
