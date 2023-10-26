@@ -163,8 +163,10 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 if (field.name) {
                     const dimensionType = mapFieldType(field.type);
 
-                    // Big numbers can't be cloned by the Node Worker so we need to parse them
-                    if (field.type === BigqueryFieldType.BIGNUMERIC) {
+                    if (
+                        field.type === BigqueryFieldType.BIGNUMERIC || // Big numbers can't be cloned by the Node Worker so we need to parse them
+                        field.type === BigqueryFieldType.NUMERIC // Numbers can also possibly be Big() so we need to parse them; ref: https://github.com/steffnay/nodejs-bigquery/blob/master/src/bigquery.ts#L518
+                    ) {
                         columnsToParse.push(field.name);
                     }
 
