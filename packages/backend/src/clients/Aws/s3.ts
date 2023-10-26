@@ -83,7 +83,11 @@ export class S3Service {
             );
             return url;
         } catch (error) {
-            Logger.error(`Failed to upload file to s3. ${error}`);
+            Logger.error(
+                `Failed to upload file to s3 with endpoint: ${
+                    this.lightdashConfig.s3.endpoint ?? 'no endpoint'
+                }. ${error}`,
+            );
             Sentry.captureException(error);
 
             throw error;
