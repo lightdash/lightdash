@@ -1,5 +1,8 @@
 import { ResultRow } from '@lightdash/common';
-import { testCustomDimensions } from './customDimensions.cy';
+import {
+    createCustomDimensionChart,
+    testCustomDimensions,
+} from './customDimensions.cy';
 
 const warehouseConfig = {
     postgresSQL: {
@@ -361,6 +364,7 @@ describe('Create projects', () => {
             testTimeIntervalsResults(projectUuid);
             testPercentile(projectUuid);
 
+            createCustomDimensionChart(projectUuid);
             testCustomDimensions(projectUuid);
         });
     });
@@ -382,6 +386,8 @@ describe('Create projects', () => {
             testFilterStringEscaping(projectUuid);
             testTimeIntervalsResults(projectUuid);
             testPercentile(projectUuid);
+
+            createCustomDimensionChart(projectUuid);
             testCustomDimensions(projectUuid);
         });
     });
@@ -469,6 +475,8 @@ describe('Create projects', () => {
 
             testTimeIntervalsResults(projectUuid, trinoRowValues);
             testPercentile(projectUuid);
+
+            createCustomDimensionChart(projectUuid);
             testCustomDimensions(projectUuid);
         });
     });
@@ -509,6 +517,8 @@ describe('Create projects', () => {
 
             testTimeIntervalsResults(projectUuid, databricksRowValues);
             testPercentile(projectUuid);
+
+            createCustomDimensionChart(projectUuid);
             testCustomDimensions(projectUuid);
         });
     });
@@ -556,6 +566,8 @@ describe('Create projects', () => {
                 '1,999',
                 '10,999,999',
             ]);
+
+            createCustomDimensionChart(projectUuid);
             testCustomDimensions(projectUuid);
         });
     });

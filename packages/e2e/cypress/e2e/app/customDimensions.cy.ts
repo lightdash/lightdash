@@ -1,5 +1,80 @@
 import { SEED_PROJECT } from '@lightdash/common';
 
+const apiUrl = '/api/v1';
+
+export const createCustomDimensionChart = (projectUuid) => {
+    // This is used by create project to quickly create a custom dimension chart
+    // because we don't have charts on new projects created by the e2e tests
+
+    // This metric query is the same in `02_saved_queries`
+    cy.request({
+        url: `${apiUrl}/projects/${projectUuid}/saved`,
+        method: 'POST',
+        body: {
+            name: 'How do payment methods vary across different amount ranges?"',
+            description: 'Payment range by amount',
+            tableName: 'payments',
+            metricQuery: {
+                dimensions: ['payments_payment_method'],
+                metrics: ['orders_total_order_amount'],
+                filters: {},
+                sorts: [
+                    { fieldId: 'orders_total_order_amount', descending: true },
+                ],
+                limit: 500,
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [
+                    {
+                        id: 'amount_range',
+                        name: 'amount range',
+                        dimensionId: 'payments_amount',
+                        binType: 'fixed_number',
+                        binNumber: 5,
+                        table: 'payments',
+                    },
+                ],
+            },
+            chartConfig: {
+                type: 'cartesian',
+                config: {
+                    layout: {
+                        flipAxes: false,
+                        xField: 'amount_range',
+                        yField: ['orders_total_order_amount'],
+                    },
+                    eChartsConfig: {
+                        series: [
+                            {
+                                encode: {
+                                    xRef: { field: 'amount_range' },
+                                    yRef: {
+                                        field: 'orders_total_order_amount',
+                                    },
+                                },
+                                type: 'bar',
+                                yAxisIndex: 0,
+                            },
+                        ],
+                    },
+                },
+            },
+            tableConfig: {
+                columnOrder: [
+                    'amount_range',
+                    'orders_total_order_amount',
+                    'payments_payment_method',
+                ],
+            },
+            pivotConfig: {
+                columns: ['payments_payment_method'],
+            },
+        },
+    }).then((r) => {
+        expect(r.status).to.eq(200);
+    });
+};
+
 // eslint-disable-next-line import/prefer-default-export
 export const testCustomDimensions = (projectUuid) => {
     // Test custom dimension by going into an existing chart with custom dimensions and running the query
@@ -14,6 +89,9 @@ describe('Custom dimensions', () => {
         cy.login();
     });
 
+    it.only('I can create a custom dimension chart from api', () => {
+        createCustomDimensionChart(SEED_PROJECT.project_uuid);
+    });
     it('I can view an existing custom dimension chart', () => {
         testCustomDimensions(SEED_PROJECT.project_uuid);
     });
