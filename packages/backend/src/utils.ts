@@ -1,4 +1,5 @@
 import { ParameterError, validateEmail } from '@lightdash/common';
+import { Attributes, Span, SpanStatusCode } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import { CustomSamplingContext } from '@sentry/types';
 import { Worker } from 'worker_threads';
@@ -9,6 +10,7 @@ import {
     DBPinnedSpace,
 } from './database/entities/pinnedList';
 import Logger from './logging/logger';
+import { serverTracer } from './otel';
 
 export const sanitizeStringParam = (value: any) => {
     if (!value || typeof value !== 'string') {
@@ -39,6 +41,24 @@ export const isDbPinnedDashboard = (
 
 export const isDbPinnedSpace = (data: DbPinnedItem): data is DBPinnedSpace =>
     'space_uuid' in data && !!data.space_uuid;
+
+export const wrapOtelSpan = async <T>(
+    name: string,
+    attributes: Attributes,
+    f: (span: Span) => Promise<T>,
+): Promise<T> =>
+    serverTracer.startActiveSpan(name, async (span) => {
+        span.setAttributes(attributes);
+        try {
+            return await f(span);
+        } catch (error) {
+            span.recordException(error);
+            span.setStatus({ code: SpanStatusCode.ERROR });
+            throw error;
+        } finally {
+            span.end();
+        }
+    });
 
 export const wrapSentryTransaction = async <T>(
     name: string,
