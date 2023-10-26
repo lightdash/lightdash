@@ -171,7 +171,7 @@ export const getCustomDimensionSql = ({
                         CAST(MIN(${dimension.compiledSql}) + (MAX(${
                     dimension.compiledSql
                 }) - MIN(${dimension.compiledSql}) ) AS INT) as ratio
-                    FROM ${baseTable}  AS ${fieldQuoteChar}${
+                    FROM ${baseTable} AS ${fieldQuoteChar}${
                     customDimension.table
                 }${fieldQuoteChar}
                 )`;

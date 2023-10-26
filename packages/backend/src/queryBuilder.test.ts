@@ -419,7 +419,7 @@ describe('with custom dimensions', () => {
                     SELECT
                         MIN("table1".dim1) AS min_id,
                         MAX("table1".dim1) AS max_id,
-                        MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) as ratio
+                        CAST(MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) AS INT) as ratio
                     FROM "db"."schema"."table1" AS "table1"
                 )`,
             ],
@@ -462,7 +462,7 @@ WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_
                     SELECT
                         MIN("table1".dim1) AS min_id,
                         MAX("table1".dim1) AS max_id,
-                        MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) as ratio
+                        CAST(MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) AS INT) as ratio
                     FROM "db"."schema"."table1" AS "table1"
                 )`,
             ],
@@ -486,7 +486,7 @@ WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_
                     SELECT
                         MIN("table1".dim1) AS min_id,
                         MAX("table1".dim1) AS max_id,
-                        MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) as ratio
+                        CAST(MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) AS INT) as ratio
                     FROM "db"."schema"."table1" AS "table1"
                 )
 SELECT
@@ -569,7 +569,7 @@ LIMIT 10`);
                     SELECT
                         MIN("table1".dim1) AS min_id,
                         MAX("table1".dim1) AS max_id,
-                        MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) as ratio
+                        CAST(MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) AS INT) as ratio
                     FROM "db"."schema"."table1" AS "table1"
                 ),
 metrics AS (
