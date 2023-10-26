@@ -1,6 +1,9 @@
 import { WeekDay } from '@lightdash/common';
 import { DayOfWeek } from '@mantine/dates';
 import dayjs from 'dayjs';
+import isoWeek from 'dayjs/plugin/isoWeek';
+
+dayjs.extend(isoWeek);
 
 //
 // internally we use WeekDay enum with values from 0 (Monday) to 6 (Sunday)
@@ -11,28 +14,39 @@ export const normalizeWeekDay = (weekDay: WeekDay): DayOfWeek => {
     return (converted <= 6 ? converted : 0) as DayOfWeek;
 };
 
-export const startOfWeek = (date: Date, startOfWeekDay: WeekDay) => {
-    return dayjs(date)
-        .locale(dayjs.locale(), { weekStart: startOfWeekDay })
-        .startOf('week')
-        .toDate();
-};
+export function startOfWeek(date: Date, dayOfWeek?: DayOfWeek): Date {
+    if (typeof dayOfWeek !== 'undefined' && dayOfWeek !== null) {
+        const valueWeekDay = dayjs(date).isoWeekday();
 
-export const endOfWeek = (date: Date, startOfWeekDay: WeekDay) => {
-    return dayjs(date)
-        .locale(dayjs.locale(), { weekStart: startOfWeekDay })
-        .endOf('week')
-        .toDate();
-};
+        if (valueWeekDay > dayOfWeek) {
+            return dayjs(date)
+                .subtract(valueWeekDay - dayOfWeek, 'day')
+                .toDate();
+        } else if (dayOfWeek > valueWeekDay) {
+            return dayjs(date)
+                .subtract(7 - dayOfWeek + valueWeekDay, 'day')
+                .toDate();
+        } else {
+            return dayjs(date).toDate();
+        }
+    }
+    return dayjs(date).startOf('week').toDate();
+}
+
+export function endOfWeek(date: Date, dayOfWeek?: DayOfWeek): Date {
+    const startDate = startOfWeek(date, dayOfWeek);
+    return dayjs(startDate).add(6, 'day').toDate();
+}
 
 export const isInWeekRange = (
     date: Date,
     value: Date | null,
-    weekDay: WeekDay,
+    dayOfWeek?: DayOfWeek,
 ) => {
     if (!value) return false;
-    const startOfWeekDate = startOfWeek(value, weekDay);
-    const endOfWeekDate = endOfWeek(value, weekDay);
+
+    const startOfWeekDate = startOfWeek(value, dayOfWeek);
+    const endOfWeekDate = endOfWeek(value, dayOfWeek);
 
     return (
         (dayjs(date).isSame(startOfWeekDate) ||

@@ -20,7 +20,7 @@ interface Props
 }
 
 const WeekPicker: FC<Props> = ({
-    startOfWeek: startOfWeekDay = WeekDay.SUNDAY,
+    startOfWeek: startOfWeekDay,
     value: stringOrDateValue,
     onChange,
     ...rest
@@ -33,7 +33,7 @@ const WeekPicker: FC<Props> = ({
     );
 
     const convertedStartOfWeekDay = useMemo(
-        () => normalizeWeekDay(startOfWeekDay),
+        () => (startOfWeekDay ? normalizeWeekDay(startOfWeekDay) : undefined),
         [startOfWeekDay],
     );
 
