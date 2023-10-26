@@ -1,9 +1,24 @@
 import { WeekDay } from '@lightdash/common';
 import { DayOfWeek } from '@mantine/dates';
-import dayjs from 'dayjs';
-import isoWeek from 'dayjs/plugin/isoWeek';
 
-dayjs.extend(isoWeek);
+import dayjs from 'dayjs';
+import getLocaleData from 'dayjs/plugin/localeData';
+import updateLocale from 'dayjs/plugin/updateLocale';
+
+dayjs.extend(getLocaleData);
+dayjs.extend(updateLocale);
+
+export const getDateValueFromUnknown = (value: unknown): Date | undefined => {
+    if (!value) return;
+
+    if (typeof value === 'string') {
+        return dayjs(value).toDate();
+    } else if (value instanceof Date) {
+        return value;
+    } else {
+        throw new Error(`Invalid date value: ${value} (${typeof value})`);
+    }
+};
 
 //
 // internally we use WeekDay enum with values from 0 (Monday) to 6 (Sunday)
@@ -14,56 +29,46 @@ export const normalizeWeekDay = (weekDay: WeekDay): DayOfWeek => {
     return (converted <= 6 ? converted : 0) as DayOfWeek;
 };
 
-export function startOfWeek(date: Date, dayOfWeek?: DayOfWeek): Date {
-    if (typeof dayOfWeek !== 'undefined' && dayOfWeek !== null) {
-        const valueWeekDay = dayjs(date).isoWeekday();
-
-        if (valueWeekDay > dayOfWeek) {
-            return dayjs(date)
-                .subtract(valueWeekDay - dayOfWeek, 'day')
-                .toDate();
-        } else if (dayOfWeek > valueWeekDay) {
-            return dayjs(date)
-                .subtract(7 - dayOfWeek + valueWeekDay, 'day')
-                .toDate();
-        } else {
-            return dayjs(date).toDate();
-        }
+export const getFirstDayOfWeek = (startOfWeekDay?: WeekDay): DayOfWeek => {
+    if (!startOfWeekDay) {
+        return dayjs().localeData().firstDayOfWeek() as DayOfWeek;
+    } else {
+        return normalizeWeekDay(startOfWeekDay);
     }
-    return dayjs(date).startOf('week').toDate();
-}
-
-export function endOfWeek(date: Date, dayOfWeek?: DayOfWeek): Date {
-    const startDate = startOfWeek(date, dayOfWeek);
-    return dayjs(startDate).add(6, 'day').toDate();
-}
-
-export const isInWeekRange = (
-    date: Date,
-    value: Date | null,
-    dayOfWeek?: DayOfWeek,
-) => {
-    if (!value) return false;
-
-    const startOfWeekDate = startOfWeek(value, dayOfWeek);
-    const endOfWeekDate = endOfWeek(value, dayOfWeek);
-
-    return (
-        (dayjs(date).isSame(startOfWeekDate) ||
-            dayjs(date).isAfter(startOfWeekDate)) &&
-        (dayjs(date).isSame(endOfWeekDate) ||
-            dayjs(date).isBefore(endOfWeekDate))
-    );
 };
 
-export const getDateValueFromUnknown = (value: unknown): Date | null => {
-    if (!value) return null;
+export const startOfWeek = (date: Date, firstDayOfWeek: DayOfWeek) => {
+    const currentLocale = dayjs.locale();
+    const localeFirstDayOfWeek = dayjs().localeData().firstDayOfWeek();
 
-    if (typeof value === 'string') {
-        return new Date(value);
-    } else if (value instanceof Date) {
-        return value;
-    } else {
-        throw new Error(`Invalid date value: ${value} (${typeof value})`);
-    }
+    dayjs.updateLocale(currentLocale, {
+        weekStart: firstDayOfWeek,
+    });
+
+    const startOfWeekDate = dayjs(date).startOf('week').toDate();
+
+    dayjs.updateLocale(currentLocale, {
+        weekStart: localeFirstDayOfWeek,
+    });
+
+    return startOfWeekDate;
+};
+
+export const endOfWeek = (date: Date, fdow: DayOfWeek) => {
+    return dayjs(startOfWeek(date, fdow)).add(6, 'day').toDate();
+};
+
+export const isInWeekRange = (
+    date: Date | undefined,
+    selectedDate: Date | undefined,
+    firstDayOfWeek: DayOfWeek,
+) => {
+    if (!selectedDate) return false;
+
+    return (
+        (dayjs(date).isSame(startOfWeek(selectedDate, firstDayOfWeek)) ||
+            dayjs(date).isAfter(startOfWeek(selectedDate, firstDayOfWeek))) &&
+        (dayjs(date).isBefore(endOfWeek(selectedDate, firstDayOfWeek)) ||
+            dayjs(date).isSame(endOfWeek(selectedDate, firstDayOfWeek)))
+    );
 };

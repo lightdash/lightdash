@@ -157,7 +157,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                             index={index + 1}
                             isDefaultOpen={referenceLines.length <= 1}
                             items={items}
-                            startOfWeek={startOfWeek}
+                            startOfWeek={startOfWeek ?? undefined}
                             referenceLine={line}
                             updateReferenceLine={updateReferenceLine}
                             removeReferenceLine={removeReferenceLine}

@@ -34,6 +34,7 @@ import {
 import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import FieldSelect from '../../../common/FieldSelect';
+import { getFirstDayOfWeek } from '../../../common/Filters/FilterInputs/dateUtils';
 import MantineIcon from '../../../common/MantineIcon';
 import MonthAndYearInput from '../../../common/MonthAndYearInput';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
@@ -45,7 +46,7 @@ type Props = {
     index: number;
     items: (Field | TableCalculation | CompiledDimension | CustomDimension)[];
     referenceLine: ReferenceLineField;
-    startOfWeek: WeekDay | null | undefined;
+    startOfWeek: WeekDay | undefined;
     updateReferenceLine: (
         value: string,
         field: Field | TableCalculation | CompiledDimension | CustomDimension,
@@ -65,7 +66,7 @@ type ReferenceLineValueProps = {
         | CustomDimension
         | undefined;
     value: string | undefined;
-    startOfWeek: WeekDay | null | undefined;
+    startOfWeek: WeekDay | undefined;
     onChange: (value: string) => void;
 };
 
@@ -84,7 +85,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                         <WeekPicker
                             value={moment(value).toDate()}
                             popoverProps={{ withinPortal: false }}
-                            startOfWeek={startOfWeek ?? undefined}
+                            firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                             onChange={(dateValue) => {
                                 if (!dateValue) return;
 

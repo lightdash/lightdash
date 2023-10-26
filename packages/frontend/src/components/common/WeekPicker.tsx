@@ -1,46 +1,37 @@
 import { WeekDay } from '@lightdash/common';
 import { DateInput, DateInputProps } from '@mantine/dates';
+import dayjs from 'dayjs';
 import { FC, useMemo, useState } from 'react';
 import {
     endOfWeek,
     getDateValueFromUnknown,
     isInWeekRange,
-    normalizeWeekDay,
     startOfWeek,
 } from './Filters/FilterInputs/dateUtils';
 
 interface Props
     extends Omit<
         DateInputProps,
-        'firstDayOfWeek' | 'getDayProps' | 'value' | 'onChange'
+        'getDayProps' | 'firstDayOfWeek' | 'value' | 'onChange'
     > {
     value: unknown;
     onChange: (value: Date) => void;
-    startOfWeek?: WeekDay;
+    firstDayOfWeek: WeekDay;
 }
 
 const WeekPicker: FC<Props> = ({
-    startOfWeek: startOfWeekDay,
-    value: stringOrDateValue,
+    firstDayOfWeek,
+    value: dateValue,
     onChange,
     ...rest
 }) => {
     const [hoveredDate, setHoveredDate] = useState<Date>();
 
-    const dateValue = useMemo(
-        () => getDateValueFromUnknown(stringOrDateValue),
-        [stringOrDateValue],
-    );
+    const selectedDate = useMemo(() => {
+        return getDateValueFromUnknown(dateValue);
+    }, [dateValue]);
 
-    const convertedStartOfWeekDay = useMemo(
-        () => (startOfWeekDay ? normalizeWeekDay(startOfWeekDay) : undefined),
-        [startOfWeekDay],
-    );
-
-    const currentStartOfWeek = useMemo(() => {
-        if (!dateValue) return null;
-        return startOfWeek(dateValue, convertedStartOfWeekDay);
-    }, [dateValue, convertedStartOfWeekDay]);
+    console.log({ selectedDate });
 
     return (
         <DateInput
@@ -49,42 +40,37 @@ const WeekPicker: FC<Props> = ({
             {...rest}
             popoverProps={{ ...rest.popoverProps, shadow: 'sm' }}
             getDayProps={(date) => {
-                const isHovered = hoveredDate
-                    ? isInWeekRange(date, hoveredDate, convertedStartOfWeekDay)
-                    : false;
-                const isSelected = currentStartOfWeek
-                    ? isInWeekRange(
-                          date,
-                          currentStartOfWeek,
-                          convertedStartOfWeekDay,
-                      )
-                    : false;
-
+                const isHovered = isInWeekRange(
+                    date,
+                    hoveredDate,
+                    firstDayOfWeek,
+                );
+                const isSelected = isInWeekRange(
+                    date,
+                    selectedDate,
+                    firstDayOfWeek,
+                );
                 const isInRange = isHovered || isSelected;
 
                 return {
                     onMouseEnter: () => setHoveredDate(date),
                     onMouseLeave: () => setHoveredDate(undefined),
                     inRange: isInRange,
-                    firstInRange:
-                        isInRange &&
-                        date.getDate() ===
-                            startOfWeek(
-                                date,
-                                convertedStartOfWeekDay,
-                            ).getDate(),
-                    lastInRange:
-                        isInRange &&
-                        date.getDate() ===
-                            endOfWeek(date, convertedStartOfWeekDay).getDate(),
+                    firstInRange: isInRange
+                        ? dayjs(startOfWeek(date, firstDayOfWeek)).isSame(date)
+                        : false,
+                    lastInRange: isInRange
+                        ? dayjs(endOfWeek(date, firstDayOfWeek)).isSame(date)
+                        : false,
                     selected: isSelected,
                 };
             }}
-            firstDayOfWeek={convertedStartOfWeekDay}
-            value={dateValue}
+            firstDayOfWeek={firstDayOfWeek}
+            value={selectedDate}
             onChange={(date) => {
-                if (!date) return;
-                onChange(startOfWeek(date, convertedStartOfWeekDay));
+                if (date) {
+                    onChange(startOfWeek(date, firstDayOfWeek));
+                }
             }}
         />
     );
