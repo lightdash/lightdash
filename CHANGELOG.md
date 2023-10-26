@@ -1,3 +1,10 @@
+## [0.826.1](https://github.com/lightdash/lightdash/compare/0.826.0...0.826.1) (2023-10-26)
+
+
+### Bug Fixes
+
+* parse bignumeric in bigquery ([#7680](https://github.com/lightdash/lightdash/issues/7680)) ([4132c2c](https://github.com/lightdash/lightdash/commit/4132c2cb529718ecbf0ad6480ea871967c553cf7))
+
 # [0.826.0](https://github.com/lightdash/lightdash/compare/0.825.1...0.826.0) (2023-10-26)
 
 
