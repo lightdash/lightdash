@@ -52,7 +52,8 @@ type GenericEvent = {
         | EventName.USAGE_ANALYTICS_CLICKED
         | EventName.VIEW_UNDERLYING_DATA_CLICKED
         | EventName.DRILL_BY_CLICKED
-        | EventName.SCHEDULER_SEND_NOW_BUTTON;
+        | EventName.SCHEDULER_SEND_NOW_BUTTON
+        | EventName.ADD_CUSTOM_DIMENSION_CLICKED;
     properties?: {};
 };
 

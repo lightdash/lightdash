@@ -99,10 +99,6 @@ const TreeSingleNodeActions: FC<Props> = ({
         'gray.1',
     ]);
 
-    const [customDimensionMenuItemBgColor, toggleCustomDimension] = useToggle([
-        'default',
-        'gray.1',
-    ]);
     const customMetrics = useMemo(
         () => (isDimension(item) ? getCustomMetricType(item.type) : []),
         [item],
@@ -230,53 +226,23 @@ const TreeSingleNodeActions: FC<Props> = ({
                 {isCustomDimensionsFeatureEnabled &&
                 isDimension(item) &&
                 item.type === DimensionType.NUMBER ? (
-                    <>
-                        <Menu
-                            withinPortal
-                            trigger="hover"
-                            position="right-start"
-                            shadow="md"
-                            closeOnItemClick
-                            onOpen={() => toggleCustomDimension()}
-                            onClose={() => toggleCustomDimension()}
-                        >
-                            <Menu.Target>
-                                <Menu.Item
-                                    bg={customDimensionMenuItemBgColor}
-                                    component="button"
-                                    role="menuitem"
-                                    icon={<MantineIcon icon={IconSparkles} />}
-                                    rightSection={
-                                        <Box ml="xs">
-                                            <MantineIcon
-                                                icon={IconChevronRight}
-                                            />
-                                        </Box>
-                                    }
-                                >
-                                    Add custom dimensions
-                                </Menu.Item>
-                            </Menu.Target>
+                    <Menu.Item
+                        component="button"
+                        icon={<MantineIcon icon={IconSparkles} />}
+                        onClick={(e) => {
+                            e.stopPropagation();
 
-                            <Menu.Dropdown>
-                                <Menu.Item
-                                    key={'bin'}
-                                    component="button"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-
-                                        // TODO: track event e.g. name: EventName.ADD_CUSTOM_DIMENSION_CLICKED,
-                                        toggleCustomDimensionModal({
-                                            item,
-                                            isEditing: false,
-                                        });
-                                    }}
-                                >
-                                    Bin
-                                </Menu.Item>
-                            </Menu.Dropdown>
-                        </Menu>
-                    </>
+                            track({
+                                name: EventName.ADD_CUSTOM_DIMENSION_CLICKED,
+                            });
+                            toggleCustomDimensionModal({
+                                item,
+                                isEditing: false,
+                            });
+                        }}
+                    >
+                        Add custom dimensions
+                    </Menu.Item>
                 ) : null}
 
                 {isCustomDimensionsFeatureEnabled && isCustomDimension(item) && (
