@@ -77,9 +77,11 @@ type DashboardContext = {
     hasChartTiles: boolean;
 };
 
+// TODO: move to separate action
 const hasNonEmptyOverrides = (overrides: DashboardFilters) =>
     overrides.dimensions.length > 0 || overrides.metrics.length > 0;
 
+// TODO: move to separate action
 const applyDimensionOverrides = (
     dashboardFilters: DashboardFilters,
     savedFiltersOverrides: DashboardFilters,
@@ -354,6 +356,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
                 : setDashboardFilters;
 
             setFunction((previousFilters) => {
+                // TODO: move to separate action
                 if (!isTemporary) {
                     const hasChanged = hasSavedFilterValueChanged(
                         previousFilters.dimensions[index],
@@ -367,6 +370,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
                             item,
                         );
 
+                    // TODO: move to separate action
                     setSavedFiltersOverrides((prev) => {
                         let newDimensions = [...prev.dimensions];
 
@@ -427,6 +431,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
                 ? setDashboardTemporaryFilters
                 : setDashboardFilters;
             setFunction((previousFilters) => {
+                // TODO: move to separate action
                 if (!isTemporary) {
                     setSavedFiltersOverrides((prev) => ({
                         ...prev,
