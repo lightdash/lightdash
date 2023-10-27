@@ -131,7 +131,6 @@ export class S3Service {
                 Body: results,
                 ContentType: 'application/json',
                 Metadata: metadata,
-                ACL: 'private',
             });
             const response = await this.s3.send(command);
         } catch (error) {

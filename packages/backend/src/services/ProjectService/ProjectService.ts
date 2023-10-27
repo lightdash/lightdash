@@ -1078,9 +1078,9 @@ export class ProjectService {
             .digest('hex');
 
         if (lightdashConfig.resultsCache?.enabled) {
-            const cacheEntryMetadata = await this.s3Client.getResultsMetadata(
-                queryHash,
-            );
+            const cacheEntryMetadata = await this.s3Client
+                .getResultsMetadata(queryHash)
+                .catch((e) => undefined); // ignore since error is tracked in s3Client
 
             if (
                 cacheEntryMetadata?.LastModified &&
