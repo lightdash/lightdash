@@ -114,7 +114,7 @@ export class S3Service {
         results: PutObjectCommandInput['Body'],
         metadata: PutObjectCommandInput['Metadata'],
     ) {
-        return wrapOtelSpan('s3.uploadResults', { key }, async (span) => {
+        return wrapOtelSpan('s3.uploadResults', { key }, async () => {
             if (
                 !this.lightdashConfig.resultsCache?.enabled ||
                 !this.lightdashConfig.resultsCache.s3Bucket ||
@@ -126,7 +126,6 @@ export class S3Service {
             }
 
             try {
-                // todo: set expiration time. it defaults to 1 hour
                 const command = new PutObjectCommand({
                     Bucket: this.lightdashConfig.resultsCache.s3Bucket,
                     Key: `${key}.json`,
@@ -185,23 +184,6 @@ export class S3Service {
                 );
             }
             try {
-                // I can't make this work :/
-                // const command = new SelectObjectContentCommand({
-                //     Bucket: this.lightdashConfig.resultsCache.s3Bucket,
-                //     Key: `${key}.json`,
-                //     ExpressionType: "SQL",
-                //     Expression: "select * from S3Object",
-                //     InputSerialization: {
-                //         JSON: {
-                //             Type: "DOCUMENT",
-                //         },
-                //     },
-                //     OutputSerialization: {
-                //         JSON: {
-                //             RecordDelimiter: "\n",
-                //         },
-                //     },
-                // });
                 const command = new GetObjectCommand({
                     Bucket: this.lightdashConfig.resultsCache.s3Bucket,
                     Key: `${key}.json`,
