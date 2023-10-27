@@ -12,14 +12,15 @@ import {
     parseDate,
     TimeFrames,
 } from '@lightdash/common';
-import { Flex, NumberInput } from '@mantine/core';
+import { Flex, NumberInput, Text } from '@mantine/core';
 import moment from 'moment';
 import React from 'react';
 import MonthAndYearInput from '../../MonthAndYearInput';
-import WeekPicker, { convertWeekDayToDayPickerWeekDay } from '../../WeekPicker';
+import WeekPicker from '../../WeekPicker';
 import YearInput from '../../YearInput';
 import { useFiltersContext } from '../FiltersProvider';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
+import { getFirstDayOfWeek, normalizeWeekDay } from './dateUtils';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
 import {
     MultipleInputsWrapper,
@@ -57,16 +58,36 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     case TimeFrames.WEEK:
                         return (
                             <Flex align="center" gap="xs" w="100%">
-                                <span style={{ whiteSpace: 'nowrap' }}>
+                                <Text
+                                    color="gray"
+                                    sx={{ whiteSpace: 'nowrap' }}
+                                >
                                     week commencing
-                                </span>
+                                </Text>
 
                                 <WeekPicker
                                     placeholder={placeholder}
                                     disabled={disabled}
                                     value={rule.values ? rule.values[0] : null}
-                                    popoverProps={popoverProps}
-                                    startOfWeek={startOfWeek}
+                                    // FIXME: mantine v7
+                                    // mantine does not set the first day of the week based on the locale
+                                    // so we need to do it manually and always pass it as a prop
+                                    firstDayOfWeek={getFirstDayOfWeek(
+                                        startOfWeek,
+                                    )}
+                                    // FIXME: remove this once we migrate off of Blueprint
+                                    // we are doing type conversion here because Blueprint expects DOM element
+                                    // Mantine does not provide a DOM element on onOpen/onClose
+                                    popoverProps={{
+                                        onOpen: () =>
+                                            popoverProps?.onOpened?.(
+                                                null as any,
+                                            ),
+                                        onClose: () =>
+                                            popoverProps?.onClose?.(
+                                                null as any,
+                                            ),
+                                    }}
                                     onChange={(value: Date | null) => {
                                         onChange({
                                             ...rule,
@@ -190,7 +211,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         }}
                         dayPickerProps={{
                             firstDayOfWeek: isWeekDay(startOfWeek)
-                                ? convertWeekDayToDayPickerWeekDay(startOfWeek)
+                                ? normalizeWeekDay(startOfWeek)
                                 : undefined,
                         }}
                         maxDate={moment(new Date()).add(7, 'years').toDate()}
@@ -227,7 +248,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     }}
                     dayPickerProps={{
                         firstDayOfWeek: isWeekDay(startOfWeek)
-                            ? convertWeekDayToDayPickerWeekDay(startOfWeek)
+                            ? normalizeWeekDay(startOfWeek)
                             : undefined,
                     }}
                     maxDate={moment(new Date()).add(7, 'years').toDate()}
@@ -339,9 +360,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             }}
                             dayPickerProps={{
                                 firstDayOfWeek: isWeekDay(startOfWeek)
-                                    ? convertWeekDayToDayPickerWeekDay(
-                                          startOfWeek,
-                                      )
+                                    ? normalizeWeekDay(startOfWeek)
                                     : undefined,
                             }}
                             closeOnSelection={false}
@@ -423,7 +442,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         }}
                         dayPickerProps={{
                             firstDayOfWeek: isWeekDay(startOfWeek)
-                                ? convertWeekDayToDayPickerWeekDay(startOfWeek)
+                                ? normalizeWeekDay(startOfWeek)
                                 : undefined,
                         }}
                         closeOnSelection={true}

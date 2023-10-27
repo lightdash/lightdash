@@ -248,7 +248,7 @@ export const CustomMetricModal = () => {
                                 <FiltersProvider
                                     projectUuid={projectUuid}
                                     fieldsMap={fieldsMap}
-                                    startOfWeek={startOfWeek}
+                                    startOfWeek={startOfWeek ?? undefined}
                                 >
                                     <FilterForm
                                         defaultFilterRuleFieldId={
