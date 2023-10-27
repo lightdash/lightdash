@@ -140,9 +140,10 @@ export const DashboardProvider: React.FC = ({ children }) => {
                 setDashboardFilters(dashboard.filters);
             }
 
-            setOriginalDashboardFilters(dashboard.filters);
-
             setHaveFiltersChanged(false);
+        }
+        if (dashboard) {
+            setOriginalDashboardFilters(dashboard.filters);
         }
     }, [
         dashboardFilters,
@@ -331,10 +332,20 @@ export const DashboardProvider: React.FC = ({ children }) => {
                         previousFilters.dimensions[index],
                         item,
                     );
-                    const isReverted = !hasSavedFilterValueChanged(
-                        originalDashboardFilters.dimensions[index],
+                    console.log({
+                        originalDashboardFilters,
                         item,
-                    );
+                        current: originalDashboardFilters.dimensions[index],
+                    });
+
+                    const isReverted =
+                        originalDashboardFilters.dimensions[index] &&
+                        !hasSavedFilterValueChanged(
+                            originalDashboardFilters.dimensions[index],
+                            item,
+                        );
+
+                    console.log({ isReverted });
 
                     if (hasChanged) {
                         setSavedFiltersOverrides((prev) => {
@@ -345,7 +356,8 @@ export const DashboardProvider: React.FC = ({ children }) => {
                                         (dim) => dim.id !== item.id,
                                     ),
                                 };
-                            } else {
+                            }
+                            if (hasChanged) {
                                 return {
                                     ...prev,
                                     dimensions: prev.dimensions.some(
@@ -356,7 +368,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
                                           )
                                         : [...prev.dimensions, item],
                                 };
-                            }
+                            } else return prev;
                         });
                     }
                 }
