@@ -1,7 +1,12 @@
 import { Menu, MenuDivider } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
-import { isDimension, isField, ResultValue } from '@lightdash/common';
+import {
+    isCustomDimension,
+    isDimension,
+    isField,
+    ResultValue,
+} from '@lightdash/common';
 import mapValues from 'lodash-es/mapValues';
 import React, { FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
@@ -46,7 +51,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                 <MenuItem2 text="Copy value" icon="duplicate" />
             </CopyToClipboard>
 
-            {item && !isDimension(item) && (
+            {item && !isDimension(item) && !isCustomDimension(item) && (
                 <Can
                     I="view"
                     this={subject('UnderlyingData', {

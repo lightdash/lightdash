@@ -3,6 +3,7 @@ import { MenuItem2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import {
     Field,
+    isCustomDimension,
     isDimension,
     isField,
     isFilterableField,
@@ -91,7 +92,7 @@ const CellContextMenu: FC<
                 />
             )}
 
-            {item && !isDimension(item) && (
+            {item && !isDimension(item) && !isCustomDimension(item) && (
                 <Can
                     I="view"
                     this={subject('UnderlyingData', {
