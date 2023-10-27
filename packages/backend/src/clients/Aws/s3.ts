@@ -11,6 +11,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import * as Sentry from '@sentry/node';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
+import { wrapOtelSpan } from '../../utils';
 
 type S3ServiceDependencies = {
     lightdashConfig: LightdashConfig;
@@ -113,97 +114,107 @@ export class S3Service {
         results: PutObjectCommandInput['Body'],
         metadata: PutObjectCommandInput['Metadata'],
     ) {
-        if (
-            !this.lightdashConfig.resultsCache?.enabled ||
-            !this.lightdashConfig.resultsCache.s3Bucket ||
-            this.s3 === undefined
-        ) {
-            throw new Error(
-                "Results caching is not enabled or is missing S3 configuration, can't upload results cache",
-            );
-        }
+        return wrapOtelSpan('s3.uploadResults', { key }, async (span) => {
+            if (
+                !this.lightdashConfig.resultsCache?.enabled ||
+                !this.lightdashConfig.resultsCache.s3Bucket ||
+                this.s3 === undefined
+            ) {
+                throw new Error(
+                    "Results caching is not enabled or is missing S3 configuration, can't upload results cache",
+                );
+            }
 
-        try {
-            // todo: set expiration time. it defaults to 1 hour
-            const command = new PutObjectCommand({
-                Bucket: this.lightdashConfig.resultsCache.s3Bucket,
-                Key: `${key}.json`,
-                Body: results,
-                ContentType: 'application/json',
-                Metadata: metadata,
-            });
-            const response = await this.s3.send(command);
-        } catch (error) {
-            Logger.error(`Failed to upload results to s3. ${error}`);
-            Sentry.captureException(error);
-            throw error;
-        }
+            try {
+                // todo: set expiration time. it defaults to 1 hour
+                const command = new PutObjectCommand({
+                    Bucket: this.lightdashConfig.resultsCache.s3Bucket,
+                    Key: `${key}.json`,
+                    Body: results,
+                    ContentType: 'application/json',
+                    Metadata: metadata,
+                });
+                const response = await this.s3.send(command);
+            } catch (error) {
+                Logger.error(`Failed to upload results to s3. ${error}`);
+                Sentry.captureException(error);
+                throw error;
+            }
+        });
     }
 
     async getResultsMetadata(key: string) {
-        if (
-            !this.lightdashConfig.resultsCache?.enabled ||
-            !this.lightdashConfig.resultsCache.s3Bucket ||
-            this.s3 === undefined
-        ) {
-            throw new Error(
-                "Results caching is not enabled or is missing S3 configuration, can't get results cache metadata",
-            );
-        }
-        try {
-            const command = new HeadObjectCommand({
-                Bucket: this.lightdashConfig.resultsCache.s3Bucket,
-                Key: `${key}.json`,
-            });
-            return await this.s3.send(command);
-        } catch (error) {
-            if (error instanceof NotFound) {
-                return undefined;
+        return wrapOtelSpan('s3.getResultsMetadata', { key }, async (span) => {
+            if (
+                !this.lightdashConfig.resultsCache?.enabled ||
+                !this.lightdashConfig.resultsCache.s3Bucket ||
+                this.s3 === undefined
+            ) {
+                throw new Error(
+                    "Results caching is not enabled or is missing S3 configuration, can't get results cache metadata",
+                );
             }
-            Logger.error(`Failed to get results metadata from s3. ${error}`);
-            Sentry.captureException(error);
-            throw error;
-        }
+            try {
+                const command = new HeadObjectCommand({
+                    Bucket: this.lightdashConfig.resultsCache.s3Bucket,
+                    Key: `${key}.json`,
+                });
+                return await this.s3.send(command);
+            } catch (error) {
+                if (error instanceof NotFound) {
+                    return undefined;
+                }
+                Logger.error(
+                    `Failed to get results metadata from s3. ${error}`,
+                );
+                Sentry.captureException(error);
+                throw error;
+            }
+        });
     }
 
     async getResults(key: string) {
-        if (
-            !this.lightdashConfig.resultsCache?.enabled ||
-            !this.lightdashConfig.resultsCache.s3Bucket ||
-            this.s3 === undefined
-        ) {
-            throw new Error(
-                "Results caching is not enabled or is missing S3 configuration, can't get results cache",
-            );
-        }
-        try {
-            // I can't make this work :/
-            // const command = new SelectObjectContentCommand({
-            //     Bucket: this.lightdashConfig.resultsCache.s3Bucket,
-            //     Key: `${key}.json`,
-            //     ExpressionType: "SQL",
-            //     Expression: "select * from S3Object",
-            //     InputSerialization: {
-            //         JSON: {
-            //             Type: "DOCUMENT",
-            //         },
-            //     },
-            //     OutputSerialization: {
-            //         JSON: {
-            //             RecordDelimiter: "\n",
-            //         },
-            //     },
-            // });
-            const command = new GetObjectCommand({
-                Bucket: this.lightdashConfig.resultsCache.s3Bucket,
-                Key: `${key}.json`,
-            });
-            return await this.s3.send(command);
-        } catch (error) {
-            Logger.error(`Failed to get results metadata from s3. ${error}`);
-            Sentry.captureException(error);
-            throw error;
-        }
+        return wrapOtelSpan('s3.getResults', { key }, async (span) => {
+            if (
+                !this.lightdashConfig.resultsCache?.enabled ||
+                !this.lightdashConfig.resultsCache.s3Bucket ||
+                this.s3 === undefined
+            ) {
+                throw new Error(
+                    "Results caching is not enabled or is missing S3 configuration, can't get results cache",
+                );
+            }
+            try {
+                // I can't make this work :/
+                // const command = new SelectObjectContentCommand({
+                //     Bucket: this.lightdashConfig.resultsCache.s3Bucket,
+                //     Key: `${key}.json`,
+                //     ExpressionType: "SQL",
+                //     Expression: "select * from S3Object",
+                //     InputSerialization: {
+                //         JSON: {
+                //             Type: "DOCUMENT",
+                //         },
+                //     },
+                //     OutputSerialization: {
+                //         JSON: {
+                //             RecordDelimiter: "\n",
+                //         },
+                //     },
+                // });
+                const command = new GetObjectCommand({
+                    Bucket: this.lightdashConfig.resultsCache.s3Bucket,
+                    Key: `${key}.json`,
+                });
+                return await this.s3.send(command);
+            } catch (error) {
+                Logger.error(
+                    `Failed to get results metadata from s3. ${error}`,
+                );
+                Sentry.captureException(error);
+                throw error;
+            }
+        });
     }
 
     isEnabled(): boolean {

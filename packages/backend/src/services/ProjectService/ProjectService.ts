@@ -1071,64 +1071,77 @@ export class ProjectService {
         >;
         rows: Record<string, any>[];
     }> {
-        // TODO: put this hash function in a util somewhere
-        const queryHash = crypto
-            .createHash('sha256')
-            .update(`${projectUuid}.${query}`)
-            .digest('hex');
+        return wrapOtelSpan(
+            'ProjectService.getResultsFromCacheOrWarehouse',
+            {},
+            async (span) => {
+                // TODO: put this hash function in a util somewhere
+                const queryHash = crypto
+                    .createHash('sha256')
+                    .update(`${projectUuid}.${query}`)
+                    .digest('hex');
 
-        if (lightdashConfig.resultsCache?.enabled) {
-            const cacheEntryMetadata = await this.s3Client
-                .getResultsMetadata(queryHash)
-                .catch((e) => undefined); // ignore since error is tracked in s3Client
+                span.setAttribute('queryHash', queryHash);
+                span.setAttribute('cacheHit', false);
 
-            if (
-                cacheEntryMetadata?.LastModified &&
-                new Date().getTime() -
-                    cacheEntryMetadata.LastModified.getTime() <
-                    lightdashConfig.resultsCache.cacheStateTimeSeconds * 1000
-            ) {
-                console.log('getting data from cache');
+                if (lightdashConfig.resultsCache?.enabled) {
+                    const cacheEntryMetadata = await this.s3Client
+                        .getResultsMetadata(queryHash)
+                        .catch((e) => undefined); // ignore since error is tracked in s3Client
 
-                // Log a cache hit
-                const cacheEntry = await this.s3Client.getResults(queryHash);
-                const stringResults =
-                    await cacheEntry.Body?.transformToString();
-                if (stringResults) {
-                    try {
-                        console.log('cache hit');
-                        return JSON.parse(stringResults);
-                    } catch (e) {
-                        console.error(e);
-                        // catch error and get results from warehouse
+                    if (
+                        cacheEntryMetadata?.LastModified &&
+                        new Date().getTime() -
+                            cacheEntryMetadata.LastModified.getTime() <
+                            lightdashConfig.resultsCache.cacheStateTimeSeconds *
+                                1000
+                    ) {
+                        Logger.debug(
+                            `Getting data from cache, key: ${queryHash}`,
+                        );
+                        const cacheEntry = await this.s3Client.getResults(
+                            queryHash,
+                        );
+                        const stringResults =
+                            await cacheEntry.Body?.transformToString();
+                        if (stringResults) {
+                            try {
+                                span.setAttribute('cacheHit', true);
+                                return JSON.parse(stringResults);
+                            } catch (e) {
+                                Logger.error('Error parsing cache results:', e);
+                            }
+                        }
                     }
                 }
-            }
-        }
 
-        Logger.debug(`Run query against warehouse warehouse`);
-        const warehouseResults = await wrapSentryTransaction(
-            'runWarehouseQuery',
-            {
-                query,
-                queryTags,
-                context,
-                metricQuery: JSON.stringify(metricQuery),
-                type: warehouseClient.credentials.type,
+                Logger.debug(`Run query against warehouse warehouse`);
+                const warehouseResults = await wrapOtelSpan(
+                    'runWarehouseQuery',
+                    {
+                        query,
+                        queryTags: JSON.stringify(queryTags),
+                        context,
+                        metricQuery: JSON.stringify(metricQuery),
+                        type: warehouseClient.credentials.type,
+                    },
+                    async () => warehouseClient.runQuery(query, queryTags),
+                );
+
+                if (lightdashConfig.resultsCache?.enabled) {
+                    Logger.debug(`Writing data to cache with key ${queryHash}`);
+                    const buffer = Buffer.from(
+                        JSON.stringify(warehouseResults),
+                    );
+                    // fire and forget
+                    this.s3Client
+                        .uploadResults(queryHash, buffer, queryTags)
+                        .catch((e) => undefined); // ignore since error is tracked in s3Client
+                }
+
+                return warehouseResults;
             },
-            async () => warehouseClient.runQuery(query, queryTags),
         );
-
-        Logger.debug(`Writing data to cache with key ${queryHash}`);
-        if (lightdashConfig.resultsCache?.enabled) {
-            const buffer = Buffer.from(JSON.stringify(warehouseResults));
-            // fire and forget
-            this.s3Client
-                .uploadResults(queryHash, buffer, queryTags)
-                .catch((e) => undefined); // ignore since error is tracked in s3Client
-        }
-
-        return warehouseResults;
     }
 
     async runMetricQuery(
