@@ -1,3 +1,10 @@
+# [0.832.0](https://github.com/lightdash/lightdash/compare/0.831.0...0.832.0) (2023-10-27)
+
+
+### Features
+
+* add results cache ([#7697](https://github.com/lightdash/lightdash/issues/7697)) ([bdd7d33](https://github.com/lightdash/lightdash/commit/bdd7d335252e1f4135262b1fad36d5790b1fd022))
+
 # [0.831.0](https://github.com/lightdash/lightdash/compare/0.830.0...0.831.0) (2023-10-27)
 
 
