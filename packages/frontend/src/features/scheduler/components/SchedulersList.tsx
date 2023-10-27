@@ -50,7 +50,6 @@ const SchedulersList: FC<Props> = ({ schedulersQuery, onEdit }) => {
             ))}
             {schedulerUuid && (
                 <SchedulerDeleteModal
-                    lazy={true}
                     isOpen={true}
                     schedulerUuid={schedulerUuid}
                     onConfirm={() => setSchedulerUuid(undefined)}

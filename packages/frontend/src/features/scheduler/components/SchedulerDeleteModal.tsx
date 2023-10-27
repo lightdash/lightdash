@@ -1,26 +1,23 @@
-import {
-    Button,
-    Dialog,
-    DialogBody,
-    DialogFooter,
-    DialogProps,
-    NonIdealState,
-    Spinner,
-} from '@blueprintjs/core';
+import { Box, Button, Group, Loader, Modal, Stack, Text } from '@mantine/core';
+import { IconTrash } from '@tabler/icons-react';
 import React, { FC, useCallback, useEffect } from 'react';
 import ErrorState from '../../../components/common/ErrorState';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { useScheduler } from '../hooks/useScheduler';
 import { useSchedulersDeleteMutation } from '../hooks/useSchedulersDeleteMutation';
 
-interface DashboardDeleteModalProps extends DialogProps {
+interface DashboardDeleteModalProps {
     schedulerUuid: string;
     onConfirm: () => void;
+    onClose: () => void;
+    isOpen: boolean;
 }
 
 export const SchedulerDeleteModal: FC<DashboardDeleteModalProps> = ({
     schedulerUuid,
     onConfirm,
-    ...modalProps
+    onClose,
+    isOpen,
 }) => {
     const scheduler = useScheduler(schedulerUuid);
     const mutation = useSchedulersDeleteMutation();
@@ -35,49 +32,62 @@ export const SchedulerDeleteModal: FC<DashboardDeleteModalProps> = ({
     }, [mutation, schedulerUuid]);
 
     return (
-        <Dialog
-            lazy
-            title="Delete scheduled delivery"
-            icon="trash"
-            {...modalProps}
+        <Modal
+            opened={isOpen}
+            title={
+                <Group spacing="xs">
+                    <MantineIcon icon={IconTrash} size="lg" color="red" />
+                    <Text fw={600}>Delete scheduled delivery</Text>
+                </Group>
+            }
+            onClose={onClose}
+            styles={(theme) => ({
+                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
+                body: { padding: 0 },
+            })}
         >
-            <DialogBody>
+            <Box px="md" py="xl">
                 {scheduler.isLoading || scheduler.error ? (
                     <>
                         {scheduler.isLoading ? (
-                            <NonIdealState
-                                title="Loading scheduler"
-                                icon={<Spinner />}
-                            />
+                            <Stack h={300} w="100%" align="center">
+                                <Text fw={600}>Loading schedulers</Text>
+                                <Loader />
+                            </Stack>
                         ) : (
                             <ErrorState error={scheduler.error.error} />
                         )}
                     </>
                 ) : (
-                    <p>
+                    <Text span>
                         Are you sure you want to delete{' '}
-                        <b>"{scheduler.data?.name}"</b>?
-                    </p>
+                        <Text fw={700} span>
+                            "{scheduler.data?.name}"
+                        </Text>
+                        ?
+                    </Text>
                 )}
-            </DialogBody>
-
-            <DialogFooter
-                actions={
-                    <>
-                        <Button onClick={modalProps.onClose}>Cancel</Button>
-
-                        {scheduler.isSuccess && (
-                            <Button
-                                loading={mutation.isLoading}
-                                intent="danger"
-                                onClick={handleConfirm}
-                            >
-                                Delete
-                            </Button>
-                        )}
-                    </>
-                }
-            />
-        </Dialog>
+            </Box>
+            <Group
+                position="right"
+                p="md"
+                sx={(theme) => ({
+                    borderTop: `1px solid ${theme.colors.gray[4]}`,
+                })}
+            >
+                <Button onClick={onClose} color="gray" variant="outline">
+                    Cancel
+                </Button>
+                {scheduler.isSuccess && (
+                    <Button
+                        loading={mutation.isLoading}
+                        onClick={handleConfirm}
+                        color="red"
+                    >
+                        Delete
+                    </Button>
+                )}
+            </Group>
+        </Modal>
     );
 };
