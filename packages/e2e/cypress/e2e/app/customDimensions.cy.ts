@@ -75,7 +75,6 @@ export const createCustomDimensionChart = (projectUuid) => {
     });
 };
 
-// eslint-disable-next-line import/prefer-default-export
 export const testCustomDimensions = (projectUuid) => {
     // Test custom dimension by going into an existing chart with custom dimensions and running the query
     // This is also used in createProject.cy.ts to test custom dimensions against all warehouses
@@ -89,13 +88,14 @@ describe('Custom dimensions', () => {
         cy.login();
     });
 
-    it.only('I can create a custom dimension chart from api', () => {
+    it.skip('I can create a custom dimension chart from api', () => {
+        // This is tested on createProject.cy.ts, you can enable this if you want to test this directly
         createCustomDimensionChart(SEED_PROJECT.project_uuid);
     });
-    it('I can view an existing custom dimension chart', () => {
+    it.skip('I can view an existing custom dimension chart', () => {
+        // This is tested on createProject.cy.ts, you can enable this if you want to test this directly
         testCustomDimensions(SEED_PROJECT.project_uuid);
     });
-    // For testing custom dimensions on different warehouses, see createProject.cy.ts
     it('I can create a bin number', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
         cy.findByText('Payments').click();
