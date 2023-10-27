@@ -365,9 +365,14 @@ describe('Date tests', () => {
             .should('exist');
 
         // Keep same date
-        cy.get('.bp4-date-input input').should('have.value', todayDate);
+        cy.get('.mantine-DateInput-root input').should(
+            'have.value',
+            dayjs(todayDate).format('MMMM D, YYYY'),
+        );
         cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('DAY', "customers".created)) != ('${todayDate}')`,
+            `(DATE_TRUNC('DAY', "customers".created)) != ('${getLocalISOString(
+                todayDate,
+            )}')`,
         );
 
         cy.get('.tabler-icon-x').click({ multiple: true });
