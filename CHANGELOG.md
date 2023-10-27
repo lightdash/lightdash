@@ -1,3 +1,10 @@
+# [0.828.0](https://github.com/lightdash/lightdash/compare/0.827.0...0.828.0) (2023-10-27)
+
+
+### Features
+
+* scheduled deliveries list in mantine ([#7668](https://github.com/lightdash/lightdash/issues/7668)) ([7f46e55](https://github.com/lightdash/lightdash/commit/7f46e5566f0ddd4e38362015d85b58f6c0f8d2e6))
+
 # [0.827.0](https://github.com/lightdash/lightdash/compare/0.826.3...0.827.0) (2023-10-27)
 
 
