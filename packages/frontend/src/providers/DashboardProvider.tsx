@@ -133,7 +133,6 @@ export const DashboardProvider: React.FC = ({ children }) => {
             if (dashboardFilters === emptyFilters) {
                 let updatedDashboardFilters;
 
-                // TODO: issue lies here, when on /minimal page, the filters are not being set
                 if (hasNonEmptyOverrides(savedFiltersOverrides)) {
                     updatedDashboardFilters = {
                         ...dashboard.filters,
@@ -195,15 +194,43 @@ export const DashboardProvider: React.FC = ({ children }) => {
         search,
     ]);
 
+    useEffect(() => {
+        if (dashboard?.filters) {
+            const searchParams = new URLSearchParams(search);
+            const overridesForSavedDashboardFiltersParam =
+                searchParams.get('filters');
+
+            if (overridesForSavedDashboardFiltersParam) {
+                const overridesForSavedDashboardFilters =
+                    convertDashboardFiltersParamToDashboardFilters(
+                        JSON.parse(overridesForSavedDashboardFiltersParam),
+                    );
+                setSavedFiltersOverrides(overridesForSavedDashboardFilters);
+            }
+        }
+    }, [dashboard, search]);
+
+    useEffect(() => {
+        if (dashboard?.filters && hasNonEmptyOverrides(savedFiltersOverrides)) {
+            setDashboardFilters({
+                ...dashboard.filters,
+                dimensions: applyDimensionOverrides(
+                    dashboard.filters,
+                    savedFiltersOverrides,
+                ),
+            });
+        }
+    }, [dashboard?.filters, savedFiltersOverrides]);
+
     // Gets filters from URL and storage after redirect
     useMount(() => {
         const searchParams = new URLSearchParams(search);
         const tempFilterSearchParam = searchParams.get('tempFilters');
+        const overridesForSavedDashboardFiltersParam =
+            searchParams.get('filters');
         const unsavedDashboardFiltersRaw = sessionStorage.getItem(
             'unsavedDashboardFilters',
         );
-        const overridesForSavedDashboardFiltersParam =
-            searchParams.get('filters');
 
         sessionStorage.removeItem('unsavedDashboardFilters');
         if (unsavedDashboardFiltersRaw) {
@@ -222,19 +249,12 @@ export const DashboardProvider: React.FC = ({ children }) => {
                 ),
             );
         }
-
         if (overridesForSavedDashboardFiltersParam) {
             setSavedFiltersOverrides(
                 convertDashboardFiltersParamToDashboardFilters(
                     JSON.parse(overridesForSavedDashboardFiltersParam),
                 ),
             );
-
-            // setDashboardFilters(
-            //     convertDashboardFiltersParamToDashboardFilters(
-            //         JSON.parse(filtersSearchParam),
-            //     ),
-            // );
         }
     });
 
