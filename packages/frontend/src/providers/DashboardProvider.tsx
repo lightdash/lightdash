@@ -367,30 +367,30 @@ export const DashboardProvider: React.FC = ({ children }) => {
                             item,
                         );
 
-                    if (hasChanged) {
-                        setSavedFiltersOverrides((prev) => {
-                            if (isReverted) {
-                                return {
-                                    ...prev,
-                                    dimensions: prev.dimensions.filter(
-                                        (dim) => dim.id !== item.id,
-                                    ),
-                                };
-                            }
-                            if (hasChanged) {
-                                return {
-                                    ...prev,
-                                    dimensions: prev.dimensions.some(
-                                        (dim) => dim.id === item.id,
-                                    )
-                                        ? prev.dimensions.map((dim) =>
-                                              dim.id === item.id ? item : dim,
-                                          )
-                                        : [...prev.dimensions, item],
-                                };
-                            } else return prev;
-                        });
-                    }
+                    setSavedFiltersOverrides((prev) => {
+                        let newDimensions = [...prev.dimensions];
+
+                        if (hasChanged) {
+                            newDimensions = prev.dimensions.some(
+                                (dim) => dim.id === item.id,
+                            )
+                                ? prev.dimensions.map((dim) =>
+                                      dim.id === item.id ? item : dim,
+                                  )
+                                : [...prev.dimensions, item];
+                        }
+
+                        if (isReverted) {
+                            newDimensions = newDimensions.filter(
+                                (dim) => dim.id !== item.id,
+                            );
+                        }
+
+                        return {
+                            ...prev,
+                            dimensions: newDimensions,
+                        };
+                    });
                 }
 
                 return {
