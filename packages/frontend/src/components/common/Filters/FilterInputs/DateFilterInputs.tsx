@@ -1,4 +1,3 @@
-import { DateInput2 } from '@blueprintjs/datetime2';
 import {
     ConditionalRule,
     DateFilterRule,
@@ -182,78 +181,30 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
 
             if (isTimestamp) {
                 return (
-                    <>
-                        <DateInput2
-                            className={disabled ? 'disabled-filter' : ''}
-                            placeholder={placeholder}
-                            disabled={disabled}
-                            fill
-                            defaultTimezone="UTC"
-                            showTimezoneSelect={false}
-                            value={
-                                rule.values && rule.values.length > 0
-                                    ? new Date(rule.values[0]).toString()
-                                    : null
-                            }
-                            timePrecision={'millisecond'}
-                            formatDate={(value: Date) =>
-                                moment(value).format(`YYYY-MM-DD, HH:mm:ss:SSS`)
-                            }
-                            parseDate={(value) =>
-                                moment(
-                                    value,
-                                    `YYYY-MM-DD, HH:mm:ss:SSS`,
-                                ).toDate()
-                            }
-                            onChange={(value: string | null) => {
-                                console.log({ bp: value });
-                                onChange({
-                                    ...rule,
-                                    values:
-                                        value === null ? undefined : [value],
-                                });
-                            }}
-                            popoverProps={{
-                                placement: 'bottom',
-                                ...popoverProps,
-                            }}
-                            dayPickerProps={{
-                                firstDayOfWeek: isWeekDay(startOfWeek)
-                                    ? normalizeWeekDay(startOfWeek)
-                                    : undefined,
-                            }}
-                            maxDate={moment(new Date())
-                                .add(7, 'years')
-                                .toDate()}
-                        />
-
-                        <DateTimePicker
-                            disabled={disabled}
-                            placeholder={placeholder}
-                            withSeconds
-                            firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
-                            // FIXME: remove this once we migrate off of Blueprint
-                            // we are doing type conversion here because Blueprint expects DOM element
-                            // Mantine does not provide a DOM element on onOpen/onClose
-                            popoverProps={{
-                                onOpen: () =>
-                                    popoverProps?.onOpened?.(null as any),
-                                onClose: () =>
-                                    popoverProps?.onClose?.(null as any),
-                            }}
-                            value={rule.values ? rule.values[0] : null}
-                            onChange={(value: Date | null) => {
-                                console.log({ mt: value });
-                                onChange({
-                                    ...rule,
-                                    values:
-                                        value === null
-                                            ? undefined
-                                            : [moment(value).toDate()],
-                                });
-                            }}
-                        />
-                    </>
+                    <DateTimePicker
+                        disabled={disabled}
+                        placeholder={placeholder}
+                        withSeconds
+                        firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
+                        // FIXME: remove this once we migrate off of Blueprint
+                        // we are doing type conversion here because Blueprint expects DOM element
+                        // Mantine does not provide a DOM element on onOpen/onClose
+                        popoverProps={{
+                            onOpen: () => popoverProps?.onOpened?.(null as any),
+                            onClose: () => popoverProps?.onClose?.(null as any),
+                        }}
+                        value={rule.values ? rule.values[0] : null}
+                        onChange={(value: Date | null) => {
+                            console.log({ mt: value });
+                            onChange({
+                                ...rule,
+                                values:
+                                    value === null
+                                        ? undefined
+                                        : [moment(value).toDate()],
+                            });
+                        }}
+                    />
                 );
             }
 
