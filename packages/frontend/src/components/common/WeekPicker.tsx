@@ -1,5 +1,4 @@
-import { WeekDay } from '@lightdash/common';
-import { DateInput, DateInputProps } from '@mantine/dates';
+import { DateInput, DateInputProps, DayOfWeek } from '@mantine/dates';
 import dayjs from 'dayjs';
 import { FC, useMemo, useState } from 'react';
 import {
@@ -16,7 +15,7 @@ interface Props
     > {
     value: unknown;
     onChange: (value: Date) => void;
-    firstDayOfWeek: WeekDay;
+    firstDayOfWeek: DayOfWeek;
 }
 
 const WeekPicker: FC<Props> = ({
