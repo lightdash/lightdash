@@ -329,8 +329,7 @@ describe('Date tests', () => {
     });
 
     it('Should keep value when changing date operator', () => {
-        const now = new Date();
-        const todayDate = getLocalISOString(now);
+        const todayDate = new Date();
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/customers`);
 
@@ -343,9 +342,14 @@ describe('Date tests', () => {
         cy.findByPlaceholderText('Search field...').type('created day');
         cy.contains('Created day').click();
 
-        cy.get('.bp4-date-input input').should('have.value', todayDate);
+        cy.get('.mantine-DateInput-root input').should(
+            'have.value',
+            dayjs(todayDate).format('MMMM D, YYYY'),
+        );
         cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('DAY', "customers".created)) = ('${todayDate}')`,
+            `(DATE_TRUNC('DAY', "customers".created)) = ('${getLocalISOString(
+                todayDate,
+            )}')`,
         );
 
         // Change date operator
@@ -361,9 +365,14 @@ describe('Date tests', () => {
             .should('exist');
 
         // Keep same date
-        cy.get('.bp4-date-input input').should('have.value', todayDate);
+        cy.get('.mantine-DateInput-root input').should(
+            'have.value',
+            dayjs(todayDate).format('MMMM D, YYYY'),
+        );
         cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('DAY', "customers".created)) != ('${todayDate}')`,
+            `(DATE_TRUNC('DAY', "customers".created)) != ('${getLocalISOString(
+                todayDate,
+            )}')`,
         );
 
         cy.get('.tabler-icon-x').click({ multiple: true });
@@ -434,11 +443,16 @@ describe('Date tests', () => {
         cy.findByRole('button', { name: 'Day' }).findByRole('button').click();
         cy.findByRole('menuitem', { name: 'Add filter' }).click();
 
-        const todayDate = getLocalISOString(now.toDate());
+        const todayDate = now.toDate();
 
-        cy.get('.bp4-date-input input').should('have.value', todayDate);
+        cy.get('.mantine-DateInput-root input').should(
+            'have.value',
+            dayjs(todayDate).format('MMMM D, YYYY'),
+        );
         cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('DAY', "orders".order_date)) = ('${todayDate}')`,
+            `(DATE_TRUNC('DAY', "orders".order_date)) = ('${getLocalISOString(
+                todayDate,
+            )}')`,
         );
         cy.get('.tabler-icon-x').click({ multiple: true });
     });
