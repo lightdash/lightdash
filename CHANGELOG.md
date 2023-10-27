@@ -1,3 +1,10 @@
+# [0.827.0](https://github.com/lightdash/lightdash/compare/0.826.3...0.827.0) (2023-10-27)
+
+
+### Features
+
+* filter inputs - week picker in mantine ([#7504](https://github.com/lightdash/lightdash/issues/7504)) ([5248728](https://github.com/lightdash/lightdash/commit/524872846c639467ecb43ed6f00219aabe974107))
+
 ## [0.826.3](https://github.com/lightdash/lightdash/compare/0.826.2...0.826.3) (2023-10-27)
 
 
