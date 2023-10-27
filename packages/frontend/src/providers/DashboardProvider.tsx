@@ -77,6 +77,20 @@ type DashboardContext = {
     hasChartTiles: boolean;
 };
 
+const hasNonEmptyOverrides = (overrides: DashboardFilters) =>
+    overrides.dimensions.length > 0 || overrides.metrics.length > 0;
+
+const applyDimensionOverrides = (
+    dashboardFilters: DashboardFilters,
+    savedFiltersOverrides: DashboardFilters,
+) =>
+    dashboardFilters.dimensions.map((dimension) => {
+        const override = savedFiltersOverrides.dimensions.find(
+            (overrideDimension) => overrideDimension.id === dimension.id,
+        );
+        return override || dimension;
+    });
+
 const Context = createContext<DashboardContext | undefined>(undefined);
 
 export const DashboardProvider: React.FC = ({ children }) => {
@@ -114,43 +128,31 @@ export const DashboardProvider: React.FC = ({ children }) => {
             .filter((uuid): uuid is string => !!uuid);
     }, [dashboardTiles]);
 
-    // Set filters to filters from database
     useEffect(() => {
-        if (dashboard && dashboardFilters === emptyFilters) {
-            if (
-                savedFiltersOverrides.dimensions.length > 0 ||
-                savedFiltersOverrides.metrics.length > 0
-            ) {
-                const dashboardFiltersWithOverrides = {
-                    ...dashboard.filters,
-                    dimensions: dashboard.filters.dimensions.map(
-                        (dimension) => {
-                            const override =
-                                savedFiltersOverrides.dimensions.find(
-                                    (overrideDimension) =>
-                                        overrideDimension.id === dimension.id,
-                                );
-                            return override ? override : dimension;
-                        },
-                    ),
-                };
+        if (dashboard) {
+            if (dashboardFilters === emptyFilters) {
+                let updatedDashboardFilters;
 
-                setDashboardFilters(dashboardFiltersWithOverrides);
-            } else {
-                setDashboardFilters(dashboard.filters);
+                // TODO: issue lies here, when on /minimal page, the filters are not being set
+                if (hasNonEmptyOverrides(savedFiltersOverrides)) {
+                    updatedDashboardFilters = {
+                        ...dashboard.filters,
+                        dimensions: applyDimensionOverrides(
+                            dashboard.filters,
+                            savedFiltersOverrides,
+                        ),
+                    };
+                } else {
+                    updatedDashboardFilters = dashboard.filters;
+                }
+
+                setDashboardFilters(updatedDashboardFilters);
+                setHaveFiltersChanged(false);
             }
 
-            setHaveFiltersChanged(false);
-        }
-        if (dashboard) {
             setOriginalDashboardFilters(dashboard.filters);
         }
-    }, [
-        dashboardFilters,
-        dashboard,
-        savedFiltersOverrides.dimensions,
-        savedFiltersOverrides.metrics.length,
-    ]);
+    }, [dashboardFilters, dashboard, savedFiltersOverrides]);
 
     // Updates url with temp filters
     useEffect(() => {
@@ -171,7 +173,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
 
         if (savedFiltersOverrides?.dimensions?.length === 0) {
             newParams.delete('filters');
-        } else {
+        } else if (savedFiltersOverrides?.dimensions?.length > 0) {
             newParams.set(
                 'filters',
                 JSON.stringify(
@@ -197,11 +199,10 @@ export const DashboardProvider: React.FC = ({ children }) => {
     useMount(() => {
         const searchParams = new URLSearchParams(search);
         const tempFilterSearchParam = searchParams.get('tempFilters');
-        // const filtersSearchParam = searchParams.get('filters');
         const unsavedDashboardFiltersRaw = sessionStorage.getItem(
             'unsavedDashboardFilters',
         );
-        const overridesForSavedDashboardFiltersRaw =
+        const overridesForSavedDashboardFiltersParam =
             searchParams.get('filters');
 
         sessionStorage.removeItem('unsavedDashboardFilters');
@@ -222,12 +223,18 @@ export const DashboardProvider: React.FC = ({ children }) => {
             );
         }
 
-        if (overridesForSavedDashboardFiltersRaw) {
+        if (overridesForSavedDashboardFiltersParam) {
             setSavedFiltersOverrides(
                 convertDashboardFiltersParamToDashboardFilters(
-                    JSON.parse(overridesForSavedDashboardFiltersRaw),
+                    JSON.parse(overridesForSavedDashboardFiltersParam),
                 ),
             );
+
+            // setDashboardFilters(
+            //     convertDashboardFiltersParamToDashboardFilters(
+            //         JSON.parse(filtersSearchParam),
+            //     ),
+            // );
         }
     });
 
@@ -332,11 +339,6 @@ export const DashboardProvider: React.FC = ({ children }) => {
                         previousFilters.dimensions[index],
                         item,
                     );
-                    console.log({
-                        originalDashboardFilters,
-                        item,
-                        current: originalDashboardFilters.dimensions[index],
-                    });
 
                     const isReverted =
                         originalDashboardFilters.dimensions[index] &&
@@ -344,8 +346,6 @@ export const DashboardProvider: React.FC = ({ children }) => {
                             originalDashboardFilters.dimensions[index],
                             item,
                         );
-
-                    console.log({ isReverted });
 
                     if (hasChanged) {
                         setSavedFiltersOverrides((prev) => {
