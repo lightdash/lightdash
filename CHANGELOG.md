@@ -1,3 +1,10 @@
+## [0.826.3](https://github.com/lightdash/lightdash/compare/0.826.2...0.826.3) (2023-10-27)
+
+
+### Bug Fixes
+
+* update dbt json schema v10 ([#7679](https://github.com/lightdash/lightdash/issues/7679)) ([28aa71d](https://github.com/lightdash/lightdash/commit/28aa71dd15f1d1d2cb957e9463e3ba88e900f74e))
+
 ## [0.826.2](https://github.com/lightdash/lightdash/compare/0.826.1...0.826.2) (2023-10-27)
 
 
