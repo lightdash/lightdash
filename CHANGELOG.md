@@ -1,3 +1,10 @@
+# [0.830.0](https://github.com/lightdash/lightdash/compare/0.829.0...0.830.0) (2023-10-27)
+
+
+### Features
+
+* add custom dimension to csv export ([#7690](https://github.com/lightdash/lightdash/issues/7690)) ([78c26fd](https://github.com/lightdash/lightdash/commit/78c26fd171534e93596a55baf16518fd20e41681))
+
 # [0.829.0](https://github.com/lightdash/lightdash/compare/0.828.0...0.829.0) (2023-10-27)
 
 
