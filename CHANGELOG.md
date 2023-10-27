@@ -1,3 +1,10 @@
+# [0.831.0](https://github.com/lightdash/lightdash/compare/0.830.0...0.831.0) (2023-10-27)
+
+
+### Features
+
+* filter inputs - date time picker input to mantine ([#7688](https://github.com/lightdash/lightdash/issues/7688)) ([0a559be](https://github.com/lightdash/lightdash/commit/0a559be6f5019bfacb3ad7dc3175a05fcafcae46))
+
 # [0.830.0](https://github.com/lightdash/lightdash/compare/0.829.0...0.830.0) (2023-10-27)
 
 
