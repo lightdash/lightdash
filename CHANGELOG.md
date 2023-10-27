@@ -1,3 +1,10 @@
+## [0.826.2](https://github.com/lightdash/lightdash/compare/0.826.1...0.826.2) (2023-10-27)
+
+
+### Bug Fixes
+
+* remove custom dimension submenu ([#7676](https://github.com/lightdash/lightdash/issues/7676)) ([1c566db](https://github.com/lightdash/lightdash/commit/1c566dbe62696c914dd7627a2a3bbb4848040b46))
+
 ## [0.826.1](https://github.com/lightdash/lightdash/compare/0.826.0...0.826.1) (2023-10-26)
 
 
