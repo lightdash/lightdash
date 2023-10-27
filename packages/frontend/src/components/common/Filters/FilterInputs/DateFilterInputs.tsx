@@ -185,6 +185,9 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         disabled={disabled}
                         placeholder={placeholder}
                         withSeconds
+                        // FIXME: mantine v7
+                        // mantine does not set the first day of the week based on the locale
+                        // so we need to do it manually and always pass it as a prop
                         firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                         // FIXME: remove this once we migrate off of Blueprint
                         // we are doing type conversion here because Blueprint expects DOM element
