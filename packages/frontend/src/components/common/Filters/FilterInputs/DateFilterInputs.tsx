@@ -195,7 +195,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         }}
                         value={rule.values ? rule.values[0] : null}
                         onChange={(value: Date | null) => {
-                            console.log({ mt: value });
                             onChange({
                                 ...rule,
                                 values:
