@@ -1,3 +1,10 @@
+# [0.835.0](https://github.com/lightdash/lightdash/compare/0.834.0...0.835.0) (2023-10-30)
+
+
+### Features
+
+* use mantine for schedule delete dialog ([#7700](https://github.com/lightdash/lightdash/issues/7700)) ([561792f](https://github.com/lightdash/lightdash/commit/561792f0f960ba36f017f78e62348c196e517725))
+
 # [0.834.0](https://github.com/lightdash/lightdash/compare/0.833.1...0.834.0) (2023-10-30)
 
 
