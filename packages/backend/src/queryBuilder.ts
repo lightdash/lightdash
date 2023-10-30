@@ -242,7 +242,6 @@ export const getCustomDimensionSql = ({
                         );
                     }
 
-                    // TODO test this on other warehouses
                     const ratio = `${cte}.ratio`;
 
                     if (customDimension.binNumber <= 1) {
@@ -255,19 +254,21 @@ export const getCustomDimensionSql = ({
                     const whens = Array.from(
                         Array(customDimension.binNumber - 1).keys(),
                     ).map((i) => {
-                        const from = `${ratio} * ${i} / ${customDimension.binNumber}`;
-                        const to = `${ratio} * ${i + 1} / ${
+                        const from = `CAST(${ratio} * ${i} / ${customDimension.binNumber} AS INT)`;
+                        const to = `CAST(${ratio} * ${i + 1} / ${
                             customDimension.binNumber
-                        }`;
+                        } AS INT)`;
                         return `WHEN ${dimension.compiledSql} >= ${from} AND ${dimension.compiledSql} < ${to} THEN CONCAT(${from}, '-', ${to})`;
                     });
                     return [
                         ...acc,
                         `CASE
                     ${whens.join('\n')}
-                    ELSE CONCAT(${ratio} * ${customDimension.binNumber - 1} / ${
+                    ELSE CONCAT(CAST(${ratio} * ${
+                            customDimension.binNumber - 1
+                        } / ${
                             customDimension.binNumber
-                        }, '-', ${cte}.max_id) END
+                        } AS INT), '-', CAST(${cte}.max_id AS INT) ) END
                     AS ${customDimensionName}
                 `,
                     ];

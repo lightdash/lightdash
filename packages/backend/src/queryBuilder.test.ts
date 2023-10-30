@@ -426,9 +426,9 @@ describe('with custom dimensions', () => {
             joins: ['age_range_cte'],
             selects: [
                 `CASE
-                    WHEN "table1".dim1 >= age_range_cte.ratio * 0 / 3 AND "table1".dim1 < age_range_cte.ratio * 1 / 3 THEN CONCAT(age_range_cte.ratio * 0 / 3, '-', age_range_cte.ratio * 1 / 3)
-WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_cte.ratio * 2 / 3 THEN CONCAT(age_range_cte.ratio * 1 / 3, '-', age_range_cte.ratio * 2 / 3)
-                    ELSE CONCAT(age_range_cte.ratio * 2 / 3, '-', age_range_cte.max_id) END
+                    WHEN "table1".dim1 >= CAST(age_range_cte.ratio * 0 / 3 AS INT) AND "table1".dim1 < CAST(age_range_cte.ratio * 1 / 3 AS INT) THEN CONCAT(CAST(age_range_cte.ratio * 0 / 3 AS INT), '-', CAST(age_range_cte.ratio * 1 / 3 AS INT))
+WHEN "table1".dim1 >= CAST(age_range_cte.ratio * 1 / 3 AS INT) AND "table1".dim1 < CAST(age_range_cte.ratio * 2 / 3 AS INT) THEN CONCAT(CAST(age_range_cte.ratio * 1 / 3 AS INT), '-', CAST(age_range_cte.ratio * 2 / 3 AS INT))
+                    ELSE CONCAT(CAST(age_range_cte.ratio * 2 / 3 AS INT), '-', CAST(age_range_cte.max_id AS INT) ) END
                     AS "age_range"
                 `,
             ],
@@ -492,9 +492,9 @@ WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_
 SELECT
   "table1".dim1 AS "table1_dim1",
 CASE
-                    WHEN "table1".dim1 >= age_range_cte.ratio * 0 / 3 AND "table1".dim1 < age_range_cte.ratio * 1 / 3 THEN CONCAT(age_range_cte.ratio * 0 / 3, '-', age_range_cte.ratio * 1 / 3)
-WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_cte.ratio * 2 / 3 THEN CONCAT(age_range_cte.ratio * 1 / 3, '-', age_range_cte.ratio * 2 / 3)
-                    ELSE CONCAT(age_range_cte.ratio * 2 / 3, '-', age_range_cte.max_id) END
+                    WHEN "table1".dim1 >= CAST(age_range_cte.ratio * 0 / 3 AS INT) AND "table1".dim1 < CAST(age_range_cte.ratio * 1 / 3 AS INT) THEN CONCAT(CAST(age_range_cte.ratio * 0 / 3 AS INT), '-', CAST(age_range_cte.ratio * 1 / 3 AS INT))
+WHEN "table1".dim1 >= CAST(age_range_cte.ratio * 1 / 3 AS INT) AND "table1".dim1 < CAST(age_range_cte.ratio * 2 / 3 AS INT) THEN CONCAT(CAST(age_range_cte.ratio * 1 / 3 AS INT), '-', CAST(age_range_cte.ratio * 2 / 3 AS INT))
+                    ELSE CONCAT(CAST(age_range_cte.ratio * 2 / 3 AS INT), '-', CAST(age_range_cte.max_id AS INT) ) END
                     AS "age_range"
                 ,
   MAX("table1".number_column) AS "table1_metric1"
@@ -576,9 +576,9 @@ metrics AS (
 SELECT
   "table1".dim1 AS "table1_dim1",
 CASE
-                    WHEN "table1".dim1 >= age_range_cte.ratio * 0 / 3 AND "table1".dim1 < age_range_cte.ratio * 1 / 3 THEN CONCAT(age_range_cte.ratio * 0 / 3, '-', age_range_cte.ratio * 1 / 3)
-WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_cte.ratio * 2 / 3 THEN CONCAT(age_range_cte.ratio * 1 / 3, '-', age_range_cte.ratio * 2 / 3)
-                    ELSE CONCAT(age_range_cte.ratio * 2 / 3, '-', age_range_cte.max_id) END
+                    WHEN "table1".dim1 >= CAST(age_range_cte.ratio * 0 / 3 AS INT) AND "table1".dim1 < CAST(age_range_cte.ratio * 1 / 3 AS INT) THEN CONCAT(CAST(age_range_cte.ratio * 0 / 3 AS INT), '-', CAST(age_range_cte.ratio * 1 / 3 AS INT))
+WHEN "table1".dim1 >= CAST(age_range_cte.ratio * 1 / 3 AS INT) AND "table1".dim1 < CAST(age_range_cte.ratio * 2 / 3 AS INT) THEN CONCAT(CAST(age_range_cte.ratio * 1 / 3 AS INT), '-', CAST(age_range_cte.ratio * 2 / 3 AS INT))
+                    ELSE CONCAT(CAST(age_range_cte.ratio * 2 / 3 AS INT), '-', CAST(age_range_cte.max_id AS INT) ) END
                     AS "age_range"
                 ,
   MAX("table1".number_column) AS "table1_metric1"
