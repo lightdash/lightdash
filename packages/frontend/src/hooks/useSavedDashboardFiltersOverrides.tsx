@@ -2,7 +2,9 @@ import { DashboardFilterRule, DashboardFilters } from '@lightdash/common';
 import { useReducer } from 'react';
 import { useLocation } from 'react-router-dom';
 
-export const hasNonEmptyOverrides = (overrides: DashboardFilters | undefined) =>
+export const hasSavedFiltersOverrides = (
+    overrides: DashboardFilters | undefined,
+) =>
     !!(
         overrides &&
         (overrides.dimensions?.length > 0 || overrides.metrics?.length > 0)

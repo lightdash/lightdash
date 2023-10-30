@@ -32,7 +32,7 @@ import {
 } from '../hooks/dashboard/useDashboard';
 import {
     applyDimensionOverrides,
-    hasNonEmptyOverrides,
+    hasSavedFiltersOverrides,
     useSavedDashboardFiltersOverrides,
 } from '../hooks/useSavedDashboardFiltersOverrides';
 
@@ -129,7 +129,9 @@ export const DashboardProvider: React.FC = ({ children }) => {
             if (dashboardFilters === emptyFilters) {
                 let updatedDashboardFilters;
 
-                if (hasNonEmptyOverrides(overridesForSavedDashboardFilters)) {
+                if (
+                    hasSavedFiltersOverrides(overridesForSavedDashboardFilters)
+                ) {
                     updatedDashboardFilters = {
                         ...dashboard.filters,
                         dimensions: applyDimensionOverrides(
@@ -147,7 +149,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
 
             setOriginalDashboardFilters(dashboard.filters);
         }
-    }, [dashboardFilters, dashboard, overridesForSavedDashboardFilters]);
+    }, [dashboard, dashboardFilters, overridesForSavedDashboardFilters]);
 
     // Updates url with temp filters
     useEffect(() => {
@@ -195,7 +197,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
     useEffect(() => {
         if (
             dashboard?.filters &&
-            hasNonEmptyOverrides(overridesForSavedDashboardFilters)
+            hasSavedFiltersOverrides(overridesForSavedDashboardFilters)
         ) {
             setDashboardFilters({
                 ...dashboard.filters,
