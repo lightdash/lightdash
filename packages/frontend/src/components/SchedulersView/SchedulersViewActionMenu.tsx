@@ -88,7 +88,7 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
                 </Menu.Dropdown>
             </Menu>
             <SchedulerDeleteModal
-                isOpen={isDeleting}
+                opened={isDeleting}
                 schedulerUuid={item.schedulerUuid}
                 onConfirm={handleDelete}
                 onClose={handleDelete}
