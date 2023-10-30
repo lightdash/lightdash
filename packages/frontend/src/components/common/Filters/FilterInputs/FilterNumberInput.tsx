@@ -6,6 +6,7 @@ interface Props extends Omit<TextInputProps, 'type' | 'value' | 'onChange'> {
     onChange: (value: number | null) => void;
 }
 
+// FIXME: remove this and use NumberInput from @mantine/core once we upgrade to mantine v7
 const FilterNumberInput: FC<Props> = ({
     value,
     disabled,
