@@ -140,7 +140,7 @@ export const unfurlService = new UnfurlService({
     spaceModel,
     shareModel,
     encryptionService,
-    s3Service: s3Client,
+    s3Client,
     projectModel,
 });
 
@@ -159,7 +159,7 @@ export const schedulerService = new SchedulerService({
 export const csvService = new CsvService({
     lightdashConfig,
     userModel,
-    s3Service: s3Client,
+    s3Client,
     projectService,
     dashboardModel,
     savedChartModel,

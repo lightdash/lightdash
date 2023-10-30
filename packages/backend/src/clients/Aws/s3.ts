@@ -13,16 +13,16 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { wrapOtelSpan } from '../../utils';
 
-type S3ServiceDependencies = {
+type ClientDependencies = {
     lightdashConfig: LightdashConfig;
 };
 
-export class S3Service {
+export class S3Client {
     lightdashConfig: LightdashConfig;
 
     private readonly s3?: S3;
 
-    constructor({ lightdashConfig }: S3ServiceDependencies) {
+    constructor({ lightdashConfig }: ClientDependencies) {
         this.lightdashConfig = lightdashConfig;
 
         if (lightdashConfig.s3?.endpoint && lightdashConfig.s3.region) {
