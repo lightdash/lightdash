@@ -1,5 +1,6 @@
 import {
     ApiError,
+    CacheMetadata,
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
     Dashboard,
@@ -11,6 +12,7 @@ import {
     FilterableField,
     isDashboardChartTileType,
 } from '@lightdash/common';
+import { min } from 'lodash-es';
 import uniqBy from 'lodash-es/uniqBy';
 import React, {
     createContext,
@@ -76,6 +78,8 @@ type DashboardContext = {
     haveFiltersChanged: boolean;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
     addSuggestions: (newSuggestionsMap: Record<string, string[]>) => void;
+    addResultsCacheTime: (cacheMetadata: CacheMetadata) => void;
+    getOldestCacheTime: () => string | undefined;
     allFilterableFields: FilterableField[] | undefined;
     filterableFieldsBySavedQueryUuid: DashboardAvailableFilters | undefined;
     filterableFieldsByTileUuid: DashboardAvailableFilters | undefined;
@@ -109,6 +113,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
         useState<DashboardFilters>(emptyFilters);
     const [haveFiltersChanged, setHaveFiltersChanged] =
         useState<boolean>(false);
+    const [resultsCacheTimes, setResultsCacheTimes] = useState<any[]>([]);
 
     const {
         overridesForSavedDashboardFilters,
@@ -429,6 +434,19 @@ export const DashboardProvider: React.FC = ({ children }) => {
         [],
     );
 
+    const addResultsCacheTime = useCallback((cacheMetadata: CacheMetadata) => {
+        if (cacheMetadata.cacheHit && cacheMetadata.cacheUpdatedTime) {
+            setResultsCacheTimes((old) => [
+                ...old,
+                cacheMetadata.cacheUpdatedTime,
+            ]);
+        }
+    }, []);
+
+    const getOldestCacheTime = useCallback(() => {
+        return min(resultsCacheTimes);
+    }, [resultsCacheTimes]);
+
     const value = {
         dashboard,
         dashboardError,
@@ -448,6 +466,8 @@ export const DashboardProvider: React.FC = ({ children }) => {
         haveFiltersChanged,
         setHaveFiltersChanged,
         addSuggestions,
+        addResultsCacheTime,
+        getOldestCacheTime,
         allFilterableFields,
         filterableFieldsBySavedQueryUuid,
         isLoadingDashboardFilters,

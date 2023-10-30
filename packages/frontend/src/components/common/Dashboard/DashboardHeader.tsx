@@ -27,6 +27,7 @@ import {
     IconTrash,
     IconUpload,
 } from '@tabler/icons-react';
+import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
@@ -66,6 +67,7 @@ type DashboardHeaderProps = {
     hasDashboardChanged: boolean;
     isEditMode: boolean;
     isSaving: boolean;
+    oldestCacheTime?: string;
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     onCancel: () => void;
     onSaveDashboard: () => void;
@@ -89,6 +91,7 @@ const DashboardHeader = ({
     hasDashboardChanged,
     isEditMode,
     isSaving,
+    oldestCacheTime,
     onAddTiles,
     onCancel,
     onSaveDashboard,
@@ -182,6 +185,21 @@ const DashboardHeader = ({
                                             name: dashboardSpaceName,
                                         }}
                                     />
+                                )}
+
+                                {oldestCacheTime && (
+                                    <Text
+                                        color="gray"
+                                        sx={{ fontSize: '12px' }}
+                                    >
+                                        Dashboard uses cached data, the oldest
+                                        from
+                                        <Text fw={700}>
+                                            {dayjs(oldestCacheTime).format(
+                                                'MMM D, YYYY h:mm A',
+                                            )}{' '}
+                                        </Text>
+                                    </Text>
                                 )}
                             </Stack>
                         </Popover.Dropdown>
