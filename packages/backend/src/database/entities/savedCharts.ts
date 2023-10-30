@@ -1,4 +1,5 @@
 import {
+    BinRange,
     ChartConfig,
     ChartKind,
     ChartType,
@@ -169,12 +170,15 @@ export type DbSavedChartCustomDimension = {
     bin_type: string;
     bin_number: number | null;
     bin_width: number | null;
+    custom_range: BinRange[] | null; // JSONB
     order: number;
 };
 export type DbSavedChartCustomDimensionInsert = Omit<
     DbSavedChartCustomDimension,
-    'saved_queries_version_custom_dimension_id'
->;
+    'saved_queries_version_custom_dimension_id' | 'custom_range'
+> & {
+    custom_range: string | null;
+};
 
 export const SavedChartAdditionalMetricTableName =
     'saved_queries_version_additional_metrics';

@@ -155,7 +155,8 @@ export const getCustomDimensionSql = ({
     const ctes = customDimensions.reduce<string[]>((acc, customDimension) => {
         switch (customDimension.binType) {
             case BinType.FIXED_WIDTH:
-                // No need for cte on fixed_width
+            case BinType.CUSTOM_RANGE:
+                // No need for cte
                 return acc;
             case BinType.FIXED_NUMBER:
                 const dimension = getDimensionFromId(
@@ -180,7 +181,7 @@ export const getCustomDimensionSql = ({
             default:
                 assertUnreachable(
                     customDimension.binType,
-                    `Unknown bin type: ${customDimension.binType}`,
+                    `Unknown bin type on cte: ${customDimension.binType}`,
                 );
         }
         return acc;
@@ -188,15 +189,16 @@ export const getCustomDimensionSql = ({
 
     const joins = customDimensions.reduce<string[]>((acc, customDimension) => {
         switch (customDimension.binType) {
+            case BinType.CUSTOM_RANGE:
             case BinType.FIXED_WIDTH:
-                // No need for cte on fixed_width
+                // No need for cte
                 return acc;
             case BinType.FIXED_NUMBER:
                 return [...acc, getCteReference(customDimension)];
             default:
                 assertUnreachable(
                     customDimension.binType,
-                    `Unknown bin type: ${customDimension.binType}`,
+                    `Unknown bin type on join: ${customDimension.binType}`,
                 );
         }
         return acc;
@@ -271,11 +273,39 @@ export const getCustomDimensionSql = ({
                     AS ${customDimensionName}
                 `,
                     ];
+                case BinType.CUSTOM_RANGE:
+                    if (!customDimension.customRange) {
+                        throw new Error(
+                            `Undefined customRange for custom dimension ${BinType.CUSTOM_RANGE} `,
+                        );
+                    }
+
+                    const rangeWhens = customDimension.customRange.map(
+                        (range) => {
+                            if (range.from === undefined) {
+                                // First range
+                                return `WHEN ${dimension.compiledSql} < ${range.to} THEN CONCAT('<' ,  ${range.to})`;
+                            }
+                            if (range.to === undefined) {
+                                // Last range
+                                return `ELSE CONCAT('≥' ,  ${range.from})`;
+                            }
+
+                            return `WHEN ${dimension.compiledSql} >= ${range.from} AND ${dimension.compiledSql} < ${range.to} THEN CONCAT(${range.from}, '-', ${range.to})`;
+                        },
+                    );
+
+                    const customRangeSql = `CASE  
+                        ${rangeWhens.join('\n')}
+                        END
+                        AS ${customDimensionName}`;
+
+                    return [...acc, customRangeSql];
 
                 default:
                     assertUnreachable(
                         customDimension.binType,
-                        `Unknown bin type: ${customDimension.binType}`,
+                        `Unknown bin type on sql: ${customDimension.binType}`,
                     );
             }
             return acc;
