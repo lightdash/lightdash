@@ -111,8 +111,7 @@ const FilterMultiAutoComplete: FC<Props> = ({
                 children: ReactNode;
             }) => (
                 <div {...others}>
-                    {data.length > MAX_AUTOCOMPLETE_RESULTS ||
-                    results.length === MAX_AUTOCOMPLETE_RESULTS ? (
+                    {results.length === MAX_AUTOCOMPLETE_RESULTS ? (
                         <Text
                             color="dimmed"
                             size="xs"
