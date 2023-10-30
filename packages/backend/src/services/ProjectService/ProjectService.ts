@@ -1026,7 +1026,7 @@ export class ProjectService {
     async getResultsForChart(
         user: SessionUser,
         chartUuid: string,
-    ): Promise<{ rows: Record<string, any>[]; cacheMetadata?: CacheMetadata }> {
+    ): Promise<{ rows: Record<string, any>[]; cacheMetadata: CacheMetadata }> {
         return wrapSentryTransaction(
             'getResultsForChartWithWarehouseQuery',
             {
