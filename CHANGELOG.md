@@ -1,3 +1,10 @@
+# [0.834.0](https://github.com/lightdash/lightdash/compare/0.833.1...0.834.0) (2023-10-30)
+
+
+### Features
+
+* cache s3 credentials ([#7735](https://github.com/lightdash/lightdash/issues/7735)) ([6390ca0](https://github.com/lightdash/lightdash/commit/6390ca09bd092d54dc7b33e14ec4c9137bbec2b4))
+
 ## [0.833.1](https://github.com/lightdash/lightdash/compare/0.833.0...0.833.1) (2023-10-30)
 
 
