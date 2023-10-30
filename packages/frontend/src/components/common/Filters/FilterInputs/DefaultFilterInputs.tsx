@@ -7,13 +7,13 @@ import {
     FilterType,
     isFilterRule,
 } from '@lightdash/common';
-import { NumberInput } from '@mantine/core';
 import isString from 'lodash-es/isString';
-import React from 'react';
+import { PropsWithChildren } from 'react';
 import { TagInput } from '../../TagInput/TagInput';
 import { useFiltersContext } from '../FiltersProvider';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import MultiAutoComplete from './AutoComplete/MultiAutoComplete';
+import FilterNumberInput from './FilterNumberInput';
 
 export type FilterInputsProps<T extends ConditionalRule> = {
     filterType: FilterType;
@@ -31,7 +31,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
     disabled,
     popoverProps,
     onChange,
-}: React.PropsWithChildren<FilterInputsProps<T>>) => {
+}: PropsWithChildren<FilterInputsProps<T>>) => {
     const { getField } = useFiltersContext();
     const suggestions = isFilterRule(rule)
         ? getField(rule)?.suggestions
@@ -111,26 +111,17 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
         case FilterOperator.IN_THE_NEXT:
         case FilterOperator.IN_THE_CURRENT:
         case FilterOperator.IN_BETWEEN:
-            const value = rule.values?.[0];
-            let parsedValue: number | undefined;
-
-            if (typeof value === 'string') parsedValue = parseInt(value, 10);
-            else if (typeof value === 'number') parsedValue = value;
-            else parsedValue = undefined;
-
-            if (parsedValue && isNaN(parsedValue)) parsedValue = undefined;
-
             return (
-                <NumberInput
+                <FilterNumberInput
                     disabled={disabled}
-                    w="100%"
-                    size="xs"
                     placeholder={placeholder}
-                    value={parsedValue}
+                    value={rule.values?.[0]}
                     onChange={(newValue) => {
+                        console.log(newValue);
+
                         onChange({
                             ...rule,
-                            values: newValue === '' ? [] : [newValue],
+                            values: newValue ? [newValue] : [],
                         });
                     }}
                 />
