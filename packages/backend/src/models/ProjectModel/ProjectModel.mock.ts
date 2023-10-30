@@ -115,6 +115,11 @@ export const lightdashConfigMock: LightdashConfig = {
     pivotTable: {
         maxColumnLimit: 60,
     },
+    resultsCache: {
+        enabled: false,
+        cacheStateTimeSeconds: 86400,
+        s3: {},
+    },
 };
 
 const dbtCloudIDEProjectConfigMock: DbtCloudIDEProjectConfig = {
