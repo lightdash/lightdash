@@ -168,9 +168,9 @@ export const getCustomDimensionSql = ({
                     SELECT
                         MIN(${dimension.compiledSql}) AS min_id,
                         MAX(${dimension.compiledSql}) AS max_id,
-                        MIN(${dimension.compiledSql}) + (MAX(${
+                        CAST(MIN(${dimension.compiledSql}) + (MAX(${
                     dimension.compiledSql
-                }) - MIN(${dimension.compiledSql}) ) as ratio
+                }) - MIN(${dimension.compiledSql}) ) AS INT) as ratio
                     FROM ${baseTable} AS ${fieldQuoteChar}${
                     customDimension.table
                 }${fieldQuoteChar}

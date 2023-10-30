@@ -1,5 +1,6 @@
 import { DimensionType } from '@lightdash/common';
 import { createConnection } from 'snowflake-sdk';
+import { Readable } from 'stream';
 import {
     mapFieldType,
     SnowflakeWarehouseClient,
@@ -10,10 +11,18 @@ import {
     expectedFields,
     expectedRow,
     expectedWarehouseSchema,
-    mockStreamRows,
     queryColumnsMock,
 } from './SnowflakeWarehouseClient.mock';
 import { config } from './WarehouseClient.mock';
+
+const mockStreamRows = () =>
+    new Readable({
+        objectMode: true,
+        read() {
+            this.push(expectedRow);
+            this.push(null);
+        },
+    });
 
 jest.mock('snowflake-sdk', () => ({
     ...jest.requireActual('snowflake-sdk'),

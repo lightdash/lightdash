@@ -20,6 +20,7 @@ import {
     DbtProjectType,
     deepEqual,
     DefaultSupportedDbtVersion,
+    DimensionType,
     Explore,
     ExploreError,
     fieldId as getFieldId,
@@ -73,11 +74,13 @@ import {
 import { SshTunnel } from '@lightdash/warehouses';
 import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
+import * as crypto from 'crypto';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
 import { analytics } from '../../analytics/client';
 import { QueryExecutionContext } from '../../analytics/LightdashAnalytics';
+import { S3Client } from '../../clients/Aws/s3';
 import { schedulerClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
@@ -121,6 +124,7 @@ type ProjectServiceDependencies = {
     spaceModel: SpaceModel;
     sshKeyPairModel: SshKeyPairModel;
     userAttributesModel: UserAttributesModel;
+    s3Client: S3Client;
 };
 
 export class ProjectService {
@@ -142,6 +146,8 @@ export class ProjectService {
 
     userAttributesModel: UserAttributesModel;
 
+    s3Client: S3Client;
+
     constructor({
         projectModel,
         onboardingModel,
@@ -151,6 +157,7 @@ export class ProjectService {
         spaceModel,
         sshKeyPairModel,
         userAttributesModel,
+        s3Client,
     }: ProjectServiceDependencies) {
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
@@ -161,6 +168,7 @@ export class ProjectService {
         this.spaceModel = spaceModel;
         this.sshKeyPairModel = sshKeyPairModel;
         this.userAttributesModel = userAttributesModel;
+        this.s3Client = s3Client;
     }
 
     private async _resolveWarehouseClientSshKeys<
@@ -1040,6 +1048,102 @@ export class ProjectService {
         );
     }
 
+    private async getResultsFromCacheOrWarehouse({
+        projectUuid,
+        context,
+        warehouseClient,
+        query,
+        metricQuery,
+        queryTags,
+    }: {
+        projectUuid: string;
+        context: QueryExecutionContext;
+        warehouseClient: WarehouseClient;
+        query: any;
+        metricQuery: MetricQuery;
+        queryTags?: RunQueryTags;
+    }): Promise<{
+        fields: Record<
+            string,
+            {
+                type: DimensionType;
+            }
+        >;
+        rows: Record<string, any>[];
+    }> {
+        return wrapOtelSpan(
+            'ProjectService.getResultsFromCacheOrWarehouse',
+            {},
+            async (span) => {
+                // TODO: put this hash function in a util somewhere
+                const queryHash = crypto
+                    .createHash('sha256')
+                    .update(`${projectUuid}.${query}`)
+                    .digest('hex');
+
+                span.setAttribute('queryHash', queryHash);
+                span.setAttribute('cacheHit', false);
+
+                if (lightdashConfig.resultsCache?.enabled) {
+                    const cacheEntryMetadata = await this.s3Client
+                        .getResultsMetadata(queryHash)
+                        .catch((e) => undefined); // ignore since error is tracked in s3Client
+
+                    if (
+                        cacheEntryMetadata?.LastModified &&
+                        new Date().getTime() -
+                            cacheEntryMetadata.LastModified.getTime() <
+                            lightdashConfig.resultsCache.cacheStateTimeSeconds *
+                                1000
+                    ) {
+                        Logger.debug(
+                            `Getting data from cache, key: ${queryHash}`,
+                        );
+                        const cacheEntry = await this.s3Client.getResults(
+                            queryHash,
+                        );
+                        const stringResults =
+                            await cacheEntry.Body?.transformToString();
+                        if (stringResults) {
+                            try {
+                                span.setAttribute('cacheHit', true);
+                                return JSON.parse(stringResults);
+                            } catch (e) {
+                                Logger.error('Error parsing cache results:', e);
+                            }
+                        }
+                    }
+                }
+
+                Logger.debug(`Run query against warehouse warehouse`);
+                const warehouseResults = await wrapOtelSpan(
+                    'runWarehouseQuery',
+                    {
+                        query,
+                        queryTags: JSON.stringify(queryTags),
+                        context,
+                        metricQuery: JSON.stringify(metricQuery),
+                        type: warehouseClient.credentials.type,
+                    },
+                    async () => warehouseClient.runQuery(query, queryTags),
+                );
+
+                if (lightdashConfig.resultsCache?.enabled) {
+                    Logger.debug(`Writing data to cache with key ${queryHash}`);
+                    const buffer = Buffer.from(
+                        JSON.stringify(warehouseResults),
+                    );
+                    // fire and forget
+                    this.s3Client
+                        .uploadResults(queryHash, buffer, queryTags)
+                        .catch((e) => undefined); // ignore since error is tracked in s3Client
+                }
+
+                return warehouseResults;
+            },
+        );
+    }
+
     async runMetricQuery(
         user: SessionUser,
         metricQuery: MetricQuery,
@@ -1172,7 +1276,7 @@ export class ProjectService {
                         },
                     });
 
-                    Logger.debug(`Run query against warehouse`);
+                    Logger.debug(`Fetch query results from cache or warehouse`);
                     span.setAttribute('generatedSql', query);
                     span.setAttribute('lightdash.projectUuid', projectUuid);
                     span.setAttribute(
@@ -1180,18 +1284,14 @@ export class ProjectService {
                         warehouseClient.credentials.type,
                     );
 
-                    const { rows } = await wrapSentryTransaction(
-                        'runWarehouseQuery',
-                        {
-                            query,
-                            queryTags,
-                            context,
-                            metricQuery: JSON.stringify(metricQuery),
-                            type: warehouseClient.credentials.type,
-                        },
-                        async () => warehouseClient.runQuery(query, queryTags),
-                    );
-
+                    const { rows } = await this.getResultsFromCacheOrWarehouse({
+                        projectUuid,
+                        context,
+                        warehouseClient,
+                        metricQuery,
+                        query,
+                        queryTags,
+                    });
                     await sshTunnel.disconnect();
                     return rows;
                 } catch (e) {

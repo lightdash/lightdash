@@ -101,16 +101,10 @@ const isSchemaFields = (
 const isTableSchema = (schema: bigquery.ITableSchema): schema is TableSchema =>
     !!schema && !!schema.fields && isSchemaFields(schema.fields);
 
-const parseRow = (row: Record<string, any>, columnsToParse: string[]) => {
-    if (columnsToParse.length <= 0) {
-        return row;
-    }
-    const parsedRow = row;
-    columnsToParse.forEach((column) => {
-        parsedRow[column] = parseCell(row[column]);
-    });
-    return parsedRow;
-};
+const parseRow = (row: Record<string, any>[]) =>
+    Object.fromEntries(
+        Object.entries(row).map(([name, value]) => [name, parseCell(value)]),
+    );
 
 export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryCredentials> {
     client: BigQuery;
@@ -156,30 +150,13 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 maxResults: 0, // don't fetch any results
             });
 
-            const columnsToParse: string[] = [];
             const fields = (response?.schema?.fields || []).reduce<
                 Record<string, { type: DimensionType }>
             >((acc, field) => {
                 if (field.name) {
-                    const dimensionType = mapFieldType(field.type);
-
-                    if (
-                        field.type === BigqueryFieldType.BIGNUMERIC || // Big numbers can't be cloned by the Node Worker so we need to parse them
-                        field.type === BigqueryFieldType.NUMERIC // Numbers can also possibly be Big() so we need to parse them; ref: https://github.com/steffnay/nodejs-bigquery/blob/master/src/bigquery.ts#L518
-                    ) {
-                        columnsToParse.push(field.name);
-                    }
-
-                    if (
-                        [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
-                            dimensionType,
-                        )
-                    ) {
-                        columnsToParse.push(field.name);
-                    }
                     return {
                         ...acc,
-                        [field.name]: { type: dimensionType },
+                        [field.name]: { type: mapFieldType(field.type) },
                     };
                 }
                 return acc;
@@ -191,7 +168,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                         new Transform({
                             objectMode: true,
                             transform(chunk, encoding, callback) {
-                                callback(null, parseRow(chunk, columnsToParse));
+                                callback(null, parseRow(chunk));
                             },
                         }),
                         new Writable({

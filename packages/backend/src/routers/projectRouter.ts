@@ -191,6 +191,7 @@ projectRouter.post(
                 limit: body.limit,
                 tableCalculations: body.tableCalculations,
                 additionalMetrics: body.additionalMetrics,
+                customDimensions: body.customDimensions,
             };
 
             const { jobId } = await CsvService.scheduleDownloadCsv(req.user!, {

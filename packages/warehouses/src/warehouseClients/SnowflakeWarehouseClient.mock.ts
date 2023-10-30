@@ -3,7 +3,6 @@ import {
     DimensionType,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Readable } from 'stream';
 import { SnowflakeTypes } from './SnowflakeWarehouseClient';
 import { config } from './WarehouseClient.mock';
 
@@ -185,27 +184,6 @@ export const expectedRow: Record<string, any> = {
     MYDATECOLUMN: new Date('2021-03-10T00:00:00.000Z'),
     MYTIMESTAMPCOLUMN: new Date('1990-03-02T08:30:00.010Z'),
     MYBOOLEANCOLUMN: false,
-    MYARRAYCOLUMN: ['1', '2', '3'],
-    MYOBJECTCOLUMN: { test: '1' },
+    MYARRAYCOLUMN: '1,2,3',
+    MYOBJECTCOLUMN: '[object Object]',
 };
-
-const rows: Record<string, any>[] = [
-    {
-        MYSTRINGCOLUMN: 'string value',
-        MYNUMBERCOLUMN: 100,
-        MYDATECOLUMN: new Date('2021-03-10T00:00:00.000Z'),
-        MYTIMESTAMPCOLUMN: new Date('1990-03-02T08:30:00.010Z'),
-        MYBOOLEANCOLUMN: false,
-        MYARRAYCOLUMN: ['1', '2', '3'],
-        MYOBJECTCOLUMN: { test: '1' },
-    },
-];
-
-export const mockStreamRows = () =>
-    new Readable({
-        objectMode: true,
-        read() {
-            rows.forEach((row) => this.push(row));
-            this.push(null);
-        },
-    });

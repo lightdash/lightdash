@@ -10,6 +10,7 @@ import {
     ForbiddenError,
     formatItemValue,
     friendlyName,
+    getCustomDimensionId,
     getCustomLabelsFromTableConfig,
     getDashboardFiltersForTile,
     getItemLabel,
@@ -40,7 +41,7 @@ import {
     parseAnalyticsLimit,
     QueryExecutionContext,
 } from '../../analytics/LightdashAnalytics';
-import { S3Service } from '../../clients/Aws/s3';
+import { S3Client } from '../../clients/Aws/s3';
 import { schedulerClient } from '../../clients/clients';
 import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -55,7 +56,7 @@ type CsvServiceDependencies = {
     lightdashConfig: LightdashConfig;
 
     projectService: ProjectService;
-    s3Service: S3Service;
+    s3Client: S3Client;
     savedChartModel: SavedChartModel;
     dashboardModel: DashboardModel;
     userModel: UserModel;
@@ -130,7 +131,7 @@ export class CsvService {
 
     projectService: ProjectService;
 
-    s3Service: S3Service;
+    s3Client: S3Client;
 
     savedChartModel: SavedChartModel;
 
@@ -142,14 +143,14 @@ export class CsvService {
         lightdashConfig,
         userModel,
         projectService,
-        s3Service,
+        s3Client,
         savedChartModel,
         dashboardModel,
     }: CsvServiceDependencies) {
         this.lightdashConfig = lightdashConfig;
         this.userModel = userModel;
         this.projectService = projectService;
-        this.s3Service = s3Service;
+        this.s3Client = s3Client;
         this.savedChartModel = savedChartModel;
         this.dashboardModel = dashboardModel;
     }
@@ -216,6 +217,7 @@ export class CsvService {
             ...metricQuery.metrics,
             ...metricQuery.dimensions,
             ...metricQuery.tableCalculations.map((tc: any) => tc.name),
+            ...(metricQuery.customDimensions?.map(getCustomDimensionId) || []),
         ];
         Logger.debug(
             `writeRowsToFile with ${rows.length} rows and ${selectedFieldIds.length} columns`,
@@ -347,7 +349,7 @@ export class CsvService {
                   fileType: SchedulerFormat.CSV,
                   values: onlyRaw ? 'raw' : 'formatted',
                   limit: parseAnalyticsLimit(options?.limit),
-                  storage: this.s3Service.isEnabled() ? 's3' : 'local',
+                  storage: this.s3Client.isEnabled() ? 's3' : 'local',
                   context: 'scheduled delivery chart',
                   numColumns:
                       metricQuery.dimensions.length +
@@ -431,11 +433,11 @@ export class CsvService {
             });
         }
 
-        if (this.s3Service.isEnabled()) {
+        if (this.s3Client.isEnabled()) {
             const csvContent = await fsPromise.readFile(`/tmp/${fileId}`, {
                 encoding: 'utf-8',
             });
-            const s3Url = await this.s3Service.uploadCsv(csvContent, fileId);
+            const s3Url = await this.s3Client.uploadCsv(csvContent, fileId);
 
             // Delete local file in 10 minutes, we could still read from the local file to upload to google sheets
             setTimeout(async () => {
@@ -510,7 +512,7 @@ export class CsvService {
             values: 'raw',
             context: 'sql runner',
             fileType: SchedulerFormat.CSV,
-            storage: this.s3Service.isEnabled() ? 's3' : 'local',
+            storage: this.s3Client.isEnabled() ? 's3' : 'local',
         };
         try {
             const { organizationUuid } = user;
@@ -543,8 +545,8 @@ export class CsvService {
             const fileId = `csv-${jobId}.csv`;
 
             let fileUrl;
-            if (this.s3Service.isEnabled()) {
-                fileUrl = await this.s3Service.uploadCsv(csvContent, fileId);
+            if (this.s3Client.isEnabled()) {
+                fileUrl = await this.s3Client.uploadCsv(csvContent, fileId);
             } else {
                 // storing locally
                 await fsPromise.writeFile(
@@ -638,13 +640,14 @@ export class CsvService {
             organizationId: user.organizationUuid,
             projectId: projectUuid,
             fileType: SchedulerFormat.CSV,
-            storage: this.s3Service.isEnabled() ? 's3' : 'local',
+            storage: this.s3Client.isEnabled() ? 's3' : 'local',
         };
         try {
             const numberColumns =
                 metricQuery.dimensions.length +
                 metricQuery.metrics.length +
-                metricQuery.tableCalculations.length;
+                metricQuery.tableCalculations.length +
+                (metricQuery.customDimensions || []).length;
             const analyticsProperties: DownloadCsv['properties'] = {
                 ...baseAnalyticsProperties,
                 tableId: exploreId,
@@ -679,7 +682,9 @@ export class CsvService {
                 explore,
                 metricQuery.additionalMetrics,
                 metricQuery.tableCalculations,
+                metricQuery.customDimensions,
             );
+
             const truncated = this.couldBeTruncated(rows);
 
             const fileId = await CsvService.writeRowsToFile(
@@ -695,11 +700,11 @@ export class CsvService {
             );
 
             let fileUrl;
-            if (this.s3Service.isEnabled()) {
+            if (this.s3Client.isEnabled()) {
                 const csvContent = await fsPromise.readFile(`/tmp/${fileId}`, {
                     encoding: 'utf-8',
                 });
-                fileUrl = await this.s3Service.uploadCsv(csvContent, fileId);
+                fileUrl = await this.s3Client.uploadCsv(csvContent, fileId);
 
                 await fsPromise.unlink(`/tmp/${fileId}`);
             } else {

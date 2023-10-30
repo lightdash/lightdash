@@ -1,3 +1,67 @@
+## [0.832.6](https://github.com/lightdash/lightdash/compare/0.832.5...0.832.6) (2023-10-30)
+
+
+### Bug Fixes
+
+* reopen google sheet auth issue ([#7716](https://github.com/lightdash/lightdash/issues/7716)) ([0d1000a](https://github.com/lightdash/lightdash/commit/0d1000ad24f5d729b52ef9ffabe9b7dbda070ea4))
+
+## [0.832.5](https://github.com/lightdash/lightdash/compare/0.832.4...0.832.5) (2023-10-30)
+
+
+### Bug Fixes
+
+* duplicated dashboard with filters ([#7726](https://github.com/lightdash/lightdash/issues/7726)) ([ff7f551](https://github.com/lightdash/lightdash/commit/ff7f5514e2874f550fb024efd467ed2d1cf734eb))
+* filter inputs numeric input decimals ([#7728](https://github.com/lightdash/lightdash/issues/7728)) ([603e960](https://github.com/lightdash/lightdash/commit/603e96075b8b1067e6eb6751fd3a62d98aaeafdf))
+
+## [0.832.4](https://github.com/lightdash/lightdash/compare/0.832.3...0.832.4) (2023-10-30)
+
+
+### Bug Fixes
+
+* revert column parsing optimisation ([#7729](https://github.com/lightdash/lightdash/issues/7729)) ([ad6a041](https://github.com/lightdash/lightdash/commit/ad6a041f79b848e7c6d9ae6daffb79b07b43fc5b)), closes [#7680](https://github.com/lightdash/lightdash/issues/7680) [#7624](https://github.com/lightdash/lightdash/issues/7624)
+
+## [0.832.3](https://github.com/lightdash/lightdash/compare/0.832.2...0.832.3) (2023-10-30)
+
+
+### Bug Fixes
+
+* hidden columns in table appearing in downloaded csv ([#7674](https://github.com/lightdash/lightdash/issues/7674)) ([3f00f17](https://github.com/lightdash/lightdash/commit/3f00f17d247e7b14c912acd6b69b7ac2e3a721d4))
+
+## [0.832.2](https://github.com/lightdash/lightdash/compare/0.832.1...0.832.2) (2023-10-30)
+
+
+### Bug Fixes
+
+* readd saved filter overrides ([#7704](https://github.com/lightdash/lightdash/issues/7704)) ([e2d7767](https://github.com/lightdash/lightdash/commit/e2d7767c74b8e380ea7bbe0c24cdb55f1b5fcf13))
+
+## [0.832.1](https://github.com/lightdash/lightdash/compare/0.832.0...0.832.1) (2023-10-30)
+
+
+### Bug Fixes
+
+*  round float custom dimension ([#7669](https://github.com/lightdash/lightdash/issues/7669)) ([ed041b2](https://github.com/lightdash/lightdash/commit/ed041b23b2822e338cafd48d2e43b7f3b994d850))
+
+# [0.832.0](https://github.com/lightdash/lightdash/compare/0.831.0...0.832.0) (2023-10-27)
+
+
+### Features
+
+* add results cache ([#7697](https://github.com/lightdash/lightdash/issues/7697)) ([bdd7d33](https://github.com/lightdash/lightdash/commit/bdd7d335252e1f4135262b1fad36d5790b1fd022))
+
+# [0.831.0](https://github.com/lightdash/lightdash/compare/0.830.0...0.831.0) (2023-10-27)
+
+
+### Features
+
+* filter inputs - date time picker input to mantine ([#7688](https://github.com/lightdash/lightdash/issues/7688)) ([0a559be](https://github.com/lightdash/lightdash/commit/0a559be6f5019bfacb3ad7dc3175a05fcafcae46))
+
+# [0.830.0](https://github.com/lightdash/lightdash/compare/0.829.0...0.830.0) (2023-10-27)
+
+
+### Features
+
+* add custom dimension to csv export ([#7690](https://github.com/lightdash/lightdash/issues/7690)) ([78c26fd](https://github.com/lightdash/lightdash/commit/78c26fd171534e93596a55baf16518fd20e41681))
+
 # [0.829.0](https://github.com/lightdash/lightdash/compare/0.828.0...0.829.0) (2023-10-27)
 
 

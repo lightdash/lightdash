@@ -1,4 +1,8 @@
 import { ResultRow } from '@lightdash/common';
+import {
+    createCustomDimensionChart,
+    testCustomDimensions,
+} from './customDimensions.cy';
 
 const warehouseConfig = {
     postgresSQL: {
@@ -359,6 +363,9 @@ describe('Create projects', () => {
             testFilterStringEscaping(projectUuid);
             testTimeIntervalsResults(projectUuid);
             testPercentile(projectUuid);
+
+            createCustomDimensionChart(projectUuid);
+            testCustomDimensions(projectUuid);
         });
     });
     it('Should create a Redshift project', () => {
@@ -379,6 +386,9 @@ describe('Create projects', () => {
             testFilterStringEscaping(projectUuid);
             testTimeIntervalsResults(projectUuid);
             testPercentile(projectUuid);
+
+            createCustomDimensionChart(projectUuid);
+            testCustomDimensions(projectUuid);
         });
     });
     it('Should create a Bigquery project', () => {
@@ -465,6 +475,9 @@ describe('Create projects', () => {
 
             testTimeIntervalsResults(projectUuid, trinoRowValues);
             testPercentile(projectUuid);
+
+            createCustomDimensionChart(projectUuid);
+            testCustomDimensions(projectUuid);
         });
     });
     it.skip('Should create a Databricks project', () => {
@@ -504,6 +517,9 @@ describe('Create projects', () => {
 
             testTimeIntervalsResults(projectUuid, databricksRowValues);
             testPercentile(projectUuid);
+
+            createCustomDimensionChart(projectUuid);
+            testCustomDimensions(projectUuid);
         });
     });
 
@@ -550,6 +566,9 @@ describe('Create projects', () => {
                 '1,999',
                 '10,999,999',
             ]);
+
+            // createCustomDimensionChart(projectUuid);
+            // testCustomDimensions(projectUuid); // TODO enable after merging rounding fix
         });
     });
 });

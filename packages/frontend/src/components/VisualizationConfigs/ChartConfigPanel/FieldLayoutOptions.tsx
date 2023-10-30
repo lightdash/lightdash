@@ -3,6 +3,7 @@ import {
     CustomDimension,
     Field,
     getItemId,
+    isCustomDimension,
     isDimension,
     isNumericItem,
     replaceStringInArray,
@@ -82,7 +83,9 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
 
     // Group series logic
     const availableDimensions = useMemo(() => {
-        return items.filter((item) => isDimension(item));
+        return items.filter(
+            (item) => isDimension(item) || isCustomDimension(item),
+        );
     }, [items]);
 
     const chartHasMetricOrTableCalc = useMemo(() => {
