@@ -101,8 +101,7 @@ describe('Custom dimensions', () => {
         cy.findByText('Payments').click();
         cy.contains('Amount').trigger('mouseover');
         cy.get('span.mantine-NavLink-rightSection').eq(1).click();
-        cy.findByText('Add custom dimensions').trigger('mouseover');
-        cy.contains('Bin').click();
+        cy.findByText('Add custom dimensions').click();
 
         cy.findByPlaceholderText('Enter custom dimension label').type(
             'amount range',
