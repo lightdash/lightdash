@@ -1,3 +1,10 @@
+## [0.832.1](https://github.com/lightdash/lightdash/compare/0.832.0...0.832.1) (2023-10-30)
+
+
+### Bug Fixes
+
+*  round float custom dimension ([#7669](https://github.com/lightdash/lightdash/issues/7669)) ([ed041b2](https://github.com/lightdash/lightdash/commit/ed041b23b2822e338cafd48d2e43b7f3b994d850))
+
 # [0.832.0](https://github.com/lightdash/lightdash/compare/0.831.0...0.832.0) (2023-10-27)
 
 
