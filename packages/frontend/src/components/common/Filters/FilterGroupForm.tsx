@@ -1,10 +1,10 @@
 import { Divider, HTMLSelect } from '@blueprintjs/core';
 import {
+    createFilterRuleFromField,
+    FilterableField,
     FilterGroup,
     FilterGroupOperator,
     FilterRule,
-    FilterableField,
-    createFilterRuleFromField,
     getFilterGroupItemsPropertyName,
     getItemsFromFilterGroup,
     isAndFilterGroup,
