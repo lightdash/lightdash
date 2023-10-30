@@ -144,7 +144,7 @@ export const getCustomDimensionSql = ({
     compiledMetricQuery: CompiledMetricQuery;
     fieldQuoteChar: string;
     userAttributes: UserAttributeValueMap | undefined;
-    sorts: SortField[];
+    sorts: SortField[] | undefined;
 }):
     | { ctes: string[]; joins: string[]; tables: string[]; selects: string[] }
     | undefined => {
@@ -231,6 +231,8 @@ export const getCustomDimensionSql = ({
             )}_order${fieldQuoteChar}`;
             const cte = `${getCteReference(customDimension)}`;
 
+            // If a custom dimension is sorted, we need to generate a special SQL select that returns a number
+            // and not the range as a string
             const isSorted =
                 sorts.length > 0 &&
                 sorts.find(
@@ -292,8 +294,6 @@ export const getCustomDimensionSql = ({
                     });
 
                     if (isSorted) {
-                        // If a custom dimension is sorted, we need to generate a special sql that returns  a number
-                        // and not the range as a string
                         const sortWhens = Array.from(
                             Array(customDimension.binNumber).keys(),
                         ).map((i) => {
