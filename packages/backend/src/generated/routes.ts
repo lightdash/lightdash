@@ -2167,6 +2167,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CacheMetadata: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                cacheHit: { dataType: 'boolean', required: true },
+                cacheUpdatedTime: { dataType: 'datetime' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiRunQueryResponse: {
         dataType: 'refAlias',
         type: {
@@ -2180,6 +2192,7 @@ const models: TsoaRoute.Models = {
                             array: { dataType: 'any' },
                             required: true,
                         },
+                        cacheMetadata: { ref: 'CacheMetadata', required: true },
                         metricQuery: {
                             ref: 'MetricQueryResponse',
                             required: true,
