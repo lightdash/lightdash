@@ -6,7 +6,7 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
-import { s3Client } from '../../clients/clients';
+import { s3CacheClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import {
     jobModel,
@@ -44,6 +44,7 @@ jest.mock('../../analytics/client', () => ({
         track: jest.fn(),
     },
     s3Client: {},
+    s3CacheClient: {},
 }));
 
 jest.mock('../../clients/clients', () => ({}));
@@ -92,7 +93,7 @@ describe('ProjectService', () => {
         spaceModel,
         sshKeyPairModel,
         userAttributesModel,
-        s3Client,
+        s3CacheClient,
     });
     afterEach(() => {
         jest.clearAllMocks();
