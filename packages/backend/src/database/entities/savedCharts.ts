@@ -168,6 +168,7 @@ export type DbSavedChartCustomDimension = {
     table: string;
     bin_type: string;
     bin_number: number | null;
+    bin_width: number | null;
     order: number;
 };
 export type DbSavedChartCustomDimensionInsert = Omit<

@@ -1,4 +1,5 @@
 import { SEED_PROJECT } from '@lightdash/common';
+import dayjs = require('dayjs');
 import moment = require('moment');
 
 function leadingZero(value: string | number) {
@@ -328,8 +329,7 @@ describe('Date tests', () => {
     });
 
     it('Should keep value when changing date operator', () => {
-        const now = new Date();
-        const todayDate = getLocalISOString(now);
+        const todayDate = new Date();
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/customers`);
 
@@ -342,9 +342,14 @@ describe('Date tests', () => {
         cy.findByPlaceholderText('Search field...').type('created day');
         cy.contains('Created day').click();
 
-        cy.get('.bp4-date-input input').should('have.value', todayDate);
+        cy.get('.mantine-DateInput-root input').should(
+            'have.value',
+            dayjs(todayDate).format('MMMM D, YYYY'),
+        );
         cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('DAY', "customers".created)) = ('${todayDate}')`,
+            `(DATE_TRUNC('DAY', "customers".created)) = ('${getLocalISOString(
+                todayDate,
+            )}')`,
         );
 
         // Change date operator
@@ -360,9 +365,14 @@ describe('Date tests', () => {
             .should('exist');
 
         // Keep same date
-        cy.get('.bp4-date-input input').should('have.value', todayDate);
+        cy.get('.mantine-DateInput-root input').should(
+            'have.value',
+            dayjs(todayDate).format('MMMM D, YYYY'),
+        );
         cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('DAY', "customers".created)) != ('${todayDate}')`,
+            `(DATE_TRUNC('DAY', "customers".created)) != ('${getLocalISOString(
+                todayDate,
+            )}')`,
         );
 
         cy.get('.tabler-icon-x').click({ multiple: true });
@@ -408,20 +418,24 @@ describe('Date tests', () => {
         cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by week
-        function startOfTheWeek(): string {
+        function startOfTheWeek(): Date {
             const curr = new Date();
             const first = curr.getDate() - curr.getDay();
-            const firstday = new Date(curr.setDate(first));
-            return getLocalISOString(firstday);
+            return new Date(curr.setDate(first));
         }
 
         const weekDate = startOfTheWeek();
         cy.findByRole('button', { name: 'Week' }).findByRole('button').click();
         cy.findByRole('menuitem', { name: 'Add filter' }).click();
 
-        cy.get('.bp4-date-input input').should('have.value', weekDate);
+        cy.get('.mantine-DateInput-root input').should(
+            'have.value',
+            dayjs(weekDate).format('MMMM D, YYYY'),
+        );
         cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('WEEK', "orders".order_date)) = ('${weekDate}')`,
+            `(DATE_TRUNC('WEEK', "orders".order_date)) = ('${getLocalISOString(
+                weekDate,
+            )}')`,
         );
         cy.get('.tabler-icon-x').click({ multiple: true });
 
@@ -429,11 +443,16 @@ describe('Date tests', () => {
         cy.findByRole('button', { name: 'Day' }).findByRole('button').click();
         cy.findByRole('menuitem', { name: 'Add filter' }).click();
 
-        const todayDate = getLocalISOString(now.toDate());
+        const todayDate = now.toDate();
 
-        cy.get('.bp4-date-input input').should('have.value', todayDate);
+        cy.get('.mantine-DateInput-root input').should(
+            'have.value',
+            dayjs(todayDate).format('MMMM D, YYYY'),
+        );
         cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('DAY', "orders".order_date)) = ('${todayDate}')`,
+            `(DATE_TRUNC('DAY', "orders".order_date)) = ('${getLocalISOString(
+                todayDate,
+            )}')`,
         );
         cy.get('.tabler-icon-x').click({ multiple: true });
     });

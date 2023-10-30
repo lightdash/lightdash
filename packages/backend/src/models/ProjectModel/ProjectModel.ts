@@ -48,7 +48,6 @@ import {
     DbCachedExplores,
     DbCachedWarehouse,
     DbProject,
-    ProjectTable,
     ProjectTableName,
 } from '../../database/entities/projects';
 import { DbSavedChart } from '../../database/entities/savedCharts';
@@ -56,6 +55,7 @@ import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import Logger from '../../logging/logger';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
+import { wrapOtelSpan } from '../../utils';
 import Transaction = Knex.Transaction;
 
 type ProjectModelDependencies = {
@@ -326,87 +326,103 @@ export class ProjectModel {
                   dbt_version: SupportedDbtVersions;
               }
         )[];
-        const projects = await this.database('projects')
-            .leftJoin(
-                WarehouseCredentialTableName,
-                'warehouse_credentials.project_id',
-                'projects.project_id',
-            )
-            .leftJoin(
-                OrganizationTableName,
-                'organizations.organization_id',
-                'projects.organization_id',
-            )
-            .leftJoin(
-                PinnedListTableName,
-                'pinned_list.project_uuid',
-                'projects.project_uuid',
-            )
-            .column([
-                this.database.ref('name').withSchema(ProjectTableName),
-                this.database.ref('project_type').withSchema(ProjectTableName),
-                this.database
-                    .ref('dbt_connection')
-                    .withSchema(ProjectTableName),
-                this.database
-                    .ref('encrypted_credentials')
-                    .withSchema(WarehouseCredentialTableName),
-                this.database
-                    .ref('warehouse_type')
-                    .withSchema(WarehouseCredentialTableName),
-                this.database
-                    .ref('organization_uuid')
-                    .withSchema(OrganizationTableName),
-                this.database
-                    .ref('pinned_list_uuid')
-                    .withSchema(PinnedListTableName),
-                this.database.ref('dbt_version').withSchema(ProjectTableName),
-            ])
-            .select<QueryResult>()
-            .where('projects.project_uuid', projectUuid);
-        if (projects.length === 0) {
-            throw new NotExistsError(
-                `Cannot find project with id: ${projectUuid}`,
-            );
-        }
-        const [project] = projects;
-        if (!project.dbt_connection) {
-            throw new NotExistsError('Project has no valid dbt credentials');
-        }
-        let dbtSensitiveCredentials: DbtProjectConfig;
-        try {
-            dbtSensitiveCredentials = JSON.parse(
-                this.encryptionService.decrypt(project.dbt_connection),
-            ) as DbtProjectConfig;
-        } catch (e) {
-            throw new UnexpectedServerError('Failed to load dbt credentials');
-        }
-        const result: Omit<Project, 'warehouseConnection'> = {
-            organizationUuid: project.organization_uuid,
-            projectUuid,
-            name: project.name,
-            type: project.project_type,
-            dbtConnection: dbtSensitiveCredentials,
-            pinnedListUuid: project.pinned_list_uuid,
-            dbtVersion: project.dbt_version,
-        };
-        if (!project.warehouse_type) {
-            return result;
-        }
-        let sensitiveCredentials: CreateWarehouseCredentials;
-        try {
-            sensitiveCredentials = JSON.parse(
-                this.encryptionService.decrypt(project.encrypted_credentials),
-            ) as CreateWarehouseCredentials;
-        } catch (e) {
-            throw new UnexpectedServerError(
-                'Failed to load warehouse credentials',
-            );
-        }
-        return {
-            ...result,
-            warehouseConnection: sensitiveCredentials,
-        };
+        return wrapOtelSpan(
+            'ProjectModel.getWithSensitiveFields',
+            {},
+            async () => {
+                const projects = await this.database('projects')
+                    .leftJoin(
+                        WarehouseCredentialTableName,
+                        'warehouse_credentials.project_id',
+                        'projects.project_id',
+                    )
+                    .leftJoin(
+                        OrganizationTableName,
+                        'organizations.organization_id',
+                        'projects.organization_id',
+                    )
+                    .leftJoin(
+                        PinnedListTableName,
+                        'pinned_list.project_uuid',
+                        'projects.project_uuid',
+                    )
+                    .column([
+                        this.database.ref('name').withSchema(ProjectTableName),
+                        this.database
+                            .ref('project_type')
+                            .withSchema(ProjectTableName),
+                        this.database
+                            .ref('dbt_connection')
+                            .withSchema(ProjectTableName),
+                        this.database
+                            .ref('encrypted_credentials')
+                            .withSchema(WarehouseCredentialTableName),
+                        this.database
+                            .ref('warehouse_type')
+                            .withSchema(WarehouseCredentialTableName),
+                        this.database
+                            .ref('organization_uuid')
+                            .withSchema(OrganizationTableName),
+                        this.database
+                            .ref('pinned_list_uuid')
+                            .withSchema(PinnedListTableName),
+                        this.database
+                            .ref('dbt_version')
+                            .withSchema(ProjectTableName),
+                    ])
+                    .select<QueryResult>()
+                    .where('projects.project_uuid', projectUuid);
+                if (projects.length === 0) {
+                    throw new NotExistsError(
+                        `Cannot find project with id: ${projectUuid}`,
+                    );
+                }
+                const [project] = projects;
+                if (!project.dbt_connection) {
+                    throw new NotExistsError(
+                        'Project has no valid dbt credentials',
+                    );
+                }
+                let dbtSensitiveCredentials: DbtProjectConfig;
+                try {
+                    dbtSensitiveCredentials = JSON.parse(
+                        this.encryptionService.decrypt(project.dbt_connection),
+                    ) as DbtProjectConfig;
+                } catch (e) {
+                    throw new UnexpectedServerError(
+                        'Failed to load dbt credentials',
+                    );
+                }
+                const result: Omit<Project, 'warehouseConnection'> = {
+                    organizationUuid: project.organization_uuid,
+                    projectUuid,
+                    name: project.name,
+                    type: project.project_type,
+                    dbtConnection: dbtSensitiveCredentials,
+                    pinnedListUuid: project.pinned_list_uuid,
+                    dbtVersion: project.dbt_version,
+                };
+                if (!project.warehouse_type) {
+                    return result;
+                }
+                let sensitiveCredentials: CreateWarehouseCredentials;
+                try {
+                    sensitiveCredentials = JSON.parse(
+                        this.encryptionService.decrypt(
+                            project.encrypted_credentials,
+                        ),
+                    ) as CreateWarehouseCredentials;
+                } catch (e) {
+                    throw new UnexpectedServerError(
+                        'Failed to load warehouse credentials',
+                    );
+                }
+                return {
+                    ...result,
+                    warehouseConnection: sensitiveCredentials,
+                };
+            },
+        );
     }
 
     async getSummary(projectUuid: string): Promise<ProjectSummary> {

@@ -1,6 +1,5 @@
-import { FormGroup } from '@blueprintjs/core';
+import { Group, Input, NumberInput } from '@mantine/core';
 import React, { FC } from 'react';
-import { MinutesInput } from './CronInput.styles';
 import { getHourlyCronExpression, parseCronExpression } from './cronInputUtils';
 
 const HourlyInputs: FC<{
@@ -11,21 +10,27 @@ const HourlyInputs: FC<{
     const minutes = parseCronExpression(cronExpression).minutes;
 
     const onMinuteChange = (valueAsNumber: number) => {
-        if (valueAsNumber >= 0 && valueAsNumber <= 59) {
+        if (
+            Number.isInteger(valueAsNumber) &&
+            valueAsNumber >= 0 &&
+            valueAsNumber <= 59
+        ) {
             onChange(getHourlyCronExpression(valueAsNumber));
         }
     };
 
     return (
-        <FormGroup inline label={'at minute'} disabled={disabled}>
-            <MinutesInput
+        <Group spacing="xs">
+            <Input.Label>at minute</Input.Label>
+            <NumberInput
                 value={minutes}
-                onValueChange={onMinuteChange}
+                onChange={onMinuteChange}
                 disabled={disabled}
+                w="6xl"
                 min={0}
                 max={59}
             />
-        </FormGroup>
+        </Group>
     );
 };
 export default HourlyInputs;

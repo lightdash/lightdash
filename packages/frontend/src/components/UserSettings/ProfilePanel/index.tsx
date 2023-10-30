@@ -101,7 +101,6 @@ const ProfilePanel: FC = () => {
                     : 'Required fields: first name, last name and email';
             showToastError({
                 title,
-                timeout: 3000,
             });
         }
     });

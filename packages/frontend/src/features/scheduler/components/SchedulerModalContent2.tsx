@@ -41,7 +41,7 @@ const ListStateContent: FC<{
             <Box
                 py="sm"
                 mih={220}
-                px="md"
+                px="sm"
                 sx={(theme) => ({ backgroundColor: theme.colors.gray[2] })}
             >
                 <SchedulersList

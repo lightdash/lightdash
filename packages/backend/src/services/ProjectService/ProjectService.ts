@@ -8,6 +8,7 @@ import {
     ApiSqlQueryResults,
     ChartSummary,
     CompiledDimension,
+    countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
     CreateDbtCloudIntegration,
     CreateJob,
@@ -19,11 +20,11 @@ import {
     DbtProjectType,
     deepEqual,
     DefaultSupportedDbtVersion,
+    DimensionType,
     Explore,
     ExploreError,
     fieldId as getFieldId,
     FilterableField,
-    FilterGroup,
     FilterGroupItem,
     FilterOperator,
     Filters,
@@ -56,7 +57,6 @@ import {
     ProjectMemberRole,
     ProjectType,
     RequestMethod,
-    ResourceViewItemType,
     ResultRow,
     SessionUser,
     SpaceQuery,
@@ -70,16 +70,17 @@ import {
     UserAttributeValueMap,
     WarehouseClient,
     WarehouseTypes,
-    wrapResource,
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
 import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
+import * as crypto from 'crypto';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
 import { analytics } from '../../analytics/client';
 import { QueryExecutionContext } from '../../analytics/LightdashAnalytics';
+import { S3Service } from '../../clients/Aws/s3';
 import { schedulerClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
@@ -96,7 +97,11 @@ import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
 import { ProjectAdapter } from '../../types';
-import { runWorkerThread, wrapSentryTransaction } from '../../utils';
+import {
+    runWorkerThread,
+    wrapOtelSpan,
+    wrapSentryTransaction,
+} from '../../utils';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 import {
     exploreHasFilteredAttribute,
@@ -119,6 +124,7 @@ type ProjectServiceDependencies = {
     spaceModel: SpaceModel;
     sshKeyPairModel: SshKeyPairModel;
     userAttributesModel: UserAttributesModel;
+    s3Client: S3Service;
 };
 
 export class ProjectService {
@@ -140,6 +146,8 @@ export class ProjectService {
 
     userAttributesModel: UserAttributesModel;
 
+    s3Client: S3Service;
+
     constructor({
         projectModel,
         onboardingModel,
@@ -149,6 +157,7 @@ export class ProjectService {
         spaceModel,
         sshKeyPairModel,
         userAttributesModel,
+        s3Client,
     }: ProjectServiceDependencies) {
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
@@ -159,6 +168,7 @@ export class ProjectService {
         this.spaceModel = spaceModel;
         this.sshKeyPairModel = sshKeyPairModel;
         this.userAttributesModel = userAttributesModel;
+        this.s3Client = s3Client;
     }
 
     private async _resolveWarehouseClientSshKeys<
@@ -939,61 +949,83 @@ export class ProjectService {
         context: QueryExecutionContext,
         queryTags?: RunQueryTags,
     ): Promise<ApiQueryResults> {
-        const rows = await this.runMetricQuery(
-            user,
-            metricQuery,
-            projectUuid,
-            exploreName,
-            csvLimit,
-            context,
-            queryTags,
-        );
+        return wrapOtelSpan(
+            'ProjectService.runQueryAndFormatRows',
+            {},
+            async (span) => {
+                const rows = await this.runMetricQuery(
+                    user,
+                    metricQuery,
+                    projectUuid,
+                    exploreName,
+                    csvLimit,
+                    context,
+                    queryTags,
+                );
+                span.setAttribute('rows', rows.length);
 
-        const { warehouseConnection } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+                const { warehouseConnection } =
+                    await this.projectModel.getWithSensitiveFields(projectUuid);
+                if (warehouseConnection) {
+                    span.setAttribute('warehouse', warehouseConnection?.type);
+                }
 
-        const explore = await this.getExplore(user, projectUuid, exploreName);
+                const explore = await this.getExplore(
+                    user,
+                    projectUuid,
+                    exploreName,
+                );
 
-        const itemMap = getItemMap(
-            explore,
-            metricQuery.additionalMetrics,
-            metricQuery.tableCalculations,
-        );
+                const itemMap = getItemMap(
+                    explore,
+                    metricQuery.additionalMetrics,
+                    metricQuery.tableCalculations,
+                );
 
-        // If there are more than 500 rows, we need to format them in a background job
-        const formattedRows = await wrapSentryTransaction<ResultRow[]>(
-            'formatted rows',
-            {
-                rows: rows.length,
-                warehouse: warehouseConnection?.type,
+                // If there are more than 500 rows, we need to format them in a background job
+                const formattedRows = await wrapOtelSpan(
+                    'formatted rows',
+                    {
+                        rows: rows.length,
+                        warehouse: warehouseConnection?.type,
+                    },
+                    async () =>
+                        wrapSentryTransaction<ResultRow[]>(
+                            'formatted rows',
+                            {
+                                rows: rows.length,
+                                warehouse: warehouseConnection?.type,
+                            },
+                            async () =>
+                                rows.length > 500
+                                    ? runWorkerThread<ResultRow[]>(
+                                          new Worker(
+                                              './dist/services/ProjectService/formatRows.js',
+                                              {
+                                                  workerData: {
+                                                      rows,
+                                                      itemMap,
+                                                  },
+                                              },
+                                          ),
+                                      )
+                                    : formatRows(rows, itemMap),
+                        ),
+                );
+
+                return {
+                    rows: formattedRows,
+                    metricQuery,
+                };
             },
-            async () =>
-                rows.length > 500
-                    ? runWorkerThread<ResultRow[]>(
-                          new Worker(
-                              './dist/services/ProjectService/formatRows.js',
-                              {
-                                  workerData: {
-                                      rows,
-                                      itemMap,
-                                  },
-                              },
-                          ),
-                      )
-                    : formatRows(rows, itemMap),
         );
-
-        return {
-            rows: formattedRows,
-            metricQuery,
-        };
     }
 
     async getResultsForChart(
         user: SessionUser,
         chartUuid: string,
     ): Promise<Record<string, any>[]> {
-        const rows = await wrapSentryTransaction(
+        return wrapSentryTransaction(
             'getResultsForChartWithWarehouseQuery',
             {
                 userUuid: user.userUuid,
@@ -1014,8 +1046,102 @@ export class ProjectService {
                 );
             },
         );
+    }
 
-        return rows;
+    private async getResultsFromCacheOrWarehouse({
+        projectUuid,
+        context,
+        warehouseClient,
+        query,
+        metricQuery,
+        queryTags,
+    }: {
+        projectUuid: string;
+        context: QueryExecutionContext;
+        warehouseClient: WarehouseClient;
+        query: any;
+        metricQuery: MetricQuery;
+        queryTags?: RunQueryTags;
+    }): Promise<{
+        fields: Record<
+            string,
+            {
+                type: DimensionType;
+            }
+        >;
+        rows: Record<string, any>[];
+    }> {
+        return wrapOtelSpan(
+            'ProjectService.getResultsFromCacheOrWarehouse',
+            {},
+            async (span) => {
+                // TODO: put this hash function in a util somewhere
+                const queryHash = crypto
+                    .createHash('sha256')
+                    .update(`${projectUuid}.${query}`)
+                    .digest('hex');
+
+                span.setAttribute('queryHash', queryHash);
+                span.setAttribute('cacheHit', false);
+
+                if (lightdashConfig.resultsCache?.enabled) {
+                    const cacheEntryMetadata = await this.s3Client
+                        .getResultsMetadata(queryHash)
+                        .catch((e) => undefined); // ignore since error is tracked in s3Client
+
+                    if (
+                        cacheEntryMetadata?.LastModified &&
+                        new Date().getTime() -
+                            cacheEntryMetadata.LastModified.getTime() <
+                            lightdashConfig.resultsCache.cacheStateTimeSeconds *
+                                1000
+                    ) {
+                        Logger.debug(
+                            `Getting data from cache, key: ${queryHash}`,
+                        );
+                        const cacheEntry = await this.s3Client.getResults(
+                            queryHash,
+                        );
+                        const stringResults =
+                            await cacheEntry.Body?.transformToString();
+                        if (stringResults) {
+                            try {
+                                span.setAttribute('cacheHit', true);
+                                return JSON.parse(stringResults);
+                            } catch (e) {
+                                Logger.error('Error parsing cache results:', e);
+                            }
+                        }
+                    }
+                }
+
+                Logger.debug(`Run query against warehouse warehouse`);
+                const warehouseResults = await wrapOtelSpan(
+                    'runWarehouseQuery',
+                    {
+                        query,
+                        queryTags: JSON.stringify(queryTags),
+                        context,
+                        metricQuery: JSON.stringify(metricQuery),
+                        type: warehouseClient.credentials.type,
+                    },
+                    async () => warehouseClient.runQuery(query, queryTags),
+                );
+
+                if (lightdashConfig.resultsCache?.enabled) {
+                    Logger.debug(`Writing data to cache with key ${queryHash}`);
+                    const buffer = Buffer.from(
+                        JSON.stringify(warehouseResults),
+                    );
+                    // fire and forget
+                    this.s3Client
+                        .uploadResults(queryHash, buffer, queryTags)
+                        .catch((e) => undefined); // ignore since error is tracked in s3Client
+                }
+
+                return warehouseResults;
+            },
+        );
     }
 
     async runMetricQuery(
@@ -1061,6 +1187,7 @@ export class ProjectService {
 
                     const { warehouseClient, sshTunnel } =
                         await this._getWarehouseClient(projectUuid);
+
                     const explore = await this.getExplore(
                         user,
                         projectUuid,
@@ -1145,30 +1272,26 @@ export class ProjectService {
                                     metric.filters.length > 0,
                             ).length,
                             context,
+                            ...countCustomDimensionsInMetricQuery(metricQuery),
                         },
                     });
 
-                    Logger.debug(`Run query against warehouse`);
+                    Logger.debug(`Fetch query results from cache or warehouse`);
                     span.setAttribute('generatedSql', query);
                     span.setAttribute('lightdash.projectUuid', projectUuid);
                     span.setAttribute(
                         'warehouse.type',
                         warehouseClient.credentials.type,
                     );
-                    const { rows } = await wrapSentryTransaction(
-                        'runWarehouseQuery',
-                        {
-                            query,
-                            queryTags,
-                            context,
-                            metricQuery: JSON.stringify(metricQuery),
-                            type: warehouseClient.credentials.type,
-                        },
-                        async () => {
-                            await sshTunnel.testConnection();
-                            return warehouseClient.runQuery(query, queryTags);
-                        },
-                    );
+
+                    const { rows } = await this.getResultsFromCacheOrWarehouse({
+                        projectUuid,
+                        context,
+                        warehouseClient,
+                        metricQuery,
+                        query,
+                        queryTags,
+                    });
                     await sshTunnel.disconnect();
                     return rows;
                 } catch (e) {
@@ -1217,7 +1340,6 @@ export class ProjectService {
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
         };
-        await sshTunnel.testConnection();
         const results = await warehouseClient.runQuery(sql, queryTags);
         await sshTunnel.disconnect();
         return results;
@@ -1328,7 +1450,6 @@ export class ProjectService {
             user_uuid: user.userUuid,
             project_uuid: projectUuid,
         };
-        await sshTunnel.testConnection();
         const { rows } = await warehouseClient.runQuery(query, queryTags);
         await sshTunnel.disconnect();
 
@@ -1718,41 +1839,48 @@ export class ProjectService {
             description: 'Gets a single explore from the cache',
         });
         try {
-            const { organizationUuid } = await this.projectModel.getSummary(
-                projectUuid,
-            );
-            if (
-                user.ability.cannot(
-                    'view',
-                    subject('Project', {
-                        organizationUuid,
+            return await wrapOtelSpan(
+                'ProjectService.getExplore',
+                {},
+                async () => {
+                    const { organizationUuid } =
+                        await this.projectModel.getSummary(projectUuid);
+                    if (
+                        user.ability.cannot(
+                            'view',
+                            subject('Project', {
+                                organizationUuid,
+                                projectUuid,
+                            }),
+                        )
+                    ) {
+                        throw new ForbiddenError();
+                    }
+                    const explore = await this.projectModel.getExploreFromCache(
                         projectUuid,
-                    }),
-                )
-            ) {
-                throw new ForbiddenError();
-            }
-            const explore = await this.projectModel.getExploreFromCache(
-                projectUuid,
-                exploreName,
+                        exploreName,
+                    );
+
+                    if (isExploreError(explore)) {
+                        throw new NotExistsError(
+                            `Explore "${exploreName}" does not exist.`,
+                        );
+                    }
+
+                    if (!exploreHasFilteredAttribute(explore)) {
+                        return explore;
+                    }
+                    const userAttributes =
+                        await this.userAttributesModel.getAttributeValuesForOrgMember(
+                            {
+                                organizationUuid,
+                                userUuid: user.userUuid,
+                            },
+                        );
+
+                    return filterDimensionsFromExplore(explore, userAttributes);
+                },
             );
-
-            if (isExploreError(explore)) {
-                throw new NotExistsError(
-                    `Explore "${exploreName}" does not exist.`,
-                );
-            }
-
-            if (!exploreHasFilteredAttribute(explore)) {
-                return explore;
-            }
-            const userAttributes =
-                await this.userAttributesModel.getAttributeValuesForOrgMember({
-                    organizationUuid,
-                    userUuid: user.userUuid,
-                });
-
-            return filterDimensionsFromExplore(explore, userAttributes);
         } finally {
             span?.finish();
         }

@@ -88,13 +88,6 @@ export const parseCronExpression = (value: string): CronDetails => {
     }
 };
 
-export const getTimePickerValue = (hours: number, minutes: number) => {
-    const date = new Date();
-    date.setHours(hours);
-    date.setMinutes(minutes);
-    return date;
-};
-
 export const getHourlyCronExpression = (minutes: number): string => {
     return [minutes, '*', '*', '*', '*'].join(' ');
 };

@@ -39,7 +39,9 @@ export class SshTunnel<T extends CreateWarehouseCredentials> {
                             privateKey:
                                 this.originalCredentials.sshTunnelPrivateKey ||
                                 '',
+                            reconnect: false,
                         } as SSHConfig;
+
                         this.sshConnection = new SSH2Promise(remoteHostConfig);
                         console.info(
                             `Opening SSH tunnel to remote host: ${this.originalCredentials.host}:${this.originalCredentials.port}`,
@@ -48,6 +50,13 @@ export class SshTunnel<T extends CreateWarehouseCredentials> {
                             remoteAddr: this.originalCredentials.host,
                             remotePort: this.originalCredentials.port,
                         });
+
+                        this.sshConnection.on('tunnel', (message) => {
+                            if (message === 'disconnect') {
+                                console.error('SSH tunnel disconnected');
+                            }
+                        });
+
                         console.info(
                             `SSH tunnel ready at ${sshTunnel.localPort}`,
                         );
@@ -61,6 +70,7 @@ export class SshTunnel<T extends CreateWarehouseCredentials> {
                         console.error(
                             `Failed to connect to remote host: ${this.originalCredentials.host}:${this.originalCredentials.port}`,
                         );
+
                         throw new WarehouseConnectionError(
                             `Could not open SSH tunnel: ${e.message}`,
                         );
@@ -81,26 +91,6 @@ export class SshTunnel<T extends CreateWarehouseCredentials> {
     disconnect = async (): Promise<void> => {
         if (this.sshConnection) {
             await this.sshConnection.close();
-        }
-    };
-
-    testConnection = async (): Promise<void> => {
-        const { type } = this.originalCredentials;
-        switch (type) {
-            case WarehouseTypes.POSTGRES:
-            case WarehouseTypes.REDSHIFT:
-                if (
-                    this.sshConnection &&
-                    this.originalCredentials.useSshTunnel
-                ) {
-                    const port = await this.sshConnection.connect();
-                    if (Object.keys(port.activeTunnels).length === 0) {
-                        throw new Error('No active SSH tunnels');
-                    }
-                }
-                break;
-            default:
-                break;
         }
     };
 }

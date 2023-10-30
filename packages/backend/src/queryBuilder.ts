@@ -152,26 +152,55 @@ export const getCustomDimensionSql = ({
     const getCteReference = (customDimension: CustomDimension) =>
         `${getCustomDimensionId(customDimension)}_cte`;
 
-    const ctes = customDimensions.map((customDimension) => {
-        const dimension = getDimensionFromId(
-            customDimension.dimensionId,
-            explore,
-        );
-        const baseTable = explore.tables[customDimension.table].sqlTable;
-        return ` ${getCteReference(customDimension)} AS (
-            SELECT
-                MIN(${dimension.compiledSql}) AS min_id,
-                MAX(${dimension.compiledSql}) AS max_id,
-                MIN(${dimension.compiledSql}) + (MAX(${
-            dimension.compiledSql
-        }) - MIN(${dimension.compiledSql}) ) as ratio
-            FROM ${baseTable} AS ${fieldQuoteChar}${
-            customDimension.table
-        }${fieldQuoteChar}
-        )`;
-    });
+    const ctes = customDimensions.reduce<string[]>((acc, customDimension) => {
+        switch (customDimension.binType) {
+            case BinType.FIXED_WIDTH:
+                // No need for cte on fixed_width
+                return acc;
+            case BinType.FIXED_NUMBER:
+                const dimension = getDimensionFromId(
+                    customDimension.dimensionId,
+                    explore,
+                );
+                const baseTable =
+                    explore.tables[customDimension.table].sqlTable;
+                const cte = ` ${getCteReference(customDimension)} AS (
+                    SELECT
+                        MIN(${dimension.compiledSql}) AS min_id,
+                        MAX(${dimension.compiledSql}) AS max_id,
+                        MIN(${dimension.compiledSql}) + (MAX(${
+                    dimension.compiledSql
+                }) - MIN(${dimension.compiledSql}) ) as ratio
+                    FROM ${baseTable} AS ${fieldQuoteChar}${
+                    customDimension.table
+                }${fieldQuoteChar}
+                )`;
 
-    const joins = customDimensions.map(getCteReference);
+                return [...acc, cte];
+            default:
+                assertUnreachable(
+                    customDimension.binType,
+                    `Unknown bin type: ${customDimension.binType}`,
+                );
+        }
+        return acc;
+    }, []);
+
+    const joins = customDimensions.reduce<string[]>((acc, customDimension) => {
+        switch (customDimension.binType) {
+            case BinType.FIXED_WIDTH:
+                // No need for cte on fixed_width
+                return acc;
+            case BinType.FIXED_NUMBER:
+                return [...acc, getCteReference(customDimension)];
+            default:
+                assertUnreachable(
+                    customDimension.binType,
+                    `Unknown bin type: ${customDimension.binType}`,
+                );
+        }
+        return acc;
+    }, []);
 
     const tables = customDimensions.map(
         (customDimension) => customDimension.table,
@@ -194,6 +223,18 @@ export const getCustomDimensionSql = ({
             )}${fieldQuoteChar}`;
             const cte = `${getCteReference(customDimension)}`;
             switch (customDimension.binType) {
+                case BinType.FIXED_WIDTH:
+                    if (!customDimension.binWidth) {
+                        throw new Error(
+                            `Undefined binWidth for custom dimension ${BinType.FIXED_WIDTH} `,
+                        );
+                    }
+
+                    const width = customDimension.binWidth;
+                    return [
+                        ...acc,
+                        `    CONCAT(FLOOR(${dimension.compiledSql} / ${width}) * ${width}, '-', (FLOOR(${dimension.compiledSql} / ${width}) + 1) * ${width} - 1) AS ${customDimensionName}`,
+                    ];
                 case BinType.FIXED_NUMBER:
                     if (!customDimension.binNumber) {
                         throw new Error(
@@ -556,13 +597,13 @@ export const buildQuery = ({
     }
 
     const metricQuerySql = [
-        customDimensionSql
+        customDimensionSql && customDimensionSql.ctes.length > 0
             ? `WITH ${customDimensionSql.ctes.join(',\n')}`
             : undefined,
         sqlSelect,
         sqlFrom,
         sqlJoins,
-        customDimensionSql
+        customDimensionSql && customDimensionSql.joins.length > 0
             ? `CROSS JOIN ${customDimensionSql.joins.join(',\n')}`
             : undefined,
         sqlWhere,

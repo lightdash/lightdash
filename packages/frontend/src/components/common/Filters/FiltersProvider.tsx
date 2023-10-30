@@ -8,7 +8,7 @@ import {
     WeekDay,
 } from '@lightdash/common';
 import { uuid4 } from '@sentry/utils';
-import React, { createContext, FC, useCallback, useContext } from 'react';
+import { createContext, FC, useCallback, useContext } from 'react';
 
 export type FieldWithSuggestions = FilterableField & {
     suggestions?: string[];
@@ -19,7 +19,7 @@ export type FieldsWithSuggestions = Record<string, FieldWithSuggestions>;
 type FiltersContext = {
     projectUuid?: string;
     fieldsMap: FieldsWithSuggestions;
-    startOfWeek?: WeekDay | null;
+    startOfWeek?: WeekDay;
     getField: (filterRule: FilterRule) => FieldWithSuggestions | undefined;
     getAutocompleteFilterGroup: (
         filterId: string,
@@ -32,7 +32,7 @@ const Context = createContext<FiltersContext | undefined>(undefined);
 type Props = {
     projectUuid?: string;
     fieldsMap?: Record<string, FieldWithSuggestions>;
-    startOfWeek?: WeekDay | null;
+    startOfWeek?: WeekDay;
     dashboardFilters?: DashboardFilters;
 };
 

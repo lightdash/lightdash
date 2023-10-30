@@ -17,6 +17,13 @@ import { useExplorerContext } from '../../../providers/ExplorerProvider';
 
 // TODO: preview custom dimension results
 
+const sanitizeId = (label: string) => {
+    return label
+        .toLowerCase()
+        .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
+        .replace(/_{2,}/g, '_') // Replace multiple underscores with a single one
+        .replace(/^_|_$/g, ''); // Remove leading and trailing underscores
+};
 export const CustomDimensionModal = () => {
     const MIN_OF_FIXED_NUMBER_BINS = 1;
     const { showToastSuccess } = useToaster();
@@ -46,6 +53,9 @@ export const CustomDimensionModal = () => {
                 fixedNumber: {
                     binNumber: MIN_OF_FIXED_NUMBER_BINS,
                 },
+                fixedWidth: {
+                    binWidth: MIN_OF_FIXED_NUMBER_BINS,
+                },
             },
         },
         validate: {
@@ -56,6 +66,10 @@ export const CustomDimensionModal = () => {
 
                 if (isEditing && label === item.name) {
                     return null;
+                }
+                const sanitizedId = sanitizeId(label);
+                if (/^[0-9]/.test(sanitizedId)) {
+                    return 'Custom dimension label must start with a letter';
                 }
 
                 return customDimensions?.some(
@@ -75,18 +89,19 @@ export const CustomDimensionModal = () => {
             setFieldValue('binType', item.binType);
             setFieldValue(
                 'binConfig.fixedNumber.binNumber',
-                item.binNumber ? +item.binNumber : MIN_OF_FIXED_NUMBER_BINS,
+                item.binNumber ? item.binNumber : MIN_OF_FIXED_NUMBER_BINS,
+            );
+
+            setFieldValue(
+                'binConfig.fixedWidth.binWidth',
+                item.binWidth ? item.binWidth : MIN_OF_FIXED_NUMBER_BINS,
             );
         }
     }, [setFieldValue, item, isEditing]);
 
     const handleOnSubmit = form.onSubmit((values) => {
         if (item) {
-            const sanitizedId = values.customDimensionLabel
-                .toLowerCase()
-                .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
-                .replace(/_{2,}/g, '_') // Replace multiple underscores with a single one
-                .replace(/^_|_$/g, ''); // Remove leading and trailing underscores
+            const sanitizedId = sanitizeId(values.customDimensionLabel);
 
             if (isEditing && isCustomDimension(item)) {
                 editCustomDimension(
@@ -96,6 +111,7 @@ export const CustomDimensionModal = () => {
                         dimensionId: item.dimensionId,
                         binType: values.binType,
                         binNumber: values.binConfig.fixedNumber.binNumber,
+                        binWidth: values.binConfig.fixedWidth.binWidth,
                         table: item.table,
                     },
                     item.name,
@@ -111,6 +127,7 @@ export const CustomDimensionModal = () => {
                     dimensionId: fieldId(item),
                     binType: values.binType,
                     binNumber: values.binConfig.fixedNumber.binNumber,
+                    binWidth: values.binConfig.fixedWidth.binWidth,
                     table: item.table,
 
                     // TODO: consider renaming some properties to match `addCustomMetric` logic
@@ -162,13 +179,10 @@ export const CustomDimensionModal = () => {
                                 value={BinType.FIXED_NUMBER}
                                 label="Fixed number of bins"
                             />
-                            <Tooltip label="Coming soon">
-                                <Radio
-                                    disabled
-                                    value="fixed width"
-                                    label="Fixed Width"
-                                />
-                            </Tooltip>
+                            <Radio
+                                value={BinType.FIXED_WIDTH}
+                                label="Fixed Width"
+                            />
                             <Tooltip label="Coming soon">
                                 <Radio
                                     disabled
@@ -188,6 +202,19 @@ export const CustomDimensionModal = () => {
                             type="number"
                             {...form.getInputProps(
                                 'binConfig.fixedNumber.binNumber',
+                            )}
+                        />
+                    )}
+
+                    {form.values.binType === BinType.FIXED_WIDTH && (
+                        <NumberInput
+                            w={100}
+                            label="Bin width"
+                            required
+                            min={MIN_OF_FIXED_NUMBER_BINS}
+                            type="number"
+                            {...form.getInputProps(
+                                'binConfig.fixedWidth.binWidth',
                             )}
                         />
                     )}

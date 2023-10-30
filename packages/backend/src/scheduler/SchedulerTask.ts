@@ -41,6 +41,7 @@ import {
 import {
     emailClient,
     googleDriveClient,
+    s3Client as s3Service,
     schedulerClient,
     slackClient,
 } from '../clients/clients';
@@ -55,7 +56,6 @@ import {
     csvService,
     dashboardService,
     projectService,
-    s3Service,
     schedulerService,
     unfurlService,
     userService,

@@ -1,4 +1,4 @@
-import { diag, DiagConsoleLogger } from '@opentelemetry/api';
+import opentelemetry, { diag, DiagConsoleLogger } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { ExpressLayerType } from '@opentelemetry/instrumentation-express';
@@ -13,6 +13,7 @@ import {
     SemanticAttributes,
     SemanticResourceAttributes,
 } from '@opentelemetry/semantic-conventions';
+import { VERSION } from './version';
 
 // Default to no telemetry
 process.env.OTEL_SDK_DISABLED = process.env.OTEL_SDK_DISABLED || 'true';
@@ -124,5 +125,10 @@ try {
 } catch (e) {
     diag.error('Error starting OpenTelemetry SDK. No telemetry exporting', e);
 }
+
+export const serverTracer = opentelemetry.trace.getTracer(
+    'lightdash-server',
+    VERSION,
+);
 
 export default sdk;

@@ -1,3 +1,134 @@
+# [0.832.0](https://github.com/lightdash/lightdash/compare/0.831.0...0.832.0) (2023-10-27)
+
+
+### Features
+
+* add results cache ([#7697](https://github.com/lightdash/lightdash/issues/7697)) ([bdd7d33](https://github.com/lightdash/lightdash/commit/bdd7d335252e1f4135262b1fad36d5790b1fd022))
+
+# [0.831.0](https://github.com/lightdash/lightdash/compare/0.830.0...0.831.0) (2023-10-27)
+
+
+### Features
+
+* filter inputs - date time picker input to mantine ([#7688](https://github.com/lightdash/lightdash/issues/7688)) ([0a559be](https://github.com/lightdash/lightdash/commit/0a559be6f5019bfacb3ad7dc3175a05fcafcae46))
+
+# [0.830.0](https://github.com/lightdash/lightdash/compare/0.829.0...0.830.0) (2023-10-27)
+
+
+### Features
+
+* add custom dimension to csv export ([#7690](https://github.com/lightdash/lightdash/issues/7690)) ([78c26fd](https://github.com/lightdash/lightdash/commit/78c26fd171534e93596a55baf16518fd20e41681))
+
+# [0.829.0](https://github.com/lightdash/lightdash/compare/0.828.0...0.829.0) (2023-10-27)
+
+
+### Features
+
+* filter inputs - date picker input to mantine ([#7651](https://github.com/lightdash/lightdash/issues/7651)) ([309903e](https://github.com/lightdash/lightdash/commit/309903ed160390185fa16c4f389795c6b554a6a7))
+
+# [0.828.0](https://github.com/lightdash/lightdash/compare/0.827.0...0.828.0) (2023-10-27)
+
+
+### Features
+
+* scheduled deliveries list in mantine ([#7668](https://github.com/lightdash/lightdash/issues/7668)) ([7f46e55](https://github.com/lightdash/lightdash/commit/7f46e5566f0ddd4e38362015d85b58f6c0f8d2e6))
+
+# [0.827.0](https://github.com/lightdash/lightdash/compare/0.826.3...0.827.0) (2023-10-27)
+
+
+### Features
+
+* filter inputs - week picker in mantine ([#7504](https://github.com/lightdash/lightdash/issues/7504)) ([5248728](https://github.com/lightdash/lightdash/commit/524872846c639467ecb43ed6f00219aabe974107))
+
+## [0.826.3](https://github.com/lightdash/lightdash/compare/0.826.2...0.826.3) (2023-10-27)
+
+
+### Bug Fixes
+
+* update dbt json schema v10 ([#7679](https://github.com/lightdash/lightdash/issues/7679)) ([28aa71d](https://github.com/lightdash/lightdash/commit/28aa71dd15f1d1d2cb957e9463e3ba88e900f74e))
+
+## [0.826.2](https://github.com/lightdash/lightdash/compare/0.826.1...0.826.2) (2023-10-27)
+
+
+### Bug Fixes
+
+* remove custom dimension submenu ([#7676](https://github.com/lightdash/lightdash/issues/7676)) ([1c566db](https://github.com/lightdash/lightdash/commit/1c566dbe62696c914dd7627a2a3bbb4848040b46))
+
+## [0.826.1](https://github.com/lightdash/lightdash/compare/0.826.0...0.826.1) (2023-10-26)
+
+
+### Bug Fixes
+
+* parse bignumeric in bigquery ([#7680](https://github.com/lightdash/lightdash/issues/7680)) ([4132c2c](https://github.com/lightdash/lightdash/commit/4132c2cb529718ecbf0ad6480ea871967c553cf7))
+
+# [0.826.0](https://github.com/lightdash/lightdash/compare/0.825.1...0.826.0) (2023-10-26)
+
+
+### Features
+
+* add otel traces to metric query functions ([#7649](https://github.com/lightdash/lightdash/issues/7649)) ([d1cc49a](https://github.com/lightdash/lightdash/commit/d1cc49a2323846417a384bf688d906d9b527d54d))
+
+## [0.825.1](https://github.com/lightdash/lightdash/compare/0.825.0...0.825.1) (2023-10-26)
+
+
+### Bug Fixes
+
+* scheduled deliveries message value ([#7670](https://github.com/lightdash/lightdash/issues/7670)) ([9188cd9](https://github.com/lightdash/lightdash/commit/9188cd996a7a0a30e1331dea7abf3e2ea2851335))
+
+# [0.825.0](https://github.com/lightdash/lightdash/compare/0.824.3...0.825.0) (2023-10-26)
+
+
+### Features
+
+* custom dimension bin width ([#7619](https://github.com/lightdash/lightdash/issues/7619)) ([c2e51f9](https://github.com/lightdash/lightdash/commit/c2e51f97ed2eee48b95c9fc9da19c4ca602a0d34)), closes [#7639](https://github.com/lightdash/lightdash/issues/7639)
+
+## [0.824.3](https://github.com/lightdash/lightdash/compare/0.824.2...0.824.3) (2023-10-26)
+
+
+### Bug Fixes
+
+* ssh reconnect ([#7653](https://github.com/lightdash/lightdash/issues/7653)) ([6182b49](https://github.com/lightdash/lightdash/commit/6182b49a5f098230f8b5c7fa9cadf2ab47bc1d56))
+
+## [0.824.2](https://github.com/lightdash/lightdash/compare/0.824.1...0.824.2) (2023-10-25)
+
+
+### Bug Fixes
+
+* page scroll with sidebar open ([#7659](https://github.com/lightdash/lightdash/issues/7659)) ([434645d](https://github.com/lightdash/lightdash/commit/434645d5bdb8e3baa0ea5df62a8dce511ff4ad58))
+
+## [0.824.1](https://github.com/lightdash/lightdash/compare/0.824.0...0.824.1) (2023-10-25)
+
+
+### Bug Fixes
+
+* increase error alert timeout to 1 minute ([#7647](https://github.com/lightdash/lightdash/issues/7647)) ([ef06563](https://github.com/lightdash/lightdash/commit/ef06563aea1c76d10a80de4c4507e37cd37253f2))
+
+# [0.824.0](https://github.com/lightdash/lightdash/compare/0.823.1...0.824.0) (2023-10-25)
+
+
+### Bug Fixes
+
+* only parse necessary columns ([#7624](https://github.com/lightdash/lightdash/issues/7624)) ([4be3e39](https://github.com/lightdash/lightdash/commit/4be3e3906db056f13fc1863fb213385093f64b46))
+
+
+### Features
+
+* chart version history ([#7629](https://github.com/lightdash/lightdash/issues/7629)) ([ae81052](https://github.com/lightdash/lightdash/commit/ae81052a1f33ee5580c18db136ac38fb83f1fe15))
+
+## [0.823.1](https://github.com/lightdash/lightdash/compare/0.823.0...0.823.1) (2023-10-25)
+
+
+### Bug Fixes
+
+* incorrect tooltip position in config ([#7643](https://github.com/lightdash/lightdash/issues/7643)) ([1fb23a4](https://github.com/lightdash/lightdash/commit/1fb23a4a259c9b46e392f4fc4288549b64207455))
+
+# [0.823.0](https://github.com/lightdash/lightdash/compare/0.822.0...0.823.0) (2023-10-25)
+
+
+### Features
+
+* update cron inputs in new scheduled deliveries ([#7621](https://github.com/lightdash/lightdash/issues/7621)) ([b957f6b](https://github.com/lightdash/lightdash/commit/b957f6b7bbba41b445c2cc95ecbd25e3e368e209))
+
 # [0.822.0](https://github.com/lightdash/lightdash/compare/0.821.0...0.822.0) (2023-10-24)
 
 

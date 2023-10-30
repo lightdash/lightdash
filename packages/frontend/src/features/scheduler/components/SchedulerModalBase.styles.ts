@@ -1,4 +1,4 @@
-import { Card, H5, HTMLSelect } from '@blueprintjs/core';
+import { HTMLSelect } from '@blueprintjs/core';
 import { IconMail } from '@tabler/icons-react';
 import styled from 'styled-components';
 import { ReactComponent as SlackSvg } from '../../../svgs/slack.svg';
@@ -22,24 +22,6 @@ export const TargetRow = styled.div`
         margin-bottom: 0;
         flex: 1;
     }
-`;
-
-export const SchedulerContainer = styled(Card)`
-    display: flex;
-    flex-direction: column;
-    padding: 5px 10px 11px;
-    margin-bottom: 10px;
-`;
-
-export const SchedulerName = styled(H5)`
-    font-size: 14px !important;
-    flex: 1;
-    margin: 0;
-`;
-
-export const SchedulerDetailsContainer = styled.div`
-    display: flex;
-    align-items: center;
 `;
 
 export const Title = styled.p`

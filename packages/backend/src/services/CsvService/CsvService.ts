@@ -10,6 +10,7 @@ import {
     ForbiddenError,
     formatItemValue,
     friendlyName,
+    getCustomDimensionId,
     getCustomLabelsFromTableConfig,
     getDashboardFiltersForTile,
     getItemLabel,
@@ -216,6 +217,7 @@ export class CsvService {
             ...metricQuery.metrics,
             ...metricQuery.dimensions,
             ...metricQuery.tableCalculations.map((tc: any) => tc.name),
+            ...(metricQuery.customDimensions?.map(getCustomDimensionId) || []),
         ];
         Logger.debug(
             `writeRowsToFile with ${rows.length} rows and ${selectedFieldIds.length} columns`,
@@ -644,7 +646,8 @@ export class CsvService {
             const numberColumns =
                 metricQuery.dimensions.length +
                 metricQuery.metrics.length +
-                metricQuery.tableCalculations.length;
+                metricQuery.tableCalculations.length +
+                (metricQuery.customDimensions || []).length;
             const analyticsProperties: DownloadCsv['properties'] = {
                 ...baseAnalyticsProperties,
                 tableId: exploreId,
@@ -679,7 +682,9 @@ export class CsvService {
                 explore,
                 metricQuery.additionalMetrics,
                 metricQuery.tableCalculations,
+                metricQuery.customDimensions,
             );
+
             const truncated = this.couldBeTruncated(rows);
 
             const fileId = await CsvService.writeRowsToFile(

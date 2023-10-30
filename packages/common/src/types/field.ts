@@ -79,8 +79,8 @@ export function findCompactConfig(
 
 export enum BinType {
     FIXED_NUMBER = 'fixed_number',
+    FIXED_WIDTH = 'fixed_width',
     // TODO not supported yet
-    // FIXED_WIDTH = 'fixed_width',
     // CUSTOM_RANGE = 'custom_range',
 }
 export interface CustomDimension {
@@ -90,7 +90,7 @@ export interface CustomDimension {
     table: string; // Table of parent dimension
     binType: BinType;
     binNumber?: number;
-    // binWidth?: number;
+    binWidth?: number;
     // binRange?: BinRange[];
 }
 
