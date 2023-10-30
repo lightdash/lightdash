@@ -19,9 +19,11 @@ import {
     getFilterRulesFromGroup,
     getMetrics,
     isAndFilterGroup,
+    isCustomDimension,
     isFilterGroup,
     parseAllReferences,
     renderFilterRuleSql,
+    SortField,
     SupportedDbtAdapter,
     UserAttributeValueMap,
     WarehouseClient,
@@ -136,11 +138,13 @@ export const getCustomDimensionSql = ({
     compiledMetricQuery,
     fieldQuoteChar,
     userAttributes = {},
+    sorts = [],
 }: {
     explore: Explore;
     compiledMetricQuery: CompiledMetricQuery;
     fieldQuoteChar: string;
     userAttributes: UserAttributeValueMap | undefined;
+    sorts: SortField[];
 }):
     | { ctes: string[]; joins: string[]; tables: string[]; selects: string[] }
     | undefined => {
@@ -205,6 +209,7 @@ export const getCustomDimensionSql = ({
     const tables = customDimensions.map(
         (customDimension) => customDimension.table,
     );
+
     const selects = customDimensions.reduce<string[]>(
         (acc, customDimension) => {
             const dimension = getDimensionFromId(
@@ -221,6 +226,9 @@ export const getCustomDimensionSql = ({
             const customDimensionName = `${fieldQuoteChar}${getCustomDimensionId(
                 customDimension,
             )}${fieldQuoteChar}`;
+            const customDimensionOrder = `${fieldQuoteChar}${getCustomDimensionId(
+                customDimension,
+            )}_order${fieldQuoteChar}`;
             const cte = `${getCteReference(customDimension)}`;
             switch (customDimension.binType) {
                 case BinType.FIXED_WIDTH:
@@ -242,7 +250,6 @@ export const getCustomDimensionSql = ({
                         );
                     }
 
-                    // TODO test this on other warehouses
                     const ratio = `${cte}.ratio`;
 
                     if (customDimension.binNumber <= 1) {
@@ -252,24 +259,67 @@ export const getCustomDimensionSql = ({
                             `CONCAT(${cte}.min_id, '-', ${cte}.max_id) AS ${customDimensionName}`,
                         ];
                     }
+
+                    const from = (i: number) =>
+                        `${ratio} * ${i} / ${customDimension.binNumber}`;
+                    const to = (i: number) =>
+                        `${ratio} * ${i + 1} / ${customDimension.binNumber}`;
                     const whens = Array.from(
-                        Array(customDimension.binNumber - 1).keys(),
+                        Array(customDimension.binNumber).keys(),
                     ).map((i) => {
-                        const from = `${ratio} * ${i} / ${customDimension.binNumber}`;
-                        const to = `${ratio} * ${i + 1} / ${
-                            customDimension.binNumber
-                        }`;
-                        return `WHEN ${dimension.compiledSql} >= ${from} AND ${dimension.compiledSql} < ${to} THEN CONCAT(${from}, '-', ${to})`;
+                        if (i !== customDimension.binNumber! - 1) {
+                            return `WHEN ${dimension.compiledSql} >= ${from(
+                                i,
+                            )} AND ${dimension.compiledSql} < ${to(
+                                i,
+                            )} THEN CONCAT(${from(i)}, '-', ${to(i)})`;
+                        }
+                        return `ELSE CONCAT(${from(i)}, '-', ${cte}.max_id)`;
                     });
+
+                    if (
+                        sorts.length > 0 &&
+                        sorts.find(
+                            (sortField) =>
+                                getCustomDimensionId(customDimension) ===
+                                sortField.fieldId,
+                        )
+                    ) {
+                        // If a custom dimension is sorted, we need to generate a special sql that returns  a number
+                        // and not the range as a string
+                        const sortWhens = Array.from(
+                            Array(customDimension.binNumber).keys(),
+                        ).map((i) => {
+                            if (i !== customDimension.binNumber! - 1) {
+                                return `WHEN ${dimension.compiledSql} >= ${from(
+                                    i,
+                                )} AND ${dimension.compiledSql} < ${to(
+                                    i,
+                                )} THEN ${i}`;
+                            }
+                            return `ELSE ${i}`;
+                        });
+
+                        return [
+                            ...acc,
+                            `CASE
+                            ${whens.join('\n')}
+                            END
+                            AS ${customDimensionName}`,
+                            `CASE
+                            ${sortWhens.join('\n')}
+                            END 
+                            AS ${customDimensionOrder}`,
+                        ];
+                    }
+
                     return [
                         ...acc,
                         `CASE
-                    ${whens.join('\n')}
-                    ELSE CONCAT(${ratio} * ${customDimension.binNumber - 1} / ${
-                            customDimension.binNumber
-                        }, '-', ${cte}.max_id) END
-                    AS ${customDimensionName}
-                `,
+                        ${whens.join('\n')}
+                        END
+                        AS ${customDimensionName}
+                    `,
                     ];
 
                 default:
@@ -294,8 +344,15 @@ export const buildQuery = ({
 }: BuildQueryProps): { query: string; hasExampleMetric: boolean } => {
     let hasExampleMetric: boolean = false;
     const adapterType: SupportedDbtAdapter = warehouseClient.getAdapterType();
-    const { dimensions, metrics, filters, sorts, limit, additionalMetrics } =
-        compiledMetricQuery;
+    const {
+        dimensions,
+        metrics,
+        filters,
+        sorts,
+        limit,
+        additionalMetrics,
+        customDimensions,
+    } = compiledMetricQuery;
     const baseTable = explore.tables[explore.baseTable].sqlTable;
     const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
     const stringQuoteChar = warehouseClient.getStringQuoteChar();
@@ -319,6 +376,7 @@ export const buildQuery = ({
         compiledMetricQuery,
         fieldQuoteChar,
         userAttributes,
+        sorts,
     });
 
     const sqlFrom = `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
@@ -463,15 +521,27 @@ export const buildQuery = ({
         groups.length > 0
             ? `GROUP BY ${groups.map((val, i) => i + 1).join(',')}`
             : '';
-    const fieldOrders = sorts.map(
-        (sort) =>
-            `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar}${
+    const fieldOrders = sorts.map((sort) => {
+        if (
+            customDimensions &&
+            customDimensions.find(
+                (customDimension) =>
+                    getCustomDimensionId(customDimension) === sort.fieldId,
+            )
+        ) {
+            // Custom dimensions will have a separate `select` for ordering,
+            // that returns the min value (int) of the bin, rather than a string,
+            // so we can use it for sorting
+            return `${fieldQuoteChar}${sort.fieldId}_order${fieldQuoteChar}${
                 sort.descending ? ' DESC' : ''
-            }`,
-    );
+            }`;
+        }
+        return `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar}${
+            sort.descending ? ' DESC' : ''
+        }`;
+    });
     const sqlOrderBy =
         fieldOrders.length > 0 ? `ORDER BY ${fieldOrders.join(', ')}` : '';
-
     const sqlFilterRule = (filter: FilterRule, fieldType: FieldType) => {
         const field =
             fieldType === FieldType.DIMENSION

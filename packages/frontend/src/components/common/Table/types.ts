@@ -1,4 +1,5 @@
 import {
+    CustomDimension,
     Field,
     PivotReference,
     ResultRow,
@@ -32,7 +33,7 @@ export type TableColumn = ColumnDef<ResultRow, ResultRow[0]> & {
         isInvalidItem?: boolean;
         width?: number;
         draggable?: boolean;
-        item?: Field | TableCalculation;
+        item?: Field | TableCalculation | CustomDimension;
         pivotReference?: PivotReference;
         bgColor?: string;
         sort?: Sort;

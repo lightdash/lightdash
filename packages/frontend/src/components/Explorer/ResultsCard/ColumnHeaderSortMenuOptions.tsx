@@ -1,4 +1,5 @@
 import {
+    CustomDimension,
     Field,
     getItemId,
     SortField,
@@ -17,7 +18,7 @@ import MantineIcon from '../../common/MantineIcon';
 import { BolderLabel } from './ColumnHeaderContextMenu.styles';
 
 type Props = {
-    item: Field | TableCalculation;
+    item: Field | TableCalculation | CustomDimension;
     sort: SortField | undefined;
 };
 
