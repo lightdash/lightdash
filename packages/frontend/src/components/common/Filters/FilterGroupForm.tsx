@@ -1,10 +1,10 @@
 import { Divider, HTMLSelect } from '@blueprintjs/core';
 import {
-    createFilterRuleFromField,
-    FilterableField,
     FilterGroup,
     FilterGroupOperator,
     FilterRule,
+    FilterableField,
+    createFilterRuleFromField,
     getFilterGroupItemsPropertyName,
     getItemsFromFilterGroup,
     isAndFilterGroup,
@@ -185,7 +185,7 @@ const FilterGroupForm: FC<Props> = ({
                     leftIcon={<MantineIcon icon={IconPlus} />}
                     onClick={onAddFilterRule}
                 >
-                    Add filter
+                    Add group rule
                 </Button>
             )}
         </FilterGroupWrapper>
