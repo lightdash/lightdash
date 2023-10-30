@@ -1848,48 +1848,45 @@ export class ProjectService {
             description: 'Gets a single explore from the cache',
         });
         try {
-            return await wrapOtelSpan(
-                'ProjectService.getExplore',
-                {},
-                async () => {
-                    const { organizationUuid } =
-                        await this.projectModel.getSummary(projectUuid);
-                    if (
-                        user.ability.cannot(
-                            'view',
-                            subject('Project', {
-                                organizationUuid,
-                                projectUuid,
-                            }),
-                        )
-                    ) {
-                        throw new ForbiddenError();
-                    }
-                    const explore = await this.projectModel.getExploreFromCache(
-                        projectUuid,
-                        exploreName,
+            return wrapOtelSpan('ProjectService.getExplore', {}, async () => {
+                const { organizationUuid } = await this.projectModel.getSummary(
+                    projectUuid,
+                );
+                if (
+                    user.ability.cannot(
+                        'view',
+                        subject('Project', {
+                            organizationUuid,
+                            projectUuid,
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError();
+                }
+                const explore = await this.projectModel.getExploreFromCache(
+                    projectUuid,
+                    exploreName,
+                );
+
+                if (isExploreError(explore)) {
+                    throw new NotExistsError(
+                        `Explore "${exploreName}" does not exist.`,
+                    );
+                }
+
+                if (!exploreHasFilteredAttribute(explore)) {
+                    return explore;
+                }
+                const userAttributes =
+                    await this.userAttributesModel.getAttributeValuesForOrgMember(
+                        {
+                            organizationUuid,
+                            userUuid: user.userUuid,
+                        },
                     );
 
-                    if (isExploreError(explore)) {
-                        throw new NotExistsError(
-                            `Explore "${exploreName}" does not exist.`,
-                        );
-                    }
-
-                    if (!exploreHasFilteredAttribute(explore)) {
-                        return explore;
-                    }
-                    const userAttributes =
-                        await this.userAttributesModel.getAttributeValuesForOrgMember(
-                            {
-                                organizationUuid,
-                                userUuid: user.userUuid,
-                            },
-                        );
-
-                    return filterDimensionsFromExplore(explore, userAttributes);
-                },
-            );
+                return filterDimensionsFromExplore(explore, userAttributes);
+            });
         } finally {
             span?.finish();
         }
