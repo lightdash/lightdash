@@ -1,3 +1,11 @@
+## [0.832.5](https://github.com/lightdash/lightdash/compare/0.832.4...0.832.5) (2023-10-30)
+
+
+### Bug Fixes
+
+* duplicated dashboard with filters ([#7726](https://github.com/lightdash/lightdash/issues/7726)) ([ff7f551](https://github.com/lightdash/lightdash/commit/ff7f5514e2874f550fb024efd467ed2d1cf734eb))
+* filter inputs numeric input decimals ([#7728](https://github.com/lightdash/lightdash/issues/7728)) ([603e960](https://github.com/lightdash/lightdash/commit/603e96075b8b1067e6eb6751fd3a62d98aaeafdf))
+
 ## [0.832.4](https://github.com/lightdash/lightdash/compare/0.832.3...0.832.4) (2023-10-30)
 
 
