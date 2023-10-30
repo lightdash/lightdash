@@ -7,7 +7,6 @@ import {
     isDimension,
     isField,
     isFilterRule,
-    isWeekDay,
     parseDate,
     TimeFrames,
 } from '@lightdash/common';
@@ -19,14 +18,12 @@ import WeekPicker from '../../WeekPicker';
 import YearInput from '../../YearInput';
 import { useFiltersContext } from '../FiltersProvider';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
-import DatePicker from './DatePicker';
-import DateTimePicker from './DateTimePicker';
-import { getFirstDayOfWeek, normalizeWeekDay } from './dateUtils';
+import { getFirstDayOfWeek } from './dateUtils';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
-import {
-    MultipleInputsWrapper,
-    StyledDateRangeInput,
-} from './FilterInputs.styles';
+import FilterDatePicker from './FilterDatePicker';
+import FilterDatePickerRange from './FilterDatePickerRange';
+import FilterDateTimePicker from './FilterDateTimePicker';
+import FilterDateTimePickerRange from './FilterDateTimePickerRange';
 import UnitOfTimeAutoComplete from './UnitOfTimeAutoComplete';
 
 const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
@@ -181,7 +178,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
 
             if (isTimestamp) {
                 return (
-                    <DateTimePicker
+                    <FilterDateTimePicker
                         disabled={disabled}
                         placeholder={placeholder}
                         withSeconds
@@ -211,7 +208,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
             }
 
             return (
-                <DatePicker
+                <FilterDatePicker
                     disabled={disabled}
                     placeholder={placeholder}
                     // FIXME: mantine v7
@@ -302,137 +299,50 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
         case FilterOperator.IN_BETWEEN:
             if (isTimestamp) {
                 return (
-                    <MultipleInputsWrapper>
-                        <StyledDateRangeInput
-                            allowSingleDayRange
-                            className={disabled ? 'disabled-filter' : ''}
-                            disabled={disabled}
-                            formatDate={(value: Date) =>
-                                moment(value)
-                                    .format(`YYYY-MM-DD, HH:mm:ss:SSS`)
-                                    .toString()
-                            }
-                            parseDate={(value) =>
-                                moment(
-                                    value,
-                                    `YYYY-MM-DD, HH:mm:ss:SSS`,
-                                ).toDate()
-                            }
-                            value={[
-                                rule.values?.[0]
-                                    ? new Date(rule.values?.[0])
-                                    : null,
-                                rule.values?.[1]
-                                    ? new Date(rule.values?.[1])
-                                    : null,
-                            ]}
-                            timePrecision="millisecond"
-                            onChange={(
-                                range: [Date | null, Date | null] | null,
-                            ) => {
-                                if (range && (range[0] || range[1])) {
-                                    onChange({
-                                        ...rule,
-                                        values: [range[0], range[1]],
-                                    });
-                                }
-                            }}
-                            popoverProps={{
-                                placement: 'bottom',
-                                ...popoverProps,
-                            }}
-                            dayPickerProps={{
-                                firstDayOfWeek: isWeekDay(startOfWeek)
-                                    ? normalizeWeekDay(startOfWeek)
-                                    : undefined,
-                            }}
-                            closeOnSelection={false}
-                            shortcuts={false}
-                            maxDate={moment(new Date())
-                                .add(7, 'years')
-                                .toDate()}
-                        />
-                    </MultipleInputsWrapper>
+                    <FilterDateTimePickerRange
+                        disabled={disabled}
+                        firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
+                        value={
+                            rule.values && rule.values[0] && rule.values[1]
+                                ? [rule.values[0], rule.values[1]]
+                                : null
+                        }
+                        // FIXME: remove this once we migrate off of Blueprint
+                        // we are doing type conversion here because Blueprint expects DOM element
+                        // Mantine does not provide a DOM element on onOpen/onClose
+                        popoverProps={{
+                            onOpen: () => popoverProps?.onOpened?.(null as any),
+                            onClose: () => popoverProps?.onClose?.(null as any),
+                        }}
+                        onChange={(value: [Date, Date] | null) => {
+                            if (!value) return;
+                            onChange({ ...rule, values: value });
+                        }}
+                    />
                 );
             }
 
             return (
-                <MultipleInputsWrapper>
-                    <StyledDateRangeInput
-                        className={disabled ? 'disabled-filter' : ''}
-                        placeholder={placeholder}
-                        disabled={disabled}
-                        formatDate={(value: Date) =>
-                            formatDate(value, undefined, false)
-                        }
-                        parseDate={parseDate}
-                        value={[
-                            rule.values?.[0]
-                                ? parseDate(
-                                      formatDate(
-                                          rule.values?.[0],
-                                          undefined,
-                                          false,
-                                      ),
-                                      TimeFrames.DAY,
-                                  )
-                                : null,
-                            rule.values?.[1]
-                                ? parseDate(
-                                      formatDate(
-                                          rule.values?.[1],
-                                          undefined,
-                                          false,
-                                      ),
-                                      TimeFrames.DAY,
-                                  )
-                                : null,
-                        ]}
-                        onChange={(
-                            range: [Date | null, Date | null] | null,
-                        ) => {
-                            if (range && (range[0] || range[1])) {
-                                onChange({
-                                    ...rule,
-                                    values: [
-                                        formatDate(
-                                            range[0]
-                                                ? range[0]
-                                                : moment(range[1]).add(
-                                                      -1,
-                                                      'days',
-                                                  ),
-                                            undefined,
-                                            false,
-                                        ),
-                                        formatDate(
-                                            range[1]
-                                                ? range[1]
-                                                : moment(range[0]).add(
-                                                      1,
-                                                      'days',
-                                                  ),
-                                            undefined,
-                                            false,
-                                        ),
-                                    ],
-                                });
-                            }
-                        }}
-                        popoverProps={{
-                            placement: 'bottom',
-                            ...popoverProps,
-                        }}
-                        dayPickerProps={{
-                            firstDayOfWeek: isWeekDay(startOfWeek)
-                                ? normalizeWeekDay(startOfWeek)
-                                : undefined,
-                        }}
-                        closeOnSelection={true}
-                        shortcuts={false}
-                        maxDate={moment(new Date()).add(7, 'years').toDate()}
-                    />
-                </MultipleInputsWrapper>
+                <FilterDatePickerRange
+                    disabled={disabled}
+                    firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
+                    value={
+                        rule.values && rule.values[0] && rule.values[1]
+                            ? [rule.values[0], rule.values[1]]
+                            : null
+                    }
+                    // FIXME: remove this once we migrate off of Blueprint
+                    // we are doing type conversion here because Blueprint expects DOM element
+                    // Mantine does not provide a DOM element on onOpen/onClose
+                    popoverProps={{
+                        onOpen: () => popoverProps?.onOpened?.(null as any),
+                        onClose: () => popoverProps?.onClose?.(null as any),
+                    }}
+                    onChange={(value: [Date, Date] | null) => {
+                        if (!value) return;
+                        onChange({ ...rule, values: value });
+                    }}
+                />
             );
         default: {
             return <DefaultFilterInputs {...props} />;

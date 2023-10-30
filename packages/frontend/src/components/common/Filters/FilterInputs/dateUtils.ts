@@ -24,7 +24,7 @@ export const getDateValueFromUnknown = (value: unknown): Date | undefined => {
 // internally we use WeekDay enum with values from 0 (Monday) to 6 (Sunday)
 // normalized values are from 0 (Sunday) to 6 (Saturday)
 //
-export const normalizeWeekDay = (weekDay: WeekDay): DayOfWeek => {
+const normalizeWeekDay = (weekDay: WeekDay): DayOfWeek => {
     const converted = weekDay + 1;
     return (converted <= 6 ? converted : 0) as DayOfWeek;
 };

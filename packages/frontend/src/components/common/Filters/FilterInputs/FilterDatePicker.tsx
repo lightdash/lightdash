@@ -12,7 +12,7 @@ interface Props
     firstDayOfWeek: DayOfWeek;
 }
 
-const DatePicker: FC<Props> = ({
+const FilterDatePicker: FC<Props> = ({
     value: stringOrDateValue,
     onChange,
     firstDayOfWeek,
@@ -39,4 +39,4 @@ const DatePicker: FC<Props> = ({
     );
 };
 
-export default DatePicker;
+export default FilterDatePicker;
