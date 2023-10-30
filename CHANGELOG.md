@@ -1,3 +1,10 @@
+## [0.832.4](https://github.com/lightdash/lightdash/compare/0.832.3...0.832.4) (2023-10-30)
+
+
+### Bug Fixes
+
+* revert column parsing optimisation ([#7729](https://github.com/lightdash/lightdash/issues/7729)) ([ad6a041](https://github.com/lightdash/lightdash/commit/ad6a041f79b848e7c6d9ae6daffb79b07b43fc5b)), closes [#7680](https://github.com/lightdash/lightdash/issues/7680) [#7624](https://github.com/lightdash/lightdash/issues/7624)
+
 ## [0.832.3](https://github.com/lightdash/lightdash/compare/0.832.2...0.832.3) (2023-10-30)
 
 
