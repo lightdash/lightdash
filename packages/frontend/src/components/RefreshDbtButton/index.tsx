@@ -113,9 +113,13 @@ const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
     }
 
     return (
-        <Tooltip2 content="If you've updated your YAML files, you can sync your changes to Lightdash by clicking this button.">
+        <Tooltip2
+            disabled={isLoading}
+            content="If you've updated your YAML files, you can sync your changes to Lightdash by clicking this button."
+        >
             <RefreshDbt
                 {...props}
+                disabled={isLoading}
                 icon={!isLoading ? 'refresh' : <LoadingSpinner size={15} />}
                 text={!isLoading ? 'Refresh dbt' : 'Refreshing dbt'}
                 onClick={onClick}
