@@ -30,6 +30,11 @@ import {
     useDashboardQuery,
     useDashboardsAvailableFilters,
 } from '../hooks/dashboard/useDashboard';
+import {
+    applyDimensionOverrides,
+    hasNonEmptyOverrides,
+    useSavedDashboardFiltersOverrides,
+} from '../hooks/useSavedDashboardFiltersOverrides';
 
 const emptyFilters: DashboardFilters = {
     dimensions: [],
@@ -77,22 +82,6 @@ type DashboardContext = {
     hasChartTiles: boolean;
 };
 
-// TODO: move to separate action
-const hasNonEmptyOverrides = (overrides: DashboardFilters) =>
-    overrides.dimensions.length > 0 || overrides.metrics.length > 0;
-
-// TODO: move to separate action
-const applyDimensionOverrides = (
-    dashboardFilters: DashboardFilters,
-    savedFiltersOverrides: DashboardFilters,
-) =>
-    dashboardFilters.dimensions.map((dimension) => {
-        const override = savedFiltersOverrides.dimensions.find(
-            (overrideDimension) => overrideDimension.id === dimension.id,
-        );
-        return override || dimension;
-    });
-
 const Context = createContext<DashboardContext | undefined>(undefined);
 
 export const DashboardProvider: React.FC = ({ children }) => {
@@ -120,8 +109,13 @@ export const DashboardProvider: React.FC = ({ children }) => {
         useState<DashboardFilters>(emptyFilters);
     const [haveFiltersChanged, setHaveFiltersChanged] =
         useState<boolean>(false);
-    const [savedFiltersOverrides, setSavedFiltersOverrides] =
-        useState<DashboardFilters>(emptyFilters);
+
+    const {
+        overridesForSavedDashboardFilters,
+        addSavedFilterOverride,
+
+        removeSavedFilterOverride,
+    } = useSavedDashboardFiltersOverrides();
 
     const tileSavedChartUuids = useMemo(() => {
         return dashboardTiles
@@ -135,12 +129,12 @@ export const DashboardProvider: React.FC = ({ children }) => {
             if (dashboardFilters === emptyFilters) {
                 let updatedDashboardFilters;
 
-                if (hasNonEmptyOverrides(savedFiltersOverrides)) {
+                if (hasNonEmptyOverrides(overridesForSavedDashboardFilters)) {
                     updatedDashboardFilters = {
                         ...dashboard.filters,
                         dimensions: applyDimensionOverrides(
                             dashboard.filters,
-                            savedFiltersOverrides,
+                            overridesForSavedDashboardFilters,
                         ),
                     };
                 } else {
@@ -153,7 +147,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
 
             setOriginalDashboardFilters(dashboard.filters);
         }
-    }, [dashboardFilters, dashboard, savedFiltersOverrides]);
+    }, [dashboardFilters, dashboard, overridesForSavedDashboardFilters]);
 
     // Updates url with temp filters
     useEffect(() => {
@@ -172,13 +166,15 @@ export const DashboardProvider: React.FC = ({ children }) => {
             );
         }
 
-        if (savedFiltersOverrides?.dimensions?.length === 0) {
+        if (overridesForSavedDashboardFilters?.dimensions?.length === 0) {
             newParams.delete('filters');
-        } else if (savedFiltersOverrides?.dimensions?.length > 0) {
+        } else if (overridesForSavedDashboardFilters?.dimensions?.length > 0) {
             newParams.set(
                 'filters',
                 JSON.stringify(
-                    compressDashboardFiltersToParam(savedFiltersOverrides),
+                    compressDashboardFiltersToParam(
+                        overridesForSavedDashboardFilters,
+                    ),
                 ),
             );
         }
@@ -192,44 +188,29 @@ export const DashboardProvider: React.FC = ({ children }) => {
         dashboardTemporaryFilters,
         history,
         pathname,
-        savedFiltersOverrides,
+        overridesForSavedDashboardFilters,
         search,
     ]);
 
     useEffect(() => {
-        if (dashboard?.filters) {
-            const searchParams = new URLSearchParams(search);
-            const overridesForSavedDashboardFiltersParam =
-                searchParams.get('filters');
-
-            if (overridesForSavedDashboardFiltersParam) {
-                const overridesForSavedDashboardFilters =
-                    convertDashboardFiltersParamToDashboardFilters(
-                        JSON.parse(overridesForSavedDashboardFiltersParam),
-                    );
-                setSavedFiltersOverrides(overridesForSavedDashboardFilters);
-            }
-        }
-    }, [dashboard, search]);
-
-    useEffect(() => {
-        if (dashboard?.filters && hasNonEmptyOverrides(savedFiltersOverrides)) {
+        if (
+            dashboard?.filters &&
+            hasNonEmptyOverrides(overridesForSavedDashboardFilters)
+        ) {
             setDashboardFilters({
                 ...dashboard.filters,
                 dimensions: applyDimensionOverrides(
                     dashboard.filters,
-                    savedFiltersOverrides,
+                    overridesForSavedDashboardFilters,
                 ),
             });
         }
-    }, [dashboard?.filters, savedFiltersOverrides]);
+    }, [dashboard?.filters, overridesForSavedDashboardFilters]);
 
     // Gets filters from URL and storage after redirect
     useMount(() => {
         const searchParams = new URLSearchParams(search);
         const tempFilterSearchParam = searchParams.get('tempFilters');
-        const overridesForSavedDashboardFiltersParam =
-            searchParams.get('filters');
         const unsavedDashboardFiltersRaw = sessionStorage.getItem(
             'unsavedDashboardFilters',
         );
@@ -248,13 +229,6 @@ export const DashboardProvider: React.FC = ({ children }) => {
             setDashboardTemporaryFilters(
                 convertDashboardFiltersParamToDashboardFilters(
                     JSON.parse(tempFilterSearchParam),
-                ),
-            );
-        }
-        if (overridesForSavedDashboardFiltersParam) {
-            setSavedFiltersOverrides(
-                convertDashboardFiltersParamToDashboardFilters(
-                    JSON.parse(overridesForSavedDashboardFiltersParam),
                 ),
             );
         }
@@ -356,7 +330,6 @@ export const DashboardProvider: React.FC = ({ children }) => {
                 : setDashboardFilters;
 
             setFunction((previousFilters) => {
-                // TODO: move to separate action
                 if (!isTemporary) {
                     const hasChanged = hasSavedFilterValueChanged(
                         previousFilters.dimensions[index],
@@ -370,31 +343,13 @@ export const DashboardProvider: React.FC = ({ children }) => {
                             item,
                         );
 
-                    // TODO: move to separate action
-                    setSavedFiltersOverrides((prev) => {
-                        let newDimensions = [...prev.dimensions];
+                    if (hasChanged) {
+                        addSavedFilterOverride(item);
+                    }
 
-                        if (hasChanged) {
-                            newDimensions = prev.dimensions.some(
-                                (dim) => dim.id === item.id,
-                            )
-                                ? prev.dimensions.map((dim) =>
-                                      dim.id === item.id ? item : dim,
-                                  )
-                                : [...prev.dimensions, item];
-                        }
-
-                        if (isReverted) {
-                            newDimensions = newDimensions.filter(
-                                (dim) => dim.id !== item.id,
-                            );
-                        }
-
-                        return {
-                            ...prev,
-                            dimensions: newDimensions,
-                        };
-                    });
+                    if (isReverted) {
+                        removeSavedFilterOverride(item);
+                    }
                 }
 
                 return {
@@ -408,7 +363,11 @@ export const DashboardProvider: React.FC = ({ children }) => {
             });
             setHaveFiltersChanged(true);
         },
-        [originalDashboardFilters],
+        [
+            addSavedFilterOverride,
+            originalDashboardFilters.dimensions,
+            removeSavedFilterOverride,
+        ],
     );
 
     const addMetricDashboardFilter = useCallback(
@@ -431,18 +390,10 @@ export const DashboardProvider: React.FC = ({ children }) => {
                 ? setDashboardTemporaryFilters
                 : setDashboardFilters;
             setFunction((previousFilters) => {
-                // TODO: move to separate action
                 if (!isTemporary) {
-                    setSavedFiltersOverrides((prev) => ({
-                        ...prev,
-                        dimensions: prev.dimensions.some((dim) => dim.id)
-                            ? prev.dimensions.filter(
-                                  (dim) =>
-                                      dim.id !==
-                                      previousFilters.dimensions[index].id,
-                              )
-                            : [...prev.dimensions],
-                    }));
+                    removeSavedFilterOverride(
+                        previousFilters.dimensions[index],
+                    );
                 }
                 return {
                     dimensions: [
@@ -454,7 +405,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
             });
             setHaveFiltersChanged(true);
         },
-        [],
+        [removeSavedFilterOverride],
     );
 
     const addSuggestions = useCallback(
