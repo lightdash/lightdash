@@ -1,4 +1,13 @@
-import { Box, Button, Group, Loader, Modal, Stack, Text } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Group,
+    Loader,
+    Modal,
+    ModalProps,
+    Stack,
+    Text,
+} from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import React, { FC, useCallback, useEffect } from 'react';
 import ErrorState from '../../../components/common/ErrorState';
@@ -6,18 +15,16 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useScheduler } from '../hooks/useScheduler';
 import { useSchedulersDeleteMutation } from '../hooks/useSchedulersDeleteMutation';
 
-interface DashboardDeleteModalProps {
+interface DashboardDeleteModalProps extends ModalProps {
     schedulerUuid: string;
     onConfirm: () => void;
-    onClose: () => void;
-    isOpen: boolean;
 }
 
 export const SchedulerDeleteModal: FC<DashboardDeleteModalProps> = ({
     schedulerUuid,
     onConfirm,
     onClose,
-    isOpen,
+    opened,
 }) => {
     const scheduler = useScheduler(schedulerUuid);
     const mutation = useSchedulersDeleteMutation();
@@ -33,7 +40,7 @@ export const SchedulerDeleteModal: FC<DashboardDeleteModalProps> = ({
 
     return (
         <Modal
-            opened={isOpen}
+            opened={opened}
             title={
                 <Group spacing="xs">
                     <MantineIcon icon={IconTrash} size="lg" color="red" />
