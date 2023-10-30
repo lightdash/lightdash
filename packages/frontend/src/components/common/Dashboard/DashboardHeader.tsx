@@ -186,21 +186,6 @@ const DashboardHeader = ({
                                         }}
                                     />
                                 )}
-
-                                {oldestCacheTime && (
-                                    <Text
-                                        color="gray"
-                                        sx={{ fontSize: '12px' }}
-                                    >
-                                        Dashboard uses cached data, the oldest
-                                        from
-                                        <Text fw={700}>
-                                            {dayjs(oldestCacheTime).format(
-                                                'MMM D, YYYY h:mm A',
-                                            )}{' '}
-                                        </Text>
-                                    </Text>
-                                )}
                             </Stack>
                         </Popover.Dropdown>
                     </Popover>
@@ -225,6 +210,18 @@ const DashboardHeader = ({
                     )}
                 </PageTitleContainer>
             </PageTitleAndDetailsContainer>
+            {oldestCacheTime && (
+                <Text
+                    color="gray"
+                    mr="sm"
+                    sx={{ fontSize: '11px', textAlign: 'end' }}
+                >
+                    Dashboard uses cached data from
+                    <Text fw={700}>
+                        {dayjs(oldestCacheTime).format('MMM D, YYYY h:mm A')}{' '}
+                    </Text>
+                </Text>
+            )}
             {userCanManageDashboard && isEditMode ? (
                 <PageActionsContainer>
                     <AddTileButton
