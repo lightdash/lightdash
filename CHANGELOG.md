@@ -1,3 +1,10 @@
+# [0.833.0](https://github.com/lightdash/lightdash/compare/0.832.6...0.833.0) (2023-10-30)
+
+
+### Features
+
+* pivot table with custom dimensions ([#7677](https://github.com/lightdash/lightdash/issues/7677)) ([37c0bf8](https://github.com/lightdash/lightdash/commit/37c0bf83f70136f491e76acbeea3d5987fa75d5e)), closes [#7686](https://github.com/lightdash/lightdash/issues/7686)
+
 ## [0.832.6](https://github.com/lightdash/lightdash/compare/0.832.5...0.832.6) (2023-10-30)
 
 
