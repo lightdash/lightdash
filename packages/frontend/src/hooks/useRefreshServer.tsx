@@ -109,7 +109,9 @@ export const useJob = (
                 ? false
                 : 500,
         onSuccess: (job) => {
-            queryClient.invalidateQueries('tables');
+            if (job.jobStatus === JobStatusType.DONE) {
+                queryClient.invalidateQueries('tables');
+            }
             onSuccess(job);
         },
         onError,
