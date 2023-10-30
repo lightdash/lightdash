@@ -126,7 +126,7 @@ describe('Custom dimensions', () => {
 
         const sqlLines = [
             `WITH  amount_range_cte AS (`,
-            `MIN("payments".amount) + (MAX("payments".amount) - MIN("payments".amount) ) as ratio`,
+            `CAST(MIN("payments".amount) + (MAX("payments".amount) - MIN("payments".amount) ) AS INT) as ratio`,
             `WHEN "payments".amount >= amount_range_cte.ratio * 0 / 5`,
             `ELSE CONCAT(amount_range_cte.ratio * 4 / 5, '-', amount_range_cte.max_id) END`,
             `CROSS JOIN amount_range_cte`,
