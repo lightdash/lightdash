@@ -355,6 +355,7 @@ export class DashboardService {
                 newDashboard.uuid,
                 {
                     tiles: [...updatedTiles],
+                    filters: newDashboard.filters,
                 },
                 user,
                 projectUuid,
