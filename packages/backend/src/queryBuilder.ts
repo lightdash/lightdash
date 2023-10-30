@@ -230,6 +230,14 @@ export const getCustomDimensionSql = ({
                 customDimension,
             )}_order${fieldQuoteChar}`;
             const cte = `${getCteReference(customDimension)}`;
+
+            const isSorted =
+                sorts.length > 0 &&
+                sorts.find(
+                    (sortField) =>
+                        getCustomDimensionId(customDimension) ===
+                        sortField.fieldId,
+                );
             switch (customDimension.binType) {
                 case BinType.FIXED_WIDTH:
                     if (!customDimension.binWidth) {
@@ -239,10 +247,16 @@ export const getCustomDimensionSql = ({
                     }
 
                     const width = customDimension.binWidth;
-                    return [
-                        ...acc,
-                        `    CONCAT(FLOOR(${dimension.compiledSql} / ${width}) * ${width}, '-', (FLOOR(${dimension.compiledSql} / ${width}) + 1) * ${width} - 1) AS ${customDimensionName}`,
-                    ];
+                    const widthSql = `    CONCAT(FLOOR(${dimension.compiledSql} / ${width}) * ${width}, '-', (FLOOR(${dimension.compiledSql} / ${width}) + 1) * ${width} - 1) AS ${customDimensionName}`;
+
+                    if (isSorted) {
+                        return [
+                            ...acc,
+                            widthSql,
+                            `FLOOR(${dimension.compiledSql} / ${width}) * ${width} AS ${customDimensionOrder}`,
+                        ];
+                    }
+                    return [...acc, widthSql];
                 case BinType.FIXED_NUMBER:
                     if (!customDimension.binNumber) {
                         throw new Error(
@@ -277,14 +291,7 @@ export const getCustomDimensionSql = ({
                         return `ELSE CONCAT(${from(i)}, '-', ${cte}.max_id)`;
                     });
 
-                    if (
-                        sorts.length > 0 &&
-                        sorts.find(
-                            (sortField) =>
-                                getCustomDimensionId(customDimension) ===
-                                sortField.fieldId,
-                        )
-                    ) {
+                    if (isSorted) {
                         // If a custom dimension is sorted, we need to generate a special sql that returns  a number
                         // and not the range as a string
                         const sortWhens = Array.from(
