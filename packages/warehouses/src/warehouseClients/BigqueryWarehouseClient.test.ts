@@ -1,10 +1,13 @@
 import { BigQuery } from '@google-cloud/bigquery';
+
+import { Readable } from 'stream';
 import { BigqueryWarehouseClient } from './BigqueryWarehouseClient';
 import {
     createJobResponse,
     credentials,
     getDatasetResponse,
     getTableResponse,
+    rows,
 } from './BigqueryWarehouseClient.mock';
 import {
     config,
