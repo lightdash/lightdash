@@ -1,3 +1,10 @@
+## [0.832.3](https://github.com/lightdash/lightdash/compare/0.832.2...0.832.3) (2023-10-30)
+
+
+### Bug Fixes
+
+* hidden columns in table appearing in downloaded csv ([#7674](https://github.com/lightdash/lightdash/issues/7674)) ([3f00f17](https://github.com/lightdash/lightdash/commit/3f00f17d247e7b14c912acd6b69b7ac2e3a721d4))
+
 ## [0.832.2](https://github.com/lightdash/lightdash/compare/0.832.1...0.832.2) (2023-10-30)
 
 
