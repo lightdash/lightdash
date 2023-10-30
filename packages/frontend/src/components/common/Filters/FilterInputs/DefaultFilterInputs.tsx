@@ -12,7 +12,7 @@ import { PropsWithChildren } from 'react';
 import { TagInput } from '../../TagInput/TagInput';
 import { useFiltersContext } from '../FiltersProvider';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
-import MultiAutoComplete from './AutoComplete/MultiAutoComplete';
+import FilterMultiAutoComplete from './AutoComplete/FilterMultiAutoComplete';
 import FilterNumberInput from './FilterNumberInput';
 
 export type FilterInputsProps<T extends ConditionalRule> = {
@@ -29,7 +29,6 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
     filterType,
     rule,
     disabled,
-    popoverProps,
     onChange,
 }: PropsWithChildren<FilterInputsProps<T>>) => {
     const { getField } = useFiltersContext();
@@ -58,14 +57,13 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
             switch (filterType) {
                 case FilterType.STRING:
                     return (
-                        <MultiAutoComplete
+                        <FilterMultiAutoComplete
                             filterId={rule.id}
                             disabled={disabled}
                             field={field}
                             placeholder={placeholder}
                             values={(rule.values || []).filter(isString)}
                             suggestions={suggestions || []}
-                            popoverProps={popoverProps}
                             onChange={(values) =>
                                 onChange({
                                     ...rule,
@@ -117,8 +115,6 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                     placeholder={placeholder}
                     value={rule.values?.[0]}
                     onChange={(newValue) => {
-                        console.log(newValue);
-
                         onChange({
                             ...rule,
                             values: newValue ? [newValue] : [],
