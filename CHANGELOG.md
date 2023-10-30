@@ -1,3 +1,10 @@
+## [0.832.2](https://github.com/lightdash/lightdash/compare/0.832.1...0.832.2) (2023-10-30)
+
+
+### Bug Fixes
+
+* readd saved filter overrides ([#7704](https://github.com/lightdash/lightdash/issues/7704)) ([e2d7767](https://github.com/lightdash/lightdash/commit/e2d7767c74b8e380ea7bbe0c24cdb55f1b5fcf13))
+
 ## [0.832.1](https://github.com/lightdash/lightdash/compare/0.832.0...0.832.1) (2023-10-30)
 
 
