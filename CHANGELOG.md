@@ -1,3 +1,10 @@
+## [0.833.1](https://github.com/lightdash/lightdash/compare/0.833.0...0.833.1) (2023-10-30)
+
+
+### Bug Fixes
+
+* update button copy on nested filters ([#7732](https://github.com/lightdash/lightdash/issues/7732)) ([c22379c](https://github.com/lightdash/lightdash/commit/c22379c465b7f8e03fe41a78b0db6f2d5d67fcb9)), closes [#7725](https://github.com/lightdash/lightdash/issues/7725)
+
 # [0.833.0](https://github.com/lightdash/lightdash/compare/0.832.6...0.833.0) (2023-10-30)
 
 
