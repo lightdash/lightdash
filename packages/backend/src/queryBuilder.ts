@@ -315,7 +315,7 @@ export const getCustomDimensionSql = ({
                             AS ${customDimensionName}`,
                             `CASE
                             ${sortWhens.join('\n')}
-                            END 
+                            END
                             AS ${customDimensionOrder}`,
                         ];
                     }
