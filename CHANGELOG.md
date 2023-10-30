@@ -1,3 +1,10 @@
+## [0.832.6](https://github.com/lightdash/lightdash/compare/0.832.5...0.832.6) (2023-10-30)
+
+
+### Bug Fixes
+
+* reopen google sheet auth issue ([#7716](https://github.com/lightdash/lightdash/issues/7716)) ([0d1000a](https://github.com/lightdash/lightdash/commit/0d1000ad24f5d729b52ef9ffabe9b7dbda070ea4))
+
 ## [0.832.5](https://github.com/lightdash/lightdash/compare/0.832.4...0.832.5) (2023-10-30)
 
 
