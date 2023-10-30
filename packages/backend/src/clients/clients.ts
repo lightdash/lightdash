@@ -1,7 +1,7 @@
 import { lightdashConfig } from '../config/lightdashConfig';
 import { schedulerModel, slackAuthenticationModel } from '../models/models';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
-import { S3Service } from './Aws/s3';
+import { S3Client } from './Aws/s3';
 import DbtCloudGraphqlClient from './dbtCloud/DbtCloudGraphqlClient';
 import EmailClient from './EmailClient/EmailClient';
 import { GoogleDriveClient } from './Google/GoogleDriveClient';
@@ -25,6 +25,6 @@ export const googleDriveClient = new GoogleDriveClient();
 
 export const dbtCloudGraphqlClient = new DbtCloudGraphqlClient();
 
-export const s3Client = new S3Service({
+export const s3Client = new S3Client({
     lightdashConfig,
 });

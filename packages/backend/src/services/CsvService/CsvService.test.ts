@@ -31,7 +31,7 @@ describe('Csv service', () => {
         lightdashConfig,
         userModel,
         projectService,
-        s3Service: s3Client,
+        s3Client,
         savedChartModel,
         dashboardModel,
     });

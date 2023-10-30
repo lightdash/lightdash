@@ -41,7 +41,7 @@ import {
 import {
     emailClient,
     googleDriveClient,
-    s3Client as s3Service,
+    s3Client,
     schedulerClient,
     slackClient,
 } from '../clients/clients';
@@ -165,7 +165,7 @@ export const getNotificationPageData = async (
                 fileType: SchedulerFormat.CSV,
                 values: csvOptions?.formatted ? 'formatted' : 'raw',
                 limit: parseAnalyticsLimit(csvOptions?.limit),
-                storage: s3Service.isEnabled() ? 's3' : 'local',
+                storage: s3Client.isEnabled() ? 's3' : 'local',
             };
 
             try {
@@ -306,7 +306,7 @@ export const sendSlackNotification = async (
                     ? `This is a <${url}?scheduler_uuid=${schedulerUuid}|scheduled delivery> ${getHumanReadableCronExpression(
                           cron,
                       )} from Lightdash\n${
-                          s3Service.getExpirationWarning()?.slack || ''
+                          s3Client.getExpirationWarning()?.slack || ''
                       }`
                     : `This is a scheduled delivery triggered manually from Lightdash`,
         };
@@ -790,7 +790,7 @@ export const sendEmailNotification = async (
                 url,
                 schedulerUrl,
                 pdfFile,
-                s3Service.getExpirationWarning()?.days,
+                s3Client.getExpirationWarning()?.days,
             );
         } else if (savedChartUuid) {
             if (csvUrl === undefined) {
@@ -807,7 +807,7 @@ export const sendEmailNotification = async (
                 csvUrl,
                 url,
                 schedulerUrl,
-                s3Service.getExpirationWarning()?.days,
+                s3Client.getExpirationWarning()?.days,
             );
         } else if (dashboardUuid) {
             if (csvUrls === undefined) {
@@ -824,7 +824,7 @@ export const sendEmailNotification = async (
                 csvUrls,
                 url,
                 schedulerUrl,
-                s3Service.getExpirationWarning()?.days,
+                s3Client.getExpirationWarning()?.days,
             );
         } else {
             throw new Error('Not implemented');

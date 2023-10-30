@@ -80,7 +80,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
 import { analytics } from '../../analytics/client';
 import { QueryExecutionContext } from '../../analytics/LightdashAnalytics';
-import { S3Service } from '../../clients/Aws/s3';
+import { S3Client } from '../../clients/Aws/s3';
 import { schedulerClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
@@ -124,7 +124,7 @@ type ProjectServiceDependencies = {
     spaceModel: SpaceModel;
     sshKeyPairModel: SshKeyPairModel;
     userAttributesModel: UserAttributesModel;
-    s3Client: S3Service;
+    s3Client: S3Client;
 };
 
 export class ProjectService {
@@ -146,7 +146,7 @@ export class ProjectService {
 
     userAttributesModel: UserAttributesModel;
 
-    s3Client: S3Service;
+    s3Client: S3Client;
 
     constructor({
         projectModel,
