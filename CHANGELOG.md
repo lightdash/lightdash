@@ -1,3 +1,10 @@
+## [0.836.1](https://github.com/lightdash/lightdash/compare/0.836.0...0.836.1) (2023-10-31)
+
+
+### Bug Fixes
+
+* When I delete a pinned item, I expect it to disappear from the panel ([#7712](https://github.com/lightdash/lightdash/issues/7712)) ([ae213ae](https://github.com/lightdash/lightdash/commit/ae213ae60c77328adcaf6db13db2aa38530adfdd))
+
 # [0.836.0](https://github.com/lightdash/lightdash/compare/0.835.3...0.836.0) (2023-10-31)
 
 
