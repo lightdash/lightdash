@@ -83,7 +83,7 @@ export const CustomDimensionModal = () => {
                     label,
                     isEditing && isCustomDimension(item)
                         ? item.dimensionId
-                        : fieldId(item),
+                        : item.name,
                 );
 
                 if (
@@ -132,7 +132,7 @@ export const CustomDimensionModal = () => {
                 values.customDimensionLabel,
                 isEditing && isCustomDimension(item)
                     ? item.dimensionId
-                    : fieldId(item),
+                    : item.name,
             );
 
             if (isEditing && isCustomDimension(item)) {
