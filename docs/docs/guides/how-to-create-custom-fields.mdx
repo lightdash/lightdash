@@ -69,14 +69,14 @@ Bins are use to split out values of a numeric dimension into custom sets of rang
 
 There are three ways that you can create bins:
 
-##### Fixed number of bins
+**1. Fixed number of bins**
 
 You pick the number of bins that you want to group your dimension into and Lightdash automatically defines the ranges for your bins. The ranges that Lightdash generates for the bins is equal to the range of the values in your dimension divided by the number of bins you selected.
 
-##### Fixed width
+**2. Fixed width**
 
 You pick the width (a.k.a. ranges) for your bins and Lightdash automatically defines a set of bins with those widths. The number of bins that Lightdash generates is equal to the range of values in your dimension divided by the fixed width that you picked for your bins.
 
-##### Custom range
+**3. Custom range**
 
 You manually define the min and max values for each bin. The custom range option is the only binning option that will not automatically update if the min or max values of your dimension change (you would need to manually adjust your custom bins or some values could not be included in your bins).
