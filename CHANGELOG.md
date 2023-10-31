@@ -1,3 +1,10 @@
+# [0.837.0](https://github.com/lightdash/lightdash/compare/0.836.2...0.837.0) (2023-10-31)
+
+
+### Features
+
+* filter inputs - string autocomplete to mantine ([#7742](https://github.com/lightdash/lightdash/issues/7742)) ([3afa69e](https://github.com/lightdash/lightdash/commit/3afa69ee7aa50b5de1b17e2eb731f6ea05f6f58d))
+
 ## [0.836.2](https://github.com/lightdash/lightdash/compare/0.836.1...0.836.2) (2023-10-31)
 
 
