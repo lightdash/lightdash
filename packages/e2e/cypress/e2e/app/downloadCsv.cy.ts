@@ -49,7 +49,9 @@ describe('Download CSV on SQL Runner', () => {
             cy.contains('Page 1 of 3');
 
             cy.findByTestId('Charts-card-expand').click();
-            cy.findByText('Bar chart').click(); // Change chart type
+            cy.findByText('Configure').click();
+            cy.findByText('Bar chart').click();
+
             cy.findByText('Table').click();
 
             cy.findByTestId('export-csv-button').click();
@@ -190,6 +192,7 @@ describe('Download CSV on Explore', () => {
             cy.findByText('Loading chart').should('not.exist');
 
             // open chart menu and change chart type to Table
+            cy.findByText('Configure').click();
             cy.get('button').contains('Bar chart').click();
             cy.get('[role="menuitem"]').contains('Table').click();
 
