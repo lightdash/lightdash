@@ -3,6 +3,7 @@ import { MenuItem2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import {
     Field,
+    hasCustomDimension,
     isCustomDimension,
     isDimension,
     isField,
@@ -32,7 +33,8 @@ const CellContextMenu: FC<
     }
 > = ({ cell, isEditMode, itemsMap, onExpand }) => {
     const { addFilter } = useFilters();
-    const { openUnderlyingDataModal } = useMetricQueryDataContext();
+    const { openUnderlyingDataModal, metricQuery } =
+        useMetricQueryDataContext();
     const { track } = useTracking();
     const { showToastSuccess } = useToaster();
     const meta = cell.column.columnDef.meta;
@@ -92,36 +94,39 @@ const CellContextMenu: FC<
                 />
             )}
 
-            {item && !isDimension(item) && !isCustomDimension(item) && (
-                <Can
-                    I="view"
-                    this={subject('UnderlyingData', {
-                        organizationUuid: user.data?.organizationUuid,
-                        projectUuid: projectUuid,
-                    })}
-                >
-                    <MenuItem2
-                        text="View underlying data"
-                        icon="layers"
-                        onClick={() => {
-                            openUnderlyingDataModal({
-                                item: meta.item,
-                                value,
-                                fieldValues,
-                            });
-                            track({
-                                name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-                                properties: {
-                                    organizationId:
-                                        user?.data?.organizationUuid,
-                                    userId: user?.data?.userUuid,
-                                    projectId: projectUuid,
-                                },
-                            });
-                        }}
-                    />
-                </Can>
-            )}
+            {item &&
+                !isDimension(item) &&
+                !isCustomDimension(item) &&
+                !hasCustomDimension(metricQuery) && (
+                    <Can
+                        I="view"
+                        this={subject('UnderlyingData', {
+                            organizationUuid: user.data?.organizationUuid,
+                            projectUuid: projectUuid,
+                        })}
+                    >
+                        <MenuItem2
+                            text="View underlying data"
+                            icon="layers"
+                            onClick={() => {
+                                openUnderlyingDataModal({
+                                    item: meta.item,
+                                    value,
+                                    fieldValues,
+                                });
+                                track({
+                                    name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                                    properties: {
+                                        organizationId:
+                                            user?.data?.organizationUuid,
+                                        userId: user?.data?.userUuid,
+                                        projectId: projectUuid,
+                                    },
+                                });
+                            }}
+                        />
+                    </Can>
+                )}
             <Can
                 I="manage"
                 this={subject('Explore', {

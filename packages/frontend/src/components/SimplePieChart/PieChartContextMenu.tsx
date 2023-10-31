@@ -1,5 +1,10 @@
 import { subject } from '@casl/ability';
-import { DashboardFilters, ResultRow, ResultValue } from '@lightdash/common';
+import {
+    DashboardFilters,
+    hasCustomDimension,
+    ResultRow,
+    ResultValue,
+} from '@lightdash/common';
 import { Box, Menu, MenuProps, Portal } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
@@ -47,8 +52,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
         return null;
     }
 
-    const { openUnderlyingDataModal /*, openDrillDownModal */ } =
-        metricQueryData;
+    const { openUnderlyingDataModal, metricQuery } = metricQueryData;
     const { track } = tracking;
 
     const canViewUnderlyingData = user.data?.ability?.can(
@@ -156,10 +160,11 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
                     Copy
                 </Menu.Item>
 
-                {canViewUnderlyingData ? (
+                {canViewUnderlyingData && !hasCustomDimension(metricQuery) ? (
                     <Menu.Item
                         icon={<MantineIcon icon={IconStack} />}
                         onClick={handleOpenUnderlyingDataModal}
+                        title="Underlying data is not available with custom dimensions."
                     >
                         View underlying data
                     </Menu.Item>

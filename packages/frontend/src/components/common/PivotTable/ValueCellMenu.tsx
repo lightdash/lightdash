@@ -1,5 +1,10 @@
 import { subject } from '@casl/ability';
-import { Field, ResultValue, TableCalculation } from '@lightdash/common';
+import {
+    Field,
+    hasCustomDimension,
+    ResultValue,
+    TableCalculation,
+} from '@lightdash/common';
 import { Menu, MenuProps } from '@mantine/core';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import { FC } from 'react';
@@ -47,7 +52,8 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
         return <>{children}</>;
     }
 
-    const { openUnderlyingDataModal, openDrillDownModal } = metricQueryData;
+    const { openUnderlyingDataModal, openDrillDownModal, metricQuery } =
+        metricQueryData;
     const { track } = tracking;
 
     const hasUnderlyingData = getUnderlyingFieldValues && item;
@@ -164,7 +170,9 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
                     Copy
                 </Menu.Item>
 
-                {item && (canViewUnderlyingData || canViewDrillInto) ? (
+                {item &&
+                (canViewUnderlyingData || canViewDrillInto) &&
+                !hasCustomDimension(metricQuery) ? (
                     <>
                         {canViewUnderlyingData ? (
                             <Menu.Item
