@@ -332,6 +332,7 @@ export const useDashboardDeleteMutation = () => {
             await queryClient.invalidateQueries('space');
 
             await queryClient.invalidateQueries('dashboards-containing-chart');
+            await queryClient.invalidateQueries('pinned_items');
             await queryClient.invalidateQueries(
                 'most-popular-and-recently-updated',
             );
