@@ -1,3 +1,10 @@
+## [0.836.2](https://github.com/lightdash/lightdash/compare/0.836.1...0.836.2) (2023-10-31)
+
+
+### Bug Fixes
+
+* Pin to homepage doesn't get updated to Unpin & vice-versa in All… ([#7711](https://github.com/lightdash/lightdash/issues/7711)) ([212644d](https://github.com/lightdash/lightdash/commit/212644d56dfedf6024387e157c1b242b3c17ecad))
+
 ## [0.836.1](https://github.com/lightdash/lightdash/compare/0.836.0...0.836.1) (2023-10-31)
 
 
