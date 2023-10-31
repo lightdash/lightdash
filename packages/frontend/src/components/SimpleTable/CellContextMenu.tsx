@@ -56,7 +56,6 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
             {item &&
                 !isDimension(item) &&
                 !isCustomDimension(item) &&
-                !hasCustomDimension(metricQuery) &&
                 !hasCustomDimension(metricQuery) && (
                     <Can
                         I="view"
