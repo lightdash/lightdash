@@ -158,7 +158,7 @@ const Dashboard: FC = () => {
         setHaveTilesChanged,
         setDashboardFilters,
         setDashboardTemporaryFilters,
-        getOldestCacheTime,
+        oldestCacheTime,
     } = useDashboardContext();
 
     const { data: organization } = useOrganization();
@@ -497,7 +497,7 @@ const Dashboard: FC = () => {
                         organizationUuid={organization?.organizationUuid}
                         isEditMode={isEditMode}
                         isSaving={isSaving}
-                        oldestCacheTime={getOldestCacheTime()}
+                        oldestCacheTime={oldestCacheTime}
                         hasDashboardChanged={
                             haveTilesChanged ||
                             haveFiltersChanged ||

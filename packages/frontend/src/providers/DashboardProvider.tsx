@@ -79,7 +79,7 @@ type DashboardContext = {
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
     addSuggestions: (newSuggestionsMap: Record<string, string[]>) => void;
     addResultsCacheTime: (cacheMetadata: CacheMetadata) => void;
-    getOldestCacheTime: () => string | undefined;
+    oldestCacheTime: string | undefined;
     allFilterableFields: FilterableField[] | undefined;
     filterableFieldsBySavedQueryUuid: DashboardAvailableFilters | undefined;
     filterableFieldsByTileUuid: DashboardAvailableFilters | undefined;
@@ -443,9 +443,10 @@ export const DashboardProvider: React.FC = ({ children }) => {
         }
     }, []);
 
-    const getOldestCacheTime = useCallback(() => {
-        return min(resultsCacheTimes);
-    }, [resultsCacheTimes]);
+    const oldestCacheTime = useMemo(
+        () => min(resultsCacheTimes),
+        [resultsCacheTimes],
+    );
 
     const value = {
         dashboard,
@@ -467,7 +468,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
         setHaveFiltersChanged,
         addSuggestions,
         addResultsCacheTime,
-        getOldestCacheTime,
+        oldestCacheTime,
         allFilterableFields,
         filterableFieldsBySavedQueryUuid,
         isLoadingDashboardFilters,
