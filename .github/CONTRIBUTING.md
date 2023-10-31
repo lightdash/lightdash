@@ -187,6 +187,8 @@ Packages overview:
 -   `e2e` - End-to-end and integration tests
 -   `warehouses` - Classes for connecting to different databases
 
+<!--
+
 #### using Github Codespaces / VS Code Remote Containers
 
 The fastest way to setup a development environment is to use Github Codespaces or VS Code Remote Containers.
@@ -213,6 +215,8 @@ yarn workspace backend seed
 # Run Lightdash frontend and backend in dev mode
 yarn dev
 ```
+
+-->
 
 #### using Docker compose
 
