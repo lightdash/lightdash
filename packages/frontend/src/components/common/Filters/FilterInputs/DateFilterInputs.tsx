@@ -59,6 +59,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 <Text
                                     color="gray"
                                     sx={{ whiteSpace: 'nowrap' }}
+                                    size="xs"
                                 >
                                     week commencing
                                 </Text>
