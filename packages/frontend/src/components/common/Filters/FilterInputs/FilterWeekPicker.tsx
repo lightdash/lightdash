@@ -6,7 +6,7 @@ import {
     getDateValueFromUnknown,
     isInWeekRange,
     startOfWeek,
-} from './Filters/FilterInputs/dateUtils';
+} from './dateUtils';
 
 interface Props
     extends Omit<
@@ -18,7 +18,7 @@ interface Props
     firstDayOfWeek: DayOfWeek;
 }
 
-const WeekPicker: FC<Props> = ({
+const FilterWeekPicker: FC<Props> = ({
     firstDayOfWeek,
     value: dateValue,
     onChange,
@@ -73,4 +73,4 @@ const WeekPicker: FC<Props> = ({
     );
 };
 
-export default WeekPicker;
+export default FilterWeekPicker;

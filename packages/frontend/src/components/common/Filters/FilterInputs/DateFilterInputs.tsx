@@ -13,9 +13,6 @@ import {
 import { Flex, NumberInput, Text } from '@mantine/core';
 import moment from 'moment';
 import React from 'react';
-import MonthAndYearInput from '../../MonthAndYearInput';
-import WeekPicker from '../../WeekPicker';
-import YearInput from '../../YearInput';
 import { useFiltersContext } from '../FiltersProvider';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import { getFirstDayOfWeek } from './dateUtils';
@@ -24,7 +21,10 @@ import FilterDatePicker from './FilterDatePicker';
 import FilterDateRangePicker from './FilterDateRangePicker';
 import FilterDateTimePicker from './FilterDateTimePicker';
 import FilterDateTimeRangePicker from './FilterDateTimeRangePicker';
-import UnitOfTimeAutoComplete from './UnitOfTimeAutoComplete';
+import FilterMonthAndYearPicker from './FilterMonthAndYearPicker';
+import FilterUnitOfTimeAutoComplete from './FilterUnitOfTimeAutoComplete';
+import FilterWeekPicker from './FilterWeekPicker';
+import FilterYearPicker from './FilterYearPicker';
 
 const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
     props: React.PropsWithChildren<FilterInputsProps<T>>,
@@ -63,7 +63,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                     week commencing
                                 </Text>
 
-                                <WeekPicker
+                                <FilterWeekPicker
                                     placeholder={placeholder}
                                     disabled={disabled}
                                     value={rule.values ? rule.values[0] : null}
@@ -100,7 +100,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         );
                     case TimeFrames.MONTH:
                         return (
-                            <MonthAndYearInput
+                            <FilterMonthAndYearPicker
                                 disabled={disabled}
                                 placeholder={placeholder}
                                 // FIXME: remove this once we migrate off of Blueprint
@@ -135,7 +135,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         );
                     case TimeFrames.YEAR:
                         return (
-                            <YearInput
+                            <FilterYearPicker
                                 disabled={disabled}
                                 placeholder={placeholder}
                                 // FIXME: remove this once we migrate off of Blueprint
@@ -255,7 +255,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         }}
                     />
 
-                    <UnitOfTimeAutoComplete
+                    <FilterUnitOfTimeAutoComplete
                         disabled={disabled}
                         sx={{ flexShrink: 0, flexGrow: 3 }}
                         isTimestamp={isTimestamp}
@@ -276,7 +276,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
             );
         case FilterOperator.IN_THE_CURRENT:
             return (
-                <UnitOfTimeAutoComplete
+                <FilterUnitOfTimeAutoComplete
                     w="100%"
                     disabled={disabled}
                     isTimestamp={isTimestamp}

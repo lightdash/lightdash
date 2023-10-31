@@ -35,11 +35,11 @@ import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import FieldSelect from '../../../common/FieldSelect';
 import { getFirstDayOfWeek } from '../../../common/Filters/FilterInputs/dateUtils';
+import FilterMonthAndYearPicker from '../../../common/Filters/FilterInputs/FilterMonthAndYearPicker';
+import FilterWeekPicker from '../../../common/Filters/FilterInputs/FilterWeekPicker';
+import FilterYearPicker from '../../../common/Filters/FilterInputs/FilterYearPicker';
 import MantineIcon from '../../../common/MantineIcon';
-import MonthAndYearInput from '../../../common/MonthAndYearInput';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
-import WeekPicker from '../../../common/WeekPicker';
-import YearInput from '../../../common/YearInput';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 
 type Props = {
@@ -82,7 +82,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
             switch (field.timeInterval.toUpperCase()) {
                 case TimeFrames.WEEK:
                     return (
-                        <WeekPicker
+                        <FilterWeekPicker
                             value={moment(value).toDate()}
                             popoverProps={{ withinPortal: false }}
                             firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
@@ -102,7 +102,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                 case TimeFrames.MONTH:
                     return (
                         <Group noWrap spacing={0}>
-                            <MonthAndYearInput
+                            <FilterMonthAndYearPicker
                                 value={moment(value).toDate()}
                                 onChange={(dateValue: Date) => {
                                     onChange(
@@ -119,7 +119,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
 
                 case TimeFrames.YEAR:
                     return (
-                        <YearInput
+                        <FilterYearPicker
                             value={moment(value).toDate()}
                             onChange={(dateValue: Date) => {
                                 onChange(
