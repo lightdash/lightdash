@@ -49,7 +49,7 @@ const ExportSelector: FC<
         );
     } else if (hasGoogleDrive && getGsheetLink) {
         return (
-            <Stack spacing="xs">
+            <Stack spacing="xs" data-testid="ExportSelector">
                 <Button
                     size="xs"
                     variant="default"

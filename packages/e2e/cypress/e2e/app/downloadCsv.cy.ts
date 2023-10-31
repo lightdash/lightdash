@@ -198,7 +198,9 @@ describe('Download CSV on Explore', () => {
 
             // find by role and text
             cy.findByTestId('export-csv-button').click();
-            cy.findByRole('dialog').contains('button', 'Export CSV').click();
+            cy.get('[data-testid="ExportSelector"]')
+                .contains('button', 'csv')
+                .click();
 
             cy.wait('@apiDownloadCsv').then((interception) => {
                 expect(interception?.response?.statusCode).to.eq(200);
