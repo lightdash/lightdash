@@ -93,6 +93,7 @@ const FilterRuleForm: FC<Props> = ({
                         w="150px"
                         sx={{ flexShrink: 0 }}
                         disabled={!isEditMode}
+                        maxDropdownHeight={120}
                         value={filterRule.operator}
                         data={filterConfig.operatorOptions}
                         onChange={(value) => {
