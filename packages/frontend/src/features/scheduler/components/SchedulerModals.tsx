@@ -1,5 +1,3 @@
-import { DialogProps } from '@blueprintjs/core';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import React, { FC } from 'react';
 import {
     useChartSchedulerCreateMutation,
@@ -9,10 +7,9 @@ import {
     useDashboardSchedulerCreateMutation,
     useDashboardSchedulers,
 } from '../hooks/useDashboardSchedulers';
-import SchedulerModal2 from './SchedulerModal2';
-import SchedulersModalBase from './SchedulerModalBase';
+import SchedulerModal2 from './SchedulerModal';
 
-interface DashboardSchedulersProps extends DialogProps {
+interface DashboardSchedulersProps {
     dashboardUuid: string;
     name: string;
     onClose: () => void;
@@ -26,14 +23,8 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
     const schedulersQuery = useDashboardSchedulers(dashboardUuid);
     const createMutation = useDashboardSchedulerCreateMutation();
 
-    // TODO: this is a feature flag while we are refactoring
-    // the scheduled deliveries UI. Remove it when that is done.
-    const SchedulerView = useFeatureFlagEnabled('new-scheduler-ui')
-        ? SchedulerModal2
-        : SchedulersModalBase;
-
     return (
-        <SchedulerView
+        <SchedulerModal2
             resourceUuid={dashboardUuid}
             name={name}
             schedulersQuery={schedulersQuery}
@@ -44,7 +35,7 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
     );
 };
 
-interface ChartSchedulersProps extends DialogProps {
+interface ChartSchedulersProps {
     chartUuid: string;
     name: string;
     onClose: () => void;
@@ -58,13 +49,8 @@ export const ChartSchedulersModal: FC<ChartSchedulersProps> = ({
     const chartSchedulersQuery = useChartSchedulers(chartUuid);
     const createMutation = useChartSchedulerCreateMutation();
 
-    // TODO: this is a feature flag while we are refactoring
-    // the scheduled deliveries UI. Remove it when that is done.
-    const SchedulerView = useFeatureFlagEnabled('new-scheduler-ui')
-        ? SchedulerModal2
-        : SchedulersModalBase;
     return (
-        <SchedulerView
+        <SchedulerModal2
             resourceUuid={chartUuid}
             name={name}
             schedulersQuery={chartSchedulersQuery}
