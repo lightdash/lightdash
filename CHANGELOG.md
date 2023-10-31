@@ -1,3 +1,10 @@
+## [0.835.1](https://github.com/lightdash/lightdash/compare/0.835.0...0.835.1) (2023-10-31)
+
+
+### Bug Fixes
+
+* custom dimension order ([#7734](https://github.com/lightdash/lightdash/issues/7734)) ([1ceceb5](https://github.com/lightdash/lightdash/commit/1ceceb582f2a81608741289c022679a0ddcd78d1))
+
 # [0.835.0](https://github.com/lightdash/lightdash/compare/0.834.0...0.835.0) (2023-10-30)
 
 
