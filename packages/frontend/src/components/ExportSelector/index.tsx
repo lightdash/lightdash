@@ -56,7 +56,7 @@ const ExportSelector: FC<
                     onClick={() => setExportType('csv')}
                     leftIcon={<MantineIcon icon={IconFileTypeCsv} />}
                     disabled={isExportingGoogleSheets}
-                    data-testid="export-selector-csv-button"
+                    data-testid="chart-export-csv-button"
                 >
                     csv
                 </Button>
