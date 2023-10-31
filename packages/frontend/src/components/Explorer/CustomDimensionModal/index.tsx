@@ -3,6 +3,7 @@ import {
     BinType,
     fieldId,
     isCustomDimension,
+    isDimension,
     snakeCaseName,
 } from '@lightdash/common';
 import {
@@ -20,8 +21,9 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconX } from '@tabler/icons-react';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import MantineIcon from '../../common/MantineIcon';
 
@@ -44,7 +46,6 @@ export const CustomDimensionModal = () => {
     const toggleModal = useExplorerContext(
         (context) => context.actions.toggleCustomDimensionModal,
     );
-
     const customDimensions = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.customDimensions,
@@ -55,6 +56,11 @@ export const CustomDimensionModal = () => {
     const editCustomDimension = useExplorerContext(
         (context) => context.actions.editCustomDimension,
     );
+    const tableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
+    );
+
+    const { data: exploreData } = useExplore(tableName);
 
     const form = useForm({
         initialValues: {
@@ -175,6 +181,26 @@ export const CustomDimensionModal = () => {
         toggleModal();
     });
 
+    const baseDimensionLabel = useMemo(() => {
+        if (item) {
+            if (isEditing && isCustomDimension(item)) {
+                const dimensions = exploreData?.tables[item?.table].dimensions;
+                const regexPattern = `${item?.table}_(\\w+)`;
+                const regex = new RegExp(regexPattern);
+
+                const match = item.dimensionId.match(regex);
+
+                if (match && dimensions) {
+                    return dimensions[match[1]]?.label;
+                }
+                return item.dimensionId;
+            } else if (isDimension(item)) {
+                return item.label;
+            }
+            return item.name;
+        }
+    }, [exploreData?.tables, isEditing, item]);
+
     return !!item ? (
         <Modal
             size="lg"
@@ -185,10 +211,15 @@ export const CustomDimensionModal = () => {
                 form.reset();
             }}
             title={
-                <Title order={4}>
-                    {isEditing ? 'Edit' : 'Create'} Custom Dimension -{' '}
-                    {item.name}
-                </Title>
+                <>
+                    <Title order={4}>
+                        {isEditing ? 'Edit' : 'Create'} Custom Dimension
+                        <Text span fw={400}>
+                            {' '}
+                            - {baseDimensionLabel}{' '}
+                        </Text>
+                    </Title>
+                </>
             }
         >
             <form onSubmit={handleOnSubmit}>
@@ -405,7 +436,7 @@ export const CustomDimensionModal = () => {
                     {/* Add results preview */}
 
                     <Button ml="auto" type="submit">
-                        {isEditing ? 'Edit' : 'Create'} custom dimension
+                        {isEditing ? 'Save changes' : 'Create'}
                     </Button>
                 </Stack>
             </form>
