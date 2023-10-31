@@ -1,8 +1,7 @@
 import { Flex, Text } from '@mantine/core';
 import { DateTimePickerProps, DayOfWeek } from '@mantine/dates';
 import dayjs from 'dayjs';
-import { FC, useMemo, useState } from 'react';
-import { getDateValueFromUnknown } from './dateUtils';
+import { FC, useState } from 'react';
 import FilterDateTimePicker from './FilterDateTimePicker';
 
 interface Props
@@ -10,7 +9,7 @@ interface Props
         DateTimePickerProps,
         'firstDayOfWeek' | 'getDayProps' | 'value' | 'onChange'
     > {
-    value: [unknown, unknown] | null;
+    value: [Date, Date] | null;
     onChange: (value: [Date, Date] | null) => void;
     firstDayOfWeek: DayOfWeek;
 }
@@ -22,17 +21,8 @@ const FilterDateTimeRangePicker: FC<Props> = ({
     onChange,
     ...rest
 }) => {
-    const initialDate1 = useMemo(
-        () => getDateValueFromUnknown(value?.[0]),
-        [value],
-    );
-    const initialDate2 = useMemo(
-        () => getDateValueFromUnknown(value?.[1]),
-        [value],
-    );
-
-    const [date1, setDate1] = useState(initialDate1);
-    const [date2, setDate2] = useState(initialDate2);
+    const [date1, setDate1] = useState(value?.[0] ?? null);
+    const [date2, setDate2] = useState(value?.[1] ?? null);
 
     return (
         <Flex align="center" w="100%" gap="xs">

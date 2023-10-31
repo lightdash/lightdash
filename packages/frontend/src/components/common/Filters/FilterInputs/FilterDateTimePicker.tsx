@@ -1,28 +1,22 @@
 import { DateTimePicker, DateTimePickerProps, DayOfWeek } from '@mantine/dates';
-import { FC, useMemo } from 'react';
-import { getDateValueFromUnknown } from './dateUtils';
+import { FC } from 'react';
 
 interface Props
     extends Omit<
         DateTimePickerProps,
         'firstDayOfWeek' | 'getDayProps' | 'value' | 'onChange'
     > {
-    value: unknown;
+    value: Date | null;
     onChange: (value: Date) => void;
     firstDayOfWeek: DayOfWeek;
 }
 
 const FilterDateTimePicker: FC<Props> = ({
-    value: stringOrDateValue,
+    value,
     onChange,
     firstDayOfWeek,
     ...rest
 }) => {
-    const dateValue = useMemo(
-        () => getDateValueFromUnknown(stringOrDateValue),
-        [stringOrDateValue],
-    );
-
     return (
         <DateTimePicker
             w="100%"
@@ -30,7 +24,7 @@ const FilterDateTimePicker: FC<Props> = ({
             {...rest}
             popoverProps={{ ...rest.popoverProps, shadow: 'sm' }}
             firstDayOfWeek={firstDayOfWeek}
-            value={dateValue}
+            value={value}
             onChange={(date) => {
                 if (!date) return;
                 onChange(date);

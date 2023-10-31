@@ -11,7 +11,6 @@ import {
     TimeFrames,
 } from '@lightdash/common';
 import { Flex, NumberInput, Text } from '@mantine/core';
-import moment from 'moment';
 import React from 'react';
 import { useFiltersContext } from '../FiltersProvider';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
@@ -67,7 +66,17 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 <FilterWeekPicker
                                     placeholder={placeholder}
                                     disabled={disabled}
-                                    value={rule.values ? rule.values[0] : null}
+                                    value={
+                                        rule.values && rule.values[0]
+                                            ? parseDate(
+                                                  formatDate(
+                                                      rule.values[0],
+                                                      TimeFrames.WEEK,
+                                                  ),
+                                                  TimeFrames.WEEK,
+                                              )
+                                            : null
+                                    }
                                     // FIXME: mantine v7
                                     // mantine does not set the first day of the week based on the locale
                                     // so we need to do it manually and always pass it as a prop
@@ -90,10 +99,14 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                     onChange={(value: Date | null) => {
                                         onChange({
                                             ...rule,
-                                            values:
-                                                value === null
-                                                    ? undefined
-                                                    : [moment(value).toDate()],
+                                            values: value
+                                                ? [
+                                                      formatDate(
+                                                          value,
+                                                          TimeFrames.WEEK,
+                                                      ),
+                                                  ]
+                                                : [],
                                         });
                                     }}
                                 />
@@ -194,14 +207,29 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             onOpen: () => popoverProps?.onOpened?.(null as any),
                             onClose: () => popoverProps?.onClose?.(null as any),
                         }}
-                        value={rule.values ? rule.values[0] : null}
+                        value={
+                            rule.values
+                                ? parseDate(
+                                      formatDate(
+                                          rule.values[0],
+                                          TimeFrames.MILLISECOND,
+                                      ),
+                                      TimeFrames.MILLISECOND,
+                                  )
+                                : null
+                        }
                         onChange={(value: Date | null) => {
                             onChange({
                                 ...rule,
                                 values:
                                     value === null
-                                        ? undefined
-                                        : [moment(value).toDate()],
+                                        ? []
+                                        : [
+                                              formatDate(
+                                                  value,
+                                                  TimeFrames.MILLISECOND,
+                                              ),
+                                          ],
                             });
                         }}
                     />
@@ -223,14 +251,20 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         onOpen: () => popoverProps?.onOpened?.(null as any),
                         onClose: () => popoverProps?.onClose?.(null as any),
                     }}
-                    value={rule.values ? rule.values[0] : null}
+                    value={
+                        rule.values
+                            ? parseDate(
+                                  formatDate(rule.values[0], TimeFrames.DAY),
+                                  TimeFrames.DAY,
+                              )
+                            : null
+                    }
                     onChange={(value: Date | null) => {
                         onChange({
                             ...rule,
-                            values:
-                                value === null
-                                    ? undefined
-                                    : [moment(value).toDate()],
+                            values: value
+                                ? [formatDate(value, TimeFrames.DAY)]
+                                : [],
                         });
                     }}
                 />
@@ -305,7 +339,22 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                         value={
                             rule.values && rule.values[0] && rule.values[1]
-                                ? [rule.values[0], rule.values[1]]
+                                ? [
+                                      parseDate(
+                                          formatDate(
+                                              rule.values[0],
+                                              TimeFrames.MILLISECOND,
+                                          ),
+                                          TimeFrames.MILLISECOND,
+                                      ),
+                                      parseDate(
+                                          formatDate(
+                                              rule.values[1],
+                                              TimeFrames.MILLISECOND,
+                                          ),
+                                          TimeFrames.MILLISECOND,
+                                      ),
+                                  ]
                                 : null
                         }
                         // FIXME: remove this once we migrate off of Blueprint
@@ -316,8 +365,21 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             onClose: () => popoverProps?.onClose?.(null as any),
                         }}
                         onChange={(value: [Date, Date] | null) => {
-                            if (!value) return;
-                            onChange({ ...rule, values: value });
+                            onChange({
+                                ...rule,
+                                values: value
+                                    ? [
+                                          formatDate(
+                                              value[0],
+                                              TimeFrames.MILLISECOND,
+                                          ),
+                                          formatDate(
+                                              value[1],
+                                              TimeFrames.MILLISECOND,
+                                          ),
+                                      ]
+                                    : [],
+                            });
                         }}
                     />
                 );
@@ -329,7 +391,22 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                     value={
                         rule.values && rule.values[0] && rule.values[1]
-                            ? [rule.values[0], rule.values[1]]
+                            ? [
+                                  parseDate(
+                                      formatDate(
+                                          rule.values[0],
+                                          TimeFrames.DAY,
+                                      ),
+                                      TimeFrames.DAY,
+                                  ),
+                                  parseDate(
+                                      formatDate(
+                                          rule.values[1],
+                                          TimeFrames.DAY,
+                                      ),
+                                      TimeFrames.DAY,
+                                  ),
+                              ]
                             : null
                     }
                     // FIXME: remove this once we migrate off of Blueprint
@@ -340,8 +417,15 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         onClose: () => popoverProps?.onClose?.(null as any),
                     }}
                     onChange={(value: [Date, Date] | null) => {
-                        if (!value) return;
-                        onChange({ ...rule, values: value });
+                        onChange({
+                            ...rule,
+                            values: value
+                                ? [
+                                      formatDate(value[0], TimeFrames.DAY),
+                                      formatDate(value[1], TimeFrames.DAY),
+                                  ]
+                                : [],
+                        });
                     }}
                 />
             );

@@ -1,34 +1,25 @@
 import { DateInput, DateInputProps, DayOfWeek } from '@mantine/dates';
 import dayjs from 'dayjs';
-import { FC, useMemo, useState } from 'react';
-import {
-    endOfWeek,
-    getDateValueFromUnknown,
-    isInWeekRange,
-    startOfWeek,
-} from './dateUtils';
+import { FC, useState } from 'react';
+import { endOfWeek, isInWeekRange, startOfWeek } from './dateUtils';
 
 interface Props
     extends Omit<
         DateInputProps,
         'getDayProps' | 'firstDayOfWeek' | 'value' | 'onChange'
     > {
-    value: unknown;
+    value: Date | null;
     onChange: (value: Date) => void;
     firstDayOfWeek: DayOfWeek;
 }
 
 const FilterWeekPicker: FC<Props> = ({
     firstDayOfWeek,
-    value: dateValue,
+    value,
     onChange,
     ...rest
 }) => {
-    const [hoveredDate, setHoveredDate] = useState<Date>();
-
-    const selectedDate = useMemo(() => {
-        return getDateValueFromUnknown(dateValue);
-    }, [dateValue]);
+    const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
 
     return (
         <DateInput
@@ -42,16 +33,12 @@ const FilterWeekPicker: FC<Props> = ({
                     hoveredDate,
                     firstDayOfWeek,
                 );
-                const isSelected = isInWeekRange(
-                    date,
-                    selectedDate,
-                    firstDayOfWeek,
-                );
+                const isSelected = isInWeekRange(date, value, firstDayOfWeek);
                 const isInRange = isHovered || isSelected;
 
                 return {
                     onMouseEnter: () => setHoveredDate(date),
-                    onMouseLeave: () => setHoveredDate(undefined),
+                    onMouseLeave: () => setHoveredDate(null),
                     inRange: isInRange,
                     firstInRange: isInRange
                         ? dayjs(startOfWeek(date, firstDayOfWeek)).isSame(date)
@@ -63,7 +50,7 @@ const FilterWeekPicker: FC<Props> = ({
                 };
             }}
             firstDayOfWeek={firstDayOfWeek}
-            value={selectedDate}
+            value={value}
             onChange={(date) => {
                 if (date) {
                     onChange(startOfWeek(date, firstDayOfWeek));
