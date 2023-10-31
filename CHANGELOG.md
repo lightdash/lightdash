@@ -1,3 +1,15 @@
+# [0.836.0](https://github.com/lightdash/lightdash/compare/0.835.3...0.836.0) (2023-10-31)
+
+
+### Bug Fixes
+
+* custom dimension table order ([#7743](https://github.com/lightdash/lightdash/issues/7743)) ([257e05b](https://github.com/lightdash/lightdash/commit/257e05b782eed7beb1b0ceb6513d5fb1d1b20546))
+
+
+### Features
+
+* custom dimension custom range ([#7721](https://github.com/lightdash/lightdash/issues/7721)) ([7a60aea](https://github.com/lightdash/lightdash/commit/7a60aeac6a45c285497a1f9183cfcb2a8e69ff5c))
+
 ## [0.835.3](https://github.com/lightdash/lightdash/compare/0.835.2...0.835.3) (2023-10-31)
 
 
