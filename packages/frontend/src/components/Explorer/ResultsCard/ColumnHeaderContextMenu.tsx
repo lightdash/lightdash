@@ -141,17 +141,24 @@ const ContextMenu: FC<ContextMenuProps> = ({
         return (
             <>
                 {isItemCustomDimension ? (
-                    <Menu.Item
-                        icon={<MantineIcon icon={IconPencil} />}
-                        onClick={() => {
-                            toggleCustomDimensionModal({
-                                item,
-                                isEditing: true,
-                            });
-                        }}
-                    >
-                        Edit custom dimension
-                    </Menu.Item>
+                    <>
+                        <Menu.Item
+                            icon={<MantineIcon icon={IconPencil} />}
+                            onClick={() => {
+                                toggleCustomDimensionModal({
+                                    item,
+                                    isEditing: true,
+                                });
+                            }}
+                        >
+                            Edit custom dimension
+                        </Menu.Item>
+                        <Menu.Divider />
+
+                        <ColumnHeaderSortMenuOptions item={item} sort={sort} />
+
+                        <Menu.Divider />
+                    </>
                 ) : (
                     <>
                         <Menu.Item
