@@ -736,7 +736,11 @@ export class SavedChartModel {
                 [[], []],
             );
 
-            const columnOrder: string[] = [...fields, ...tableCalculations]
+            const columnOrder: string[] = [
+                ...fields,
+                ...tableCalculations,
+                ...customDimensionsRows,
+            ]
                 .sort((a, b) => a.order - b.order)
                 .map((x) => x.name);
 
