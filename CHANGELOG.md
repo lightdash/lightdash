@@ -1,3 +1,10 @@
+## [0.835.2](https://github.com/lightdash/lightdash/compare/0.835.1...0.835.2) (2023-10-31)
+
+
+### Bug Fixes
+
+* disable underlying data custom dimension ([#7699](https://github.com/lightdash/lightdash/issues/7699)) ([6327346](https://github.com/lightdash/lightdash/commit/63273463af84274c583a2f60b245900daf90ce04))
+
 ## [0.835.1](https://github.com/lightdash/lightdash/compare/0.835.0...0.835.1) (2023-10-31)
 
 
