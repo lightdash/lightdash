@@ -164,7 +164,6 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
                     <Menu.Item
                         icon={<MantineIcon icon={IconStack} />}
                         onClick={handleOpenUnderlyingDataModal}
-                        title="Underlying data is not available with custom dimensions."
                     >
                         View underlying data
                     </Menu.Item>
