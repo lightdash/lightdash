@@ -13,7 +13,7 @@ import {
 import { Flex, NumberInput, Text } from '@mantine/core';
 import React from 'react';
 import { useFiltersContext } from '../FiltersProvider';
-import { getFirstDayOfWeek } from '../utils/dateUtils';
+import { getFirstDayOfWeek } from '../utils/filterDateUtils';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
 import FilterDatePicker from './FilterDatePicker';

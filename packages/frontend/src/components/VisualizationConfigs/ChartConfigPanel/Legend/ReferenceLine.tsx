@@ -37,7 +37,7 @@ import FieldSelect from '../../../common/FieldSelect';
 import FilterMonthAndYearPicker from '../../../common/Filters/FilterInputs/FilterMonthAndYearPicker';
 import FilterWeekPicker from '../../../common/Filters/FilterInputs/FilterWeekPicker';
 import FilterYearPicker from '../../../common/Filters/FilterInputs/FilterYearPicker';
-import { getFirstDayOfWeek } from '../../../common/Filters/utils/dateUtils';
+import { getFirstDayOfWeek } from '../../../common/Filters/utils/filterDateUtils';
 import MantineIcon from '../../../common/MantineIcon';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
