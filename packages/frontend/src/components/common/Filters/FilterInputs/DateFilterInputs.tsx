@@ -21,9 +21,9 @@ import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderBy
 import { getFirstDayOfWeek } from './dateUtils';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
 import FilterDatePicker from './FilterDatePicker';
-import FilterDatePickerRange from './FilterDatePickerRange';
+import FilterDateRangePicker from './FilterDateRangePicker';
 import FilterDateTimePicker from './FilterDateTimePicker';
-import FilterDateTimePickerRange from './FilterDateTimePickerRange';
+import FilterDateTimeRangePicker from './FilterDateTimeRangePicker';
 import UnitOfTimeAutoComplete from './UnitOfTimeAutoComplete';
 
 const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
@@ -299,7 +299,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
         case FilterOperator.IN_BETWEEN:
             if (isTimestamp) {
                 return (
-                    <FilterDateTimePickerRange
+                    <FilterDateTimeRangePicker
                         disabled={disabled}
                         firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                         value={
@@ -323,7 +323,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
             }
 
             return (
-                <FilterDatePickerRange
+                <FilterDateRangePicker
                     disabled={disabled}
                     firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                     value={

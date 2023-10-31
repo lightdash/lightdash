@@ -1,13 +1,13 @@
 import { Flex, Text } from '@mantine/core';
-import { DateInputProps, DayOfWeek } from '@mantine/dates';
+import { DateTimePickerProps, DayOfWeek } from '@mantine/dates';
 import dayjs from 'dayjs';
 import { FC, useMemo, useState } from 'react';
 import { getDateValueFromUnknown } from './dateUtils';
-import FilterDatePicker from './FilterDatePicker';
+import FilterDateTimePicker from './FilterDateTimePicker';
 
 interface Props
     extends Omit<
-        DateInputProps,
+        DateTimePickerProps,
         'firstDayOfWeek' | 'getDayProps' | 'value' | 'onChange'
     > {
     value: [unknown, unknown] | null;
@@ -15,7 +15,7 @@ interface Props
     firstDayOfWeek: DayOfWeek;
 }
 
-const FilterDatePickerRange: FC<Props> = ({
+const FilterDateTimeRangePicker: FC<Props> = ({
     value,
     disabled,
     firstDayOfWeek,
@@ -36,11 +36,13 @@ const FilterDatePickerRange: FC<Props> = ({
 
     return (
         <Flex align="center" w="100%" gap="xs">
-            <FilterDatePicker
+            <FilterDateTimePicker
                 size="xs"
                 disabled={disabled}
                 placeholder="Start date"
-                maxDate={dayjs(date2).subtract(1, 'day').toDate()}
+                maxDate={
+                    date2 ? dayjs(date2).subtract(1, 'day').toDate() : undefined
+                }
                 firstDayOfWeek={firstDayOfWeek}
                 {...rest}
                 value={date1}
@@ -55,11 +57,13 @@ const FilterDatePickerRange: FC<Props> = ({
 
             <Text color="dimmed">–</Text>
 
-            <FilterDatePicker
+            <FilterDateTimePicker
                 size="xs"
                 disabled={disabled}
                 placeholder="End date"
-                minDate={dayjs(date1).add(1, 'day').toDate()}
+                minDate={
+                    date1 ? dayjs(date1).add(1, 'day').toDate() : undefined
+                }
                 firstDayOfWeek={firstDayOfWeek}
                 {...rest}
                 value={date2}
@@ -75,4 +79,4 @@ const FilterDatePickerRange: FC<Props> = ({
     );
 };
 
-export default FilterDatePickerRange;
+export default FilterDateTimeRangePicker;
