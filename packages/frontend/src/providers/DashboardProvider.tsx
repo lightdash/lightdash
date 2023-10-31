@@ -113,7 +113,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
         useState<DashboardFilters>(emptyFilters);
     const [haveFiltersChanged, setHaveFiltersChanged] =
         useState<boolean>(false);
-    const [resultsCacheTimes, setResultsCacheTimes] = useState<any[]>([]);
+    const [resultsCacheTimes, setResultsCacheTimes] = useState<string[]>([]);
 
     const {
         overridesForSavedDashboardFilters,
