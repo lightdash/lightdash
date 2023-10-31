@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    CustomDimension,
     DimensionType,
     Field,
     isDimension,
@@ -14,7 +15,9 @@ export enum SortDirection {
     DESC = 'DESC',
 }
 
-export const getSortDirectionOrder = (item: Field | TableCalculation) => {
+export const getSortDirectionOrder = (
+    item: Field | TableCalculation | CustomDimension,
+) => {
     if (!isField(item)) {
         return [SortDirection.ASC, SortDirection.DESC];
     }
@@ -48,7 +51,7 @@ enum BooleanSortLabels {
 }
 
 export const getSortLabel = (
-    item: Field | TableCalculation,
+    item: Field | TableCalculation | CustomDimension,
     direction: SortDirection,
 ) => {
     if (!isField(item)) {
