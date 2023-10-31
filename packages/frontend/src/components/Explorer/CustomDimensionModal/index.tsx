@@ -3,6 +3,7 @@ import {
     BinType,
     fieldId,
     isCustomDimension,
+    snakeCaseName,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -26,13 +27,9 @@ import MantineIcon from '../../common/MantineIcon';
 
 // TODO: preview custom dimension results
 
-const sanitizeId = (label: string) => {
-    return label
-        .toLowerCase()
-        .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
-        .replace(/_{2,}/g, '_') // Replace multiple underscores with a single one
-        .replace(/^_|_$/g, ''); // Remove leading and trailing underscores
-};
+const sanitizeId = (label: string, dimensionName: string) =>
+    `${dimensionName}_${snakeCaseName(label)}`;
+
 const MIN_OF_FIXED_NUMBER_BINS = 1;
 const DEFAULT_CUSTOM_RANGE: BinRange[] = [
     { to: 0, from: undefined },
@@ -82,13 +79,23 @@ export const CustomDimensionModal = () => {
                 if (isEditing && label === item.name) {
                     return null;
                 }
-                const sanitizedId = sanitizeId(label);
-                if (/^[0-9]/.test(sanitizedId)) {
-                    return 'Custom dimension label must start with a letter';
+                const dimensionName = sanitizeId(
+                    label,
+                    isEditing && isCustomDimension(item)
+                        ? item.dimensionId
+                        : fieldId(item),
+                );
+
+                if (
+                    isEditing &&
+                    isCustomDimension(item) &&
+                    dimensionName === item.id
+                ) {
+                    return null;
                 }
 
                 return customDimensions?.some(
-                    (customDimension) => customDimension.name === label,
+                    (customDimension) => customDimension.id === dimensionName,
                 )
                     ? 'Dimension with this label already exists'
                     : null;
@@ -121,7 +128,12 @@ export const CustomDimensionModal = () => {
 
     const handleOnSubmit = form.onSubmit((values) => {
         if (item) {
-            const sanitizedId = sanitizeId(values.customDimensionLabel);
+            const sanitizedId = sanitizeId(
+                values.customDimensionLabel,
+                isEditing && isCustomDimension(item)
+                    ? item.dimensionId
+                    : fieldId(item),
+            );
 
             if (isEditing && isCustomDimension(item)) {
                 editCustomDimension(
