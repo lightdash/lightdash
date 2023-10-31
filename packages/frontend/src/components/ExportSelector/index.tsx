@@ -49,13 +49,14 @@ const ExportSelector: FC<
         );
     } else if (hasGoogleDrive && getGsheetLink) {
         return (
-            <Stack spacing="xs" data-testid="ExportSelector">
+            <Stack spacing="xs">
                 <Button
                     size="xs"
                     variant="default"
                     onClick={() => setExportType('csv')}
                     leftIcon={<MantineIcon icon={IconFileTypeCsv} />}
                     disabled={isExportingGoogleSheets}
+                    data-testid="export-selector-csv-button"
                 >
                     csv
                 </Button>
