@@ -1,3 +1,12 @@
+import CustomMetricAdded from './assets/custom-metric-added.jpg';
+import CustomMetricCreating from './assets/custom-metric-creating.png';
+import CustomMetricDeleting from './assets/custom-metric-deleting.png';
+import CustomMetricAddFilterWhenCreating from './assets/custom-metric-add-filter-while-creating.png';
+import CustomMetricAddFilterWhenEditing from './assets/custom-metric-add-filter-while-editing.png';
+import CustomDimensionCreating from './assets/custom-dimension-creating.png';
+
+
+
 # Custom fields in Lightdash
 
 The fields that you see in your `dimensions` and `metrics` are created by the people maintaining your Lightdash project.
@@ -24,6 +33,10 @@ If you want to delete the custom metric, you can just click on the three-dot `op
 
 <img src={CustomMetricDeleting} width="300" height="137" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
+### Custom metric types
+
+To learn more about the custom metric types, read the [metrics reference documentation here](/references/metrics). Only aggregate metric types are available as custom metrics.
+
 ### Adding filters to your custom metric
 
 You can add filters to limit the rows included in your metric aggregation. You can add filters when: 
@@ -44,8 +57,26 @@ Custom dimensions are helpful to use when you want to group or bin your data bas
 2. Click on one of the custom dimension options available (e.g. `Bin`)
 3. Setup + create your dimension
 
-<img src={CustomMetricCreating} width="300" height="326" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={CustomDimensionCreating} width="292" height="129" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 Then, your new dimension will be added to your results table automatically and will appear in the `custom dimensions` space in your sidebar.
 
-<img src={CustomMetricAdded} width="928" height="690" style={{display: "block", margin: "0 auto 20px auto"}}/>
+## Custom dimension types
+
+### Bin
+
+Bins are use to split out values of a numeric dimension into custom sets of ranges. Bins can only be used with dimensions that are numeric. Fixed bins (fixed number and fixed width) will update automatically if the min or max values of your dimension change.
+
+There are three ways that you can create bins:
+
+#### Fixed number of bins
+
+You pick the number of bins that you want to group your dimension into and Lightdash automatically defines the ranges for your bins. The ranges that Lightdash generates for the bins is equal to the range of the values in your dimension divided by the number of bins you selected.
+
+#### Fixed width
+
+You pick the width (a.k.a. ranges) for your bins and Lightdash automatically defines a set of bins with those widths. The number of bins that Lightdash generates is equal to the range of values in your dimension divided by the fixed width that you picked for your bins.
+
+#### Custom range
+
+You manually define the min and max values for each bin. The custom range option is the only binning option that will not automatically update if the min or max values of your dimension change (you would need to manually adjust your custom bins or some values could not be included in your bins).
