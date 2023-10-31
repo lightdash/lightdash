@@ -9,6 +9,7 @@ import {
     friendlyName,
     getFields,
     getItemId,
+    hasCustomDimension,
     isDimension,
     isField,
     ResultValue,
@@ -38,7 +39,8 @@ const DashboardCellContextMenu: FC<
     }
 > = ({ cell, explore, tileUuid }) => {
     const { showToastSuccess } = useToaster();
-    const { openUnderlyingDataModal } = useMetricQueryDataContext();
+    const { openUnderlyingDataModal, metricQuery } =
+        useMetricQueryDataContext();
     const { addDimensionDashboardFilter } = useDashboardContext();
     const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
         tileUuid,
@@ -112,7 +114,7 @@ const DashboardCellContextMenu: FC<
                 <MenuItem2 text="Copy value" icon="duplicate" />
             </CopyToClipboard>
 
-            {item && !isDimension(item) && (
+            {item && !isDimension(item) && !hasCustomDimension(metricQuery) && (
                 <Can
                     I="view"
                     this={subject('UnderlyingData', {
