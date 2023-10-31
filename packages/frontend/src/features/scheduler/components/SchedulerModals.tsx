@@ -7,11 +7,12 @@ import {
     useDashboardSchedulerCreateMutation,
     useDashboardSchedulers,
 } from '../hooks/useDashboardSchedulers';
-import SchedulerModal2 from './SchedulerModal';
+import SchedulerModal from './SchedulerModal';
 
 interface DashboardSchedulersProps {
     dashboardUuid: string;
     name: string;
+    isOpen: boolean;
     onClose: () => void;
 }
 
@@ -24,7 +25,7 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
     const createMutation = useDashboardSchedulerCreateMutation();
 
     return (
-        <SchedulerModal2
+        <SchedulerModal
             resourceUuid={dashboardUuid}
             name={name}
             schedulersQuery={schedulersQuery}
@@ -38,6 +39,7 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
 interface ChartSchedulersProps {
     chartUuid: string;
     name: string;
+    isOpen: boolean;
     onClose: () => void;
 }
 
@@ -50,7 +52,7 @@ export const ChartSchedulersModal: FC<ChartSchedulersProps> = ({
     const createMutation = useChartSchedulerCreateMutation();
 
     return (
-        <SchedulerModal2
+        <SchedulerModal
             resourceUuid={chartUuid}
             name={name}
             schedulersQuery={chartSchedulersQuery}
