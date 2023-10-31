@@ -6,14 +6,14 @@ import {
     MultiSelectProps,
     Text,
 } from '@mantine/core';
+import uniq from 'lodash-es/uniq';
 import { FC, ReactNode, useCallback, useMemo, useState } from 'react';
 
 import {
     MAX_AUTOCOMPLETE_RESULTS,
     useFieldValues,
-} from '../../../../../hooks/useFieldValues';
-import { useFiltersContext } from '../../FiltersProvider';
-import { mergeUniqueValues } from './autoCompleteUtils';
+} from '../../../../hooks/useFieldValues';
+import { useFiltersContext } from '../FiltersProvider';
 
 type Props = Pick<MultiSelectProps, 'disabled' | 'placeholder'> & {
     filterId: string;
@@ -23,7 +23,7 @@ type Props = Pick<MultiSelectProps, 'disabled' | 'placeholder'> & {
     onChange: (values: string[]) => void;
 };
 
-const FilterMultiAutoComplete: FC<Props> = ({
+const FilterStringAutoComplete: FC<Props> = ({
     filterId,
     values,
     field,
@@ -79,7 +79,7 @@ const FilterMultiAutoComplete: FC<Props> = ({
         // Mantine does not show value tag if value is not found in data
         // so we need to add it manually here
         // also we are merging status indicator as a first item
-        return mergeUniqueValues(results, values).map((value) => ({
+        return uniq([...results, ...values]).map((value) => ({
             value,
             label: value,
         }));
@@ -148,4 +148,4 @@ const FilterMultiAutoComplete: FC<Props> = ({
     );
 };
 
-export default FilterMultiAutoComplete;
+export default FilterStringAutoComplete;

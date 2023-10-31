@@ -12,8 +12,8 @@ import { PropsWithChildren } from 'react';
 import { TagInput } from '../../TagInput/TagInput';
 import { useFiltersContext } from '../FiltersProvider';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
-import FilterMultiAutoComplete from './AutoComplete/FilterMultiAutoComplete';
 import FilterNumberInput from './FilterNumberInput';
+import FilterStringAutoComplete from './FilterStringAutoComplete';
 
 export type FilterInputsProps<T extends ConditionalRule> = {
     filterType: FilterType;
@@ -57,7 +57,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
             switch (filterType) {
                 case FilterType.STRING:
                     return (
-                        <FilterMultiAutoComplete
+                        <FilterStringAutoComplete
                             filterId={rule.id}
                             disabled={disabled}
                             field={field}
