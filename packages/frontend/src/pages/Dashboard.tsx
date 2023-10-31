@@ -454,7 +454,6 @@ const Dashboard: FC = () => {
             </div>
         );
     }
-
     const dashboardChartTiles = dashboardTiles.filter(
         (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
     );
