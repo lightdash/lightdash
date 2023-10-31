@@ -1,0 +1,51 @@
+# Custom fields in Lightdash
+
+The fields that you see in your `dimensions` and `metrics` are created by the people maintaining your Lightdash project.
+
+But, you can create new custom dimensions or metrics for quick calculations and binning on the fly. On this page, we'll explain what custom dimensions and metrics are and how to use them. 
+
+So, we're going to break it down for you: what are custom metrics? and how can I use them? 🪄
+
+## Custom metrics
+
+To create a custom metric, you just need to:
+
+1. Click on the dimension's three-dot `options` menu
+2. Click on one of the options available (e.g. `Count Distinct`)
+3. Confirm your changes
+
+<img src={CustomMetricCreating} width="300" height="326" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+Then, your new metric will be added to your results table automatically and will appear in the `custom metrics` space in your sidebar.
+
+<img src={CustomMetricAdded} width="928" height="690" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+If you want to delete the custom metric, you can just click on the three-dot `options` menu and hit `Remove custom metric`
+
+<img src={CustomMetricDeleting} width="300" height="137" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+### Adding filters to your custom metric
+
+You can add filters to limit the rows included in your metric aggregation. You can add filters when: 
+
+1. You create a custom metric: 
+<img src={CustomMetricAddFilterWhenCreating} width="700" height="200" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+2. You edit an existing custom metric:
+<img src={CustomMetricAddFilterWhenEditing} width="700" height="200" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+---
+
+## Creating a custom dimension 
+
+Custom dimensions are helpful to use when you want to group or bin your data based on an existing dimension. To create a custom dimension, you just need to:
+
+1. Click on a dimension's three-dot `options` menu
+2. Click on one of the custom dimension options available (e.g. `Bin`)
+3. Setup + create your dimension
+
+<img src={CustomMetricCreating} width="300" height="326" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+Then, your new dimension will be added to your results table automatically and will appear in the `custom dimensions` space in your sidebar.
+
+<img src={CustomMetricAdded} width="928" height="690" style={{display: "block", margin: "0 auto 20px auto"}}/>
