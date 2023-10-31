@@ -28,6 +28,9 @@ export default function convertMetricFlowQueryResultsToResultsData(
             limit: 0,
             tableCalculations: [],
         },
+        cacheMetadata: {
+            cacheHit: false,
+        },
         rows: metricFlowJsonResults.data.map((row) =>
             Object.keys(row).reduce((acc, columnName) => {
                 const raw = row[columnName];
