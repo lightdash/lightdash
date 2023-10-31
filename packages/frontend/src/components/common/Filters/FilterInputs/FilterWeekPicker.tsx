@@ -1,7 +1,7 @@
 import { DateInput, DateInputProps, DayOfWeek } from '@mantine/dates';
 import dayjs from 'dayjs';
 import { FC, useState } from 'react';
-import { endOfWeek, isInWeekRange, startOfWeek } from './dateUtils';
+import { endOfWeek, isInWeekRange, startOfWeek } from '../utils/dateUtils';
 
 interface Props
     extends Omit<

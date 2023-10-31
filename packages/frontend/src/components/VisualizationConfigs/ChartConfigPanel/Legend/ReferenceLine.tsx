@@ -34,10 +34,10 @@ import {
 import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import FieldSelect from '../../../common/FieldSelect';
-import { getFirstDayOfWeek } from '../../../common/Filters/FilterInputs/dateUtils';
 import FilterMonthAndYearPicker from '../../../common/Filters/FilterInputs/FilterMonthAndYearPicker';
 import FilterWeekPicker from '../../../common/Filters/FilterInputs/FilterWeekPicker';
 import FilterYearPicker from '../../../common/Filters/FilterInputs/FilterYearPicker';
+import { getFirstDayOfWeek } from '../../../common/Filters/utils/dateUtils';
 import MantineIcon from '../../../common/MantineIcon';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
