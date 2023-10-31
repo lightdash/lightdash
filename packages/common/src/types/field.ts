@@ -80,9 +80,13 @@ export function findCompactConfig(
 export enum BinType {
     FIXED_NUMBER = 'fixed_number',
     FIXED_WIDTH = 'fixed_width',
-    // TODO not supported yet
-    // CUSTOM_RANGE = 'custom_range',
+    CUSTOM_RANGE = 'custom_range',
 }
+
+export type BinRange = {
+    from: number | undefined; // first range has from undefined
+    to: number | undefined; // last range has to undefined
+};
 export interface CustomDimension {
     id: string;
     name: string;
@@ -91,7 +95,7 @@ export interface CustomDimension {
     binType: BinType;
     binNumber?: number;
     binWidth?: number;
-    // binRange?: BinRange[];
+    customRange?: BinRange[];
 }
 
 export type Item = Field | TableCalculation | CustomDimension;

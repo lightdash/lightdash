@@ -411,7 +411,19 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     BinType: {
         dataType: 'refEnum',
-        enums: ['fixed_number', 'fixed_width'],
+        enums: ['fixed_number', 'fixed_width', 'custom_range'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    BinRange: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                to: { dataType: 'double' },
+                from: { dataType: 'double' },
+            },
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CustomDimension: {
@@ -424,6 +436,10 @@ const models: TsoaRoute.Models = {
             binType: { ref: 'BinType', required: true },
             binNumber: { dataType: 'double' },
             binWidth: { dataType: 'double' },
+            customRange: {
+                dataType: 'array',
+                array: { dataType: 'refAlias', ref: 'BinRange' },
+            },
         },
         additionalProperties: false,
     },
