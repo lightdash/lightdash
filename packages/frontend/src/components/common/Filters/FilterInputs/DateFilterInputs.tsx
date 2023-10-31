@@ -56,7 +56,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         return (
                             <Flex align="center" gap="xs" w="100%">
                                 <Text
-                                    color="gray"
+                                    color="dimmed"
                                     sx={{ whiteSpace: 'nowrap' }}
                                     size="xs"
                                 >

@@ -25,7 +25,7 @@ const FilterDateTimeRangePicker: FC<Props> = ({
     const [date2, setDate2] = useState(value?.[1] ?? null);
 
     return (
-        <Flex align="center" w="100%" gap="xs">
+        <Flex align="center" w="100%" gap="xxs">
             <FilterDateTimePicker
                 size="xs"
                 disabled={disabled}
@@ -45,7 +45,9 @@ const FilterDateTimeRangePicker: FC<Props> = ({
                 }}
             />
 
-            <Text color="dimmed">–</Text>
+            <Text color="dimmed" sx={{ whiteSpace: 'nowrap' }} size="xs">
+                –
+            </Text>
 
             <FilterDateTimePicker
                 size="xs"

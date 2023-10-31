@@ -43,7 +43,9 @@ const FilterDateRangePicker: FC<Props> = ({
                 }}
             />
 
-            <Text color="dimmed">–</Text>
+            <Text color="dimmed" sx={{ whiteSpace: 'nowrap' }} size="xs">
+                –
+            </Text>
 
             <FilterDatePicker
                 size="xs"
