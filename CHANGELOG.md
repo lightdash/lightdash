@@ -1,3 +1,10 @@
+## [0.835.3](https://github.com/lightdash/lightdash/compare/0.835.2...0.835.3) (2023-10-31)
+
+
+### Bug Fixes
+
+* improve refresh dbt button logic and sync UI with state ([#7740](https://github.com/lightdash/lightdash/issues/7740)) ([d617827](https://github.com/lightdash/lightdash/commit/d61782718ae75289cfaad0eeaf977173815cc7d1))
+
 ## [0.835.2](https://github.com/lightdash/lightdash/compare/0.835.1...0.835.2) (2023-10-31)
 
 
