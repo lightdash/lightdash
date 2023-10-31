@@ -56,24 +56,46 @@ const FilterStringAutoComplete: FC<Props> = ({
 
     const results = useMemo(() => [...resultsSet], [resultsSet]);
 
+    const handleResetSearch = useCallback(() => {
+        setTimeout(() => setSearch(() => ''), 0);
+    }, [setSearch]);
+
     const handleChange = useCallback(
-        (value: string[]) => {
-            onChange(value);
+        (updatedValues: string[]) => {
+            onChange(uniq(updatedValues));
         },
         [onChange],
     );
 
     const handleAdd = useCallback(
-        (value: string) => {
-            onChange([...values, value]);
-            return value;
+        (newValue: string) => {
+            handleChange([...values, newValue]);
+            return newValue;
         },
-        [onChange, values],
+        [handleChange, values],
     );
 
-    const handleOnClose = useCallback(() => {
-        setSearch('');
-    }, [setSearch]);
+    const handleAddMultiple = useCallback(
+        (newValues: string[]) => {
+            handleChange([...values, ...newValues]);
+            return newValues;
+        },
+        [handleChange, values],
+    );
+
+    const handlePaste = useCallback(
+        (event: React.ClipboardEvent<HTMLInputElement>) => {
+            const clipboardData = event.clipboardData.getData('Text');
+            const clipboardDataArray = clipboardData
+                .split(/\,|\n/)
+                .map((s) => s.trim())
+                .filter((s) => s.length > 0);
+
+            handleAddMultiple(clipboardDataArray);
+            handleResetSearch();
+        },
+        [handleAddMultiple, handleResetSearch],
+    );
 
     const data = useMemo(() => {
         // Mantine does not show value tag if value is not found in data
@@ -102,6 +124,7 @@ const FilterStringAutoComplete: FC<Props> = ({
             searchValue={search}
             onSearchChange={setSearch}
             limit={MAX_AUTOCOMPLETE_RESULTS}
+            onPaste={handlePaste}
             nothingFound={isLoading ? 'Loading...' : 'No results found'}
             rightSection={isLoading ? <Loader size="xs" color="gray" /> : null}
             dropdownComponent={({
@@ -141,7 +164,7 @@ const FilterStringAutoComplete: FC<Props> = ({
             }
             data={data}
             value={values}
-            onDropdownClose={handleOnClose}
+            onDropdownClose={handleResetSearch}
             onChange={handleChange}
             onCreate={handleAdd}
         />
