@@ -1,8 +1,7 @@
 import { FilterableField, FilterRule } from '@lightdash/common';
-import { Tooltip } from '@mantine/core';
-import React, { FC, useCallback } from 'react';
+import { Group, Text, Tooltip } from '@mantine/core';
+import { FC, useCallback } from 'react';
 import {
-    FilterGroupHeader,
     FilterGroupItemsWrapper,
     FilterGroupWrapper,
 } from './FilterGroupForm.styles';
@@ -44,16 +43,19 @@ const SimplifiedFilterGroupForm: FC<Props> = ({
 
     return (
         <FilterGroupWrapper>
-            <FilterGroupHeader>
+            <Group>
                 <Tooltip
                     label="You can only use the 'and' operator when combining metrics & dimensions"
                     disabled={filterRules.length > 1}
                     position="bottom"
                     arrowPosition="center"
                 >
-                    <p>All of the following conditions match:</p>
+                    <Text color="dimmed">
+                        All of the following conditions match:
+                    </Text>
                 </Tooltip>
-            </FilterGroupHeader>
+            </Group>
+
             <FilterGroupItemsWrapper>
                 {filterRules.map((item, index) => (
                     <FilterRuleForm

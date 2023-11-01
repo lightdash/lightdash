@@ -11,17 +11,6 @@ export const FilterGroupWrapper = styled.div`
     gap: 10px;
 `;
 
-export const FilterGroupHeader = styled.div`
-    height: 30px;
-    display: inline-flex;
-    align-items: center;
-
-    p {
-        margin: 0;
-        color: ${Colors.GRAY2};
-    }
-`;
-
 export const FilterGroupItemsWrapper = styled.div`
     width: 100%;
     display: flex;
