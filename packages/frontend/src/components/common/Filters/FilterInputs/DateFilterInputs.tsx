@@ -10,7 +10,7 @@ import {
     parseDate,
     TimeFrames,
 } from '@lightdash/common';
-import { Flex, NumberInput, Text } from '@mantine/core';
+import { Flex, getDefaultZIndex, NumberInput, Text } from '@mantine/core';
 import React from 'react';
 import { useFiltersContext } from '../FiltersProvider';
 import { getFirstDayOfWeek } from '../utils/filterDateUtils';
@@ -28,7 +28,15 @@ import FilterYearPicker from './FilterYearPicker';
 const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
     props: React.PropsWithChildren<FilterInputsProps<T>>,
 ) => {
-    const { field, rule, onChange, popoverProps, disabled, filterType } = props;
+    const {
+        field,
+        rule,
+        onChange,
+        popoverProps,
+        disabled,
+        filterType,
+        inModal,
+    } = props;
     const { startOfWeek } = useFiltersContext();
     const isTimestamp =
         isField(field) && field.type === DimensionType.TIMESTAMP;
@@ -42,6 +50,12 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
         operator: rule.operator,
         disabled: rule.disabled && !rule.values,
     });
+
+    const increaseZIndexIfInModal = inModal
+        ? {
+              zIndex: getDefaultZIndex('modal') + 1,
+          }
+        : {};
 
     switch (rule.operator) {
         case FilterOperator.EQUALS:
@@ -65,6 +79,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
 
                                 <FilterWeekPicker
                                     placeholder={placeholder}
+                                    sx={increaseZIndexIfInModal}
                                     disabled={disabled}
                                     value={
                                         rule.values && rule.values[0]
@@ -137,6 +152,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                           )
                                         : null
                                 }
+                                sx={increaseZIndexIfInModal}
                                 onChange={(value: Date) => {
                                     onChange({
                                         ...rule,
@@ -183,6 +199,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                         ],
                                     });
                                 }}
+                                sx={increaseZIndexIfInModal}
                             />
                         );
                     default:
@@ -232,6 +249,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                           ],
                             });
                         }}
+                        sx={increaseZIndexIfInModal}
                     />
                 );
             }
@@ -267,6 +285,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 : [],
                         });
                     }}
+                    sx={increaseZIndexIfInModal}
                 />
             );
         case FilterOperator.IN_THE_PAST:
@@ -329,6 +348,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             },
                         })
                     }
+                    sx={increaseZIndexIfInModal}
                 />
             );
         case FilterOperator.IN_BETWEEN:
@@ -381,6 +401,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                     : [],
                             });
                         }}
+                        sx={increaseZIndexIfInModal}
                     />
                 );
             }
@@ -427,6 +448,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 : [],
                         });
                     }}
+                    sx={increaseZIndexIfInModal}
                 />
             );
         default: {
