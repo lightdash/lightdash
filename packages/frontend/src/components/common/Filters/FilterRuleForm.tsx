@@ -1,4 +1,3 @@
-import { Colors } from '@blueprintjs/core';
 import {
     createFilterRuleFromField,
     fieldId as getFieldId,
@@ -8,7 +7,7 @@ import {
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
 } from '@lightdash/common';
-import { ActionIcon, Box, Menu, Select } from '@mantine/core';
+import { ActionIcon, Box, Menu, Select, Text } from '@mantine/core';
 import { IconDots, IconX } from '@tabler/icons-react';
 import { FC, useCallback, useMemo } from 'react';
 import FieldSelect from '../FieldSelect';
@@ -123,10 +122,10 @@ const FilterRuleForm: FC<Props> = ({
                     />
                 </>
             ) : (
-                <span style={{ width: '100%', color: Colors.GRAY1 }}>
+                <Text color="dimmed">
                     Tried to reference field with unknown id:{' '}
                     {filterRule.target.fieldId}
-                </span>
+                </Text>
             )}
 
             {isEditMode &&
