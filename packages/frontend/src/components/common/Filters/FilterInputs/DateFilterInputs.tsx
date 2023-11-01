@@ -10,7 +10,7 @@ import {
     parseDate,
     TimeFrames,
 } from '@lightdash/common';
-import { Flex, getDefaultZIndex, NumberInput, Text } from '@mantine/core';
+import { Flex, NumberInput, Text } from '@mantine/core';
 import React from 'react';
 import { useFiltersContext } from '../FiltersProvider';
 import { getFirstDayOfWeek } from '../utils/filterDateUtils';
@@ -51,12 +51,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
         disabled: rule.disabled && !rule.values,
     });
 
-    const increaseZIndexIfInModal = inModal
-        ? {
-              zIndex: getDefaultZIndex('modal') + 1,
-          }
-        : {};
-
     switch (rule.operator) {
         case FilterOperator.EQUALS:
         case FilterOperator.NOT_EQUALS:
@@ -79,7 +73,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
 
                                 <FilterWeekPicker
                                     placeholder={placeholder}
-                                    sx={increaseZIndexIfInModal}
                                     disabled={disabled}
                                     value={
                                         rule.values && rule.values[0]
@@ -110,6 +103,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                             popoverProps?.onClose?.(
                                                 null as any,
                                             ),
+                                        withinPortal: inModal,
                                     }}
                                     onChange={(value: Date | null) => {
                                         onChange({
@@ -140,6 +134,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                         popoverProps?.onOpened?.(null as any),
                                     onClose: () =>
                                         popoverProps?.onClose?.(null as any),
+                                    withinPortal: inModal,
                                 }}
                                 value={
                                     rule.values && rule.values[0]
@@ -152,7 +147,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                           )
                                         : null
                                 }
-                                sx={increaseZIndexIfInModal}
                                 onChange={(value: Date) => {
                                     onChange({
                                         ...rule,
@@ -176,6 +170,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                         popoverProps?.onOpened?.(null as any),
                                     onClose: () =>
                                         popoverProps?.onClose?.(null as any),
+                                    withinPortal: inModal,
                                 }}
                                 value={
                                     rule.values && rule.values[0]
@@ -199,7 +194,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                         ],
                                     });
                                 }}
-                                sx={increaseZIndexIfInModal}
                             />
                         );
                     default:
@@ -223,6 +217,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         popoverProps={{
                             onOpen: () => popoverProps?.onOpened?.(null as any),
                             onClose: () => popoverProps?.onClose?.(null as any),
+                            withinPortal: inModal,
                         }}
                         value={
                             rule.values
@@ -249,7 +244,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                           ],
                             });
                         }}
-                        sx={increaseZIndexIfInModal}
                     />
                 );
             }
@@ -268,6 +262,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     popoverProps={{
                         onOpen: () => popoverProps?.onOpened?.(null as any),
                         onClose: () => popoverProps?.onClose?.(null as any),
+                        withinPortal: inModal,
                     }}
                     value={
                         rule.values
@@ -285,7 +280,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 : [],
                         });
                     }}
-                    sx={increaseZIndexIfInModal}
                 />
             );
         case FilterOperator.IN_THE_PAST:
@@ -316,6 +310,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         unitOfTime={rule.settings?.unitOfTime}
                         completed={rule.settings?.completed || false}
                         popoverProps={popoverProps}
+                        withinPortal={inModal}
                         onChange={(value) =>
                             onChange({
                                 ...rule,
@@ -348,7 +343,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             },
                         })
                     }
-                    sx={increaseZIndexIfInModal}
+                    withinPortal={inModal}
                 />
             );
         case FilterOperator.IN_BETWEEN:
@@ -383,6 +378,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         popoverProps={{
                             onOpen: () => popoverProps?.onOpened?.(null as any),
                             onClose: () => popoverProps?.onClose?.(null as any),
+                            withinPortal: inModal,
                         }}
                         onChange={(value: [Date, Date] | null) => {
                             onChange({
@@ -401,7 +397,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                     : [],
                             });
                         }}
-                        sx={increaseZIndexIfInModal}
                     />
                 );
             }
@@ -436,6 +431,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     popoverProps={{
                         onOpen: () => popoverProps?.onOpened?.(null as any),
                         onClose: () => popoverProps?.onClose?.(null as any),
+                        withinPortal: inModal,
                     }}
                     onChange={(value: [Date, Date] | null) => {
                         onChange({
@@ -448,7 +444,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 : [],
                         });
                     }}
-                    sx={increaseZIndexIfInModal}
                 />
             );
         default: {
