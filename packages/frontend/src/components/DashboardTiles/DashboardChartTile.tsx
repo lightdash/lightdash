@@ -88,7 +88,7 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
         data: resultData,
         isLoading,
         error,
-    } = useChartResults(savedChart.uuid, savedChart.metricQuery.filters);
+    } = useChartResults(savedChart.uuid, savedChart.metricQuery.filters, false);
 
     useEffect(() => {
         if (error) {
@@ -164,12 +164,19 @@ const ValidDashboardChartTile: FC<{
         e: EchartSeriesClickEvent,
         series: EChartSeries[],
     ) => void;
-}> = ({ tileUuid, isTitleHidden = false, data, onSeriesContextMenu }) => {
+    invalidateCache?: boolean;
+}> = ({
+    tileUuid,
+    isTitleHidden = false,
+    data,
+    onSeriesContextMenu,
+    invalidateCache,
+}) => {
     const {
         data: resultData,
         isLoading,
         error,
-    } = useChartResults(data.uuid, data.metricQuery.filters);
+    } = useChartResults(data.uuid, data.metricQuery.filters, invalidateCache);
     const { addSuggestions, addResultsCacheTime } = useDashboardContext();
     const { data: explore } = useExplore(data.tableName);
     const { health } = useApp();
@@ -232,7 +239,7 @@ const ValidDashboardChartTileMinimal: FC<{
         data: resultData,
         isLoading,
         error,
-    } = useChartResults(data.uuid, data.metricQuery.filters);
+    } = useChartResults(data.uuid, data.metricQuery.filters, false);
     const { data: explore } = useExplore(data.tableName);
 
     const { health } = useApp();
@@ -320,6 +327,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         dashboardFilters: filtersFromCOntext,
         haveTilesChanged,
         haveFiltersChanged,
+        invalidateCache,
         dashboard,
     } = useDashboardContext();
 
@@ -783,6 +791,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             project={projectUuid}
                             isTitleHidden={hideTitle}
                             onSeriesContextMenu={onSeriesContextMenu}
+                            invalidateCache={invalidateCache}
                         />
                     </>
                 ) : (

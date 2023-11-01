@@ -850,6 +850,7 @@ export class ProjectService {
         chartUuid: string,
         filters?: Filters,
         versionUuid?: string,
+        invalidateCache?: boolean,
     ): Promise<ApiQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -900,6 +901,7 @@ export class ProjectService {
                 : QueryExecutionContext.CHART,
 
             queryTags,
+            invalidateCache,
         );
     }
 
@@ -950,6 +952,7 @@ export class ProjectService {
         csvLimit: number | null | undefined,
         context: QueryExecutionContext,
         queryTags?: RunQueryTags,
+        invalidateCache?: boolean,
     ): Promise<ApiQueryResults> {
         return wrapOtelSpan(
             'ProjectService.runQueryAndFormatRows',
@@ -963,6 +966,7 @@ export class ProjectService {
                     csvLimit,
                     context,
                     queryTags,
+                    invalidateCache,
                 );
                 span.setAttribute('rows', rows.length);
 
@@ -1058,6 +1062,7 @@ export class ProjectService {
         query,
         metricQuery,
         queryTags,
+        invalidateCache,
     }: {
         projectUuid: string;
         context: QueryExecutionContext;
@@ -1065,6 +1070,7 @@ export class ProjectService {
         query: any;
         metricQuery: MetricQuery;
         queryTags?: RunQueryTags;
+        invalidateCache?: boolean;
     }): Promise<{
         rows: Record<string, any>[];
         cacheMetadata: CacheMetadata;
@@ -1082,7 +1088,7 @@ export class ProjectService {
                 span.setAttribute('queryHash', queryHash);
                 span.setAttribute('cacheHit', false);
 
-                if (lightdashConfig.resultsCache?.enabled) {
+                if (lightdashConfig.resultsCache?.enabled && !invalidateCache) {
                     const cacheEntryMetadata = await this.s3CacheClient
                         .getResultsMetadata(queryHash)
                         .catch((e) => undefined); // ignore since error is tracked in s3Client
@@ -1160,6 +1166,7 @@ export class ProjectService {
         csvLimit: number | null | undefined,
         context: QueryExecutionContext,
         queryTags?: RunQueryTags,
+        invalidateCache?: boolean,
     ): Promise<{ rows: Record<string, any>[]; cacheMetadata: CacheMetadata }> {
         const tracer = opentelemetry.trace.getTracer('default');
         return tracer.startActiveSpan(
@@ -1300,6 +1307,7 @@ export class ProjectService {
                             metricQuery,
                             query,
                             queryTags,
+                            invalidateCache,
                         });
                     await sshTunnel.disconnect();
                     return { rows, cacheMetadata };

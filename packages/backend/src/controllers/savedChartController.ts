@@ -52,6 +52,8 @@ export class SavedChartController extends Controller {
                 req.user!,
                 chartUuid,
                 body.filters,
+                undefined,
+                req.query?.invalidateCache?.toString() === 'true',
             ),
         };
     }

@@ -80,6 +80,8 @@ type DashboardContext = {
     addSuggestions: (newSuggestionsMap: Record<string, string[]>) => void;
     addResultsCacheTime: (cacheMetadata: CacheMetadata) => void;
     oldestCacheTime: Date | undefined;
+    invalidateCache: boolean | undefined;
+    clearCacheAndFetch: () => void;
     allFilterableFields: FilterableField[] | undefined;
     filterableFieldsBySavedQueryUuid: DashboardAvailableFilters | undefined;
     filterableFieldsByTileUuid: DashboardAvailableFilters | undefined;
@@ -114,6 +116,8 @@ export const DashboardProvider: React.FC = ({ children }) => {
     const [haveFiltersChanged, setHaveFiltersChanged] =
         useState<boolean>(false);
     const [resultsCacheTimes, setResultsCacheTimes] = useState<Date[]>([]);
+
+    const [invalidateCache, setInvalidateCache] = useState<boolean>(false);
 
     const {
         overridesForSavedDashboardFilters,
@@ -443,6 +447,13 @@ export const DashboardProvider: React.FC = ({ children }) => {
         }
     }, []);
 
+    const clearCacheAndFetch = useCallback(() => {
+        setResultsCacheTimes([]);
+
+        // Causes results refetch
+        setInvalidateCache(true);
+    }, []);
+
     const oldestCacheTime = useMemo(
         () => min(resultsCacheTimes),
         [resultsCacheTimes],
@@ -469,6 +480,8 @@ export const DashboardProvider: React.FC = ({ children }) => {
         addSuggestions,
         addResultsCacheTime,
         oldestCacheTime,
+        invalidateCache,
+        clearCacheAndFetch,
         allFilterableFields,
         filterableFieldsBySavedQueryUuid,
         isLoadingDashboardFilters,

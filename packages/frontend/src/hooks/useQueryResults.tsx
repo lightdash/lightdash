@@ -25,12 +25,16 @@ type QueryResultsProps = {
 const getChartResults = async ({
     chartUuid,
     filters,
+    invalidateCache,
 }: {
     chartUuid?: string;
     filters?: Filters;
+    invalidateCache?: boolean;
 }) => {
     return lightdashApi<ApiQueryResults>({
-        url: `/saved/${chartUuid}/results`,
+        url: `/saved/${chartUuid}/results${
+            invalidateCache ? '?invalidateCache=true' : ''
+        }`,
         method: 'POST',
         body: JSON.stringify({ filters }),
     });
@@ -163,8 +167,17 @@ export const useUnderlyingDataResults = (
 };
 
 // This hook will be used for getting charts in view mode and dashboard tiles
-export const useChartResults = (chartUuid: string, filters?: Filters) => {
-    const queryKey = ['savedChartResults', chartUuid, JSON.stringify(filters)];
+export const useChartResults = (
+    chartUuid: string,
+    filters?: Filters,
+    invalidateCache?: boolean,
+) => {
+    const queryKey = [
+        'savedChartResults',
+        chartUuid,
+        JSON.stringify(filters),
+        invalidateCache,
+    ];
     const timezoneFixFilters = filters && convertDateFilters(filters);
 
     return useQuery<ApiQueryResults, ApiError>({
@@ -173,6 +186,7 @@ export const useChartResults = (chartUuid: string, filters?: Filters) => {
             getChartResults({
                 chartUuid,
                 filters: timezoneFixFilters,
+                invalidateCache,
             }),
         retry: false,
         refetchOnMount: false,
