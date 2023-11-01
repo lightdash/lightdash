@@ -388,7 +388,7 @@ export class CsvService {
               )
             : metricQuery;
 
-        const rows = await this.projectService.runMetricQuery(
+        const { rows } = await this.projectService.runMetricQuery(
             user,
             metricQueryWithDashboardFilters,
             chart.projectUuid,
@@ -663,7 +663,7 @@ export class CsvService {
                 properties: analyticsProperties,
             });
 
-            const rows = await this.projectService.runMetricQuery(
+            const { rows } = await this.projectService.runMetricQuery(
                 user,
                 metricQuery,
                 projectUuid,

@@ -100,6 +100,9 @@ export const EXPECTED_CONVERTED_SNOWFLAKE_DATA = {
             limit: 0,
             tableCalculations: [],
         },
+        cacheMetadata: {
+            cacheHit: false,
+        },
         rows: [
             {
                 metricflow_index: {

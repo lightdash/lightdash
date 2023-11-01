@@ -669,7 +669,7 @@ export const uploadGsheetFromQuery = async (
         });
         const user = await userService.getSessionByUserUuid(payload.userUuid);
 
-        const rows = await projectService.runMetricQuery(
+        const { rows } = await projectService.runMetricQuery(
             user,
             payload.metricQuery,
             payload.projectUuid,
@@ -941,7 +941,7 @@ export const uploadGsheets = async (
                 `Unable to process format ${format} on sendGdriveNotification`,
             );
         } else if (savedChartUuid) {
-            const rows = await projectService.getResultsForChart(
+            const { rows } = await projectService.getResultsForChart(
                 user,
                 savedChartUuid,
             );
@@ -1008,7 +1008,7 @@ export const uploadGsheets = async (
             // We want to process all charts in sequence, so we don't load all chart results in memory
             chartUuids.reduce(async (promise, chartUuid) => {
                 await promise;
-                const rows = await projectService.getResultsForChart(
+                const { rows } = await projectService.getResultsForChart(
                     user,
                     chartUuid,
                 );
