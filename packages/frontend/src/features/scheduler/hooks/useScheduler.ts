@@ -24,7 +24,7 @@ const getSchedulerLogs = async (projectUuid: string) =>
         body: undefined,
     });
 
-export const sendNowScheduler = async (scheduler: CreateSchedulerAndTargets) =>
+const sendNowScheduler = async (scheduler: CreateSchedulerAndTargets) =>
     lightdashApi<undefined>({
         url: `/schedulers/send`,
         method: 'POST',
