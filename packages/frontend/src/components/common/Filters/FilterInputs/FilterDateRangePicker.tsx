@@ -21,13 +21,8 @@ const FilterDateRangePicker: FC<Props> = ({
     onChange,
     ...rest
 }) => {
-    const [date1, setDate1] = useState(value?.[0] ?? new Date());
-    const [date2, setDate2] = useState(value?.[1] ?? new Date());
-
-    console.log('date1', date1);
-    console.log('date2', date2);
-    console.log('disabled', disabled);
-    console.log('rest', rest);
+    const [date1, setDate1] = useState(value?.[0] ?? null);
+    const [date2, setDate2] = useState(value?.[1] ?? null);
 
     return (
         <Flex align="center" w="100%" gap="xxs">
@@ -35,7 +30,9 @@ const FilterDateRangePicker: FC<Props> = ({
                 size="xs"
                 disabled={disabled}
                 placeholder="Start date"
-                maxDate={dayjs(date2).subtract(1, 'day').toDate()}
+                maxDate={
+                    date2 ? dayjs(date2).subtract(1, 'day').toDate() : undefined
+                }
                 firstDayOfWeek={firstDayOfWeek}
                 {...rest}
                 value={date1}
