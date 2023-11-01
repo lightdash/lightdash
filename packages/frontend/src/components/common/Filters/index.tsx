@@ -204,7 +204,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
 
             {isEditMode ? (
                 <Box bg="white" pos="relative" style={{ zIndex: 2 }}>
-                    {isOpen ? (
+                    {!isOpen ? (
                         <Button
                             variant="outline"
                             size="xs"
