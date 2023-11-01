@@ -146,7 +146,7 @@ export class ExploreCompiler {
                             if (isRequired || isVisible) {
                                 acc[dimensionKey] = {
                                     ...dimension,
-                                    hidden: !isVisible,
+                                    hidden: dimension.hidden || !isVisible,
                                     table: joinTableName,
                                     tableLabel: joinTableLabel,
                                 };
