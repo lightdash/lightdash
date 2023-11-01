@@ -1,3 +1,10 @@
+## [0.840.1](https://github.com/lightdash/lightdash/compare/0.840.0...0.840.1) (2023-11-01)
+
+
+### Bug Fixes
+
+* set undefined maxDate when creating isbetween date filter ([#7769](https://github.com/lightdash/lightdash/issues/7769)) ([c735f2d](https://github.com/lightdash/lightdash/commit/c735f2d64d06a66f2f39985e729eea7af63a4116))
+
 # [0.840.0](https://github.com/lightdash/lightdash/compare/0.839.0...0.840.0) (2023-11-01)
 
 
