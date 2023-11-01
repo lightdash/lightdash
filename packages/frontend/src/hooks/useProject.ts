@@ -63,7 +63,7 @@ export const useUpdateMutation = (id: string) => {
             },
             onError: (error) => {
                 showToastError({
-                    title: `Failed to create project`,
+                    title: `Failed to update project`,
                     subtitle: error.error.message,
                 });
             },
