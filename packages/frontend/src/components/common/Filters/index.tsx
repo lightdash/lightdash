@@ -156,7 +156,11 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                             )}
 
                         {showMandatoryAndOperator && (
-                            <Box bg="white" pos="relative">
+                            <Box
+                                bg="white"
+                                pos="relative"
+                                style={{ zIndex: 2 }}
+                            >
                                 <Tooltip label="You can only use the 'and' operator when combining metrics & dimensions">
                                     <Badge variant="light" color="gray">
                                         and
@@ -198,39 +202,40 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                     </>
                 ))}
 
-            {isOpen && (
-                <FieldSelect
-                    size="xs"
-                    maw={300}
-                    autoFocus
-                    hasGrouping
-                    items={fields}
-                    onChange={(field) => {
-                        if (!field) return;
-                        addFieldRule(field);
-                    }}
-                    onClosed={toggleFieldInput}
-                    rightSection={
-                        <ActionIcon onClick={toggleFieldInput}>
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
-                    }
-                />
-            )}
-
-            {isEditMode && !isOpen && (
+            {isEditMode ? (
                 <Box bg="white" pos="relative" style={{ zIndex: 2 }}>
-                    <Button
-                        variant="outline"
-                        size="xs"
-                        leftIcon={<MantineIcon icon={IconPlus} />}
-                        disabled={fields.length <= 0}
-                        onClick={toggleFieldInput}
-                    >
-                        Add filter
-                    </Button>
+                    {isOpen ? (
+                        <Button
+                            variant="outline"
+                            size="xs"
+                            leftIcon={<MantineIcon icon={IconPlus} />}
+                            disabled={fields.length <= 0}
+                            onClick={toggleFieldInput}
+                        >
+                            Add filter
+                        </Button>
+                    ) : (
+                        <FieldSelect
+                            size="xs"
+                            withinPortal
+                            maw={300}
+                            autoFocus
+                            hasGrouping
+                            items={fields}
+                            onChange={(field) => {
+                                if (!field) return;
+                                addFieldRule(field);
+                            }}
+                            onClosed={toggleFieldInput}
+                            rightSection={
+                                <ActionIcon onClick={toggleFieldInput}>
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            }
+                        />
+                    )}
                 </Box>
-            )}
+            ) : null}
         </Stack>
     );
 };
