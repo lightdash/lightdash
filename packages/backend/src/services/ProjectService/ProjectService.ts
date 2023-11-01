@@ -978,22 +978,27 @@ export class ProjectService {
                     exploreName,
                 );
 
-                const itemMap = getItemMap(
-                    explore,
-                    metricQuery.additionalMetrics,
-                    metricQuery.tableCalculations,
+                const itemMap = await wrapOtelSpan(
+                    'ProjectService.runQueryAndFormatRows.getItemMap',
+                    {},
+                    async () =>
+                        getItemMap(
+                            explore,
+                            metricQuery.additionalMetrics,
+                            metricQuery.tableCalculations,
+                        ),
                 );
 
                 // If there are more than 500 rows, we need to format them in a background job
                 const formattedRows = await wrapOtelSpan(
-                    'formatted rows',
+                    'ProjectService.runQueryAndFormatRows.formatRows',
                     {
                         rows: rows.length,
                         warehouse: warehouseConnection?.type,
                     },
                     async (formatRowsSpan) =>
                         wrapSentryTransaction<ResultRow[]>(
-                            'formatted rows',
+                            'ProjectService.runQueryAndFormatRows.formatRows',
                             {
                                 rows: rows.length,
                                 warehouse: warehouseConnection?.type,
