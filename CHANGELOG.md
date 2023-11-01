@@ -1,3 +1,12 @@
+# [0.838.0](https://github.com/lightdash/lightdash/compare/0.837.1...0.838.0) (2023-11-01)
+
+
+### Features
+
+* filter inputs - date time range picker to mantine ([#7714](https://github.com/lightdash/lightdash/issues/7714)) ([d5d5255](https://github.com/lightdash/lightdash/commit/d5d5255322ed986d0ed9752b108e358d75e606b7))
+* remove old chart config ([#7747](https://github.com/lightdash/lightdash/issues/7747)) ([08cd997](https://github.com/lightdash/lightdash/commit/08cd997ca2bff8fde97ec02fea11caab71509418))
+* remove old scheduled deliveries and flag ([#7756](https://github.com/lightdash/lightdash/issues/7756)) ([85bdd7e](https://github.com/lightdash/lightdash/commit/85bdd7e570c510b9f489b73e1ae5d757b23b7121))
+
 ## [0.837.1](https://github.com/lightdash/lightdash/compare/0.837.0...0.837.1) (2023-11-01)
 
 
