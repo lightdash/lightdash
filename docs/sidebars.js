@@ -139,6 +139,7 @@ module.exports = {
                         'guides/table-calculations/table-calculation-sql-templates/running-total',
                     ],
                 },
+                'guides/how-to-create-custom-fields',
                 'guides/interactive-dashboards',
                 'guides/spaces',
                 'guides/pinning',
