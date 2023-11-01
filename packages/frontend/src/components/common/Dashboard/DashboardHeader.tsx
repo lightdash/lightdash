@@ -67,7 +67,7 @@ type DashboardHeaderProps = {
     hasDashboardChanged: boolean;
     isEditMode: boolean;
     isSaving: boolean;
-    oldestCacheTime?: string;
+    oldestCacheTime?: Date;
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     onCancel: () => void;
     onSaveDashboard: () => void;

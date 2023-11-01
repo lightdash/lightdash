@@ -79,7 +79,7 @@ type DashboardContext = {
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
     addSuggestions: (newSuggestionsMap: Record<string, string[]>) => void;
     addResultsCacheTime: (cacheMetadata: CacheMetadata) => void;
-    oldestCacheTime: string | undefined;
+    oldestCacheTime: Date | undefined;
     allFilterableFields: FilterableField[] | undefined;
     filterableFieldsBySavedQueryUuid: DashboardAvailableFilters | undefined;
     filterableFieldsByTileUuid: DashboardAvailableFilters | undefined;
@@ -113,7 +113,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
         useState<DashboardFilters>(emptyFilters);
     const [haveFiltersChanged, setHaveFiltersChanged] =
         useState<boolean>(false);
-    const [resultsCacheTimes, setResultsCacheTimes] = useState<string[]>([]);
+    const [resultsCacheTimes, setResultsCacheTimes] = useState<Date[]>([]);
 
     const {
         overridesForSavedDashboardFilters,
@@ -435,10 +435,11 @@ export const DashboardProvider: React.FC = ({ children }) => {
 
     const addResultsCacheTime = useCallback((cacheMetadata: CacheMetadata) => {
         if (cacheMetadata.cacheHit && cacheMetadata.cacheUpdatedTime) {
-            setResultsCacheTimes((old) => [
-                ...old,
-                cacheMetadata.cacheUpdatedTime,
-            ]);
+            setResultsCacheTimes((old) =>
+                cacheMetadata.cacheUpdatedTime
+                    ? [...old, cacheMetadata.cacheUpdatedTime]
+                    : [...old],
+            );
         }
     }, []);
 
