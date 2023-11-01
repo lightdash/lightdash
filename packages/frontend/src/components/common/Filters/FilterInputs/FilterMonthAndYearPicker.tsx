@@ -1,19 +1,20 @@
-import { YearPickerInput, YearPickerInputProps } from '@mantine/dates';
+import { MonthPickerInput, MonthPickerInputProps } from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
 import moment from 'moment';
 import { FC } from 'react';
 
-type Props = Omit<YearPickerInputProps, 'value' | 'onChange'> & {
+type Props = Omit<MonthPickerInputProps, 'value' | 'onChange'> & {
     value: Date | null;
     onChange: (value: Date) => void;
 };
-const YearInput: FC<Props> = ({ value, onChange, ...props }) => {
+
+const FilterMonthAndYearPicker: FC<Props> = ({ value, onChange, ...props }) => {
     const [isPopoverOpen, { open, close, toggle }] = useDisclosure();
 
     const yearValue = value ? moment(value).toDate() : null;
 
     return (
-        <YearPickerInput
+        <MonthPickerInput
             w="100%"
             size="xs"
             minDate={moment().year(1000).toDate()}
@@ -46,4 +47,4 @@ const YearInput: FC<Props> = ({ value, onChange, ...props }) => {
     );
 };
 
-export default YearInput;
+export default FilterMonthAndYearPicker;

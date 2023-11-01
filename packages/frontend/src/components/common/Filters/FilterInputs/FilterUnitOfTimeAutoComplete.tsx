@@ -68,7 +68,7 @@ interface Props extends Omit<SelectProps, 'data' | 'onChange'> {
     onChange: (value: { unitOfTime: UnitOfTime; completed: boolean }) => void;
 }
 
-const UnitOfTimeAutoComplete: FC<Props> = ({
+const FilterUnitOfTimeAutoComplete: FC<Props> = ({
     isTimestamp,
     unitOfTime,
     showOptionsInPlural = true,
@@ -101,4 +101,4 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
     />
 );
 
-export default UnitOfTimeAutoComplete;
+export default FilterUnitOfTimeAutoComplete;
