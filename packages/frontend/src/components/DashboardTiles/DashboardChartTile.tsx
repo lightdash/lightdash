@@ -18,6 +18,7 @@ import {
     getFields,
     getItemMap,
     getVisibleFields,
+    hasCustomDimension,
     isChartTile,
     isFilterableField,
     isTableChartConfig,
@@ -638,35 +639,43 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                 projectUuid: projectUuid,
                                             })}
                                         >
-                                            <MenuItem2
-                                                text="View underlying data"
-                                                icon="layers"
-                                                onClick={() => {
-                                                    if (
-                                                        !viewUnderlyingDataOptions
-                                                    ) {
-                                                        return;
-                                                    }
+                                            {' '}
+                                            {!hasCustomDimension(
+                                                savedQuery?.metricQuery,
+                                            ) && (
+                                                <MenuItem2
+                                                    text="View underlying data"
+                                                    icon="layers"
+                                                    onClick={() => {
+                                                        if (
+                                                            !viewUnderlyingDataOptions
+                                                        ) {
+                                                            return;
+                                                        }
 
-                                                    openUnderlyingDataModal({
-                                                        ...viewUnderlyingDataOptions,
-                                                        dashboardFilters:
-                                                            dashboardFiltersThatApplyToChart,
-                                                    });
-                                                    track({
-                                                        name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-                                                        properties: {
-                                                            organizationId:
-                                                                user?.data
-                                                                    ?.organizationUuid,
-                                                            userId: user?.data
-                                                                ?.userUuid,
-                                                            projectId:
-                                                                projectUuid,
-                                                        },
-                                                    });
-                                                }}
-                                            />
+                                                        openUnderlyingDataModal(
+                                                            {
+                                                                ...viewUnderlyingDataOptions,
+                                                                dashboardFilters:
+                                                                    dashboardFiltersThatApplyToChart,
+                                                            },
+                                                        );
+                                                        track({
+                                                            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                                                            properties: {
+                                                                organizationId:
+                                                                    user?.data
+                                                                        ?.organizationUuid,
+                                                                userId: user
+                                                                    ?.data
+                                                                    ?.userUuid,
+                                                                projectId:
+                                                                    projectUuid,
+                                                            },
+                                                        });
+                                                    }}
+                                                />
+                                            )}
                                         </Can>
 
                                         <Can

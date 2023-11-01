@@ -414,7 +414,6 @@ export const DashboardProvider: React.FC = ({ children }) => {
         },
         [removeSavedFilterOverride],
     );
-
     const addSuggestions = useCallback(
         (newSuggestionsMap: Record<string, string[]>) => {
             setFieldsWithSuggestions((prev) => {

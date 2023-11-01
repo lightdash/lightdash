@@ -120,3 +120,6 @@ export const countCustomDimensionsInMetricQuery = (
         ).length || 0,
     numCustomRangeBinCustomDimensions: 0, // TODO complete when custom range bin is implemented
 });
+
+export const hasCustomDimension = (metricQuery: MetricQuery | undefined) =>
+    metricQuery?.customDimensions && metricQuery.customDimensions.length > 0;

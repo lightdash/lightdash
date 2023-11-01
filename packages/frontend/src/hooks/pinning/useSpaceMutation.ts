@@ -24,6 +24,11 @@ export const useSpacePinningMutation = (projectUuid: string) => {
                     space.projectUuid,
                 ]);
                 await queryClient.invalidateQueries([
+                    'projects',
+                    projectUuid,
+                    'spaces',
+                ]);
+                await queryClient.invalidateQueries([
                     'space',
                     space.projectUuid,
                     space.uuid,

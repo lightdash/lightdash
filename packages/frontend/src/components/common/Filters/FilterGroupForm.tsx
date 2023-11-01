@@ -185,7 +185,7 @@ const FilterGroupForm: FC<Props> = ({
                     leftIcon={<MantineIcon icon={IconPlus} />}
                     onClick={onAddFilterRule}
                 >
-                    Add filter
+                    Add group rule
                 </Button>
             )}
         </FilterGroupWrapper>

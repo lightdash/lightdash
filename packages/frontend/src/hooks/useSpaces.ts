@@ -112,6 +112,7 @@ export const useSpaceDeleteMutation = (projectUuid: string) => {
                     projectUuid,
                     'spaces',
                 ]);
+                await queryClient.invalidateQueries('pinned_items');
                 showToastSuccess({
                     title: `Success! Space was deleted.`,
                 });

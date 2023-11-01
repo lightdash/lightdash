@@ -82,6 +82,7 @@ import { Worker } from 'worker_threads';
 import { analytics } from '../../analytics/client';
 import { QueryExecutionContext } from '../../analytics/LightdashAnalytics';
 import { S3Client } from '../../clients/Aws/s3';
+import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import { schedulerClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
@@ -125,7 +126,7 @@ type ProjectServiceDependencies = {
     spaceModel: SpaceModel;
     sshKeyPairModel: SshKeyPairModel;
     userAttributesModel: UserAttributesModel;
-    s3Client: S3Client;
+    s3CacheClient: S3CacheClient;
 };
 
 export class ProjectService {
@@ -147,7 +148,7 @@ export class ProjectService {
 
     userAttributesModel: UserAttributesModel;
 
-    s3Client: S3Client;
+    s3CacheClient: S3CacheClient;
 
     constructor({
         projectModel,
@@ -158,7 +159,7 @@ export class ProjectService {
         spaceModel,
         sshKeyPairModel,
         userAttributesModel,
-        s3Client,
+        s3CacheClient,
     }: ProjectServiceDependencies) {
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
@@ -169,7 +170,7 @@ export class ProjectService {
         this.spaceModel = spaceModel;
         this.sshKeyPairModel = sshKeyPairModel;
         this.userAttributesModel = userAttributesModel;
-        this.s3Client = s3Client;
+        this.s3CacheClient = s3CacheClient;
     }
 
     private async _resolveWarehouseClientSshKeys<
@@ -1082,7 +1083,7 @@ export class ProjectService {
                 span.setAttribute('cacheHit', false);
 
                 if (lightdashConfig.resultsCache?.enabled) {
-                    const cacheEntryMetadata = await this.s3Client
+                    const cacheEntryMetadata = await this.s3CacheClient
                         .getResultsMetadata(queryHash)
                         .catch((e) => undefined); // ignore since error is tracked in s3Client
 
@@ -1096,7 +1097,7 @@ export class ProjectService {
                         Logger.debug(
                             `Getting data from cache, key: ${queryHash}`,
                         );
-                        const cacheEntry = await this.s3Client.getResults(
+                        const cacheEntry = await this.s3CacheClient.getResults(
                             queryHash,
                         );
                         const stringResults =
@@ -1138,7 +1139,7 @@ export class ProjectService {
                         JSON.stringify(warehouseResults),
                     );
                     // fire and forget
-                    this.s3Client
+                    this.s3CacheClient
                         .uploadResults(queryHash, buffer, queryTags)
                         .catch((e) => undefined); // ignore since error is tracked in s3Client
                 }

@@ -1,3 +1,78 @@
+# [0.837.0](https://github.com/lightdash/lightdash/compare/0.836.2...0.837.0) (2023-10-31)
+
+
+### Features
+
+* filter inputs - string autocomplete to mantine ([#7742](https://github.com/lightdash/lightdash/issues/7742)) ([3afa69e](https://github.com/lightdash/lightdash/commit/3afa69ee7aa50b5de1b17e2eb731f6ea05f6f58d))
+
+## [0.836.2](https://github.com/lightdash/lightdash/compare/0.836.1...0.836.2) (2023-10-31)
+
+
+### Bug Fixes
+
+* Pin to homepage doesn't get updated to Unpin & vice-versa in All… ([#7711](https://github.com/lightdash/lightdash/issues/7711)) ([212644d](https://github.com/lightdash/lightdash/commit/212644d56dfedf6024387e157c1b242b3c17ecad))
+
+## [0.836.1](https://github.com/lightdash/lightdash/compare/0.836.0...0.836.1) (2023-10-31)
+
+
+### Bug Fixes
+
+* When I delete a pinned item, I expect it to disappear from the panel ([#7712](https://github.com/lightdash/lightdash/issues/7712)) ([ae213ae](https://github.com/lightdash/lightdash/commit/ae213ae60c77328adcaf6db13db2aa38530adfdd))
+
+# [0.836.0](https://github.com/lightdash/lightdash/compare/0.835.3...0.836.0) (2023-10-31)
+
+
+### Bug Fixes
+
+* custom dimension table order ([#7743](https://github.com/lightdash/lightdash/issues/7743)) ([257e05b](https://github.com/lightdash/lightdash/commit/257e05b782eed7beb1b0ceb6513d5fb1d1b20546))
+
+
+### Features
+
+* custom dimension custom range ([#7721](https://github.com/lightdash/lightdash/issues/7721)) ([7a60aea](https://github.com/lightdash/lightdash/commit/7a60aeac6a45c285497a1f9183cfcb2a8e69ff5c))
+
+## [0.835.3](https://github.com/lightdash/lightdash/compare/0.835.2...0.835.3) (2023-10-31)
+
+
+### Bug Fixes
+
+* improve refresh dbt button logic and sync UI with state ([#7740](https://github.com/lightdash/lightdash/issues/7740)) ([d617827](https://github.com/lightdash/lightdash/commit/d61782718ae75289cfaad0eeaf977173815cc7d1))
+
+## [0.835.2](https://github.com/lightdash/lightdash/compare/0.835.1...0.835.2) (2023-10-31)
+
+
+### Bug Fixes
+
+* disable underlying data custom dimension ([#7699](https://github.com/lightdash/lightdash/issues/7699)) ([6327346](https://github.com/lightdash/lightdash/commit/63273463af84274c583a2f60b245900daf90ce04))
+
+## [0.835.1](https://github.com/lightdash/lightdash/compare/0.835.0...0.835.1) (2023-10-31)
+
+
+### Bug Fixes
+
+* custom dimension order ([#7734](https://github.com/lightdash/lightdash/issues/7734)) ([1ceceb5](https://github.com/lightdash/lightdash/commit/1ceceb582f2a81608741289c022679a0ddcd78d1))
+
+# [0.835.0](https://github.com/lightdash/lightdash/compare/0.834.0...0.835.0) (2023-10-30)
+
+
+### Features
+
+* use mantine for schedule delete dialog ([#7700](https://github.com/lightdash/lightdash/issues/7700)) ([561792f](https://github.com/lightdash/lightdash/commit/561792f0f960ba36f017f78e62348c196e517725))
+
+# [0.834.0](https://github.com/lightdash/lightdash/compare/0.833.1...0.834.0) (2023-10-30)
+
+
+### Features
+
+* cache s3 credentials ([#7735](https://github.com/lightdash/lightdash/issues/7735)) ([6390ca0](https://github.com/lightdash/lightdash/commit/6390ca09bd092d54dc7b33e14ec4c9137bbec2b4))
+
+## [0.833.1](https://github.com/lightdash/lightdash/compare/0.833.0...0.833.1) (2023-10-30)
+
+
+### Bug Fixes
+
+* update button copy on nested filters ([#7732](https://github.com/lightdash/lightdash/issues/7732)) ([c22379c](https://github.com/lightdash/lightdash/commit/c22379c465b7f8e03fe41a78b0db6f2d5d67fcb9)), closes [#7725](https://github.com/lightdash/lightdash/issues/7725)
+
 # [0.833.0](https://github.com/lightdash/lightdash/compare/0.832.6...0.833.0) (2023-10-30)
 
 

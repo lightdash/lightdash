@@ -419,8 +419,21 @@
                 "additionalProperties": false
             },
             "BinType": {
-                "enum": ["fixed_number", "fixed_width"],
+                "enum": ["fixed_number", "fixed_width", "custom_range"],
                 "type": "string"
+            },
+            "BinRange": {
+                "properties": {
+                    "to": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "from": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "type": "object"
             },
             "CustomDimension": {
                 "properties": {
@@ -446,6 +459,12 @@
                     "binWidth": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "customRange": {
+                        "items": {
+                            "$ref": "#/components/schemas/BinRange"
+                        },
+                        "type": "array"
                     }
                 },
                 "required": ["id", "name", "dimensionId", "table", "binType"],
@@ -5225,7 +5244,8 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.833.0",
+
+        "version": "0.836.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

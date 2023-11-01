@@ -71,6 +71,9 @@ export const simpleSeriesMapArgs: GetExpectedSeriesMapArgs = {
             limit: 10,
             tableCalculations: [],
         },
+        cacheMetadata: {
+            cacheHit: false,
+        },
         rows: [
             {
                 dimension_x: { value: { raw: 'a', formatted: 'a' } },
@@ -215,6 +218,9 @@ export const multiPivotSeriesMapArgs: GetExpectedSeriesMapArgs = {
             sorts: [],
             limit: 10,
             tableCalculations: [],
+        },
+        cacheMetadata: {
+            cacheHit: false,
         },
         rows: [
             {
