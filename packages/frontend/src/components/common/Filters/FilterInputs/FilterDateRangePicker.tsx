@@ -30,7 +30,9 @@ const FilterDateRangePicker: FC<Props> = ({
                 size="xs"
                 disabled={disabled}
                 placeholder="Start date"
-                maxDate={dayjs(date2).subtract(1, 'day').toDate()}
+                maxDate={
+                    date2 ? dayjs(date2).subtract(1, 'day').toDate() : undefined
+                }
                 firstDayOfWeek={firstDayOfWeek}
                 {...rest}
                 value={date1}
