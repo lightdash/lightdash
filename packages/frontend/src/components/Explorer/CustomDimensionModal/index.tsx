@@ -23,7 +23,6 @@ import { useForm } from '@mantine/form';
 import { IconX } from '@tabler/icons-react';
 import { useEffect, useMemo } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import MantineIcon from '../../common/MantineIcon';
 
@@ -56,11 +55,6 @@ export const CustomDimensionModal = () => {
     const editCustomDimension = useExplorerContext(
         (context) => context.actions.editCustomDimension,
     );
-    const tableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
-
-    const { data: exploreData } = useExplore(tableName);
 
     const form = useForm({
         initialValues: {
@@ -184,22 +178,14 @@ export const CustomDimensionModal = () => {
     const baseDimensionLabel = useMemo(() => {
         if (item) {
             if (isEditing && isCustomDimension(item)) {
-                const dimensions = exploreData?.tables[item?.table].dimensions;
-                const regexPattern = `${item?.table}_(\\w+)`;
-                const regex = new RegExp(regexPattern);
-
-                const match = item.dimensionId.match(regex);
-
-                if (match && dimensions) {
-                    return dimensions[match[1]]?.label;
-                }
+                // TODO: Store base dimension label in Custom Dimension
                 return item.dimensionId;
             } else if (isDimension(item)) {
                 return item.label;
             }
             return item.name;
         }
-    }, [exploreData?.tables, isEditing, item]);
+    }, [isEditing, item]);
 
     return !!item ? (
         <Modal
