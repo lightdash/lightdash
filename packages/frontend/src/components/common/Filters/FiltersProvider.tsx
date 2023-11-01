@@ -25,6 +25,7 @@ type FiltersContext = {
         filterId: string,
         item: FilterableItem,
     ) => AndFilterGroup | undefined;
+    inModal: boolean;
 };
 
 const Context = createContext<FiltersContext | undefined>(undefined);
@@ -34,6 +35,7 @@ type Props = {
     fieldsMap?: Record<string, FieldWithSuggestions>;
     startOfWeek?: WeekDay;
     dashboardFilters?: DashboardFilters;
+    inModal?: boolean;
 };
 
 export const FiltersProvider: FC<Props> = ({
@@ -41,6 +43,7 @@ export const FiltersProvider: FC<Props> = ({
     fieldsMap = {},
     startOfWeek,
     dashboardFilters,
+    inModal = false,
     children,
 }) => {
     const getField = useCallback(
@@ -79,6 +82,7 @@ export const FiltersProvider: FC<Props> = ({
                 startOfWeek,
                 getField,
                 getAutocompleteFilterGroup,
+                inModal,
             }}
         >
             {children}
