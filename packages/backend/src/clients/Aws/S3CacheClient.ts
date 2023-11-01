@@ -89,7 +89,10 @@ export class S3CacheClient {
 
     async getResultsMetadata(key: string) {
         return wrapOtelSpan('s3.getResultsMetadata', { key }, async () => {
-            if (this.configuration.bucket || this.s3 === undefined) {
+            if (
+                this.configuration.bucket === undefined ||
+                this.s3 === undefined
+            ) {
                 throw new Error(
                     "Results caching is not enabled or is missing S3 configuration, can't get results cache metadata",
                 );
@@ -115,7 +118,10 @@ export class S3CacheClient {
 
     async getResults(key: string) {
         return wrapOtelSpan('s3.getResults', { key }, async (span) => {
-            if (this.configuration.bucket || this.s3 === undefined) {
+            if (
+                this.configuration.bucket === undefined ||
+                this.s3 === undefined
+            ) {
                 throw new Error(
                     "Results caching is not enabled or is missing S3 configuration, can't get results cache",
                 );

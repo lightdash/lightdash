@@ -27,6 +27,7 @@ import {
     IconTrash,
     IconUpload,
 } from '@tabler/icons-react';
+import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
@@ -66,6 +67,7 @@ type DashboardHeaderProps = {
     hasDashboardChanged: boolean;
     isEditMode: boolean;
     isSaving: boolean;
+    oldestCacheTime?: Date;
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     onCancel: () => void;
     onSaveDashboard: () => void;
@@ -89,6 +91,7 @@ const DashboardHeader = ({
     hasDashboardChanged,
     isEditMode,
     isSaving,
+    oldestCacheTime,
     onAddTiles,
     onCancel,
     onSaveDashboard,
@@ -207,6 +210,18 @@ const DashboardHeader = ({
                     )}
                 </PageTitleContainer>
             </PageTitleAndDetailsContainer>
+            {oldestCacheTime && (
+                <Text
+                    color="gray"
+                    mr="sm"
+                    sx={{ fontSize: '11px', textAlign: 'end' }}
+                >
+                    Dashboard uses cached data from
+                    <Text fw={700}>
+                        {dayjs(oldestCacheTime).format('MMM D, YYYY h:mm A')}{' '}
+                    </Text>
+                </Text>
+            )}
             {userCanManageDashboard && isEditMode ? (
                 <PageActionsContainer>
                     <AddTileButton

@@ -170,7 +170,7 @@ const ValidDashboardChartTile: FC<{
         isLoading,
         error,
     } = useChartResults(data.uuid, data.metricQuery.filters);
-    const { addSuggestions } = useDashboardContext();
+    const { addSuggestions, addResultsCacheTime } = useDashboardContext();
     const { data: explore } = useExplore(data.tableName);
     const { health } = useApp();
 
@@ -189,8 +189,9 @@ const ValidDashboardChartTile: FC<{
                     return { ...sum, [dimensionId]: newSuggestions };
                 }, {}),
             );
+            addResultsCacheTime(resultData.cacheMetadata);
         }
-    }, [addSuggestions, resultData]);
+    }, [addSuggestions, addResultsCacheTime, resultData]);
 
     if (health.isLoading || !health.data) {
         return null;
