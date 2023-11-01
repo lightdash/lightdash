@@ -103,7 +103,7 @@ const FilterGroupForm: FC<Props> = ({
     );
 
     return (
-        <Stack pos="relative" spacing="sm" mb="xs">
+        <Stack pos="relative" spacing="sm" mb="xxs">
             {!hideLine && (
                 <Divider
                     orientation="vertical"
@@ -115,11 +115,12 @@ const FilterGroupForm: FC<Props> = ({
                 />
             )}
 
-            <Group>
-                <Box bg="white" style={{ zIndex: 3 }}>
+            <Group spacing="xs">
+                <Box bg="white" pos="relative" style={{ zIndex: 3 }}>
                     <Select
                         size="xs"
                         w={70}
+                        withinPortal
                         disabled={!isEditMode}
                         data={[
                             {
@@ -147,7 +148,7 @@ const FilterGroupForm: FC<Props> = ({
                 </Text>
             </Group>
 
-            <Stack spacing="xs" pl={36} w="100%">
+            <Stack spacing="xs" pl={36} style={{ flexGrow: 1 }}>
                 {items.map((item, index) => (
                     <React.Fragment key={item.id}>
                         {!isFilterGroup(item) ? (
@@ -183,9 +184,9 @@ const FilterGroupForm: FC<Props> = ({
             </Stack>
 
             {isEditMode && !hideButtons && fields.length > 0 && (
-                <Box bg="white" style={{ zIndex: 2 }}>
+                <Box bg="white" pos="relative" style={{ zIndex: 2 }}>
                     <Button
-                        variant="light"
+                        variant="outline"
                         size="xs"
                         leftIcon={<MantineIcon icon={IconPlus} />}
                         onClick={onAddFilterRule}
