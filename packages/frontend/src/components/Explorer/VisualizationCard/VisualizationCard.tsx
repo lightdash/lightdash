@@ -2,7 +2,6 @@ import { NotFoundError } from '@lightdash/common';
 import { FC, memo, useCallback, useMemo, useState } from 'react';
 
 import { Space } from '@mantine/core';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { downloadCsv } from '../../../api/csv';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
@@ -18,9 +17,7 @@ import CollapsableCard from '../../common/CollapsableCard';
 import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
 import { EchartSeriesClickEvent } from '../../SimpleChart';
-import VisualizationCardOptions from '../VisualizationCardOptions';
 import { SeriesContextMenu } from './SeriesContextMenu';
-import VisualizationConfigPanel from './VisualizationConfigPanel';
 import VisualizationSidebar from './VisualizationSidebar';
 
 export type EchartsClickEvent = {
@@ -34,9 +31,6 @@ const VisualizationCard: FC<{
     isProjectPreview?: boolean;
 }> = memo(({ projectUuid: fallBackUUid, isProjectPreview }) => {
     const { health } = useApp();
-
-    // FEATURE FLAG: remove when chart config sidebar is complete
-    const useSidebar = useFeatureFlagEnabled('sidebar-chart-config');
 
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
@@ -208,22 +202,14 @@ const VisualizationCard: FC<{
                     isOpen && (
                         <>
                             {isEditMode ? (
-                                useSidebar ? (
-                                    <VisualizationSidebar
-                                        chartType={chartType}
-                                        savedChart={savedChart}
-                                        isEditingDashboardChart={getIsEditingDashboardChart()}
-                                        isProjectPreview={isProjectPreview}
-                                    />
-                                ) : (
-                                    <>
-                                        <VisualizationCardOptions />
-                                        <VisualizationConfigPanel
-                                            chartType={chartType}
-                                        />
-                                    </>
-                                )
+                                <VisualizationSidebar
+                                    chartType={chartType}
+                                    savedChart={savedChart}
+                                    isEditingDashboardChart={getIsEditingDashboardChart()}
+                                    isProjectPreview={isProjectPreview}
+                                />
                             ) : null}
+
                             <ChartDownloadMenu
                                 getCsvLink={getCsvLink}
                                 projectUuid={projectUuid!}
