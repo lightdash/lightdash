@@ -135,7 +135,14 @@ export const getMantineThemeOverride = (overrides?: {
                 yOffset: 140,
             },
         },
-
+        Alert: {
+            styles: (_theme, _params) => ({
+                title: {
+                    // FIXME: This makes the icon align with the title.
+                    lineHeight: 1.55,
+                },
+            }),
+        },
         ...overrides?.components,
     },
 

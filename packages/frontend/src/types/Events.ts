@@ -98,4 +98,5 @@ export enum EventName {
     VIEW_UNDERLYING_DATA_CLICKED = 'view_underlying_data.clicked',
     DRILL_BY_CLICKED = 'drill_by.clicked',
     SCHEDULER_SEND_NOW_BUTTON = 'send_now_button.clicked',
+    ADD_CUSTOM_DIMENSION_CLICKED = 'add_custom_dimension.clicked',
 }

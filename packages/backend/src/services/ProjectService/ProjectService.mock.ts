@@ -18,6 +18,7 @@ import {
     OrganizationMemberRole,
     OrganizationProject,
     Project,
+    ProjectSummary,
     ProjectType,
     SessionUser,
     Space,
@@ -232,6 +233,12 @@ export const projectWithSensitiveFields: Project = {
         project_id: 'project_id',
         type: DbtProjectType.DBT_CLOUD_IDE,
     } as any as DbtCloudIDEProjectConfig,
+};
+
+export const projectSummary: ProjectSummary = {
+    organizationUuid: user.organizationUuid!,
+    projectUuid: 'projectUuid',
+    name: 'name',
 };
 export const defaultProject: OrganizationProject = {
     projectUuid: 'projectUuid',

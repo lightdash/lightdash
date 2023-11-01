@@ -96,8 +96,26 @@ export type LightdashConfig = {
         maxLimit: number;
         csvCellsLimit: number;
     };
+    pivotTable: {
+        maxColumnLimit: number;
+    };
+    chart: {
+        versionHistory: {
+            daysLimit: number;
+        };
+    };
     s3?: S3Config;
     headlessBrowser?: HeadlessBrowserConfig;
+    resultsCache: {
+        enabled: boolean;
+        cacheStateTimeSeconds: number;
+        s3: {
+            bucket?: string;
+            region?: string;
+            accessKey?: string;
+            secretKey?: string;
+        };
+    };
     slack?: SlackConfig;
     scheduler: {
         enabled: boolean;
@@ -348,6 +366,20 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                     'LIGHTDASH_CSV_CELLS_LIMIT',
                 ) || 100000,
         },
+        chart: {
+            versionHistory: {
+                daysLimit:
+                    getIntegerFromEnvironmentVariable(
+                        'LIGHTDASH_CHART_VERSION_HISTORY_DAYS_LIMIT',
+                    ) || 3,
+            },
+        },
+        pivotTable: {
+            maxColumnLimit:
+                getIntegerFromEnvironmentVariable(
+                    'LIGHTDASH_PIVOT_TABLE_MAX_COLUMN_LIMIT',
+                ) || 60,
+        },
         s3: {
             region: process.env.S3_REGION,
             accessKey: process.env.S3_ACCESS_KEY,
@@ -362,6 +394,19 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         headlessBrowser: {
             port: process.env.HEADLESS_BROWSER_PORT,
             host: process.env.HEADLESS_BROWSER_HOST,
+        },
+        resultsCache: {
+            enabled: process.env.RESULTS_CACHE_ENABLED === 'true',
+            cacheStateTimeSeconds: parseInt(
+                process.env.CACHE_STALE_TIME_SECONDS || '86400', // A day in seconds
+                10,
+            ),
+            s3: {
+                bucket: process.env.RESULTS_CACHE_S3_BUCKET,
+                region: process.env.RESULTS_CACHE_S3_REGION,
+                accessKey: process.env.RESULTS_CACHE_S3_ACCESS_KEY,
+                secretKey: process.env.RESULTS_CACHE_S3_SECRET_KEY,
+            },
         },
         slack: {
             appToken: process.env.SLACK_APP_TOKEN,

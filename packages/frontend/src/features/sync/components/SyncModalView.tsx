@@ -1,16 +1,23 @@
 import { SchedulerFormat } from '@lightdash/common';
 import {
     ActionIcon,
+    Anchor,
     Button,
     Card,
     Flex,
     Group,
     Menu,
+    Popover,
     ScrollArea,
     Stack,
     Text,
 } from '@mantine/core';
-import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
+import {
+    IconDots,
+    IconInfoCircle,
+    IconPencil,
+    IconTrash,
+} from '@tabler/icons-react';
 import cronstrue from 'cronstrue';
 import { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -122,14 +129,46 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                     </Text>
                 </Group>
             )}
-            <Button
-                size="sm"
-                display="block"
-                ml="auto"
-                onClick={() => setAction(SyncModalAction.CREATE)}
-            >
-                Create New Sync
-            </Button>
+            <Flex justify="space-between" align="center">
+                <Popover withinPortal width={150} withArrow>
+                    <Popover.Target>
+                        <Button
+                            size="xs"
+                            fz={9}
+                            variant="subtle"
+                            color="gray"
+                            leftIcon={
+                                <MantineIcon size={12} icon={IconInfoCircle} />
+                            }
+                        >
+                            Google API Services User Data Policy
+                        </Button>
+                    </Popover.Target>
+
+                    <Popover.Dropdown>
+                        <Text fz={9}>
+                            Lightdash's use and transfer of information received
+                            from Google APIs adhere to{' '}
+                            <Anchor
+                                target="_blank"
+                                href="https://developers.google.com/terms/api-services-user-data-policy"
+                            >
+                                Google API Services User Data Policy
+                            </Anchor>
+                            , including the Limited Use requirements.
+                        </Text>
+                    </Popover.Dropdown>
+                </Popover>
+
+                <Button
+                    size="sm"
+                    display="block"
+                    ml="auto"
+                    onClick={() => setAction(SyncModalAction.CREATE)}
+                >
+                    Create New Sync
+                </Button>
+            </Flex>
         </Stack>
     );
 };

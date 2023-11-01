@@ -8,7 +8,7 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { Tabs } from '@mantine/core';
-import { FC } from 'react';
+import { FC, memo, useMemo } from 'react';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import AxesOptions from './AxesOptions';
 import FieldLayoutOptions from './FieldLayoutOptions';
@@ -16,47 +16,59 @@ import GridPanel from './Grid';
 import LegendPanel from './Legend';
 import SeriesTab from './Series';
 
-const ChartConfigTabs: FC = () => {
+const ChartConfigTabs: FC = memo(() => {
     const { explore, resultsData } = useVisualizationContext();
-
     const dimensionsInMetricQuery = explore
         ? getDimensions(explore).filter((field) =>
               resultsData?.metricQuery.dimensions.includes(fieldId(field)),
           )
         : [];
 
-    const metricsAndTableCalculations: Array<Metric | TableCalculation> =
-        explore
-            ? [
-                  ...getMetrics(explore),
-                  ...(resultsData?.metricQuery.additionalMetrics || []).reduce<
-                      Metric[]
-                  >((acc, additionalMetric) => {
-                      const table = explore.tables[additionalMetric.table];
-                      if (table) {
-                          const metric = convertAdditionalMetric({
-                              additionalMetric,
-                              table,
-                          });
-                          return [...acc, metric];
-                      }
-                      return acc;
-                  }, []),
-                  ...(resultsData?.metricQuery.tableCalculations || []),
-              ].filter((item) => {
-                  if (isField(item)) {
-                      return resultsData?.metricQuery.metrics.includes(
-                          fieldId(item),
-                      );
-                  }
-                  return true;
-              })
-            : [];
+    const customDimensions = resultsData?.metricQuery.customDimensions || [];
 
-    const items = [...dimensionsInMetricQuery, ...metricsAndTableCalculations];
+    const metricsAndTableCalculations: Array<Metric | TableCalculation> =
+        useMemo(() => {
+            return explore
+                ? [
+                      ...getMetrics(explore),
+                      ...(
+                          resultsData?.metricQuery.additionalMetrics || []
+                      ).reduce<Metric[]>((acc, additionalMetric) => {
+                          const table = explore.tables[additionalMetric.table];
+                          if (table) {
+                              const metric = convertAdditionalMetric({
+                                  additionalMetric,
+                                  table,
+                              });
+                              return [...acc, metric];
+                          }
+                          return acc;
+                      }, []),
+                      ...(resultsData?.metricQuery.tableCalculations || []),
+                  ].filter((item) => {
+                      if (isField(item)) {
+                          return resultsData?.metricQuery.metrics.includes(
+                              fieldId(item),
+                          );
+                      }
+                      return true;
+                  })
+                : [];
+        }, [
+            explore,
+            resultsData?.metricQuery.additionalMetrics,
+            resultsData?.metricQuery.metrics,
+            resultsData?.metricQuery.tableCalculations,
+        ]);
+
+    const items = [
+        ...dimensionsInMetricQuery,
+        ...customDimensions,
+        ...metricsAndTableCalculations,
+    ];
 
     return (
-        <Tabs w={335} defaultValue="layout">
+        <Tabs defaultValue="layout" keepMounted={false}>
             <Tabs.List mb="sm">
                 <Tabs.Tab px="sm" value="layout">
                     Layout
@@ -91,6 +103,6 @@ const ChartConfigTabs: FC = () => {
             </Tabs.Panel>
         </Tabs>
     );
-};
+});
 
 export default ChartConfigTabs;

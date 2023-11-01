@@ -1,5 +1,6 @@
 import {
     CompiledDimension,
+    CustomDimension,
     Field,
     fieldId as getFieldId,
     isField,
@@ -18,7 +19,7 @@ import { useVisualizationContext } from '../../../LightdashVisualization/Visuali
 import { ReferenceLine } from './ReferenceLine';
 
 type Props = {
-    items: (Field | TableCalculation | CompiledDimension)[];
+    items: (Field | TableCalculation | CompiledDimension | CustomDimension)[];
     projectUuid: string;
 };
 
@@ -41,7 +42,11 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
     const updateReferenceLine = useCallback(
         (
             updateValue: string,
-            updateField: Field | TableCalculation | CompiledDimension,
+            updateField:
+                | Field
+                | TableCalculation
+                | CompiledDimension
+                | CustomDimension,
             updateLabel: string | undefined,
             updateColor: string,
             lineId: string,
@@ -152,7 +157,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                             index={index + 1}
                             isDefaultOpen={referenceLines.length <= 1}
                             items={items}
-                            startOfWeek={startOfWeek}
+                            startOfWeek={startOfWeek ?? undefined}
                             referenceLine={line}
                             updateReferenceLine={updateReferenceLine}
                             removeReferenceLine={removeReferenceLine}

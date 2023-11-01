@@ -1,5 +1,5 @@
-import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { ApiError, SchedulerAndTargets } from '@lightdash/common';
+import { Loader, Stack, Text, Title } from '@mantine/core';
 import React, { FC, useState } from 'react';
 import { UseQueryResult } from 'react-query/types/react/types';
 import ErrorState from '../../../components/common/ErrorState';
@@ -16,18 +16,26 @@ const SchedulersList: FC<Props> = ({ schedulersQuery, onEdit }) => {
     const [schedulerUuid, setSchedulerUuid] = useState<string>();
 
     if (isLoading) {
-        return <NonIdealState title="Loading schedulers" icon={<Spinner />} />;
+        return (
+            <Stack h={300} w="100%" align="center">
+                <Text fw={600}>Loading schedulers</Text>
+                <Loader size="lg" />
+            </Stack>
+        );
     }
     if (error) {
         return <ErrorState error={error.error} />;
     }
     if (!schedulers || schedulers.length <= 0) {
         return (
-            <NonIdealState
-                title="There are no existing scheduled deliveries"
-                description='Add one by clicking on "Create new" below'
-                icon={'blank'}
-            />
+            <Stack color="gray" align="center" mt="xxl">
+                <Title order={4} color="gray.6">
+                    There are no existing scheduled deliveries
+                </Title>
+                <Text color="gray.6">
+                    Add one by clicking on "Create new" below
+                </Text>
+            </Stack>
         );
     }
     return (
@@ -42,8 +50,7 @@ const SchedulersList: FC<Props> = ({ schedulersQuery, onEdit }) => {
             ))}
             {schedulerUuid && (
                 <SchedulerDeleteModal
-                    lazy={true}
-                    isOpen={true}
+                    opened={true}
                     schedulerUuid={schedulerUuid}
                     onConfirm={() => setSchedulerUuid(undefined)}
                     onClose={() => setSchedulerUuid(undefined)}

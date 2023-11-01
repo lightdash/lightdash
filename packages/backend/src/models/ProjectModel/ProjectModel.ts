@@ -14,6 +14,7 @@ import {
     Project,
     ProjectMemberProfile,
     ProjectMemberRole,
+    ProjectSummary,
     ProjectType,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
@@ -35,7 +36,10 @@ import {
     DbDashboard,
 } from '../../database/entities/dashboards';
 import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
-import { OrganizationTableName } from '../../database/entities/organizations';
+import {
+    DbOrganization,
+    OrganizationTableName,
+} from '../../database/entities/organizations';
 import { PinnedListTableName } from '../../database/entities/pinnedList';
 import { DbProjectMembership } from '../../database/entities/projectMemberships';
 import {
@@ -51,6 +55,7 @@ import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import Logger from '../../logging/logger';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
+import { wrapOtelSpan } from '../../utils';
 import Transaction = Knex.Transaction;
 
 type ProjectModelDependencies = {
@@ -321,86 +326,131 @@ export class ProjectModel {
                   dbt_version: SupportedDbtVersions;
               }
         )[];
-        const projects = await this.database('projects')
-            .leftJoin(
-                WarehouseCredentialTableName,
-                'warehouse_credentials.project_id',
-                'projects.project_id',
-            )
+        return wrapOtelSpan(
+            'ProjectModel.getWithSensitiveFields',
+            {},
+            async () => {
+                const projects = await this.database('projects')
+                    .leftJoin(
+                        WarehouseCredentialTableName,
+                        'warehouse_credentials.project_id',
+                        'projects.project_id',
+                    )
+                    .leftJoin(
+                        OrganizationTableName,
+                        'organizations.organization_id',
+                        'projects.organization_id',
+                    )
+                    .leftJoin(
+                        PinnedListTableName,
+                        'pinned_list.project_uuid',
+                        'projects.project_uuid',
+                    )
+                    .column([
+                        this.database.ref('name').withSchema(ProjectTableName),
+                        this.database
+                            .ref('project_type')
+                            .withSchema(ProjectTableName),
+                        this.database
+                            .ref('dbt_connection')
+                            .withSchema(ProjectTableName),
+                        this.database
+                            .ref('encrypted_credentials')
+                            .withSchema(WarehouseCredentialTableName),
+                        this.database
+                            .ref('warehouse_type')
+                            .withSchema(WarehouseCredentialTableName),
+                        this.database
+                            .ref('organization_uuid')
+                            .withSchema(OrganizationTableName),
+                        this.database
+                            .ref('pinned_list_uuid')
+                            .withSchema(PinnedListTableName),
+                        this.database
+                            .ref('dbt_version')
+                            .withSchema(ProjectTableName),
+                    ])
+                    .select<QueryResult>()
+                    .where('projects.project_uuid', projectUuid);
+                if (projects.length === 0) {
+                    throw new NotExistsError(
+                        `Cannot find project with id: ${projectUuid}`,
+                    );
+                }
+                const [project] = projects;
+                if (!project.dbt_connection) {
+                    throw new NotExistsError(
+                        'Project has no valid dbt credentials',
+                    );
+                }
+                let dbtSensitiveCredentials: DbtProjectConfig;
+                try {
+                    dbtSensitiveCredentials = JSON.parse(
+                        this.encryptionService.decrypt(project.dbt_connection),
+                    ) as DbtProjectConfig;
+                } catch (e) {
+                    throw new UnexpectedServerError(
+                        'Failed to load dbt credentials',
+                    );
+                }
+                const result: Omit<Project, 'warehouseConnection'> = {
+                    organizationUuid: project.organization_uuid,
+                    projectUuid,
+                    name: project.name,
+                    type: project.project_type,
+                    dbtConnection: dbtSensitiveCredentials,
+                    pinnedListUuid: project.pinned_list_uuid,
+                    dbtVersion: project.dbt_version,
+                };
+                if (!project.warehouse_type) {
+                    return result;
+                }
+                let sensitiveCredentials: CreateWarehouseCredentials;
+                try {
+                    sensitiveCredentials = JSON.parse(
+                        this.encryptionService.decrypt(
+                            project.encrypted_credentials,
+                        ),
+                    ) as CreateWarehouseCredentials;
+                } catch (e) {
+                    throw new UnexpectedServerError(
+                        'Failed to load warehouse credentials',
+                    );
+                }
+                return {
+                    ...result,
+                    warehouseConnection: sensitiveCredentials,
+                };
+            },
+        );
+    }
+
+    async getSummary(projectUuid: string): Promise<ProjectSummary> {
+        const project = await this.database(ProjectTableName)
             .leftJoin(
                 OrganizationTableName,
-                'organizations.organization_id',
                 'projects.organization_id',
+                'organizations.organization_id',
             )
-            .leftJoin(
-                PinnedListTableName,
-                'pinned_list.project_uuid',
-                'projects.project_uuid',
-            )
-            .column([
-                this.database.ref('name').withSchema(ProjectTableName),
-                this.database.ref('project_type').withSchema(ProjectTableName),
-                this.database
-                    .ref('dbt_connection')
-                    .withSchema(ProjectTableName),
-                this.database
-                    .ref('encrypted_credentials')
-                    .withSchema(WarehouseCredentialTableName),
-                this.database
-                    .ref('warehouse_type')
-                    .withSchema(WarehouseCredentialTableName),
-                this.database
-                    .ref('organization_uuid')
-                    .withSchema(OrganizationTableName),
-                this.database
-                    .ref('pinned_list_uuid')
-                    .withSchema(PinnedListTableName),
-                this.database.ref('dbt_version').withSchema(ProjectTableName),
+            .select<
+                Pick<DbProject, 'name' | 'project_uuid'> &
+                    Pick<DbOrganization, 'organization_uuid'>
+            >([
+                `${ProjectTableName}.name`,
+                `${ProjectTableName}.project_uuid`,
+                `${OrganizationTableName}.organization_uuid`,
             ])
-            .select<QueryResult>()
-            .where('projects.project_uuid', projectUuid);
-        if (projects.length === 0) {
+            .where('projects.project_uuid', projectUuid)
+            .first();
+        if (!project) {
             throw new NotExistsError(
                 `Cannot find project with id: ${projectUuid}`,
             );
         }
-        const [project] = projects;
-        if (!project.dbt_connection) {
-            throw new NotExistsError('Project has no valid dbt credentials');
-        }
-        let dbtSensitiveCredentials: DbtProjectConfig;
-        try {
-            dbtSensitiveCredentials = JSON.parse(
-                this.encryptionService.decrypt(project.dbt_connection),
-            ) as DbtProjectConfig;
-        } catch (e) {
-            throw new UnexpectedServerError('Failed to load dbt credentials');
-        }
-        const result: Omit<Project, 'warehouseConnection'> = {
-            organizationUuid: project.organization_uuid,
-            projectUuid,
-            name: project.name,
-            type: project.project_type,
-            dbtConnection: dbtSensitiveCredentials,
-            pinnedListUuid: project.pinned_list_uuid,
-            dbtVersion: project.dbt_version,
-        };
-        if (!project.warehouse_type) {
-            return result;
-        }
-        let sensitiveCredentials: CreateWarehouseCredentials;
-        try {
-            sensitiveCredentials = JSON.parse(
-                this.encryptionService.decrypt(project.encrypted_credentials),
-            ) as CreateWarehouseCredentials;
-        } catch (e) {
-            throw new UnexpectedServerError(
-                'Failed to load warehouse credentials',
-            );
-        }
         return {
-            ...result,
-            warehouseConnection: sensitiveCredentials,
+            organizationUuid: project.organization_uuid,
+            projectUuid: project.project_uuid,
+            name: project.name,
         };
     }
 
@@ -582,13 +632,9 @@ export class ProjectModel {
             // we can't use project_uuid (uuidv4) as key, not even a hash,
             // so we will be using autoinc project_id from DB.
             const projectLock = await trx.raw(`
-                SELECT
-                    pg_try_advisory_xact_lock(${CACHED_EXPLORES_PG_LOCK_NAMESPACE}, project_id)
-                FROM
-                    projects
-                WHERE
-                    project_uuid = '${projectUuid}'
-                LIMIT 1  `);
+                SELECT pg_try_advisory_xact_lock(${CACHED_EXPLORES_PG_LOCK_NAMESPACE}, project_id)
+                FROM projects
+                WHERE project_uuid = '${projectUuid}' LIMIT 1  `);
 
             if (projectLock.rows.length === 0) return; // No project with uuid in DB
             const acquiresLock = projectLock.rows[0].pg_try_advisory_xact_lock;
@@ -755,9 +801,9 @@ export class ProjectModel {
                 UPDATE project_memberships AS m
                 SET role = :role FROM projects AS p, users AS u
                 WHERE p.project_id = m.project_id
-                    AND u.user_id = m.user_id
-                    AND user_uuid = :userUuid
-                    AND p.project_uuid = :projectUuid
+                  AND u.user_id = m.user_id
+                  AND user_uuid = :userUuid
+                  AND p.project_uuid = :projectUuid
                     RETURNING *
             `,
             { projectUuid, userUuid, role },
@@ -770,13 +816,13 @@ export class ProjectModel {
     ): Promise<void> {
         await this.database.raw<(DbProjectMembership & DbProject & DbUser)[]>(
             `
-            DELETE FROM project_memberships AS m
-            USING projects AS p, users AS u
-            WHERE p.project_id = m.project_id
-              AND u.user_id = m.user_id
-              AND user_uuid = :userUuid
-              AND p.project_uuid = :projectUuid
-        `,
+                DELETE
+                FROM project_memberships AS m USING projects AS p, users AS u
+                WHERE p.project_id = m.project_id
+                  AND u.user_id = m.user_id
+                  AND user_uuid = :userUuid
+                  AND p.project_uuid = :projectUuid
+            `,
             { projectUuid, userUuid },
         );
     }
@@ -849,10 +895,10 @@ export class ProjectModel {
     async deleteDbtCloudIntegration(projectUuid: string): Promise<void> {
         await this.database.raw(
             `
-            DELETE FROM dbt_cloud_integrations AS i
-            USING projects AS p
-                   WHERE p.project_id = i.project_id
-                   AND p.project_uuid = ?`,
+                DELETE
+                FROM dbt_cloud_integrations AS i USING projects AS p
+                WHERE p.project_id = i.project_id
+                  AND p.project_uuid = ?`,
             [projectUuid],
         );
     }

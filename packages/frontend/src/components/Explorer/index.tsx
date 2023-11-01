@@ -2,10 +2,13 @@ import { Stack } from '@mantine/core';
 import { FC, memo } from 'react';
 import { useParams } from 'react-router-dom';
 
+import { ProjectType } from '@lightdash/common';
+import { useProjects } from '../../hooks/useProjects';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import DrillDownModal from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
+import { CustomDimensionModal } from './CustomDimensionModal';
 import { CustomMetricModal } from './CustomMetricModal';
 import ExplorerHeader from './ExplorerHeader';
 import FiltersCard from './FiltersCard/FiltersCard';
@@ -23,6 +26,13 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         );
         const { projectUuid } = useParams<{ projectUuid: string }>();
 
+        const { data: projects } = useProjects({ refetchOnMount: false });
+        const isProjectPreview = !!projects?.find(
+            (project) =>
+                project.projectUuid === projectUuid &&
+                project.type === ProjectType.PREVIEW,
+        );
+
         return (
             <MetricQueryDataProvider
                 metricQuery={unsavedChartVersionMetricQuery}
@@ -33,7 +43,10 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
                     <FiltersCard />
 
-                    <VisualizationCard projectUuid={projectUuid} />
+                    <VisualizationCard
+                        projectUuid={projectUuid}
+                        isProjectPreview={isProjectPreview}
+                    />
 
                     <ResultsCard />
 
@@ -43,6 +56,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 <UnderlyingDataModal />
                 <DrillDownModal />
                 <CustomMetricModal />
+                <CustomDimensionModal />
             </MetricQueryDataProvider>
         );
     },

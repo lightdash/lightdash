@@ -7,6 +7,7 @@ import {
     EchartsGrid,
     EchartsLegend,
     Explore,
+    getCustomDimensionId,
     getSeriesId,
     isCompleteEchartsConfig,
     isCompleteLayout,
@@ -364,17 +365,28 @@ const useCartesianChartConfig = ({
         availableDimensions,
         availableMetrics,
         availableTableCalculations,
+        availableCustomDimensions,
     ] = useMemo(() => {
         const metrics = resultsData?.metricQuery.metrics || [];
         const tableCalculations =
             resultsData?.metricQuery.tableCalculations.map(
                 ({ name }) => name,
             ) || [];
+        const customDimensions =
+            resultsData?.metricQuery.customDimensions?.map(
+                getCustomDimensionId,
+            ) || [];
         return [
-            [...sortedDimensions, ...metrics, ...tableCalculations],
-            sortedDimensions,
+            [
+                ...sortedDimensions,
+                ...metrics,
+                ...tableCalculations,
+                ...customDimensions,
+            ],
+            [...sortedDimensions, ...customDimensions],
             metrics,
             tableCalculations,
+            customDimensions,
         ];
     }, [resultsData, sortedDimensions]);
 
@@ -516,6 +528,7 @@ const useCartesianChartConfig = ({
         availableDimensions,
         availableMetrics,
         availableTableCalculations,
+        availableCustomDimensions,
         hasInitialValue,
         explore,
         setPivotDimensions,

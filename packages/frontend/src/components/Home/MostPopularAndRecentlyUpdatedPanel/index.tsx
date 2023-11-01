@@ -1,11 +1,10 @@
 import { subject } from '@casl/ability';
 import {
-    DashboardBasicDetails,
-    isResourceViewSpaceItem,
     LightdashMode,
+    MostPopularAndRecentlyUpdated,
+    ResourceItemCategory,
     ResourceViewItemType,
-    SpaceQuery,
-    wrapResourceView,
+    wrapResource,
 } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
@@ -17,26 +16,41 @@ import MantineLinkButton from '../../common/MantineLinkButton';
 import ResourceView from '../../common/ResourceView';
 
 interface Props {
-    data: {
-        dashboards: DashboardBasicDetails[];
-        savedCharts: SpaceQuery[];
-    };
+    data: MostPopularAndRecentlyUpdated | undefined;
     projectUuid: string;
 }
 
-const RecentlyUpdatedPanel: FC<Props> = ({ data, projectUuid }) => {
+export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
+    data,
+    projectUuid,
+}) => {
+    const MAX_NUMBER_OF_ITEMS_IN_PANEL = 10;
     const history = useHistory();
     const { user, health } = useApp();
 
-    const recentItems = useMemo(() => {
-        return [
-            ...wrapResourceView(
-                data.dashboards,
-                ResourceViewItemType.DASHBOARD,
-            ),
-            ...wrapResourceView(data.savedCharts, ResourceViewItemType.CHART),
-        ];
-    }, [data]);
+    const mostPopularAndRecentlyUpdatedItems = useMemo(() => {
+        const mostPopularItems =
+            data?.mostPopular.map((item) => ({
+                ...wrapResource(
+                    item,
+                    'chartType' in item
+                        ? ResourceViewItemType.CHART
+                        : ResourceViewItemType.DASHBOARD,
+                ),
+                category: ResourceItemCategory.MOST_POPULAR,
+            })) ?? [];
+        const recentlyUpdatedItems =
+            data?.recentlyUpdated.map((item) => ({
+                ...wrapResource(
+                    item,
+                    'chartType' in item
+                        ? ResourceViewItemType.CHART
+                        : ResourceViewItemType.DASHBOARD,
+                ),
+                category: ResourceItemCategory.RECENTLY_UPDATED,
+            })) ?? [];
+        return [...mostPopularItems, ...recentlyUpdatedItems];
+    }, [data?.mostPopular, data?.recentlyUpdated]);
 
     const handleCreateChart = () => {
         history.push(`/projects/${projectUuid}/tables`);
@@ -54,39 +68,22 @@ const RecentlyUpdatedPanel: FC<Props> = ({ data, projectUuid }) => {
 
     return (
         <ResourceView
-            items={recentItems}
-            maxItems={10}
+            items={mostPopularAndRecentlyUpdatedItems}
+            maxItems={MAX_NUMBER_OF_ITEMS_IN_PANEL}
             tabs={[
                 {
                     id: 'most-popular',
                     name: 'Most popular',
-                    sort: (a, b) => {
-                        if (
-                            isResourceViewSpaceItem(a) ||
-                            isResourceViewSpaceItem(b)
-                        ) {
-                            return 0;
-                        }
-
-                        return b.data.views - a.data.views;
-                    },
+                    filter: (item) =>
+                        'category' in item &&
+                        item.category === ResourceItemCategory.MOST_POPULAR,
                 },
                 {
                     id: 'recently-updated',
                     name: 'Recently updated',
-                    sort: (a, b) => {
-                        if (
-                            isResourceViewSpaceItem(a) ||
-                            isResourceViewSpaceItem(b)
-                        ) {
-                            return 0;
-                        }
-
-                        return (
-                            new Date(b.data.updatedAt).getTime() -
-                            new Date(a.data.updatedAt).getTime()
-                        );
-                    },
+                    filter: (item) =>
+                        'category' in item &&
+                        item.category === ResourceItemCategory.RECENTLY_UPDATED,
                 },
             ]}
             listProps={{
@@ -94,7 +91,7 @@ const RecentlyUpdatedPanel: FC<Props> = ({ data, projectUuid }) => {
                 defaultColumnVisibility: { space: false },
             }}
             headerProps={
-                recentItems.length === 0
+                mostPopularAndRecentlyUpdatedItems.length === 0
                     ? {
                           title: 'Charts and Dashboards',
                           action: (
@@ -132,5 +129,3 @@ const RecentlyUpdatedPanel: FC<Props> = ({ data, projectUuid }) => {
         />
     );
 };
-
-export default RecentlyUpdatedPanel;

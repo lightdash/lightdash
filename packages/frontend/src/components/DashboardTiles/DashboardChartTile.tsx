@@ -1,9 +1,8 @@
-import { Button, Menu, NonIdealState, Portal, Tag } from '@blueprintjs/core';
+import { Menu, NonIdealState, Portal, Tag } from '@blueprintjs/core';
 import {
     MenuItem2,
     Popover2,
     Popover2TargetProps,
-    Tooltip2,
 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import {
@@ -19,6 +18,7 @@ import {
     getFields,
     getItemMap,
     getVisibleFields,
+    hasCustomDimension,
     isChartTile,
     isFilterableField,
     isTableChartConfig,
@@ -28,7 +28,7 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { Box, Text, Tooltip } from '@mantine/core';
-import { IconFolders } from '@tabler/icons-react';
+import { IconFilter, IconFolders } from '@tabler/icons-react';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useParams } from 'react-router-dom';
@@ -53,6 +53,7 @@ import { Can } from '../common/Authorization';
 import ErrorState from '../common/ErrorState';
 import { getConditionalRuleLabel } from '../common/Filters/configs';
 import LinkMenuItem from '../common/LinkMenuItem';
+import MantineIcon from '../common/MantineIcon';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
 import ExportCSVModal from '../ExportCSV/ExportCSVModal';
 import LightdashVisualization from '../LightdashVisualization';
@@ -171,6 +172,7 @@ const ValidDashboardChartTile: FC<{
     } = useChartResults(data.uuid, data.metricQuery.filters);
     const { addSuggestions } = useDashboardContext();
     const { data: explore } = useExplore(data.tableName);
+    const { health } = useApp();
 
     useEffect(() => {
         if (resultData) {
@@ -190,6 +192,10 @@ const ValidDashboardChartTile: FC<{
         }
     }, [addSuggestions, resultData]);
 
+    if (health.isLoading || !health.data) {
+        return null;
+    }
+
     if (error) {
         return <ErrorState error={error.error} />;
     }
@@ -204,6 +210,7 @@ const ValidDashboardChartTile: FC<{
             isLoading={isLoading}
             onSeriesContextMenu={onSeriesContextMenu}
             columnOrder={data.tableConfig.columnOrder}
+            pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
         >
             <LightdashVisualization
                 isDashboard
@@ -227,6 +234,12 @@ const ValidDashboardChartTileMinimal: FC<{
     } = useChartResults(data.uuid, data.metricQuery.filters);
     const { data: explore } = useExplore(data.tableName);
 
+    const { health } = useApp();
+
+    if (health.isLoading || !health.data) {
+        return null;
+    }
+
     if (error) {
         return <ErrorState error={error.error} />;
     }
@@ -241,6 +254,7 @@ const ValidDashboardChartTileMinimal: FC<{
             explore={explore}
             isLoading={isLoading}
             columnOrder={data.tableConfig.columnOrder}
+            pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
         >
             <LightdashVisualization
                 tileUuid={tileUuid}
@@ -487,8 +501,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             <TileBase
                 extraHeaderElement={
                     appliedFilterRules.length > 0 && (
-                        <Tooltip2
-                            content={
+                        <Tooltip
+                            label={
                                 <FilterWrapper>
                                     <FilterLabel>
                                         Dashboard filter
@@ -500,11 +514,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     {appliedFilterRules.map(renderFilterRule)}
                                 </FilterWrapper>
                             }
-                            interactionKind="hover"
-                            placement="bottom-end"
+                            position="bottom-end"
+                            withArrow
+                            withinPortal
                         >
-                            <Button minimal small icon="filter" />
-                        </Tooltip2>
+                            <MantineIcon icon={IconFilter} />
+                        </Tooltip>
                     )
                 }
                 title={title || savedQueryWithDashboardFilters?.name || ''}
@@ -512,6 +527,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
                 description={savedQueryWithDashboardFilters?.description}
                 isLoading={isLoading || isLoadingExplore}
+                belongsToDashboard={belongsToDashboard}
                 extraMenuItems={
                     savedChartUuid !== null &&
                     user.data?.ability?.can('manage', 'Explore') && (
@@ -622,35 +638,43 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                 projectUuid: projectUuid,
                                             })}
                                         >
-                                            <MenuItem2
-                                                text="View underlying data"
-                                                icon="layers"
-                                                onClick={() => {
-                                                    if (
-                                                        !viewUnderlyingDataOptions
-                                                    ) {
-                                                        return;
-                                                    }
+                                            {' '}
+                                            {!hasCustomDimension(
+                                                savedQuery?.metricQuery,
+                                            ) && (
+                                                <MenuItem2
+                                                    text="View underlying data"
+                                                    icon="layers"
+                                                    onClick={() => {
+                                                        if (
+                                                            !viewUnderlyingDataOptions
+                                                        ) {
+                                                            return;
+                                                        }
 
-                                                    openUnderlyingDataModal({
-                                                        ...viewUnderlyingDataOptions,
-                                                        dashboardFilters:
-                                                            dashboardFiltersThatApplyToChart,
-                                                    });
-                                                    track({
-                                                        name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-                                                        properties: {
-                                                            organizationId:
-                                                                user?.data
-                                                                    ?.organizationUuid,
-                                                            userId: user?.data
-                                                                ?.userUuid,
-                                                            projectId:
-                                                                projectUuid,
-                                                        },
-                                                    });
-                                                }}
-                                            />
+                                                        openUnderlyingDataModal(
+                                                            {
+                                                                ...viewUnderlyingDataOptions,
+                                                                dashboardFilters:
+                                                                    dashboardFiltersThatApplyToChart,
+                                                            },
+                                                        );
+                                                        track({
+                                                            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                                                            properties: {
+                                                                organizationId:
+                                                                    user?.data
+                                                                        ?.organizationUuid,
+                                                                userId: user
+                                                                    ?.data
+                                                                    ?.userUuid,
+                                                                projectId:
+                                                                    projectUuid,
+                                                            },
+                                                        });
+                                                    }}
+                                                />
+                                            )}
                                         </Can>
 
                                         <Can

@@ -1,11 +1,13 @@
 import { DateInput2 } from '@blueprintjs/datetime2';
 import {
     CompiledDimension,
+    CustomDimension,
     ECHARTS_DEFAULT_COLORS,
     Field,
     fieldId as getFieldId,
     formatDate,
     getDateFormat,
+    isCustomDimension,
     isDateItem,
     isDimension,
     isField,
@@ -32,6 +34,7 @@ import {
 import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import FieldSelect from '../../../common/FieldSelect';
+import { getFirstDayOfWeek } from '../../../common/Filters/FilterInputs/dateUtils';
 import MantineIcon from '../../../common/MantineIcon';
 import MonthAndYearInput from '../../../common/MonthAndYearInput';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
@@ -41,12 +44,12 @@ import { useVisualizationContext } from '../../../LightdashVisualization/Visuali
 
 type Props = {
     index: number;
-    items: (Field | TableCalculation | CompiledDimension)[];
+    items: (Field | TableCalculation | CompiledDimension | CustomDimension)[];
     referenceLine: ReferenceLineField;
-    startOfWeek: WeekDay | null | undefined;
+    startOfWeek: WeekDay | undefined;
     updateReferenceLine: (
         value: string,
-        field: Field | TableCalculation | CompiledDimension,
+        field: Field | TableCalculation | CompiledDimension | CustomDimension,
         label: string | undefined,
         lineColor: string,
         lineId: string,
@@ -56,9 +59,14 @@ type Props = {
 };
 
 type ReferenceLineValueProps = {
-    field: Field | TableCalculation | CompiledDimension | undefined;
+    field:
+        | Field
+        | TableCalculation
+        | CompiledDimension
+        | CustomDimension
+        | undefined;
     value: string | undefined;
-    startOfWeek: WeekDay | null | undefined;
+    startOfWeek: WeekDay | undefined;
     onChange: (value: string) => void;
 };
 
@@ -68,6 +76,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
     startOfWeek,
     onChange,
 }) => {
+    if (isCustomDimension(field)) return <></>;
     if (isDateItem(field)) {
         if (isDimension(field) && field.timeInterval) {
             switch (field.timeInterval.toUpperCase()) {
@@ -75,8 +84,8 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                     return (
                         <WeekPicker
                             value={moment(value).toDate()}
-                            popoverProps={{ usePortal: false }}
-                            startOfWeek={startOfWeek}
+                            popoverProps={{ withinPortal: false }}
+                            firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                             onChange={(dateValue) => {
                                 if (!dateValue) return;
 
@@ -195,6 +204,9 @@ export const ReferenceLine: FC<Props> = ({
         return items.filter((item) => {
             const fieldId = isField(item) ? getFieldId(item) : item.name;
             // Filter numeric and date fields (remove if we start supporting other types)
+
+            // TODO implement reference lines for custom dimensions
+            if (isCustomDimension(item)) return false;
             return (
                 fieldNames.includes(fieldId) &&
                 (isNumericItem(item) || isDateItem(item))
@@ -229,7 +241,11 @@ export const ReferenceLine: FC<Props> = ({
     }, [fieldsInAxes, markLineKey, referenceLine.fieldId]);
 
     const [selectedField, setSelectedField] = useState<
-        Field | TableCalculation | CompiledDimension | undefined
+        | Field
+        | TableCalculation
+        | CompiledDimension
+        | CustomDimension
+        | undefined
     >(selectedFieldDefault);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -260,7 +276,11 @@ export const ReferenceLine: FC<Props> = ({
                     <Text fw={500}>Line {index}</Text>
                 </Group>
 
-                <Tooltip label="Remove reference line" position="left">
+                <Tooltip
+                    label="Remove reference line"
+                    position="left"
+                    withinPortal
+                >
                     <ActionIcon
                         onClick={() =>
                             removeReferenceLine(referenceLine.data.name)

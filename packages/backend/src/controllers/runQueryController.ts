@@ -2,6 +2,7 @@ import {
     AdditionalMetric,
     ApiErrorPayload,
     ApiQueryResults,
+    CustomDimension,
     FieldId,
     MetricQuery,
     MetricQueryResponse,
@@ -45,6 +46,7 @@ type RunQueryRequest = {
     tableCalculations: TableCalculation[]; // calculations to append to results
     additionalMetrics?: AdditionalMetric[]; // existing metric type
     csvLimit?: number;
+    customDimensions?: CustomDimension[];
 };
 
 @Route('/api/v1/projects/{projectUuid}')
@@ -76,6 +78,7 @@ export class RunViewChartQueryController extends Controller {
             limit: body.limit,
             tableCalculations: body.tableCalculations,
             additionalMetrics: body.additionalMetrics,
+            customDimensions: body.customDimensions,
         };
         const results: ApiQueryResults =
             await projectService.runUnderlyingDataQuery(
@@ -118,6 +121,7 @@ export class RunViewChartQueryController extends Controller {
             limit: body.limit,
             tableCalculations: body.tableCalculations,
             additionalMetrics: body.additionalMetrics,
+            customDimensions: body.customDimensions,
         };
         const results: ApiQueryResults = await projectService.runExploreQuery(
             req.user!,

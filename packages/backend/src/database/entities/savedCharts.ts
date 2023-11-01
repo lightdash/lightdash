@@ -1,4 +1,5 @@
 import {
+    BinRange,
     ChartConfig,
     ChartKind,
     ChartType,
@@ -156,6 +157,28 @@ export type SavedChartTableCalculationTable = Knex.CompositeTableType<
     DbSavedChartTableCalculation,
     DbSavedChartTableCalculationInsert
 >;
+export const SavedChartCustomDimensionsTableName =
+    'saved_queries_version_custom_dimensions';
+
+export type DbSavedChartCustomDimension = {
+    saved_queries_version_custom_dimension_id: number;
+    saved_queries_version_id: number;
+    id: string;
+    name: string;
+    dimension_id: string;
+    table: string;
+    bin_type: string;
+    bin_number: number | null;
+    bin_width: number | null;
+    custom_range: BinRange[] | null; // JSONB
+    order: number;
+};
+export type DbSavedChartCustomDimensionInsert = Omit<
+    DbSavedChartCustomDimension,
+    'saved_queries_version_custom_dimension_id' | 'custom_range'
+> & {
+    custom_range: string | null;
+};
 
 export const SavedChartAdditionalMetricTableName =
     'saved_queries_version_additional_metrics';

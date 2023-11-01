@@ -288,6 +288,11 @@ export type Project = {
     dbtVersion: SupportedDbtVersions;
 };
 
+export type ProjectSummary = Pick<
+    Project,
+    'name' | 'projectUuid' | 'organizationUuid'
+>;
+
 export type ApiProjectResponse = {
     status: 'ok';
     results: Project;

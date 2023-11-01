@@ -187,6 +187,10 @@ export const useSavedQueryDeleteMutation = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries('spaces');
             await queryClient.invalidateQueries('space');
+            await queryClient.invalidateQueries('pinned_items');
+            await queryClient.invalidateQueries(
+                'most-popular-and-recently-updated',
+            );
 
             showToastSuccess({
                 title: `Success! Chart was deleted.`,
@@ -225,6 +229,9 @@ export const useUpdateMultipleMutation = (projectUuid: string) => {
             onSuccess: async (data) => {
                 await queryClient.invalidateQueries(['space', projectUuid]);
                 await queryClient.invalidateQueries('spaces');
+                await queryClient.invalidateQueries(
+                    'most-popular-and-recently-updated',
+                );
                 data.forEach((savedChart) => {
                     queryClient.setQueryData(
                         ['saved_query', savedChart.uuid],
@@ -271,6 +278,10 @@ export const useUpdateMutation = (
                     'space',
                     data.projectUuid,
                 ]);
+
+                await queryClient.invalidateQueries(
+                    'most-popular-and-recently-updated',
+                );
 
                 await queryClient.invalidateQueries('spaces');
                 queryClient.setQueryData(['saved_query', data.uuid], data);
@@ -320,6 +331,9 @@ export const useMoveChartMutation = (
         onSuccess: async (data, _, __) => {
             await queryClient.invalidateQueries('spaces');
             await queryClient.invalidateQueries(['space', projectUuid]);
+            await queryClient.invalidateQueries(
+                'most-popular-and-recently-updated',
+            );
 
             queryClient.setQueryData(['saved_query', data.uuid], data);
             showToastSuccess({
@@ -390,6 +404,9 @@ export const useDuplicateChartMutation = (
             onSuccess: async (data) => {
                 await queryClient.invalidateQueries('spaces');
                 await queryClient.invalidateQueries(['space', projectUuid]);
+                await queryClient.invalidateQueries(
+                    'most-popular-and-recently-updated',
+                );
 
                 if (!options?.showRedirectButton) {
                     history.push({
@@ -435,6 +452,9 @@ export const useAddVersionMutation = () => {
         mutationKey: ['saved_query_version'],
         onSuccess: async (data) => {
             await queryClient.invalidateQueries('spaces');
+            await queryClient.invalidateQueries(
+                'most-popular-and-recently-updated',
+            );
 
             queryClient.setQueryData(['saved_query', data.uuid], data);
 

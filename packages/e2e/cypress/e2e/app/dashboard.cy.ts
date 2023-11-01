@@ -54,8 +54,9 @@ describe('Dashboard', () => {
             .click()
             .type('payment method{downArrow}{enter}');
         cy.findByPlaceholderText('Start typing to filter results').type(
-            'credit_card{enter}{esc}',
+            'credit_card',
         );
+        cy.findByRole('option', { name: 'credit_card' }).click();
         cy.findAllByRole('tab').eq(0).click();
         cy.contains('button', 'Apply').click();
 
@@ -129,10 +130,12 @@ describe('Dashboard', () => {
         cy.findByTestId('FilterConfiguration/FieldSelect')
             .click()
             .type('payment method{downArrow}{enter}');
-        cy.get('label.mantine-Switch-track').click();
+        // using force click here because this is a mantine switch and the actual checkbox is hidden
+        cy.findByLabelText('Provide default value').click({ force: true });
         cy.findByPlaceholderText('Start typing to filter results').type(
-            'credit_card{enter}{esc}',
+            'credit_card',
         );
+        cy.findByRole('option', { name: 'credit_card' }).click();
         cy.contains('button', 'Apply').click();
 
         // Filter should be applied and no other payment methods should be visible in the charts

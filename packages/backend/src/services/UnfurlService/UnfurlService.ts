@@ -15,7 +15,7 @@ import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
 import { PDFDocument } from 'pdf-lib';
 import puppeteer, { HTTPRequest } from 'puppeteer';
-import { S3Service } from '../../clients/Aws/s3';
+import { S3Client } from '../../clients/Aws/s3';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -88,7 +88,7 @@ type UnfurlServiceDependencies = {
     spaceModel: SpaceModel;
     shareModel: ShareModel;
     encryptionService: EncryptionService;
-    s3Service: S3Service;
+    s3Client: S3Client;
     projectModel: ProjectModel;
 };
 
@@ -105,7 +105,7 @@ export class UnfurlService {
 
     encryptionService: EncryptionService;
 
-    s3Service: S3Service;
+    s3Client: S3Client;
 
     projectModel: ProjectModel;
 
@@ -116,7 +116,7 @@ export class UnfurlService {
         spaceModel,
         shareModel,
         encryptionService,
-        s3Service,
+        s3Client,
         projectModel,
     }: UnfurlServiceDependencies) {
         this.lightdashConfig = lightdashConfig;
@@ -125,7 +125,7 @@ export class UnfurlService {
         this.spaceModel = spaceModel;
         this.shareModel = shareModel;
         this.encryptionService = encryptionService;
-        this.s3Service = s3Service;
+        this.s3Client = s3Client;
         this.projectModel = projectModel;
     }
 
@@ -163,7 +163,7 @@ export class UnfurlService {
                     chartType: chart.chartType,
                 };
             case LightdashPage.EXPLORE:
-                const project = await this.projectModel.get(
+                const project = await this.projectModel.getSummary(
                     parsedUrl.projectUuid!,
                 );
 
@@ -249,8 +249,8 @@ export class UnfurlService {
             if (withPdf)
                 pdfPath = await UnfurlService.createImagePdf(imageId, buffer);
 
-            if (this.s3Service.isEnabled()) {
-                imageUrl = await this.s3Service.uploadImage(buffer, imageId);
+            if (this.s3Client.isEnabled()) {
+                imageUrl = await this.s3Client.uploadImage(buffer, imageId);
             } else {
                 // We will share the image saved by puppetteer on our lightdash enpdoint
                 imageUrl = `${this.lightdashConfig.siteUrl}/api/v1/slack/image/${imageId}.png`;

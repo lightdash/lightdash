@@ -146,6 +146,7 @@ module.exports = {
                 'guides/how-to-create-scheduled-deliveries',
                 'guides/how-to-create-syncs',
                 'guides/validating-your-content',
+                'guides/version-history',
                 'guides/how-to-create-multiple-projects',
                 'guides/customizing-the-appearance-of-your-project',
                 'guides/dbt-semantic-layer',

@@ -1,4 +1,3 @@
-import { DateInput2 } from '@blueprintjs/datetime2';
 import {
     ConditionalRule,
     DateFilterRule,
@@ -12,14 +11,17 @@ import {
     parseDate,
     TimeFrames,
 } from '@lightdash/common';
-import { Flex, NumberInput } from '@mantine/core';
+import { Flex, NumberInput, Text } from '@mantine/core';
 import moment from 'moment';
 import React from 'react';
 import MonthAndYearInput from '../../MonthAndYearInput';
-import WeekPicker, { convertWeekDayToDayPickerWeekDay } from '../../WeekPicker';
+import WeekPicker from '../../WeekPicker';
 import YearInput from '../../YearInput';
 import { useFiltersContext } from '../FiltersProvider';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
+import DatePicker from './DatePicker';
+import DateTimePicker from './DateTimePicker';
+import { getFirstDayOfWeek, normalizeWeekDay } from './dateUtils';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
 import {
     MultipleInputsWrapper,
@@ -57,16 +59,36 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     case TimeFrames.WEEK:
                         return (
                             <Flex align="center" gap="xs" w="100%">
-                                <span style={{ whiteSpace: 'nowrap' }}>
+                                <Text
+                                    color="gray"
+                                    sx={{ whiteSpace: 'nowrap' }}
+                                >
                                     week commencing
-                                </span>
+                                </Text>
 
                                 <WeekPicker
                                     placeholder={placeholder}
                                     disabled={disabled}
                                     value={rule.values ? rule.values[0] : null}
-                                    popoverProps={popoverProps}
-                                    startOfWeek={startOfWeek}
+                                    // FIXME: mantine v7
+                                    // mantine does not set the first day of the week based on the locale
+                                    // so we need to do it manually and always pass it as a prop
+                                    firstDayOfWeek={getFirstDayOfWeek(
+                                        startOfWeek,
+                                    )}
+                                    // FIXME: remove this once we migrate off of Blueprint
+                                    // we are doing type conversion here because Blueprint expects DOM element
+                                    // Mantine does not provide a DOM element on onOpen/onClose
+                                    popoverProps={{
+                                        onOpen: () =>
+                                            popoverProps?.onOpened?.(
+                                                null as any,
+                                            ),
+                                        onClose: () =>
+                                            popoverProps?.onClose?.(
+                                                null as any,
+                                            ),
+                                    }}
                                     onChange={(value: Date | null) => {
                                         onChange({
                                             ...rule,
@@ -159,78 +181,60 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
 
             if (isTimestamp) {
                 return (
-                    <DateInput2
-                        className={disabled ? 'disabled-filter' : ''}
-                        placeholder={placeholder}
+                    <DateTimePicker
                         disabled={disabled}
-                        fill
-                        defaultTimezone="UTC"
-                        showTimezoneSelect={false}
-                        value={
-                            rule.values && rule.values.length > 0
-                                ? new Date(rule.values[0]).toString()
-                                : null
-                        }
-                        timePrecision={'millisecond'}
-                        formatDate={(value: Date) =>
-                            moment(value).format(`YYYY-MM-DD, HH:mm:ss:SSS`)
-                        }
-                        parseDate={(value) =>
-                            moment(value, `YYYY-MM-DD, HH:mm:ss:SSS`).toDate()
-                        }
-                        onChange={(value: string | null) => {
+                        placeholder={placeholder}
+                        withSeconds
+                        // FIXME: mantine v7
+                        // mantine does not set the first day of the week based on the locale
+                        // so we need to do it manually and always pass it as a prop
+                        firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
+                        // FIXME: remove this once we migrate off of Blueprint
+                        // we are doing type conversion here because Blueprint expects DOM element
+                        // Mantine does not provide a DOM element on onOpen/onClose
+                        popoverProps={{
+                            onOpen: () => popoverProps?.onOpened?.(null as any),
+                            onClose: () => popoverProps?.onClose?.(null as any),
+                        }}
+                        value={rule.values ? rule.values[0] : null}
+                        onChange={(value: Date | null) => {
                             onChange({
                                 ...rule,
-                                values: value === null ? undefined : [value],
+                                values:
+                                    value === null
+                                        ? undefined
+                                        : [moment(value).toDate()],
                             });
                         }}
-                        popoverProps={{
-                            placement: 'bottom',
-                            ...popoverProps,
-                        }}
-                        dayPickerProps={{
-                            firstDayOfWeek: isWeekDay(startOfWeek)
-                                ? convertWeekDayToDayPickerWeekDay(startOfWeek)
-                                : undefined,
-                        }}
-                        maxDate={moment(new Date()).add(7, 'years').toDate()}
                     />
                 );
             }
 
             return (
-                <DateInput2
-                    className={disabled ? 'disabled-filter' : ''}
-                    placeholder={placeholder}
+                <DatePicker
                     disabled={disabled}
-                    fill
-                    value={
-                        rule.values && rule.values.length > 0
-                            ? formatDate(rule.values?.[0], undefined, false)
-                            : null
-                    }
-                    formatDate={(value: Date) =>
-                        formatDate(value, undefined, false)
-                    }
-                    parseDate={parseDate}
-                    onChange={(value: string | null) => {
-                        if (value) {
-                            onChange({
-                                ...rule,
-                                values: [formatDate(value, undefined, false)],
-                            });
-                        }
-                    }}
+                    placeholder={placeholder}
+                    // FIXME: mantine v7
+                    // mantine does not set the first day of the week based on the locale
+                    // so we need to do it manually and always pass it as a prop
+                    firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
+                    // FIXME: remove this once we migrate off of Blueprint
+                    // we are doing type conversion here because Blueprint expects DOM element
+                    // Mantine does not provide a DOM element on onOpen/onClose
                     popoverProps={{
-                        placement: 'bottom',
-                        ...popoverProps,
+                        onOpen: () => popoverProps?.onOpened?.(null as any),
+                        onClose: () => popoverProps?.onClose?.(null as any),
                     }}
-                    dayPickerProps={{
-                        firstDayOfWeek: isWeekDay(startOfWeek)
-                            ? convertWeekDayToDayPickerWeekDay(startOfWeek)
-                            : undefined,
+                    value={rule.values ? rule.values[0] : null}
+                    onChange={(value: Date | null) => {
+                        onChange({
+                            ...rule,
+                            values:
+                                value === null
+                                    ? undefined
+                                    : [moment(value).toDate()],
+                        });
                     }}
-                    maxDate={moment(new Date()).add(7, 'years').toDate()}
                 />
             );
         case FilterOperator.IN_THE_PAST:
@@ -339,9 +343,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             }}
                             dayPickerProps={{
                                 firstDayOfWeek: isWeekDay(startOfWeek)
-                                    ? convertWeekDayToDayPickerWeekDay(
-                                          startOfWeek,
-                                      )
+                                    ? normalizeWeekDay(startOfWeek)
                                     : undefined,
                             }}
                             closeOnSelection={false}
@@ -423,7 +425,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         }}
                         dayPickerProps={{
                             firstDayOfWeek: isWeekDay(startOfWeek)
-                                ? convertWeekDayToDayPickerWeekDay(startOfWeek)
+                                ? normalizeWeekDay(startOfWeek)
                                 : undefined,
                         }}
                         closeOnSelection={true}

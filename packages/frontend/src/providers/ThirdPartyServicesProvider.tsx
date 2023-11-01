@@ -47,8 +47,6 @@ const ThirdPartyServicesEnabledProvider: FC = ({ children }) => {
                     api_host: health.data?.posthog.apiHost,
                     bootstrap: {
                         featureFlags: {
-                            'chart-version-history': false,
-                            'lightdash-team-flair': false,
                             'extended-usage-analytics': false,
                         },
                     },

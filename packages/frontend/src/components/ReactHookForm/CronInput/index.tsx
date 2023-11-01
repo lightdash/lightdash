@@ -19,11 +19,19 @@ import HourlyInputs from './HourlyInputs';
 import MonthlyInputs from './MonthlyInputs';
 import WeeklyInputs from './WeeklyInputs';
 
-const CronInternalInputs: FC<
+// TODO: this type is a bit of a mess because this component is used
+// both in react-hook-form forms as well as mantine forms. If/when
+// we move away from one of them, this should get simplified.
+export const CronInternalInputs: FC<
     {
         disabled: boolean | undefined;
-    } & ControllerRenderProps<FieldValues, string>
-> = ({ value, disabled, onChange, name }) => {
+        error?: string;
+        errors?: {
+            [x: string]: any;
+        };
+        onBlur?: () => void;
+    } & Omit<ControllerRenderProps<FieldValues, string>, 'ref' | 'onBlur'>
+> = ({ value, disabled, onChange, name, error, errors }) => {
     const [frequency, setFrequency] = useState<Frequency>(
         mapCronExpressionToFrequency(value),
     );
@@ -68,6 +76,8 @@ const CronInternalInputs: FC<
                     name={name}
                     cronExpression={value}
                     onChange={onChange}
+                    errors={errors}
+                    error={error}
                 />
             )}
         </div>
@@ -77,7 +87,10 @@ const CronInternalInputs: FC<
 const CronInput: FC<
     Pick<InputWrapperProps, 'disabled' | 'rules' | 'name' | 'defaultValue'>
 > = ({ name, rules, defaultValue, disabled }) => {
-    const { control } = useFormContext();
+    const {
+        control,
+        formState: { errors },
+    } = useFormContext();
     return (
         <Controller
             control={control}
@@ -85,7 +98,11 @@ const CronInput: FC<
             rules={rules}
             defaultValue={defaultValue}
             render={({ field }) => (
-                <CronInternalInputs disabled={disabled} {...field} />
+                <CronInternalInputs
+                    disabled={disabled}
+                    {...field}
+                    errors={errors}
+                />
             )}
         />
     );

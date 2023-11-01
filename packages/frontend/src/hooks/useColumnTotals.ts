@@ -4,6 +4,7 @@ import {
     Field,
     FieldId,
     getItemId,
+    isCustomDimension,
     isDimension,
     isTableCalculation,
     Item,
@@ -26,7 +27,9 @@ export const isSummable = (item: Item | undefined) => {
     if (isTableCalculation(item)) {
         return false;
     }
-
+    if (isCustomDimension(item)) {
+        return false;
+    }
     const numericTypes: string[] = [
         DimensionType.NUMBER,
         MetricType.NUMBER,

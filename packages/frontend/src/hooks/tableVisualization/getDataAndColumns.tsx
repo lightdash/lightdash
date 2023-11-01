@@ -48,6 +48,7 @@ const getDataAndColumns = ({
         resultsData.rows,
         itemsMap,
     );
+
     const columns = selectedItemIds.reduce<Array<TableHeader | TableColumn>>(
         (acc, itemId) => {
             const item = itemsMap[itemId] as

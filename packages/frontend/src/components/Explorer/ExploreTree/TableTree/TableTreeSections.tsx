@@ -1,5 +1,12 @@
-import { AdditionalMetric, CompiledTable, getItemId } from '@lightdash/common';
+import {
+    AdditionalMetric,
+    CompiledTable,
+    CustomDimension,
+    getCustomDimensionId,
+    getItemId,
+} from '@lightdash/common';
 import { Center, Group, Text } from '@mantine/core';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, useMemo } from 'react';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import { getSearchResults, TreeProvider } from './Tree/TreeProvider';
@@ -11,14 +18,19 @@ type Props = {
     additionalMetrics: AdditionalMetric[];
     selectedItems: Set<string>;
     onSelectedNodeChange: (itemId: string, isDimension: boolean) => void;
+    customDimensions?: CustomDimension[];
 };
 const TableTreeSections: FC<Props> = ({
     searchQuery,
     table,
     additionalMetrics,
+    customDimensions,
     selectedItems,
     onSelectedNodeChange,
 }) => {
+    const isCustomDimensionsFeatureEnabled =
+        useFeatureFlagEnabled('custom-dimensions');
+
     const dimensions = useMemo(() => {
         return Object.values(table.dimensions).reduce(
             (acc, item) => ({ ...acc, [getItemId(item)]: item }),
@@ -41,12 +53,22 @@ const TableTreeSections: FC<Props> = ({
                 {},
             );
     }, [additionalMetrics, table]);
+    const customDimensionsMap = useMemo(() => {
+        if (customDimensions === undefined) return undefined;
+        return customDimensions
+            .filter((customDimension) => customDimension.table === table.name)
+            .reduce<Record<string, CustomDimension>>(
+                (acc, item) => ({ ...acc, [getCustomDimensionId(item)]: item }),
+                {},
+            );
+    }, [customDimensions, table]);
 
     const isSearching = !!searchQuery && searchQuery !== '';
 
     const hasMetrics = Object.keys(table.metrics).length > 0;
     const hasDimensions = Object.keys(table.dimensions).length > 0;
     const hasCustomMetrics = additionalMetrics.length > 0;
+    const hasCustomDimensions = customDimensions && customDimensions.length > 0;
 
     return (
         <>
@@ -155,6 +177,51 @@ const TableTreeSections: FC<Props> = ({
                     itemsMap={customMetrics}
                     selectedItems={selectedItems}
                     onItemClick={(key) => onSelectedNodeChange(key, false)}
+                >
+                    <TreeRoot />
+                </TreeProvider>
+            ) : null}
+
+            {isCustomDimensionsFeatureEnabled &&
+            hasCustomDimensions &&
+            customDimensionsMap &&
+            !(
+                isSearching &&
+                getSearchResults(customDimensionsMap, searchQuery).size === 0
+            ) ? (
+                <Group position="apart" mt="sm" mb="xs" pr="sm">
+                    <Text fw={600} color="blue.9">
+                        Custom dimensions
+                    </Text>
+
+                    <DocumentationHelpButton
+                        href="https://docs.lightdash.com/guides/how-to-create-metrics#-adding-custom-metrics-in-the-explore-view"
+                        tooltipProps={{
+                            label: (
+                                <>
+                                    Add custom dimensions by hovering over the
+                                    dimension of your choice & selecting the
+                                    three-dot Action Menu.{' '}
+                                    <Text component="span" fw={600}>
+                                        Click to view docs.
+                                    </Text>
+                                </>
+                            ),
+                            multiline: true,
+                        }}
+                    />
+                </Group>
+            ) : null}
+
+            {hasCustomDimensions && customDimensionsMap ? (
+                <TreeProvider
+                    orderFieldsBy={table.orderFieldsBy}
+                    searchQuery={searchQuery}
+                    itemsMap={customDimensionsMap}
+                    selectedItems={selectedItems}
+                    onItemClick={() => {
+                        //TODO implement
+                    }}
                 >
                     <TreeRoot />
                 </TreeProvider>

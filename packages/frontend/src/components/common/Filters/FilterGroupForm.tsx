@@ -178,14 +178,14 @@ const FilterGroupForm: FC<Props> = ({
                     </React.Fragment>
                 ))}
             </FilterGroupItemsWrapper>
-            {!hideButtons && fields.length > 0 && (
+            {isEditMode && !hideButtons && fields.length > 0 && (
                 <Button
                     variant="light"
                     size="xs"
                     leftIcon={<MantineIcon icon={IconPlus} />}
                     onClick={onAddFilterRule}
                 >
-                    Add filter
+                    Add group rule
                 </Button>
             )}
         </FilterGroupWrapper>

@@ -1,4 +1,3 @@
-import { TagInput } from '@blueprintjs/core';
 import { Popover2Props } from '@blueprintjs/popover2';
 import {
     assertUnreachable,
@@ -8,30 +7,30 @@ import {
     FilterType,
     isFilterRule,
 } from '@lightdash/common';
-import { NumberInput } from '@mantine/core';
 import isString from 'lodash-es/isString';
-import React from 'react';
+import { PropsWithChildren } from 'react';
+import { TagInput } from '../../TagInput/TagInput';
 import { useFiltersContext } from '../FiltersProvider';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
-import MultiAutoComplete from './AutoComplete/MultiAutoComplete';
+import FilterNumberInput from './FilterNumberInput';
+import FilterStringAutoComplete from './FilterStringAutoComplete';
 
 export type FilterInputsProps<T extends ConditionalRule> = {
     filterType: FilterType;
     field: FilterableItem;
     rule: T;
     onChange: (value: T) => void;
-    popoverProps?: Popover2Props;
     disabled?: boolean;
+    popoverProps?: Popover2Props;
 };
 
 const DefaultFilterInputs = <T extends ConditionalRule>({
     field,
     filterType,
     rule,
-    popoverProps,
     disabled,
     onChange,
-}: React.PropsWithChildren<FilterInputsProps<T>>) => {
+}: PropsWithChildren<FilterInputsProps<T>>) => {
     const { getField } = useFiltersContext();
     const suggestions = isFilterRule(rule)
         ? getField(rule)?.suggestions
@@ -55,50 +54,51 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
         case FilterOperator.NOT_INCLUDE:
         case FilterOperator.EQUALS:
         case FilterOperator.NOT_EQUALS: {
-            if (filterType === FilterType.STRING) {
-                return (
-                    <MultiAutoComplete
-                        filterId={rule.id}
-                        disabled={disabled}
-                        field={field}
-                        placeholder={placeholder}
-                        values={(rule.values || []).filter(isString)}
-                        suggestions={suggestions || []}
-                        popoverProps={popoverProps}
-                        onChange={(values) =>
-                            onChange({
-                                ...rule,
-                                values,
-                            })
-                        }
-                    />
-                );
+            switch (filterType) {
+                case FilterType.STRING:
+                    return (
+                        <FilterStringAutoComplete
+                            filterId={rule.id}
+                            disabled={disabled}
+                            field={field}
+                            placeholder={placeholder}
+                            values={(rule.values || []).filter(isString)}
+                            suggestions={suggestions || []}
+                            onChange={(values) =>
+                                onChange({
+                                    ...rule,
+                                    values,
+                                })
+                            }
+                        />
+                    );
+
+                case FilterType.NUMBER:
+                case FilterType.BOOLEAN:
+                case FilterType.DATE:
+                    return (
+                        <TagInput
+                            w="100%"
+                            clearable
+                            size="xs"
+                            disabled={disabled}
+                            placeholder={placeholder}
+                            allowDuplicates={false}
+                            validationRegex={
+                                filterType === FilterType.NUMBER
+                                    ? /^-?\d+(\.\d+)?$/
+                                    : undefined
+                            }
+                            value={rule.values?.map(String)}
+                            onChange={(values) => onChange({ ...rule, values })}
+                        />
+                    );
+                default:
+                    return assertUnreachable(
+                        filterType,
+                        `No form implemented for DefaultFilterInputs filter type ${filterType}`,
+                    );
             }
-            return (
-                <TagInput
-                    className={disabled ? 'disabled-filter' : ''}
-                    fill
-                    disabled={disabled}
-                    addOnBlur
-                    inputProps={{
-                        type:
-                            filterType === FilterType.NUMBER
-                                ? 'number'
-                                : 'text',
-                    }}
-                    placeholder={placeholder}
-                    tagProps={{ minimal: true }}
-                    values={rule.values || []}
-                    onChange={(values) =>
-                        onChange({
-                            ...rule,
-                            values: values?.filter(
-                                (v, i, arr) => arr.indexOf(v) === i,
-                            ),
-                        })
-                    }
-                />
-            );
         }
         case FilterOperator.GREATER_THAN:
         case FilterOperator.GREATER_THAN_OR_EQUAL:
@@ -109,26 +109,15 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
         case FilterOperator.IN_THE_NEXT:
         case FilterOperator.IN_THE_CURRENT:
         case FilterOperator.IN_BETWEEN:
-            const value = rule.values?.[0];
-            let parsedValue: number | undefined;
-
-            if (typeof value === 'string') parsedValue = parseInt(value, 10);
-            else if (typeof value === 'number') parsedValue = value;
-            else parsedValue = undefined;
-
-            if (parsedValue && isNaN(parsedValue)) parsedValue = undefined;
-
             return (
-                <NumberInput
+                <FilterNumberInput
                     disabled={disabled}
-                    w="100%"
-                    size="xs"
                     placeholder={placeholder}
-                    value={parsedValue}
+                    value={rule.values?.[0]}
                     onChange={(newValue) => {
                         onChange({
                             ...rule,
-                            values: newValue === '' ? [] : [newValue],
+                            values: newValue ? [newValue] : [],
                         });
                     }}
                 />

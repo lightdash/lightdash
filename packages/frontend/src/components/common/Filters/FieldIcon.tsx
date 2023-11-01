@@ -1,9 +1,11 @@
 import {
     AdditionalMetric,
+    CustomDimension,
     DimensionType,
     Field,
     getItemColor,
     getItemIcon,
+    isCustomDimension,
     isDimension,
     isField,
     isMetric,
@@ -39,7 +41,12 @@ const getItemIconName = (type: DimensionType | MetricType) => {
     }
 };
 
-const getFieldIcon = (field: Field | TableCalculation | AdditionalMetric) => {
+const getFieldIcon = (
+    field: Field | TableCalculation | AdditionalMetric | CustomDimension,
+) => {
+    if (isCustomDimension(field)) {
+        return 'citation';
+    }
     if (isField(field) && (isDimension(field) || isMetric(field))) {
         return getItemIconName(field.type);
     }
@@ -47,7 +54,7 @@ const getFieldIcon = (field: Field | TableCalculation | AdditionalMetric) => {
 };
 
 type Props = Omit<MantineIconProps, 'icon'> & {
-    item: Field | TableCalculation | AdditionalMetric;
+    item: Field | TableCalculation | AdditionalMetric | CustomDimension;
     selected?: boolean;
 };
 

@@ -2,6 +2,7 @@ import {
     ApiError,
     ApiQueryResults,
     Filters,
+    getCustomDimensionId,
     MetricQuery,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
@@ -88,6 +89,8 @@ export const useQueryResults = (props?: {
                 ...metricQuery.dimensions,
                 ...metricQuery.metrics,
                 ...metricQuery.tableCalculations.map(({ name }) => name),
+                ...(metricQuery.customDimensions?.map(getCustomDimensionId) ||
+                    []),
             ]);
             const isValidQuery = fields.size > 0;
             if (!!tableName && isValidQuery) {

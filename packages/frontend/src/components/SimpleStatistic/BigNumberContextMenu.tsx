@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { DashboardFilters, ResultValue } from '@lightdash/common';
+import {
+    DashboardFilters,
+    hasCustomDimension,
+    ResultValue,
+} from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
@@ -27,8 +31,12 @@ const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
     const clipboard = useClipboard({ timeout: 200 });
     const { showToastSuccess } = useToaster();
     const { resultsData, bigNumberConfig } = useVisualizationContext();
-    const { openUnderlyingDataModal, openDrillDownModal, tableName } =
-        useMetricQueryDataContext();
+    const {
+        openUnderlyingDataModal,
+        openDrillDownModal,
+        tableName,
+        metricQuery,
+    } = useMetricQueryDataContext();
     const { data: explore } = useExplore(tableName);
 
     const { track } = useTracking();
@@ -137,7 +145,7 @@ const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
                     </Menu.Item>
                 )}
 
-                {item && (
+                {item && !hasCustomDimension(metricQuery) && (
                     <Can
                         I="view"
                         this={subject('UnderlyingData', {

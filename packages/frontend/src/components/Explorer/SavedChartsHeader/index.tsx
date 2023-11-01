@@ -1,21 +1,15 @@
-import {
-    Alert,
-    Button,
-    Classes,
-    Divider,
-    Intent,
-    Menu,
-} from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { Alert, Button, Classes, Divider, Intent } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
-import { Box, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Flex, Menu, Tooltip } from '@mantine/core';
 import {
     IconArrowBack,
     IconCheck,
+    IconChevronRight,
     IconCirclePlus,
     IconCirclesRelation,
     IconCopy,
     IconDots,
+    IconFolder,
     IconFolders,
     IconHistory,
     IconLayoutGridAdd,
@@ -23,7 +17,6 @@ import {
     IconSend,
     IconTrash,
 } from '@tabler/icons-react';
-import { PostHogFeature } from 'posthog-js/react';
 import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
@@ -46,6 +39,7 @@ import { useApp } from '../../../providers/AppProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
+import MantineIcon from '../../common/MantineIcon';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
@@ -369,167 +363,221 @@ const SavedChartsHeader: FC = () => {
                                 )}
                             </>
                         )}
-
-                        <Popover2
-                            placement="bottom-end"
+                        <Menu
+                            position="bottom"
+                            withArrow
+                            withinPortal
+                            shadow="md"
+                            width={200}
                             disabled={!unsavedChartVersion.tableName}
-                            content={
-                                <Menu>
-                                    {hasUnsavedChanges && (
-                                        <MenuItem2
-                                            icon={<IconCirclePlus />}
-                                            text={'Save chart as'}
-                                            onClick={() => {
-                                                setIsQueryModalOpen(true);
-                                            }}
-                                        />
-                                    )}
-                                    {!hasUnsavedChanges &&
-                                        !chartBelongsToDashboard && (
-                                            <MenuItem2
-                                                icon={<IconCopy />}
-                                                text={'Duplicate'}
-                                                onClick={() => {
-                                                    duplicateChart(chartId);
-                                                }}
-                                            />
-                                        )}
-
-                                    {!chartBelongsToDashboard && (
-                                        <MenuItem2
-                                            icon={<IconLayoutGridAdd />}
-                                            text="Add to dashboard"
-                                            onClick={() =>
-                                                setIsAddToDashboardModalOpen(
-                                                    true,
-                                                )
-                                            }
-                                        />
-                                    )}
-                                    {savedChart?.dashboardUuid && (
-                                        <MenuItem2
-                                            icon={<IconFolders />}
-                                            text="Move to space"
-                                            onClick={() =>
-                                                setIsMovingChart(true)
-                                            }
-                                        />
-                                    )}
-                                    {!chartBelongsToDashboard && (
-                                        <MenuItem2
-                                            icon={<IconFolders />}
-                                            text="Move to space"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                            }}
-                                        >
-                                            {spaces?.map((spaceToMove) => {
-                                                const isDisabled =
-                                                    savedChart?.spaceUuid ===
-                                                    spaceToMove.uuid;
-                                                return (
-                                                    <MenuItem2
-                                                        key={spaceToMove.uuid}
-                                                        text={spaceToMove.name}
-                                                        icon={
-                                                            isDisabled ? (
-                                                                <IconCheck />
-                                                            ) : undefined
-                                                        }
-                                                        className={
-                                                            isDisabled
-                                                                ? 'bp4-disabled'
-                                                                : ''
-                                                        }
-                                                        onClick={(e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            if (
-                                                                savedChart &&
-                                                                savedChart.spaceUuid !==
-                                                                    spaceToMove.uuid
-                                                            ) {
-                                                                moveChartToSpace(
-                                                                    {
-                                                                        uuid: savedChart.uuid,
-                                                                        spaceUuid:
-                                                                            spaceToMove.uuid,
-                                                                    },
-                                                                );
-                                                            }
-                                                        }}
-                                                    />
-                                                );
-                                            })}
-                                        </MenuItem2>
-                                    )}
-                                    {userCanManageCharts && (
-                                        <MenuItem2
-                                            icon={<IconSend />}
-                                            text="Scheduled deliveries"
-                                            onClick={() =>
-                                                toggleScheduledDeliveriesModal(
-                                                    true,
-                                                )
-                                            }
-                                        />
-                                    )}
-                                    {userCanManageCharts &&
-                                    hasGoogleDriveEnabled ? (
-                                        <MenuItem2
-                                            icon={<IconCirclesRelation />}
-                                            text="Sync with Google Sheets"
-                                            onClick={() =>
-                                                toggleSyncWithGoogleSheetsModalOpen(
-                                                    true,
-                                                )
-                                            }
-                                        />
-                                    ) : null}
-                                    {userCanManageCharts && (
-                                        <PostHogFeature
-                                            flag={'chart-version-history'}
-                                            match={true}
-                                        >
-                                            <MenuItem2
-                                                icon={<IconHistory />}
-                                                text="Version history"
-                                                onClick={() =>
-                                                    history.push({
-                                                        pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/history`,
-                                                    })
-                                                }
-                                            />
-                                        </PostHogFeature>
-                                    )}
-                                    <Divider />
-                                    <Tooltip
-                                        disabled={!getIsEditingDashboardChart()}
-                                        position="bottom"
-                                        label="This chart can be deleted from its dashboard"
-                                    >
-                                        <Box>
-                                            <MenuItem2
-                                                icon={<IconTrash />}
-                                                text="Delete"
-                                                intent="danger"
-                                                disabled={getIsEditingDashboardChart()}
-                                                onClick={() =>
-                                                    setIsDeleteDialogOpen(true)
-                                                }
-                                            />
-                                        </Box>
-                                    </Tooltip>
-                                </Menu>
-                            }
                         >
-                            <Button
-                                style={{ padding: '5px 7px' }}
-                                icon={<IconDots size={16} />}
-                                disabled={!unsavedChartVersion.tableName}
-                            />
-                        </Popover2>
+                            <Menu.Dropdown>
+                                {hasUnsavedChanges && (
+                                    <Menu.Item
+                                        icon={
+                                            <MantineIcon
+                                                icon={IconCirclePlus}
+                                            />
+                                        }
+                                        onClick={() => {
+                                            setIsQueryModalOpen(true);
+                                        }}
+                                    >
+                                        Save chart as
+                                    </Menu.Item>
+                                )}
+                                {!hasUnsavedChanges &&
+                                    !chartBelongsToDashboard && (
+                                        <Menu.Item
+                                            icon={
+                                                <MantineIcon icon={IconCopy} />
+                                            }
+                                            onClick={() => {
+                                                duplicateChart(chartId);
+                                            }}
+                                        >
+                                            Duplicate
+                                        </Menu.Item>
+                                    )}
+                                {!chartBelongsToDashboard && (
+                                    <Menu.Item
+                                        icon={
+                                            <MantineIcon
+                                                icon={IconLayoutGridAdd}
+                                            />
+                                        }
+                                        onClick={() =>
+                                            setIsAddToDashboardModalOpen(true)
+                                        }
+                                    >
+                                        Add to dashboard
+                                    </Menu.Item>
+                                )}
+                                {savedChart?.dashboardUuid && (
+                                    <Menu.Item
+                                        icon={
+                                            <MantineIcon icon={IconFolders} />
+                                        }
+                                        onClick={() => setIsMovingChart(true)}
+                                    >
+                                        Move to space
+                                    </Menu.Item>
+                                )}
+                                {!chartBelongsToDashboard && (
+                                    <Menu.Item
+                                        icon={
+                                            <MantineIcon icon={IconFolders} />
+                                        }
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setIsMovingChart(true);
+                                        }}
+                                    >
+                                        <Menu
+                                            width={250}
+                                            withArrow
+                                            position="left-start"
+                                            shadow="md"
+                                            offset={40}
+                                            trigger="hover"
+                                        >
+                                            <Menu.Target>
+                                                <Flex
+                                                    justify="space-between"
+                                                    align="center"
+                                                >
+                                                    Move to space
+                                                    <MantineIcon
+                                                        icon={IconChevronRight}
+                                                    />
+                                                </Flex>
+                                            </Menu.Target>
+                                            <Menu.Dropdown>
+                                                {spaces?.map((spaceToMove) => {
+                                                    const isDisabled =
+                                                        savedChart?.spaceUuid ===
+                                                        spaceToMove.uuid;
+                                                    return (
+                                                        <Menu.Item
+                                                            key={
+                                                                spaceToMove.uuid
+                                                            }
+                                                            icon={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        isDisabled
+                                                                            ? IconCheck
+                                                                            : IconFolder
+                                                                    }
+                                                                />
+                                                            }
+                                                            color={
+                                                                isDisabled
+                                                                    ? 'gray.5'
+                                                                    : ''
+                                                            }
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                if (
+                                                                    savedChart &&
+                                                                    savedChart.spaceUuid !==
+                                                                        spaceToMove.uuid
+                                                                ) {
+                                                                    moveChartToSpace(
+                                                                        {
+                                                                            uuid: savedChart.uuid,
+                                                                            spaceUuid:
+                                                                                spaceToMove.uuid,
+                                                                        },
+                                                                    );
+                                                                }
+                                                            }}
+                                                        >
+                                                            {spaceToMove.name}
+                                                        </Menu.Item>
+                                                    );
+                                                })}
+                                            </Menu.Dropdown>
+                                        </Menu>
+                                    </Menu.Item>
+                                )}
+                                {userCanManageCharts && (
+                                    <Menu.Item
+                                        icon={<MantineIcon icon={IconSend} />}
+                                        onClick={() =>
+                                            toggleScheduledDeliveriesModal(true)
+                                        }
+                                    >
+                                        Scheduled deliveries
+                                    </Menu.Item>
+                                )}
+                                {userCanManageCharts &&
+                                hasGoogleDriveEnabled ? (
+                                    <Menu.Item
+                                        icon={
+                                            <MantineIcon
+                                                icon={IconCirclesRelation}
+                                            />
+                                        }
+                                        onClick={() =>
+                                            toggleSyncWithGoogleSheetsModalOpen(
+                                                true,
+                                            )
+                                        }
+                                    >
+                                        Sync with Google Sheets
+                                    </Menu.Item>
+                                ) : null}
+                                {userCanManageCharts && (
+                                    <Menu.Item
+                                        icon={
+                                            <MantineIcon icon={IconHistory} />
+                                        }
+                                        onClick={() =>
+                                            history.push({
+                                                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/history`,
+                                            })
+                                        }
+                                    >
+                                        Version history
+                                    </Menu.Item>
+                                )}
+                                <Divider />
+                                <Tooltip
+                                    disabled={!getIsEditingDashboardChart()}
+                                    position="bottom"
+                                    label="This chart can be deleted from its dashboard"
+                                >
+                                    <Box>
+                                        <Menu.Item
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconTrash}
+                                                    color="red"
+                                                />
+                                            }
+                                            color="red"
+                                            disabled={getIsEditingDashboardChart()}
+                                            onClick={() =>
+                                                setIsDeleteDialogOpen(true)
+                                            }
+                                        >
+                                            Delete
+                                        </Menu.Item>
+                                    </Box>
+                                </Tooltip>
+                            </Menu.Dropdown>
+                            <Menu.Target>
+                                <ActionIcon
+                                    variant="default"
+                                    disabled={!unsavedChartVersion.tableName}
+                                >
+                                    <MantineIcon icon={IconDots} />
+                                </ActionIcon>
+                            </Menu.Target>
+                        </Menu>
                     </PageActionsContainer>
                 )}
             </PageHeader>

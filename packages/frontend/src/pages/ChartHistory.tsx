@@ -3,6 +3,7 @@ import { subject } from '@casl/ability';
 import { formatTimestamp, TimeFrames } from '@lightdash/common';
 import {
     ActionIcon,
+    Alert,
     Badge,
     Button,
     Flex,
@@ -15,8 +16,13 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { IconDots, IconFileAnalytics, IconHistory } from '@tabler/icons-react';
-import React, { useState } from 'react';
+import {
+    IconDots,
+    IconFileAnalytics,
+    IconHistory,
+    IconInfoCircle,
+} from '@tabler/icons-react';
+import React, { useEffect, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { Can } from '../components/common/Authorization';
 import { EmptyState } from '../components/common/EmptyState';
@@ -49,6 +55,13 @@ const ChartHistory = () => {
     const [isRollbackModalOpen, setIsRollbackModalOpen] = useState(false);
     const historyQuery = useChartHistory(savedQueryUuid);
 
+    useEffect(() => {
+        const currentVersion = historyQuery.data?.history[0];
+        if (currentVersion && !selectedVersionUuid) {
+            selectVersionUuid(currentVersion.versionUuid);
+        }
+    }, [selectedVersionUuid, historyQuery.data]);
+
     const chartVersionQuery = useChartVersion(
         savedQueryUuid,
         selectedVersionUuid,
@@ -80,7 +93,7 @@ const ChartHistory = () => {
 
     return (
         <Page
-            title="Chart History"
+            title="Chart version history"
             withSidebarFooter
             withFullHeight
             withPaddedContent
@@ -97,12 +110,9 @@ const ChartHistory = () => {
                                     title: 'Chart',
                                     to: `/projects/${projectUuid}/saved/${savedQueryUuid}/view`,
                                 },
-                                { title: 'History', active: true },
+                                { title: 'Version history', active: true },
                             ]}
                         />
-                        <Badge size="sm" variant="light">
-                            BETA
-                        </Badge>
                     </Flex>
                     <Stack spacing="xs" sx={{ flexGrow: 1, overflowY: 'auto' }}>
                         {historyQuery.data?.history.map((version, index) => (
@@ -216,6 +226,18 @@ const ChartHistory = () => {
                             />
                         ))}
                     </Stack>
+                    <Alert
+                        icon={<MantineIcon icon={IconInfoCircle} size={'md'} />}
+                        title="Data freshness"
+                        color="gray"
+                        variant="light"
+                    >
+                        <p>
+                            Version history preview changes chart configuration
+                            and setup, but always queries the latest version of
+                            the data itself
+                        </p>
+                    </Alert>
                 </Stack>
             }
         >
@@ -237,6 +259,9 @@ const ChartHistory = () => {
                         unsavedChartVersion: chartVersionQuery.data.chart,
                         modals: {
                             additionalMetric: {
+                                isOpen: false,
+                            },
+                            customDimension: {
                                 isOpen: false,
                             },
                         },

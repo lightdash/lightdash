@@ -11,6 +11,7 @@ import {
     CompiledDimension,
     CompiledField,
     CompiledMetric,
+    CustomDimension,
     DimensionType,
     Field,
     FieldId,
@@ -21,6 +22,7 @@ import {
 } from './types/field';
 import {
     AdditionalMetric,
+    getCustomDimensionId,
     isAdditionalMetric,
     MetricQuery,
 } from './types/metricQuery';
@@ -69,6 +71,7 @@ import {
     ProjectType,
     WarehouseCredentials,
 } from './types/projects';
+import { MostPopularAndRecentlyUpdated } from './types/resourceViewItem';
 import { ResultRow } from './types/results';
 import {
     ApiJobScheduledResponse,
@@ -535,7 +538,8 @@ type ApiResults =
     | ChartVersion
     | ApiJobStatusResponse['results']
     | ApiJobScheduledResponse['results']
-    | ApiSshKeyPairResponse['results'];
+    | ApiSshKeyPairResponse['results']
+    | MostPopularAndRecentlyUpdated;
 
 export type ApiResponse = {
     status: 'ok';
@@ -627,6 +631,9 @@ export type HealthState = {
         maxLimit: number;
         csvCellsLimit: number;
     };
+    pivotTable: {
+        maxColumnLimit: number;
+    };
     hasSlack: boolean;
     hasHeadlessBrowser: boolean;
 };
@@ -694,7 +701,7 @@ export const getAxisName = ({
     axisIndex: number;
     axisName?: string;
     series?: Series[];
-    items: Array<Field | TableCalculation>;
+    items: Array<Field | TableCalculation | CustomDimension>;
 }): string | undefined => {
     const defaultItem = items.find(
         (item) =>
@@ -727,6 +734,7 @@ export function getItemMap(
     explore: Explore,
     additionalMetrics: AdditionalMetric[] = [],
     tableCalculations: TableCalculation[] = [],
+    customDimensions: CustomDimension[] = [],
 ): Record<string, Field | TableCalculation> {
     const convertedAdditionalMetrics = (additionalMetrics || []).reduce<
         Metric[]
@@ -745,6 +753,7 @@ export function getItemMap(
         ...getFields(explore),
         ...convertedAdditionalMetrics,
         ...tableCalculations,
+        ...customDimensions,
     ].reduce(
         (acc, item) => ({
             ...acc,
@@ -763,6 +772,7 @@ export function itemsInMetricQuery(
               ...metricQuery.metrics,
               ...metricQuery.dimensions,
               ...(metricQuery.tableCalculations || []).map((tc) => tc.name),
+              ...(metricQuery.customDimensions || []).map(getCustomDimensionId),
           ];
 }
 

@@ -1,7 +1,9 @@
 import {
     assertUnreachable,
+    BinType,
     CompiledDimension,
     CompiledMetricQuery,
+    CustomDimension,
     DbtModelJoinType,
     Explore,
     fieldId,
@@ -11,14 +13,17 @@ import {
     FilterGroup,
     FilterRule,
     ForbiddenError,
+    getCustomDimensionId,
     getCustomMetricDimensionId,
     getDimensions,
     getFilterRulesFromGroup,
     getMetrics,
     isAndFilterGroup,
+    isCustomDimension,
     isFilterGroup,
     parseAllReferences,
     renderFilterRuleSql,
+    SortField,
     SupportedDbtAdapter,
     UserAttributeValueMap,
     WarehouseClient,
@@ -128,6 +133,246 @@ const getJoinType = (type: DbtModelJoinType = 'left') => {
     }
 };
 
+export const getCustomDimensionSql = ({
+    explore,
+    compiledMetricQuery,
+    fieldQuoteChar,
+    userAttributes = {},
+    sorts = [],
+}: {
+    explore: Explore;
+    compiledMetricQuery: CompiledMetricQuery;
+    fieldQuoteChar: string;
+    userAttributes: UserAttributeValueMap | undefined;
+    sorts: SortField[] | undefined;
+}):
+    | { ctes: string[]; joins: string[]; tables: string[]; selects: string[] }
+    | undefined => {
+    const { customDimensions } = compiledMetricQuery;
+
+    if (customDimensions === undefined || customDimensions.length === 0)
+        return undefined;
+
+    const getCteReference = (customDimension: CustomDimension) =>
+        `${getCustomDimensionId(customDimension)}_cte`;
+
+    const ctes = customDimensions.reduce<string[]>((acc, customDimension) => {
+        switch (customDimension.binType) {
+            case BinType.FIXED_WIDTH:
+            case BinType.CUSTOM_RANGE:
+                // No need for cte
+                return acc;
+            case BinType.FIXED_NUMBER:
+                const dimension = getDimensionFromId(
+                    customDimension.dimensionId,
+                    explore,
+                );
+                const baseTable =
+                    explore.tables[customDimension.table].sqlTable;
+                const cte = ` ${getCteReference(customDimension)} AS (
+                    SELECT
+                        MIN(${dimension.compiledSql}) AS min_id,
+                        MAX(${dimension.compiledSql}) AS max_id,
+                        CAST(MIN(${dimension.compiledSql}) + (MAX(${
+                    dimension.compiledSql
+                }) - MIN(${dimension.compiledSql}) ) AS INT) as ratio
+                    FROM ${baseTable} AS ${fieldQuoteChar}${
+                    customDimension.table
+                }${fieldQuoteChar}
+                )`;
+
+                return [...acc, cte];
+            default:
+                assertUnreachable(
+                    customDimension.binType,
+                    `Unknown bin type on cte: ${customDimension.binType}`,
+                );
+        }
+        return acc;
+    }, []);
+
+    const joins = customDimensions.reduce<string[]>((acc, customDimension) => {
+        switch (customDimension.binType) {
+            case BinType.CUSTOM_RANGE:
+            case BinType.FIXED_WIDTH:
+                // No need for cte
+                return acc;
+            case BinType.FIXED_NUMBER:
+                return [...acc, getCteReference(customDimension)];
+            default:
+                assertUnreachable(
+                    customDimension.binType,
+                    `Unknown bin type on join: ${customDimension.binType}`,
+                );
+        }
+        return acc;
+    }, []);
+
+    const tables = customDimensions.map(
+        (customDimension) => customDimension.table,
+    );
+
+    const selects = customDimensions.reduce<string[]>(
+        (acc, customDimension) => {
+            const dimension = getDimensionFromId(
+                customDimension.dimensionId,
+                explore,
+            );
+            // Check required attribute permission for parent dimension
+            assertValidDimensionRequiredAttribute(
+                dimension,
+                userAttributes,
+                `custom dimension: "${customDimension.name}"`,
+            );
+
+            const customDimensionName = `${fieldQuoteChar}${getCustomDimensionId(
+                customDimension,
+            )}${fieldQuoteChar}`;
+            const customDimensionOrder = `${fieldQuoteChar}${getCustomDimensionId(
+                customDimension,
+            )}_order${fieldQuoteChar}`;
+            const cte = `${getCteReference(customDimension)}`;
+
+            // If a custom dimension is sorted, we need to generate a special SQL select that returns a number
+            // and not the range as a string
+            const isSorted =
+                sorts.length > 0 &&
+                sorts.find(
+                    (sortField) =>
+                        getCustomDimensionId(customDimension) ===
+                        sortField.fieldId,
+                );
+            switch (customDimension.binType) {
+                case BinType.FIXED_WIDTH:
+                    if (!customDimension.binWidth) {
+                        throw new Error(
+                            `Undefined binWidth for custom dimension ${BinType.FIXED_WIDTH} `,
+                        );
+                    }
+
+                    const width = customDimension.binWidth;
+                    const widthSql = `    CONCAT(FLOOR(${dimension.compiledSql} / ${width}) * ${width}, '-', (FLOOR(${dimension.compiledSql} / ${width}) + 1) * ${width} - 1) AS ${customDimensionName}`;
+
+                    if (isSorted) {
+                        return [
+                            ...acc,
+                            widthSql,
+                            `FLOOR(${dimension.compiledSql} / ${width}) * ${width} AS ${customDimensionOrder}`,
+                        ];
+                    }
+                    return [...acc, widthSql];
+                case BinType.FIXED_NUMBER:
+                    if (!customDimension.binNumber) {
+                        throw new Error(
+                            `Undefined binNumber for custom dimension ${BinType.FIXED_NUMBER} `,
+                        );
+                    }
+
+                    const ratio = `${cte}.ratio`;
+
+                    if (customDimension.binNumber <= 1) {
+                        // Edge case, bin number with only one bucket does not need a CASE statement
+                        return [
+                            ...acc,
+                            `CONCAT(${cte}.min_id, '-', ${cte}.max_id) AS ${customDimensionName}`,
+                        ];
+                    }
+
+                    const from = (i: number) =>
+                        `${ratio} * ${i} / ${customDimension.binNumber}`;
+                    const to = (i: number) =>
+                        `${ratio} * ${i + 1} / ${customDimension.binNumber}`;
+                    const whens = Array.from(
+                        Array(customDimension.binNumber).keys(),
+                    ).map((i) => {
+                        if (i !== customDimension.binNumber! - 1) {
+                            return `WHEN ${dimension.compiledSql} >= ${from(
+                                i,
+                            )} AND ${dimension.compiledSql} < ${to(
+                                i,
+                            )} THEN CONCAT(${from(i)}, '-', ${to(i)})`;
+                        }
+                        return `ELSE CONCAT(${from(i)}, '-', ${cte}.max_id)`;
+                    });
+
+                    if (isSorted) {
+                        const sortWhens = Array.from(
+                            Array(customDimension.binNumber).keys(),
+                        ).map((i) => {
+                            if (i !== customDimension.binNumber! - 1) {
+                                return `WHEN ${dimension.compiledSql} >= ${from(
+                                    i,
+                                )} AND ${dimension.compiledSql} < ${to(
+                                    i,
+                                )} THEN ${i}`;
+                            }
+                            return `ELSE ${i}`;
+                        });
+
+                        return [
+                            ...acc,
+                            `CASE
+                            ${whens.join('\n')}
+                            END
+                            AS ${customDimensionName}`,
+                            `CASE
+                            ${sortWhens.join('\n')}
+                            END
+                            AS ${customDimensionOrder}`,
+                        ];
+                    }
+
+                    return [
+                        ...acc,
+                        `CASE
+                        ${whens.join('\n')}
+                        END
+                        AS ${customDimensionName}
+                    `,
+                    ];
+                case BinType.CUSTOM_RANGE:
+                    if (!customDimension.customRange) {
+                        throw new Error(
+                            `Undefined customRange for custom dimension ${BinType.CUSTOM_RANGE} `,
+                        );
+                    }
+
+                    const rangeWhens = customDimension.customRange.map(
+                        (range) => {
+                            if (range.from === undefined) {
+                                // First range
+                                return `WHEN ${dimension.compiledSql} < ${range.to} THEN CONCAT('<' ,  ${range.to})`;
+                            }
+                            if (range.to === undefined) {
+                                // Last range
+                                return `ELSE CONCAT('≥' ,  ${range.from})`;
+                            }
+
+                            return `WHEN ${dimension.compiledSql} >= ${range.from} AND ${dimension.compiledSql} < ${range.to} THEN CONCAT(${range.from}, '-', ${range.to})`;
+                        },
+                    );
+
+                    const customRangeSql = `CASE  
+                        ${rangeWhens.join('\n')}
+                        END
+                        AS ${customDimensionName}`;
+
+                    return [...acc, customRangeSql];
+
+                default:
+                    assertUnreachable(
+                        customDimension.binType,
+                        `Unknown bin type on sql: ${customDimension.binType}`,
+                    );
+            }
+            return acc;
+        },
+        [],
+    );
+
+    return { ctes, joins, tables: [...new Set(tables)], selects };
+};
+
 export const buildQuery = ({
     explore,
     compiledMetricQuery,
@@ -136,14 +381,20 @@ export const buildQuery = ({
 }: BuildQueryProps): { query: string; hasExampleMetric: boolean } => {
     let hasExampleMetric: boolean = false;
     const adapterType: SupportedDbtAdapter = warehouseClient.getAdapterType();
-    const { dimensions, metrics, filters, sorts, limit, additionalMetrics } =
-        compiledMetricQuery;
+    const {
+        dimensions,
+        metrics,
+        filters,
+        sorts,
+        limit,
+        additionalMetrics,
+        customDimensions,
+    } = compiledMetricQuery;
     const baseTable = explore.tables[explore.baseTable].sqlTable;
     const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
     const stringQuoteChar = warehouseClient.getStringQuoteChar();
     const escapeStringQuoteChar = warehouseClient.getEscapeStringQuoteChar();
     const startOfWeek = warehouseClient.getStartOfWeek();
-    const sqlFrom = `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
 
     const dimensionSelects = dimensions.map((field) => {
         const alias = field;
@@ -156,6 +407,16 @@ export const buildQuery = ({
         );
         return `  ${dimension.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
     });
+
+    const customDimensionSql = getCustomDimensionSql({
+        explore,
+        compiledMetricQuery,
+        fieldQuoteChar,
+        userAttributes,
+        sorts,
+    });
+
+    const sqlFrom = `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
 
     const metricSelects = metrics.map((field) => {
         const alias = field;
@@ -192,6 +453,7 @@ export const buildQuery = ({
             const dim = getDimensionFromId(field, explore);
             return [...acc, ...(dim.tablesReferences || [dim.table])];
         }, []),
+        ...(customDimensionSql?.tables || []),
         ...getFilterRulesFromGroup(filters.dimensions).reduce<string[]>(
             (acc, filterRule) => {
                 const dim = getDimensionFromId(
@@ -240,7 +502,6 @@ export const buildQuery = ({
         );
         return [...allNewReferences, ...getJoinedTables(allNewReferences)];
     };
-
     const joinedTables = new Set([
         ...selectedTables,
         ...getJoinedTables([...selectedTables]),
@@ -284,23 +545,40 @@ export const buildQuery = ({
 
     const sqlSelect = `SELECT\n${[
         ...dimensionSelects,
+        ...(customDimensionSql?.selects || []),
         ...metricSelects,
         ...filteredMetricSelects,
     ].join(',\n')}`;
-    const sqlGroupBy =
-        dimensionSelects.length > 0
-            ? `GROUP BY ${dimensionSelects.map((val, i) => i + 1).join(',')}`
-            : '';
 
-    const fieldOrders = sorts.map(
-        (sort) =>
-            `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar}${
+    const groups = [
+        ...(dimensionSelects.length > 0 ? dimensionSelects : []),
+        ...(customDimensionSql?.selects || []),
+    ];
+    const sqlGroupBy =
+        groups.length > 0
+            ? `GROUP BY ${groups.map((val, i) => i + 1).join(',')}`
+            : '';
+    const fieldOrders = sorts.map((sort) => {
+        if (
+            customDimensions &&
+            customDimensions.find(
+                (customDimension) =>
+                    getCustomDimensionId(customDimension) === sort.fieldId,
+            )
+        ) {
+            // Custom dimensions will have a separate `select` for ordering,
+            // that returns the min value (int) of the bin, rather than a string,
+            // so we can use it for sorting
+            return `${fieldQuoteChar}${sort.fieldId}_order${fieldQuoteChar}${
                 sort.descending ? ' DESC' : ''
-            }`,
-    );
+            }`;
+        }
+        return `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar}${
+            sort.descending ? ' DESC' : ''
+        }`;
+    });
     const sqlOrderBy =
         fieldOrders.length > 0 ? `ORDER BY ${fieldOrders.join(', ')}` : '';
-
     const sqlFilterRule = (filter: FilterRule, fieldType: FieldType) => {
         const field =
             fieldType === FieldType.DIMENSION
@@ -389,11 +667,20 @@ export const buildQuery = ({
             sqlSelect,
             sqlFrom,
             sqlJoins,
+            customDimensionSql
+                ? `CROSS JOIN ${customDimensionSql.joins.join(',\n')}`
+                : undefined,
             sqlWhere,
             sqlGroupBy,
-        ].join('\n');
+        ]
+            .filter((l) => l !== undefined)
+            .join('\n');
         const cteName = 'metrics';
-        const cte = `WITH ${cteName} AS (\n${cteSql}\n)`;
+        const ctes = [
+            ...(customDimensionSql?.ctes || []),
+            `${cteName} AS (\n${cteSql}\n)`,
+        ];
+        const cte = `WITH ${ctes.join(',\n')}`;
         const tableCalculationSelects =
             compiledMetricQuery.compiledTableCalculations.map(
                 (tableCalculation) => {
@@ -417,14 +704,23 @@ export const buildQuery = ({
     }
 
     const metricQuerySql = [
+        customDimensionSql && customDimensionSql.ctes.length > 0
+            ? `WITH ${customDimensionSql.ctes.join(',\n')}`
+            : undefined,
         sqlSelect,
         sqlFrom,
         sqlJoins,
+        customDimensionSql && customDimensionSql.joins.length > 0
+            ? `CROSS JOIN ${customDimensionSql.joins.join(',\n')}`
+            : undefined,
         sqlWhere,
         sqlGroupBy,
         sqlOrderBy,
         sqlLimit,
-    ].join('\n');
+    ]
+        .filter((l) => l !== undefined)
+        .join('\n');
+
     return {
         query: metricQuerySql,
         hasExampleMetric,

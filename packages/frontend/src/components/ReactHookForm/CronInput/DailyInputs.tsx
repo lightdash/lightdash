@@ -1,40 +1,27 @@
-import { Classes, FormGroup } from '@blueprintjs/core';
-import { TimePicker } from '@blueprintjs/datetime';
+import { Group, Input } from '@mantine/core';
 import React, { FC } from 'react';
-import { InlinedInputs, InlinedLabel } from './CronInput.styles';
-import {
-    getDailyCronExpression,
-    getTimePickerValue,
-    parseCronExpression,
-} from './cronInputUtils';
+import { getDailyCronExpression } from './cronInputUtils';
+import TimePicker from './TimePicker';
 
 const DailyInputs: FC<{
     disabled?: boolean;
     cronExpression: string;
     onChange: (value: string) => void;
 }> = ({ disabled, cronExpression, onChange }) => {
-    const { minutes, hours } = parseCronExpression(cronExpression);
-
-    const onTimeChange = (date: Date) => {
-        if (date) {
-            onChange(
-                getDailyCronExpression(date.getMinutes(), date.getHours()),
-            );
-        }
+    const handleChange = (newTime: { hours: number; minutes: number }) => {
+        onChange(getDailyCronExpression(newTime.minutes, newTime.hours));
     };
 
     return (
-        <InlinedInputs>
-            <FormGroup inline label={'at'} disabled={disabled}>
-                <TimePicker
-                    useAmPm
-                    disabled={disabled}
-                    value={getTimePickerValue(hours, minutes)}
-                    onChange={onTimeChange}
-                />
-            </FormGroup>
-            <InlinedLabel className={Classes.LABEL}>UTC</InlinedLabel>
-        </InlinedInputs>
+        <Group spacing="xs">
+            <Input.Label>at</Input.Label>
+            <TimePicker
+                disabled={disabled}
+                cronExpression={cronExpression}
+                onChange={handleChange}
+            />
+            <Input.Label>UTC</Input.Label>
+        </Group>
     );
 };
 export default DailyInputs;

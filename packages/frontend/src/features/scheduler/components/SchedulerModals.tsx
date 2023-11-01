@@ -1,4 +1,5 @@
 import { DialogProps } from '@blueprintjs/core';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import React, { FC } from 'react';
 import {
     useChartSchedulerCreateMutation,
@@ -10,14 +11,6 @@ import {
 } from '../hooks/useDashboardSchedulers';
 import SchedulerModal2 from './SchedulerModal2';
 import SchedulersModalBase from './SchedulerModalBase';
-
-// TODO: this is a feature flag while we are refactoring
-// the scheduled deliveries UI. Remove it when that is done.
-const getSchedulerModalView = () => {
-    return localStorage.getItem('scheduler-modal-2')
-        ? SchedulerModal2
-        : SchedulersModalBase;
-};
 
 interface DashboardSchedulersProps extends DialogProps {
     dashboardUuid: string;
@@ -33,7 +26,12 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
     const schedulersQuery = useDashboardSchedulers(dashboardUuid);
     const createMutation = useDashboardSchedulerCreateMutation();
 
-    const SchedulerView = getSchedulerModalView();
+    // TODO: this is a feature flag while we are refactoring
+    // the scheduled deliveries UI. Remove it when that is done.
+    const SchedulerView = useFeatureFlagEnabled('new-scheduler-ui')
+        ? SchedulerModal2
+        : SchedulersModalBase;
+
     return (
         <SchedulerView
             resourceUuid={dashboardUuid}
@@ -60,7 +58,11 @@ export const ChartSchedulersModal: FC<ChartSchedulersProps> = ({
     const chartSchedulersQuery = useChartSchedulers(chartUuid);
     const createMutation = useChartSchedulerCreateMutation();
 
-    const SchedulerView = getSchedulerModalView();
+    // TODO: this is a feature flag while we are refactoring
+    // the scheduled deliveries UI. Remove it when that is done.
+    const SchedulerView = useFeatureFlagEnabled('new-scheduler-ui')
+        ? SchedulerModal2
+        : SchedulersModalBase;
     return (
         <SchedulerView
             resourceUuid={chartUuid}

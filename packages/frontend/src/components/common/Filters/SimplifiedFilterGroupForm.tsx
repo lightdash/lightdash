@@ -1,5 +1,5 @@
-import { Tooltip2 } from '@blueprintjs/popover2';
 import { FilterableField, FilterRule } from '@lightdash/common';
+import { Tooltip } from '@mantine/core';
 import React, { FC, useCallback } from 'react';
 import {
     FilterGroupHeader,
@@ -45,12 +45,14 @@ const SimplifiedFilterGroupForm: FC<Props> = ({
     return (
         <FilterGroupWrapper>
             <FilterGroupHeader>
-                <Tooltip2
-                    content="You can only use the 'and' operator when combining metrics & dimensions"
+                <Tooltip
+                    label="You can only use the 'and' operator when combining metrics & dimensions"
                     disabled={filterRules.length > 1}
+                    position="bottom"
+                    arrowPosition="center"
                 >
                     <p>All of the following conditions match:</p>
-                </Tooltip2>
+                </Tooltip>
             </FilterGroupHeader>
             <FilterGroupItemsWrapper>
                 {filterRules.map((item, index) => (

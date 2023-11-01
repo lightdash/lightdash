@@ -6,6 +6,7 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
+import { s3CacheClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import {
     jobModel,
@@ -29,6 +30,7 @@ import {
     expectedSqlResults,
     job,
     lightdashConfigWithNoSMTP,
+    projectSummary,
     projectWithSensitiveFields,
     spacesWithSavedCharts,
     tablesConfiguration,
@@ -41,6 +43,8 @@ jest.mock('../../analytics/client', () => ({
     analytics: {
         track: jest.fn(),
     },
+    s3Client: {},
+    s3CacheClient: {},
 }));
 
 jest.mock('../../clients/clients', () => ({}));
@@ -49,6 +53,7 @@ jest.mock('../../models/models', () => ({
     projectModel: {
         getWithSensitiveFields: jest.fn(async () => projectWithSensitiveFields),
         get: jest.fn(async () => projectWithSensitiveFields),
+        getSummary: jest.fn(async () => projectSummary),
         getTablesConfiguration: jest.fn(async () => tablesConfiguration),
         updateTablesConfiguration: jest.fn(),
         getExploresFromCache: jest.fn(async () => allExplores),
@@ -88,6 +93,7 @@ describe('ProjectService', () => {
         spaceModel,
         sshKeyPairModel,
         userAttributesModel,
+        s3CacheClient,
     });
     afterEach(() => {
         jest.clearAllMocks();

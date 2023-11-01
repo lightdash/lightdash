@@ -1,4 +1,5 @@
 import {
+    CustomDimension,
     DimensionType,
     Field,
     fieldId,
@@ -8,14 +9,25 @@ import {
     MetricType,
     TableCalculation,
 } from '../types/field';
-import { AdditionalMetric, isAdditionalMetric } from '../types/metricQuery';
+import {
+    AdditionalMetric,
+    getCustomDimensionId,
+    isAdditionalMetric,
+    isCustomDimension,
+} from '../types/metricQuery';
 
 export const isNumericItem = (
-    item: Field | AdditionalMetric | TableCalculation | undefined,
+    item:
+        | Field
+        | AdditionalMetric
+        | TableCalculation
+        | CustomDimension
+        | undefined,
 ): boolean => {
     if (!item) {
         return false;
     }
+    if (isCustomDimension(item)) return false;
     if (isField(item) || isAdditionalMetric(item)) {
         const numericTypes: string[] = [
             DimensionType.NUMBER,
@@ -35,28 +47,39 @@ export const isNumericItem = (
 };
 
 export const findItem = (
-    items: Array<Field | TableCalculation>,
+    items: Array<Field | TableCalculation | CustomDimension>,
     id: string | undefined,
 ) =>
     items.find((item) =>
         isField(item) ? fieldId(item) === id : item.name === id,
     );
 
-export const getItemId = (item: Field | AdditionalMetric | TableCalculation) =>
-    isField(item) || isAdditionalMetric(item) ? fieldId(item) : item.name;
+export const getItemId = (
+    item: Field | AdditionalMetric | TableCalculation | CustomDimension,
+) => {
+    if (isCustomDimension(item)) return getCustomDimensionId(item);
 
-export const getItemLabelWithoutTableName = (item: Item) =>
-    isField(item) || isAdditionalMetric(item)
+    return isField(item) || isAdditionalMetric(item)
+        ? fieldId(item)
+        : item.name;
+};
+
+export const getItemLabelWithoutTableName = (item: Item) => {
+    if (isCustomDimension(item)) return item.name;
+    return isField(item) || isAdditionalMetric(item)
         ? `${item.label}`
         : item.displayName;
+};
 
 export const getItemLabel = (item: Item) =>
     (isField(item) ? `${item.tableLabel} ` : '') +
     getItemLabelWithoutTableName(item);
 
 export const getItemIcon = (
-    item: Field | TableCalculation | AdditionalMetric,
+    item: Field | TableCalculation | AdditionalMetric | CustomDimension,
 ) => {
+    if (isCustomDimension(item)) return 'tag';
+
     if (isField(item)) {
         return isDimension(item) ? 'tag' : 'numerical';
     }
@@ -64,8 +87,9 @@ export const getItemIcon = (
 };
 
 export const getItemColor = (
-    item: Field | TableCalculation | AdditionalMetric,
+    item: Field | TableCalculation | AdditionalMetric | CustomDimension,
 ) => {
+    if (isCustomDimension(item)) return '#0E5A8A';
     if (isField(item)) {
         return isDimension(item) ? '#0E5A8A' : '#A66321';
     }

@@ -152,6 +152,9 @@ type QueryExecutionEvent = BaseTrack & {
         additionalMetricsCount: number;
         additionalMetricsFilterCount: number;
         context: QueryExecutionContext;
+        numFixedWidthBinCustomDimensions: number;
+        numFixedBinsBinCustomDimensions: number;
+        numCustomRangeBinCustomDimensions: number;
     };
 };
 
@@ -297,6 +300,9 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
         bigValue?: {
             hasBigValueComparison?: boolean;
         };
+        numFixedWidthBinCustomDimensions: number;
+        numFixedBinsBinCustomDimensions: number;
+        numCustomRangeBinCustomDimensions: number;
     };
 };
 

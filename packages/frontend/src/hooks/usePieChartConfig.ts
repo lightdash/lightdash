@@ -1,10 +1,13 @@
 import {
     ApiQueryResults,
+    CustomDimension,
     ECHARTS_DEFAULT_COLORS,
     Explore,
     Field,
     fieldId,
     formatItemValue,
+    getCustomDimensionId,
+    isCustomDimension,
     isField,
     PieChart,
     PieChartLegendPosition,
@@ -88,6 +91,7 @@ type PieChartConfigFn = (
     pieChartConfig: PieChart | undefined,
     dimensions: Field[],
     allNumericMetrics: (Field | TableCalculation)[],
+    customDimensions: CustomDimension[],
 ) => PieChartConfig;
 
 const usePieChartConfig: PieChartConfigFn = (
@@ -96,6 +100,7 @@ const usePieChartConfig: PieChartConfigFn = (
     pieChartConfig,
     dimensions,
     allNumericMetrics,
+    customDimensions,
 ) => {
     const { data: org } = useOrganization();
 
@@ -158,7 +163,15 @@ const usePieChartConfig: PieChartConfigFn = (
         [org],
     );
 
-    const dimensionIds = useMemo(() => dimensions.map(fieldId), [dimensions]);
+    const dimensionIds = useMemo(
+        () =>
+            [...dimensions, ...customDimensions].map((dimension) => {
+                if (isCustomDimension(dimension))
+                    return getCustomDimensionId(dimension);
+                return fieldId(dimension);
+            }),
+        [customDimensions, dimensions],
+    );
 
     const allNumericMetricIds = useMemo(
         () => allNumericMetrics.map((m) => (isField(m) ? fieldId(m) : m.name)),

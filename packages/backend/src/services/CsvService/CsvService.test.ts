@@ -1,17 +1,19 @@
 import * as fs from 'fs/promises';
 import moment from 'moment';
+import { s3Client } from '../../clients/clients';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import {
     dashboardModel,
     savedChartModel,
     userModel,
 } from '../../models/models';
-import { projectService, s3Service } from '../services';
+import { projectService } from '../services';
 import { CsvService } from './CsvService';
 import { itemMap, metricQuery } from './CsvService.mock';
 
 jest.mock('../../clients/clients', () => ({
     schedulerClient: {},
+    s3Client: {},
 }));
 
 jest.mock('../../models/models', () => ({
@@ -21,7 +23,6 @@ jest.mock('../../models/models', () => ({
 }));
 
 jest.mock('../services', () => ({
-    s3Service: {},
     projectService: {},
 }));
 
@@ -30,7 +31,7 @@ describe('Csv service', () => {
         lightdashConfig,
         userModel,
         projectService,
-        s3Service,
+        s3Client,
         savedChartModel,
         dashboardModel,
     });

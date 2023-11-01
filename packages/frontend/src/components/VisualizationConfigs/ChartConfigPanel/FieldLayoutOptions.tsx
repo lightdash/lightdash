@@ -1,7 +1,9 @@
 import {
     CartesianSeriesType,
+    CustomDimension,
     Field,
     getItemId,
+    isCustomDimension,
     isDimension,
     isNumericItem,
     replaceStringInArray,
@@ -25,7 +27,7 @@ import { useVisualizationContext } from '../../LightdashVisualization/Visualizat
 import { MAX_PIVOTS } from '../TableConfigPanel/GeneralSettings';
 
 type Props = {
-    items: (Field | TableCalculation)[];
+    items: (Field | TableCalculation | CustomDimension)[];
 };
 
 const FieldLayoutOptions: FC<Props> = ({ items }) => {
@@ -81,7 +83,9 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
 
     // Group series logic
     const availableDimensions = useMemo(() => {
-        return items.filter((item) => isDimension(item));
+        return items.filter(
+            (item) => isDimension(item) || isCustomDimension(item),
+        );
     }, [items]);
 
     const chartHasMetricOrTableCalc = useMemo(() => {
@@ -119,7 +123,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     );
 
     const handleOnChangeOfXAxisField = useCallback(
-        (newValue: Field | TableCalculation | undefined) => {
+        (newValue: Field | TableCalculation | CustomDimension | undefined) => {
             const fieldId = newValue ? getItemId(newValue) : undefined;
             setXField(fieldId ?? undefined);
 
@@ -231,7 +235,8 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
 
             <Tooltip
                 label="You need at least one metric in your chart to add a group"
-                position="left"
+                position="top-start"
+                withinPortal
                 disabled={chartHasMetricOrTableCalc}
             >
                 <Stack spacing="xs" mb="md">
@@ -313,6 +318,8 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             {pivotDimensions && pivotDimensions.length > 0 && canBeStacked && (
                 <Tooltip
                     label="x-axis must be non-numeric to enable stacking"
+                    withinPortal
+                    position="top-start"
                     disabled={!isXAxisFieldNumeric}
                 >
                     <Stack spacing="xs">

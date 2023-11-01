@@ -50,7 +50,10 @@ export const passwordResetLinkModel = new PasswordResetLinkModel({
 });
 export const organizationMemberProfileModel =
     new OrganizationMemberProfileModel({ database });
-export const savedChartModel = new SavedChartModel({ database });
+export const savedChartModel = new SavedChartModel({
+    database,
+    lightdashConfig,
+});
 export const jobModel = new JobModel({ database });
 export const personalAccessTokenModel = new PersonalAccessTokenModel({
     database,

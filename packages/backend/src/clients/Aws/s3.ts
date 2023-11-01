@@ -9,16 +9,16 @@ import * as Sentry from '@sentry/node';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 
-type S3ServiceDependencies = {
+type ClientDependencies = {
     lightdashConfig: LightdashConfig;
 };
 
-export class S3Service {
+export class S3Client {
     lightdashConfig: LightdashConfig;
 
     private readonly s3?: S3;
 
-    constructor({ lightdashConfig }: S3ServiceDependencies) {
+    constructor({ lightdashConfig }: ClientDependencies) {
         this.lightdashConfig = lightdashConfig;
 
         if (lightdashConfig.s3?.endpoint && lightdashConfig.s3.region) {
@@ -83,7 +83,11 @@ export class S3Service {
             );
             return url;
         } catch (error) {
-            Logger.error(`Failed to upload file to s3. ${error}`);
+            Logger.error(
+                `Failed to upload file to s3 with endpoint: ${
+                    this.lightdashConfig.s3.endpoint ?? 'no endpoint'
+                }. ${error}`,
+            );
             Sentry.captureException(error);
 
             throw error;

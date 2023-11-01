@@ -1,4 +1,3 @@
-import { HTMLSelect } from '@blueprintjs/core';
 import {
     ConditionalFormattingWithConditionalOperator,
     ConditionalOperator,
@@ -9,6 +8,7 @@ import {
     ActionIcon,
     Collapse,
     Group,
+    Select,
     Stack,
     Text,
     Tooltip,
@@ -60,7 +60,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                 </Group>
 
                 {hasRemove && (
-                    <Tooltip label="Remove rule" position="left">
+                    <Tooltip label="Remove rule" position="left" withinPortal>
                         <ActionIcon onClick={onRemoveRule} size="sm">
                             <MantineIcon icon={IconX} />
                         </ActionIcon>
@@ -70,15 +70,13 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
 
             <Collapse in={isOpen}>
                 <Stack spacing="xs">
-                    <HTMLSelect
-                        fill
-                        onChange={(e) =>
-                            onChangeRuleOperator(
-                                e.target.value as ConditionalOperator,
-                            )
-                        }
-                        options={filterConfig.operatorOptions}
+                    <Select
                         value={rule.operator}
+                        data={filterConfig.operatorOptions}
+                        onChange={(value) => {
+                            if (!value) return;
+                            onChangeRuleOperator(value as ConditionalOperator);
+                        }}
                     />
 
                     <filterConfig.inputs

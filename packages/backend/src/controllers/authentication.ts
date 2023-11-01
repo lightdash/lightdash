@@ -129,13 +129,13 @@ export const storeOIDCRedirect: RequestHandler = (req, res, next) => {
     }
     if (typeof redirect === 'string') {
         try {
-            const redirectUrl = new URL(redirect);
+            const redirectUrl = new URL(redirect, lightdashConfig.siteUrl);
             const originUrl = new URL(lightdashConfig.siteUrl);
             if (
                 redirectUrl.host === originUrl.host ||
                 process.env.NODE_ENV === 'development'
             ) {
-                req.session.oauth.returnTo = redirect;
+                req.session.oauth.returnTo = redirectUrl.href;
             }
         } catch (e) {
             next(); // fail silently if we can't parse url
@@ -143,16 +143,31 @@ export const storeOIDCRedirect: RequestHandler = (req, res, next) => {
     }
     next();
 };
-export const redirectOIDCSuccess: RequestHandler = (req, res) => {
-    const { returnTo } = req.session.oauth || {};
-    req.session.oauth = {};
-    res.redirect(returnTo || '/');
+
+export const getSuccessURLWithReturnTo = (req: Request): string => {
+    const url = new URL('/api/v1/oauth/success', lightdashConfig.siteUrl);
+    if (req.session.oauth?.returnTo) {
+        url.searchParams.set('returnTo', req.session.oauth.returnTo);
+    }
+    return url.href;
 };
-export const redirectOIDCFailure: RequestHandler = (req, res) => {
-    const { returnTo } = req.session.oauth || {};
-    req.session.oauth = {};
-    res.redirect(returnTo || '/');
+
+export const redirectOIDC: RequestHandler = (req, res) => {
+    // Workaround for https://github.com/jaredhanson/passport/pull/941
+    const queryReturn =
+        typeof req.query.returnTo === 'string'
+            ? decodeURIComponent(req.query.returnTo.toString())
+            : undefined;
+
+    if (
+        queryReturn &&
+        new URL(queryReturn, lightdashConfig.siteUrl).host ===
+            new URL(lightdashConfig.siteUrl).host
+    ) {
+        res.redirect(queryReturn);
+    }
 };
+
 export const googlePassportStrategy: GoogleStrategy | undefined = !(
     lightdashConfig.auth.google.oauth2ClientId &&
     lightdashConfig.auth.google.oauth2ClientSecret
@@ -179,7 +194,6 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
               try {
                   const issuer = 'https://accounts.google.com';
                   const { inviteCode } = req.session.oauth || {};
-                  req.session.oauth = {};
                   const [{ value: email }] = profile.emails || [];
                   const { id: subject } = profile;
                   if (!(email && subject)) {
@@ -206,7 +220,6 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                       inviteCode,
                       refreshToken,
                   );
-
                   return done(null, user);
               } catch (e) {
                   if (e instanceof LightdashError) {

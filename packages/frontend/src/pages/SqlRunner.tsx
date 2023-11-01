@@ -4,7 +4,7 @@ import {
     getCustomLabelsFromTableConfig,
     NotFoundError,
 } from '@lightdash/common';
-import { Alert, Box, Group, Stack, Tabs } from '@mantine/core';
+import { Alert, Box, Flex, Group, Stack, Tabs } from '@mantine/core';
 import { getHotkeyHandler } from '@mantine/hooks';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -55,7 +55,7 @@ enum SqlRunnerCards {
 }
 
 const SqlRunnerPage = () => {
-    const { user } = useApp();
+    const { user, health } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const initialState = useSqlRunnerUrlState();
     const sqlQueryMutation = useSqlQueryMutation();
@@ -171,6 +171,10 @@ const SqlRunnerPage = () => {
         throw new NotFoundError('no SQL query defined');
     };
 
+    if (health.isLoading || !health.data) {
+        return null;
+    }
+
     return (
         <Page
             title="SQL Runner"
@@ -232,7 +236,7 @@ const SqlRunnerPage = () => {
                 <Group position="apart">
                     <RefreshDbtButton />
 
-                    <div>
+                    <Flex>
                         <RunSqlQueryButton
                             onSubmit={handleSubmit}
                             isLoading={isLoading}
@@ -240,7 +244,7 @@ const SqlRunnerPage = () => {
                         <ShareShortLinkButton
                             disabled={lastSqlRan === undefined}
                         />
-                    </div>
+                    </Flex>
                 </Group>
             </TrackSection>
 
@@ -257,6 +261,9 @@ const SqlRunnerPage = () => {
                     columnOrder={columnOrder}
                     explore={explore}
                     isSqlRunner={true}
+                    pivotTableMaxColumnLimit={
+                        health.data.pivotTable.maxColumnLimit
+                    }
                 >
                     <CollapsableCard
                         title="Charts"

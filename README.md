@@ -45,12 +45,15 @@ Come join the team, [we're hiring](https://lightdash.notion.site/Lightdash-Job-B
 - [x] 🙏 Familiar interface for your users to self-serve using pre-defined metrics
 - [x] 👩‍💻 Declare dimensions and metrics in yaml alongside your dbt project
 - [x] 🤖 Automatically creates dimensions from your dbt models
-- [x] 📖 All dbt descriptions synced for your users
+- [x] 📖 dbt descriptions and metadata synced for your users
+- [x] 🔍 Easily access to underlying records of charts as well as ability to data drill-down
 - [x] 🧮 Table calculations make it easy to dig into your data, on the fly
 - [x] 🕵️‍♀️ Lineage lets you see the upstream and downstream dependencies of a model
-- [x] 📊 Simple data visualisations for your metrics
+- [x] 📊 Comprehensive and intuitive data visualisation library for your metrics
 - [x] 👷‍♂️ Save charts & build dashboards to share your insights with your team
-- [x] 🚀 Share your work as a URL or export results to use in any other tool
+- [x] 💻 Powerful developer experience including Preview BI Environments and automated content validation via CI/CD
+- [x] 🔄 Explore version history of all your charts and roll-back at any point
+- [x] 🚀 Easily share your work via URL or schedule deliveries via Slack or Email
 
 Something missing? Check out our [open issues](https://github.com/lightdash/lightdash/issues)
 to see if what you're looking for already exists (and give it a 👍). Otherwise, we'd love it if
@@ -61,6 +64,10 @@ you'd [open a new issue with your request](https://github.com/lightdash/lightdas
 Play with our [demo app](https://demo.lightdash.com)!
 
 ## Quick start
+
+### Start with Lightdash Cloud
+
+You can avoid the hassle of hosting and configuring Lightdash yourself by [signing up for a free trial of Lightdash Cloud](https://app.lightdash.cloud/register). More details on pricing [available](https://www.lightdash.com/pricing).
 
 ### 1-click deploy
 
@@ -89,9 +96,6 @@ cd lightdash
 Follow our [kubernetes guide](https://docs.lightdash.com/self-host/self-host-lightdash) to deploy Lightdash to
 production using our [community helm charts](https://github.com/lightdash/helm-charts).
 
-### Sign up to Lightdash Cloud
-
-You can avoid the hassle of hosting and configuring Lightdash yourself by [signing up for Lightdash Cloud](https://lightdash.typeform.com/public-beta#source=github) . We'll let you know once we're ready to bring you on board 🙂
 
 ## Getting started
 
@@ -105,7 +109,7 @@ Step 3 - 👩‍💻 [Create your first metric](https://docs.lightdash.com/get-s
 
 📣 If you want something a bit more, then [head on over to our Slack Community](https://join.slack.com/t/lightdash-community/shared_invite/zt-16q953ork-NZr1qdEqxSwB17E2ckUe7A) where you’ll be able to chat directly with all of us at Lightdash and all the other amazing members of our community. We’re happy to talk about anything from feature requests, implementation details or dbt quirks to memes and SQL jokes!
 
-You can also keep up to date with Lightdash by following us elsewhere:
+You can also keep up to date with Lightdash by following us here:
 
 - [Twitter](https://twitter.com/lightdash_devs)
 - [LinkedIn](https://www.linkedin.com/company/lightdash)
@@ -145,7 +149,7 @@ With Lightdash, we offer a free self-hosted service (it's all just open source!)
 ## Docs
 
 Have a question about a feature? Or maybe fancy some light reading? Head on over to
-our [Lightdash documentation](https://docs.lightdash.com/) to check out some tutorials, reference docs, FAQs and more.
+our [Lightdash documentation](https://docs.lightdash.com/) to check out our tutorials, reference docs, FAQs and more.
 
 ## Reporting bugs and feature requests
 
@@ -342,6 +346,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/karan0handa"><img src="https://avatars.githubusercontent.com/u/79533543?v=4?s=100" width="100px;" alt="Karan Handa"/><br /><sub><b>Karan Handa</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=karan0handa" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/rohitverma007"><img src="https://avatars.githubusercontent.com/u/3745109?v=4?s=100" width="100px;" alt="Rohit Verma"/><br /><sub><b>Rohit Verma</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=rohitverma007" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://dwitkowski.eu"><img src="https://avatars.githubusercontent.com/u/43667775?v=4?s=100" width="100px;" alt="David Witkowski"/><br /><sub><b>David Witkowski</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=chodera" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/iMac7"><img src="https://avatars.githubusercontent.com/u/76876702?v=4?s=100" width="100px;" alt="iMac"/><br /><sub><b>iMac</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=iMac7" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

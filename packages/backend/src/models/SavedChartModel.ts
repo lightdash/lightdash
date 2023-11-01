@@ -6,9 +6,11 @@ import {
     ChartVersionSummary,
     CreateSavedChart,
     CreateSavedChartVersion,
+    CustomDimension,
     DBFieldTypes,
     getChartKind,
     getChartType,
+    getCustomDimensionId,
     isFormat,
     NotFoundError,
     Organization,
@@ -23,7 +25,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
-import moment from 'moment';
+import { LightdashConfig } from '../config/parseConfig';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
@@ -36,9 +38,12 @@ import {
     CreateDbSavedChartVersionSort,
     DBFilteredAdditionalMetrics,
     DbSavedChartAdditionalMetricInsert,
+    DbSavedChartCustomDimension,
+    DbSavedChartCustomDimensionInsert,
     DbSavedChartTableCalculationInsert,
     InsertChart,
     SavedChartAdditionalMetricTableName,
+    SavedChartCustomDimensionsTableName,
     SavedChartsTableName,
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
@@ -101,6 +106,16 @@ const createSavedChartVersionTableCalculation = async (
     return results[0];
 };
 
+const createSavedChartVersionCustomDimension = async (
+    trx: Knex,
+    data: DbSavedChartCustomDimensionInsert,
+) => {
+    const results = await trx('saved_queries_version_custom_dimensions')
+        .insert(data)
+        .returning('*');
+    return results[0];
+};
+
 const createSavedChartVersionAdditionalMetrics = async (
     trx: Knex,
     data: DbSavedChartAdditionalMetricInsert,
@@ -124,6 +139,7 @@ const createSavedChartVersion = async (
             sorts,
             tableCalculations,
             additionalMetrics,
+            customDimensions,
         },
         chartConfig,
         tableConfig,
@@ -189,6 +205,30 @@ const createSavedChartVersion = async (
                     format: tableCalculation.format,
                     order: tableConfig.columnOrder.findIndex(
                         (column) => column === tableCalculation.name,
+                    ),
+                }),
+            );
+        });
+
+        customDimensions?.forEach((customDimension) => {
+            promises.push(
+                createSavedChartVersionCustomDimension(trx, {
+                    saved_queries_version_id: version.saved_queries_version_id,
+                    id: customDimension.id,
+                    name: customDimension.name,
+                    dimension_id: customDimension.dimensionId,
+                    table: customDimension.table,
+                    bin_type: customDimension.binType,
+                    bin_number: customDimension.binNumber || null,
+                    bin_width: customDimension.binWidth || null,
+                    custom_range:
+                        customDimension.customRange &&
+                        customDimension.customRange.length > 0
+                            ? JSON.stringify(customDimension.customRange)
+                            : null,
+                    order: tableConfig.columnOrder.findIndex(
+                        (column) =>
+                            column === getCustomDimensionId(customDimension), // TODO test if it works
                     ),
                 }),
             );
@@ -283,6 +323,7 @@ export const createSavedChart = async (
 
 type Dependencies = {
     database: Knex;
+    lightdashConfig: LightdashConfig;
 };
 
 type VersionSummaryRow = {
@@ -297,8 +338,11 @@ type VersionSummaryRow = {
 export class SavedChartModel {
     private database: Knex;
 
+    private lightdashConfig: LightdashConfig;
+
     constructor(dependencies: Dependencies) {
         this.database = dependencies.database;
+        this.lightdashConfig = dependencies.lightdashConfig;
     }
 
     static convertVersionSummary(row: VersionSummaryRow): ChartVersionSummary {
@@ -374,14 +418,14 @@ export class SavedChartModel {
     ): Promise<ChartVersionSummary[]> {
         const getLastVersionUuidSubQuery =
             this.getLastVersionUuidQuery(chartUuid);
+        const { daysLimit } = this.lightdashConfig.chart.versionHistory;
         const chartVersions = await this.getVersionSummaryQuery()
             .where(`${SavedChartsTableName}.saved_query_uuid`, chartUuid)
-            .andWhere(function () {
+            .andWhere(function whereRecentVersionsOrCurrentVersion() {
                 // get all versions from the last X days + the current version ( in case is older than X days )
-                this.where(
-                    `${SavedChartVersionsTableName}.created_at`,
-                    '>=',
-                    moment().subtract(60, 'days'),
+                this.whereRaw(
+                    `${SavedChartVersionsTableName}.created_at >= DATE(current_timestamp - interval '?? days')`,
+                    [daysLimit],
                 ).orWhere(
                     `${SavedChartVersionsTableName}.saved_queries_version_uuid`,
                     getLastVersionUuidSubQuery,
@@ -632,13 +676,23 @@ export class SavedChartModel {
                 ])
                 .where('saved_queries_version_id', savedQueriesVersionId);
 
-            const [fields, sorts, tableCalculations, additionalMetricsRows] =
-                await Promise.all([
-                    fieldsQuery,
-                    sortsQuery,
-                    tableCalculationsQuery,
-                    additionalMetricsQuery,
-                ]);
+            const customDimensionsQuery = this.database(
+                SavedChartCustomDimensionsTableName,
+            ).where('saved_queries_version_id', savedQueriesVersionId);
+
+            const [
+                fields,
+                sorts,
+                tableCalculations,
+                additionalMetricsRows,
+                customDimensionsRows,
+            ] = await Promise.all([
+                fieldsQuery,
+                sortsQuery,
+                tableCalculationsQuery,
+                additionalMetricsQuery,
+                customDimensionsQuery,
+            ]);
 
             // Filters out "null" fields
             const additionalMetricsFiltered: DBFilteredAdditionalMetrics[] =
@@ -687,7 +741,11 @@ export class SavedChartModel {
                 [[], []],
             );
 
-            const columnOrder: string[] = [...fields, ...tableCalculations]
+            const columnOrder: string[] = [
+                ...fields,
+                ...tableCalculations,
+                ...customDimensionsRows,
+            ]
                 .sort((a, b) => a.order - b.order)
                 .map((x) => x.name);
 
@@ -726,6 +784,16 @@ export class SavedChartModel {
                         }),
                     ),
                     additionalMetrics,
+                    customDimensions: customDimensionsRows?.map((cd) => ({
+                        id: cd.id,
+                        name: cd.name,
+                        dimensionId: cd.dimension_id,
+                        table: cd.table,
+                        binType: cd.bin_type,
+                        binNumber: cd.bin_number,
+                        binWidth: cd.bin_width,
+                        customRange: cd.custom_range,
+                    })),
                 },
                 chartConfig,
                 tableConfig: {

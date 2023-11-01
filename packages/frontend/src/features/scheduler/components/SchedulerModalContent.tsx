@@ -145,7 +145,7 @@ const CreateStateContent: FC<{
     );
 };
 
-export const UpdateStateContent: FC<{
+const UpdateStateContent: FC<{
     schedulerUuid: string;
     onBack: () => void;
 }> = ({ schedulerUuid, onBack }) => {

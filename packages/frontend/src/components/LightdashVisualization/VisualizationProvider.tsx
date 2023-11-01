@@ -5,9 +5,11 @@ import {
     ChartConfig,
     ChartType,
     convertAdditionalMetric,
+    CustomDimension,
     Dimension,
     Explore,
     fieldId,
+    getCustomDimensionId,
     getDimensions,
     getMetrics,
     isNumericItem,
@@ -51,6 +53,7 @@ type VisualizationContext = {
     columnOrder: string[];
     isSqlRunner: boolean;
     dimensions: Dimension[];
+    customDimensions: CustomDimension[];
     metrics: Metric[];
     allMetrics: (Metric | TableCalculation)[];
     allNumericMetrics: (Metric | TableCalculation)[];
@@ -83,6 +86,7 @@ type Props = {
     onPivotDimensionsChange?: (value: string[] | undefined) => void;
     explore: Explore | undefined;
     isSqlRunner?: boolean;
+    pivotTableMaxColumnLimit: number;
 };
 
 const VisualizationProvider: FC<Props> = ({
@@ -99,6 +103,7 @@ const VisualizationProvider: FC<Props> = ({
     onPivotDimensionsChange,
     explore,
     isSqlRunner,
+    pivotTableMaxColumnLimit,
     children,
 }) => {
     const chartRef = useRef<EChartsReact>(null);
@@ -135,6 +140,10 @@ const VisualizationProvider: FC<Props> = ({
             resultsData?.metricQuery.metrics.includes(fieldId(field)),
         );
     }, [explore, resultsData?.metricQuery.metrics]);
+
+    const customDimensions = useMemo(() => {
+        return resultsData?.metricQuery.customDimensions || [];
+    }, [resultsData?.metricQuery.customDimensions]);
 
     const customMetrics = useMemo(() => {
         if (!explore) return [];
@@ -199,12 +208,14 @@ const VisualizationProvider: FC<Props> = ({
                           ...metricQuery.tableCalculations.map(
                               ({ name }) => name,
                           ),
+                          ...(metricQuery.customDimensions?.map(
+                              getCustomDimensionId,
+                          ) || []),
                       ]
                     : [];
             return metricQueryFields;
         }
     }, [resultsData?.metricQuery, columnOrder]);
-
     const tableConfig = useTableConfig(
         initialChartConfig?.type === ChartType.TABLE
             ? initialChartConfig.config
@@ -213,6 +224,7 @@ const VisualizationProvider: FC<Props> = ({
         explore,
         (columnOrder = defaultColumnOrder),
         validPivotDimensions,
+        pivotTableMaxColumnLimit,
     );
 
     const { validBigNumberConfig } = bigNumberConfig;
@@ -241,6 +253,7 @@ const VisualizationProvider: FC<Props> = ({
             : undefined,
         dimensions,
         allNumericMetrics,
+        customDimensions,
     );
 
     const { validPieChartConfig } = pieChartConfig;
@@ -299,6 +312,7 @@ const VisualizationProvider: FC<Props> = ({
             dimensions,
             metrics,
             customMetrics,
+            customDimensions,
             tableCalculations,
             allMetrics,
             allNumericMetrics,
@@ -322,6 +336,7 @@ const VisualizationProvider: FC<Props> = ({
             dimensions,
             metrics,
             customMetrics,
+            customDimensions,
             tableCalculations,
             allMetrics,
             allNumericMetrics,

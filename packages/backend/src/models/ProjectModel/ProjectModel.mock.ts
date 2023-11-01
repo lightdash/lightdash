@@ -109,6 +109,17 @@ export const lightdashConfigMock: LightdashConfig = {
         filePath: '',
         fileLevel: undefined,
     },
+    chart: {
+        versionHistory: { daysLimit: 3 },
+    },
+    pivotTable: {
+        maxColumnLimit: 60,
+    },
+    resultsCache: {
+        enabled: false,
+        cacheStateTimeSeconds: 86400,
+        s3: {},
+    },
 };
 
 const dbtCloudIDEProjectConfigMock: DbtCloudIDEProjectConfig = {

@@ -8,6 +8,7 @@ import {
     ApiSqlQueryResults,
     ChartSummary,
     CompiledDimension,
+    countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
     CreateDbtCloudIntegration,
     CreateJob,
@@ -15,14 +16,15 @@ import {
     CreateProjectMember,
     CreateWarehouseCredentials,
     DashboardAvailableFilters,
+    DashboardBasicDetails,
     DbtProjectType,
     deepEqual,
     DefaultSupportedDbtVersion,
+    DimensionType,
     Explore,
     ExploreError,
     fieldId as getFieldId,
     FilterableField,
-    FilterGroup,
     FilterGroupItem,
     FilterOperator,
     Filters,
@@ -45,6 +47,7 @@ import {
     MetricQuery,
     MetricType,
     MissingWarehouseCredentialsError,
+    MostPopularAndRecentlyUpdated,
     NotExistsError,
     NotFoundError,
     ParameterError,
@@ -56,6 +59,7 @@ import {
     RequestMethod,
     ResultRow,
     SessionUser,
+    SpaceQuery,
     SpaceSummary,
     SummaryExplore,
     TableCalculationFormatType,
@@ -70,11 +74,14 @@ import {
 import { SshTunnel } from '@lightdash/warehouses';
 import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
+import * as crypto from 'crypto';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
 import { analytics } from '../../analytics/client';
 import { QueryExecutionContext } from '../../analytics/LightdashAnalytics';
+import { S3Client } from '../../clients/Aws/s3';
+import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import { schedulerClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
@@ -91,7 +98,11 @@ import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
 import { ProjectAdapter } from '../../types';
-import { runWorkerThread, wrapSentryTransaction } from '../../utils';
+import {
+    runWorkerThread,
+    wrapOtelSpan,
+    wrapSentryTransaction,
+} from '../../utils';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 import {
     exploreHasFilteredAttribute,
@@ -114,6 +125,7 @@ type ProjectServiceDependencies = {
     spaceModel: SpaceModel;
     sshKeyPairModel: SshKeyPairModel;
     userAttributesModel: UserAttributesModel;
+    s3CacheClient: S3CacheClient;
 };
 
 export class ProjectService {
@@ -135,6 +147,8 @@ export class ProjectService {
 
     userAttributesModel: UserAttributesModel;
 
+    s3CacheClient: S3CacheClient;
+
     constructor({
         projectModel,
         onboardingModel,
@@ -144,6 +158,7 @@ export class ProjectService {
         spaceModel,
         sshKeyPairModel,
         userAttributesModel,
+        s3CacheClient,
     }: ProjectServiceDependencies) {
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
@@ -154,6 +169,7 @@ export class ProjectService {
         this.spaceModel = spaceModel;
         this.sshKeyPairModel = sshKeyPairModel;
         this.userAttributesModel = userAttributesModel;
+        this.s3CacheClient = s3CacheClient;
     }
 
     private async _resolveWarehouseClientSshKeys<
@@ -274,7 +290,7 @@ export class ProjectService {
 
         if (data.copiedFromProjectUuid) {
             try {
-                const project = await this.projectModel.get(
+                const { organizationUuid } = await this.projectModel.getSummary(
                     data.copiedFromProjectUuid,
                 );
                 // We only allow copying from projects if the user is an admin until we remove the `createProjectAccess` call above
@@ -282,7 +298,7 @@ export class ProjectService {
                     user.ability.cannot(
                         'manage',
                         subject('Project', {
-                            organizationUuid: project.organizationUuid,
+                            organizationUuid,
                             projectUuid: data.copiedFromProjectUuid,
                         }),
                     )
@@ -425,7 +441,9 @@ export class ProjectService {
         projectUuid: string,
         explores: (Explore | ExploreError)[],
     ): Promise<void> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'update',
@@ -633,10 +651,9 @@ export class ProjectService {
             await adapter.test();
         } catch (e) {
             Logger.error(`Error testing project adapter: ${e}`);
-            throw e;
-        } finally {
             await adapter.destroy();
             await sshTunnel.disconnect();
+            throw e;
         }
         return { adapter, sshTunnel };
     }
@@ -933,62 +950,83 @@ export class ProjectService {
         context: QueryExecutionContext,
         queryTags?: RunQueryTags,
     ): Promise<ApiQueryResults> {
-        const rows = await this.runMetricQuery(
-            user,
-            metricQuery,
-            projectUuid,
-            exploreName,
-            csvLimit,
-            context,
-            queryTags,
+        return wrapOtelSpan(
+            'ProjectService.runQueryAndFormatRows',
+            {},
+            async (span) => {
+                const rows = await this.runMetricQuery(
+                    user,
+                    metricQuery,
+                    projectUuid,
+                    exploreName,
+                    csvLimit,
+                    context,
+                    queryTags,
+                );
+                span.setAttribute('rows', rows.length);
+
+                const { warehouseConnection } =
+                    await this.projectModel.getWithSensitiveFields(projectUuid);
+                if (warehouseConnection) {
+                    span.setAttribute('warehouse', warehouseConnection?.type);
+                }
+
+                const explore = await this.getExplore(
+                    user,
+                    projectUuid,
+                    exploreName,
+                );
+
+                const itemMap = getItemMap(
+                    explore,
+                    metricQuery.additionalMetrics,
+                    metricQuery.tableCalculations,
+                );
+
+                // If there are more than 500 rows, we need to format them in a background job
+                const formattedRows = await wrapOtelSpan(
+                    'formatted rows',
+                    {
+                        rows: rows.length,
+                        warehouse: warehouseConnection?.type,
+                    },
+                    async () =>
+                        wrapSentryTransaction<ResultRow[]>(
+                            'formatted rows',
+                            {
+                                rows: rows.length,
+                                warehouse: warehouseConnection?.type,
+                            },
+                            async () =>
+                                rows.length > 500
+                                    ? runWorkerThread<ResultRow[]>(
+                                          new Worker(
+                                              './dist/services/ProjectService/formatRows.js',
+                                              {
+                                                  workerData: {
+                                                      rows,
+                                                      itemMap,
+                                                  },
+                                              },
+                                          ),
+                                      )
+                                    : formatRows(rows, itemMap),
+                        ),
+                );
+
+                return {
+                    rows: formattedRows,
+                    metricQuery,
+                };
+            },
         );
-
-        const { warehouseConnection } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
-
-        const explore = await this.getExplore(user, projectUuid, exploreName);
-
-        const itemMap = getItemMap(
-            explore,
-            metricQuery.additionalMetrics,
-            metricQuery.tableCalculations,
-        );
-
-        // If there are more than 500 rows, we need to format them in a background job
-        const formattedRows =
-            rows.length > 500
-                ? await wrapSentryTransaction<ResultRow[]>(
-                      'formatted rows',
-                      {
-                          rows: rows.length,
-                          warehouse: warehouseConnection?.type,
-                      },
-                      async () =>
-                          runWorkerThread<ResultRow[]>(
-                              new Worker(
-                                  './dist/services/ProjectService/formatRows.js',
-                                  {
-                                      workerData: {
-                                          rows,
-                                          itemMap,
-                                      },
-                                  },
-                              ),
-                          ),
-                  )
-                : formatRows(rows, itemMap);
-
-        return {
-            rows: formattedRows,
-            metricQuery,
-        };
     }
 
     async getResultsForChart(
         user: SessionUser,
         chartUuid: string,
     ): Promise<Record<string, any>[]> {
-        const rows = await wrapSentryTransaction(
+        return wrapSentryTransaction(
             'getResultsForChartWithWarehouseQuery',
             {
                 userUuid: user.userUuid,
@@ -1009,8 +1047,102 @@ export class ProjectService {
                 );
             },
         );
+    }
 
-        return rows;
+    private async getResultsFromCacheOrWarehouse({
+        projectUuid,
+        context,
+        warehouseClient,
+        query,
+        metricQuery,
+        queryTags,
+    }: {
+        projectUuid: string;
+        context: QueryExecutionContext;
+        warehouseClient: WarehouseClient;
+        query: any;
+        metricQuery: MetricQuery;
+        queryTags?: RunQueryTags;
+    }): Promise<{
+        fields: Record<
+            string,
+            {
+                type: DimensionType;
+            }
+        >;
+        rows: Record<string, any>[];
+    }> {
+        return wrapOtelSpan(
+            'ProjectService.getResultsFromCacheOrWarehouse',
+            {},
+            async (span) => {
+                // TODO: put this hash function in a util somewhere
+                const queryHash = crypto
+                    .createHash('sha256')
+                    .update(`${projectUuid}.${query}`)
+                    .digest('hex');
+
+                span.setAttribute('queryHash', queryHash);
+                span.setAttribute('cacheHit', false);
+
+                if (lightdashConfig.resultsCache?.enabled) {
+                    const cacheEntryMetadata = await this.s3CacheClient
+                        .getResultsMetadata(queryHash)
+                        .catch((e) => undefined); // ignore since error is tracked in s3Client
+
+                    if (
+                        cacheEntryMetadata?.LastModified &&
+                        new Date().getTime() -
+                            cacheEntryMetadata.LastModified.getTime() <
+                            lightdashConfig.resultsCache.cacheStateTimeSeconds *
+                                1000
+                    ) {
+                        Logger.debug(
+                            `Getting data from cache, key: ${queryHash}`,
+                        );
+                        const cacheEntry = await this.s3CacheClient.getResults(
+                            queryHash,
+                        );
+                        const stringResults =
+                            await cacheEntry.Body?.transformToString();
+                        if (stringResults) {
+                            try {
+                                span.setAttribute('cacheHit', true);
+                                return JSON.parse(stringResults);
+                            } catch (e) {
+                                Logger.error('Error parsing cache results:', e);
+                            }
+                        }
+                    }
+                }
+
+                Logger.debug(`Run query against warehouse warehouse`);
+                const warehouseResults = await wrapOtelSpan(
+                    'runWarehouseQuery',
+                    {
+                        query,
+                        queryTags: JSON.stringify(queryTags),
+                        context,
+                        metricQuery: JSON.stringify(metricQuery),
+                        type: warehouseClient.credentials.type,
+                    },
+                    async () => warehouseClient.runQuery(query, queryTags),
+                );
+
+                if (lightdashConfig.resultsCache?.enabled) {
+                    Logger.debug(`Writing data to cache with key ${queryHash}`);
+                    const buffer = Buffer.from(
+                        JSON.stringify(warehouseResults),
+                    );
+                    // fire and forget
+                    this.s3CacheClient
+                        .uploadResults(queryHash, buffer, queryTags)
+                        .catch((e) => undefined); // ignore since error is tracked in s3Client
+                }
+
+                return warehouseResults;
+            },
+        );
     }
 
     async runMetricQuery(
@@ -1034,9 +1166,7 @@ export class ProjectService {
                     }
 
                     const { organizationUuid } =
-                        await this.projectModel.getWithSensitiveFields(
-                            projectUuid,
-                        );
+                        await this.projectModel.getSummary(projectUuid);
 
                     if (
                         user.ability.cannot(
@@ -1058,6 +1188,7 @@ export class ProjectService {
 
                     const { warehouseClient, sshTunnel } =
                         await this._getWarehouseClient(projectUuid);
+
                     const explore = await this.getExplore(
                         user,
                         projectUuid,
@@ -1142,27 +1273,26 @@ export class ProjectService {
                                     metric.filters.length > 0,
                             ).length,
                             context,
+                            ...countCustomDimensionsInMetricQuery(metricQuery),
                         },
                     });
 
-                    Logger.debug(`Run query against warehouse`);
+                    Logger.debug(`Fetch query results from cache or warehouse`);
                     span.setAttribute('generatedSql', query);
                     span.setAttribute('lightdash.projectUuid', projectUuid);
                     span.setAttribute(
                         'warehouse.type',
                         warehouseClient.credentials.type,
                     );
-                    const { rows } = await wrapSentryTransaction(
-                        'runWarehouseQuery',
-                        {
-                            query,
-                            queryTags,
-                            context,
-                            metricQuery: JSON.stringify(metricQuery),
-                            type: warehouseClient.credentials.type,
-                        },
-                        async () => warehouseClient.runQuery(query, queryTags),
-                    );
+
+                    const { rows } = await this.getResultsFromCacheOrWarehouse({
+                        projectUuid,
+                        context,
+                        warehouseClient,
+                        metricQuery,
+                        query,
+                        queryTags,
+                    });
                     await sshTunnel.disconnect();
                     return rows;
                 } catch (e) {
@@ -1183,8 +1313,9 @@ export class ProjectService {
         projectUuid: string,
         sql: string,
     ): Promise<ApiSqlQueryResults> {
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -1224,8 +1355,9 @@ export class ProjectService {
         limit: number,
         filters: AndFilterGroup | undefined,
     ): Promise<Array<unknown>> {
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -1492,8 +1624,9 @@ export class ProjectService {
         const job = await this.jobModel.get(jobUuid);
 
         if (job.projectUuid) {
-            const { organizationUuid } =
-                await this.projectModel.getWithSensitiveFields(job.projectUuid);
+            const { organizationUuid } = await this.projectModel.getSummary(
+                job.projectUuid,
+            );
             if (
                 user.ability.cannot(
                     'view',
@@ -1517,7 +1650,9 @@ export class ProjectService {
         projectUuid: string,
         requestMethod: RequestMethod,
     ): Promise<{ jobUuid: string }> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot('create', 'Job') ||
             user.ability.cannot(
@@ -1562,7 +1697,9 @@ export class ProjectService {
         requestMethod: RequestMethod,
         jobUuid: string,
     ) {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot('create', 'Job') ||
             user.ability.cannot(
@@ -1622,7 +1759,9 @@ export class ProjectService {
         projectUuid: string,
         filtered: boolean,
     ): Promise<SummaryExplore[]> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'view',
@@ -1701,41 +1840,48 @@ export class ProjectService {
             description: 'Gets a single explore from the cache',
         });
         try {
-            const { organizationUuid } = await this.projectModel.get(
-                projectUuid,
-            );
-            if (
-                user.ability.cannot(
-                    'view',
-                    subject('Project', {
-                        organizationUuid,
+            return await wrapOtelSpan(
+                'ProjectService.getExplore',
+                {},
+                async () => {
+                    const { organizationUuid } =
+                        await this.projectModel.getSummary(projectUuid);
+                    if (
+                        user.ability.cannot(
+                            'view',
+                            subject('Project', {
+                                organizationUuid,
+                                projectUuid,
+                            }),
+                        )
+                    ) {
+                        throw new ForbiddenError();
+                    }
+                    const explore = await this.projectModel.getExploreFromCache(
                         projectUuid,
-                    }),
-                )
-            ) {
-                throw new ForbiddenError();
-            }
-            const explore = await this.projectModel.getExploreFromCache(
-                projectUuid,
-                exploreName,
+                        exploreName,
+                    );
+
+                    if (isExploreError(explore)) {
+                        throw new NotExistsError(
+                            `Explore "${exploreName}" does not exist.`,
+                        );
+                    }
+
+                    if (!exploreHasFilteredAttribute(explore)) {
+                        return explore;
+                    }
+                    const userAttributes =
+                        await this.userAttributesModel.getAttributeValuesForOrgMember(
+                            {
+                                organizationUuid,
+                                userUuid: user.userUuid,
+                            },
+                        );
+
+                    return filterDimensionsFromExplore(explore, userAttributes);
+                },
             );
-
-            if (isExploreError(explore)) {
-                throw new NotExistsError(
-                    `Explore "${exploreName}" does not exist.`,
-                );
-            }
-
-            if (!exploreHasFilteredAttribute(explore)) {
-                return explore;
-            }
-            const userAttributes =
-                await this.userAttributesModel.getAttributeValuesForOrgMember({
-                    organizationUuid,
-                    userUuid: user.userUuid,
-                });
-
-            return filterDimensionsFromExplore(explore, userAttributes);
         } finally {
             span?.finish();
         }
@@ -1745,7 +1891,9 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<ProjectCatalog> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'view',
@@ -1779,7 +1927,9 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<TablesConfiguration> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'view',
@@ -1797,7 +1947,9 @@ export class ProjectService {
         projectUuid: string,
         data: TablesConfiguration,
     ): Promise<TablesConfiguration> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'update',
@@ -1943,7 +2095,9 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<boolean> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'view',
@@ -1965,7 +2119,9 @@ export class ProjectService {
         projectUuid: string,
         userUuid: string,
     ): Promise<ProjectMemberProfile> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'view',
@@ -1995,7 +2151,9 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<ProjectMemberProfile[]> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'view',
@@ -2015,7 +2173,9 @@ export class ProjectService {
         projectUuid: string,
         data: CreateProjectMember,
     ): Promise<void> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'manage',
@@ -2033,7 +2193,7 @@ export class ProjectService {
             data.email,
             data.role,
         );
-        const project = await this.projectModel.get(projectUuid);
+        const project = await this.projectModel.getSummary(projectUuid);
         const projectUrl = new URL(
             `/projects/${projectUuid}/home`,
             lightdashConfig.siteUrl,
@@ -2054,7 +2214,9 @@ export class ProjectService {
         userUuid: string,
         data: UpdateProjectMember,
     ): Promise<void> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'manage',
@@ -2079,7 +2241,9 @@ export class ProjectService {
         projectUuid: string,
         userUuid: string,
     ): Promise<void> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'manage',
@@ -2100,7 +2264,9 @@ export class ProjectService {
         projectUuid: string,
         integration: CreateDbtCloudIntegration,
     ) {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'manage',
@@ -2124,7 +2290,9 @@ export class ProjectService {
     }
 
     async deleteDbtCloudIntegration(user: SessionUser, projectUuid: string) {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'manage',
@@ -2144,7 +2312,9 @@ export class ProjectService {
     }
 
     async findDbtCloudIntegration(user: SessionUser, projectUuid: string) {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'manage',
@@ -2160,7 +2330,9 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<ChartSummary[]> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'view',
@@ -2184,11 +2356,96 @@ export class ProjectService {
         return charts;
     }
 
+    async getMostPopularAndRecentlyUpdated(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<MostPopularAndRecentlyUpdated> {
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const spaces = await this.spaceModel.find({ projectUuid });
+        const allowedSpaces = spaces.filter(
+            (space) =>
+                space.projectUuid === projectUuid &&
+                hasSpaceAccess(user, space, false), // NOTE: We don't check for admin access to the space - exclude private spaces from this panel if admin
+        );
+
+        const mostPopular = await this.getMostPopular(allowedSpaces);
+        const recentlyUpdated = await this.getRecentlyUpdated(allowedSpaces);
+
+        return {
+            mostPopular: mostPopular
+                .sort((a, b) => b.views - a.views)
+                .slice(
+                    0,
+                    this.spaceModel.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT,
+                ),
+            recentlyUpdated: recentlyUpdated
+                .sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt))
+                .slice(
+                    0,
+                    this.spaceModel.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT,
+                ),
+        };
+    }
+
+    async getMostPopular(
+        allowedSpaces: SpaceSummary[],
+    ): Promise<(SpaceQuery | DashboardBasicDetails)[]> {
+        const mostPopularCharts = await this.spaceModel.getSpaceQueries(
+            allowedSpaces.map(({ uuid }) => uuid),
+            {
+                mostPopular: true,
+            },
+        );
+
+        const mostPopularDashboards = await this.spaceModel.getSpaceDashboards(
+            allowedSpaces.map(({ uuid }) => uuid),
+            {
+                mostPopular: true,
+            },
+        );
+
+        return [...mostPopularCharts, ...mostPopularDashboards];
+    }
+
+    async getRecentlyUpdated(
+        allowedSpaces: SpaceSummary[],
+    ): Promise<(SpaceQuery | DashboardBasicDetails)[]> {
+        const recentlyUpdatedCharts = await this.spaceModel.getSpaceQueries(
+            allowedSpaces.map(({ uuid }) => uuid),
+            {
+                recentlyUpdated: true,
+            },
+        );
+
+        const recentlyUpdatedDashboards =
+            await this.spaceModel.getSpaceDashboards(
+                allowedSpaces.map(({ uuid }) => uuid),
+                {
+                    recentlyUpdated: true,
+                },
+            );
+
+        return [...recentlyUpdatedCharts, ...recentlyUpdatedDashboards];
+    }
+
     async getSpaces(
         user: SessionUser,
         projectUuid: string,
     ): Promise<SpaceSummary[]> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'view',

@@ -7,7 +7,7 @@ import {
     getSchedulerTargetUuid,
     getSchedulerUuid,
     GsheetsNotificationPayload,
-    isCreateScheduler,
+    hasSchedulerUuid,
     isCreateSchedulerSlackTarget,
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
@@ -305,7 +305,7 @@ export class SchedulerClient {
 
         try {
             if (scheduler.format === SchedulerFormat.GSHEETS) {
-                if (isCreateScheduler(scheduler)) {
+                if (!hasSchedulerUuid(scheduler)) {
                     throw Error(
                         'Unable to run Google sheet delivery on unsaved scheduled delivery',
                     );

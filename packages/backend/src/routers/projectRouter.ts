@@ -146,6 +146,7 @@ projectRouter.post(
                 limit: body.limit,
                 tableCalculations: body.tableCalculations,
                 additionalMetrics: body.additionalMetrics,
+                customDimensions: body.customDimensions,
             };
             const results: ApiCompiledQueryResults = (
                 await projectService.compileQuery(
@@ -190,6 +191,7 @@ projectRouter.post(
                 limit: body.limit,
                 tableCalculations: body.tableCalculations,
                 additionalMetrics: body.additionalMetrics,
+                customDimensions: body.customDimensions,
             };
 
             const { jobId } = await CsvService.scheduleDownloadCsv(req.user!, {
@@ -352,6 +354,23 @@ projectRouter.get(
     async (req, res, next) => {
         spaceService
             .getAllSpaces(req.params.projectUuid, req.user!)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
+
+projectRouter.get(
+    '/most-popular-and-recently-updated',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        projectService
+            .getMostPopularAndRecentlyUpdated(req.user!, req.params.projectUuid)
             .then((results) => {
                 res.json({
                     status: 'ok',

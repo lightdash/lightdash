@@ -5,7 +5,7 @@ import {
     Popover2TargetProps,
 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
-import { getItemMap } from '@lightdash/common';
+import { getItemMap, hasCustomDimension } from '@lightdash/common';
 import React, {
     FC,
     memo,
@@ -125,22 +125,25 @@ export const SeriesContextMenu: FC<{
                                 projectUuid: projectUuid,
                             })}
                         >
-                            <MenuItem2
-                                text={`View underlying data`}
-                                icon={'layers'}
-                                onClick={() => {
-                                    onViewUnderlyingData();
-                                    track({
-                                        name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-                                        properties: {
-                                            organizationId:
-                                                user?.data?.organizationUuid,
-                                            userId: user?.data?.userUuid,
-                                            projectId: projectUuid,
-                                        },
-                                    });
-                                }}
-                            />
+                            {!hasCustomDimension(metricQuery) && (
+                                <MenuItem2
+                                    text={`View underlying data`}
+                                    icon={'layers'}
+                                    onClick={() => {
+                                        onViewUnderlyingData();
+                                        track({
+                                            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                                            properties: {
+                                                organizationId:
+                                                    user?.data
+                                                        ?.organizationUuid,
+                                                userId: user?.data?.userUuid,
+                                                projectId: projectUuid,
+                                            },
+                                        });
+                                    }}
+                                />
+                            )}
                         </Can>
                         {underlyingData?.value && (
                             <CopyToClipboard

@@ -1,5 +1,4 @@
-import { S3Service } from '../clients/Aws/s3';
-import { emailClient } from '../clients/clients';
+import { emailClient, s3CacheClient, s3Client } from '../clients/clients';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     analyticsModel,
@@ -86,6 +85,7 @@ export const projectService = new ProjectService({
     spaceModel,
     sshKeyPairModel,
     userAttributesModel,
+    s3CacheClient,
 });
 
 export const shareService = new ShareService({
@@ -133,10 +133,6 @@ export const searchService = new SearchService({
     userAttributesModel,
 });
 
-export const s3Service = new S3Service({
-    lightdashConfig,
-});
-
 export const unfurlService = new UnfurlService({
     lightdashConfig,
     dashboardModel,
@@ -144,7 +140,7 @@ export const unfurlService = new UnfurlService({
     spaceModel,
     shareModel,
     encryptionService,
-    s3Service,
+    s3Client,
     projectModel,
 });
 
@@ -163,7 +159,7 @@ export const schedulerService = new SchedulerService({
 export const csvService = new CsvService({
     lightdashConfig,
     userModel,
-    s3Service,
+    s3Client,
     projectService,
     dashboardModel,
     savedChartModel,

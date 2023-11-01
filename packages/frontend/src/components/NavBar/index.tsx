@@ -13,7 +13,6 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconInfoCircle, IconTool } from '@tabler/icons-react';
-import { PostHogFeature } from 'posthog-js/react';
 import { FC, memo, useEffect, useMemo } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
@@ -192,12 +191,6 @@ const NavBar = memo(() => {
                 </Group>
 
                 <Box sx={{ flexGrow: 1 }} />
-
-                <PostHogFeature flag={'lightdash-team-flair'} match={true}>
-                    <Group sx={{ flexShrink: 0 }}>
-                        <span style={{ color: 'white' }}>LIGHTDASH TEAM</span>
-                    </Group>
-                </PostHogFeature>
 
                 <Group sx={{ flexShrink: 0 }}>
                     <Button.Group>

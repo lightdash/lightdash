@@ -1,5 +1,6 @@
 import {
     FieldType,
+    getCustomDimensionId,
     MetricQuery,
     PivotConfig,
     PivotData,
@@ -9,15 +10,20 @@ import {
 import { isNumber } from 'lodash-es';
 import { Entries } from 'type-fest';
 
-const MAX_COLUMNS = 60;
-
 type PivotQueryResultsArgs = {
     pivotConfig: PivotConfig;
     metricQuery: Pick<
         MetricQuery,
-        'dimensions' | 'metrics' | 'tableCalculations' | 'additionalMetrics'
+        | 'dimensions'
+        | 'metrics'
+        | 'tableCalculations'
+        | 'additionalMetrics'
+        | 'customDimensions'
     >;
     rows: ResultRow[];
+    options: {
+        maxColumns: number;
+    };
 };
 
 type RecursiveRecord<T = unknown> = {
@@ -191,6 +197,7 @@ export const pivotQueryResults = ({
     pivotConfig,
     metricQuery,
     rows,
+    options,
 }: PivotQueryResultsArgs): PivotData => {
     if (rows.length === 0) {
         throw new Error('Cannot pivot results with no rows');
@@ -203,9 +210,14 @@ export const pivotQueryResults = ({
         return !hiddenMetricFieldIds.includes(id);
     });
 
+    const dimensions = [
+        ...metricQuery.dimensions,
+        ...(metricQuery.customDimensions?.map(getCustomDimensionId) || []),
+    ];
+
     // Headers (column index)
     const headerDimensions = pivotConfig.pivotDimensions.filter(
-        (pivotDimension) => metricQuery.dimensions.includes(pivotDimension),
+        (pivotDimension) => dimensions.includes(pivotDimension),
     );
     const headerDimensionValueTypes = headerDimensions.map<{
         type: FieldType.DIMENSION;
@@ -222,7 +234,7 @@ export const pivotQueryResults = ({
     ];
 
     // Indices (row index)
-    const indexDimensions = metricQuery.dimensions
+    const indexDimensions = dimensions
         .filter((d) => !pivotConfig.pivotDimensions.includes(d))
         .slice()
         .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b));
@@ -331,9 +343,9 @@ export const pivotQueryResults = ({
             ) {
                 columnCount++;
 
-                if (columnCount > MAX_COLUMNS) {
+                if (columnCount > options.maxColumns) {
                     throw new Error(
-                        `Cannot pivot results with more than ${MAX_COLUMNS} columns. Try adding a filter to limit your results.`,
+                        `Cannot pivot results with more than ${options.maxColumns} columns. Try adding a filter to limit your results.`,
                     );
                 }
 
