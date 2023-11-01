@@ -1,3 +1,10 @@
+## [0.837.1](https://github.com/lightdash/lightdash/compare/0.837.0...0.837.1) (2023-11-01)
+
+
+### Bug Fixes
+
+* joined tables hidden fields ([#7752](https://github.com/lightdash/lightdash/issues/7752)) ([b097b67](https://github.com/lightdash/lightdash/commit/b097b67dda39ffe3a9a340e2c0f483e678f283a1))
+
 # [0.837.0](https://github.com/lightdash/lightdash/compare/0.836.2...0.837.0) (2023-10-31)
 
 

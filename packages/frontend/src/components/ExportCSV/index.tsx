@@ -196,6 +196,7 @@ const ExportCSV: FC<ExportCSVProps> = memo(
                         intent={Intent.PRIMARY}
                         icon="export"
                         onClick={() => exportCsvMutation()}
+                        data-testid="chart-export-csv-button"
                     >
                         Export CSV
                     </Button>

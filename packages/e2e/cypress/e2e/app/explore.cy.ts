@@ -60,6 +60,7 @@ describe('Explore', () => {
         cy.findByText('Loading chart').should('not.exist');
 
         cy.findByText('Edit chart').parent().click();
+        cy.findByText('Configure').click();
         cy.findByText('Bar chart').click(); // Change chart type
         cy.findByText('Horizontal bar chart').click();
 
@@ -91,6 +92,7 @@ describe('Explore', () => {
         cy.findByText('Loading chart').should('not.exist');
 
         // open chart menu and change chart types
+        cy.findByText('Configure').click();
         cy.get('button').contains('Bar chart').click();
 
         cy.get('[role="menuitem"]').contains('Bar chart').click();
@@ -109,7 +111,8 @@ describe('Explore', () => {
         cy.get('button').contains('Scatter chart').click();
 
         cy.get('[role="menuitem"]').contains('Table').click();
-        cy.get('button').contains('Table').click();
+        // Use a different selector cause there is another button with 'Table'
+        cy.get('[data-testid="VisualizationCardOptions"]').click();
 
         cy.get('[role="menuitem"]').contains('Big value').click();
         cy.get('button').contains('Big value');
@@ -201,7 +204,8 @@ describe('Explore', () => {
                     cy.findByText('Loading chart').should('not.exist');
 
                     // open chart menu and change chart type to Table
-                    cy.get('button').contains('Bar chart').click();
+                    cy.get('button').contains('Configure').click();
+                    cy.get('[data-testid="VisualizationCardOptions"]').click();
                     cy.get('[role="menuitem"]').contains('Table').click();
 
                     // check that chart table headers are correct
@@ -210,8 +214,6 @@ describe('Explore', () => {
                         .contains('Customers First name')
                         .should('exist');
 
-                    // open configuration and flip Show table names in the config
-                    cy.get('button').contains('Configure').click();
                     cy.findByLabelText('Show table names').click({
                         force: true,
                     });
@@ -245,7 +247,8 @@ describe('Explore', () => {
                     cy.findByText('Loading chart').should('not.exist');
 
                     // open chart menu and change chart type to Table
-                    cy.get('button').contains('Bar chart').click();
+                    cy.get('button').contains('Configure').click();
+                    cy.get('[data-testid="VisualizationCardOptions"]').click();
                     cy.get('[role="menuitem"]').contains('Table').click();
 
                     // check that chart table headers are correct
@@ -256,7 +259,6 @@ describe('Explore', () => {
                         .should('exist');
 
                     // open configuration and flip Show table names in the config
-                    cy.get('button').contains('Configure').click();
                     cy.findByPlaceholderText('Customers First name')
                         .focus()
                         .type('Overridden header')
