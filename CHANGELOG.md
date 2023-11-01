@@ -1,3 +1,10 @@
+# [0.839.0](https://github.com/lightdash/lightdash/compare/0.838.0...0.839.0) (2023-11-01)
+
+
+### Features
+
+* show dashboard cache data ([#7741](https://github.com/lightdash/lightdash/issues/7741)) ([d98773c](https://github.com/lightdash/lightdash/commit/d98773cad2fc606c3d62135442116e4feb84788f))
+
 # [0.838.0](https://github.com/lightdash/lightdash/compare/0.837.1...0.838.0) (2023-11-01)
 
 
