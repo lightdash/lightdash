@@ -1,3 +1,10 @@
+# [0.840.0](https://github.com/lightdash/lightdash/compare/0.839.0...0.840.0) (2023-11-01)
+
+
+### Features
+
+* explore filters layout update ([#7761](https://github.com/lightdash/lightdash/issues/7761)) ([2ffe25d](https://github.com/lightdash/lightdash/commit/2ffe25daa0b5c42ff98f88a93a7877c66a7813ef))
+
 # [0.839.0](https://github.com/lightdash/lightdash/compare/0.838.0...0.839.0) (2023-11-01)
 
 
