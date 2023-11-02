@@ -237,22 +237,22 @@ export class ValidationService {
                 error,
                 errorType,
                 fieldName,
-                tableName,
             }: {
                 acc: CreateChartValidation[];
                 fieldIds: string[];
                 fieldId: string;
-                tableName: string;
             } & Pick<
                 CreateChartValidation,
                 'error' | 'errorType' | 'fieldName'
             >) => {
+                const { tableName } = chart;
                 const joinedTables =
                     explores
                         .find((e) => e.name === tableName)
                         ?.joinedTables.map((jt) => jt.table) || [];
                 const validTables = [tableName, ...joinedTables];
                 const isValidJoinedField = (fId: string) => {
+                    if (chartCustomMetricIds.includes(fieldId)) return true;
                     const field = explorerFields.find(
                         (f) => getFieldId(f) === fId,
                     );
@@ -283,7 +283,6 @@ export class ValidationService {
                         error: `Dimension error: the field '${field}' no longer exists`,
                         errorType: ValidationErrorType.Dimension,
                         fieldName: field,
-                        tableName: chart.tableName,
                     }),
                 [],
             );
@@ -301,7 +300,6 @@ export class ValidationService {
                         error: `Metric error: the field '${field}' no longer exists`,
                         errorType: ValidationErrorType.Metric,
                         fieldName: field,
-                        tableName: chart.tableName,
                     }),
                 [],
             );
@@ -317,7 +315,6 @@ export class ValidationService {
                         error: `Filter error: the field '${field.target.fieldId}' no longer exists`,
                         errorType: ValidationErrorType.Filter,
                         fieldName: field.target.fieldId,
-                        tableName: chart.tableName,
                     }),
                 [],
             );
@@ -333,7 +330,6 @@ export class ValidationService {
                         error: `Sorting error: the field '${field.fieldId}' no longer exists`,
                         errorType: ValidationErrorType.Sorting,
                         fieldName: field.fieldId,
-                        tableName: chart.tableName,
                     }),
                 [],
             );
