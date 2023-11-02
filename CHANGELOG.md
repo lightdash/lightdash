@@ -1,3 +1,10 @@
+# [0.842.0](https://github.com/lightdash/lightdash/compare/0.841.0...0.842.0) (2023-11-02)
+
+
+### Features
+
+* scheduled deliveries filter UI ([#7781](https://github.com/lightdash/lightdash/issues/7781)) ([cef0315](https://github.com/lightdash/lightdash/commit/cef03157472ffb407c5880039e69151020c7df3f))
+
 # [0.841.0](https://github.com/lightdash/lightdash/compare/0.840.5...0.841.0) (2023-11-02)
 
 
