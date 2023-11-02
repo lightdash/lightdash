@@ -1,3 +1,10 @@
+## [0.840.5](https://github.com/lightdash/lightdash/compare/0.840.4...0.840.5) (2023-11-02)
+
+
+### Bug Fixes
+
+* filters + z indices on custom metric modal ([#7771](https://github.com/lightdash/lightdash/issues/7771)) ([e31fe6b](https://github.com/lightdash/lightdash/commit/e31fe6b73ffd0542514550f43b7f9175bf9c0372))
+
 ## [0.840.4](https://github.com/lightdash/lightdash/compare/0.840.3...0.840.4) (2023-11-02)
 
 
