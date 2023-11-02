@@ -1,3 +1,10 @@
+## [0.840.2](https://github.com/lightdash/lightdash/compare/0.840.1...0.840.2) (2023-11-02)
+
+
+### Bug Fixes
+
+* gdrive redirection ([#7778](https://github.com/lightdash/lightdash/issues/7778)) ([ccae1a1](https://github.com/lightdash/lightdash/commit/ccae1a1a49fd92625475cdda1b70e387f66af408)), closes [#7716](https://github.com/lightdash/lightdash/issues/7716)
+
 ## [0.840.1](https://github.com/lightdash/lightdash/compare/0.840.0...0.840.1) (2023-11-01)
 
 
