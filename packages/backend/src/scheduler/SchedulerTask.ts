@@ -682,14 +682,14 @@ export const uploadGsheetFromQuery = async (
         });
         const user = await userService.getSessionByUserUuid(payload.userUuid);
 
-        const { rows } = await projectService.runMetricQuery(
+        const { rows } = await projectService.runMetricQuery({
             user,
-            payload.metricQuery,
-            payload.projectUuid,
-            payload.exploreId,
-            undefined,
-            QueryExecutionContext.GSHEETS,
-        );
+            metricQuery: payload.metricQuery,
+            projectUuid: payload.projectUuid,
+            exploreName: payload.exploreId,
+            csvLimit: undefined,
+            context: QueryExecutionContext.GSHEETS,
+        });
         const refreshToken = await userService.getRefreshToken(
             payload.userUuid,
         );

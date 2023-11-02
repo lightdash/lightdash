@@ -165,12 +165,13 @@ const ValidDashboardChartTile: FC<{
         series: EChartSeries[],
     ) => void;
 }> = ({ tileUuid, isTitleHidden = false, data, onSeriesContextMenu }) => {
+    const { addSuggestions, addResultsCacheTime, invalidateCache } =
+        useDashboardContext();
     const {
         data: resultData,
         isLoading,
         error,
-    } = useChartResults(data.uuid, data.metricQuery.filters);
-    const { addSuggestions, addResultsCacheTime } = useDashboardContext();
+    } = useChartResults(data.uuid, data.metricQuery.filters, invalidateCache);
     const { data: explore } = useExplore(data.tableName);
     const { health } = useApp();
 

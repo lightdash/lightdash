@@ -5244,7 +5244,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.836.0",
+        "version": "0.840.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -7077,6 +7077,9 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "invalidateCache": {
+                                        "type": "boolean"
+                                    },
                                     "filters": {
                                         "$ref": "#/components/schemas/FiltersResponse"
                                     }

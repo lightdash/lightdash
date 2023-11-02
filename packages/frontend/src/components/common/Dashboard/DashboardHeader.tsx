@@ -35,6 +35,7 @@ import { DashboardSchedulersModal } from '../../../features/scheduler';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
 import { useDashboardRefresh } from '../../../hooks/dashboard/useDashboardRefresh';
 import { useApp } from '../../../providers/AppProvider';
+import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
@@ -108,6 +109,8 @@ const DashboardHeader = ({
     }>();
     const { isFetching, invalidateDashboardRelatedQueries } =
         useDashboardRefresh();
+
+    const { clearCacheAndFetch } = useDashboardContext();
     const history = useHistory();
     const { track } = useTracking();
     const [isUpdating, setIsUpdating] = useState(false);
@@ -262,7 +265,10 @@ const DashboardHeader = ({
                             size="xs"
                             loading={isOneAtLeastFetching}
                             leftIcon={<MantineIcon icon={IconRefresh} />}
-                            onClick={invalidateDashboardRelatedQueries}
+                            onClick={() => {
+                                clearCacheAndFetch();
+                                invalidateDashboardRelatedQueries();
+                            }}
                         >
                             Refresh
                         </Button>
