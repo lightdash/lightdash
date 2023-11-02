@@ -628,6 +628,7 @@ const SchedulerForm: FC<Props> = ({
                                                         data={slackChannels}
                                                         searchable
                                                         creatable
+                                                        withinPortal
                                                         value={
                                                             form.values
                                                                 .slackTargets
