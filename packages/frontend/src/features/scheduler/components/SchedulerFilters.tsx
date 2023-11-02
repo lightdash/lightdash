@@ -39,7 +39,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({ filter }) => {
         <Stack key={filter.id} spacing="xs">
             <Group spacing="xs">
                 <FieldIcon item={field} />
-                <FieldLabel item={field} />
+                <FieldLabel item={field} hideTableName />
             </Group>
 
             <Flex gap="xs">
