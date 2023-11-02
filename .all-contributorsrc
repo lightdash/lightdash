@@ -1237,6 +1237,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "Kobold",
+      "name": "Andy Kish",
+      "avatar_url": "https://avatars.githubusercontent.com/u/36694?v=4",
+      "profile": "https://github.com/Kobold",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
