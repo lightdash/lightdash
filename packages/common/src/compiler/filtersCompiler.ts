@@ -52,10 +52,11 @@ export const renderStringFilterSql = (
                       .map((v) => `${stringQuoteChar}${v}${stringQuoteChar}`)
                       .join(',')} ) OR (${dimensionSql}) IS NULL)`;
         case FilterOperator.INCLUDE:
-            const includesQuery = escapedFilterValues?.map(
+            if (escapedFilterValues === undefined) return 'true';
+            const includesQuery = escapedFilterValues.map(
                 (v) => `LOWER(${dimensionSql}) LIKE LOWER('%${v}%')`,
             );
-            return includesQuery?.join('\n  OR\n  ') || 'true';
+            return `(${includesQuery.join('\n  OR\n  ')})`;
         case FilterOperator.NOT_INCLUDE:
             const notIncludeQuery = escapedFilterValues?.map(
                 (v) => `LOWER(${dimensionSql}) NOT LIKE LOWER('%${v}%')`,
