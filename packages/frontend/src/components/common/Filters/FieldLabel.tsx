@@ -20,12 +20,11 @@ const FieldLabel: FC<FieldLabelProps> = ({ item }) => {
             {isField(item) ? `${item.tableLabel} ` : ''}
 
             <Text span fw={500}>
-                {() => {
-                    if (isCustomDimension(item)) return item.name;
-                    if (isField(item) || isAdditionalMetric(item))
-                        return item.label;
-                    return item.displayName;
-                }}
+                {isCustomDimension(item)
+                    ? item.name
+                    : isField(item) || isAdditionalMetric(item)
+                    ? item.label
+                    : item.displayName}
             </Text>
         </Text>
     );
