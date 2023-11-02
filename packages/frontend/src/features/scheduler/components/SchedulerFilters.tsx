@@ -88,6 +88,7 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({ dashboard }) => {
 
     return (
         <FiltersProvider
+            inModal
             projectUuid={project.projectUuid}
             fieldsMap={fieldsWithSuggestions}
             startOfWeek={project.warehouseConnection?.startOfWeek ?? undefined}
