@@ -556,7 +556,7 @@ export class ProjectModel {
     };
 
     private getExploreQueryBuilder(projectUuid: string) {
-        return this.database('cached_explores')
+        return this.database(CachedExploresTableName)
             .select<{ explore: Explore | ExploreError }[]>(['explore'])
             .crossJoin(
                 this.database.raw('jsonb_array_elements(explores) as explore'),
