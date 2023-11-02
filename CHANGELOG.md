@@ -1,3 +1,11 @@
+## [0.840.4](https://github.com/lightdash/lightdash/compare/0.840.3...0.840.4) (2023-11-02)
+
+
+### Bug Fixes
+
+* create consistent id/names for custom dimensions ([#7755](https://github.com/lightdash/lightdash/issues/7755)) ([9baee8b](https://github.com/lightdash/lightdash/commit/9baee8b1637439316f1a0381abf8fd386b23d1ad))
+* expose correct Postgres error notification ([#7773](https://github.com/lightdash/lightdash/issues/7773)) ([e38df9d](https://github.com/lightdash/lightdash/commit/e38df9de15776d79c74d5c88447fc0f71607dc57))
+
 ## [0.840.3](https://github.com/lightdash/lightdash/compare/0.840.2...0.840.3) (2023-11-02)
 
 
