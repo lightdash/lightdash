@@ -202,23 +202,28 @@ export class PostgresClient<
                     reject(err2);
                     done();
                 });
-                stream.pipe(
-                    new Writable({
-                        objectMode: true,
-                        write(
-                            chunk: {
-                                row: any;
-                                fields: QueryResult<any>['fields'];
+                stream
+                    .pipe(
+                        new Writable({
+                            objectMode: true,
+                            write(
+                                chunk: {
+                                    row: any;
+                                    fields: QueryResult<any>['fields'];
+                                },
+                                encoding,
+                                callback,
+                            ) {
+                                rows.push(chunk.row);
+                                fields = chunk.fields;
+                                callback();
                             },
-                            encoding,
-                            callback,
-                        ) {
-                            rows.push(chunk.row);
-                            fields = chunk.fields;
-                            callback();
-                        },
-                    }),
-                );
+                        }),
+                    )
+                    .on('error', (err2) => {
+                        reject(err2);
+                        done();
+                    });
             });
         })
             .catch((e) => {
