@@ -1,10 +1,11 @@
+import { Button } from '@mantine/core';
 import { IconLink } from '@tabler/icons-react';
 import copy from 'copy-to-clipboard';
 import React, { FC, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateShareMutation } from '../../../hooks/useShare';
-import { ShareLink } from './ShareShortLinkButton.styles';
+import MantineIcon from '../MantineIcon';
 
 const ShareShortLinkButton: FC<{ disabled?: boolean }> = ({ disabled }) => {
     const { showToastSuccess } = useToaster();
@@ -28,7 +29,7 @@ const ShareShortLinkButton: FC<{ disabled?: boolean }> = ({ disabled }) => {
     }, [newShareUrl, showToastSuccess]);
 
     return (
-        <ShareLink
+        <Button
             onClick={() => {
                 const shareUrl = {
                     path: location.pathname,
@@ -36,9 +37,13 @@ const ShareShortLinkButton: FC<{ disabled?: boolean }> = ({ disabled }) => {
                 };
                 createShareUrl(shareUrl);
             }}
+            variant="default"
+            sx={{ marginLeft: '12px' }}
+            size="xs"
             disabled={isDisabled}
-            icon={<IconLink size={16} />}
-        />
+        >
+            <MantineIcon icon={IconLink} />
+        </Button>
     );
 };
 

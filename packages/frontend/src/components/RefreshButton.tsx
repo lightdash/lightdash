@@ -1,11 +1,19 @@
-import { Classes } from '@blueprintjs/core';
-import { Box, Group, Kbd, MantineProvider, Text, Tooltip } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Group,
+    Kbd,
+    MantineProvider,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import { useHotkeys, useOs } from '@mantine/hooks';
+import { IconPlayerPlayFilled } from '@tabler/icons-react';
 import { memo, useCallback } from 'react';
 import { useExplorerContext } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
-import { BigButton } from './common/BigButton';
+import MantineIcon from './common/MantineIcon';
 
 export const RefreshButton = memo(() => {
     const os = useOs();
@@ -53,17 +61,15 @@ export const RefreshButton = memo(() => {
             disabled={isLoading || !isValidQuery}
         >
             <Box>
-                <BigButton
-                    style={{ width: 150 }}
-                    icon="play"
-                    intent="primary"
+                <Button
                     loading={isLoading}
-                    // disabled button captures hover events
+                    size="xs"
                     onClick={onClick}
-                    className={!canRunQuery ? Classes.DISABLED : undefined}
+                    disabled={!canRunQuery}
+                    leftIcon={<MantineIcon icon={IconPlayerPlayFilled} />}
                 >
                     Run query
-                </BigButton>
+                </Button>
             </Box>
         </Tooltip>
     );

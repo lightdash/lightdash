@@ -1,9 +1,11 @@
+import { Button } from '@mantine/core';
+import { IconFileCheck } from '@tabler/icons-react';
 import React, { FC, useState } from 'react';
 import { useAddVersionMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import MantineIcon from '../../common/MantineIcon';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
-import { SaveButton } from './SaveChartButton.styles';
 
 const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
     const unsavedChartVersion = useExplorerContext(
@@ -30,18 +32,21 @@ const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
     };
     return (
         <>
-            <SaveButton
-                $isLargeButton={isExplorer}
-                icon={isExplorer ? 'saved' : undefined}
-                intent={isExplorer ? 'none' : 'success'}
-                text={savedChart ? 'Save changes' : 'Save chart'}
+            <Button
                 disabled={!unsavedChartVersion.tableName || !hasUnsavedChanges}
+                variant={isExplorer ? 'default' : 'filled'}
+                color={isExplorer ? 'none' : 'green.8'}
+                sx={{ marginLeft: '12px' }}
+                size="xs"
+                leftIcon={isExplorer && <MantineIcon icon={IconFileCheck} />}
                 onClick={
                     savedChart
                         ? handleSavedQueryUpdate
                         : () => setIsQueryModalOpen(true)
                 }
-            />
+            >
+                {savedChart ? 'Save changes' : 'Save chart'}
+            </Button>
             {unsavedChartVersion && (
                 <ChartCreateModal
                     isOpen={isQueryModalOpen}
