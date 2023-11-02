@@ -658,6 +658,10 @@ export class ProjectModel {
             'ProjectModel.saveExploresToCache',
             {},
             async () => {
+                // delete previous individually cached explores
+                await this.database(CachedExploreTableName)
+                    .where('project_uuid', projectUuid)
+                    .delete();
                 // cache explores individually
                 await this.database(CachedExploreTableName)
                     .insert(
