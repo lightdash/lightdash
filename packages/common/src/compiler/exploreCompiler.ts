@@ -362,9 +362,9 @@ export class ExploreCompiler {
                     this.warehouseClient.getAdapterType(),
                 );
             });
-            renderedSql = `CASE WHEN (${conditions.map(cond => `(${cond})`).join(
-                ' AND ',
-            )}) THEN (${renderedSql}) ELSE NULL END`;
+            renderedSql = `CASE WHEN (${conditions
+                .map((cond) => `(${cond})`)
+                .join(' AND ')}) THEN (${renderedSql}) ELSE NULL END`;
         }
         const compiledSql = this.warehouseClient.getMetricSql(
             renderedSql,
