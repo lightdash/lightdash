@@ -48,13 +48,14 @@ export class SavedChartController extends Controller {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await projectService.runViewChartQuery(
-                req.user!,
+            results: await projectService.runViewChartQuery({
+                user: req.user!,
                 chartUuid,
-                body.filters,
-                undefined,
-                req.query?.invalidateCache?.toString() === 'true',
-            ),
+                filters: body.filters,
+                versionUuid: undefined,
+                invalidateCache:
+                    req.query?.invalidateCache?.toString() === 'true',
+            }),
         };
     }
 
@@ -122,12 +123,12 @@ export class SavedChartController extends Controller {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await projectService.runViewChartQuery(
-                req.user!,
+            results: await projectService.runViewChartQuery({
+                user: req.user!,
                 chartUuid,
-                undefined,
+                filters: undefined,
                 versionUuid,
-            ),
+            }),
         };
     }
 
