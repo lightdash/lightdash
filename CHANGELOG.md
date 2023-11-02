@@ -1,3 +1,11 @@
+## [0.843.1](https://github.com/lightdash/lightdash/compare/0.843.0...0.843.1) (2023-11-02)
+
+
+### Bug Fixes
+
+* add missing foreign key to cached explores table ([#7770](https://github.com/lightdash/lightdash/issues/7770)) ([c0732b6](https://github.com/lightdash/lightdash/commit/c0732b6ac2e8041fc32493dcd9b96695afe294c5))
+* multiple oauth accounts ([#7779](https://github.com/lightdash/lightdash/issues/7779)) ([cc83897](https://github.com/lightdash/lightdash/commit/cc838970c71f71a5bafd7e7ba2cc8902dbe5dc66))
+
 # [0.843.0](https://github.com/lightdash/lightdash/compare/0.842.1...0.843.0) (2023-11-02)
 
 
