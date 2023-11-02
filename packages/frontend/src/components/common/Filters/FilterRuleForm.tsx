@@ -13,6 +13,7 @@ import { FC, useCallback, useMemo } from 'react';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import { FilterTypeConfig } from './configs';
+import { useFiltersContext } from './FiltersProvider';
 
 type Props = {
     fields: FilterableField[];
@@ -31,6 +32,7 @@ const FilterRuleForm: FC<Props> = ({
     onDelete,
     onConvertToGroup,
 }) => {
+    const { inModal } = useFiltersContext();
     const activeField = fields.find(
         (field) => getFieldId(field) === filterRule.target.fieldId,
     );
@@ -78,6 +80,7 @@ const FilterRuleForm: FC<Props> = ({
                     <FieldSelect
                         size="xs"
                         disabled={!isEditMode}
+                        withinPortal={inModal}
                         hasGrouping
                         item={activeField}
                         items={fields}
@@ -91,6 +94,7 @@ const FilterRuleForm: FC<Props> = ({
                         size="xs"
                         w="150px"
                         sx={{ flexShrink: 0 }}
+                        withinPortal={inModal}
                         disabled={!isEditMode}
                         value={filterRule.operator}
                         data={filterConfig.operatorOptions}
@@ -119,6 +123,7 @@ const FilterRuleForm: FC<Props> = ({
                         rule={filterRule}
                         onChange={onChange}
                         disabled={!isEditMode}
+                        inModal={inModal}
                     />
                 </>
             ) : (

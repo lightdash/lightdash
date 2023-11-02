@@ -249,6 +249,7 @@ export const CustomMetricModal = () => {
                                     projectUuid={projectUuid}
                                     fieldsMap={fieldsMap}
                                     startOfWeek={startOfWeek ?? undefined}
+                                    inModal
                                 >
                                     <FilterForm
                                         defaultFilterRuleFieldId={

@@ -22,6 +22,7 @@ export type FilterInputsProps<T extends ConditionalRule> = {
     onChange: (value: T) => void;
     disabled?: boolean;
     popoverProps?: Popover2Props;
+    inModal?: boolean;
 };
 
 const DefaultFilterInputs = <T extends ConditionalRule>({
@@ -30,6 +31,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
     rule,
     disabled,
     onChange,
+    inModal,
 }: PropsWithChildren<FilterInputsProps<T>>) => {
     const { getField } = useFiltersContext();
     const suggestions = isFilterRule(rule)
@@ -70,6 +72,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                                     values,
                                 })
                             }
+                            withinPortal={inModal}
                         />
                     );
 
