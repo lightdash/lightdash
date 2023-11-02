@@ -65,6 +65,7 @@ import {
 const getChartOrDashboard = async (
     chartUuid: string | null,
     dashboardUuid: string | null,
+    schedulerUuid: string | undefined,
 ) => {
     if (chartUuid) {
         const chart = await schedulerService.savedChartModel.getSummary(
@@ -87,9 +88,14 @@ const getChartOrDashboard = async (
         const dashboard = await schedulerService.dashboardModel.getById(
             dashboardUuid,
         );
+
         return {
             url: `${lightdashConfig.siteUrl}/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}/view`,
-            minimalUrl: `${lightdashConfig.siteUrl}/minimal/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}`,
+            minimalUrl: `${lightdashConfig.siteUrl}/minimal/projects/${
+                dashboard.projectUuid
+            }/dashboards/${dashboardUuid}${
+                schedulerUuid ? `?schedulerId=${schedulerUuid}` : ''
+            }`,
             details: {
                 name: dashboard.name,
                 description: dashboard.description,
@@ -119,6 +125,13 @@ export const getNotificationPageData = async (
     let csvUrl;
     let csvUrls;
     let pdfFile;
+
+    const schedulerUuid =
+        'schedulerUuid' in scheduler &&
+        typeof scheduler.schedulerUuid === 'string'
+            ? scheduler.schedulerUuid
+            : undefined;
+
     const {
         url,
         minimalUrl,
@@ -126,7 +139,7 @@ export const getNotificationPageData = async (
         details,
         organizationUuid,
         projectUuid,
-    } = await getChartOrDashboard(savedChartUuid, dashboardUuid);
+    } = await getChartOrDashboard(savedChartUuid, dashboardUuid, schedulerUuid);
 
     switch (format) {
         case SchedulerFormat.IMAGE:
