@@ -28,9 +28,6 @@ import {
     Text,
     TextInput,
 } from '@mantine/core';
-import React, { FC, useCallback, useMemo, useState } from 'react';
-import useHealth from '../../../hooks/health/useHealth';
-
 import { useForm } from '@mantine/form';
 import {
     IconChevronDown,
@@ -39,14 +36,19 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import MDEditor, { commands } from '@uiw/react-md-editor';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
+import { FC, useCallback, useMemo, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
 import { CronInternalInputs } from '../../../components/ReactHookForm/CronInput';
 import { hasRequiredScopes } from '../../../components/UserSettings/SlackSettingsPanel';
+import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
+import useHealth from '../../../hooks/health/useHealth';
 import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
 import { useGetSlack } from '../../../hooks/useSlack';
 import { ReactComponent as SlackSvg } from '../../../svgs/slack.svg';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
+import SchedulerFilters from './SchedulerFilters';
 import SchedulersModalFooter from './SchedulerModalFooter';
 
 export enum Limit {
@@ -164,16 +166,23 @@ const SlackErrorContent: FC<{ slackState: SlackStates }> = ({ slackState }) => {
     return <></>;
 };
 
-const SchedulerForm: FC<{
+type Props = {
     disabled: boolean;
     savedSchedulerData?: SchedulerAndTargets;
+    resource?: {
+        uuid: string;
+        type: 'chart' | 'dashboard';
+    };
     onSubmit: (data: any) => void;
     onSendNow: (data: CreateSchedulerAndTargetsWithoutIds) => void;
     onBack?: () => void;
     loading?: boolean;
     confirmText?: string;
-}> = ({
+};
+
+const SchedulerForm: FC<Props> = ({
     disabled,
+    resource,
     savedSchedulerData,
     onSubmit,
     onSendNow,
@@ -181,6 +190,9 @@ const SchedulerForm: FC<{
     loading,
     confirmText,
 }) => {
+    const isSchedulerFiltersEnabled =
+        useFeatureFlagEnabled('scheduler-filters');
+
     const form = useForm({
         initialValues:
             savedSchedulerData !== undefined
@@ -261,6 +273,11 @@ const SchedulerForm: FC<{
 
     const [showFormatting, setShowFormatting] = useState(false);
 
+    const isDashboard = resource && resource.type === 'dashboard';
+    const { data: dashboard } = useDashboardQuery(resource?.uuid, {
+        enabled: isDashboard && isSchedulerFiltersEnabled,
+    });
+
     const slackQuery = useGetSlack();
     const slackState = useMemo(() => {
         if (slackQuery.isLoading) {
@@ -323,8 +340,12 @@ const SchedulerForm: FC<{
                     <Tabs.Tab value="setup" ml="md">
                         Setup
                     </Tabs.Tab>
+                    {isSchedulerFiltersEnabled && isDashboard && dashboard ? (
+                        <Tabs.Tab value="filters">Filters</Tabs.Tab>
+                    ) : null}
                     <Tabs.Tab value="customization">Customization</Tabs.Tab>
                 </Tabs.List>
+
                 <Tabs.Panel value="setup" mt="md">
                     <Stack
                         sx={(theme) => ({
@@ -668,6 +689,13 @@ const SchedulerForm: FC<{
                         </Input.Wrapper>
                     </Stack>
                 </Tabs.Panel>
+
+                {isSchedulerFiltersEnabled && isDashboard && dashboard ? (
+                    <Tabs.Panel value="filters" p="md">
+                        <SchedulerFilters dashboard={dashboard} />
+                    </Tabs.Panel>
+                ) : null}
+
                 <Tabs.Panel value="customization">
                     <Text m="md">Customize delivery message body</Text>
 
@@ -687,6 +715,7 @@ const SchedulerForm: FC<{
                     />
                 </Tabs.Panel>
             </Tabs>
+
             <SchedulersModalFooter
                 confirmText={confirmText}
                 onBack={onBack}
