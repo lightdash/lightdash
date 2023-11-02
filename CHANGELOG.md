@@ -1,3 +1,10 @@
+# [0.844.0](https://github.com/lightdash/lightdash/compare/0.843.1...0.844.0) (2023-11-02)
+
+
+### Features
+
+* add ssh tunnel beta ([#7783](https://github.com/lightdash/lightdash/issues/7783)) ([8c7d9cc](https://github.com/lightdash/lightdash/commit/8c7d9cc1ddf3bdca1ff416b3f9868b6440aa42d3))
+
 ## [0.843.1](https://github.com/lightdash/lightdash/compare/0.843.0...0.843.1) (2023-11-02)
 
 
