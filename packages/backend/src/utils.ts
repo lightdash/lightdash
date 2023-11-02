@@ -99,14 +99,23 @@ export const wrapSentryTransaction = async <T>(
 };
 
 export function runWorkerThread<T>(worker: Worker): Promise<T> {
-    return new Promise((resolve, reject) => {
-        worker.on('message', resolve);
-        worker.on('error', reject);
-        worker.on('exit', (code) => {
-            if (code !== 0) {
-                Logger.error(`Worker thread stopped with exit code ${code}`);
-                reject(new Error(`Worker stopped with exit code ${code}`));
-            }
-        });
-    });
+    return wrapOtelSpan(
+        'Utils.runWorkerThread',
+        {},
+        async () =>
+            new Promise((resolve, reject) => {
+                worker.on('message', resolve);
+                worker.on('error', reject);
+                worker.on('exit', (code) => {
+                    if (code !== 0) {
+                        Logger.error(
+                            `Worker thread stopped with exit code ${code}`,
+                        );
+                        reject(
+                            new Error(`Worker stopped with exit code ${code}`),
+                        );
+                    }
+                });
+            }),
+    );
 }
