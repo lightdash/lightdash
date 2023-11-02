@@ -1,3 +1,10 @@
+## [0.840.3](https://github.com/lightdash/lightdash/compare/0.840.2...0.840.3) (2023-11-02)
+
+
+### Bug Fixes
+
+* field labels not showing ([#7775](https://github.com/lightdash/lightdash/issues/7775)) ([eeb2668](https://github.com/lightdash/lightdash/commit/eeb2668c5cfe9ee9e76fbc8036aad3244843ada0))
+
 ## [0.840.2](https://github.com/lightdash/lightdash/compare/0.840.1...0.840.2) (2023-11-02)
 
 
