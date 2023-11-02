@@ -4,7 +4,7 @@ import {
     ApiScheduledDownloadCsv,
     UploadMetricGsheet,
 } from '@lightdash/common';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useQuery, UseQueryOptions } from 'react-query';
 import { lightdashApi } from '../../api';
 import { convertDateFilters } from '../../utils/dateFilter';
@@ -28,25 +28,6 @@ export const useGdriveAccessToken = (
     const [googleLoginPopup, setGoogleLoginPopup] = useState<Window | null>(
         null,
     );
-
-    useEffect(() => {
-        if (googleLoginPopup) {
-            const checkClosed = setInterval(() => {
-                if (googleLoginPopup?.closed) {
-                    setGoogleLoginPopup(
-                        window.open(
-                            gdriveUrl,
-                            'login-popup',
-                            'width=600,height=600',
-                        ),
-                    );
-                }
-            }, 1000);
-            return () => {
-                clearInterval(checkClosed);
-            };
-        }
-    }, [googleLoginPopup, gdriveUrl]);
 
     return useQuery<ApiGdriveAccessTokenResponse['results'], ApiError>({
         queryKey: ['gdrive_access_token'],
