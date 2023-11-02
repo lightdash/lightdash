@@ -109,6 +109,17 @@ const CreateStateContent: FC<{
     return (
         <SchedulerForm
             disabled={createMutation.isLoading}
+            resource={
+                isChart
+                    ? {
+                          uuid: resourceUuid,
+                          type: 'chart',
+                      }
+                    : {
+                          uuid: resourceUuid,
+                          type: 'dashboard',
+                      }
+            }
             onSubmit={handleSubmit}
             confirmText="Create schedule"
             onBack={onBack}
@@ -178,6 +189,19 @@ const UpdateStateContent: FC<{
     }
     return (
         <SchedulerForm
+            resource={
+                scheduler.data &&
+                (scheduler.data.dashboardUuid || scheduler.data.savedChartUuid)
+                    ? {
+                          type: scheduler.data.dashboardUuid
+                              ? 'dashboard'
+                              : 'chart',
+                          uuid:
+                              scheduler.data.dashboardUuid ??
+                              scheduler.data.savedChartUuid,
+                      }
+                    : undefined
+            }
             disabled={mutation.isLoading}
             savedSchedulerData={scheduler.data}
             onSubmit={handleSubmit}
