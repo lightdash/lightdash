@@ -1,8 +1,6 @@
 import {
     CreateSchedulerAndTargetsWithoutIds,
     CreateSchedulerTarget,
-    FilterType,
-    getFilterTypeFromItem,
     isSchedulerCsvOptions,
     isSchedulerImageOptions,
     isSlackTarget,
@@ -16,7 +14,6 @@ import {
     Button,
     Checkbox,
     Collapse,
-    Flex,
     Group,
     HoverCard,
     Input,
@@ -25,7 +22,6 @@ import {
     NumberInput,
     Radio,
     SegmentedControl,
-    Select,
     Space,
     Stack,
     Tabs,
@@ -41,10 +37,6 @@ import {
 } from '@tabler/icons-react';
 import MDEditor, { commands } from '@uiw/react-md-editor';
 import { FC, useCallback, useMemo, useState } from 'react';
-import { FilterTypeConfig } from '../../../components/common/Filters/configs';
-import FieldIcon from '../../../components/common/Filters/FieldIcon';
-import FieldLabel from '../../../components/common/Filters/FieldLabel';
-import { FiltersProvider } from '../../../components/common/Filters/FiltersProvider';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
 import { CronInternalInputs } from '../../../components/ReactHookForm/CronInput';
@@ -52,11 +44,10 @@ import { hasRequiredScopes } from '../../../components/UserSettings/SlackSetting
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import useHealth from '../../../hooks/health/useHealth';
 import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
-import { useProject } from '../../../hooks/useProject';
 import { useGetSlack } from '../../../hooks/useSlack';
-import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { ReactComponent as SlackSvg } from '../../../svgs/slack.svg';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
+import SchedulerFilters from './SchedulerFilters';
 import SchedulersModalFooter from './SchedulerModalFooter';
 
 export enum Limit {
@@ -282,8 +273,6 @@ const SchedulerForm: FC<Props> = ({
     const { data: dashboard } = useDashboardQuery(resource?.uuid, {
         enabled: isDashboard,
     });
-    const { data: project } = useProject(dashboard?.projectUuid);
-    const { allFilters, fieldsWithSuggestions } = useDashboardContext();
 
     const slackQuery = useGetSlack();
     const slackState = useMemo(() => {
@@ -301,8 +290,6 @@ const SchedulerForm: FC<Props> = ({
             return SlackStates.SUCCESS;
         }
     }, [slackQuery]);
-
-    console.log({ allFilters, fieldsWithSuggestions });
 
     const slackChannelsQuery = useSlackChannels();
 
@@ -701,88 +688,7 @@ const SchedulerForm: FC<Props> = ({
 
                 {isDashboard ? (
                     <Tabs.Panel value="filters" p="md">
-                        {dashboard && project ? (
-                            <FiltersProvider
-                                projectUuid={project.projectUuid}
-                                fieldsMap={fieldsWithSuggestions}
-                                startOfWeek={
-                                    project.warehouseConnection?.startOfWeek ??
-                                    undefined
-                                }
-                                dashboardFilters={allFilters}
-                            >
-                                <Stack>
-                                    {dashboard?.filters?.dimensions.map(
-                                        (filter) => {
-                                            const field =
-                                                fieldsWithSuggestions[
-                                                    filter.target.fieldId
-                                                ];
-
-                                            const filterType = field
-                                                ? getFilterTypeFromItem(field)
-                                                : FilterType.STRING;
-
-                                            const filterConfig =
-                                                FilterTypeConfig[filterType];
-
-                                            return (
-                                                <Stack
-                                                    key={filter.id}
-                                                    spacing="xs"
-                                                >
-                                                    <Group spacing="xs">
-                                                        <FieldIcon
-                                                            item={field}
-                                                        />
-                                                        <FieldLabel
-                                                            item={field}
-                                                        />
-                                                    </Group>
-
-                                                    <Flex gap="xs">
-                                                        <Select
-                                                            style={{
-                                                                flex: '0 0 180px',
-                                                            }}
-                                                            size="xs"
-                                                            value={
-                                                                filter.operator
-                                                            }
-                                                            data={
-                                                                filterConfig.operatorOptions
-                                                            }
-                                                            onChange={(
-                                                                value,
-                                                            ) => {
-                                                                console.log(
-                                                                    value,
-                                                                );
-                                                            }}
-                                                        />
-
-                                                        <filterConfig.inputs
-                                                            filterType={
-                                                                filterType
-                                                            }
-                                                            field={field}
-                                                            rule={filter}
-                                                            onChange={(
-                                                                value,
-                                                            ) => {
-                                                                console.log(
-                                                                    value,
-                                                                );
-                                                            }}
-                                                        />
-                                                    </Flex>
-                                                </Stack>
-                                            );
-                                        },
-                                    )}
-                                </Stack>
-                            </FiltersProvider>
-                        ) : null}
+                        <SchedulerFilters dashboard={dashboard} />
                     </Tabs.Panel>
                 ) : null}
 
