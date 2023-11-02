@@ -340,7 +340,7 @@ const SchedulerForm: FC<Props> = ({
                     <Tabs.Tab value="setup" ml="md">
                         Setup
                     </Tabs.Tab>
-                    {isSchedulerFiltersEnabled && isDashboard ? (
+                    {isSchedulerFiltersEnabled && isDashboard && dashboard ? (
                         <Tabs.Tab value="filters">Filters</Tabs.Tab>
                     ) : null}
                     <Tabs.Tab value="customization">Customization</Tabs.Tab>
@@ -690,7 +690,7 @@ const SchedulerForm: FC<Props> = ({
                     </Stack>
                 </Tabs.Panel>
 
-                {isSchedulerFiltersEnabled && isDashboard ? (
+                {isSchedulerFiltersEnabled && isDashboard && dashboard ? (
                     <Tabs.Panel value="filters" p="md">
                         <SchedulerFilters dashboard={dashboard} />
                     </Tabs.Panel>
