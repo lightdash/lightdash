@@ -1,3 +1,10 @@
+# [0.841.0](https://github.com/lightdash/lightdash/compare/0.840.5...0.841.0) (2023-11-02)
+
+
+### Features
+
+* make small UI changes to custom dimensions modal ([#7757](https://github.com/lightdash/lightdash/issues/7757)) ([34ab207](https://github.com/lightdash/lightdash/commit/34ab20707273d46d375b70cdf5526436c719a2c0))
+
 ## [0.840.5](https://github.com/lightdash/lightdash/compare/0.840.4...0.840.5) (2023-11-02)
 
 
