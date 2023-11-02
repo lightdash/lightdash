@@ -94,7 +94,7 @@ const getChartOrDashboard = async (
             minimalUrl: `${lightdashConfig.siteUrl}/minimal/projects/${
                 dashboard.projectUuid
             }/dashboards/${dashboardUuid}${
-                schedulerUuid ? `?schedulerId=${schedulerUuid}` : ''
+                schedulerUuid ? `?schedulerUuid=${schedulerUuid}` : ''
             }`,
             details: {
                 name: dashboard.name,
