@@ -22,7 +22,6 @@ import {
     SuccessResponse,
     Tags,
 } from 'tsoa';
-import { SchedulerService } from '../services/SchedulerService/SchedulerService';
 import { schedulerService } from '../services/services';
 import {
     allowApiKeyAuthentication,
