@@ -7,6 +7,7 @@ import { Knex } from 'knex';
 
 export const ProjectTableName = 'projects';
 export const CachedExploresTableName = 'cached_explores';
+export const CachedExploreTableName = 'cached_explore';
 export const CachedWarehouseTableName = 'cached_warehouse';
 
 export type DbProject = {
@@ -58,6 +59,19 @@ export type DbCachedExplores = {
 };
 
 export type CachedExploresTable = Knex.CompositeTableType<DbCachedExplores>;
+
+export type DbCachedExplore = {
+    cached_explore_uuid: string;
+    project_uuid: string;
+    name: string;
+    table_names: string[];
+    explore: any;
+};
+
+export type CachedExploreTable = Knex.CompositeTableType<
+    DbCachedExplore,
+    Omit<DbCachedExplore, 'cached_explore_uuid'>
+>;
 
 export type DbCachedWarehouse = {
     project_uuid: string;

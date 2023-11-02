@@ -44,6 +44,7 @@ import { PinnedListTableName } from '../../database/entities/pinnedList';
 import { DbProjectMembership } from '../../database/entities/projectMemberships';
 import {
     CachedExploresTableName,
+    CachedExploreTableName,
     CachedWarehouseTableName,
     DbCachedExplores,
     DbCachedWarehouse,
@@ -569,57 +570,121 @@ export class ProjectModel {
         projectUuid: string,
         exploreName: string,
     ): Promise<Explore | ExploreError> {
-        const row = await this.getExploreQueryBuilder(projectUuid).andWhereRaw(
-            "explore->>'name' = ?",
-            [exploreName],
+        return wrapOtelSpan(
+            'ProjectModel.getExploreFromCache',
+            {},
+            async (span) => {
+                // check individually cached explore
+                let exploreCache = await this.database(CachedExploreTableName)
+                    .select('explore')
+                    .where('name', exploreName)
+                    .first();
+
+                console.log('found individual cache?', !!exploreCache);
+                span.setAttribute(
+                    'foundIndividualExploreCache',
+                    !!exploreCache,
+                );
+                if (!exploreCache) {
+                    // fallback: check all cached explores
+                    exploreCache = await this.getExploreQueryBuilder(
+                        projectUuid,
+                    ).andWhereRaw("explore->>'name' = ?", [exploreName]);
+                    if (exploreCache === undefined) {
+                        throw new NotExistsError(
+                            `Explore "${exploreName}" does not exist.`,
+                        );
+                    }
+                }
+                return ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
+                    exploreCache.explore,
+                );
+            },
         );
-        if (row === undefined) {
-            throw new NotExistsError(
-                `Explore "${exploreName}" does not exist.`,
-            );
-        }
-        return ProjectModel.convertMetricFiltersFieldIdsToFieldRef(row.explore);
     }
 
     async findExploreByTableName(
         projectUuid: string,
         tableName: string,
     ): Promise<Explore | ExploreError | undefined> {
-        // try finding explore via base table name
-        let explore = await this.getExploreQueryBuilder(
-            projectUuid,
-        ).andWhereRaw("explore->>'baseTable' = ?", [tableName]);
+        return wrapOtelSpan(
+            'ProjectModel.findExploreByTableName',
+            {},
+            async (span) => {
+                // check individually cached explore
+                let exploreCache = await this.database(CachedExploreTableName)
+                    .select('explore')
+                    .whereRaw('? = ANY(table_names)', tableName)
+                    .first();
 
-        if (!explore) {
-            // try finding explore via joined table alias
-            // Note: there is an edge case where we return the wrong explore because join table aliases are not unique
-            explore = await this.getExploreQueryBuilder(
-                projectUuid,
-            ).andWhereRaw("(explore->>'tables')::json->? IS NOT NULL", [
-                tableName,
-            ]);
-        }
+                console.log('found individual cache?', !!exploreCache);
+                span.setAttribute(
+                    'foundIndividualExploreCache',
+                    !!exploreCache,
+                );
+                if (!exploreCache) {
+                    // fallback: check all cached explores
+                    // try finding explore via base table name
+                    exploreCache = await this.getExploreQueryBuilder(
+                        projectUuid,
+                    ).andWhereRaw("explore->>'baseTable' = ?", [tableName]);
 
-        return explore
-            ? ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
-                  explore.explore,
-              )
-            : undefined;
+                    if (!exploreCache) {
+                        // try finding explore via joined table alias
+                        // Note: there is an edge case where we return the wrong explore because join table aliases are not unique
+                        exploreCache = await this.getExploreQueryBuilder(
+                            projectUuid,
+                        ).andWhereRaw(
+                            "(explore->>'tables')::json->? IS NOT NULL",
+                            [tableName],
+                        );
+                    }
+                }
+
+                return exploreCache
+                    ? ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
+                          exploreCache.explore,
+                      )
+                    : undefined;
+            },
+        );
     }
 
     async saveExploresToCache(
         projectUuid: string,
         explores: (Explore | ExploreError)[],
     ): Promise<DbCachedExplores> {
-        const [cachedExplores] = await this.database(CachedExploresTableName)
-            .insert({
-                project_uuid: projectUuid,
-                explores: JSON.stringify(explores),
-            })
-            .onConflict('project_uuid')
-            .merge()
-            .returning('*');
-        return cachedExplores;
+        return wrapOtelSpan(
+            'ProjectModel.saveExploresToCache',
+            {},
+            async () => {
+                // cache explores individually
+                await this.database(CachedExploreTableName)
+                    .insert(
+                        explores.map((explore) => ({
+                            project_uuid: projectUuid,
+                            name: explore.name,
+                            table_names: Object.keys(explore.tables || {}),
+                            explore: JSON.stringify(explore),
+                        })),
+                    )
+                    .onConflict(['project_uuid', 'name'])
+                    .merge();
+
+                // cache explores together
+                const [cachedExplores] = await this.database(
+                    CachedExploresTableName,
+                )
+                    .insert({
+                        project_uuid: projectUuid,
+                        explores: JSON.stringify(explores),
+                    })
+                    .onConflict('project_uuid')
+                    .merge()
+                    .returning('*');
+                return cachedExplores;
+            },
+        );
     }
 
     async tryAcquireProjectLock(
