@@ -723,25 +723,15 @@ const SchedulerForm: FC<Props> = ({
                                                 ? getFilterTypeFromItem(field)
                                                 : FilterType.STRING;
 
-                                            console.log({
-                                                field,
-                                                type: getFilterTypeFromItem(
-                                                    field,
-                                                ),
-                                                filter,
-                                            });
-
                                             const filterConfig =
                                                 FilterTypeConfig[filterType];
 
                                             return (
-                                                <Flex key={filter.id} gap="xs">
-                                                    <Group
-                                                        spacing="xs"
-                                                        style={{
-                                                            flexShrink: 0,
-                                                        }}
-                                                    >
+                                                <Stack
+                                                    key={filter.id}
+                                                    spacing="xs"
+                                                >
+                                                    <Group spacing="xs">
                                                         <FieldIcon
                                                             item={field}
                                                         />
@@ -750,26 +740,43 @@ const SchedulerForm: FC<Props> = ({
                                                         />
                                                     </Group>
 
-                                                    <Select
-                                                        size="xs"
-                                                        value={filter.operator}
-                                                        data={
-                                                            filterConfig.operatorOptions
-                                                        }
-                                                        onChange={(value) => {
-                                                            console.log(value);
-                                                        }}
-                                                    />
+                                                    <Flex gap="xs">
+                                                        <Select
+                                                            style={{
+                                                                flex: '0 0 180px',
+                                                            }}
+                                                            size="xs"
+                                                            value={
+                                                                filter.operator
+                                                            }
+                                                            data={
+                                                                filterConfig.operatorOptions
+                                                            }
+                                                            onChange={(
+                                                                value,
+                                                            ) => {
+                                                                console.log(
+                                                                    value,
+                                                                );
+                                                            }}
+                                                        />
 
-                                                    <filterConfig.inputs
-                                                        filterType={filterType}
-                                                        field={field}
-                                                        rule={filter}
-                                                        onChange={(value) => {
-                                                            console.log(value);
-                                                        }}
-                                                    />
-                                                </Flex>
+                                                        <filterConfig.inputs
+                                                            filterType={
+                                                                filterType
+                                                            }
+                                                            field={field}
+                                                            rule={filter}
+                                                            onChange={(
+                                                                value,
+                                                            ) => {
+                                                                console.log(
+                                                                    value,
+                                                                );
+                                                            }}
+                                                        />
+                                                    </Flex>
+                                                </Stack>
                                             );
                                         },
                                     )}
