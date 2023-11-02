@@ -3,6 +3,7 @@ import {
     BinType,
     fieldId,
     isCustomDimension,
+    isDimension,
     snakeCaseName,
 } from '@lightdash/common';
 import {
@@ -20,7 +21,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconX } from '@tabler/icons-react';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import MantineIcon from '../../common/MantineIcon';
@@ -44,7 +45,6 @@ export const CustomDimensionModal = () => {
     const toggleModal = useExplorerContext(
         (context) => context.actions.toggleCustomDimensionModal,
     );
-
     const customDimensions = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.customDimensions,
@@ -175,6 +175,18 @@ export const CustomDimensionModal = () => {
         toggleModal();
     });
 
+    const baseDimensionLabel = useMemo(() => {
+        if (item) {
+            if (isEditing && isCustomDimension(item)) {
+                // TODO: Store base dimension label in Custom Dimension
+                return item.dimensionId;
+            } else if (isDimension(item)) {
+                return item.label;
+            }
+            return item.name;
+        }
+    }, [isEditing, item]);
+
     return !!item ? (
         <Modal
             size="lg"
@@ -185,10 +197,15 @@ export const CustomDimensionModal = () => {
                 form.reset();
             }}
             title={
-                <Title order={4}>
-                    {isEditing ? 'Edit' : 'Create'} Custom Dimension -{' '}
-                    {item.name}
-                </Title>
+                <>
+                    <Title order={4}>
+                        {isEditing ? 'Edit' : 'Create'} Custom Dimension
+                        <Text span fw={400}>
+                            {' '}
+                            - {baseDimensionLabel}{' '}
+                        </Text>
+                    </Title>
+                </>
             }
         >
             <form onSubmit={handleOnSubmit}>
@@ -405,7 +422,7 @@ export const CustomDimensionModal = () => {
                     {/* Add results preview */}
 
                     <Button ml="auto" type="submit">
-                        {isEditing ? 'Edit' : 'Create'} custom dimension
+                        {isEditing ? 'Save changes' : 'Create'}
                     </Button>
                 </Stack>
             </form>

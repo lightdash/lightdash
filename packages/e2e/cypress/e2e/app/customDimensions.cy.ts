@@ -17,7 +17,7 @@ describe('Custom dimensions', () => {
         );
         cy.get('.mantine-NumberInput-wrapper').clear().type('5');
 
-        cy.findByText('Create custom dimension').click();
+        cy.findByText('Create').click();
 
         // Select metric
         cy.findByText('Total order amount').click();
