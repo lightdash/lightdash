@@ -233,7 +233,7 @@ const ValidDashboardChartTileMinimal: FC<{
         data: resultData,
         isLoading,
         error,
-    } = useChartResults(data.uuid, data.metricQuery.filters, false);
+    } = useChartResults(data.uuid, data.metricQuery.filters);
     const { data: explore } = useExplore(data.tableName);
 
     const { health } = useApp();
