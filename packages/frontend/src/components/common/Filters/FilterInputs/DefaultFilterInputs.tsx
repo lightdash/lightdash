@@ -22,7 +22,7 @@ export type FilterInputsProps<T extends ConditionalRule> = {
     onChange: (value: T) => void;
     disabled?: boolean;
     popoverProps?: Popover2Props;
-    inModal: boolean;
+    inModal?: boolean;
 };
 
 const DefaultFilterInputs = <T extends ConditionalRule>({
