@@ -1,3 +1,10 @@
+# [0.843.0](https://github.com/lightdash/lightdash/compare/0.842.1...0.843.0) (2023-11-02)
+
+
+### Features
+
+* refresh button clears results cache ([#7772](https://github.com/lightdash/lightdash/issues/7772)) ([99a9729](https://github.com/lightdash/lightdash/commit/99a97295bc7ede4ba9944febcc9f95ca60041e05))
+
 ## [0.842.1](https://github.com/lightdash/lightdash/compare/0.842.0...0.842.1) (2023-11-02)
 
 
