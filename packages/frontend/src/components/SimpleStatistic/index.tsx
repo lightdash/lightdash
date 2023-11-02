@@ -188,7 +188,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                         marginTop: 10,
                     }}
                 >
-                    <Tooltip label={comparisonTooltip}>
+                    <Tooltip withinPortal label={comparisonTooltip}>
                         <BigNumber
                             $fontSize={comparisonFontSize}
                             style={{
