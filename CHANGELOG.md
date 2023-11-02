@@ -1,3 +1,10 @@
+## [0.842.1](https://github.com/lightdash/lightdash/compare/0.842.0...0.842.1) (2023-11-02)
+
+
+### Bug Fixes
+
+* z-index issues in scheduled deliveries ([#7791](https://github.com/lightdash/lightdash/issues/7791)) ([d2f8877](https://github.com/lightdash/lightdash/commit/d2f887745839154179f080774cdaf1b122c57987))
+
 # [0.842.0](https://github.com/lightdash/lightdash/compare/0.841.0...0.842.0) (2023-11-02)
 
 
