@@ -41,7 +41,7 @@ export class SavedChartController extends Controller {
     @Post('/results')
     @OperationId('postChartResults')
     async postDashboardTile(
-        @Body() body: { filters?: FiltersResponse },
+        @Body() body: { filters?: FiltersResponse; invalidateCache?: boolean },
         @Path() chartUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {
@@ -53,8 +53,7 @@ export class SavedChartController extends Controller {
                 chartUuid,
                 filters: body.filters,
                 versionUuid: undefined,
-                invalidateCache:
-                    req.query?.invalidateCache?.toString() === 'true',
+                invalidateCache: body.invalidateCache,
             }),
         };
     }

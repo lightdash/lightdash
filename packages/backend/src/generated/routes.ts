@@ -6465,7 +6465,10 @@ export function RegisterRoutes(app: express.Router) {
                     name: 'body',
                     required: true,
                     dataType: 'nestedObjectLiteral',
-                    nestedProperties: { filters: { ref: 'FiltersResponse' } },
+                    nestedProperties: {
+                        invalidateCache: { dataType: 'boolean' },
+                        filters: { ref: 'FiltersResponse' },
+                    },
                 },
                 chartUuid: {
                     in: 'path',

@@ -7077,6 +7077,9 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "invalidateCache": {
+                                        "type": "boolean"
+                                    },
                                     "filters": {
                                         "$ref": "#/components/schemas/FiltersResponse"
                                     }

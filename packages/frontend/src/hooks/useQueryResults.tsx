@@ -32,11 +32,12 @@ const getChartResults = async ({
     invalidateCache?: boolean;
 }) => {
     return lightdashApi<ApiQueryResults>({
-        url: `/saved/${chartUuid}/results${
-            invalidateCache ? '?invalidateCache=true' : ''
-        }`,
+        url: `/saved/${chartUuid}/results`,
         method: 'POST',
-        body: JSON.stringify({ filters }),
+        body: JSON.stringify({
+            filters,
+            ...(invalidateCache && { invalidateCache: true }),
+        }),
     });
 };
 
