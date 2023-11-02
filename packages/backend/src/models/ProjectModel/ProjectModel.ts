@@ -578,9 +578,9 @@ export class ProjectModel {
                 let exploreCache = await this.database(CachedExploreTableName)
                     .select('explore')
                     .where('name', exploreName)
+                    .andWhere('project_uuid', projectUuid)
                     .first();
 
-                console.log('found individual cache?', !!exploreCache);
                 span.setAttribute(
                     'foundIndividualExploreCache',
                     !!exploreCache,
@@ -615,9 +615,9 @@ export class ProjectModel {
                 let exploreCache = await this.database(CachedExploreTableName)
                     .select('explore')
                     .whereRaw('? = ANY(table_names)', tableName)
+                    .andWhere('project_uuid', projectUuid)
                     .first();
 
-                console.log('found individual cache?', !!exploreCache);
                 span.setAttribute(
                     'foundIndividualExploreCache',
                     !!exploreCache,
