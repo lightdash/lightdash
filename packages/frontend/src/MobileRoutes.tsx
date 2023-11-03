@@ -186,7 +186,7 @@ const MobileRoutes: FC = () => {
                             <PrivateRoute path="/minimal">
                                 <Switch>
                                     <Route path="/minimal/projects/:projectUuid/saved/:savedQueryUuid">
-                                        <Stack p="lg" h="100vh">
+                                        <Stack p="lg" h="90vh">
                                             <MinimalSavedExplorer />
                                         </Stack>
                                     </Route>
