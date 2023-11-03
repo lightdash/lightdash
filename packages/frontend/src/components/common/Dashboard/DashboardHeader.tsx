@@ -22,7 +22,6 @@ import {
     IconInfoCircle,
     IconPencil,
     IconPlus,
-    IconRefresh,
     IconSend,
     IconTrash,
     IconUpload,
@@ -33,9 +32,7 @@ import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { DashboardSchedulersModal } from '../../../features/scheduler';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
-import { useDashboardRefresh } from '../../../hooks/dashboard/useDashboardRefresh';
 import { useApp } from '../../../providers/AppProvider';
-import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
@@ -53,6 +50,7 @@ import SpaceAndDashboardInfo from '../PageHeader/SpaceAndDashboardInfo';
 import { UpdatedInfo } from '../PageHeader/UpdatedInfo';
 import ViewInfo from '../PageHeader/ViewInfo';
 import SpaceActionModal, { ActionType } from '../SpaceActionModal';
+import { DashboardRefreshButton } from './DashboardRefreshButton';
 
 type DashboardHeaderProps = {
     spaces?: SpaceSummary[];
@@ -107,10 +105,7 @@ const DashboardHeader = ({
         dashboardUuid: string;
         organizationUuid: string;
     }>();
-    const { isFetching, invalidateDashboardRelatedQueries } =
-        useDashboardRefresh();
 
-    const { clearCacheAndFetch } = useDashboardContext();
     const history = useHistory();
     const { track } = useTracking();
     const [isUpdating, setIsUpdating] = useState(false);
@@ -140,8 +135,6 @@ const DashboardHeader = ({
         'manage',
         subject('ExportCsv', { organizationUuid, projectUuid }),
     );
-
-    const isOneAtLeastFetching = isFetching > 0;
 
     return (
         <PageHeader h="auto">
@@ -260,19 +253,7 @@ const DashboardHeader = ({
                 </PageActionsContainer>
             ) : (
                 <PageActionsContainer>
-                    {userCanExportData && (
-                        <Button
-                            size="xs"
-                            loading={isOneAtLeastFetching}
-                            leftIcon={<MantineIcon icon={IconRefresh} />}
-                            onClick={() => {
-                                clearCacheAndFetch();
-                                invalidateDashboardRelatedQueries();
-                            }}
-                        >
-                            Refresh
-                        </Button>
-                    )}
+                    {userCanExportData && <DashboardRefreshButton />}
 
                     {!!userCanManageDashboard && (
                         <Tooltip
