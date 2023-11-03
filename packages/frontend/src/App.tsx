@@ -5,8 +5,7 @@ import { QueryClient, QueryClientProvider } from 'react-query';
 import { ReactQueryDevtools } from 'react-query/devtools';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { AbilityContext } from './components/common/Authorization';
-import MobileView from './components/Mobile';
-
+import MobileRoutes from './MobileRoutes';
 import { ActiveJobProvider } from './providers/ActiveJobProvider';
 import { AppProvider } from './providers/AppProvider';
 import { BlueprintProvider } from './providers/BlueprintProvider';
@@ -61,7 +60,7 @@ const App = () => (
                                         <ActiveJobProvider>
                                             <ErrorLogsProvider>
                                                 {isMobile ? (
-                                                    <MobileView />
+                                                    <MobileRoutes />
                                                 ) : (
                                                     <Routes />
                                                 )}
