@@ -406,7 +406,7 @@ export const stringFilterRuleMocks = {
         ...stringMultiValueFilter,
         operator: FilterOperator.INCLUDE,
     },
-    includeFilterWithMultiValSQL: `LOWER(${stringFilterDimension}) LIKE LOWER('%Tom%')\n  OR\n  LOWER(${stringFilterDimension}) LIKE LOWER('%Jerry%')`,
+    includeFilterWithMultiValSQL: `(LOWER(${stringFilterDimension}) LIKE LOWER('%Tom%')\n  OR\n  LOWER(${stringFilterDimension}) LIKE LOWER('%Jerry%'))`,
     includeFilterWithNoVal: {
         ...noValueFilter,
         operator: FilterOperator.INCLUDE,
