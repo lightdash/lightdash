@@ -10,10 +10,12 @@ import {
 import { ValidationService } from './ValidationService';
 import {
     chart,
+    chartWithJoinedField,
     config,
     dashboard,
     explore,
     exploreError,
+    exploreWithJoin,
     exploreWithoutDimension,
     exploreWithoutMetric,
     project,
@@ -208,5 +210,19 @@ describe('validation', () => {
         expect(errors[0].error).toEqual(
             'Model "valid_explore" has a dimension reference: ${is_completed} which matches no dimension',
         );
+    });
+    it('Should validate fields from joined explores', async () => {
+        (projectModel.getExploresFromCache as jest.Mock).mockImplementationOnce(
+            async () => [explore, exploreWithJoin],
+        );
+        (savedChartModel.get as jest.Mock).mockImplementationOnce(
+            async () => chartWithJoinedField,
+        );
+
+        const errors = await validationService.generateValidation(
+            chart.projectUuid,
+        );
+
+        expect(errors.length).toEqual(0);
     });
 });

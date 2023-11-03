@@ -212,13 +212,13 @@ export class ValidationService {
             const chartTableCalculationIds =
                 chart.metricQuery.tableCalculations?.map(getItemId) || [];
 
-            const availableDimensionsIds =
+            const availableDimensionIds =
                 exploreFields[tableName]?.dimensionIds || [];
-            const avaialbleMetricsIds =
+            const availableMetricIds =
                 exploreFields[tableName]?.metricIds || [];
             const allItemIdsAvailableInChart = [
-                ...availableDimensionsIds,
-                ...avaialbleMetricsIds,
+                ...availableDimensionIds,
+                ...availableMetricIds,
                 ...chartCustomMetricIds,
                 ...chartTableCalculationIds,
             ];
@@ -265,7 +265,7 @@ export class ValidationService {
                 (acc, field) =>
                     containsFieldId({
                         acc,
-                        fieldIds: availableDimensionsIds,
+                        fieldIds: availableDimensionIds,
                         fieldId: field,
                         error: `Dimension error: the field '${field}' no longer exists`,
                         errorType: ValidationErrorType.Dimension,
@@ -280,7 +280,7 @@ export class ValidationService {
                     containsFieldId({
                         acc,
                         fieldIds: [
-                            ...avaialbleMetricsIds,
+                            ...availableMetricIds,
                             ...chartCustomMetricIds,
                         ],
                         fieldId: field,
@@ -481,7 +481,8 @@ export class ValidationService {
             explores?.reduce<
                 Record<string, { dimensionIds: string[]; metricIds: string[] }>
             >((acc, explore) => {
-                if (isExploreError(explore)) return acc;
+                if (isExploreError(explore) || explore?.tables === undefined)
+                    return acc;
                 const dimensions = Object.values(explore.tables).flatMap(
                     (table) => Object.values(table.dimensions),
                 );
@@ -490,7 +491,7 @@ export class ValidationService {
                 );
                 return {
                     ...acc,
-                    [explore.name]: {
+                    [explore.baseTable]: {
                         dimensionIds: dimensions.map(getFieldId),
                         metricIds: metrics.map(getFieldId),
                     },
