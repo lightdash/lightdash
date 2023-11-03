@@ -1,3 +1,10 @@
+# [0.845.0](https://github.com/lightdash/lightdash/compare/0.844.3...0.845.0) (2023-11-03)
+
+
+### Features
+
+* add filters to schedulers ([#7794](https://github.com/lightdash/lightdash/issues/7794)) ([da67aac](https://github.com/lightdash/lightdash/commit/da67aac057dd722d46af63b58c5ef6ad3d4bf3dc))
+
 ## [0.844.3](https://github.com/lightdash/lightdash/compare/0.844.2...0.844.3) (2023-11-03)
 
 
