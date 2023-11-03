@@ -1,3 +1,10 @@
+# [0.849.0](https://github.com/lightdash/lightdash/compare/0.848.0...0.849.0) (2023-11-03)
+
+
+### Features
+
+* mobile routes ([#7802](https://github.com/lightdash/lightdash/issues/7802)) ([aa0e9c8](https://github.com/lightdash/lightdash/commit/aa0e9c8f5c3ee860f6242d3f196d2d07db0c672b))
+
 # [0.848.0](https://github.com/lightdash/lightdash/compare/0.847.2...0.848.0) (2023-11-03)
 
 
