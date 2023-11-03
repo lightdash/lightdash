@@ -30,16 +30,15 @@ import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
 import { useActiveProjectUuid } from './hooks/useActiveProject';
 import useLogoutMutation from './hooks/user/useUserLogoutMutation';
-import Home from './pages/Home';
 import Login from './pages/Login';
 import MinimalDashboard from './pages/MinimalDashboard';
 import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
+import MobileCharts from './pages/MobileCharts';
+import MobileDashboards from './pages/MobileDashboards';
+import MobileSpace from './pages/MobileSpace';
+import MobileSpaces from './pages/MobileSpaces';
 import Projects from './pages/Projects';
-import SavedDashboards from './pages/SavedDashboards';
-import SavedQueries from './pages/SavedQueries';
 import ShareRedirect from './pages/ShareRedirect';
-import Space from './pages/Space';
-import Spaces from './pages/Spaces';
 import { TrackPage } from './providers/TrackingProvider';
 import { ReactComponent as Logo } from './svgs/logo-icon.svg';
 import { PageName } from './types/Events';
@@ -211,7 +210,7 @@ const MobileRoutes: FC = () => {
                                         <TrackPage
                                             name={PageName.SAVED_QUERIES}
                                         >
-                                            <SavedQueries />
+                                            <MobileCharts />
                                         </TrackPage>
                                     </Route>
 
@@ -219,19 +218,19 @@ const MobileRoutes: FC = () => {
                                         <TrackPage
                                             name={PageName.SAVED_DASHBOARDS}
                                         >
-                                            <SavedDashboards />
+                                            <MobileDashboards />
                                         </TrackPage>
                                     </Route>
 
                                     <Route path="/projects/:projectUuid/spaces/:spaceUuid">
                                         <TrackPage name={PageName.SPACE}>
-                                            <Space />
+                                            <MobileSpace />
                                         </TrackPage>
                                     </Route>
 
                                     <Route path="/projects/:projectUuid/spaces">
                                         <TrackPage name={PageName.SPACES}>
-                                            <Spaces />
+                                            <MobileSpaces />
                                         </TrackPage>
                                     </Route>
 
@@ -240,7 +239,7 @@ const MobileRoutes: FC = () => {
                                         exact
                                     >
                                         <TrackPage name={PageName.HOME}>
-                                            <Home />
+                                            <MobileSpaces />
                                         </TrackPage>
                                     </Route>
 
