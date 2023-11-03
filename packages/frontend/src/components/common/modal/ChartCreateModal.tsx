@@ -198,6 +198,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    data-testid="ChartCreateModal/NameInput"
                 />
                 <TextInput
                     label="Chart description"
