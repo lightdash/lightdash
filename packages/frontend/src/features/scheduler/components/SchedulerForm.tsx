@@ -328,9 +328,6 @@ const SchedulerForm: FC<Props> = ({
     const isAddEmailDisabled = disabled || !health.data?.hasEmailClient;
     const isImageDisabled = !health.data?.hasHeadlessBrowser;
 
-    const showDestinationLabel =
-        form.values?.emailTargets.length + form.values?.slackTargets.length < 1;
-
     const limit = form.values?.options?.limit;
 
     return (
@@ -520,14 +517,7 @@ const SchedulerForm: FC<Props> = ({
                             )}
                         </Stack>
 
-                        <Input.Wrapper
-                            label="Destinations"
-                            description={
-                                showDestinationLabel
-                                    ? 'No destination(s) selected'
-                                    : ''
-                            }
-                        >
+                        <Input.Wrapper label="Destinations">
                             <Stack mt="sm">
                                 <Group noWrap>
                                     <MantineIcon
