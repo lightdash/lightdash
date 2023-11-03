@@ -11,9 +11,7 @@ import {
     wrapResource,
 } from '@lightdash/common';
 import { IconLayoutDashboard } from '@tabler/icons-react';
-import ResourceView, {
-    ResourceViewCommonProps,
-} from '../components/common/ResourceView';
+import ResourceView from '../components/common/ResourceView';
 import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
 import { useProjectSavedChartStatus } from '../hooks/useOnboardingStatus';
@@ -56,28 +54,6 @@ const MobileHome: FC = () => {
         return [...pinnedItemsWithCategory, ...mostPopularItems];
     }, [mostPopularAndRecentlyUpdated, pinnedItems]);
 
-    const tabs = useMemo(() => {
-        if (pinnedItems.length > 0) {
-            const defaultTabs: ResourceViewCommonProps['tabs'] = [
-                {
-                    id: 'pinned',
-                    name: 'Pinned',
-                    filter: (item) =>
-                        'category' in item &&
-                        item.category === ResourceItemCategory.PINNED,
-                },
-                {
-                    id: 'most-popular',
-                    name: 'Most popular',
-                    filter: (item) =>
-                        'category' in item &&
-                        item.category === ResourceItemCategory.MOST_POPULAR,
-                },
-            ];
-            return defaultTabs;
-        }
-    }, [pinnedItems]);
-
     const isLoading =
         project.isLoading ||
         savedChartStatus.isLoading ||
@@ -115,7 +91,28 @@ const MobileHome: FC = () => {
             </Stack>
             <ResourceView
                 items={items}
-                tabs={tabs}
+                tabs={
+                    pinnedItems.length > 0
+                        ? [
+                              {
+                                  id: 'pinned',
+                                  name: 'Pinned',
+                                  filter: (item) =>
+                                      'category' in item &&
+                                      item.category ===
+                                          ResourceItemCategory.PINNED,
+                              },
+                              {
+                                  id: 'most-popular',
+                                  name: 'Most popular',
+                                  filter: (item) =>
+                                      'category' in item &&
+                                      item.category ===
+                                          ResourceItemCategory.MOST_POPULAR,
+                              },
+                          ]
+                        : undefined
+                }
                 listProps={{
                     defaultSort: { updatedAt: SortDirection.DESC },
                     defaultColumnVisibility: {
