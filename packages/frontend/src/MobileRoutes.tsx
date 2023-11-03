@@ -35,6 +35,7 @@ import MinimalDashboard from './pages/MinimalDashboard';
 import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
 import MobileCharts from './pages/MobileCharts';
 import MobileDashboards from './pages/MobileDashboards';
+import MobileHome from './pages/MobileHome';
 import MobileSpace from './pages/MobileSpace';
 import MobileSpaces from './pages/MobileSpaces';
 import Projects from './pages/Projects';
@@ -239,7 +240,7 @@ const MobileRoutes: FC = () => {
                                         exact
                                     >
                                         <TrackPage name={PageName.HOME}>
-                                            <MobileSpaces />
+                                            <MobileHome />
                                         </TrackPage>
                                     </Route>
 
