@@ -2,7 +2,7 @@ import { Button, Menu, Text, Tooltip } from '@mantine/core';
 import { useInterval } from '@mantine/hooks';
 import { IconChevronDown, IconRefresh } from '@tabler/icons-react';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useDashboardRefresh } from '../../../hooks/dashboard/useDashboardRefresh';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
@@ -41,7 +41,6 @@ const REFRESH_INTERVAL_OPTIONS = [
 
 const DashboardRefreshButtonWithAutoRefresh = () => {
     const { showToastSuccess } = useToaster();
-    const intervalIdRef = useRef<NodeJS.Timeout | null>(null);
     const [isOpen, setIsOpen] = useState(false);
     const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
     const [refreshInterval, setRefreshInterval] = useState<
@@ -97,7 +96,7 @@ const DashboardRefreshButtonWithAutoRefresh = () => {
                         invalidateAndSetRefreshTime();
                     }}
                 >
-                    {intervalIdRef && refreshInterval ? (
+                    {interval.active && refreshInterval ? (
                         <Text
                             span
                             mr="xs"
