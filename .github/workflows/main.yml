@@ -57,7 +57,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           file: dockerfile
-          push: &shouldPushImage ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: ${{ matrix.platform }}
@@ -80,7 +80,8 @@ jobs:
   # This step "merges" multiple images for various architectures into a single image
   docker-merge:
     runs-on: ubuntu-latest
-    if: *shouldPushImage
+    # Should be kept in sync with the jobs.docker-build.steps.build.with.push condition
+    if: ${{ github.event_name != 'pull_request' }}
     needs:
       - docker-build
     steps:
