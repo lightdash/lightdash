@@ -52,8 +52,12 @@ const App = () => (
                 <BlueprintProvider>
                     <AppProvider>
                         <Router>
-                            <ThirdPartyProvider enabled={!isMinimalPage}>
-                                <TrackingProvider enabled={!isMinimalPage}>
+                            <ThirdPartyProvider
+                                enabled={isMobile || !isMinimalPage}
+                            >
+                                <TrackingProvider
+                                    enabled={isMobile || !isMinimalPage}
+                                >
                                     <AbilityContext.Provider
                                         value={defaultAbility}
                                     >
