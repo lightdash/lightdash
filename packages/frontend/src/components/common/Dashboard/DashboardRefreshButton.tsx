@@ -106,11 +106,7 @@ const DashboardRefreshButtonWithAutoRefresh = () => {
                     loading={isOneAtLeastFetching}
                     loaderPosition="center"
                     onClick={() => {
-                        if (intervalIdRef && refreshInterval) {
-                            setIsOpen((prev) => !prev);
-                        } else {
-                            invalidateAndSetRefreshTime();
-                        }
+                        invalidateAndSetRefreshTime();
                     }}
                 >
                     {intervalIdRef && refreshInterval ? (
