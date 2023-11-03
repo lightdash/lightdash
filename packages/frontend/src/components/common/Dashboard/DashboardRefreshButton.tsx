@@ -1,4 +1,5 @@
 import { Button, Menu, Text, Tooltip } from '@mantine/core';
+import { useInterval } from '@mantine/hooks';
 import { IconChevronDown, IconRefresh } from '@tabler/icons-react';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -59,30 +60,17 @@ const DashboardRefreshButtonWithAutoRefresh = () => {
         setLastRefreshTime(new Date());
     }, [clearCacheAndFetch, invalidateDashboardRelatedQueries]);
 
+    const interval = useInterval(
+        () => invalidateAndSetRefreshTime(),
+        refreshInterval ? refreshInterval * 1000 * 60 : 0,
+    );
+
     useEffect(() => {
-        // Clear existing interval when refreshInterval changes or on unmount
-        const clearExistingInterval = () => {
-            if (intervalIdRef.current) {
-                clearInterval(intervalIdRef.current);
-                intervalIdRef.current = null;
-            }
-        };
-
         if (refreshInterval !== undefined) {
-            showToastSuccess({
-                title: `Your dashboard will refresh every ${
-                    REFRESH_INTERVAL_OPTIONS.find(
-                        ({ value }) => refreshInterval === +value,
-                    )?.label
-                }`,
-            });
-            intervalIdRef.current = setInterval(() => {
-                invalidateAndSetRefreshTime();
-            }, refreshInterval * 1000 * 60);
+            interval.start();
         }
-
-        return clearExistingInterval;
-    }, [invalidateAndSetRefreshTime, refreshInterval, showToastSuccess]);
+        return interval.stop;
+    }, [interval, refreshInterval, showToastSuccess]);
 
     return (
         <Button.Group>
@@ -176,6 +164,13 @@ const DashboardRefreshButtonWithAutoRefresh = () => {
                             key={value}
                             onClick={() => {
                                 setRefreshInterval(+value);
+                                showToastSuccess({
+                                    title: `Your dashboard will refresh every ${
+                                        REFRESH_INTERVAL_OPTIONS.find(
+                                            (option) => value === option.value,
+                                        )?.label
+                                    }`,
+                                });
                             }}
                             bg={refreshInterval === +value ? 'blue' : 'white'}
                             disabled={refreshInterval === +value}
