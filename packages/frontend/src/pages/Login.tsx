@@ -41,7 +41,7 @@ const loginQuery = async (data: LoginParams) =>
         body: JSON.stringify(data),
     });
 
-const Login: FC = () => {
+const LoginContent: FC = () => {
     const location = useLocation<{ from?: Location } | undefined>();
     const { health } = useApp();
     const { showToastError } = useToaster();
@@ -179,21 +179,33 @@ const Login: FC = () => {
     );
 
     return (
+        <>
+            <Image
+                src={LightdashLogo}
+                alt="lightdash logo"
+                width={130}
+                mx="auto"
+                my="lg"
+            />
+            <Card p="xl" radius="xs" withBorder shadow="xs">
+                <Title order={3} ta="center" mb="md">
+                    Sign in
+                </Title>
+                {logins}
+            </Card>
+        </>
+    );
+};
+
+const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
+    return minimal ? (
+        <Stack m="xl">
+            <LoginContent />
+        </Stack>
+    ) : (
         <Page title="Login" withCenteredContent withNavbar={false}>
             <Stack w={400} mt="4xl">
-                <Image
-                    src={LightdashLogo}
-                    alt="lightdash logo"
-                    width={130}
-                    mx="auto"
-                    my="lg"
-                />
-                <Card p="xl" radius="xs" withBorder shadow="xs">
-                    <Title order={3} ta="center" mb="md">
-                        Sign in
-                    </Title>
-                    {logins}
-                </Card>
+                <LoginContent />
             </Stack>
         </Page>
     );
