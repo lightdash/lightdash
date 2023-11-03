@@ -154,7 +154,7 @@ const MobileRoutes: FC = () => {
         <Switch>
             <Route path="/login">
                 <TrackPage name={PageName.LOGIN}>
-                    <Login />
+                    <Login minimal={true} />
                 </TrackPage>
             </Route>
             <Route path="/no-mobile-page">
