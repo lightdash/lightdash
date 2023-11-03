@@ -1,4 +1,5 @@
 import { Explore, ExploreError } from './explore';
+import { DashboardFilterRule } from './filter';
 import { MetricQuery } from './metricQuery';
 
 export type SchedulerCsvOptions = {
@@ -76,9 +77,15 @@ export type ChartScheduler = SchedulerBase & {
     savedChartUuid: string;
     dashboardUuid: null;
 };
+
+export const isDashboardScheduler = (
+    scheduler: Scheduler | CreateSchedulerAndTargets,
+): scheduler is DashboardScheduler => scheduler.dashboardUuid !== undefined;
+
 export type DashboardScheduler = SchedulerBase & {
     savedChartUuid: null;
     dashboardUuid: string;
+    filters?: DashboardFilterRule[];
 };
 
 export type Scheduler = ChartScheduler | DashboardScheduler;
@@ -144,13 +151,14 @@ export type CreateSchedulerAndTargetsWithoutIds = Omit<
 export type UpdateSchedulerAndTargets = Pick<
     Scheduler,
     'schedulerUuid' | 'name' | 'message' | 'cron' | 'format' | 'options'
-> & {
-    targets: Array<
-        | CreateSchedulerTarget
-        | UpdateSchedulerSlackTarget
-        | UpdateSchedulerEmailTarget
-    >;
-};
+> &
+    Pick<DashboardScheduler, 'filters'> & {
+        targets: Array<
+            | CreateSchedulerTarget
+            | UpdateSchedulerSlackTarget
+            | UpdateSchedulerEmailTarget
+        >;
+    };
 
 export type UpdateSchedulerAndTargetsWithoutId = Omit<
     UpdateSchedulerAndTargets,
