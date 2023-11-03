@@ -193,16 +193,11 @@ export class ValidationService {
 
     private async validateCharts(
         projectUuid: string,
-        explorerFields: CompiledField[],
-        explores: Explore[],
+        exploreFields: Record<
+            string,
+            { dimensionIds: string[]; metricIds: string[] }
+        >,
     ): Promise<CreateChartValidation[]> {
-        const explorerDimensionIds = explorerFields
-            .filter(isDimension)
-            .map(getFieldId);
-        const explorerMetricIds = explorerFields
-            .filter(isMetric)
-            .map(getFieldId);
-
         const chartSummaries = await this.savedChartModel.find({ projectUuid });
         const charts = await Promise.all(
             chartSummaries.map((chartSummary) =>
@@ -211,14 +206,19 @@ export class ValidationService {
         );
 
         const results = charts.flatMap((chart) => {
+            const { tableName } = chart;
             const chartCustomMetricIds =
                 chart.metricQuery.additionalMetrics?.map(getItemId) || [];
             const chartTableCalculationIds =
                 chart.metricQuery.tableCalculations?.map(getItemId) || [];
 
+            const availableDimensionsIds =
+                exploreFields[tableName]?.dimensionIds || [];
+            const avaialbleMetricsIds =
+                exploreFields[tableName]?.metricIds || [];
             const allItemIdsAvailableInChart = [
-                ...explorerDimensionIds,
-                ...explorerMetricIds,
+                ...availableDimensionsIds,
+                ...avaialbleMetricsIds,
                 ...chartCustomMetricIds,
                 ...chartTableCalculationIds,
             ];
@@ -245,20 +245,7 @@ export class ValidationService {
                 CreateChartValidation,
                 'error' | 'errorType' | 'fieldName'
             >) => {
-                const { tableName } = chart;
-                const joinedTables =
-                    explores
-                        .find((e) => e.name === tableName)
-                        ?.joinedTables.map((jt) => jt.table) || [];
-                const validTables = [tableName, ...joinedTables];
-                const isValidJoinedField = (fId: string) => {
-                    if (chartCustomMetricIds.includes(fieldId)) return true;
-                    const field = explorerFields.find(
-                        (f) => getFieldId(f) === fId,
-                    );
-                    return field && validTables.includes(field.table);
-                };
-                if (!fieldIds?.filter(isValidJoinedField).includes(fieldId)) {
+                if (!fieldIds?.includes(fieldId)) {
                     return [
                         ...acc,
                         {
@@ -278,7 +265,7 @@ export class ValidationService {
                 (acc, field) =>
                     containsFieldId({
                         acc,
-                        fieldIds: explorerDimensionIds,
+                        fieldIds: availableDimensionsIds,
                         fieldId: field,
                         error: `Dimension error: the field '${field}' no longer exists`,
                         errorType: ValidationErrorType.Dimension,
@@ -293,7 +280,7 @@ export class ValidationService {
                     containsFieldId({
                         acc,
                         fieldIds: [
-                            ...explorerMetricIds,
+                            ...avaialbleMetricsIds,
                             ...chartCustomMetricIds,
                         ],
                         fieldId: field,
@@ -490,6 +477,26 @@ export class ValidationService {
                 ? compiledExplores
                 : await this.projectModel.getExploresFromCache(projectUuid);
 
+        const exploreFields =
+            explores?.reduce<
+                Record<string, { dimensionIds: string[]; metricIds: string[] }>
+            >((acc, explore) => {
+                if (isExploreError(explore)) return acc;
+                const dimensions = Object.values(explore.tables).flatMap(
+                    (table) => Object.values(table.dimensions),
+                );
+                const metrics = Object.values(explore.tables).flatMap((table) =>
+                    Object.values(table.metrics),
+                );
+                return {
+                    ...acc,
+                    [explore.name]: {
+                        dimensionIds: dimensions.map(getFieldId),
+                        metricIds: metrics.map(getFieldId),
+                    },
+                };
+            }, {}) || {};
+
         const existingFields = explores?.reduce<CompiledField[]>(
             (acc, explore) => {
                 if (!explore.tables) return acc;
@@ -516,8 +523,7 @@ export class ValidationService {
         const tableErrors = await this.validateTables(projectUuid, explores);
         const chartErrors = await this.validateCharts(
             projectUuid,
-            existingFields,
-            explores?.filter((e) => !isExploreError(e)) as Explore[],
+            exploreFields,
         );
         const dashboardErrors = await this.validateDashboards(
             projectUuid,
