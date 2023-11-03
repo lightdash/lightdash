@@ -28,15 +28,7 @@ import FilterYearPicker from './FilterYearPicker';
 const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
     props: React.PropsWithChildren<FilterInputsProps<T>>,
 ) => {
-    const {
-        field,
-        rule,
-        onChange,
-        popoverProps,
-        disabled,
-        filterType,
-        inModal,
-    } = props;
+    const { field, rule, onChange, popoverProps, disabled, filterType } = props;
     const { startOfWeek } = useFiltersContext();
     const isTimestamp =
         isField(field) && field.type === DimensionType.TIMESTAMP;
@@ -91,20 +83,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                     firstDayOfWeek={getFirstDayOfWeek(
                                         startOfWeek,
                                     )}
-                                    // FIXME: remove this once we migrate off of Blueprint
-                                    // we are doing type conversion here because Blueprint expects DOM element
-                                    // Mantine does not provide a DOM element on onOpen/onClose
-                                    popoverProps={{
-                                        onOpen: () =>
-                                            popoverProps?.onOpened?.(
-                                                null as any,
-                                            ),
-                                        onClose: () =>
-                                            popoverProps?.onClose?.(
-                                                null as any,
-                                            ),
-                                        withinPortal: inModal,
-                                    }}
+                                    popoverProps={popoverProps}
                                     onChange={(value: Date | null) => {
                                         onChange({
                                             ...rule,
@@ -126,16 +105,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             <FilterMonthAndYearPicker
                                 disabled={disabled}
                                 placeholder={placeholder}
-                                // FIXME: remove this once we migrate off of Blueprint
-                                // we are doing type conversion here because Blueprint expects DOM element
-                                // Mantine does not provide a DOM element on onOpen/onClose
-                                popoverProps={{
-                                    onOpen: () =>
-                                        popoverProps?.onOpened?.(null as any),
-                                    onClose: () =>
-                                        popoverProps?.onClose?.(null as any),
-                                    withinPortal: inModal,
-                                }}
+                                popoverProps={popoverProps}
                                 value={
                                     rule.values && rule.values[0]
                                         ? parseDate(
@@ -162,16 +132,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             <FilterYearPicker
                                 disabled={disabled}
                                 placeholder={placeholder}
-                                // FIXME: remove this once we migrate off of Blueprint
-                                // we are doing type conversion here because Blueprint expects DOM element
-                                // Mantine does not provide a DOM element on onOpen/onClose
-                                popoverProps={{
-                                    onOpen: () =>
-                                        popoverProps?.onOpened?.(null as any),
-                                    onClose: () =>
-                                        popoverProps?.onClose?.(null as any),
-                                    withinPortal: inModal,
-                                }}
+                                popoverProps={popoverProps}
                                 value={
                                     rule.values && rule.values[0]
                                         ? parseDate(
@@ -211,14 +172,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         // mantine does not set the first day of the week based on the locale
                         // so we need to do it manually and always pass it as a prop
                         firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
-                        // FIXME: remove this once we migrate off of Blueprint
-                        // we are doing type conversion here because Blueprint expects DOM element
-                        // Mantine does not provide a DOM element on onOpen/onClose
-                        popoverProps={{
-                            onOpen: () => popoverProps?.onOpened?.(null as any),
-                            onClose: () => popoverProps?.onClose?.(null as any),
-                            withinPortal: inModal,
-                        }}
+                        popoverProps={popoverProps}
                         value={
                             rule.values
                                 ? parseDate(
@@ -256,14 +210,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     // mantine does not set the first day of the week based on the locale
                     // so we need to do it manually and always pass it as a prop
                     firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
-                    // FIXME: remove this once we migrate off of Blueprint
-                    // we are doing type conversion here because Blueprint expects DOM element
-                    // Mantine does not provide a DOM element on onOpen/onClose
-                    popoverProps={{
-                        onOpen: () => popoverProps?.onOpened?.(null as any),
-                        onClose: () => popoverProps?.onClose?.(null as any),
-                        withinPortal: inModal,
-                    }}
+                    popoverProps={popoverProps}
                     value={
                         rule.values
                             ? parseDate(
@@ -309,8 +256,9 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         isTimestamp={isTimestamp}
                         unitOfTime={rule.settings?.unitOfTime}
                         completed={rule.settings?.completed || false}
-                        popoverProps={popoverProps}
-                        withinPortal={inModal}
+                        withinPortal={popoverProps?.withinPortal}
+                        onDropdownOpen={popoverProps?.onOpen}
+                        onDropdownClose={popoverProps?.onClose}
                         onChange={(value) =>
                             onChange({
                                 ...rule,
@@ -333,7 +281,9 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     showOptionsInPlural={false}
                     showCompletedOptions={false}
                     completed={false}
-                    popoverProps={popoverProps}
+                    withinPortal={popoverProps?.withinPortal}
+                    onDropdownOpen={popoverProps?.onOpen}
+                    onDropdownClose={popoverProps?.onClose}
                     onChange={(value) =>
                         onChange({
                             ...rule,
@@ -343,7 +293,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             },
                         })
                     }
-                    withinPortal={inModal}
                 />
             );
         case FilterOperator.IN_BETWEEN:
@@ -372,14 +321,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                   ]
                                 : null
                         }
-                        // FIXME: remove this once we migrate off of Blueprint
-                        // we are doing type conversion here because Blueprint expects DOM element
-                        // Mantine does not provide a DOM element on onOpen/onClose
-                        popoverProps={{
-                            onOpen: () => popoverProps?.onOpened?.(null as any),
-                            onClose: () => popoverProps?.onClose?.(null as any),
-                            withinPortal: inModal,
-                        }}
+                        popoverProps={popoverProps}
                         onChange={(value: [Date, Date] | null) => {
                             onChange({
                                 ...rule,
@@ -425,14 +367,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                               ]
                             : null
                     }
-                    // FIXME: remove this once we migrate off of Blueprint
-                    // we are doing type conversion here because Blueprint expects DOM element
-                    // Mantine does not provide a DOM element on onOpen/onClose
-                    popoverProps={{
-                        onOpen: () => popoverProps?.onOpened?.(null as any),
-                        onClose: () => popoverProps?.onClose?.(null as any),
-                        withinPortal: inModal,
-                    }}
+                    popoverProps={popoverProps}
                     onChange={(value: [Date, Date] | null) => {
                         onChange({
                             ...rule,

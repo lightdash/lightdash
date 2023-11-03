@@ -1,4 +1,3 @@
-import { Popover2Props } from '@blueprintjs/popover2';
 import {
     assertUnreachable,
     ConditionalRule,
@@ -7,6 +6,7 @@ import {
     FilterType,
     isFilterRule,
 } from '@lightdash/common';
+import { PopoverProps } from '@mantine/core';
 import isString from 'lodash-es/isString';
 import { PropsWithChildren } from 'react';
 import { TagInput } from '../../TagInput/TagInput';
@@ -21,8 +21,7 @@ export type FilterInputsProps<T extends ConditionalRule> = {
     rule: T;
     onChange: (value: T) => void;
     disabled?: boolean;
-    popoverProps?: Popover2Props;
-    inModal?: boolean;
+    popoverProps?: PopoverProps;
 };
 
 const DefaultFilterInputs = <T extends ConditionalRule>({
@@ -31,7 +30,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
     rule,
     disabled,
     onChange,
-    inModal,
+    popoverProps,
 }: PropsWithChildren<FilterInputsProps<T>>) => {
     const { getField } = useFiltersContext();
     const suggestions = isFilterRule(rule)
@@ -64,15 +63,15 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                             disabled={disabled}
                             field={field}
                             placeholder={placeholder}
-                            values={(rule.values || []).filter(isString)}
                             suggestions={suggestions || []}
+                            withinPortal={popoverProps?.withinPortal}
+                            values={(rule.values || []).filter(isString)}
                             onChange={(values) =>
                                 onChange({
                                     ...rule,
                                     values,
                                 })
                             }
-                            withinPortal={inModal}
                         />
                     );
 

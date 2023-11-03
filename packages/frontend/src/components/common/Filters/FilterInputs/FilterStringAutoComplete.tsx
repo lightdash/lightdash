@@ -15,10 +15,7 @@ import {
 } from '../../../../hooks/useFieldValues';
 import { useFiltersContext } from '../FiltersProvider';
 
-type Props = Pick<
-    MultiSelectProps,
-    'disabled' | 'placeholder' | 'withinPortal'
-> & {
+type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
     filterId: string;
     field: FilterableItem;
     values: string[];

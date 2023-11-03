@@ -32,7 +32,7 @@ const FilterRuleForm: FC<Props> = ({
     onDelete,
     onConvertToGroup,
 }) => {
-    const { inModal } = useFiltersContext();
+    const { popoverProps } = useFiltersContext();
     const activeField = fields.find(
         (field) => getFieldId(field) === filterRule.target.fieldId,
     );
@@ -80,7 +80,9 @@ const FilterRuleForm: FC<Props> = ({
                     <FieldSelect
                         size="xs"
                         disabled={!isEditMode}
-                        withinPortal={inModal}
+                        withinPortal={popoverProps?.withinPortal}
+                        onDropdownOpen={popoverProps?.onOpen}
+                        onDropdownClose={popoverProps?.onClose}
                         hasGrouping
                         item={activeField}
                         items={fields}
@@ -94,7 +96,9 @@ const FilterRuleForm: FC<Props> = ({
                         size="xs"
                         w="150px"
                         sx={{ flexShrink: 0 }}
-                        withinPortal={inModal}
+                        withinPortal={popoverProps?.withinPortal}
+                        onDropdownOpen={popoverProps?.onOpen}
+                        onDropdownClose={popoverProps?.onClose}
                         disabled={!isEditMode}
                         value={filterRule.operator}
                         data={filterConfig.operatorOptions}
@@ -123,7 +127,7 @@ const FilterRuleForm: FC<Props> = ({
                         rule={filterRule}
                         onChange={onChange}
                         disabled={!isEditMode}
-                        inModal={inModal}
+                        popoverProps={popoverProps}
                     />
                 </>
             ) : (
