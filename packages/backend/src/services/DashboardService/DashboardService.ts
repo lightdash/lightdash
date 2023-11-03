@@ -588,6 +588,50 @@ export class DashboardService {
         });
     }
 
+    async getDashboardDefinition(
+        user: SessionUser,
+        dashboardUuid: string,
+    ): Promise<string> {
+        let dashboardDefinition = {};
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+
+        const tiles = await Promise.all(
+            dashboard.tiles.map(async (tile) => {
+                if (!isChartTile(tile)) return null;
+                const { savedChartUuid, ...tileProperties } = tile.properties;
+
+                if (!savedChartUuid) return null;
+
+                const savedChart = await this.savedChartModel.get(
+                    savedChartUuid,
+                );
+
+                return {
+                    h: tile.h,
+                    w: tile.w,
+                    x: tile.x,
+                    y: tile.y,
+                    type: tile.type,
+                    properties: tileProperties,
+                    tableName: savedChart.tableName,
+                    metricQuery: savedChart.metricQuery,
+                    chartConfig: savedChart.chartConfig,
+                    tableConfig: savedChart.tableConfig,
+                };
+            }),
+        );
+
+        dashboardDefinition = {
+            name: dashboard.name,
+            description: dashboard.description,
+            filters: dashboard.filters,
+            tiles,
+        };
+
+        console.log(JSON.stringify(dashboardDefinition, null, 2));
+        return JSON.stringify(dashboardDefinition);
+    }
+
     async getSchedulers(
         user: SessionUser,
         dashboardUuid: string,

@@ -49,6 +49,25 @@ dashboardRouter.get(
     },
 );
 
+dashboardRouter.get(
+    '/:dashboardUuid/definition',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            res.json({
+                status: 'ok',
+                results: await dashboardService.getDashboardDefinition(
+                    req.user!,
+                    req.params.dashboardUuid,
+                ),
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
 dashboardRouter.patch(
     '/:dashboardUuid',
     allowApiKeyAuthentication,

@@ -34,6 +34,7 @@ import { useToggle } from 'react-use';
 import { DashboardSchedulersModal } from '../../../features/scheduler';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
 import { useDashboardRefresh } from '../../../hooks/dashboard/useDashboardRefresh';
+import { useDashboardDefinition } from '../../../hooks/useDashboardDefinition';
 import { useApp } from '../../../providers/AppProvider';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
@@ -122,6 +123,8 @@ const DashboardHeader = ({
         track({ name: EventName.UPDATE_DASHBOARD_NAME_CLICKED });
     };
 
+    const { data: definition } = useDashboardDefinition(dashboardUuid);
+
     useEffect(() => {
         const schedulerUuidFromUrlParams =
             getSchedulerUuidFromUrlParams(search);
@@ -140,6 +143,10 @@ const DashboardHeader = ({
         'manage',
         subject('ExportCsv', { organizationUuid, projectUuid }),
     );
+
+    const fetchDashbaordDefinition = () => {
+        console.log(definition && JSON.parse(definition));
+    };
 
     const isOneAtLeastFetching = isFetching > 0;
 
@@ -192,6 +199,10 @@ const DashboardHeader = ({
                             </Stack>
                         </Popover.Dropdown>
                     </Popover>
+
+                    <Button onClick={fetchDashbaordDefinition}>
+                        Download definition
+                    </Button>
 
                     {isEditMode && userCanManageDashboard && (
                         <ActionIcon
