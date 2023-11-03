@@ -1,3 +1,10 @@
+## [0.844.3](https://github.com/lightdash/lightdash/compare/0.844.2...0.844.3) (2023-11-03)
+
+
+### Bug Fixes
+
+* validation on joined fields ([#7786](https://github.com/lightdash/lightdash/issues/7786)) ([e405d46](https://github.com/lightdash/lightdash/commit/e405d469f0365d177a976459c30bfeae842e3cd0))
+
 ## [0.844.2](https://github.com/lightdash/lightdash/compare/0.844.1...0.844.2) (2023-11-03)
 
 
