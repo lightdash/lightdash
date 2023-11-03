@@ -75,6 +75,8 @@ import {
 import {
     CachedExploresTable,
     CachedExploresTableName,
+    CachedExploreTable,
+    CachedExploreTableName,
     CachedWarehouseTable,
     CachedWarehouseTableName,
     ProjectTable,
@@ -190,6 +192,7 @@ declare module 'knex/types/tables' {
         [PasswordResetTableName]: PasswordResetTable;
         [PasswordLoginTableName]: PasswordLoginTable;
         [CachedExploresTableName]: CachedExploresTable;
+        [CachedExploreTableName]: CachedExploreTable;
         [CachedWarehouseTableName]: CachedWarehouseTable;
         [JobsTableName]: JobsTable;
         [JobStepsTableName]: JobStepsTable;
