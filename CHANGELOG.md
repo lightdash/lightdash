@@ -1,3 +1,10 @@
+## [0.847.2](https://github.com/lightdash/lightdash/compare/0.847.1...0.847.2) (2023-11-03)
+
+
+### Bug Fixes
+
+* custom metric or filter ([#7793](https://github.com/lightdash/lightdash/issues/7793)) ([37c9549](https://github.com/lightdash/lightdash/commit/37c9549363acec3b3127939ab3174946687ea705))
+
 ## [0.847.1](https://github.com/lightdash/lightdash/compare/0.847.0...0.847.1) (2023-11-03)
 
 
