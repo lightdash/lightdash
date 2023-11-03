@@ -1,3 +1,10 @@
+# [0.846.0](https://github.com/lightdash/lightdash/compare/0.845.0...0.846.0) (2023-11-03)
+
+
+### Features
+
+* migrate last date picker to mantine ([#7799](https://github.com/lightdash/lightdash/issues/7799)) ([8eb36b2](https://github.com/lightdash/lightdash/commit/8eb36b2c4dd03fbe480af4abb5f13c58bfdfff64))
+
 # [0.845.0](https://github.com/lightdash/lightdash/compare/0.844.3...0.845.0) (2023-11-03)
 
 
