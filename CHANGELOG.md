@@ -1,3 +1,10 @@
+## [0.849.1](https://github.com/lightdash/lightdash/compare/0.849.0...0.849.1) (2023-11-03)
+
+
+### Bug Fixes
+
+* remove no destination text from scheduler ([#7808](https://github.com/lightdash/lightdash/issues/7808)) ([2e091cc](https://github.com/lightdash/lightdash/commit/2e091ccc8d7d465aacf64290e260b79ed3be5d00))
+
 # [0.849.0](https://github.com/lightdash/lightdash/compare/0.848.0...0.849.0) (2023-11-03)
 
 
