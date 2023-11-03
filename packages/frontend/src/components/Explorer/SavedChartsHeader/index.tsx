@@ -1,6 +1,6 @@
-import { Alert, Button, Classes, Divider, Intent } from '@blueprintjs/core';
+import { Alert, Classes, Intent } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
-import { ActionIcon, Box, Flex, Menu, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Button, Flex, Menu, Tooltip } from '@mantine/core';
 import {
     IconArrowBack,
     IconCheck,
@@ -257,16 +257,17 @@ const SavedChartsHeader: FC = () => {
                                         'manage',
                                         'SavedChart',
                                     ) && (
-                                        <Button
-                                            icon={<IconPencil size={16} />}
+                                        <ActionIcon
+                                            color="gray.7"
                                             disabled={
                                                 updateSavedChart.isLoading
                                             }
                                             onClick={() =>
                                                 setIsRenamingChart(true)
                                             }
-                                            minimal
-                                        />
+                                        >
+                                            <MantineIcon icon={IconPencil} />
+                                        </ActionIcon>
                                     )}
                                 <ChartUpdateModal
                                     isOpen={isRenamingChart}
@@ -323,7 +324,9 @@ const SavedChartsHeader: FC = () => {
                         {!isEditMode ? (
                             <>
                                 <Button
-                                    icon={<IconPencil size={16} />}
+                                    variant="default"
+                                    size="xs"
+                                    leftIcon={<MantineIcon icon={IconPencil} />}
                                     onClick={() =>
                                         history.push({
                                             pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/edit`,
@@ -337,6 +340,8 @@ const SavedChartsHeader: FC = () => {
                             <>
                                 <SaveChartButton />
                                 <Button
+                                    variant="default"
+                                    size="xs"
                                     disabled={
                                         isFromDashboard && !hasUnsavedChanges
                                     }
@@ -350,15 +355,12 @@ const SavedChartsHeader: FC = () => {
                                         offset={-1}
                                         label="Return to dashboard"
                                     >
-                                        <Box>
-                                            <Button
-                                                style={{ padding: '5px 7px' }}
-                                                icon={
-                                                    <IconArrowBack size={16} />
-                                                }
-                                                onClick={handleGoBackClick}
-                                            />
-                                        </Box>
+                                        <ActionIcon
+                                            variant="default"
+                                            onClick={handleGoBackClick}
+                                        >
+                                            <MantineIcon icon={IconArrowBack} />
+                                        </ActionIcon>
                                     </Tooltip>
                                 )}
                             </>
@@ -544,7 +546,7 @@ const SavedChartsHeader: FC = () => {
                                         Version history
                                     </Menu.Item>
                                 )}
-                                <Divider />
+                                <Menu.Divider />
                                 <Tooltip
                                     disabled={!getIsEditingDashboardChart()}
                                     position="bottom"
