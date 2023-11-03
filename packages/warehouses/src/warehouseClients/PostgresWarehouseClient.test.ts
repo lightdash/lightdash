@@ -31,11 +31,13 @@ jest.mock('pg', () => ({
                         }, 100);
                         return mockedStream;
                     }),
+                    on: jest.fn(async () => undefined),
                 },
                 jest.fn(),
             );
         }),
         end: jest.fn(async () => undefined),
+        on: jest.fn(async () => undefined),
     })),
 }));
 
@@ -66,11 +68,13 @@ describe('PostgresWarehouseClient', () => {
                             }, 100);
                             return mockedStream;
                         }),
+                        on: jest.fn(async () => undefined),
                     },
                     jest.fn(),
                 );
             }),
             end: jest.fn(async () => undefined),
+            on: jest.fn(async () => undefined),
         }));
         expect(await warehouse.getCatalog(config)).toEqual(
             expectedWarehouseSchema,
