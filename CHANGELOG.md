@@ -1,3 +1,10 @@
+# [0.848.0](https://github.com/lightdash/lightdash/compare/0.847.2...0.848.0) (2023-11-03)
+
+
+### Features
+
+* add dashboard auto refresh behind feature flag ([#7801](https://github.com/lightdash/lightdash/issues/7801)) ([4bbf289](https://github.com/lightdash/lightdash/commit/4bbf289e178106a5976dd26304e1f79c2a379c73))
+
 ## [0.847.2](https://github.com/lightdash/lightdash/compare/0.847.1...0.847.2) (2023-11-03)
 
 
