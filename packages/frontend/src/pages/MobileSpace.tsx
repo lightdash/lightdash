@@ -28,8 +28,8 @@ const MobileSpace: FC = () => {
     const { user } = useApp();
     const [search, setSearch] = useState<string>('');
     const visibleItems = useMemo(() => {
-        const dashboardsInSpace = space!.dashboards;
-        const chartsInSpace = space!.queries;
+        const dashboardsInSpace = space?.dashboards || [];
+        const chartsInSpace = space?.queries || [];
         const allItems = [
             ...wrapResourceView(
                 dashboardsInSpace,
