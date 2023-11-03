@@ -193,15 +193,11 @@ export class ValidationService {
 
     private async validateCharts(
         projectUuid: string,
-        explorerFields: CompiledField[],
+        exploreFields: Record<
+            string,
+            { dimensionIds: string[]; metricIds: string[] }
+        >,
     ): Promise<CreateChartValidation[]> {
-        const explorerDimensionIds = explorerFields
-            .filter(isDimension)
-            .map(getFieldId);
-        const explorerMetricIds = explorerFields
-            .filter(isMetric)
-            .map(getFieldId);
-
         const chartSummaries = await this.savedChartModel.find({ projectUuid });
         const charts = await Promise.all(
             chartSummaries.map((chartSummary) =>
@@ -210,14 +206,19 @@ export class ValidationService {
         );
 
         const results = charts.flatMap((chart) => {
+            const { tableName } = chart;
             const chartCustomMetricIds =
                 chart.metricQuery.additionalMetrics?.map(getItemId) || [];
             const chartTableCalculationIds =
                 chart.metricQuery.tableCalculations?.map(getItemId) || [];
 
+            const availableDimensionIds =
+                exploreFields[tableName]?.dimensionIds || [];
+            const availableMetricIds =
+                exploreFields[tableName]?.metricIds || [];
             const allItemIdsAvailableInChart = [
-                ...explorerDimensionIds,
-                ...explorerMetricIds,
+                ...availableDimensionIds,
+                ...availableMetricIds,
                 ...chartCustomMetricIds,
                 ...chartTableCalculationIds,
             ];
@@ -264,7 +265,7 @@ export class ValidationService {
                 (acc, field) =>
                     containsFieldId({
                         acc,
-                        fieldIds: explorerDimensionIds,
+                        fieldIds: availableDimensionIds,
                         fieldId: field,
                         error: `Dimension error: the field '${field}' no longer exists`,
                         errorType: ValidationErrorType.Dimension,
@@ -279,7 +280,7 @@ export class ValidationService {
                     containsFieldId({
                         acc,
                         fieldIds: [
-                            ...explorerMetricIds,
+                            ...availableMetricIds,
                             ...chartCustomMetricIds,
                         ],
                         fieldId: field,
@@ -476,6 +477,27 @@ export class ValidationService {
                 ? compiledExplores
                 : await this.projectModel.getExploresFromCache(projectUuid);
 
+        const exploreFields =
+            explores?.reduce<
+                Record<string, { dimensionIds: string[]; metricIds: string[] }>
+            >((acc, explore) => {
+                if (isExploreError(explore) || explore?.tables === undefined)
+                    return acc;
+                const dimensions = Object.values(explore.tables).flatMap(
+                    (table) => Object.values(table.dimensions),
+                );
+                const metrics = Object.values(explore.tables).flatMap((table) =>
+                    Object.values(table.metrics),
+                );
+                return {
+                    ...acc,
+                    [explore.baseTable]: {
+                        dimensionIds: dimensions.map(getFieldId),
+                        metricIds: metrics.map(getFieldId),
+                    },
+                };
+            }, {}) || {};
+
         const existingFields = explores?.reduce<CompiledField[]>(
             (acc, explore) => {
                 if (!explore.tables) return acc;
@@ -502,7 +524,7 @@ export class ValidationService {
         const tableErrors = await this.validateTables(projectUuid, explores);
         const chartErrors = await this.validateCharts(
             projectUuid,
-            existingFields,
+            exploreFields,
         );
         const dashboardErrors = await this.validateDashboards(
             projectUuid,
