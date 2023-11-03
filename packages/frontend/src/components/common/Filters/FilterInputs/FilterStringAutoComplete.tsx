@@ -120,7 +120,6 @@ const FilterStringAutoComplete: FC<Props> = ({
             disabled={disabled}
             creatable
             getCreateLabel={(query) => `+ Add "${query}"`}
-            selectOnBlur
             disableSelectedItemFiltering
             searchable
             clearSearchOnChange
