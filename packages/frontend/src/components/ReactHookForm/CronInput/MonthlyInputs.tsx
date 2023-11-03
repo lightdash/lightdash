@@ -24,7 +24,7 @@ const MonthlyInputs: FC<{
     };
 
     return (
-        <Group spacing="xs">
+        <Group spacing="sm">
             <Input.Label>on day</Input.Label>
             <NumberInput
                 value={day}

@@ -1,4 +1,4 @@
-import { FormGroup } from '@blueprintjs/core';
+import { Group } from '@mantine/core';
 import React, { FC, useCallback, useEffect, useState } from 'react';
 import {
     Controller,
@@ -51,14 +51,12 @@ export const CronInternalInputs: FC<
     );
 
     return (
-        <div>
-            <FormGroup className={'input-wrapper'}>
-                <FrequencySelect
-                    value={frequency}
-                    disabled={disabled}
-                    onChange={onFrequencyChange}
-                />
-            </FormGroup>
+        <Group spacing="sm">
+            <FrequencySelect
+                value={frequency}
+                disabled={disabled}
+                onChange={onFrequencyChange}
+            />
             {frequency === Frequency.HOURLY && (
                 <HourlyInputs cronExpression={value} onChange={onChange} />
             )}
@@ -80,7 +78,7 @@ export const CronInternalInputs: FC<
                     error={error}
                 />
             )}
-        </div>
+        </Group>
     );
 };
 
