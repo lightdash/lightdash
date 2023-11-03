@@ -1,50 +1,45 @@
-import { Button, Popover, Radio, Select, Stack, Text } from '@mantine/core';
-import { useForm } from '@mantine/form';
+import { Button, Menu, Text, Tooltip } from '@mantine/core';
 import { IconChevronDown, IconRefresh } from '@tabler/icons-react';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDashboardRefresh } from '../../../hooks/dashboard/useDashboardRefresh';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import MantineIcon from '../MantineIcon';
 
 const REFRESH_INTERVAL_OPTIONS = [
     {
-        value: '1',
-        label: 'Every 1 minute',
+        value: '0.5',
+        label: '30s',
     },
     {
         value: '2',
-        label: 'Every 2 minutes',
+        label: '1m',
     },
     {
         value: '5',
-        label: 'Every 5 minutes',
-    },
-    {
-        value: '10',
-        label: 'Every 10 minutes',
+        label: '5m',
     },
     {
         value: '15',
-        label: 'Every 15 minutes',
+        label: '15m',
     },
     {
         value: '30',
-        label: 'Every 30 minutes',
+        label: '30m',
     },
     {
         value: '60',
-        label: 'Every 60 minutes',
+        label: '1h',
+    },
+    {
+        value: '120',
+        label: '2h',
     },
 ];
 
 const DashboardRefreshButtonWithAutoRefresh = () => {
-    const form = useForm({
-        initialValues: {
-            refreshInterval: REFRESH_INTERVAL_OPTIONS[0].value,
-            type: 'manual',
-        },
-    });
+    const { showToastSuccess } = useToaster();
     const intervalIdRef = useRef<NodeJS.Timeout | null>(null);
     const [isOpen, setIsOpen] = useState(false);
     const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
@@ -74,59 +69,79 @@ const DashboardRefreshButtonWithAutoRefresh = () => {
         };
 
         if (refreshInterval !== undefined) {
+            showToastSuccess({
+                title: `Your dashboard will refresh every ${
+                    REFRESH_INTERVAL_OPTIONS.find(
+                        ({ value }) => refreshInterval === +value,
+                    )?.label
+                }`,
+            });
             intervalIdRef.current = setInterval(() => {
                 invalidateAndSetRefreshTime();
             }, refreshInterval * 1000 * 60);
         }
 
         return clearExistingInterval;
-    }, [invalidateAndSetRefreshTime, refreshInterval]);
-
-    const handleSubmit = form.onSubmit((values) => {
-        if (values.type === 'auto') {
-            setRefreshInterval(+values.refreshInterval);
-        } else {
-            setRefreshInterval(undefined);
-        }
-    });
+    }, [invalidateAndSetRefreshTime, refreshInterval, showToastSuccess]);
 
     return (
         <Button.Group>
-            <Button
-                size="xs"
-                h={28}
-                miw="sm"
-                variant="default"
-                loading={isOneAtLeastFetching}
-                loaderPosition="center"
-                onClick={() => {
-                    if (intervalIdRef && refreshInterval) {
-                        setIsOpen((prev) => !prev);
-                    } else {
-                        invalidateAndSetRefreshTime();
-                    }
-                }}
-            >
-                {intervalIdRef && refreshInterval ? (
-                    <Text
-                        span
-                        mr="xs"
-                        c={isOneAtLeastFetching ? 'transparent' : 'gray.7'}
-                    >
-                        {
-                            REFRESH_INTERVAL_OPTIONS.find(
-                                ({ value }) => refreshInterval === +value,
-                            )?.label
-                        }
+            <Tooltip
+                withinPortal
+                position="bottom"
+                label={
+                    <Text>
+                        Last refreshed at:{' '}
+                        {lastRefreshTime
+                            ? lastRefreshTime.toLocaleTimeString()
+                            : 'Never'}
                     </Text>
-                ) : null}
-                <MantineIcon
-                    icon={IconRefresh}
-                    color={isOneAtLeastFetching ? 'transparent' : 'black'}
-                />
-            </Button>
-            <Popover withinPortal withArrow opened={isOpen}>
-                <Popover.Target>
+                }
+            >
+                <Button
+                    size="xs"
+                    h={28}
+                    miw="sm"
+                    variant="default"
+                    loading={isOneAtLeastFetching}
+                    loaderPosition="center"
+                    onClick={() => {
+                        if (intervalIdRef && refreshInterval) {
+                            setIsOpen((prev) => !prev);
+                        } else {
+                            invalidateAndSetRefreshTime();
+                        }
+                    }}
+                >
+                    {intervalIdRef && refreshInterval ? (
+                        <Text
+                            span
+                            mr="xs"
+                            c={isOneAtLeastFetching ? 'transparent' : 'gray.7'}
+                        >
+                            Every{' '}
+                            {
+                                REFRESH_INTERVAL_OPTIONS.find(
+                                    ({ value }) => refreshInterval === +value,
+                                )?.label
+                            }
+                        </Text>
+                    ) : null}
+                    <MantineIcon
+                        icon={IconRefresh}
+                        color={isOneAtLeastFetching ? 'transparent' : 'black'}
+                    />
+                </Button>
+            </Tooltip>
+            <Menu
+                withinPortal
+                withArrow
+                closeOnItemClick
+                closeOnClickOutside
+                opened={isOpen}
+                onClose={() => setIsOpen((prev) => !prev)}
+            >
+                <Menu.Target>
                     <Button
                         size="xs"
                         variant="default"
@@ -138,59 +153,49 @@ const DashboardRefreshButtonWithAutoRefresh = () => {
                     >
                         <MantineIcon size="sm" icon={IconChevronDown} />
                     </Button>
-                </Popover.Target>
-                <Popover.Dropdown fz="xs" miw={250}>
-                    <Stack>
-                        <Text fw={500} color="gray.6">
-                            Last refreshed at:{' '}
-                            {lastRefreshTime
-                                ? lastRefreshTime.toLocaleTimeString()
-                                : 'Never'}
-                        </Text>
-
-                        <form onSubmit={handleSubmit}>
-                            <Stack spacing="xs">
-                                <Radio.Group
-                                    label="Refresh frequency"
-                                    size="xs"
-                                    {...form.getInputProps('type')}
-                                >
-                                    <Stack spacing="xxs" pt="xs">
-                                        <Radio label="Manual" value="manual" />
-                                        <Radio label="Auto" value="auto" />
-                                    </Stack>
-                                </Radio.Group>
-                                {form.values.type === 'auto' && (
-                                    <Select
-                                        size="xs"
-                                        defaultValue={
-                                            REFRESH_INTERVAL_OPTIONS[0].value
-                                        }
-                                        data={REFRESH_INTERVAL_OPTIONS}
-                                        onChange={(value) =>
-                                            value &&
-                                            form.setFieldValue(
-                                                'refreshInterval',
-                                                value,
-                                            )
-                                        }
-                                    />
-                                )}
-
-                                <Button
-                                    type="submit"
-                                    size="xs"
-                                    onClick={() => {
-                                        setIsOpen(false);
-                                    }}
-                                >
-                                    Confirm
-                                </Button>
-                            </Stack>
-                        </form>
-                    </Stack>
-                </Popover.Dropdown>
-            </Popover>
+                </Menu.Target>
+                <Menu.Dropdown>
+                    <Menu.Item
+                        fz="xs"
+                        onClick={() => {
+                            setRefreshInterval(undefined);
+                        }}
+                        disabled={refreshInterval === undefined}
+                        bg={refreshInterval === undefined ? 'blue' : 'white'}
+                        sx={{
+                            '&[disabled]': {
+                                color:
+                                    refreshInterval === undefined
+                                        ? 'white'
+                                        : 'black',
+                            },
+                        }}
+                    >
+                        Off
+                    </Menu.Item>
+                    {REFRESH_INTERVAL_OPTIONS.map(({ value, label }) => (
+                        <Menu.Item
+                            fz="xs"
+                            key={value}
+                            onClick={() => {
+                                setRefreshInterval(+value);
+                            }}
+                            bg={refreshInterval === +value ? 'blue' : 'white'}
+                            disabled={refreshInterval === +value}
+                            sx={{
+                                '&[disabled]': {
+                                    color:
+                                        refreshInterval === +value
+                                            ? 'white'
+                                            : 'black',
+                                },
+                            }}
+                        >
+                            {label}
+                        </Menu.Item>
+                    ))}
+                </Menu.Dropdown>
+            </Menu>
         </Button.Group>
     );
 };
