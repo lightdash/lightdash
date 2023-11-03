@@ -151,6 +151,7 @@ const DashboardRefreshButtonWithAutoRefresh = () => {
                     </Button>
                 </Menu.Target>
                 <Menu.Dropdown>
+                    <Menu.Label>Auto-refresh</Menu.Label>
                     <Menu.Item
                         fz="xs"
                         onClick={() => {
