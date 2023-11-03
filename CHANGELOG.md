@@ -1,3 +1,10 @@
+# [0.847.0](https://github.com/lightdash/lightdash/compare/0.846.0...0.847.0) (2023-11-03)
+
+
+### Features
+
+* cache explores individually ([#7788](https://github.com/lightdash/lightdash/issues/7788)) ([66166b6](https://github.com/lightdash/lightdash/commit/66166b6f46974393e04e5b57dc2f75dd5882acf6))
+
 # [0.846.0](https://github.com/lightdash/lightdash/compare/0.845.0...0.846.0) (2023-11-03)
 
 
