@@ -19,7 +19,6 @@ import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useProject } from '../hooks/useProject';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
-import { PinnedItemsProvider } from '../providers/PinnedItemsProvider';
 
 const MobileSpaces: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -89,27 +88,21 @@ const MobileSpaces: FC = () => {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                 />
-                <PinnedItemsProvider
-                    projectUuid={projectUuid}
-                    organizationUuid={user.data?.organizationUuid ?? ''}
-                    pinnedListUuid={project.data?.pinnedListUuid ?? ''}
-                >
-                    <ResourceView
-                        items={visibleItems}
-                        listProps={{
-                            defaultSort: { updatedAt: SortDirection.DESC },
-                            defaultColumnVisibility: {
-                                space: false,
-                                updatedAt: false,
-                                actions: false,
-                            },
-                        }}
-                        emptyStateProps={{
-                            icon: <IconFolders size={30} />,
-                            title: 'No spaces added yet',
-                        }}
-                    />
-                </PinnedItemsProvider>
+                <ResourceView
+                    items={visibleItems}
+                    listProps={{
+                        defaultSort: { updatedAt: SortDirection.DESC },
+                        defaultColumnVisibility: {
+                            space: false,
+                            updatedAt: false,
+                            actions: false,
+                        },
+                    }}
+                    emptyStateProps={{
+                        icon: <IconFolders size={30} />,
+                        title: 'No spaces added yet',
+                    }}
+                />
             </Stack>
         </>
     );
