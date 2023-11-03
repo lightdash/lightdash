@@ -1,9 +1,11 @@
-import React, { FC, useState } from 'react';
+import { Button } from '@mantine/core';
+import { IconDeviceFloppy } from '@tabler/icons-react';
+import { FC, useState } from 'react';
 import { useAddVersionMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import MantineIcon from '../../common/MantineIcon';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
-import { SaveButton } from './SaveChartButton.styles';
 
 const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
     const unsavedChartVersion = useExplorerContext(
@@ -28,20 +30,29 @@ const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
             });
         }
     };
+    const isDisabled = !unsavedChartVersion.tableName || !hasUnsavedChanges;
+
     return (
         <>
-            <SaveButton
-                $isLargeButton={isExplorer}
-                icon={isExplorer ? 'saved' : undefined}
-                intent={isExplorer ? 'none' : 'success'}
-                text={savedChart ? 'Save changes' : 'Save chart'}
-                disabled={!unsavedChartVersion.tableName || !hasUnsavedChanges}
+            <Button
+                disabled={isDisabled}
+                variant={isExplorer ? 'default' : undefined}
+                color={isExplorer ? 'blue' : 'green'}
+                size="xs"
+                leftIcon={
+                    isExplorer ? (
+                        <MantineIcon icon={IconDeviceFloppy} />
+                    ) : undefined
+                }
                 onClick={
                     savedChart
                         ? handleSavedQueryUpdate
                         : () => setIsQueryModalOpen(true)
                 }
-            />
+            >
+                {savedChart ? 'Save changes' : 'Save chart'}
+            </Button>
+
             {unsavedChartVersion && (
                 <ChartCreateModal
                     isOpen={isQueryModalOpen}
