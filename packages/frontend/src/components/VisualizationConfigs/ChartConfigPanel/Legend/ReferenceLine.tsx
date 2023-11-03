@@ -16,9 +16,8 @@ import {
     TimeFrames,
     WeekDay,
 } from '@lightdash/common';
-import debounce from 'lodash/debounce';
 import moment from 'moment';
-import { FC, useCallback, useMemo, useState } from 'react';
+import { FC, useMemo, useState } from 'react';
 
 import {
     ActionIcon,
@@ -248,21 +247,6 @@ export const ReferenceLine: FC<Props> = ({
         | undefined
     >(selectedFieldDefault);
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const debouncedUpdateLabel = useCallback(
-        debounce((updatedLabel: string) => {
-            if (value !== undefined && selectedField !== undefined)
-                updateReferenceLine(
-                    value,
-                    selectedField,
-                    updatedLabel,
-                    lineColor,
-                    referenceLine.data.name,
-                );
-        }, 500),
-        [value, selectedField, updateReferenceLine],
-    );
-
     return (
         <Stack spacing="xs">
             <Group noWrap position="apart">
@@ -346,7 +330,16 @@ export const ReferenceLine: FC<Props> = ({
                         placeholder={value}
                         onChange={(e) => {
                             setLabel(e.target.value);
-                            debouncedUpdateLabel(e.target.value);
+                        }}
+                        onBlur={() => {
+                            if (value && selectedField)
+                                updateReferenceLine(
+                                    value,
+                                    selectedField,
+                                    label,
+                                    lineColor,
+                                    referenceLine.data.name,
+                                );
                         }}
                     />
 
