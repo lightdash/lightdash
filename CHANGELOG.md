@@ -1,3 +1,10 @@
+## [0.844.1](https://github.com/lightdash/lightdash/compare/0.844.0...0.844.1) (2023-11-03)
+
+
+### Bug Fixes
+
+* big number tooltip gets cut off ([#7792](https://github.com/lightdash/lightdash/issues/7792)) ([f87b40b](https://github.com/lightdash/lightdash/commit/f87b40bcd6e6eea87d22cf596a07ac31f64d56da))
+
 # [0.844.0](https://github.com/lightdash/lightdash/compare/0.843.1...0.844.0) (2023-11-02)
 
 
