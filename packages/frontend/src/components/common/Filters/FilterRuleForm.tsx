@@ -12,7 +12,7 @@ import { IconDots, IconX } from '@tabler/icons-react';
 import { FC, useCallback, useMemo } from 'react';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
-import { FilterTypeConfig } from './configs';
+import { FilterInputComponent, getFilterOperatorOptions } from './FilterInputs';
 import { useFiltersContext } from './FiltersProvider';
 
 type Props = {
@@ -33,17 +33,21 @@ const FilterRuleForm: FC<Props> = ({
     onConvertToGroup,
 }) => {
     const { popoverProps } = useFiltersContext();
-    const activeField = fields.find(
-        (field) => getFieldId(field) === filterRule.target.fieldId,
-    );
+    const activeField = useMemo(() => {
+        return fields.find(
+            (field) => getFieldId(field) === filterRule.target.fieldId,
+        );
+    }, [fields, filterRule.target.fieldId]);
 
-    const filterType = activeField
-        ? getFilterTypeFromItem(activeField)
-        : FilterType.STRING;
-    const filterConfig = useMemo(
-        () => FilterTypeConfig[filterType],
-        [filterType],
-    );
+    const filterType = useMemo(() => {
+        return activeField
+            ? getFilterTypeFromItem(activeField)
+            : FilterType.STRING;
+    }, [activeField]);
+
+    const filterOperatorOptions = useMemo(() => {
+        return getFilterOperatorOptions(filterType);
+    }, [filterType]);
 
     const onFieldChange = useCallback(
         (fieldId: string) => {
@@ -101,7 +105,7 @@ const FilterRuleForm: FC<Props> = ({
                         onDropdownClose={popoverProps?.onClose}
                         disabled={!isEditMode}
                         value={filterRule.operator}
-                        data={filterConfig.operatorOptions}
+                        data={filterOperatorOptions}
                         onChange={(value) => {
                             if (!value) return;
 
@@ -121,7 +125,7 @@ const FilterRuleForm: FC<Props> = ({
                         }}
                     />
 
-                    <filterConfig.inputs
+                    <FilterInputComponent
                         filterType={filterType}
                         field={activeField}
                         rule={filterRule}

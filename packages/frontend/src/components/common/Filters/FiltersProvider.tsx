@@ -26,7 +26,7 @@ type FiltersContext = {
         filterId: string,
         item: FilterableItem,
     ) => AndFilterGroup | undefined;
-    popoverProps?: PopoverProps;
+    popoverProps?: Omit<PopoverProps, 'children'>;
 };
 
 const Context = createContext<FiltersContext | undefined>(undefined);
@@ -36,7 +36,7 @@ type Props = {
     fieldsMap?: Record<string, FieldWithSuggestions>;
     startOfWeek?: WeekDay;
     dashboardFilters?: DashboardFilters;
-    popoverProps?: PopoverProps;
+    popoverProps?: Omit<PopoverProps, 'children'>;
 };
 
 export const FiltersProvider: FC<Props> = ({

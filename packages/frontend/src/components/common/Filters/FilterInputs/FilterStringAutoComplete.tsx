@@ -31,6 +31,7 @@ const FilterStringAutoComplete: FC<Props> = ({
     disabled,
     onChange,
     placeholder,
+    ...rest
 }) => {
     const { projectUuid, getAutocompleteFilterGroup } = useFiltersContext();
     if (!projectUuid) {
@@ -121,6 +122,7 @@ const FilterStringAutoComplete: FC<Props> = ({
             disableSelectedItemFiltering
             searchable
             clearSearchOnChange
+            {...rest}
             searchValue={search}
             onSearchChange={setSearch}
             limit={MAX_AUTOCOMPLETE_RESULTS}

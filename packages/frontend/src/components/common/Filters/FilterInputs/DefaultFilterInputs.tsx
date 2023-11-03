@@ -1,28 +1,17 @@
 import {
     assertUnreachable,
     ConditionalRule,
-    FilterableItem,
     FilterOperator,
     FilterType,
     isFilterRule,
 } from '@lightdash/common';
-import { PopoverProps } from '@mantine/core';
 import isString from 'lodash-es/isString';
-import { PropsWithChildren } from 'react';
+import { FilterInputsProps } from '.';
 import { TagInput } from '../../TagInput/TagInput';
 import { useFiltersContext } from '../FiltersProvider';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import FilterNumberInput from './FilterNumberInput';
 import FilterStringAutoComplete from './FilterStringAutoComplete';
-
-export type FilterInputsProps<T extends ConditionalRule> = {
-    filterType: FilterType;
-    field: FilterableItem;
-    rule: T;
-    onChange: (value: T) => void;
-    disabled?: boolean;
-    popoverProps?: PopoverProps;
-};
 
 const DefaultFilterInputs = <T extends ConditionalRule>({
     field,
@@ -31,7 +20,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
     disabled,
     onChange,
     popoverProps,
-}: PropsWithChildren<FilterInputsProps<T>>) => {
+}: FilterInputsProps<T>) => {
     const { getField } = useFiltersContext();
     const suggestions = isFilterRule(rule)
         ? getField(rule)?.suggestions
@@ -65,6 +54,8 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                             placeholder={placeholder}
                             suggestions={suggestions || []}
                             withinPortal={popoverProps?.withinPortal}
+                            onDropdownOpen={popoverProps?.onOpen}
+                            onDropdownClose={popoverProps?.onClose}
                             values={(rule.values || []).filter(isString)}
                             onChange={(values) =>
                                 onChange({

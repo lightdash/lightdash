@@ -13,10 +13,13 @@ import {
     Stack,
     Text,
 } from '@mantine/core';
-import { FC } from 'react';
-import { FilterTypeConfig } from '../../../components/common/Filters/configs';
+import { FC, useMemo } from 'react';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
+import {
+    FilterInputComponent,
+    getFilterOperatorOptions,
+} from '../../../components/common/Filters/FilterInputs';
 import {
     FiltersProvider,
     useFiltersContext,
@@ -32,8 +35,13 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({ filter }) => {
     const { fieldsMap } = useFiltersContext();
     const field = fieldsMap[filter.target.fieldId];
 
-    const filterType = field ? getFilterTypeFromItem(field) : FilterType.STRING;
-    const filterConfig = FilterTypeConfig[filterType];
+    const filterType = useMemo(() => {
+        return field ? getFilterTypeFromItem(field) : FilterType.STRING;
+    }, [field]);
+
+    const filterOperatorOptions = useMemo(() => {
+        return getFilterOperatorOptions(filterType);
+    }, [filterType]);
 
     return (
         <Stack key={filter.id} spacing="xs">
@@ -49,13 +57,13 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({ filter }) => {
                     }}
                     size="xs"
                     value={filter.operator}
-                    data={filterConfig.operatorOptions}
+                    data={filterOperatorOptions}
                     onChange={(value) => {
                         console.info(value);
                     }}
                 />
 
-                <filterConfig.inputs
+                <FilterInputComponent
                     filterType={filterType}
                     field={field}
                     rule={filter}
@@ -88,7 +96,7 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({ dashboard }) => {
 
     return (
         <FiltersProvider
-            inModal
+            popoverProps={{ withinPortal: true }}
             projectUuid={project.projectUuid}
             fieldsMap={fieldsWithSuggestions}
             startOfWeek={project.warehouseConnection?.startOfWeek ?? undefined}

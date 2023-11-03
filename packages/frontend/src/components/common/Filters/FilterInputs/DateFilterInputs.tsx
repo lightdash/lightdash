@@ -11,11 +11,11 @@ import {
     TimeFrames,
 } from '@lightdash/common';
 import { Flex, NumberInput, Text } from '@mantine/core';
-import React from 'react';
+import { FilterInputsProps } from '.';
 import { useFiltersContext } from '../FiltersProvider';
 import { getFirstDayOfWeek } from '../utils/filterDateUtils';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
-import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
+import DefaultFilterInputs from './DefaultFilterInputs';
 import FilterDatePicker from './FilterDatePicker';
 import FilterDateRangePicker from './FilterDateRangePicker';
 import FilterDateTimePicker from './FilterDateTimePicker';
@@ -26,7 +26,7 @@ import FilterWeekPicker from './FilterWeekPicker';
 import FilterYearPicker from './FilterYearPicker';
 
 const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
-    props: React.PropsWithChildren<FilterInputsProps<T>>,
+    props: FilterInputsProps<T>,
 ) => {
     const { field, rule, onChange, popoverProps, disabled, filterType } = props;
     const { startOfWeek } = useFiltersContext();
