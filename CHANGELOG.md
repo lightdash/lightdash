@@ -1,3 +1,10 @@
+## [0.844.2](https://github.com/lightdash/lightdash/compare/0.844.1...0.844.2) (2023-11-03)
+
+
+### Bug Fixes
+
+* postgres ssh connection errors ([#7800](https://github.com/lightdash/lightdash/issues/7800)) ([1d33d88](https://github.com/lightdash/lightdash/commit/1d33d8893cb5f04aa296f0f214c97830f1bfb592))
+
 ## [0.844.1](https://github.com/lightdash/lightdash/compare/0.844.0...0.844.1) (2023-11-03)
 
 
