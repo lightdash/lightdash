@@ -1,3 +1,10 @@
+## [0.847.1](https://github.com/lightdash/lightdash/compare/0.847.0...0.847.1) (2023-11-03)
+
+
+### Bug Fixes
+
+* update reference line label on blur ([#7798](https://github.com/lightdash/lightdash/issues/7798)) ([7602eed](https://github.com/lightdash/lightdash/commit/7602eed2df318900b19e973ef1a252f1c9490ec1))
+
 # [0.847.0](https://github.com/lightdash/lightdash/compare/0.846.0...0.847.0) (2023-11-03)
 
 
