@@ -1,4 +1,3 @@
-import { DateInput2 } from '@blueprintjs/datetime2';
 import {
     CompiledDimension,
     CustomDimension,
@@ -6,7 +5,6 @@ import {
     Field,
     fieldId as getFieldId,
     formatDate,
-    getDateFormat,
     isCustomDimension,
     isDateItem,
     isDimension,
@@ -34,6 +32,7 @@ import {
 import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import FieldSelect from '../../../common/FieldSelect';
+import FilterDatePicker from '../../../common/Filters/FilterInputs/FilterDatePicker';
 import FilterMonthAndYearPicker from '../../../common/Filters/FilterInputs/FilterMonthAndYearPicker';
 import FilterWeekPicker from '../../../common/Filters/FilterInputs/FilterWeekPicker';
 import FilterYearPicker from '../../../common/Filters/FilterInputs/FilterYearPicker';
@@ -83,6 +82,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                 case TimeFrames.WEEK:
                     return (
                         <FilterWeekPicker
+                            size="sm"
                             value={moment(value).toDate()}
                             popoverProps={{ withinPortal: false }}
                             firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
@@ -101,25 +101,25 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                     );
                 case TimeFrames.MONTH:
                     return (
-                        <Group noWrap spacing={0}>
-                            <FilterMonthAndYearPicker
-                                value={moment(value).toDate()}
-                                onChange={(dateValue: Date) => {
-                                    onChange(
-                                        formatDate(
-                                            dateValue,
-                                            TimeFrames.MONTH,
-                                            false,
-                                        ),
-                                    );
-                                }}
-                            />
-                        </Group>
+                        <FilterMonthAndYearPicker
+                            size="sm"
+                            value={moment(value).toDate()}
+                            onChange={(dateValue: Date) => {
+                                onChange(
+                                    formatDate(
+                                        dateValue,
+                                        TimeFrames.MONTH,
+                                        false,
+                                    ),
+                                );
+                            }}
+                        />
                     );
 
                 case TimeFrames.YEAR:
                     return (
                         <FilterYearPicker
+                            size="sm"
                             value={moment(value).toDate()}
                             onChange={(dateValue: Date) => {
                                 onChange(
@@ -135,25 +135,12 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
             }
 
             return (
-                <DateInput2
-                    fill
-                    value={value}
-                    popoverProps={{ usePortal: false }}
-                    formatDate={(dateValue: Date) =>
-                        formatDate(dateValue, undefined, false)
-                    }
-                    parseDate={(
-                        str: string,
-                        timeInterval: TimeFrames | undefined = TimeFrames.DAY,
-                    ) => {
-                        return moment(
-                            str,
-                            getDateFormat(timeInterval),
-                        ).toDate();
-                    }}
-                    defaultValue={new Date().toString()}
-                    onChange={(dateValue: string | null) => {
-                        if (dateValue) onChange(dateValue);
+                <FilterDatePicker
+                    size="sm"
+                    value={moment(value).toDate()}
+                    firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
+                    onChange={(newValue) => {
+                        onChange(formatDate(newValue, TimeFrames.DAY, false));
                     }}
                 />
             );
