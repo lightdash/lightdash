@@ -16,7 +16,7 @@ const MobileView = () => (
                 &#128586;
             </Box>
             <Title ta="center" order={4}>
-                This page is not yet available in mobile.
+                This page is not available to view on mobile yet.
             </Title>
             <Text ta="center" color="gray.6">
                 Sign in on a laptop or desktop to access this page!
