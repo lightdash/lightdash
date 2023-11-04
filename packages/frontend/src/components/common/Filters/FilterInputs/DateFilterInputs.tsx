@@ -122,6 +122,20 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             </Flex>
                         );
                     case TimeFrames.MONTH:
+                        const parsedMonth =
+                            rule.values && rule.values[0]
+                                ? parseDate(
+                                      formatDate(
+                                          rule.values[0],
+                                          TimeFrames.MONTH,
+                                      ),
+                                      TimeFrames.MONTH,
+                                  )
+                                : null;
+
+                        if (parsedMonth) {
+                            rule.values = [parsedMonth];
+                        }
                         return (
                             <FilterMonthAndYearPicker
                                 disabled={disabled}
@@ -136,17 +150,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                         popoverProps?.onClose?.(null as any),
                                     withinPortal: inModal,
                                 }}
-                                value={
-                                    rule.values && rule.values[0]
-                                        ? parseDate(
-                                              formatDate(
-                                                  rule.values[0],
-                                                  TimeFrames.MONTH,
-                                              ),
-                                              TimeFrames.MONTH,
-                                          )
-                                        : null
-                                }
+                                value={parsedMonth}
                                 onChange={(value: Date) => {
                                     onChange({
                                         ...rule,
@@ -158,6 +162,20 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             />
                         );
                     case TimeFrames.YEAR:
+                        const parsedYear: Date | null =
+                            rule.values && rule.values[0]
+                                ? parseDate(
+                                      formatDate(
+                                          rule.values[0],
+                                          TimeFrames.YEAR,
+                                      ),
+                                      TimeFrames.YEAR,
+                                  )
+                                : null;
+
+                        if (parsedYear) {
+                            rule.values = [parsedYear];
+                        }
                         return (
                             <FilterYearPicker
                                 disabled={disabled}
@@ -172,17 +190,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                         popoverProps?.onClose?.(null as any),
                                     withinPortal: inModal,
                                 }}
-                                value={
-                                    rule.values && rule.values[0]
-                                        ? parseDate(
-                                              formatDate(
-                                                  rule.values[0],
-                                                  TimeFrames.YEAR,
-                                              ),
-                                              TimeFrames.YEAR,
-                                          )
-                                        : null
-                                }
+                                value={parsedYear}
                                 onChange={(newDate: Date) => {
                                     onChange({
                                         ...rule,
