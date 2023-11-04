@@ -1,6 +1,6 @@
-import { Alert, Button, Classes, Divider, Intent } from '@blueprintjs/core';
+import { Alert, Classes, Divider, Intent } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
-import { ActionIcon, Box, Flex, Menu, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Button, Flex, Menu, Tooltip } from '@mantine/core';
 import {
     IconArrowBack,
     IconCheck,
@@ -258,15 +258,18 @@ const SavedChartsHeader: FC = () => {
                                         'SavedChart',
                                     ) && (
                                         <Button
-                                            icon={<IconPencil size={16} />}
-                                            disabled={
-                                                updateSavedChart.isLoading
-                                            }
                                             onClick={() =>
                                                 setIsRenamingChart(true)
                                             }
-                                            minimal
-                                        />
+                                            disabled={
+                                                updateSavedChart.isLoading
+                                            }
+                                            variant="subtle"
+                                            compact
+                                            color="gray.8"
+                                        >
+                                            <MantineIcon icon={IconPencil} />
+                                        </Button>
                                     )}
                                 <ChartUpdateModal
                                     isOpen={isRenamingChart}
@@ -323,12 +326,14 @@ const SavedChartsHeader: FC = () => {
                         {!isEditMode ? (
                             <>
                                 <Button
-                                    icon={<IconPencil size={16} />}
                                     onClick={() =>
                                         history.push({
                                             pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/edit`,
                                         })
                                     }
+                                    leftIcon={<MantineIcon icon={IconPencil} />}
+                                    variant="default"
+                                    size="xs"
                                 >
                                     Edit chart
                                 </Button>
@@ -341,6 +346,8 @@ const SavedChartsHeader: FC = () => {
                                         isFromDashboard && !hasUnsavedChanges
                                     }
                                     onClick={handleCancelClick}
+                                    variant="default"
+                                    size="xs"
                                 >
                                     Cancel {isFromDashboard ? 'changes' : ''}
                                 </Button>
@@ -352,12 +359,14 @@ const SavedChartsHeader: FC = () => {
                                     >
                                         <Box>
                                             <Button
-                                                style={{ padding: '5px 7px' }}
-                                                icon={
-                                                    <IconArrowBack size={16} />
-                                                }
                                                 onClick={handleGoBackClick}
-                                            />
+                                                variant="default"
+                                                size="xs"
+                                            >
+                                                <MantineIcon
+                                                    icon={IconArrowBack}
+                                                />
+                                            </Button>
                                         </Box>
                                     </Tooltip>
                                 )}
