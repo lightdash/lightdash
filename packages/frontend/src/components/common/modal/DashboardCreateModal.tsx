@@ -9,6 +9,7 @@ import {
     Select,
     Stack,
     Text,
+    Textarea,
     TextInput,
     Title,
 } from '@mantine/core';
@@ -147,10 +148,13 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                             required
                             {...form.getInputProps('dashboardName')}
                         />
-                        <TextInput
+                        <Textarea
                             label="Dashboard description"
                             placeholder="A few words to give your team some context"
                             disabled={isCreatingDashboard}
+                            minRows={1}
+                            maxRows={15}
+                            autosize
                             {...form.getInputProps('dashboardDescription')}
                         />
                         {!isLoadingSpaces && spaces ? (
