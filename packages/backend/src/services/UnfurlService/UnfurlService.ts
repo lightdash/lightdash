@@ -351,7 +351,9 @@ export class UnfurlService {
                             );
                         }
                     });
-
+                    /*
+                    // This code can be used to block requests to external domains
+                    // We disabled this so people can use images on markdown
                     await page.setRequestInterception(true);
                     await page.on('request', (request: HTTPRequest) => {
                         const requestUrl = request.url();
@@ -363,7 +365,7 @@ export class UnfurlService {
                         }
                         request.continue();
                     });
-
+*/
                     let chartRequests = 0;
                     let chartRequestErrors = 0;
 
