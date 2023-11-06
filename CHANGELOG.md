@@ -1,3 +1,10 @@
+## [0.851.1](https://github.com/lightdash/lightdash/compare/0.851.0...0.851.1) (2023-11-06)
+
+
+### Bug Fixes
+
+* allow images on headless browser ([#7825](https://github.com/lightdash/lightdash/issues/7825)) ([29a9073](https://github.com/lightdash/lightdash/commit/29a90731409d09391f1ef52de536c22011bef3b8))
+
 # [0.851.0](https://github.com/lightdash/lightdash/compare/0.850.0...0.851.0) (2023-11-06)
 
 
