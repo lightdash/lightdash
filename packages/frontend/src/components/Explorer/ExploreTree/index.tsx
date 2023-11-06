@@ -54,7 +54,12 @@ const ExploreTree: FC<ExploreTreeProps> = ({
 
     const tableTrees = useMemo(() => {
         return Object.values(explore.tables)
-            .sort((tableA) => (tableA.name === explore.baseTable ? -1 : 1))
+            .sort((tableA, tableB) => {
+                if (tableA.name === explore.baseTable) return -1;
+                if (tableB.name === explore.baseTable) return 1;
+                // Sorting explores by label
+                return tableA.label.localeCompare(tableB.label);
+            })
             .filter((table) => !(isSearching && !searchHasResults(table)));
     }, [explore, searchHasResults, isSearching]);
 
