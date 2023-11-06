@@ -1,3 +1,16 @@
+# [0.850.0](https://github.com/lightdash/lightdash/compare/0.849.2...0.850.0) (2023-11-06)
+
+
+### Bug Fixes
+
+* make scheduler time inputs more compact ([#7813](https://github.com/lightdash/lightdash/issues/7813)) ([52e03ab](https://github.com/lightdash/lightdash/commit/52e03ab7dd015c9b82a0233c4e5663cda7eee22b))
+* remove scheduled delivery manual footer ([#7821](https://github.com/lightdash/lightdash/issues/7821)) ([9991628](https://github.com/lightdash/lightdash/commit/99916289b7bed4268288216f56e9db14de300a48))
+
+
+### Features
+
+* chart move to private space ([#7818](https://github.com/lightdash/lightdash/issues/7818)) ([3d5360f](https://github.com/lightdash/lightdash/commit/3d5360f324339f1485f2c93b5b204b98378e4330))
+
 ## [0.849.2](https://github.com/lightdash/lightdash/compare/0.849.1...0.849.2) (2023-11-06)
 
 
