@@ -194,6 +194,7 @@ export class GoogleDriveClient {
         fileId: string,
         csvContent: Record<string, string>[],
         tabName?: string,
+        columnOrder: string[] = [],
     ) {
         if (!this.isEnabled) {
             throw new Error('Google Drive is not enabled');
@@ -210,18 +211,23 @@ export class GoogleDriveClient {
             return;
         }
 
-        const header = Object.keys(csvContent[0]);
-        Logger.info(
-            `Writing ${csvContent.length} rows and ${header.length} columns to Google sheets`,
+        const sortedFieldIds = Object.keys(csvContent[0]).sort(
+            (a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b),
         );
-        const values = csvContent.map((row) => Object.values(row));
+
+        Logger.info(
+            `Writing ${csvContent.length} rows and ${sortedFieldIds.length} columns to Google sheets`,
+        );
+        const values = csvContent.map((row) =>
+            sortedFieldIds.map((fieldId) => row[fieldId]),
+        );
 
         await sheets.spreadsheets.values.update({
             spreadsheetId: fileId,
             range: tabName ? `${tabName}!A1` : 'A1',
             valueInputOption: 'RAW',
             requestBody: {
-                values: [header, ...values],
+                values: [sortedFieldIds, ...values],
             },
         });
     }
