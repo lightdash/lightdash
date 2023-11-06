@@ -1,3 +1,10 @@
+# [0.852.0](https://github.com/lightdash/lightdash/compare/0.851.2...0.852.0) (2023-11-06)
+
+
+### Features
+
+* scheduled deliveries filter state ([#7796](https://github.com/lightdash/lightdash/issues/7796)) ([e2b9452](https://github.com/lightdash/lightdash/commit/e2b9452de5d2bfffa1ebdd524f26b6d8daae6449))
+
 ## [0.851.2](https://github.com/lightdash/lightdash/compare/0.851.1...0.851.2) (2023-11-06)
 
 
