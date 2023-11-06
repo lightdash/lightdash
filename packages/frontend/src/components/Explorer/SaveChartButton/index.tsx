@@ -37,7 +37,7 @@ const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
             <Button
                 disabled={isDisabled}
                 variant={isExplorer ? 'default' : undefined}
-                color={isExplorer ? 'blue' : 'green'}
+                color={isExplorer ? 'blue' : 'green.7'}
                 size="xs"
                 leftIcon={
                     isExplorer ? (
