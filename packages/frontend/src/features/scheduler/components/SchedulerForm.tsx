@@ -683,7 +683,15 @@ const SchedulerForm: FC<Props> = ({
 
                 {isSchedulerFiltersEnabled && isDashboard && dashboard ? (
                     <Tabs.Panel value="filters" p="md">
-                        <SchedulerFilters dashboard={dashboard} />
+                        <SchedulerFilters
+                            dashboard={dashboard}
+                            onChange={(schedulerFilters) => {
+                                console.info(
+                                    'TODO: implement me!',
+                                    schedulerFilters,
+                                );
+                            }}
+                        />
                     </Tabs.Panel>
                 ) : null}
 

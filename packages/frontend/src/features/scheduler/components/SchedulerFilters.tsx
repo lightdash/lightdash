@@ -99,8 +99,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
 
 type SchedulerFiltersProps = {
     dashboard?: Dashboard;
-    // TODO: make this a requirement
-    onChange?: (schedulerFilters: SchedulerFilterRule[]) => void;
+    onChange: (schedulerFilters: SchedulerFilterRule[]) => void;
 };
 
 const SchedulerFilters: FC<SchedulerFiltersProps> = ({
