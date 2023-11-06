@@ -314,7 +314,9 @@ export const sendSlackNotification = async (
             description: details.description,
             message: scheduler.message && slackifyMarkdown(scheduler.message),
             ctaUrl: url,
-            footerMarkdown: `This is a <${url}?scheduler_uuid=${schedulerUuid}|scheduled delivery> ${getHumanReadableCronExpression(
+            footerMarkdown: `This is a <${url}?scheduler_uuid=${
+                schedulerUuid || ''
+            }|scheduled delivery> ${getHumanReadableCronExpression(
                 cron,
             )} from Lightdash\n${s3Client.getExpirationWarning()?.slack || ''}`,
         };
