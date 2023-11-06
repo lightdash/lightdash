@@ -28,7 +28,6 @@ const CustomInputs: FC<{
 
     return (
         <TextInput
-            label="Cron expression (UTC)"
             withAsterisk
             value={cronExpression}
             placeholder="0 9 * * 1"

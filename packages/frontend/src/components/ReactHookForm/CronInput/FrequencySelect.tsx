@@ -26,7 +26,7 @@ const FrequencyItems: Array<FrequencyItem> = [
     },
     {
         value: Frequency.CUSTOM,
-        label: 'Custom',
+        label: 'Custom cron expression',
     },
 ];
 
@@ -42,6 +42,8 @@ const FrequencySelect: FC<{
             withinPortal
             disabled={disabled}
             onChange={onChange}
+            w={210}
+            sx={{ alignSelf: 'start' }}
         />
     );
 };
