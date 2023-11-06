@@ -1,3 +1,10 @@
+## [0.851.2](https://github.com/lightdash/lightdash/compare/0.851.1...0.851.2) (2023-11-06)
+
+
+### Bug Fixes
+
+* sort join by label explore ([#7826](https://github.com/lightdash/lightdash/issues/7826)) ([399698a](https://github.com/lightdash/lightdash/commit/399698aa681ac06956cb84d8f6ac286536c2ca65))
+
 ## [0.851.1](https://github.com/lightdash/lightdash/compare/0.851.0...0.851.1) (2023-11-06)
 
 
