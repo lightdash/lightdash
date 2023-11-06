@@ -51,7 +51,7 @@ import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';
 import ErrorState from '../common/ErrorState';
-import { getConditionalRuleLabel } from '../common/Filters/configs';
+import { getConditionalRuleLabel } from '../common/Filters/FilterInputs';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';

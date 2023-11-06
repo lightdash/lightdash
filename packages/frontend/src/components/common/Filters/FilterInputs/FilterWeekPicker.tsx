@@ -30,7 +30,7 @@ const FilterWeekPicker: FC<Props> = ({
             w="100%"
             size="xs"
             {...rest}
-            popoverProps={{ ...rest.popoverProps, shadow: 'sm' }}
+            popoverProps={{ shadow: 'sm', ...rest.popoverProps }}
             getDayProps={(date) => {
                 const isHovered = isInWeekRange(
                     date,

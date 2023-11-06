@@ -21,11 +21,10 @@ const FilterYearPicker: FC<Props> = ({ value, onChange, ...props }) => {
             onClick={toggle}
             {...props}
             popoverProps={{
-                withArrow: true,
-                withinPortal: false,
                 shadow: 'md',
-                // FIXME: remove this once we migrate off of Blueprint
                 ...props.popoverProps,
+                // Month and year picker does not manage its own state properly.
+                // additional props are needed to make it work
                 opened: isPopoverOpen,
                 onOpen: () => {
                     props.popoverProps?.onOpen?.();

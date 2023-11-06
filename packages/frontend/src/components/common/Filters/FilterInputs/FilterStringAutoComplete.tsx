@@ -15,10 +15,7 @@ import {
 } from '../../../../hooks/useFieldValues';
 import { useFiltersContext } from '../FiltersProvider';
 
-type Props = Pick<
-    MultiSelectProps,
-    'disabled' | 'placeholder' | 'withinPortal'
-> & {
+type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
     filterId: string;
     field: FilterableItem;
     values: string[];
@@ -34,6 +31,7 @@ const FilterStringAutoComplete: FC<Props> = ({
     disabled,
     onChange,
     placeholder,
+    ...rest
 }) => {
     const { projectUuid, getAutocompleteFilterGroup } = useFiltersContext();
     if (!projectUuid) {
@@ -123,6 +121,7 @@ const FilterStringAutoComplete: FC<Props> = ({
             disableSelectedItemFiltering
             searchable
             clearSearchOnChange
+            {...rest}
             searchValue={search}
             onSearchChange={setSearch}
             limit={MAX_AUTOCOMPLETE_RESULTS}
