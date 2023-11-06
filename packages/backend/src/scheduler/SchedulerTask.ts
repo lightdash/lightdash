@@ -314,14 +314,9 @@ export const sendSlackNotification = async (
             description: details.description,
             message: scheduler.message && slackifyMarkdown(scheduler.message),
             ctaUrl: url,
-            footerMarkdown:
-                schedulerUuid !== undefined
-                    ? `This is a <${url}?scheduler_uuid=${schedulerUuid}|scheduled delivery> ${getHumanReadableCronExpression(
-                          cron,
-                      )} from Lightdash\n${
-                          s3Client.getExpirationWarning()?.slack || ''
-                      }`
-                    : `This is a scheduled delivery triggered manually from Lightdash`,
+            footerMarkdown: `This is a <${url}?scheduler_uuid=${schedulerUuid}|scheduled delivery> ${getHumanReadableCronExpression(
+                cron,
+            )} from Lightdash\n${s3Client.getExpirationWarning()?.slack || ''}`,
         };
 
         if (format === SchedulerFormat.IMAGE) {
