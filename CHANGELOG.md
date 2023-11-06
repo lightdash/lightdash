@@ -1,3 +1,10 @@
+# [0.851.0](https://github.com/lightdash/lightdash/compare/0.850.0...0.851.0) (2023-11-06)
+
+
+### Features
+
+* implement save chart modal in mantine ([#7807](https://github.com/lightdash/lightdash/issues/7807)) ([6cea10b](https://github.com/lightdash/lightdash/commit/6cea10b41ff2400b1a982d2fabf46fbefe4f827b))
+
 # [0.850.0](https://github.com/lightdash/lightdash/compare/0.849.2...0.850.0) (2023-11-06)
 
 
