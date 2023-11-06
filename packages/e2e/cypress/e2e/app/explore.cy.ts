@@ -49,7 +49,7 @@ describe('Explore', () => {
         cy.findByTestId('Charts-card-expand').click();
 
         cy.findByText('Save chart').click();
-        cy.get('input#chart-name').type('My chart');
+        cy.findByTestId('ChartCreateModal/NameInput').type('My chart');
         cy.findByText('Save').click();
         cy.findByText('Success! Chart was saved.');
 
