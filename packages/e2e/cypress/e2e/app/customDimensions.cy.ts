@@ -21,7 +21,7 @@ describe('Custom dimensions', () => {
 
         // Select metric
         cy.findByText('Total order amount').click();
-        cy.get('button').contains('Run Query').click();
+        cy.get('button').contains('Run query').click();
 
         // Check valid results
         cy.contains('0-6');

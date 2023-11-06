@@ -149,7 +149,7 @@ describe('Download CSV on Explore', () => {
             cy.findByText('Unique order count').click();
 
             // run query
-            cy.get('button').contains('Run Query').click();
+            cy.get('button').contains('Run query').click();
 
             // wait for the chart to finish loading
             cy.findByText('Loading results').should('not.exist');
@@ -182,7 +182,7 @@ describe('Download CSV on Explore', () => {
             cy.findByText('Unique order count').click();
 
             // run query
-            cy.get('button').contains('Run Query').click();
+            cy.get('button').contains('Run query').click();
 
             // open chart
             cy.findByTestId('Charts-card-expand').click();

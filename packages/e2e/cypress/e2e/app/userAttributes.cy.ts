@@ -28,7 +28,7 @@ describe('User attributes sql_filter', () => {
         cy.findByText('First name').click();
 
         // run query
-        cy.get('button').contains('Run Query').click();
+        cy.get('button').contains('Run query').click();
 
         cy.contains('Error running query');
 
@@ -58,7 +58,7 @@ describe('User attributes sql_filter', () => {
         cy.findByText('First name').click();
 
         // run query
-        cy.get('button').contains('Run Query').click();
+        cy.get('button').contains('Run query').click();
         cy.contains('Anna');
     });
 
@@ -77,7 +77,7 @@ describe('User attributes sql_filter', () => {
         cy.findByText('First name').click();
 
         // run query
-        cy.get('button').contains('Run Query').click();
+        cy.get('button').contains('Run query').click();
         cy.contains('Christina');
     });
 });
@@ -148,7 +148,7 @@ describe('User attributes dimension required_attribute', () => {
         cy.findByText('Last name').click();
 
         // run query
-        cy.get('button').contains('Run Query').click();
+        cy.get('button').contains('Run query').click();
         cy.contains('W.');
     });
 

@@ -66,7 +66,7 @@ export const RefreshButton = memo(() => {
                 onClick={onClick}
                 disabled={!isValidQuery}
             >
-                Run Query
+                Run query
             </Button>
         </Tooltip>
     );
