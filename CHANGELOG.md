@@ -1,3 +1,10 @@
+## [0.849.2](https://github.com/lightdash/lightdash/compare/0.849.1...0.849.2) (2023-11-06)
+
+
+### Bug Fixes
+
+* persist selected tags in multiselect ([#7816](https://github.com/lightdash/lightdash/issues/7816)) ([9c9b01b](https://github.com/lightdash/lightdash/commit/9c9b01bcd9debb3591d31bb8eaa732b618fafd1d))
+
 ## [0.849.1](https://github.com/lightdash/lightdash/compare/0.849.0...0.849.1) (2023-11-03)
 
 
