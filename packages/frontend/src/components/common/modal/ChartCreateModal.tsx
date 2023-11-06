@@ -245,8 +245,6 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                         <TextInput
                             label="Space"
                             description="Create a new space to add this chart to"
-                            // value={newSpaceName}
-                            // onChange={(e) => setNewSpaceName(e.target.value)}
                             placeholder="eg. KPIs"
                             {...form.getInputProps('newSpaceName')}
                         />
