@@ -1,3 +1,10 @@
+# [0.853.0](https://github.com/lightdash/lightdash/compare/0.852.0...0.853.0) (2023-11-07)
+
+
+### Features
+
+* update chart related buttons ([#7811](https://github.com/lightdash/lightdash/issues/7811)) ([16cb170](https://github.com/lightdash/lightdash/commit/16cb170ab58aa833b178e1d190e5c856d52c093a))
+
 # [0.852.0](https://github.com/lightdash/lightdash/compare/0.851.2...0.852.0) (2023-11-06)
 
 
