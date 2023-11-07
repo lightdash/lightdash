@@ -92,6 +92,7 @@ export const dashboard: Dashboard = {
     filters: {
         dimensions: [],
         metrics: [],
+        tableCalculations: [],
     },
     spaceUuid: 'spaceUuid',
     spaceName: 'space name',
@@ -170,6 +171,7 @@ export const createDashboard: CreateDashboard = {
     filters: {
         dimensions: [],
         metrics: [],
+        tableCalculations: [],
     },
 };
 
@@ -188,6 +190,7 @@ export const updateDashboardTiles: UpdateDashboard = {
     filters: {
         dimensions: [],
         metrics: [],
+        tableCalculations: [],
     },
 };
 

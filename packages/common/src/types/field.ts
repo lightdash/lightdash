@@ -123,6 +123,15 @@ export type TableCalculation = {
     format?: TableCalculationFormat;
 };
 
+export interface TableCalculationFilter extends Field {
+    fieldType: FieldType.TABLE_CALCULATION;
+    type: TableCalculationFormatType;
+    index?: number;
+    name: string;
+    displayName: string;
+    sql: string;
+}
+
 export const isTableCalculation = (item: Item): item is TableCalculation =>
     item
         ? !('binType' in item) &&
@@ -138,6 +147,7 @@ export type CompiledTableCalculation = TableCalculation & {
 export enum FieldType {
     METRIC = 'metric',
     DIMENSION = 'dimension',
+    TABLE_CALCULATION = 'table_calculation',
 }
 
 export type FieldUrl = {
@@ -225,6 +235,11 @@ export interface Dimension extends Field {
     timeInterval?: TimeFrames;
 }
 
+export const isTableCalculationFilter = (
+    field: any,
+): field is TableCalculationFilter =>
+    isField(field) && field.fieldType === FieldType.TABLE_CALCULATION;
+
 export interface CompiledDimension extends Dimension {
     compiledSql: string; // sql string with resolved template variables
     tablesReferences: Array<string> | undefined;
@@ -259,15 +274,26 @@ export const isFilterableDimension = (
         DimensionType.TIMESTAMP,
         DimensionType.BOOLEAN,
     ].includes(dimension.type);
-export type FilterableField = FilterableDimension | Metric;
+export type FilterableField =
+    | FilterableDimension
+    | Metric
+    | TableCalculationFilter;
 export const isFilterableField = (
-    field: Field | Dimension | Metric,
+    field: Field | Dimension | Metric | TableCalculationFilter,
 ): field is FilterableField =>
     isDimension(field) ? isFilterableDimension(field) : true;
 
-export type FilterableItem = FilterableField | TableCalculation;
+export type FilterableItem =
+    | FilterableField
+    | TableCalculationFilter
+    | TableCalculation;
 export const isFilterableItem = (
-    item: Field | Dimension | Metric | TableCalculation,
+    item:
+        | Field
+        | Dimension
+        | Metric
+        | TableCalculationFilter
+        | TableCalculation,
 ): item is FilterableItem =>
     isDimension(item) ? isFilterableDimension(item) : true;
 

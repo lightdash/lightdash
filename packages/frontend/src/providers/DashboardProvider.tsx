@@ -41,6 +41,7 @@ import {
 const emptyFilters: DashboardFilters = {
     dimensions: [],
     metrics: [],
+    tableCalculations: [],
 };
 
 type DashboardContext = {
@@ -291,6 +292,10 @@ export const DashboardProvider: React.FC = ({ children }) => {
                 ...dashboardFilters.metrics,
                 ...dashboardTemporaryFilters?.metrics,
             ],
+            tableCalculations: [
+                ...dashboardFilters.tableCalculations,
+                ...dashboardTemporaryFilters?.tableCalculations,
+            ],
         };
     }, [dashboardFilters, dashboardTemporaryFilters]);
 
@@ -328,6 +333,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
             setFunction((previousFilters) => ({
                 dimensions: [...previousFilters.dimensions, filter],
                 metrics: previousFilters.metrics,
+                tableCalculations: previousFilters.tableCalculations,
             }));
             setHaveFiltersChanged(true);
         },
@@ -370,6 +376,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
                         ...previousFilters.dimensions.slice(index + 1),
                     ],
                     metrics: previousFilters.metrics,
+                    tableCalculations: previousFilters.tableCalculations,
                 };
             });
             setHaveFiltersChanged(true);
@@ -389,6 +396,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
             setFunction((previousFilters) => ({
                 dimensions: previousFilters.dimensions,
                 metrics: [...previousFilters.metrics, filter],
+                tableCalculations: previousFilters.tableCalculations,
             }));
             setHaveFiltersChanged(true);
         },
@@ -412,6 +420,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
                         ...previousFilters.dimensions.slice(index + 1),
                     ],
                     metrics: previousFilters.metrics,
+                    tableCalculations: previousFilters.tableCalculations,
                 };
             });
             setHaveFiltersChanged(true);

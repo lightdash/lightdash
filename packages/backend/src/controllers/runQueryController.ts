@@ -42,6 +42,7 @@ type RunQueryRequest = {
     filters: {
         dimensions?: any;
         metrics?: any;
+        tableCalculations?: any;
     };
     sorts: SortField[]; // Sorts for the data
     limit: number; // Max number of rows to return from query

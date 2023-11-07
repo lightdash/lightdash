@@ -48,6 +48,7 @@ export const createDashboard: CreateDashboard = {
     filters: {
         dimensions: [],
         metrics: [],
+        tableCalculations: [],
     },
 };
 
@@ -61,6 +62,7 @@ export const addDashboardVersion: DashboardVersionedFields = {
     filters: {
         dimensions: [],
         metrics: [],
+        tableCalculations: [],
     },
 };
 
@@ -161,6 +163,7 @@ export const dashboardViewEntry: DashboardViewTable['base'] = {
     filters: {
         dimensions: [],
         metrics: [],
+        tableCalculations: [],
     },
 };
 
@@ -269,6 +272,7 @@ export const expectedDashboard: Dashboard = {
     filters: {
         dimensions: [],
         metrics: [],
+        tableCalculations: [],
     },
     spaceUuid: 'spaceUuid',
     spaceName: 'space name',

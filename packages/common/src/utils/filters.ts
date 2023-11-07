@@ -11,7 +11,9 @@ import {
     isDimension,
     isFilterableDimension,
     isTableCalculation,
+    isTableCalculationFilter,
     MetricType,
+    TableCalculationFormatType,
 } from '../types/field';
 import {
     DashboardFieldTarget,
@@ -54,6 +56,7 @@ export const getFilterRulesFromGroup = (
 export const getTotalFilterRules = (filters: Filters): FilterRule[] => [
     ...getFilterRulesFromGroup(filters.dimensions),
     ...getFilterRulesFromGroup(filters.metrics),
+    ...getFilterRulesFromGroup(filters.tableCalculations),
 ];
 
 export const countTotalFilterRules = (filters: Filters): number =>
@@ -67,8 +70,8 @@ export const hasNestedGroups = (filters: Filters): boolean => {
         return items.some(isFilterGroup);
     };
     return (
-        (!!filters.dimensions && hasGroups(filters.dimensions)) ||
-        (!!filters.metrics && hasGroups(filters.metrics))
+        (!!filters.metrics && hasGroups(filters.metrics)) ||
+        (!!filters.tableCalculations && hasGroups(filters.tableCalculations))
     );
 };
 
@@ -124,6 +127,11 @@ export const getFilterTypeFromItem = (item: FilterableItem): FilterType => {
         case DimensionType.BOOLEAN:
         case MetricType.BOOLEAN:
             return FilterType.BOOLEAN;
+        case TableCalculationFormatType.DEFAULT:
+        case TableCalculationFormatType.CURRENCY:
+        case TableCalculationFormatType.PERCENT:
+        case TableCalculationFormatType.NUMBER:
+            return FilterType.NUMBER;
         default: {
             return assertUnreachable(
                 type,
@@ -326,7 +334,15 @@ export const addFilterRule = ({
     field,
     value,
 }: AddFilterRuleArgs): Filters => {
-    const groupKey = isDimension(field) ? 'dimensions' : 'metrics';
+    const groupKey = ((f: any) => {
+        if (isDimension(f)) {
+            return 'dimensions';
+        }
+        if (isTableCalculationFilter(f)) {
+            return 'tableCalculations';
+        }
+        return 'metrics';
+    })(field);
     const group = filters[groupKey];
     return {
         ...filters,
@@ -347,10 +363,12 @@ export const getFilterRulesByFieldType = (
 ): {
     dimensions: FilterRule[];
     metrics: FilterRule[];
+    tableCalculations: FilterRule[];
 } =>
     filterRules.reduce<{
         dimensions: FilterRule[];
         metrics: FilterRule[];
+        tableCalculations: FilterRule[];
     }>(
         (sum, filterRule) => {
             const fieldInRule = fields.find(
@@ -361,6 +379,15 @@ export const getFilterRulesByFieldType = (
                     return {
                         ...sum,
                         dimensions: [...sum.dimensions, filterRule],
+                    };
+                }
+                if (isTableCalculationFilter(fieldInRule)) {
+                    return {
+                        ...sum,
+                        tableCalculations: [
+                            ...sum.tableCalculations,
+                            filterRule,
+                        ],
                     };
                 }
                 return {
@@ -374,6 +401,7 @@ export const getFilterRulesByFieldType = (
         {
             dimensions: [],
             metrics: [],
+            tableCalculations: [],
         },
     );
 
@@ -435,6 +463,11 @@ export const getDashboardFiltersForTileAndTables = (
         dashboardFilters.dimensions,
     ),
     metrics: getDashboardFilterRulesForTileAndTables(
+        tileUuid,
+        tables,
+        dashboardFilters.metrics,
+    ),
+    tableCalculations: getDashboardFilterRulesForTile(
         tileUuid,
         tables,
         dashboardFilters.metrics,
