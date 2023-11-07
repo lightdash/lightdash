@@ -49,7 +49,6 @@ import { useApp } from '../../providers/AppProvider';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
-import { filterFieldsNotVisible } from '../../utils/csvUtils';
 import { Can } from '../common/Authorization';
 import ErrorState from '../common/ErrorState';
 import { getConditionalRuleLabel } from '../common/Filters/FilterInputs';
@@ -104,18 +103,13 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
 
     const rows = resultData?.rows;
     const getCsvLink = async (limit: number | null, onlyRaw: boolean) => {
-        const filteredFields = filterFieldsNotVisible(
-            savedChart,
-            savedChart.tableConfig.columnOrder,
-        );
-
         const csvResponse = await downloadCsv({
             projectUuid: savedChart.projectUuid,
             tableId: savedChart.tableName,
-            query: filteredFields.metricQuery,
+            query: savedChart.metricQuery,
             csvLimit: limit,
             onlyRaw: onlyRaw,
-            columnOrder: filteredFields.columnOrder,
+            columnOrder: savedChart.tableConfig.columnOrder,
             showTableNames: isTableChartConfig(savedChart.chartConfig.config)
                 ? savedChart.chartConfig.config.showTableNames ?? false
                 : true,
@@ -142,15 +136,11 @@ const ExportGoogleSheet: FC<{ savedChart: SavedChart; disabled?: boolean }> = ({
     disabled,
 }) => {
     const getGsheetLink = async () => {
-        const filteredFields = filterFieldsNotVisible(
-            savedChart,
-            savedChart.tableConfig.columnOrder,
-        );
         const gsheetResponse = await uploadGsheet({
             projectUuid: savedChart.projectUuid,
             exploreId: savedChart.tableName,
-            metricQuery: filteredFields.metricQuery,
-            columnOrder: filteredFields.columnOrder,
+            metricQuery: savedChart.metricQuery,
+            columnOrder: savedChart.tableConfig.columnOrder,
             showTableNames: true,
         });
         return gsheetResponse;

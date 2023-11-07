@@ -12,7 +12,6 @@ import {
     ExplorerSection,
     useExplorerContext,
 } from '../../../providers/ExplorerProvider';
-import { filterFieldsNotVisible } from '../../../utils/csvUtils';
 import { ChartDownloadMenu } from '../../ChartDownload';
 import CollapsableCard from '../../common/CollapsableCard';
 import LightdashVisualization from '../../LightdashVisualization';
@@ -109,18 +108,14 @@ const VisualizationCard: FC<{
         customLabels?: Record<string, string>,
     ) => {
         if (explore?.name && unsavedChartVersion?.metricQuery && projectUuid) {
-            const filteredFields = filterFieldsNotVisible(
-                unsavedChartVersion,
-                columnOrder,
-            );
             const csvResponse = await downloadCsv({
                 projectUuid,
                 tableId: explore?.name,
-                query: filteredFields.metricQuery,
+                query: unsavedChartVersion.metricQuery,
                 csvLimit,
                 onlyRaw,
                 showTableNames,
-                columnOrder: filteredFields.columnOrder,
+                columnOrder: columnOrder,
                 customLabels,
             });
             return csvResponse;
@@ -129,16 +124,11 @@ const VisualizationCard: FC<{
     };
     const getGsheetLink = async (columnOrder: string[]) => {
         if (explore?.name && unsavedChartVersion?.metricQuery && projectUuid) {
-            const filteredFields = filterFieldsNotVisible(
-                unsavedChartVersion,
-                columnOrder,
-            );
-
             const gsheetResponse = await uploadGsheet({
                 projectUuid,
                 exploreId: explore?.name,
-                metricQuery: filteredFields.metricQuery,
-                columnOrder: filteredFields.columnOrder,
+                metricQuery: unsavedChartVersion?.metricQuery,
+                columnOrder,
                 showTableNames: true,
             });
             return gsheetResponse;
