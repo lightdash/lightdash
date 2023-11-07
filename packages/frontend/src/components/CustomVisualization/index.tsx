@@ -1,3 +1,4 @@
+import { ResultRow } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import { createContext, FC, useContext, useMemo } from 'react';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
@@ -9,15 +10,26 @@ const CustomVisualizationContext = createContext<{
 const useCustomVisualizationContext = () =>
     useContext(CustomVisualizationContext);
 
+const convertRowsToSeries = (rows: ResultRow[]) => {
+    return Object.keys(rows[0]).map((key) => [
+        key,
+        ...rows.map((row) => row[key].value.raw),
+    ]);
+};
+
 export const CustomVisualizationProvider: FC = ({ children }) => {
     const rows = useExplorerContext(
         (context) => context.queryResults.data?.rows,
     );
 
     const echartsConfig = useMemo(() => {
+        if (!rows) {
+            return undefined;
+        }
+
         return {
             dataset: {
-                source: rows,
+                source: convertRowsToSeries(rows),
             },
 
             // dummy config...
