@@ -202,6 +202,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                         placeholder="eg. How many weekly active users do we have?"
                         required
                         {...form.getInputProps('name')}
+                        data-testid="ChartCreateModal/NameInput"
                     />
                     <TextInput
                         label="Chart description"
