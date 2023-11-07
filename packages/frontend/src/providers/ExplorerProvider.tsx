@@ -36,6 +36,7 @@ import {
 export enum ExplorerSection {
     FILTERS = 'FILTERS',
     VISUALIZATION = 'VISUALIZATION',
+    CUSTOMVISUALIZATION = 'CUSTOMVISUALIZATION',
     RESULTS = 'RESULTS',
     SQL = 'SQL',
 }
