@@ -1,3 +1,10 @@
+## [0.854.2](https://github.com/lightdash/lightdash/compare/0.854.1...0.854.2) (2023-11-07)
+
+
+### Bug Fixes
+
+* return redirect on OIDC ([#7827](https://github.com/lightdash/lightdash/issues/7827)) ([0a10792](https://github.com/lightdash/lightdash/commit/0a10792f649b66ebbd1f6e34505edcaea1afcc1f))
+
 ## [0.854.1](https://github.com/lightdash/lightdash/compare/0.854.0...0.854.1) (2023-11-07)
 
 
