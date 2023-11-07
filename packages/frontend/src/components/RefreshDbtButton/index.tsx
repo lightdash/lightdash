@@ -15,6 +15,7 @@ import { useProject } from '../../hooks/useProject';
 import { useRefreshServer } from '../../hooks/useRefreshServer';
 import { useActiveJob } from '../../providers/ActiveJobProvider';
 import { useApp } from '../../providers/AppProvider';
+import { useExplorerContext } from '../../providers/ExplorerProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
@@ -28,6 +29,10 @@ const RefreshDbtButton = () => {
 
     const { track } = useTracking();
     const { user } = useApp();
+
+    const cleanupQueryReferences = useExplorerContext(
+        (context) => context.actions.cleanupQueryReferences,
+    );
 
     useEffect(() => {
         if (activeJob) {
@@ -45,9 +50,11 @@ const RefreshDbtButton = () => {
                 )
             ) {
                 setIsLoading(false);
+                if (activeJob.jobStatus === JobStatusType.DONE)
+                    cleanupQueryReferences();
             }
         }
-    }, [activeJob, activeJob?.jobStatus]);
+    }, [activeJob, activeJob?.jobStatus, cleanupQueryReferences]);
 
     if (
         user.data?.ability?.cannot('manage', 'Job') ||

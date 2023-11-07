@@ -28,6 +28,7 @@ import { FC, useCallback, useEffect, useMemo, useReducer } from 'react';
 import { useHistory } from 'react-router-dom';
 import { createContext, useContextSelector } from 'use-context-selector';
 import useDefaultSortField from '../hooks/useDefaultSortField';
+import { useExplore } from '../hooks/useExplore';
 import {
     useChartVersionResultsMutation,
     useQueryResults,
@@ -283,6 +284,7 @@ export interface ExplorerContext {
                 'isOpen'
             >,
         ) => void;
+        cleanupQueryReferences: () => void;
     };
 }
 
@@ -1487,6 +1489,56 @@ export const ExplorerProvider: FC<{
         });
     }, [history, resetQueryResults, unsavedChartVersion.tableName]);
 
+    const { data: tableData } = useExplore(unsavedChartVersion.tableName);
+    const cleanupQueryReferences = useCallback(() => {
+        const tableNames = Object.keys(tableData?.tables || {});
+
+        const cleanupCustomDimensions = () => {
+            state.unsavedChartVersion.metricQuery.customDimensions?.forEach(
+                (dimension) => {
+                    const isWithUnknownField = !tableNames.includes(
+                        dimension.table,
+                    );
+                    if (isWithUnknownField)
+                        removeCustomDimension(getFieldId(dimension));
+                },
+            );
+        };
+        cleanupCustomDimensions();
+
+        const cleanupAdditionalMetrics = (): string[] =>
+            state.unsavedChartVersion.metricQuery.additionalMetrics?.reduce(
+                (dimensionsToRemove: string[], metric) => {
+                    const isWithUnknownField = !tableNames.includes(
+                        metric.table,
+                    );
+                    if (isWithUnknownField) {
+                        removeAdditionalMetric(getFieldId(metric));
+
+                        const dimensionToRemove = `${metric.table}_${metric.baseDimensionName}`;
+
+                        return [...dimensionsToRemove, dimensionToRemove];
+                    }
+
+                    return dimensionsToRemove;
+                },
+                [],
+            ) || [];
+        const dimensionsToRemove = cleanupAdditionalMetrics();
+
+        const cleanupDimensions = () => {
+            [...new Set(dimensionsToRemove)].forEach(removeActiveField);
+        };
+        cleanupDimensions();
+    }, [
+        state.unsavedChartVersion.metricQuery.additionalMetrics,
+        state.unsavedChartVersion.metricQuery.customDimensions,
+        tableData,
+        removeAdditionalMetric,
+        removeCustomDimension,
+        removeActiveField,
+    ]);
+
     const defaultSort = useDefaultSortField(unsavedChartVersion);
 
     const fetchResults = useCallback(() => {
@@ -1529,6 +1581,7 @@ export const ExplorerProvider: FC<{
             editCustomDimension,
             removeCustomDimension,
             toggleCustomDimensionModal,
+            cleanupQueryReferences,
         }),
         [
             clearExplore,
@@ -1561,6 +1614,7 @@ export const ExplorerProvider: FC<{
             editCustomDimension,
             removeCustomDimension,
             toggleCustomDimensionModal,
+            cleanupQueryReferences,
         ],
     );
 
