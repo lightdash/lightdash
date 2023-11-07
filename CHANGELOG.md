@@ -1,3 +1,10 @@
+## [0.854.3](https://github.com/lightdash/lightdash/compare/0.854.2...0.854.3) (2023-11-07)
+
+
+### Bug Fixes
+
+* syntax for docker metadata pattern ([#7841](https://github.com/lightdash/lightdash/issues/7841)) ([abe8f67](https://github.com/lightdash/lightdash/commit/abe8f6773982758053e27c944a645bdf73d06a44))
+
 ## [0.854.2](https://github.com/lightdash/lightdash/compare/0.854.1...0.854.2) (2023-11-07)
 
 
