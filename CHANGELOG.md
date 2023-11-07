@@ -1,3 +1,10 @@
+## [0.854.1](https://github.com/lightdash/lightdash/compare/0.854.0...0.854.1) (2023-11-07)
+
+
+### Bug Fixes
+
+* google sheet array field ([#7832](https://github.com/lightdash/lightdash/issues/7832)) ([bc41e97](https://github.com/lightdash/lightdash/commit/bc41e973629752dd0b27a11445273b3d07dd3bb0))
+
 # [0.854.0](https://github.com/lightdash/lightdash/compare/0.853.0...0.854.0) (2023-11-07)
 
 
