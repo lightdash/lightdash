@@ -40,10 +40,11 @@ export const useCustomVisualizationContext = () =>
     useContext(CustomVisualizationContext);
 
 const convertRowsToSeries = (rows: ResultRow[]) => {
-    return Object.keys(rows[0]).map((key) => [
-        key,
-        ...rows.map((row) => row[key].value.raw),
-    ]);
+    return rows.map((row) => {
+        return Object.fromEntries(
+            Object.entries(row).map(([key, value]) => [key, value.value.raw]),
+        );
+    });
 };
 
 export const CustomVisualizationProvider: FC = ({ children }) => {
@@ -59,6 +60,8 @@ export const CustomVisualizationProvider: FC = ({ children }) => {
             newConfig.dataset = {
                 source: convertRowsToSeries(rows || []),
             };
+
+            console.log(newConfig);
 
             setEchartsConfig(newConfig);
         },
@@ -90,7 +93,12 @@ const CustomVisualization: FC = () => {
         return null;
     }
 
-    return <EChartsReact option={echartsConfig} />;
+    return (
+        <EChartsReact
+            style={{ height: '100%', width: '100%' }}
+            option={echartsConfig}
+        />
+    );
 };
 
 export default CustomVisualization;
