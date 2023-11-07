@@ -36,6 +36,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { downloadCsv } from '../../api/csv';
 import { ExportToGoogleSheet } from '../../features/export';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
+import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import useSavedQueryWithDashboardFilters from '../../hooks/dashboard/useSavedQueryWithDashboardFilters';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
@@ -74,21 +75,24 @@ import {
 interface ExportResultAsCSVModalProps {
     projectUuid: string;
     savedChart: SavedChart;
+    tileUuid: string;
     onClose: () => void;
     onConfirm: () => void;
 }
 
 const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
+    tileUuid,
     savedChart,
     onClose,
     onConfirm,
 }) => {
     const { showToastError } = useToaster();
+    const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const {
         data: resultData,
         isLoading,
         error,
-    } = useChartResults(savedChart.uuid, savedChart.metricQuery.filters);
+    } = useChartResults(savedChart.uuid, dashboardFilters);
 
     useEffect(() => {
         if (error) {
@@ -167,11 +171,12 @@ const ValidDashboardChartTile: FC<{
 }> = ({ tileUuid, isTitleHidden = false, data, onSeriesContextMenu }) => {
     const { addSuggestions, addResultsCacheTime, invalidateCache } =
         useDashboardContext();
+    const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const {
         data: resultData,
         isLoading,
         error,
-    } = useChartResults(data.uuid, data.metricQuery.filters, invalidateCache);
+    } = useChartResults(data.uuid, dashboardFilters, invalidateCache);
     const { data: explore } = useExplore(data.tableName);
     const { health } = useApp();
 
@@ -229,11 +234,12 @@ const ValidDashboardChartTileMinimal: FC<{
     title: string;
     data: SavedChart;
 }> = ({ tileUuid, data, isTitleHidden = false }) => {
+    const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const {
         data: resultData,
         isLoading,
         error,
-    } = useChartResults(data.uuid, data.metricQuery.filters);
+    } = useChartResults(data.uuid, dashboardFilters);
     const { data: explore } = useExplore(data.tableName);
 
     const { health } = useApp();
@@ -819,6 +825,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             {savedQueryWithDashboardFilters && isCSVExportModalOpen ? (
                 <ExportResultAsCSVModal
                     projectUuid={projectUuid}
+                    tileUuid={tileUuid}
                     savedChart={savedQueryWithDashboardFilters}
                     onClose={() => setIsCSVExportModalOpen(false)}
                     onConfirm={() => setIsCSVExportModalOpen(false)}

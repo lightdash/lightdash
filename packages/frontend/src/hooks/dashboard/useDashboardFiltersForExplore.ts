@@ -1,7 +1,7 @@
 import {
     DashboardFilters,
     Explore,
-    getDashboardFilterRulesForTile,
+    getDashboardFilterRulesForTileAndTables,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { useDashboardContext } from '../../providers/DashboardProvider';
@@ -20,11 +20,15 @@ const useDashboardFiltersForExplore = (
 
     return useMemo(
         () => ({
-            dimensions: getDashboardFilterRulesForTile(tileUuid, tables, [
-                ...dashboardFilters.dimensions,
-                ...(dashboardTemporaryFilters?.dimensions ?? []),
-            ]),
-            metrics: getDashboardFilterRulesForTile(tileUuid, tables, [
+            dimensions: getDashboardFilterRulesForTileAndTables(
+                tileUuid,
+                tables,
+                [
+                    ...dashboardFilters.dimensions,
+                    ...(dashboardTemporaryFilters?.dimensions ?? []),
+                ],
+            ),
+            metrics: getDashboardFilterRulesForTileAndTables(tileUuid, tables, [
                 ...dashboardFilters.metrics,
                 ...(dashboardTemporaryFilters?.metrics ?? []),
             ]),
