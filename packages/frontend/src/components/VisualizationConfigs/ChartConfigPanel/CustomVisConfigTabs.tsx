@@ -1,17 +1,11 @@
-import { Button, JsonInput, Stack, Tabs, Text } from '@mantine/core';
-import React, { memo, useState } from 'react';
+import { json } from '@codemirror/lang-json';
+import { Tabs, Text } from '@mantine/core';
+import CodeMirror from '@uiw/react-codemirror';
+import React, { memo } from 'react';
 import { useCustomVisualizationContext } from '../../CustomVisualization';
 
 const CustomVisConfigTabs: React.FC = memo(() => {
-    const { echartsConfig, setChartConfig } = useCustomVisualizationContext();
-
-    const [draftConfig, setDraftConfig] = useState<string>(
-        JSON.stringify(echartsConfig, null, 2),
-    );
-
-    const updateChart = () => {
-        setChartConfig(JSON.parse(draftConfig));
-    };
+    const { echartsConfig, setEchartsConfig } = useCustomVisualizationContext();
 
     return (
         <Tabs defaultValue="config" keepMounted={false}>
@@ -21,21 +15,13 @@ const CustomVisConfigTabs: React.FC = memo(() => {
             </Tabs.List>
 
             <Tabs.Panel value="config">
-                <Stack>
-                    <JsonInput
-                        label="Chart config"
-                        validationError="Invalid JSON"
-                        value={draftConfig}
-                        onChange={(config) => setDraftConfig(config)}
-                        formatOnBlur
-                        autosize
-                        minRows={20}
-                    />
-                    <Button onClick={updateChart} sx={{ alignSelf: 'end' }}>
-                        Make a chart
-                    </Button>
-                </Stack>
+                <CodeMirror
+                    value={echartsConfig}
+                    extensions={[json()]}
+                    onChange={(config) => setEchartsConfig(config)}
+                />
             </Tabs.Panel>
+
             <Tabs.Panel value="data">
                 <Text>Transform data</Text>
             </Tabs.Panel>

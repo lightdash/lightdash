@@ -1,39 +1,20 @@
 import { ResultRow } from '@lightdash/common';
+import { Code } from '@mantine/core';
 import EChartsReact from 'echarts-for-react';
-import {
-    createContext,
-    FC,
-    useCallback,
-    useContext,
-    useMemo,
-    useState,
-} from 'react';
+import { createContext, FC, useContext, useMemo, useState } from 'react';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 
-const defaultValue = {
-    xAxis: {
-        type: 'category',
-        data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    },
-    yAxis: {
-        type: 'value',
-    },
-    series: [
-        {
-            type: 'bar',
-            showBackground: true,
-            backgroundStyle: {
-                color: 'rgba(180, 180, 180, 0.2)',
-            },
-        },
-    ],
-};
+const defaultValue = '{}';
 
 const CustomVisualizationContext = createContext<{
-    echartsConfig: any | undefined;
-    setChartConfig: (newConfig: any) => void;
-    rows: any;
-}>({ echartsConfig: undefined, setChartConfig: () => {}, rows: undefined });
+    echartsConfig: string;
+    setEchartsConfig: (newConfig: string) => void;
+    rows: ResultRow[] | undefined;
+}>({
+    echartsConfig: defaultValue,
+    setEchartsConfig: () => {},
+    rows: undefined,
+});
 
 export const useCustomVisualizationContext = () =>
     useContext(CustomVisualizationContext);
@@ -51,51 +32,46 @@ export const CustomVisualizationProvider: FC = ({ children }) => {
         (context) => context.queryResults.data?.rows,
     );
 
-    const [echartsConfig, setEchartsConfig] = useState<any>(defaultValue);
-
-    const setChartConfig = useCallback(
-        (newConfig: any) => {
-            // TODO: we need to figure out the data source better
-            newConfig.dataset = {
-                source: convertRowsToSeries(rows || []),
-            };
-
-            console.log(newConfig);
-
-            setEchartsConfig(newConfig);
-        },
-        [rows],
-    );
-
-    const value = useMemo(
-        () => ({
-            echartsConfig,
-            setChartConfig,
-            rows,
-        }),
-        [echartsConfig, setChartConfig, rows],
-    );
+    const [echartsConfig, setEchartsConfig] = useState<string>(defaultValue);
 
     return (
-        <CustomVisualizationContext.Provider value={value}>
+        <CustomVisualizationContext.Provider
+            value={{
+                echartsConfig,
+                setEchartsConfig,
+                rows,
+            }}
+        >
             {children}
         </CustomVisualizationContext.Provider>
     );
 };
 
 const CustomVisualization: FC = () => {
-    const { echartsConfig } = useCustomVisualizationContext();
+    const { echartsConfig, rows } = useCustomVisualizationContext();
 
-    console.log('echartsConfig', echartsConfig);
+    const [config, error] = useMemo(() => {
+        try {
+            return [
+                {
+                    ...JSON.parse(echartsConfig),
+                    source: convertRowsToSeries(rows || []),
+                },
+                null,
+            ];
+        } catch (e) {
+            return [null, e];
+        }
+    }, [echartsConfig, rows]);
 
-    if (!echartsConfig) {
-        return null;
+    if (error) {
+        return <Code>{error.toString()}</Code>;
     }
 
     return (
         <EChartsReact
             style={{ height: '100%', width: '100%' }}
-            option={echartsConfig}
+            option={config}
         />
     );
 };
