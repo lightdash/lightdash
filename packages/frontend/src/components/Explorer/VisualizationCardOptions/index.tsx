@@ -13,6 +13,7 @@ import {
     IconChartLine,
     IconChartPie,
     IconChevronDown,
+    IconCode,
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
@@ -140,6 +141,11 @@ const VisualizationCardOptions: FC = memo(() => {
                 return {
                     text: 'Pie chart',
                     icon: <MantineIcon icon={IconChartPie} color="gray" />,
+                };
+            case ChartType.CUSTOM:
+                return {
+                    text: 'Custom',
+                    icon: <MantineIcon icon={IconCode} color="gray" />,
                 };
             default: {
                 return assertUnreachable(
@@ -331,6 +337,17 @@ const VisualizationCardOptions: FC = memo(() => {
                     }}
                 >
                     Big value
+                </Menu.Item>
+                <Menu.Item
+                    disabled={disabled}
+                    color={chartType === ChartType.CUSTOM ? 'blue' : undefined}
+                    icon={<MantineIcon icon={IconCode} />}
+                    onClick={() => {
+                        setChartType(ChartType.CUSTOM);
+                        setPivotDimensions(undefined);
+                    }}
+                >
+                    Custom
                 </Menu.Item>
             </Menu.Dropdown>
         </Menu>

@@ -1,5 +1,8 @@
 import { assertUnreachable, ChartType } from '@lightdash/common';
+import { Center, Stack, Text } from '@mantine/core';
+import { IconChartAreaLine } from '@tabler/icons-react';
 import { FC, memo } from 'react';
+import MantineIcon from '../common/MantineIcon';
 import SimpleChart from '../SimpleChart';
 import SimplePieChart from '../SimplePieChart';
 import SimpleStatistic from '../SimpleStatistic';
@@ -70,6 +73,21 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                         {...props}
                     />
                 );
+            case ChartType.CUSTOM:
+                // TODO: Custom component here
+                return (
+                    <Center>
+                        <Stack align="center">
+                            <MantineIcon
+                                color="blue"
+                                icon={IconChartAreaLine}
+                                size="9xl"
+                            />
+                            <Text>Fancy chart here</Text>
+                        </Stack>
+                    </Center>
+                );
+
             default:
                 return assertUnreachable(
                     chartType,

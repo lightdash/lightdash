@@ -353,6 +353,9 @@ export const getValidChartConfig = (
                 config: isPieChartConfig(config) ? config : {},
             };
         }
+        case ChartType.CUSTOM: {
+            return { type, config: {} };
+        }
         default:
             return assertUnreachable(type, 'Invalid chart type');
     }

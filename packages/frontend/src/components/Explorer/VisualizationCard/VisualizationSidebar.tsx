@@ -9,6 +9,7 @@ import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import BigNumberConfigTabs from '../../VisualizationConfigs/BigNumberConfig/BigNumberConfigTabs';
 import ChartConfigTabs from '../../VisualizationConfigs/ChartConfigPanel/ChartConfigTabs';
+import CustomVisConfigTabs from '../../VisualizationConfigs/ChartConfigPanel/CustomVisConfigTabs';
 import PieChartConfigTabs from '../../VisualizationConfigs/PieChartConfig/PieChartConfigTabs';
 import TableConfigTabs from '../../VisualizationConfigs/TableConfigPanel/TableConfigTabs';
 import VisualizationCardOptions from '../VisualizationCardOptions';
@@ -80,6 +81,8 @@ const VisualizationSidebar: FC<{
                                     return <ChartConfigTabs />;
                                 case ChartType.PIE:
                                     return <PieChartConfigTabs />;
+                                case ChartType.CUSTOM:
+                                    return <CustomVisConfigTabs />;
                                 default:
                                     return assertUnreachable(
                                         chartType,
