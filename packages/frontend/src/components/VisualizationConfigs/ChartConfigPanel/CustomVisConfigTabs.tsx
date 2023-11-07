@@ -31,7 +31,9 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                         autosize
                         minRows={20}
                     />
-                    <Button onClick={updateChart}>Make a chart</Button>
+                    <Button onClick={updateChart} sx={{ alignSelf: 'end' }}>
+                        Make a chart
+                    </Button>
                 </Stack>
             </Tabs.Panel>
             <Tabs.Panel value="data">
