@@ -50,7 +50,7 @@ const TableTreeSections: FC<Props> = ({
             );
     }, [additionalMetrics, table]);
     const customDimensionsMap = useMemo(() => {
-        if (customDimensions === undefined) return undefined;
+        if (customDimensions === undefined) return {};
         return customDimensions
             .filter((customDimension) => customDimension.table === table.name)
             .reduce<Record<string, CustomDimension>>(
@@ -63,8 +63,8 @@ const TableTreeSections: FC<Props> = ({
 
     const hasMetrics = Object.keys(table.metrics).length > 0;
     const hasDimensions = Object.keys(table.dimensions).length > 0;
-    const hasCustomMetrics = additionalMetrics.length > 0;
-    const hasCustomDimensions = customDimensions && customDimensions.length > 0;
+    const hasCustomMetrics = Object.keys(customMetrics).length > 0;
+    const hasCustomDimensions = Object.keys(customDimensionsMap).length > 0;
 
     return (
         <>
@@ -179,7 +179,6 @@ const TableTreeSections: FC<Props> = ({
             ) : null}
 
             {hasCustomDimensions &&
-            customDimensionsMap &&
             !(
                 isSearching &&
                 getSearchResults(customDimensionsMap, searchQuery).size === 0
@@ -208,7 +207,7 @@ const TableTreeSections: FC<Props> = ({
                 </Group>
             ) : null}
 
-            {hasCustomDimensions && customDimensionsMap ? (
+            {hasCustomDimensions ? (
                 <TreeProvider
                     orderFieldsBy={table.orderFieldsBy}
                     searchQuery={searchQuery}
