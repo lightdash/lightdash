@@ -1,3 +1,10 @@
+## [0.855.1](https://github.com/lightdash/lightdash/compare/0.855.0...0.855.1) (2023-11-07)
+
+
+### Bug Fixes
+
+* remove unnecessary usage of useExplores ([#7849](https://github.com/lightdash/lightdash/issues/7849)) ([9af4bc1](https://github.com/lightdash/lightdash/commit/9af4bc19925fa987bba73cbe80015c67397045d9))
+
 # [0.855.0](https://github.com/lightdash/lightdash/compare/0.854.4...0.855.0) (2023-11-07)
 
 
