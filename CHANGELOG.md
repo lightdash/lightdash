@@ -1,3 +1,10 @@
+# [0.854.0](https://github.com/lightdash/lightdash/compare/0.853.0...0.854.0) (2023-11-07)
+
+
+### Features
+
+* Implement multi-arch Docker builds in the CI ([#7766](https://github.com/lightdash/lightdash/issues/7766)) ([8d9353d](https://github.com/lightdash/lightdash/commit/8d9353d87d9db2f72a95f3cbdf9a1bfb19aa22aa))
+
 # [0.853.0](https://github.com/lightdash/lightdash/compare/0.852.0...0.853.0) (2023-11-07)
 
 
