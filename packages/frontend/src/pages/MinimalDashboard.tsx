@@ -43,7 +43,6 @@ const MinimalDashboard: FC = () => {
         ),
     };
 
-    // TODO: get chart results here
     return (
         <DashboardProvider>
             <ResponsiveGridLayout

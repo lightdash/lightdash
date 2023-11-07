@@ -1,4 +1,4 @@
-import { Menu, Portal, Tag } from '@blueprintjs/core';
+import { Menu, NonIdealState, Portal, Tag } from '@blueprintjs/core';
 import {
     MenuItem2,
     Popover2,
@@ -36,6 +36,7 @@ import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { downloadCsv } from '../../api/csv';
 import { ExportToGoogleSheet } from '../../features/export';
+import useDashboardChart from '../../hooks/dashboard/useDashboardChart';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
@@ -54,10 +55,12 @@ import ExportCSVModal from '../ExportCSV/ExportCSVModal';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
-import {
+import DrillDownModal from '../MetricQueryData/DrillDownModal';
+import MetricQueryDataProvider, {
     getDataFromChartClick,
     useMetricQueryDataContext,
 } from '../MetricQueryData/MetricQueryDataProvider';
+import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 import TileBase from './TileBase/index';
 import {
@@ -794,19 +797,46 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
     );
 };
 
-interface DashboardChartTileProps extends DashboardChartTileMainProps {
+type DashboardChartTileProps = Omit<
+    DashboardChartTileMainProps,
+    'chartAndResults'
+> & {
     minimal?: boolean;
-}
+};
 
 const DashboardChartTile: FC<DashboardChartTileProps> = ({
     minimal = false,
     ...rest
 }) => {
-    if (minimal) {
-        return <DashboardChartTileMinimal {...rest} />;
-    } else {
-        return <DashboardChartTileMain {...rest} />;
-    }
+    const { isError, isLoading, data } = useDashboardChart(
+        rest.tile.uuid,
+        rest.tile.properties?.savedChartUuid ?? null,
+    );
+    if (isLoading) return <TileBase isLoading={true} title={''} {...rest} />;
+    if (isError || !data)
+        return (
+            <TileBase title={''} {...rest}>
+                <NonIdealState
+                    icon="lock"
+                    title={`You don't have access to view this chart`}
+                ></NonIdealState>
+            </TileBase>
+        );
+
+    return (
+        <MetricQueryDataProvider
+            metricQuery={data?.metricQuery}
+            tableName={data?.chart.tableName || ''}
+        >
+            {minimal ? (
+                <DashboardChartTileMinimal {...rest} chartAndResults={data} />
+            ) : (
+                <DashboardChartTileMain {...rest} chartAndResults={data} />
+            )}
+            <UnderlyingDataModal />
+            <DrillDownModal />
+        </MetricQueryDataProvider>
+    );
 };
 
 export default DashboardChartTile;
