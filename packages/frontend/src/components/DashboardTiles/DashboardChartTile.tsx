@@ -342,7 +342,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             }));
             const serie = series[e.seriesIndex];
             const fields = getFields(explore);
-            const pivot = chart?.pivotConfig?.columns?.[0];
+            const pivot = chart.pivotConfig?.columns?.[0];
             const pivotField = fields.find(
                 (field) => `${field.table}_${field.name}` === pivot,
             );
@@ -378,8 +378,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
             const allItemsMap = getItemMap(
                 explore,
-                chart?.metricQuery.additionalMetrics,
-                chart?.metricQuery.tableCalculations,
+                chart.metricQuery.additionalMetrics,
+                chart.metricQuery.tableCalculations,
             );
 
             const underlyingData = getDataFromChartClick(
@@ -387,7 +387,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 allItemsMap,
                 series,
             );
-            const queryDimensions = chart?.metricQuery.dimensions || [];
+            const queryDimensions = chart.metricQuery.dimensions || [];
             setViewUnderlyingDataOptions({
                 ...underlyingData,
                 dimensions: queryDimensions,
@@ -481,10 +481,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         </Tooltip>
                     )
                 }
-                title={title || chart?.name || ''}
-                chartName={chart?.name}
+                title={title || chart.name || ''}
+                chartName={chart.name}
                 titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
-                description={chart?.description}
+                description={chart.description}
                 belongsToDashboard={belongsToDashboard}
                 extraMenuItems={
                     savedChartUuid !== null &&
@@ -524,30 +524,24 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     />
                                 )}
 
-                                {chart &&
-                                    chart.chartConfig.type ===
-                                        ChartType.TABLE && (
-                                        <MenuItem2
-                                            icon="export"
-                                            text="Export CSV"
-                                            disabled={isEditMode}
-                                            onClick={() =>
-                                                setIsCSVExportModalOpen(true)
-                                            }
-                                        />
-                                    )}
-                                {chart &&
-                                    chart.chartConfig.type ===
-                                        ChartType.TABLE && (
-                                        <ExportGoogleSheet
-                                            savedChart={
-                                                chartWithDashboardFilters
-                                            }
-                                            disabled={isEditMode}
-                                        />
-                                    )}
+                                {chart.chartConfig.type === ChartType.TABLE && (
+                                    <MenuItem2
+                                        icon="export"
+                                        text="Export CSV"
+                                        disabled={isEditMode}
+                                        onClick={() =>
+                                            setIsCSVExportModalOpen(true)
+                                        }
+                                    />
+                                )}
+                                {chart.chartConfig.type === ChartType.TABLE && (
+                                    <ExportGoogleSheet
+                                        savedChart={chartWithDashboardFilters}
+                                        disabled={isEditMode}
+                                    />
+                                )}
 
-                                {chart?.dashboardUuid && userCanManageChart && (
+                                {chart.dashboardUuid && userCanManageChart && (
                                     <MenuItem2
                                         icon={<IconFolders size={16} />}
                                         text="Move to space"
@@ -729,7 +723,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     />
                 </>
             </TileBase>
-            {chart?.spaceUuid && (
+            {chart.spaceUuid && (
                 <MoveChartThatBelongsToDashboardModal
                     className={'non-draggable'}
                     uuid={chart.uuid}
@@ -755,10 +749,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     }}
                 />
             )}
-            {chart && isCSVExportModalOpen ? (
+            {isCSVExportModalOpen ? (
                 <ExportResultAsCSVModal
                     projectUuid={projectUuid}
-                    savedChart={chart}
+                    savedChart={chartWithDashboardFilters}
                     rows={rows}
                     onClose={() => setIsCSVExportModalOpen(false)}
                     onConfirm={() => setIsCSVExportModalOpen(false)}
