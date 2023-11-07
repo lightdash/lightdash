@@ -1,4 +1,5 @@
-import React, { FC, memo, useEffect } from 'react';
+import { Group } from '@mantine/core';
+import { FC, memo, useEffect } from 'react';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { Can } from '../../common/Authorization';
@@ -7,7 +8,6 @@ import ExploreFromHereButton from '../../ExploreFromHereButton';
 import { RefreshButton } from '../../RefreshButton';
 import RefreshDbtButton from '../../RefreshDbtButton';
 import SaveChartButton from '../SaveChartButton';
-import { Spacer, Wrapper } from './ExplorerHeader.styles';
 
 const ExplorerHeader: FC = memo(() => {
     const isEditMode = useExplorerContext(
@@ -37,25 +37,28 @@ const ExplorerHeader: FC = memo(() => {
         };
     }, [getHasDashboardChanges]);
 
-    return (
-        <Wrapper>
-            {isEditMode ? (
-                <>
-                    <RefreshDbtButton />
-                    <Spacer />
+    if (isEditMode) {
+        return (
+            <Group position="apart">
+                <RefreshDbtButton />
+
+                <Group spacing="xs">
                     <RefreshButton />
                     {!savedChart && (
                         <Can I="manage" a="SavedChart">
                             <SaveChartButton isExplorer />
                         </Can>
                     )}
-                </>
-            ) : (
-                <ExploreFromHereButton />
-            )}
+                </Group>
+            </Group>
+        );
+    }
 
+    return (
+        <Group position="right" spacing="xs">
+            <ExploreFromHereButton />
             <ShareShortLinkButton disabled={!isValidQuery} />
-        </Wrapper>
+        </Group>
     );
 });
 
