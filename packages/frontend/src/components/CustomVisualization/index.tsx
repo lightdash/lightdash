@@ -1,7 +1,7 @@
 import { ResultRow } from '@lightdash/common';
 import { Code } from '@mantine/core';
-import EChartsReact from 'echarts-for-react';
 import { createContext, FC, useContext, useMemo, useState } from 'react';
+import { VegaLite } from 'react-vega';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 
 const defaultValue = '{}';
@@ -22,7 +22,12 @@ export const useCustomVisualizationContext = () =>
 const convertRowsToSeries = (rows: ResultRow[]) => {
     return rows.map((row) => {
         return Object.fromEntries(
-            Object.entries(row).map(([key, value]) => [key, value.value.raw]),
+            Object.entries(row).map(([key, value]) => [
+                key,
+                key === 'payments_unique_payment_count'
+                    ? parseInt(value.value.raw as string)
+                    : value.value.raw,
+            ]),
         );
     });
 };
@@ -55,24 +60,22 @@ const CustomVisualization: FC = () => {
             return [
                 {
                     ...JSON.parse(echartsConfig),
-                    dataset: { source: convertRowsToSeries(rows || []) },
                 },
                 null,
             ];
         } catch (e) {
             return [null, e];
         }
-    }, [echartsConfig, rows]);
+    }, [echartsConfig]);
 
     if (error) {
         return <Code>{error.toString()}</Code>;
     }
 
+    const data = { table: convertRowsToSeries(rows || []) };
+    console.log(data);
     return (
-        <EChartsReact
-            style={{ height: '100%', width: '100%' }}
-            option={config}
-        />
+        <VegaLite spec={{ ...config, data: { name: 'table' } }} data={data} />
     );
 };
 

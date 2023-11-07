@@ -64,12 +64,15 @@
         "react-textfit": "^1.1.1",
         "react-use": "^17.3.2",
         "react-use-intercom": "^1.5.1",
+        "react-vega": "^7.6.0",
         "rudder-sdk-js": "^2.8.0",
         "scheduler": "^0.23.0",
         "styled-components": "^5.3.3",
         "use-context-selector": "^1.4.1",
         "use-local-storage-state": "17",
         "uuid": "^8.3.2",
+        "vega": "^5.25.0",
+        "vega-lite": "^5.16.1",
         "zod": "^3.22.3"
     },
     "scripts": {
