@@ -1,3 +1,10 @@
+## [0.854.4](https://github.com/lightdash/lightdash/compare/0.854.3...0.854.4) (2023-11-07)
+
+
+### Bug Fixes
+
+* custom range sorting ([#7836](https://github.com/lightdash/lightdash/issues/7836)) ([613ef83](https://github.com/lightdash/lightdash/commit/613ef8319901c67efcd8e924a0b3a310e84cb5d2))
+
 ## [0.854.3](https://github.com/lightdash/lightdash/compare/0.854.2...0.854.3) (2023-11-07)
 
 
