@@ -1,11 +1,11 @@
 import { subject } from '@casl/ability';
+import { Button } from '@mantine/core';
 import { IconTelescope } from '@tabler/icons-react';
 import { useMemo } from 'react';
-
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useApp } from '../../providers/AppProvider';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
-import { StyledLinkButton } from '../Home/LandingPanel/LandingPanel.styles';
+import MantineIcon from '../common/MantineIcon';
 
 const ExploreFromHereButton = () => {
     const savedChart = useExplorerContext(
@@ -34,14 +34,14 @@ const ExploreFromHereButton = () => {
     if (!exploreFromHereUrl) return null;
 
     return (
-        <StyledLinkButton
-            intent="primary"
-            large
-            icon={<IconTelescope size={16} />}
+        <Button
+            component="a"
+            size="xs"
+            leftIcon={<MantineIcon icon={IconTelescope} />}
             href={exploreFromHereUrl}
         >
             Explore from here
-        </StyledLinkButton>
+        </Button>
     );
 };
 

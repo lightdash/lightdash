@@ -21,17 +21,19 @@ const WeeklyInputs: FC<{
         );
     };
     return (
-        <Group spacing="xs">
+        <>
             <Input.Label>on</Input.Label>
             <WeekDaySelect value={weekDay} onChange={onDayChange} />
             <Input.Label>at</Input.Label>
-            <TimePicker
-                disabled={disabled}
-                cronExpression={cronExpression}
-                onChange={onTimeChange}
-            />
-            <Input.Label>UTC</Input.Label>
-        </Group>
+            <Group noWrap spacing="sm">
+                <TimePicker
+                    disabled={disabled}
+                    cronExpression={cronExpression}
+                    onChange={onTimeChange}
+                />
+                <Input.Label>UTC</Input.Label>
+            </Group>
+        </>
     );
 };
 export default WeeklyInputs;

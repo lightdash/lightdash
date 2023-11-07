@@ -1,4 +1,3 @@
-import { Popover2Props } from '@blueprintjs/popover2';
 import {
     DashboardFilterRule,
     FilterableField,
@@ -8,9 +7,20 @@ import {
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
 } from '@lightdash/common';
-import { Select, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
+import {
+    PopoverProps,
+    Select,
+    Stack,
+    Switch,
+    Text,
+    TextInput,
+    Tooltip,
+} from '@mantine/core';
 import { FC, useEffect, useMemo, useState } from 'react';
-import { FilterTypeConfig } from '../../common/Filters/configs';
+import {
+    FilterInputComponent,
+    getFilterOperatorOptions,
+} from '../../common/Filters/FilterInputs';
 import { getPlaceholderByFilterTypeAndOperator } from '../../common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 
 interface FilterSettingsProps {
@@ -18,7 +28,7 @@ interface FilterSettingsProps {
     isCreatingNew: boolean;
     field: FilterableField;
     filterRule: DashboardFilterRule;
-    popoverProps?: Popover2Props;
+    popoverProps?: Omit<PopoverProps, 'children'>;
     onChangeFilterRule: (value: DashboardFilterRule) => void;
 }
 
@@ -31,11 +41,13 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     onChangeFilterRule,
 }) => {
     const [filterLabel, setFilterLabel] = useState<string>();
-    const filterType = field ? getFilterTypeFromItem(field) : FilterType.STRING;
-    const isFilterDisabled = !!filterRule.disabled;
 
-    const filterConfig = useMemo(
-        () => FilterTypeConfig[filterType],
+    const filterType = useMemo(() => {
+        return field ? getFilterTypeFromItem(field) : FilterType.STRING;
+    }, [field]);
+
+    const filterOperatorOptions = useMemo(
+        () => getFilterOperatorOptions(filterType),
         [filterType],
     );
 
@@ -55,6 +67,8 @@ const FilterSettings: FC<FilterSettingsProps> = ({
         );
     };
 
+    const isFilterDisabled = !!filterRule.disabled;
+
     const showValueInput = useMemo(() => {
         // Always show the input in view mode
         if (!isEditMode) {
@@ -67,16 +81,15 @@ const FilterSettings: FC<FilterSettingsProps> = ({
         return true;
     }, [isFilterDisabled, isEditMode]);
 
-    const showAnyValueDisabledInput = useMemo(
-        () =>
+    const showAnyValueDisabledInput = useMemo(() => {
+        return (
             isFilterDisabled &&
             isEditMode &&
             ![FilterOperator.NULL, FilterOperator.NOT_NULL].includes(
                 filterRule.operator,
-            ),
-
-        [filterRule.operator, isFilterDisabled, isEditMode],
-    );
+            )
+        );
+    }, [filterRule.operator, isFilterDisabled, isEditMode]);
 
     return (
         <Stack>
@@ -104,7 +117,10 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                 )}
                 <Select
                     size="xs"
-                    data={filterConfig.operatorOptions}
+                    data={filterOperatorOptions}
+                    withinPortal={popoverProps?.withinPortal}
+                    onDropdownOpen={popoverProps?.onOpen}
+                    onDropdownClose={popoverProps?.onClose}
                     onChange={handleChangeFilterOperator}
                     value={filterRule.operator}
                 />
@@ -120,7 +136,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     />
                 )}
                 {showValueInput && (
-                    <filterConfig.inputs
+                    <FilterInputComponent
                         popoverProps={popoverProps}
                         filterType={filterType}
                         field={field}

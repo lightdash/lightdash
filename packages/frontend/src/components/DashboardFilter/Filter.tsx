@@ -11,7 +11,7 @@ import { useDashboardContext } from '../../providers/DashboardProvider';
 import {
     getConditionalRuleLabel,
     getFilterRuleTables,
-} from '../common/Filters/configs';
+} from '../common/Filters/FilterInputs';
 import MantineIcon from '../common/MantineIcon';
 import FilterConfiguration from './FilterConfiguration';
 
@@ -229,12 +229,9 @@ const Filter: FC<Props> = ({
                         availableTileFilters={filterableFieldsByTileUuid}
                         defaultFilterRule={defaultFilterRule}
                         onSave={handelSaveChanges}
-                        // FIXME: remove this once we migrate off of Blueprint
                         popoverProps={{
-                            onOpened: () => openSubPopover(),
-                            onOpening: () => openSubPopover(),
-                            onClose: () => closeSubPopover(),
-                            onClosing: () => closeSubPopover(),
+                            onOpen: openSubPopover,
+                            onClose: closeSubPopover,
                         }}
                     />
                 )}

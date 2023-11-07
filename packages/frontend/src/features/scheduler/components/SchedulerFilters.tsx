@@ -1,4 +1,5 @@
 import {
+    ConditionalOperator,
     Dashboard,
     DashboardFilterRule,
     FilterType,
@@ -13,10 +14,14 @@ import {
     Stack,
     Text,
 } from '@mantine/core';
-import { FC } from 'react';
-import { FilterTypeConfig } from '../../../components/common/Filters/configs';
+import produce from 'immer';
+import { FC, useCallback, useMemo, useState } from 'react';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
+import {
+    FilterInputComponent,
+    getFilterOperatorOptions,
+} from '../../../components/common/Filters/FilterInputs';
 import {
     FiltersProvider,
     useFiltersContext,
@@ -24,19 +29,34 @@ import {
 import { useProject } from '../../../hooks/useProject';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 
-type SchedulerFilterItemProps = {
-    filter: DashboardFilterRule;
+type SchedulerFilterRule = DashboardFilterRule & {
+    tileTargets: undefined;
 };
 
-const FilterItem: FC<SchedulerFilterItemProps> = ({ filter }) => {
-    const { fieldsMap } = useFiltersContext();
-    const field = fieldsMap[filter.target.fieldId];
+type SchedulerFilterItemProps = {
+    dashboardFilter: DashboardFilterRule;
+    schedulerFilter?: DashboardFilterRule;
+    onChange: (schedulerFilter: SchedulerFilterRule) => void;
+};
 
-    const filterType = field ? getFilterTypeFromItem(field) : FilterType.STRING;
-    const filterConfig = FilterTypeConfig[filterType];
+const FilterItem: FC<SchedulerFilterItemProps> = ({
+    dashboardFilter,
+    schedulerFilter,
+    onChange,
+}) => {
+    const { fieldsMap } = useFiltersContext();
+    const field = fieldsMap[dashboardFilter.target.fieldId];
+
+    const filterType = useMemo(() => {
+        return field ? getFilterTypeFromItem(field) : FilterType.STRING;
+    }, [field]);
+
+    const filterOperatorOptions = useMemo(() => {
+        return getFilterOperatorOptions(filterType);
+    }, [filterType]);
 
     return (
-        <Stack key={filter.id} spacing="xs">
+        <Stack key={dashboardFilter.id} spacing="xs">
             <Group spacing="xs">
                 <FieldIcon item={field} />
                 <FieldLabel item={field} hideTableName />
@@ -48,19 +68,28 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({ filter }) => {
                         flex: '0 0 180px',
                     }}
                     size="xs"
-                    value={filter.operator}
-                    data={filterConfig.operatorOptions}
-                    onChange={(value) => {
-                        console.info(value);
+                    value={
+                        schedulerFilter?.operator ?? dashboardFilter.operator
+                    }
+                    data={filterOperatorOptions}
+                    onChange={(operator: ConditionalOperator) => {
+                        onChange({
+                            ...dashboardFilter,
+                            operator,
+                            tileTargets: undefined,
+                        });
                     }}
                 />
 
-                <filterConfig.inputs
+                <FilterInputComponent
                     filterType={filterType}
                     field={field}
-                    rule={filter}
-                    onChange={(value) => {
-                        console.info(value);
+                    rule={schedulerFilter ?? dashboardFilter}
+                    onChange={(newFilter) => {
+                        onChange({
+                            ...newFilter,
+                            tileTargets: undefined,
+                        });
                     }}
                 />
             </Flex>
@@ -70,10 +99,46 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({ filter }) => {
 
 type SchedulerFiltersProps = {
     dashboard?: Dashboard;
+    onChange: (schedulerFilters: SchedulerFilterRule[]) => void;
 };
 
-const SchedulerFilters: FC<SchedulerFiltersProps> = ({ dashboard }) => {
+const SchedulerFilters: FC<SchedulerFiltersProps> = ({
+    dashboard,
+    // onChange,
+}) => {
     const { data: project, isLoading } = useProject(dashboard?.projectUuid);
+    // TODO: should read initial state from the BE
+    const [schedulerFilters, setSchedulerFilters] = useState<
+        DashboardFilterRule[]
+    >([]);
+
+    const handleUpdateSchedulerFilter = useCallback(
+        (schedulerFilter: SchedulerFilterRule) => {
+            // TODO: this should diff if the filter is actually
+            // different from the dashboard filter
+
+            const newState = produce(schedulerFilters, (draft) => {
+                const filterIndex = draft.findIndex(
+                    (f) =>
+                        f.target.fieldId === schedulerFilter.target.fieldId &&
+                        f.target.tableName === schedulerFilter.target.tableName,
+                );
+
+                if (draft[filterIndex]) {
+                    draft[filterIndex] = schedulerFilter;
+                } else {
+                    draft.push(schedulerFilter);
+                }
+            });
+
+            setSchedulerFilters(newState);
+
+            // TODO: sync with upper component
+            // call onChange - this can be debounced
+        },
+        [schedulerFilters],
+    );
+
     const { isLoadingDashboardFilters, allFilters, fieldsWithSuggestions } =
         useDashboardContext();
 
@@ -88,7 +153,7 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({ dashboard }) => {
 
     return (
         <FiltersProvider
-            inModal
+            popoverProps={{ withinPortal: true }}
             projectUuid={project.projectUuid}
             fieldsMap={fieldsWithSuggestions}
             startOfWeek={project.warehouseConnection?.startOfWeek ?? undefined}
@@ -97,7 +162,18 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({ dashboard }) => {
             {dashboard && dashboard.filters.dimensions.length > 0 ? (
                 <Stack>
                     {dashboard?.filters?.dimensions.map((filter) => (
-                        <FilterItem key={filter.id} filter={filter} />
+                        <FilterItem
+                            key={filter.id}
+                            dashboardFilter={filter}
+                            schedulerFilter={schedulerFilters.find(
+                                (f) =>
+                                    f.target.fieldId ===
+                                        filter.target.fieldId &&
+                                    f.target.tableName ===
+                                        filter.target.tableName,
+                            )}
+                            onChange={handleUpdateSchedulerFilter}
+                        />
                     ))}
                 </Stack>
             ) : (

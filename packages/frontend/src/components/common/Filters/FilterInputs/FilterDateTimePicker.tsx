@@ -22,7 +22,7 @@ const FilterDateTimePicker: FC<Props> = ({
             w="100%"
             size="xs"
             {...rest}
-            popoverProps={{ ...rest.popoverProps, shadow: 'sm' }}
+            popoverProps={{ shadow: 'sm', ...rest.popoverProps }}
             firstDayOfWeek={firstDayOfWeek}
             value={value}
             onChange={(date) => {

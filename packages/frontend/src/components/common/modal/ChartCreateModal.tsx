@@ -1,21 +1,22 @@
 import {
-    Button,
-    Dialog,
-    DialogBody,
-    DialogFooter,
-    DialogProps,
-    HTMLSelect,
-    InputGroup,
-} from '@blueprintjs/core';
-import {
     CreateChartInDashboard,
     CreateDashboardChartTile,
     CreateSavedChartVersion,
     DashboardTileTypes,
     getDefaultChartTileSize,
 } from '@lightdash/common';
-import { Text } from '@mantine/core';
+import {
+    Button,
+    Group,
+    Input,
+    Modal,
+    Select,
+    Stack,
+    Text,
+    TextInput,
+} from '@mantine/core';
 import { uuid4 } from '@sentry/utils';
+import { IconChartBar } from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { appendNewTilesToBottom } from '../../../hooks/dashboard/useDashboard';
@@ -25,24 +26,22 @@ import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,
 } from '../../../hooks/useSpaces';
-import {
-    CreateNewText,
-    FormGroupWrapper,
-} from '../../SavedQueries/SavedQueries.style';
+import MantineIcon from '../MantineIcon';
 
-interface ChartCreateModalProps extends DialogProps {
+interface ChartCreateModalProps {
     savedData: CreateSavedChartVersion;
-    onClose?: () => void;
+    isOpen: boolean;
+    onClose: () => void;
     defaultSpaceUuid?: string;
     onConfirm: (savedData: CreateSavedChartVersion) => void;
 }
 
 const ChartCreateModal: FC<ChartCreateModalProps> = ({
     savedData,
+    isOpen,
     onClose,
     defaultSpaceUuid,
     onConfirm,
-    ...modalProps
 }) => {
     const fromDashboard = sessionStorage.getItem('fromDashboard');
     const dashboardUuid = sessionStorage.getItem('dashboardUuid');
@@ -57,7 +56,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     const { mutateAsync: createSpaceAsync, isLoading: isCreatingSpace } =
         useSpaceCreateMutation(projectUuid);
 
-    const [spaceUuid, setSpaceUuid] = useState<string | undefined>();
+    const [spaceUuid, setSpaceUuid] = useState<string | null>();
     const [name, setName] = useState('');
     const [description, setDescription] = useState<string>();
     const [newSpaceName, setNewSpaceName] = useState('');
@@ -103,7 +102,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
             ...savedData,
             name,
             description,
-            spaceUuid: newSpace?.uuid || spaceUuid,
+            spaceUuid: newSpace?.uuid || spaceUuid || undefined,
         });
 
         setName('');
@@ -151,7 +150,6 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         );
         sessionStorage.removeItem('fromDashboard');
         sessionStorage.removeItem('dashboardUuid');
-        handleClose();
         history.push(
             `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
         );
@@ -166,7 +164,6 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         savedData,
         name,
         description,
-        handleClose,
         history,
         projectUuid,
         showToastSuccess,
@@ -175,117 +172,115 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     if (isLoadingSpaces || !spaces) return null;
 
     return (
-        <Dialog
-            lazy
+        <Modal
+            opened={isOpen}
+            onClose={onClose}
+            keepMounted={false}
             title={
-                fromDashboard ? `Save chart to ${fromDashboard}` : 'Save chart'
+                <Group spacing="xs">
+                    <MantineIcon icon={IconChartBar} size="lg" color="gray.7" />
+                    <Text fw={600}>
+                        {fromDashboard
+                            ? `Save chart to ${fromDashboard}`
+                            : 'Save chart'}
+                    </Text>
+                </Group>
             }
-            icon="chart"
-            {...modalProps}
-            onClose={handleClose}
+            styles={(theme) => ({
+                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
+                body: { padding: 0 },
+            })}
         >
-            <DialogBody>
-                <FormGroupWrapper
+            <Stack p="md">
+                <TextInput
                     label="Enter a memorable name for your chart"
-                    labelFor="chart-name"
-                >
-                    <InputGroup
-                        id="chart-name"
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="eg. How many weekly active users do we have?"
-                    />
-                </FormGroupWrapper>
-                <FormGroupWrapper
+                    placeholder="eg. How many weekly active users do we have?"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    data-testid="ChartCreateModal/NameInput"
+                />
+                <TextInput
                     label="Chart description"
-                    labelFor="chart-description"
-                >
-                    <InputGroup
-                        id="chart-description"
-                        type="text"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder="A few words to give your team some context"
-                    />
-                </FormGroupWrapper>
+                    placeholder="A few words to give your team some context"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                />
                 {fromDashboard && fromDashboard.length > 0 && (
-                    <FormGroupWrapper
-                        label={<span>Save to {fromDashboard}</span>}
-                    >
+                    <Stack spacing="xxs">
+                        <Input.Label>Save to {fromDashboard}</Input.Label>
                         <Text fw={400} color="gray.6">
                             This chart will be saved exclusively to the
                             dashboard "{fromDashboard}", keeping your space
                             clutter-free.
                         </Text>
-                    </FormGroupWrapper>
+                    </Stack>
                 )}
                 {!showSpaceInput && !fromDashboard && (
-                    <>
-                        <FormGroupWrapper
+                    <Stack spacing="xxs">
+                        <Select
                             label="Select space"
-                            labelFor="select-space"
-                        >
-                            <HTMLSelect
-                                id="select-space"
-                                fill={true}
-                                value={spaceUuid}
-                                onChange={(e) =>
-                                    setSpaceUuid(e.currentTarget.value)
-                                }
-                                options={spaces?.map((space) => ({
-                                    value: space.uuid,
-                                    label: space.name,
-                                }))}
-                            />
-                        </FormGroupWrapper>
-
-                        <CreateNewText
+                            value={spaceUuid}
+                            withinPortal
+                            onChange={(id) => setSpaceUuid(id)}
+                            data={spaces?.map((space) => ({
+                                value: space.uuid,
+                                label: space.name,
+                            }))}
+                        />
+                        <Button
+                            variant="subtle"
+                            compact
                             onClick={() => setShouldCreateNewSpace(true)}
+                            sx={{
+                                alignSelf: 'start',
+                            }}
                         >
                             + Create new space
-                        </CreateNewText>
-                    </>
+                        </Button>
+                    </Stack>
                 )}
                 {showSpaceInput && (
-                    <FormGroupWrapper label="Space" labelFor="new-space">
-                        <InputGroup
-                            id="new-space"
-                            type="text"
-                            value={newSpaceName}
-                            onChange={(e) => setNewSpaceName(e.target.value)}
-                            placeholder="eg. KPIs"
-                        />
-                    </FormGroupWrapper>
+                    <TextInput
+                        label="Space"
+                        description="Create a new space to add this chart to"
+                        value={newSpaceName}
+                        onChange={(e) => setNewSpaceName(e.target.value)}
+                        placeholder="eg. KPIs"
+                    />
                 )}
-            </DialogBody>
+            </Stack>
 
-            <DialogFooter
-                actions={
-                    <>
-                        <Button onClick={handleClose}>Cancel</Button>
+            <Group
+                position="right"
+                w="100%"
+                sx={(theme) => ({
+                    borderTop: `1px solid ${theme.colors.gray[4]}`,
+                    bottom: 0,
+                    padding: theme.spacing.md,
+                })}
+            >
+                <Button onClick={handleClose} variant="outline">
+                    Cancel
+                </Button>
 
-                        <Button
-                            intent="primary"
-                            text="Save"
-                            onClick={
-                                fromDashboard && dashboardUuid
-                                    ? handleSaveChartInDashboard
-                                    : handleConfirm
-                            }
-                            disabled={
-                                isCreating ||
-                                isCreatingSpace ||
-                                !name ||
-                                (!fromDashboard &&
-                                    showSpaceInput &&
-                                    !newSpaceName)
-                            }
-                        />
-                    </>
-                }
-            />
-        </Dialog>
+                <Button
+                    onClick={
+                        fromDashboard && dashboardUuid
+                            ? handleSaveChartInDashboard
+                            : handleConfirm
+                    }
+                    disabled={
+                        isCreating ||
+                        isCreatingSpace ||
+                        !name ||
+                        (!fromDashboard && showSpaceInput && !newSpaceName)
+                    }
+                >
+                    Save
+                </Button>
+            </Group>
+        </Modal>
     );
 };
 

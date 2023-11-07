@@ -19,7 +19,7 @@ import { readableColor } from 'polished';
 import React, { FC, useCallback, useMemo, useRef } from 'react';
 import { isSummable } from '../../../hooks/useColumnTotals';
 import { getColorFromRange } from '../../../utils/colorUtils';
-import { getConditionalRuleLabel } from '../Filters/configs';
+import { getConditionalRuleLabel } from '../Filters/FilterInputs';
 import Table from '../LightTable';
 import { CELL_HEIGHT } from '../LightTable/styles';
 import TotalCellMenu from './TotalCellMenu';

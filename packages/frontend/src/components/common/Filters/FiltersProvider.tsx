@@ -7,6 +7,7 @@ import {
     isField,
     WeekDay,
 } from '@lightdash/common';
+import { PopoverProps } from '@mantine/core';
 import { uuid4 } from '@sentry/utils';
 import { createContext, FC, useCallback, useContext } from 'react';
 
@@ -25,7 +26,7 @@ type FiltersContext = {
         filterId: string,
         item: FilterableItem,
     ) => AndFilterGroup | undefined;
-    inModal: boolean;
+    popoverProps?: Omit<PopoverProps, 'children'>;
 };
 
 const Context = createContext<FiltersContext | undefined>(undefined);
@@ -35,7 +36,7 @@ type Props = {
     fieldsMap?: Record<string, FieldWithSuggestions>;
     startOfWeek?: WeekDay;
     dashboardFilters?: DashboardFilters;
-    inModal?: boolean;
+    popoverProps?: Omit<PopoverProps, 'children'>;
 };
 
 export const FiltersProvider: FC<Props> = ({
@@ -43,7 +44,7 @@ export const FiltersProvider: FC<Props> = ({
     fieldsMap = {},
     startOfWeek,
     dashboardFilters,
-    inModal = false,
+    popoverProps,
     children,
 }) => {
     const getField = useCallback(
@@ -82,7 +83,7 @@ export const FiltersProvider: FC<Props> = ({
                 startOfWeek,
                 getField,
                 getAutocompleteFilterGroup,
-                inModal,
+                popoverProps,
             }}
         >
             {children}

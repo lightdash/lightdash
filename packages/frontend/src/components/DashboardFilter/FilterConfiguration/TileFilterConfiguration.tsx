@@ -1,4 +1,3 @@
-import { Popover2Props } from '@blueprintjs/popover2';
 import {
     DashboardFilterRule,
     DashboardTile,
@@ -13,6 +12,7 @@ import {
     Box,
     Checkbox,
     Flex,
+    PopoverProps,
     Stack,
     Text,
     Tooltip,
@@ -29,7 +29,7 @@ type Props = {
     availableTileFilters: Record<string, Field[] | undefined>;
     field: Field;
     filterRule: DashboardFilterRule;
-    popoverProps?: Popover2Props;
+    popoverProps?: Omit<PopoverProps, 'children'>;
     onChange: (action: FilterActions, tileUuid: string, field?: Field) => void;
     onToggleAll: (checked: boolean) => void;
 };
@@ -39,6 +39,7 @@ const TileFilterConfiguration: FC<Props> = ({
     field,
     filterRule,
     availableTileFilters,
+    popoverProps,
     onChange,
     onToggleAll,
 }) => {
@@ -226,6 +227,9 @@ const TileFilterConfiguration: FC<Props> = ({
                                     disabled={!value.checked}
                                     item={value.selectedField}
                                     items={value.sortedFilters}
+                                    withinPortal={popoverProps?.withinPortal}
+                                    onDropdownOpen={popoverProps?.onOpen}
+                                    onDropdownClose={popoverProps?.onClose}
                                     onChange={(newField) => {
                                         onChange(
                                             FilterActions.ADD,

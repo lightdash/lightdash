@@ -21,13 +21,12 @@ import {
     isMomentInput,
     TableCalculation,
 } from '@lightdash/common';
+import { PopoverProps } from '@mantine/core';
 import isEmpty from 'lodash-es/isEmpty';
 import uniq from 'lodash-es/uniq';
-import BooleanFilterInputs from './FilterInputs/BooleanFilterInputs';
-import DateFilterInputs from './FilterInputs/DateFilterInputs';
-import DefaultFilterInputs, {
-    FilterInputsProps,
-} from './FilterInputs/DefaultFilterInputs';
+import BooleanFilterInputs from './BooleanFilterInputs';
+import DateFilterInputs from './DateFilterInputs';
+import DefaultFilterInputs from './DefaultFilterInputs';
 
 const filterOperatorLabel: Record<FilterOperator, string> = {
     [FilterOperator.NULL]: 'is null',
@@ -78,53 +77,72 @@ const timeFilterOptions: Array<{
     { value: FilterOperator.IN_BETWEEN, label: 'is between' },
 ];
 
-type FilterInputPropType = <T extends ConditionalRule>(
-    props: React.PropsWithChildren<FilterInputsProps<T>>,
-) => JSX.Element;
+export type FilterInputsProps<T extends ConditionalRule> = {
+    filterType: FilterType;
+    field: FilterableItem;
+    rule: T;
+    onChange: (value: T) => void;
+    disabled?: boolean;
+    popoverProps?: Omit<PopoverProps, 'children'>;
+};
 
-export const FilterTypeConfig: Record<
-    FilterType,
-    {
-        operatorOptions: Array<{ value: FilterOperator; label: string }>;
-        inputs: FilterInputPropType;
+export const getFilterOperatorOptions = (
+    filterType: FilterType,
+): Array<{ value: FilterOperator; label: string }> => {
+    switch (filterType) {
+        case FilterType.STRING:
+            return getFilterOptions([
+                FilterOperator.NULL,
+                FilterOperator.NOT_NULL,
+                FilterOperator.EQUALS,
+                FilterOperator.NOT_EQUALS,
+                FilterOperator.STARTS_WITH,
+                FilterOperator.ENDS_WITH,
+                FilterOperator.INCLUDE,
+                FilterOperator.NOT_INCLUDE,
+            ]);
+        case FilterType.NUMBER:
+            return getFilterOptions([
+                FilterOperator.NULL,
+                FilterOperator.NOT_NULL,
+                FilterOperator.EQUALS,
+                FilterOperator.NOT_EQUALS,
+                FilterOperator.LESS_THAN,
+                FilterOperator.GREATER_THAN,
+            ]);
+        case FilterType.DATE:
+            return timeFilterOptions;
+        case FilterType.BOOLEAN:
+            return getFilterOptions([
+                FilterOperator.NULL,
+                FilterOperator.NOT_NULL,
+                FilterOperator.EQUALS,
+            ]);
+        default:
+            return assertUnreachable(
+                filterType,
+                `Unexpected filter type: ${filterType}`,
+            );
     }
-> = {
-    [FilterType.STRING]: {
-        operatorOptions: getFilterOptions([
-            FilterOperator.NULL,
-            FilterOperator.NOT_NULL,
-            FilterOperator.EQUALS,
-            FilterOperator.NOT_EQUALS,
-            FilterOperator.STARTS_WITH,
-            FilterOperator.ENDS_WITH,
-            FilterOperator.INCLUDE,
-            FilterOperator.NOT_INCLUDE,
-        ]),
-        inputs: DefaultFilterInputs,
-    },
-    [FilterType.NUMBER]: {
-        operatorOptions: getFilterOptions([
-            FilterOperator.NULL,
-            FilterOperator.NOT_NULL,
-            FilterOperator.EQUALS,
-            FilterOperator.NOT_EQUALS,
-            FilterOperator.LESS_THAN,
-            FilterOperator.GREATER_THAN,
-        ]),
-        inputs: DefaultFilterInputs,
-    },
-    [FilterType.DATE]: {
-        operatorOptions: timeFilterOptions,
-        inputs: DateFilterInputs,
-    },
-    [FilterType.BOOLEAN]: {
-        operatorOptions: getFilterOptions([
-            FilterOperator.NULL,
-            FilterOperator.NOT_NULL,
-            FilterOperator.EQUALS,
-        ]),
-        inputs: BooleanFilterInputs,
-    },
+};
+
+export const FilterInputComponent = <T extends ConditionalRule>(
+    props: FilterInputsProps<T>,
+) => {
+    switch (props.filterType) {
+        case FilterType.STRING:
+        case FilterType.NUMBER:
+            return <DefaultFilterInputs<T> {...props} />;
+        case FilterType.DATE:
+            return <DateFilterInputs<T> {...props} />;
+        case FilterType.BOOLEAN:
+            return <BooleanFilterInputs<T> {...props} />;
+        default:
+            return assertUnreachable(
+                props.filterType,
+                `Unexpected filter type: ${props.filterType}`,
+            );
+    }
 };
 
 const getValueAsString = (
@@ -213,10 +231,10 @@ export const getConditionalRuleLabel = (
     const filterType = isFilterableItem(item)
         ? getFilterTypeFromItem(item)
         : FilterType.STRING;
-    const filterConfig = FilterTypeConfig[filterType];
+    const operatorOptions = getFilterOperatorOptions(filterType);
     const operationLabel =
-        filterConfig.operatorOptions.find((o) => o.value === rule.operator)
-            ?.label || filterOperatorLabel[rule.operator];
+        operatorOptions.find((o) => o.value === rule.operator)?.label ||
+        filterOperatorLabel[rule.operator];
 
     return {
         field: isField(item) ? item.label : item.name,

@@ -1,3 +1,93 @@
+## [0.854.4](https://github.com/lightdash/lightdash/compare/0.854.3...0.854.4) (2023-11-07)
+
+
+### Bug Fixes
+
+* custom range sorting ([#7836](https://github.com/lightdash/lightdash/issues/7836)) ([613ef83](https://github.com/lightdash/lightdash/commit/613ef8319901c67efcd8e924a0b3a310e84cb5d2))
+
+## [0.854.3](https://github.com/lightdash/lightdash/compare/0.854.2...0.854.3) (2023-11-07)
+
+
+### Bug Fixes
+
+* syntax for docker metadata pattern ([#7841](https://github.com/lightdash/lightdash/issues/7841)) ([abe8f67](https://github.com/lightdash/lightdash/commit/abe8f6773982758053e27c944a645bdf73d06a44))
+
+## [0.854.2](https://github.com/lightdash/lightdash/compare/0.854.1...0.854.2) (2023-11-07)
+
+
+### Bug Fixes
+
+* return redirect on OIDC ([#7827](https://github.com/lightdash/lightdash/issues/7827)) ([0a10792](https://github.com/lightdash/lightdash/commit/0a10792f649b66ebbd1f6e34505edcaea1afcc1f))
+
+## [0.854.1](https://github.com/lightdash/lightdash/compare/0.854.0...0.854.1) (2023-11-07)
+
+
+### Bug Fixes
+
+* google sheet array field ([#7832](https://github.com/lightdash/lightdash/issues/7832)) ([bc41e97](https://github.com/lightdash/lightdash/commit/bc41e973629752dd0b27a11445273b3d07dd3bb0))
+
+# [0.854.0](https://github.com/lightdash/lightdash/compare/0.853.0...0.854.0) (2023-11-07)
+
+
+### Features
+
+* Implement multi-arch Docker builds in the CI ([#7766](https://github.com/lightdash/lightdash/issues/7766)) ([8d9353d](https://github.com/lightdash/lightdash/commit/8d9353d87d9db2f72a95f3cbdf9a1bfb19aa22aa))
+
+# [0.853.0](https://github.com/lightdash/lightdash/compare/0.852.0...0.853.0) (2023-11-07)
+
+
+### Features
+
+* update chart related buttons ([#7811](https://github.com/lightdash/lightdash/issues/7811)) ([16cb170](https://github.com/lightdash/lightdash/commit/16cb170ab58aa833b178e1d190e5c856d52c093a))
+
+# [0.852.0](https://github.com/lightdash/lightdash/compare/0.851.2...0.852.0) (2023-11-06)
+
+
+### Features
+
+* scheduled deliveries filter state ([#7796](https://github.com/lightdash/lightdash/issues/7796)) ([e2b9452](https://github.com/lightdash/lightdash/commit/e2b9452de5d2bfffa1ebdd524f26b6d8daae6449))
+
+## [0.851.2](https://github.com/lightdash/lightdash/compare/0.851.1...0.851.2) (2023-11-06)
+
+
+### Bug Fixes
+
+* sort join by label explore ([#7826](https://github.com/lightdash/lightdash/issues/7826)) ([399698a](https://github.com/lightdash/lightdash/commit/399698aa681ac06956cb84d8f6ac286536c2ca65))
+
+## [0.851.1](https://github.com/lightdash/lightdash/compare/0.851.0...0.851.1) (2023-11-06)
+
+
+### Bug Fixes
+
+* allow images on headless browser ([#7825](https://github.com/lightdash/lightdash/issues/7825)) ([29a9073](https://github.com/lightdash/lightdash/commit/29a90731409d09391f1ef52de536c22011bef3b8))
+
+# [0.851.0](https://github.com/lightdash/lightdash/compare/0.850.0...0.851.0) (2023-11-06)
+
+
+### Features
+
+* implement save chart modal in mantine ([#7807](https://github.com/lightdash/lightdash/issues/7807)) ([6cea10b](https://github.com/lightdash/lightdash/commit/6cea10b41ff2400b1a982d2fabf46fbefe4f827b))
+
+# [0.850.0](https://github.com/lightdash/lightdash/compare/0.849.2...0.850.0) (2023-11-06)
+
+
+### Bug Fixes
+
+* make scheduler time inputs more compact ([#7813](https://github.com/lightdash/lightdash/issues/7813)) ([52e03ab](https://github.com/lightdash/lightdash/commit/52e03ab7dd015c9b82a0233c4e5663cda7eee22b))
+* remove scheduled delivery manual footer ([#7821](https://github.com/lightdash/lightdash/issues/7821)) ([9991628](https://github.com/lightdash/lightdash/commit/99916289b7bed4268288216f56e9db14de300a48))
+
+
+### Features
+
+* chart move to private space ([#7818](https://github.com/lightdash/lightdash/issues/7818)) ([3d5360f](https://github.com/lightdash/lightdash/commit/3d5360f324339f1485f2c93b5b204b98378e4330))
+
+## [0.849.2](https://github.com/lightdash/lightdash/compare/0.849.1...0.849.2) (2023-11-06)
+
+
+### Bug Fixes
+
+* persist selected tags in multiselect ([#7816](https://github.com/lightdash/lightdash/issues/7816)) ([9c9b01b](https://github.com/lightdash/lightdash/commit/9c9b01bcd9debb3591d31bb8eaa732b618fafd1d))
+
 ## [0.849.1](https://github.com/lightdash/lightdash/compare/0.849.0...0.849.1) (2023-11-03)
 
 

@@ -9,7 +9,7 @@ import { flexRender, Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import React, { FC } from 'react';
 import { getColorFromRange, readableColor } from '../../../../utils/colorUtils';
-import { getConditionalRuleLabel } from '../../Filters/configs';
+import { getConditionalRuleLabel } from '../../Filters/FilterInputs';
 import BodyCell from '../BodyCell';
 import { ROW_HEIGHT_PX, Tr } from '../Table.styles';
 import { TableContext, useTableContext } from '../TableProvider';

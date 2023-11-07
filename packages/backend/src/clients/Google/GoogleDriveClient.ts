@@ -218,8 +218,13 @@ export class GoogleDriveClient {
         Logger.info(
             `Writing ${csvContent.length} rows and ${sortedFieldIds.length} columns to Google sheets`,
         );
+
         const values = csvContent.map((row) =>
-            sortedFieldIds.map((fieldId) => row[fieldId]),
+            sortedFieldIds.map((fieldId) => {
+                // Google sheet doesn't like arrays as values, so we need to convert them to strings
+                const value = row[fieldId];
+                return Array.isArray(value) ? value.join(',') : value;
+            }),
         );
 
         await sheets.spreadsheets.values.update({
