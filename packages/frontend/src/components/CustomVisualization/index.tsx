@@ -55,7 +55,7 @@ const CustomVisualization: FC = () => {
             return [
                 {
                     ...JSON.parse(echartsConfig),
-                    source: convertRowsToSeries(rows || []),
+                    dataset: { source: convertRowsToSeries(rows || []) },
                 },
                 null,
             ];
