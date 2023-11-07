@@ -38,8 +38,8 @@ import {
     useMoveDashboardMutation,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
+import useDashboardChart from '../hooks/dashboard/useDashboardChart';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
-import useSavedQueryWithDashboardFilters from '../hooks/dashboard/useSavedQueryWithDashboardFilters';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { deleteSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../hooks/useSpaces';
@@ -91,18 +91,16 @@ const GridTile: FC<
         tile.type === DashboardTileTypes.SAVED_CHART
             ? tile.properties?.savedChartUuid || undefined
             : undefined;
-
-    const {
-        isError,
-        isLoading,
-        data: savedQuery,
-    } = useSavedQueryWithDashboardFilters(tile.uuid, savedChartUuid ?? null);
+    // TODO: jose pass dashboard filters
+    const { isError, isLoading, data } = useDashboardChart(
+        savedChartUuid ?? null,
+    );
 
     switch (tile.type) {
         case DashboardTileTypes.SAVED_CHART:
             if (isLoading)
                 return <TileBase isLoading={true} title={''} {...props} />;
-            if (isError)
+            if (isError || !data)
                 return (
                     <TileBase title={''} {...props}>
                         <NonIdealState
@@ -113,10 +111,10 @@ const GridTile: FC<
                 );
             return (
                 <MetricQueryDataProvider
-                    metricQuery={savedQuery?.metricQuery}
-                    tableName={savedQuery?.tableName || ''}
+                    metricQuery={data?.metricQuery}
+                    tableName={data?.chart.tableName || ''}
                 >
-                    <ChartTile {...props} tile={tile} />
+                    <ChartTile {...props} tile={tile} chartAndResults={data} />
                     <UnderlyingDataModal />
                     <DrillDownModal />
                 </MetricQueryDataProvider>

@@ -1,4 +1,5 @@
 import {
+    ApiChartAndResults,
     ApiError,
     ApiQueryResults,
     DashboardFilters,
@@ -34,7 +35,7 @@ const getChartResults = async ({
     dashboardFilters?: DashboardFilters;
     invalidateCache?: boolean;
 }) => {
-    return lightdashApi<ApiQueryResults>({
+    return lightdashApi<ApiChartAndResults>({
         url: `/saved/${chartUuid}/results`,
         method: 'POST',
         body: JSON.stringify({
@@ -172,7 +173,7 @@ export const useUnderlyingDataResults = (
 
 // This hook will be used for getting charts in view mode and dashboard tiles
 export const useChartResults = (
-    chartUuid: string,
+    chartUuid: string | null,
     dashboardFilters?: DashboardFilters,
     invalidateCache?: boolean,
 ) => {
@@ -185,14 +186,15 @@ export const useChartResults = (
     const timezoneFixFilters =
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);
 
-    return useQuery<ApiQueryResults, ApiError>({
+    return useQuery<ApiChartAndResults, ApiError>({
         queryKey,
         queryFn: () =>
             getChartResults({
-                chartUuid,
+                chartUuid: chartUuid!,
                 dashboardFilters: timezoneFixFilters,
                 invalidateCache,
             }),
+        enabled: !!chartUuid,
         retry: false,
         refetchOnMount: false,
     });

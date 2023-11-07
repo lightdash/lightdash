@@ -333,6 +333,14 @@ export type ApiQueryResults = {
     rows: ResultRow[];
 };
 
+export type ApiChartAndResults = {
+    chart: SavedChart;
+    explore: Explore;
+    metricQuery: MetricQuery;
+    cacheMetadata: CacheMetadata;
+    rows: ResultRow[];
+};
+
 export type ApiSqlQueryResults = {
     fields: Record<string, { type: DimensionType }>;
     rows: Record<string, unknown>[];
