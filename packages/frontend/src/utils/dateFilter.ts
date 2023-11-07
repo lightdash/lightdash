@@ -37,5 +37,8 @@ export const convertDateFilters = (filters: Filters): Filters => {
         dimensions:
             filters.dimensions && convertFilterGroups(filters.dimensions),
         metrics: filters.metrics && convertFilterGroups(filters.metrics),
+        tableCalculations:
+            filters.tableCalculations &&
+            convertFilterGroups(filters.tableCalculations),
     };
 };

@@ -28,6 +28,14 @@ const useDashboardFiltersForExplore = (
                 ...dashboardFilters.metrics,
                 ...(dashboardTemporaryFilters?.metrics ?? []),
             ]),
+            tableCalculations: getDashboardFilterRulesForTile(
+                tileUuid,
+                tables,
+                [
+                    ...dashboardFilters.tableCalculations,
+                    ...(dashboardTemporaryFilters?.tableCalculations ?? []),
+                ],
+            ),
         }),
         [tileUuid, tables, dashboardFilters, dashboardTemporaryFilters],
     );

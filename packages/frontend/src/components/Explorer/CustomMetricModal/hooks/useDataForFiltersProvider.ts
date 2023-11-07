@@ -23,10 +23,16 @@ export const useDataForFiltersProvider = () => {
             context.state.unsavedChartVersion.metricQuery.additionalMetrics,
     );
 
+    const tableCalculations = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.tableCalculations,
+    );
+
     const fieldsWithSuggestions = useFieldsWithSuggestions({
         exploreData,
         queryResults,
         additionalMetrics,
+        tableCalculations,
     });
 
     return {

@@ -23,6 +23,7 @@ describe('compress and uncompress dashboard filters', () => {
                 compressDashboardFiltersToParam({
                     dimensions: [DUMMY_DIMENSION],
                     metrics: [],
+                    tableCalculations: [],
                 }),
             ).toEqual({
                 dimensions: [
@@ -40,6 +41,7 @@ describe('compress and uncompress dashboard filters', () => {
                     },
                 ],
                 metrics: [],
+                tableCalculations: [],
             });
         });
         it('should set tile target to "false" when tile is disabled', async () => {
@@ -52,6 +54,7 @@ describe('compress and uncompress dashboard filters', () => {
                         },
                     ],
                     metrics: [],
+                    tableCalculations: [],
                 }).dimensions[0].tileTargets,
             ).toEqual([{ 'chart-id-no-filter': false }]);
         });
@@ -70,6 +73,7 @@ describe('compress and uncompress dashboard filters', () => {
                         },
                     ],
                     metrics: [],
+                    tableCalculations: [],
                 }).dimensions[0].tileTargets,
             ).toEqual([
                 {
@@ -95,6 +99,7 @@ describe('compress and uncompress dashboard filters', () => {
                         },
                     ],
                     metrics: [],
+                    tableCalculations: [],
                 }).dimensions[0].tileTargets,
             ).toEqual([]);
         });
@@ -134,6 +139,7 @@ describe('compress and uncompress dashboard filters', () => {
                         },
                     },
                 ],
+                tableCalculations: [],
             });
 
             expect(compressedFilters.dimensions[0].tileTargets).toEqual([
@@ -176,6 +182,7 @@ describe('compress and uncompress dashboard filters', () => {
                 convertDashboardFiltersParamToDashboardFilters({
                     dimensions: [DUMMY_URL_FILTER],
                     metrics: [],
+                    tableCalculations: [],
                 }),
             ).toEqual({
                 dimensions: [
@@ -193,6 +200,7 @@ describe('compress and uncompress dashboard filters', () => {
                     },
                 ],
                 metrics: [],
+                tableCalculations: [],
             });
         });
         it('should have modified tile targets when target modified', async () => {
@@ -212,6 +220,7 @@ describe('compress and uncompress dashboard filters', () => {
                         },
                     ],
                     metrics: [],
+                    tableCalculations: [],
                 }).dimensions[0].tileTargets,
             ).toEqual({
                 'chart-id-modified-filter': {
@@ -230,6 +239,7 @@ describe('compress and uncompress dashboard filters', () => {
                         },
                     ],
                     metrics: [],
+                    tableCalculations: [],
                 }).dimensions[0].tileTargets,
             ).toEqual({ 'chart-id-no-filter': false });
         });
@@ -243,6 +253,7 @@ describe('compress and uncompress dashboard filters', () => {
                         },
                     ],
                     metrics: [],
+                    tableCalculations: [],
                 }).dimensions[0].tileTargets,
             ).toEqual({});
         });
@@ -266,6 +277,7 @@ describe('compress and uncompress dashboard filters', () => {
                         },
                     ],
                     metrics: [],
+                    tableCalculations: [],
                 }).dimensions[0].tileTargets,
             ).toEqual({
                 'chart-id-no-filter': false,

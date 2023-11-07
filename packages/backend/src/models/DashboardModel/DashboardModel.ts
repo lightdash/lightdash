@@ -115,6 +115,7 @@ export class DashboardModel {
             filters: version.filters || {
                 dimensions: [],
                 metrics: [],
+                tableCalculations: [],
             },
         });
 
@@ -208,6 +209,13 @@ export class DashboardModel {
                         })) ?? [],
                     metrics:
                         version.filters?.metrics.map((filter) => ({
+                            ...filter,
+                            tileTargets: filter.tileTargets
+                                ? pick(filter.tileTargets, tileUuids)
+                                : undefined,
+                        })) ?? [],
+                    tableCalculations:
+                        version.filters?.tableCalculations.map((filter) => ({
                             ...filter,
                             tileTargets: filter.tileTargets
                                 ? pick(filter.tileTargets, tileUuids)
@@ -551,6 +559,9 @@ export class DashboardModel {
                 dashboard.dashboard_version_id,
             );
 
+        const tableCalculationFilters = view?.filters?.tableCalculations;
+        view.filters.tableCalculations = tableCalculationFilters || [];
+
         return {
             organizationUuid: dashboard.organization_uuid,
             projectUuid: dashboard.project_uuid,
@@ -639,6 +650,7 @@ export class DashboardModel {
             filters: view?.filters || {
                 dimensions: [],
                 metrics: [],
+                tableCalculations: [],
             },
             spaceUuid: dashboard.space_uuid,
             spaceName: dashboard.space_name,

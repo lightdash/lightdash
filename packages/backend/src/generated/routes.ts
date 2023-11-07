@@ -2266,6 +2266,7 @@ const models: TsoaRoute.Models = {
                     nestedProperties: {
                         metrics: { dataType: 'any' },
                         dimensions: { dataType: 'any' },
+                        tableCalculations: { dataType: 'any' },
                     },
                     required: true,
                 },

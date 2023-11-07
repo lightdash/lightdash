@@ -5,10 +5,14 @@ import {
     DimensionType,
     Explore,
     fieldId,
+    FieldType,
     getResultValueArray,
     getVisibleFields,
     isFilterableField,
     Metric,
+    TableCalculation,
+    TableCalculationFilter,
+    TableCalculationFormatType,
 } from '@lightdash/common';
 import { useEffect, useState } from 'react';
 import { FieldsWithSuggestions } from '../../common/Filters/FiltersProvider';
@@ -17,12 +21,14 @@ interface FieldsWithSuggestionsHookParams {
     exploreData: Explore | undefined;
     queryResults: ApiQueryResults | undefined;
     additionalMetrics: AdditionalMetric[] | undefined;
+    tableCalculations: TableCalculation[] | undefined;
 }
 
 export const useFieldsWithSuggestions = ({
     exploreData,
     queryResults,
     additionalMetrics,
+    tableCalculations,
 }: FieldsWithSuggestionsHookParams) => {
     const [fieldsWithSuggestions, setFieldsWithSuggestions] =
         useState<FieldsWithSuggestions>({});
@@ -45,7 +51,26 @@ export const useFieldsWithSuggestions = ({
                     return acc;
                 }, []);
 
-                return [...visibleFields, ...customMetrics].reduce(
+                const cals = (tableCalculations || []).reduce<
+                    TableCalculationFilter[]
+                >((acc, cal) => {
+                    const tableCalculationFilters: TableCalculationFilter = {
+                        fieldType: FieldType.TABLE_CALCULATION,
+                        type: cal.format?.type
+                            ? cal.format.type
+                            : TableCalculationFormatType.DEFAULT,
+                        table: 'table_calculation',
+                        label: cal.name,
+                        tableLabel: 'Table Calculation',
+                        hidden: true,
+                        name: cal.name,
+                        displayName: cal.displayName,
+                        sql: cal.sql,
+                    };
+                    return [...acc, tableCalculationFilters];
+                }, []);
+
+                return [...visibleFields, ...customMetrics, ...cals].reduce(
                     (sum, field) => {
                         if (isFilterableField(field)) {
                             let suggestions: string[] = [];
@@ -86,7 +111,7 @@ export const useFieldsWithSuggestions = ({
                 );
             });
         }
-    }, [exploreData, queryResults, additionalMetrics]);
+    }, [exploreData, queryResults, additionalMetrics, tableCalculations]);
 
     return fieldsWithSuggestions;
 };

@@ -232,7 +232,11 @@ const Dashboard: FC = () => {
         if (isSuccess) {
             setHaveTilesChanged(false);
             setHaveFiltersChanged(false);
-            setDashboardTemporaryFilters({ dimensions: [], metrics: [] });
+            setDashboardTemporaryFilters({
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            });
             reset();
             history.replace(
                 `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
@@ -515,6 +519,10 @@ const Dashboard: FC = () => {
                                     metrics: [
                                         ...dashboardFilters.metrics,
                                         ...dashboardTemporaryFilters.metrics,
+                                    ],
+                                    tableCalculations: [
+                                        ...dashboardFilters.tableCalculations,
+                                        ...dashboardTemporaryFilters.tableCalculations,
                                     ],
                                 },
                                 name: dashboard.name,

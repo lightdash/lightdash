@@ -196,6 +196,7 @@ export const dashboard: Dashboard = {
     filters: {
         dimensions: [],
         metrics: [],
+        tableCalculations: [],
     },
     spaceUuid: '',
     spaceName: '',
