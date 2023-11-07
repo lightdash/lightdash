@@ -12,7 +12,7 @@ import {
     friendlyName,
     getCustomDimensionId,
     getCustomLabelsFromTableConfig,
-    getDashboardFiltersForTile,
+    getDashboardFiltersForTileAndTables,
     getItemLabel,
     getItemLabelWithoutTableName,
     getItemMap,
@@ -374,7 +374,7 @@ export class CsvService {
 
         const dashboardFiltersForTile =
             tileUuid && dashboardFilters
-                ? getDashboardFiltersForTile(
+                ? getDashboardFiltersForTileAndTables(
                       tileUuid,
                       Object.keys(explore.tables),
                       dashboardFilters,

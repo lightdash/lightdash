@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import {
-    addFiltersToMetricQuery,
+    addDashboardFiltersToMetricQuery,
     AdditionalMetric,
     AlreadyProcessingError,
     AndFilterGroup,
@@ -18,20 +18,20 @@ import {
     CreateWarehouseCredentials,
     DashboardAvailableFilters,
     DashboardBasicDetails,
+    DashboardFilters,
     DbtProjectType,
     deepEqual,
     DefaultSupportedDbtVersion,
-    DimensionType,
     Explore,
     ExploreError,
     fieldId as getFieldId,
     FilterableField,
     FilterGroupItem,
     FilterOperator,
-    Filters,
     findFieldByIdInExplore,
     ForbiddenError,
     formatRows,
+    getDashboardFilterRulesForTables,
     getDimensions,
     getFields,
     getItemId,
@@ -81,7 +81,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
 import { analytics } from '../../analytics/client';
 import { QueryExecutionContext } from '../../analytics/LightdashAnalytics';
-import { S3Client } from '../../clients/Aws/s3';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import { schedulerClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -847,13 +846,13 @@ export class ProjectService {
     async runViewChartQuery({
         user,
         chartUuid,
-        filters,
+        dashboardFilters,
         versionUuid,
         invalidateCache,
     }: {
         user: SessionUser;
         chartUuid: string;
-        filters?: Filters;
+        dashboardFilters?: DashboardFilters;
         versionUuid?: string;
         invalidateCache?: boolean;
     }): Promise<ApiQueryResults> {
@@ -884,8 +883,29 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
-        const metricQuery: MetricQuery = filters
-            ? addFiltersToMetricQuery(savedChart.metricQuery, filters)
+        const explore = await this.getExplore(
+            user,
+            projectUuid,
+            savedChart.tableName,
+        );
+        const tables = Object.keys(explore.tables);
+        const appliedDashboardFilters = dashboardFilters
+            ? {
+                  dimensions: getDashboardFilterRulesForTables(
+                      tables,
+                      dashboardFilters.dimensions,
+                  ),
+                  metrics: getDashboardFilterRulesForTables(
+                      tables,
+                      dashboardFilters.metrics,
+                  ),
+              }
+            : undefined;
+        const metricQuery: MetricQuery = appliedDashboardFilters
+            ? addDashboardFiltersToMetricQuery(
+                  savedChart.metricQuery,
+                  appliedDashboardFilters,
+              )
             : savedChart.metricQuery;
 
         const queryTags: RunQueryTags = {
@@ -901,7 +921,7 @@ export class ProjectService {
             projectUuid,
             exploreName: savedChart.tableName,
             csvLimit: undefined,
-            context: filters
+            context: dashboardFilters
                 ? QueryExecutionContext.DASHBOARD
                 : QueryExecutionContext.CHART,
             queryTags,
