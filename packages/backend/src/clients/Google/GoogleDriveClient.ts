@@ -214,7 +214,12 @@ export class GoogleDriveClient {
         Logger.info(
             `Writing ${csvContent.length} rows and ${header.length} columns to Google sheets`,
         );
-        const values = csvContent.map((row) => Object.values(row));
+        // Google sheet doesn't like arrays as values, so we need to convert them to strings
+        const values = csvContent.map((line) =>
+            Object.values(line).map((value) =>
+                Array.isArray(value) ? value.join(',') : value,
+            ),
+        );
 
         await sheets.spreadsheets.values.update({
             spreadsheetId: fileId,
