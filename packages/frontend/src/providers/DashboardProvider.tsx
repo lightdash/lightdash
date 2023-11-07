@@ -1,5 +1,6 @@
 import {
     ApiError,
+    CacheMetadata,
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
     Dashboard,
@@ -11,6 +12,7 @@ import {
     FilterableField,
     isDashboardChartTileType,
 } from '@lightdash/common';
+import { min } from 'lodash-es';
 import uniqBy from 'lodash-es/uniqBy';
 import React, {
     createContext,
@@ -76,6 +78,10 @@ type DashboardContext = {
     haveFiltersChanged: boolean;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
     addSuggestions: (newSuggestionsMap: Record<string, string[]>) => void;
+    addResultsCacheTime: (cacheMetadata: CacheMetadata) => void;
+    oldestCacheTime: Date | undefined;
+    invalidateCache: boolean | undefined;
+    clearCacheAndFetch: () => void;
     allFilterableFields: FilterableField[] | undefined;
     filterableFieldsBySavedQueryUuid: DashboardAvailableFilters | undefined;
     filterableFieldsByTileUuid: DashboardAvailableFilters | undefined;
@@ -109,6 +115,9 @@ export const DashboardProvider: React.FC = ({ children }) => {
         useState<DashboardFilters>(emptyFilters);
     const [haveFiltersChanged, setHaveFiltersChanged] =
         useState<boolean>(false);
+    const [resultsCacheTimes, setResultsCacheTimes] = useState<Date[]>([]);
+
+    const [invalidateCache, setInvalidateCache] = useState<boolean>(false);
 
     const {
         overridesForSavedDashboardFilters,
@@ -409,7 +418,6 @@ export const DashboardProvider: React.FC = ({ children }) => {
         },
         [removeSavedFilterOverride],
     );
-
     const addSuggestions = useCallback(
         (newSuggestionsMap: Record<string, string[]>) => {
             setFieldsWithSuggestions((prev) => {
@@ -427,6 +435,28 @@ export const DashboardProvider: React.FC = ({ children }) => {
             });
         },
         [],
+    );
+
+    const addResultsCacheTime = useCallback((cacheMetadata: CacheMetadata) => {
+        if (cacheMetadata.cacheHit && cacheMetadata.cacheUpdatedTime) {
+            setResultsCacheTimes((old) =>
+                cacheMetadata.cacheUpdatedTime
+                    ? [...old, cacheMetadata.cacheUpdatedTime]
+                    : [...old],
+            );
+        }
+    }, []);
+
+    const clearCacheAndFetch = useCallback(() => {
+        setResultsCacheTimes([]);
+
+        // Causes results refetch
+        setInvalidateCache(true);
+    }, []);
+
+    const oldestCacheTime = useMemo(
+        () => min(resultsCacheTimes),
+        [resultsCacheTimes],
     );
 
     const value = {
@@ -448,6 +478,10 @@ export const DashboardProvider: React.FC = ({ children }) => {
         haveFiltersChanged,
         setHaveFiltersChanged,
         addSuggestions,
+        addResultsCacheTime,
+        oldestCacheTime,
+        invalidateCache,
+        clearCacheAndFetch,
         allFilterableFields,
         filterableFieldsBySavedQueryUuid,
         isLoadingDashboardFilters,

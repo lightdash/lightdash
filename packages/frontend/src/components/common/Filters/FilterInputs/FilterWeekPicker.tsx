@@ -1,57 +1,48 @@
 import { DateInput, DateInputProps, DayOfWeek } from '@mantine/dates';
 import dayjs from 'dayjs';
-import { FC, useMemo, useState } from 'react';
+import { FC, useState } from 'react';
 import {
     endOfWeek,
-    getDateValueFromUnknown,
     isInWeekRange,
     startOfWeek,
-} from './Filters/FilterInputs/dateUtils';
+} from '../utils/filterDateUtils';
 
 interface Props
     extends Omit<
         DateInputProps,
         'getDayProps' | 'firstDayOfWeek' | 'value' | 'onChange'
     > {
-    value: unknown;
+    value: Date | null;
     onChange: (value: Date) => void;
     firstDayOfWeek: DayOfWeek;
 }
 
-const WeekPicker: FC<Props> = ({
+const FilterWeekPicker: FC<Props> = ({
     firstDayOfWeek,
-    value: dateValue,
+    value,
     onChange,
     ...rest
 }) => {
-    const [hoveredDate, setHoveredDate] = useState<Date>();
-
-    const selectedDate = useMemo(() => {
-        return getDateValueFromUnknown(dateValue);
-    }, [dateValue]);
+    const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
 
     return (
         <DateInput
             w="100%"
             size="xs"
             {...rest}
-            popoverProps={{ ...rest.popoverProps, shadow: 'sm' }}
+            popoverProps={{ shadow: 'sm', ...rest.popoverProps }}
             getDayProps={(date) => {
                 const isHovered = isInWeekRange(
                     date,
                     hoveredDate,
                     firstDayOfWeek,
                 );
-                const isSelected = isInWeekRange(
-                    date,
-                    selectedDate,
-                    firstDayOfWeek,
-                );
+                const isSelected = isInWeekRange(date, value, firstDayOfWeek);
                 const isInRange = isHovered || isSelected;
 
                 return {
                     onMouseEnter: () => setHoveredDate(date),
-                    onMouseLeave: () => setHoveredDate(undefined),
+                    onMouseLeave: () => setHoveredDate(null),
                     inRange: isInRange,
                     firstInRange: isInRange
                         ? dayjs(startOfWeek(date, firstDayOfWeek)).isSame(date)
@@ -63,7 +54,7 @@ const WeekPicker: FC<Props> = ({
                 };
             }}
             firstDayOfWeek={firstDayOfWeek}
-            value={selectedDate}
+            value={value}
             onChange={(date) => {
                 if (date) {
                     onChange(startOfWeek(date, firstDayOfWeek));
@@ -73,4 +64,4 @@ const WeekPicker: FC<Props> = ({
     );
 };
 
-export default WeekPicker;
+export default FilterWeekPicker;

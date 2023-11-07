@@ -17,7 +17,7 @@ describe('Custom dimensions', () => {
         );
         cy.get('.mantine-NumberInput-wrapper').clear().type('5');
 
-        cy.findByText('Create custom dimension').click();
+        cy.findByText('Create').click();
 
         // Select metric
         cy.findByText('Total order amount').click();
@@ -34,11 +34,11 @@ describe('Custom dimensions', () => {
         cy.findByTestId('SQL-card-expand').click();
 
         const sqlLines = [
-            `WITH  amount_range_cte AS (`,
+            `WITH  amount_amount_range_cte AS (`,
             `CAST(MIN("payments".amount) + (MAX("payments".amount) - MIN("payments".amount) ) AS INT) as ratio`,
-            `WHEN "payments".amount >= amount_range_cte.ratio * 0 / 5`,
-            `ELSE CONCAT(amount_range_cte.ratio * 4 / 5, '-', amount_range_cte.max_id)`,
-            `CROSS JOIN amount_range_cte`,
+            `WHEN "payments".amount >= amount_amount_range_cte.ratio * 0 / 5`,
+            `ELSE CONCAT(amount_amount_range_cte.ratio * 4 / 5, '-', amount_amount_range_cte.max_id)`,
+            `CROSS JOIN amount_amount_range_cte`,
             `GROUP BY 1`,
         ];
         sqlLines.forEach((line) => {

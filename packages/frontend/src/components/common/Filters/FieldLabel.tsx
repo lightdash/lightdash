@@ -12,20 +12,20 @@ import { FC } from 'react';
 
 interface FieldLabelProps {
     item: Field | TableCalculation | AdditionalMetric | CustomDimension;
+    hideTableName?: boolean;
 }
 
-const FieldLabel: FC<FieldLabelProps> = ({ item }) => {
+const FieldLabel: FC<FieldLabelProps> = ({ item, hideTableName = false }) => {
     return (
         <Text span>
-            {isField(item) ? `${item.tableLabel} ` : ''}
+            {!hideTableName && isField(item) ? `${item.tableLabel} ` : ''}
 
             <Text span fw={500}>
-                {() => {
-                    if (isCustomDimension(item)) return item.name;
-                    if (isField(item) || isAdditionalMetric(item))
-                        return item.label;
-                    return item.displayName;
-                }}
+                {isCustomDimension(item)
+                    ? item.name
+                    : isField(item) || isAdditionalMetric(item)
+                    ? item.label
+                    : item.displayName}
             </Text>
         </Text>
     );

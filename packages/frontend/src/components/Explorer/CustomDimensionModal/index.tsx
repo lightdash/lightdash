@@ -3,6 +3,8 @@ import {
     BinType,
     fieldId,
     isCustomDimension,
+    isDimension,
+    snakeCaseName,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -19,20 +21,16 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconX } from '@tabler/icons-react';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import MantineIcon from '../../common/MantineIcon';
 
 // TODO: preview custom dimension results
 
-const sanitizeId = (label: string) => {
-    return label
-        .toLowerCase()
-        .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
-        .replace(/_{2,}/g, '_') // Replace multiple underscores with a single one
-        .replace(/^_|_$/g, ''); // Remove leading and trailing underscores
-};
+const sanitizeId = (label: string, dimensionName: string) =>
+    `${dimensionName}_${snakeCaseName(label)}`;
+
 const MIN_OF_FIXED_NUMBER_BINS = 1;
 const DEFAULT_CUSTOM_RANGE: BinRange[] = [
     { to: 0, from: undefined },
@@ -47,7 +45,6 @@ export const CustomDimensionModal = () => {
     const toggleModal = useExplorerContext(
         (context) => context.actions.toggleCustomDimensionModal,
     );
-
     const customDimensions = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.customDimensions,
@@ -82,13 +79,23 @@ export const CustomDimensionModal = () => {
                 if (isEditing && label === item.name) {
                     return null;
                 }
-                const sanitizedId = sanitizeId(label);
-                if (/^[0-9]/.test(sanitizedId)) {
-                    return 'Custom dimension label must start with a letter';
+                const dimensionName = sanitizeId(
+                    label,
+                    isEditing && isCustomDimension(item)
+                        ? item.dimensionId
+                        : item.name,
+                );
+
+                if (
+                    isEditing &&
+                    isCustomDimension(item) &&
+                    dimensionName === item.id
+                ) {
+                    return null;
                 }
 
                 return customDimensions?.some(
-                    (customDimension) => customDimension.name === label,
+                    (customDimension) => customDimension.id === dimensionName,
                 )
                     ? 'Dimension with this label already exists'
                     : null;
@@ -121,7 +128,12 @@ export const CustomDimensionModal = () => {
 
     const handleOnSubmit = form.onSubmit((values) => {
         if (item) {
-            const sanitizedId = sanitizeId(values.customDimensionLabel);
+            const sanitizedId = sanitizeId(
+                values.customDimensionLabel,
+                isEditing && isCustomDimension(item)
+                    ? item.dimensionId
+                    : item.name,
+            );
 
             if (isEditing && isCustomDimension(item)) {
                 editCustomDimension(
@@ -163,6 +175,18 @@ export const CustomDimensionModal = () => {
         toggleModal();
     });
 
+    const baseDimensionLabel = useMemo(() => {
+        if (item) {
+            if (isEditing && isCustomDimension(item)) {
+                // TODO: Store base dimension label in Custom Dimension
+                return item.dimensionId;
+            } else if (isDimension(item)) {
+                return item.label;
+            }
+            return item.name;
+        }
+    }, [isEditing, item]);
+
     return !!item ? (
         <Modal
             size="lg"
@@ -173,10 +197,15 @@ export const CustomDimensionModal = () => {
                 form.reset();
             }}
             title={
-                <Title order={4}>
-                    {isEditing ? 'Edit' : 'Create'} Custom Dimension -{' '}
-                    {item.name}
-                </Title>
+                <>
+                    <Title order={4}>
+                        {isEditing ? 'Edit' : 'Create'} Custom Dimension
+                        <Text span fw={400}>
+                            {' '}
+                            - {baseDimensionLabel}{' '}
+                        </Text>
+                    </Title>
+                </>
             }
         >
             <form onSubmit={handleOnSubmit}>
@@ -393,7 +422,7 @@ export const CustomDimensionModal = () => {
                     {/* Add results preview */}
 
                     <Button ml="auto" type="submit">
-                        {isEditing ? 'Edit' : 'Create'} custom dimension
+                        {isEditing ? 'Save changes' : 'Create'}
                     </Button>
                 </Stack>
             </form>

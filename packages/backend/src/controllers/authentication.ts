@@ -166,6 +166,7 @@ export const redirectOIDC: RequestHandler = (req, res) => {
     ) {
         res.redirect(queryReturn);
     }
+    res.redirect('/');
 };
 
 export const googlePassportStrategy: GoogleStrategy | undefined = !(

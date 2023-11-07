@@ -2,17 +2,14 @@ previewsEnabled: true
 
 databases:
   - name: jaffle_db
-    region: frankfurt
     ipAllowList: []
 
 services:
   - type: pserv
-    region: frankfurt
     env: docker
     name: headless-browser
     dockerfilePath: docker/Dockerfile.headless-browser
   - type: web
-    region: frankfurt
     env: docker
     name: lightdash
     plan: standard

@@ -1,4 +1,3 @@
-import { Colors } from '@blueprintjs/core';
 import {
     createFilterRuleFromField,
     fieldId as getFieldId,
@@ -8,12 +7,13 @@ import {
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
 } from '@lightdash/common';
-import { ActionIcon, Box, Menu, Select } from '@mantine/core';
+import { ActionIcon, Box, Menu, Select, Text } from '@mantine/core';
 import { IconDots, IconX } from '@tabler/icons-react';
 import { FC, useCallback, useMemo } from 'react';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
-import { FilterTypeConfig } from './configs';
+import { FilterInputComponent, getFilterOperatorOptions } from './FilterInputs';
+import { useFiltersContext } from './FiltersProvider';
 
 type Props = {
     fields: FilterableField[];
@@ -32,17 +32,22 @@ const FilterRuleForm: FC<Props> = ({
     onDelete,
     onConvertToGroup,
 }) => {
-    const activeField = fields.find(
-        (field) => getFieldId(field) === filterRule.target.fieldId,
-    );
+    const { popoverProps } = useFiltersContext();
+    const activeField = useMemo(() => {
+        return fields.find(
+            (field) => getFieldId(field) === filterRule.target.fieldId,
+        );
+    }, [fields, filterRule.target.fieldId]);
 
-    const filterType = activeField
-        ? getFilterTypeFromItem(activeField)
-        : FilterType.STRING;
-    const filterConfig = useMemo(
-        () => FilterTypeConfig[filterType],
-        [filterType],
-    );
+    const filterType = useMemo(() => {
+        return activeField
+            ? getFilterTypeFromItem(activeField)
+            : FilterType.STRING;
+    }, [activeField]);
+
+    const filterOperatorOptions = useMemo(() => {
+        return getFilterOperatorOptions(filterType);
+    }, [filterType]);
 
     const onFieldChange = useCallback(
         (fieldId: string) => {
@@ -79,6 +84,9 @@ const FilterRuleForm: FC<Props> = ({
                     <FieldSelect
                         size="xs"
                         disabled={!isEditMode}
+                        withinPortal={popoverProps?.withinPortal}
+                        onDropdownOpen={popoverProps?.onOpen}
+                        onDropdownClose={popoverProps?.onClose}
                         hasGrouping
                         item={activeField}
                         items={fields}
@@ -92,9 +100,12 @@ const FilterRuleForm: FC<Props> = ({
                         size="xs"
                         w="150px"
                         sx={{ flexShrink: 0 }}
+                        withinPortal={popoverProps?.withinPortal}
+                        onDropdownOpen={popoverProps?.onOpen}
+                        onDropdownClose={popoverProps?.onClose}
                         disabled={!isEditMode}
                         value={filterRule.operator}
-                        data={filterConfig.operatorOptions}
+                        data={filterOperatorOptions}
                         onChange={(value) => {
                             if (!value) return;
 
@@ -114,19 +125,20 @@ const FilterRuleForm: FC<Props> = ({
                         }}
                     />
 
-                    <filterConfig.inputs
+                    <FilterInputComponent
                         filterType={filterType}
                         field={activeField}
                         rule={filterRule}
                         onChange={onChange}
                         disabled={!isEditMode}
+                        popoverProps={popoverProps}
                     />
                 </>
             ) : (
-                <span style={{ width: '100%', color: Colors.GRAY1 }}>
+                <Text color="dimmed">
                     Tried to reference field with unknown id:{' '}
                     {filterRule.target.fieldId}
-                </span>
+                </Text>
             )}
 
             {isEditMode &&

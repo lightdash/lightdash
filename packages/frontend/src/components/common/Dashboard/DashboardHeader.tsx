@@ -22,17 +22,16 @@ import {
     IconInfoCircle,
     IconPencil,
     IconPlus,
-    IconRefresh,
     IconSend,
     IconTrash,
     IconUpload,
 } from '@tabler/icons-react';
+import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { DashboardSchedulersModal } from '../../../features/scheduler';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
-import { useDashboardRefresh } from '../../../hooks/dashboard/useDashboardRefresh';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -51,6 +50,7 @@ import SpaceAndDashboardInfo from '../PageHeader/SpaceAndDashboardInfo';
 import { UpdatedInfo } from '../PageHeader/UpdatedInfo';
 import ViewInfo from '../PageHeader/ViewInfo';
 import SpaceActionModal, { ActionType } from '../SpaceActionModal';
+import { DashboardRefreshButton } from './DashboardRefreshButton';
 
 type DashboardHeaderProps = {
     spaces?: SpaceSummary[];
@@ -66,6 +66,7 @@ type DashboardHeaderProps = {
     hasDashboardChanged: boolean;
     isEditMode: boolean;
     isSaving: boolean;
+    oldestCacheTime?: Date;
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     onCancel: () => void;
     onSaveDashboard: () => void;
@@ -89,6 +90,7 @@ const DashboardHeader = ({
     hasDashboardChanged,
     isEditMode,
     isSaving,
+    oldestCacheTime,
     onAddTiles,
     onCancel,
     onSaveDashboard,
@@ -103,8 +105,7 @@ const DashboardHeader = ({
         dashboardUuid: string;
         organizationUuid: string;
     }>();
-    const { isFetching, invalidateDashboardRelatedQueries } =
-        useDashboardRefresh();
+
     const history = useHistory();
     const { track } = useTracking();
     const [isUpdating, setIsUpdating] = useState(false);
@@ -134,8 +135,6 @@ const DashboardHeader = ({
         'manage',
         subject('ExportCsv', { organizationUuid, projectUuid }),
     );
-
-    const isOneAtLeastFetching = isFetching > 0;
 
     return (
         <PageHeader h="auto">
@@ -207,6 +206,18 @@ const DashboardHeader = ({
                     )}
                 </PageTitleContainer>
             </PageTitleAndDetailsContainer>
+            {oldestCacheTime && (
+                <Text
+                    color="gray"
+                    mr="sm"
+                    sx={{ fontSize: '11px', textAlign: 'end' }}
+                >
+                    Dashboard uses cached data from
+                    <Text fw={700}>
+                        {dayjs(oldestCacheTime).format('MMM D, YYYY h:mm A')}{' '}
+                    </Text>
+                </Text>
+            )}
             {userCanManageDashboard && isEditMode ? (
                 <PageActionsContainer>
                     <AddTileButton
@@ -242,16 +253,7 @@ const DashboardHeader = ({
                 </PageActionsContainer>
             ) : (
                 <PageActionsContainer>
-                    {userCanExportData && (
-                        <Button
-                            size="xs"
-                            loading={isOneAtLeastFetching}
-                            leftIcon={<MantineIcon icon={IconRefresh} />}
-                            onClick={invalidateDashboardRelatedQueries}
-                        >
-                            Refresh
-                        </Button>
-                    )}
+                    {userCanExportData && <DashboardRefreshButton />}
 
                     {!!userCanManageDashboard && (
                         <Tooltip

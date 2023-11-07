@@ -1,44 +1,43 @@
-import { IconLink } from '@tabler/icons-react';
-import copy from 'copy-to-clipboard';
-import React, { FC, useEffect } from 'react';
+import { ActionIcon } from '@mantine/core';
+import { useClipboard } from '@mantine/hooks';
+import { IconCheck, IconLink } from '@tabler/icons-react';
+import { FC } from 'react';
 import { useLocation } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateShareMutation } from '../../../hooks/useShare';
-import { ShareLink } from './ShareShortLinkButton.styles';
+import MantineIcon from '../MantineIcon';
 
 const ShareShortLinkButton: FC<{ disabled?: boolean }> = ({ disabled }) => {
+    const clipboard = useClipboard({ timeout: 500 });
     const { showToastSuccess } = useToaster();
 
     const location = useLocation();
-    const {
-        isLoading,
-        mutate: createShareUrl,
-        data: newShareUrl,
-    } = useCreateShareMutation();
+    const { isLoading, mutateAsync: createShareUrl } = useCreateShareMutation();
 
     const isDisabled = disabled || isLoading;
 
-    useEffect(() => {
-        if (newShareUrl) {
-            copy(newShareUrl.shareUrl || '');
-            showToastSuccess({
-                title: 'Link copied to clipboard',
-            });
-        }
-    }, [newShareUrl, showToastSuccess]);
+    const handleCopyClick = async () => {
+        const { shareUrl } = await createShareUrl({
+            path: location.pathname,
+            params: location.search,
+        });
+        clipboard.copy(shareUrl || '');
+        showToastSuccess({
+            title: 'Link copied to clipboard',
+        });
+    };
 
     return (
-        <ShareLink
-            onClick={() => {
-                const shareUrl = {
-                    path: location.pathname,
-                    params: location.search,
-                };
-                createShareUrl(shareUrl);
-            }}
+        <ActionIcon
+            variant="default"
+            onClick={handleCopyClick}
             disabled={isDisabled}
-            icon={<IconLink size={16} />}
-        />
+        >
+            <MantineIcon
+                icon={clipboard.copied ? IconCheck : IconLink}
+                color={clipboard.copied ? 'green' : 'black'}
+            />
+        </ActionIcon>
     );
 };
 

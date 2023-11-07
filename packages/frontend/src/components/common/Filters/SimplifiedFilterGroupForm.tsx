@@ -1,11 +1,6 @@
 import { FilterableField, FilterRule } from '@lightdash/common';
-import { Tooltip } from '@mantine/core';
-import React, { FC, useCallback } from 'react';
-import {
-    FilterGroupHeader,
-    FilterGroupItemsWrapper,
-    FilterGroupWrapper,
-} from './FilterGroupForm.styles';
+import { Stack, Text, Tooltip } from '@mantine/core';
+import { FC, useCallback } from 'react';
 import FilterRuleForm from './FilterRuleForm';
 
 type Props = {
@@ -43,18 +38,18 @@ const SimplifiedFilterGroupForm: FC<Props> = ({
     );
 
     return (
-        <FilterGroupWrapper>
-            <FilterGroupHeader>
-                <Tooltip
-                    label="You can only use the 'and' operator when combining metrics & dimensions"
-                    disabled={filterRules.length > 1}
-                    position="bottom"
-                    arrowPosition="center"
-                >
-                    <p>All of the following conditions match:</p>
-                </Tooltip>
-            </FilterGroupHeader>
-            <FilterGroupItemsWrapper>
+        <Stack style={{ flexGrow: 1 }}>
+            <Tooltip
+                label="You can only use the 'and' operator when combining metrics & dimensions"
+                disabled={filterRules.length > 1}
+                arrowPosition="center"
+            >
+                <Text color="dimmed" size="xs">
+                    All of the following conditions match:
+                </Text>
+            </Tooltip>
+
+            <Stack spacing="sm">
                 {filterRules.map((item, index) => (
                     <FilterRuleForm
                         isEditMode={isEditMode}
@@ -65,8 +60,8 @@ const SimplifiedFilterGroupForm: FC<Props> = ({
                         onDelete={() => onDeleteItem(index)}
                     />
                 ))}
-            </FilterGroupItemsWrapper>
-        </FilterGroupWrapper>
+            </Stack>
+        </Stack>
     );
 };
 

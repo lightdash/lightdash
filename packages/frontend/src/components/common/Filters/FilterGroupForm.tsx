@@ -1,4 +1,3 @@
-import { Divider, HTMLSelect } from '@blueprintjs/core';
 import {
     createFilterRuleFromField,
     FilterableField,
@@ -10,16 +9,19 @@ import {
     isAndFilterGroup,
     isFilterGroup,
 } from '@lightdash/common';
-import { Button } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Divider,
+    Group,
+    Select,
+    Stack,
+    Text,
+} from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import React, { FC, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../MantineIcon';
-import {
-    FilterGroupHeader,
-    FilterGroupItemsWrapper,
-    FilterGroupWrapper,
-} from './FilterGroupForm.styles';
 import FilterRuleForm from './FilterRuleForm';
 
 type Props = {
@@ -101,50 +103,52 @@ const FilterGroupForm: FC<Props> = ({
     );
 
     return (
-        <FilterGroupWrapper>
+        <Stack pos="relative" spacing="sm" mb="xxs">
             {!hideLine && (
                 <Divider
-                    style={{
-                        position: 'absolute',
-                        height: 'calc(100% - 10px)',
-                        top: 0,
-                        left: 25,
-                    }}
+                    orientation="vertical"
+                    pos="absolute"
+                    h="100%"
+                    top={0}
+                    left={18}
+                    style={{ zIndex: 1 }}
                 />
             )}
 
-            <FilterGroupHeader>
-                <HTMLSelect
-                    className={!isEditMode ? 'disabled-filter' : ''}
-                    fill={false}
-                    disabled={!isEditMode}
-                    iconProps={{ icon: 'caret-down' }}
-                    options={[
-                        {
-                            value: FilterGroupOperator.and,
-                            label: 'All',
-                        },
-                        {
-                            value: FilterGroupOperator.or,
-                            label: 'Any',
-                        },
-                    ]}
-                    value={
-                        isAndFilterGroup(filterGroup)
-                            ? FilterGroupOperator.and
-                            : FilterGroupOperator.or
-                    }
-                    onChange={(e) =>
-                        onChangeOperator(
-                            e.currentTarget.value as FilterGroupOperator,
-                        )
-                    }
-                />
-                <p style={{ marginLeft: 10 }}>
+            <Group spacing="xs">
+                <Box bg="white" pos="relative" style={{ zIndex: 3 }}>
+                    <Select
+                        size="xs"
+                        w={70}
+                        withinPortal
+                        disabled={!isEditMode}
+                        data={[
+                            {
+                                value: FilterGroupOperator.and,
+                                label: 'All',
+                            },
+                            {
+                                value: FilterGroupOperator.or,
+                                label: 'Any',
+                            },
+                        ]}
+                        value={
+                            isAndFilterGroup(filterGroup)
+                                ? FilterGroupOperator.and
+                                : FilterGroupOperator.or
+                        }
+                        onChange={(operator: FilterGroupOperator) =>
+                            onChangeOperator(operator)
+                        }
+                    />
+                </Box>
+
+                <Text color="dimmed" size="xs">
                     of the following {conditionLabel} conditions match:
-                </p>
-            </FilterGroupHeader>
-            <FilterGroupItemsWrapper>
+                </Text>
+            </Group>
+
+            <Stack spacing="xs" pl={36} style={{ flexGrow: 1 }}>
                 {items.map((item, index) => (
                     <React.Fragment key={item.id}>
                         {!isFilterGroup(item) ? (
@@ -177,18 +181,21 @@ const FilterGroupForm: FC<Props> = ({
                         )}
                     </React.Fragment>
                 ))}
-            </FilterGroupItemsWrapper>
+            </Stack>
+
             {isEditMode && !hideButtons && fields.length > 0 && (
-                <Button
-                    variant="light"
-                    size="xs"
-                    leftIcon={<MantineIcon icon={IconPlus} />}
-                    onClick={onAddFilterRule}
-                >
-                    Add group rule
-                </Button>
+                <Box bg="white" pos="relative" style={{ zIndex: 2 }}>
+                    <Button
+                        variant="outline"
+                        size="xs"
+                        leftIcon={<MantineIcon icon={IconPlus} />}
+                        onClick={onAddFilterRule}
+                    >
+                        Add group rule
+                    </Button>
+                </Box>
             )}
-        </FilterGroupWrapper>
+        </Stack>
     );
 };
 

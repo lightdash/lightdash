@@ -20,7 +20,7 @@ const HourlyInputs: FC<{
     };
 
     return (
-        <Group spacing="xs">
+        <Group spacing="sm">
             <Input.Label>at minute</Input.Label>
             <NumberInput
                 value={minutes}

@@ -2,11 +2,10 @@ import { Group, Modal, Text } from '@mantine/core';
 import { IconSend } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import SchedulerModalContent2 from './SchedulerModalContent2';
+import SchedulerModalContent from './SchedulerModalContent';
 
-// TODO: rename when replacement is complete
-const SchedulersModal2: FC<
-    Omit<React.ComponentProps<typeof SchedulerModalContent2>, 'onClose'> & {
+const SchedulersModal: FC<
+    Omit<React.ComponentProps<typeof SchedulerModalContent>, 'onClose'> & {
         name: string;
         onClose?: () => void;
         isOpen?: boolean;
@@ -36,7 +35,7 @@ const SchedulersModal2: FC<
                 body: { padding: 0 },
             })}
         >
-            <SchedulerModalContent2
+            <SchedulerModalContent
                 resourceUuid={resourceUuid}
                 schedulersQuery={schedulersQuery}
                 createMutation={createMutation}
@@ -47,4 +46,4 @@ const SchedulersModal2: FC<
     );
 };
 
-export default SchedulersModal2;
+export default SchedulersModal;

@@ -7,7 +7,7 @@ type Props = Omit<YearPickerInputProps, 'value' | 'onChange'> & {
     value: Date | null;
     onChange: (value: Date) => void;
 };
-const YearInput: FC<Props> = ({ value, onChange, ...props }) => {
+const FilterYearPicker: FC<Props> = ({ value, onChange, ...props }) => {
     const [isPopoverOpen, { open, close, toggle }] = useDisclosure();
 
     const yearValue = value ? moment(value).toDate() : null;
@@ -21,11 +21,10 @@ const YearInput: FC<Props> = ({ value, onChange, ...props }) => {
             onClick={toggle}
             {...props}
             popoverProps={{
-                withArrow: true,
-                withinPortal: false,
                 shadow: 'md',
-                // FIXME: remove this once we migrate off of Blueprint
                 ...props.popoverProps,
+                // Month and year picker does not manage its own state properly.
+                // additional props are needed to make it work
                 opened: isPopoverOpen,
                 onOpen: () => {
                     props.popoverProps?.onOpen?.();
@@ -46,4 +45,4 @@ const YearInput: FC<Props> = ({ value, onChange, ...props }) => {
     );
 };
 
-export default YearInput;
+export default FilterYearPicker;

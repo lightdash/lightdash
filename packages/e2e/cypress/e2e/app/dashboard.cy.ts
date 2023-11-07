@@ -114,7 +114,7 @@ describe('Dashboard', () => {
         cy.findByText('Payment method').click();
         cy.findByText('Unique payment count').click();
         cy.findByText('Save chart').click();
-        cy.get('input#chart-name').type(
+        cy.findByTestId('ChartCreateModal/NameInput').type(
             `What's the number of unique payments per payment method?`,
         );
         cy.findByText('Save').click();
@@ -151,7 +151,7 @@ describe('Dashboard', () => {
         cy.findByText('Payment method').click();
         cy.findByText('Total revenue').click();
         cy.findByText('Save chart').click();
-        cy.get('input#chart-name').type(
+        cy.findByTestId('ChartCreateModal/NameInput').type(
             `What's the total revenue per payment method?`,
         );
         cy.findByText('Save').click();
@@ -191,7 +191,7 @@ describe('Dashboard', () => {
         cy.findByText('Payment method').click();
         cy.findByText('Amount').click();
         cy.findByText('Save chart').click();
-        cy.get('input#chart-name').type(
+        cy.findByTestId('ChartCreateModal/NameInput').type(
             `Stg Payments (payment method x amount)?`,
         );
         cy.findByText('Save').click();

@@ -8,23 +8,11 @@ import updateLocale from 'dayjs/plugin/updateLocale';
 dayjs.extend(getLocaleData);
 dayjs.extend(updateLocale);
 
-export const getDateValueFromUnknown = (value: unknown): Date | undefined => {
-    if (!value) return;
-
-    if (typeof value === 'string') {
-        return dayjs(value).toDate();
-    } else if (value instanceof Date) {
-        return value;
-    } else {
-        throw new Error(`Invalid date value: ${value} (${typeof value})`);
-    }
-};
-
 //
 // internally we use WeekDay enum with values from 0 (Monday) to 6 (Sunday)
 // normalized values are from 0 (Sunday) to 6 (Saturday)
 //
-export const normalizeWeekDay = (weekDay: WeekDay): DayOfWeek => {
+const normalizeWeekDay = (weekDay: WeekDay): DayOfWeek => {
     const converted = weekDay + 1;
     return (converted <= 6 ? converted : 0) as DayOfWeek;
 };
@@ -59,8 +47,8 @@ export const endOfWeek = (date: Date, fdow: DayOfWeek) => {
 };
 
 export const isInWeekRange = (
-    date: Date | undefined,
-    selectedDate: Date | undefined,
+    date: Date | null,
+    selectedDate: Date | null,
     firstDayOfWeek: DayOfWeek,
 ) => {
     if (!selectedDate) return false;

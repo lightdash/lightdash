@@ -6,8 +6,6 @@
 import './../styles/blueprint-core.css';
 import './../styles/blueprint-popover2.css';
 // NOTE: imports below does not have a conflicting z-indexes
-import '@blueprintjs/datetime/lib/css/blueprint-datetime.css';
-import '@blueprintjs/datetime2/lib/css/blueprint-datetime2.css';
 import '@blueprintjs/select/lib/css/blueprint-select.css';
 
 import { Colors, Dialog, FocusStyleManager } from '@blueprintjs/core';

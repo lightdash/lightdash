@@ -696,6 +696,7 @@ export class UserModel {
                 'openid_identities.user_id',
             )
             .where('user_uuid', userUuid)
+            .whereNotNull('refresh_token')
             .select('refresh_token');
 
         if (!row) {

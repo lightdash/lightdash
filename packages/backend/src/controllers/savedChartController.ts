@@ -41,18 +41,20 @@ export class SavedChartController extends Controller {
     @Post('/results')
     @OperationId('postChartResults')
     async postDashboardTile(
-        @Body() body: { filters?: FiltersResponse },
+        @Body() body: { filters?: FiltersResponse; invalidateCache?: boolean },
         @Path() chartUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await projectService.runViewChartQuery(
-                req.user!,
+            results: await projectService.runViewChartQuery({
+                user: req.user!,
                 chartUuid,
-                body.filters,
-            ),
+                filters: body.filters,
+                versionUuid: undefined,
+                invalidateCache: body.invalidateCache,
+            }),
         };
     }
 
@@ -120,12 +122,12 @@ export class SavedChartController extends Controller {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await projectService.runViewChartQuery(
-                req.user!,
+            results: await projectService.runViewChartQuery({
+                user: req.user!,
                 chartUuid,
-                undefined,
+                filters: undefined,
                 versionUuid,
-            ),
+            }),
         };
     }
 

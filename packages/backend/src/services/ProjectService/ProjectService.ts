@@ -6,6 +6,7 @@ import {
     AndFilterGroup,
     ApiQueryResults,
     ApiSqlQueryResults,
+    CacheMetadata,
     ChartSummary,
     CompiledDimension,
     countCustomDimensionsInMetricQuery,
@@ -832,24 +833,30 @@ export class ProjectService {
             user_uuid: user.userUuid,
         };
 
-        return this.runQueryAndFormatRows(
+        return this.runQueryAndFormatRows({
             user,
             metricQuery,
             projectUuid,
             exploreName,
             csvLimit,
-            QueryExecutionContext.VIEW_UNDERLYING_DATA,
-
+            context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
             queryTags,
-        );
+        });
     }
 
-    async runViewChartQuery(
-        user: SessionUser,
-        chartUuid: string,
-        filters?: Filters,
-        versionUuid?: string,
-    ): Promise<ApiQueryResults> {
+    async runViewChartQuery({
+        user,
+        chartUuid,
+        filters,
+        versionUuid,
+        invalidateCache,
+    }: {
+        user: SessionUser;
+        chartUuid: string;
+        filters?: Filters;
+        versionUuid?: string;
+        invalidateCache?: boolean;
+    }): Promise<ApiQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -888,18 +895,18 @@ export class ProjectService {
             chart_uuid: chartUuid,
         };
 
-        return this.runQueryAndFormatRows(
+        return this.runQueryAndFormatRows({
             user,
             metricQuery,
             projectUuid,
-            savedChart.tableName,
-            undefined,
-            filters
+            exploreName: savedChart.tableName,
+            csvLimit: undefined,
+            context: filters
                 ? QueryExecutionContext.DASHBOARD
                 : QueryExecutionContext.CHART,
-
             queryTags,
-        );
+            invalidateCache,
+        });
     }
 
     async runExploreQuery(
@@ -930,31 +937,41 @@ export class ProjectService {
             user_uuid: user.userUuid,
         };
 
-        return this.runQueryAndFormatRows(
+        return this.runQueryAndFormatRows({
             user,
             metricQuery,
             projectUuid,
             exploreName,
             csvLimit,
-            QueryExecutionContext.EXPLORE,
+            context: QueryExecutionContext.EXPLORE,
             queryTags,
-        );
+        });
     }
 
-    private async runQueryAndFormatRows(
-        user: SessionUser,
-        metricQuery: MetricQuery,
-        projectUuid: string,
-        exploreName: string,
-        csvLimit: number | null | undefined,
-        context: QueryExecutionContext,
-        queryTags?: RunQueryTags,
-    ): Promise<ApiQueryResults> {
+    private async runQueryAndFormatRows({
+        user,
+        metricQuery,
+        projectUuid,
+        exploreName,
+        csvLimit,
+        context,
+        queryTags,
+        invalidateCache,
+    }: {
+        user: SessionUser;
+        metricQuery: MetricQuery;
+        projectUuid: string;
+        exploreName: string;
+        csvLimit: number | null | undefined;
+        context: QueryExecutionContext;
+        queryTags?: RunQueryTags;
+        invalidateCache?: boolean;
+    }): Promise<ApiQueryResults> {
         return wrapOtelSpan(
             'ProjectService.runQueryAndFormatRows',
             {},
             async (span) => {
-                const rows = await this.runMetricQuery(
+                const { rows, cacheMetadata } = await this.runMetricQuery({
                     user,
                     metricQuery,
                     projectUuid,
@@ -962,7 +979,8 @@ export class ProjectService {
                     csvLimit,
                     context,
                     queryTags,
-                );
+                    invalidateCache,
+                });
                 span.setAttribute('rows', rows.length);
 
                 const { warehouseConnection } =
@@ -977,28 +995,38 @@ export class ProjectService {
                     exploreName,
                 );
 
-                const itemMap = getItemMap(
-                    explore,
-                    metricQuery.additionalMetrics,
-                    metricQuery.tableCalculations,
+                const itemMap = await wrapOtelSpan(
+                    'ProjectService.runQueryAndFormatRows.getItemMap',
+                    {},
+                    async () =>
+                        getItemMap(
+                            explore,
+                            metricQuery.additionalMetrics,
+                            metricQuery.tableCalculations,
+                        ),
                 );
 
                 // If there are more than 500 rows, we need to format them in a background job
                 const formattedRows = await wrapOtelSpan(
-                    'formatted rows',
+                    'ProjectService.runQueryAndFormatRows.formatRows',
                     {
                         rows: rows.length,
                         warehouse: warehouseConnection?.type,
                     },
-                    async () =>
+                    async (formatRowsSpan) =>
                         wrapSentryTransaction<ResultRow[]>(
-                            'formatted rows',
+                            'ProjectService.runQueryAndFormatRows.formatRows',
                             {
                                 rows: rows.length,
                                 warehouse: warehouseConnection?.type,
                             },
-                            async () =>
-                                rows.length > 500
+                            async () => {
+                                const useWorker = rows.length > 500;
+                                formatRowsSpan.setAttribute(
+                                    'useWorker',
+                                    useWorker,
+                                );
+                                return useWorker
                                     ? runWorkerThread<ResultRow[]>(
                                           new Worker(
                                               './dist/services/ProjectService/formatRows.js',
@@ -1010,13 +1038,15 @@ export class ProjectService {
                                               },
                                           ),
                                       )
-                                    : formatRows(rows, itemMap),
+                                    : formatRows(rows, itemMap);
+                            },
                         ),
                 );
 
                 return {
                     rows: formattedRows,
                     metricQuery,
+                    cacheMetadata,
                 };
             },
         );
@@ -1025,7 +1055,7 @@ export class ProjectService {
     async getResultsForChart(
         user: SessionUser,
         chartUuid: string,
-    ): Promise<Record<string, any>[]> {
+    ): Promise<{ rows: Record<string, any>[]; cacheMetadata: CacheMetadata }> {
         return wrapSentryTransaction(
             'getResultsForChartWithWarehouseQuery',
             {
@@ -1037,14 +1067,14 @@ export class ProjectService {
                 const { metricQuery } = chart;
                 const exploreId = chart.tableName;
 
-                return this.runMetricQuery(
+                return this.runMetricQuery({
                     user,
                     metricQuery,
-                    chart.projectUuid,
-                    exploreId,
-                    undefined,
-                    QueryExecutionContext.GSHEETS,
-                );
+                    projectUuid: chart.projectUuid,
+                    exploreName: exploreId,
+                    csvLimit: undefined,
+                    context: QueryExecutionContext.GSHEETS,
+                });
             },
         );
     }
@@ -1056,6 +1086,7 @@ export class ProjectService {
         query,
         metricQuery,
         queryTags,
+        invalidateCache,
     }: {
         projectUuid: string;
         context: QueryExecutionContext;
@@ -1063,14 +1094,10 @@ export class ProjectService {
         query: any;
         metricQuery: MetricQuery;
         queryTags?: RunQueryTags;
+        invalidateCache?: boolean;
     }): Promise<{
-        fields: Record<
-            string,
-            {
-                type: DimensionType;
-            }
-        >;
         rows: Record<string, any>[];
+        cacheMetadata: CacheMetadata;
     }> {
         return wrapOtelSpan(
             'ProjectService.getResultsFromCacheOrWarehouse',
@@ -1085,7 +1112,7 @@ export class ProjectService {
                 span.setAttribute('queryHash', queryHash);
                 span.setAttribute('cacheHit', false);
 
-                if (lightdashConfig.resultsCache?.enabled) {
+                if (lightdashConfig.resultsCache?.enabled && !invalidateCache) {
                     const cacheEntryMetadata = await this.s3CacheClient
                         .getResultsMetadata(queryHash)
                         .catch((e) => undefined); // ignore since error is tracked in s3Client
@@ -1108,7 +1135,14 @@ export class ProjectService {
                         if (stringResults) {
                             try {
                                 span.setAttribute('cacheHit', true);
-                                return JSON.parse(stringResults);
+                                return {
+                                    rows: JSON.parse(stringResults).rows,
+                                    cacheMetadata: {
+                                        cacheHit: true,
+                                        cacheUpdatedTime:
+                                            cacheEntryMetadata?.LastModified,
+                                    },
+                                };
                             } catch (e) {
                                 Logger.error('Error parsing cache results:', e);
                             }
@@ -1140,20 +1174,33 @@ export class ProjectService {
                         .catch((e) => undefined); // ignore since error is tracked in s3Client
                 }
 
-                return warehouseResults;
+                return {
+                    rows: warehouseResults.rows,
+                    cacheMetadata: { cacheHit: false },
+                };
             },
         );
     }
 
-    async runMetricQuery(
-        user: SessionUser,
-        metricQuery: MetricQuery,
-        projectUuid: string,
-        exploreName: string,
-        csvLimit: number | null | undefined,
-        context: QueryExecutionContext,
-        queryTags?: RunQueryTags,
-    ): Promise<Record<string, any>[]> {
+    async runMetricQuery({
+        user,
+        metricQuery,
+        projectUuid,
+        exploreName,
+        csvLimit,
+        context,
+        queryTags,
+        invalidateCache,
+    }: {
+        user: SessionUser;
+        metricQuery: MetricQuery;
+        projectUuid: string;
+        exploreName: string;
+        csvLimit: number | null | undefined;
+        context: QueryExecutionContext;
+        queryTags?: RunQueryTags;
+        invalidateCache?: boolean;
+    }): Promise<{ rows: Record<string, any>[]; cacheMetadata: CacheMetadata }> {
         const tracer = opentelemetry.trace.getTracer('default');
         return tracer.startActiveSpan(
             'ProjectService.runMetricQuery',
@@ -1285,16 +1332,18 @@ export class ProjectService {
                         warehouseClient.credentials.type,
                     );
 
-                    const { rows } = await this.getResultsFromCacheOrWarehouse({
-                        projectUuid,
-                        context,
-                        warehouseClient,
-                        metricQuery,
-                        query,
-                        queryTags,
-                    });
+                    const { rows, cacheMetadata } =
+                        await this.getResultsFromCacheOrWarehouse({
+                            projectUuid,
+                            context,
+                            warehouseClient,
+                            metricQuery,
+                            query,
+                            queryTags,
+                            invalidateCache,
+                        });
                     await sshTunnel.disconnect();
-                    return rows;
+                    return { rows, cacheMetadata };
                 } catch (e) {
                     span.setStatus({
                         code: SpanStatusCode.ERROR,

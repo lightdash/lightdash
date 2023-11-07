@@ -23,7 +23,6 @@ import {
     IconSparkles,
     IconTrash,
 } from '@tabler/icons-react';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, useMemo } from 'react';
 import { useFilters } from '../../../../../hooks/useFilters';
 import { useExplorerContext } from '../../../../../providers/ExplorerProvider';
@@ -76,8 +75,6 @@ const TreeSingleNodeActions: FC<Props> = ({
     isOpened,
     onMenuChange,
 }) => {
-    const isCustomDimensionsFeatureEnabled =
-        useFeatureFlagEnabled('custom-dimensions');
     const { addFilter } = useFilters();
     const { track } = useTracking();
 
@@ -223,9 +220,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                     </>
                 ) : null}
 
-                {isCustomDimensionsFeatureEnabled &&
-                isDimension(item) &&
-                item.type === DimensionType.NUMBER ? (
+                {isDimension(item) && item.type === DimensionType.NUMBER ? (
                     <Menu.Item
                         component="button"
                         icon={<MantineIcon icon={IconSparkles} />}
@@ -245,7 +240,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                     </Menu.Item>
                 ) : null}
 
-                {isCustomDimensionsFeatureEnabled && isCustomDimension(item) && (
+                {isCustomDimension(item) && (
                     <>
                         <Menu.Item
                             component="button"

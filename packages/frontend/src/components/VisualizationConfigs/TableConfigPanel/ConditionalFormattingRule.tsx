@@ -15,11 +15,15 @@ import {
 } from '@mantine/core';
 import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
 import { FC, useState } from 'react';
-import { FilterTypeConfig } from '../../common/Filters/configs';
+import {
+    FilterInputComponent,
+    getFilterOperatorOptions,
+} from '../../common/Filters/FilterInputs';
 import MantineIcon from '../../common/MantineIcon';
 
-// conditional formatting only supports number fields for now
-const filterConfig = FilterTypeConfig[FilterType.NUMBER];
+// conditional formatting only supports number filters
+const filterType = FilterType.NUMBER;
+const filterOperatorOptions = getFilterOperatorOptions(filterType);
 
 interface ConditionalFormattingRuleProps {
     isDefaultOpen?: boolean;
@@ -72,15 +76,15 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                 <Stack spacing="xs">
                     <Select
                         value={rule.operator}
-                        data={filterConfig.operatorOptions}
+                        data={filterOperatorOptions}
                         onChange={(value) => {
                             if (!value) return;
                             onChangeRuleOperator(value as ConditionalOperator);
                         }}
                     />
 
-                    <filterConfig.inputs
-                        filterType={FilterType.NUMBER}
+                    <FilterInputComponent
+                        filterType={filterType}
                         field={field}
                         rule={rule}
                         onChange={onChangeRule}

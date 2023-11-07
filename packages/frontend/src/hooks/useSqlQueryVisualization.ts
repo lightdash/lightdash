@@ -104,6 +104,9 @@ const useSqlQueryVisualization = ({
                           limit: 0,
                           tableCalculations: [],
                       },
+                      cacheMetadata: {
+                          cacheHit: false,
+                      },
                       rows: data.rows.map((row) =>
                           Object.keys(row).reduce((acc, columnName) => {
                               const raw = row[columnName];

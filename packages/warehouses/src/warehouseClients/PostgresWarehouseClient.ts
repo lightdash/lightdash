@@ -169,19 +169,42 @@ export class PostgresClient<
             fields: Record<string, { type: DimensionType }>;
             rows: Record<string, any>[];
         }>((resolve, reject) => {
-            pool = new pg.Pool(this.config);
+            pool = new pg.Pool({
+                ...this.config,
+                connectionTimeoutMillis: 5000,
+            });
 
+            pool.on('error', (err) => {
+                console.error(`Postgres pool error ${err.message}`);
+                reject(err);
+            });
+
+            pool.on('connect', (_client: pg.PoolClient) => {
+                // On each new client initiated, need to register for error(this is a serious bug on pg, the client throw errors although it should not)
+                _client.on('error', (err: Error) => {
+                    console.error(
+                        `Postgres client connect error ${err.message}`,
+                    );
+                    reject(err);
+                });
+            });
             pool.connect((err, client, done) => {
-                if (!client) {
-                    reject(new Error('client undefined'));
-                    done();
-                    return;
-                }
                 if (err) {
                     reject(err);
                     done();
                     return;
                 }
+                if (!client) {
+                    reject(new Error('client undefined'));
+                    done();
+                    return;
+                }
+
+                client.on('error', (e) => {
+                    console.error(`Postgres client error ${e.message}`);
+                    reject(e);
+                    done();
+                });
 
                 // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
                 //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
@@ -202,23 +225,28 @@ export class PostgresClient<
                     reject(err2);
                     done();
                 });
-                stream.pipe(
-                    new Writable({
-                        objectMode: true,
-                        write(
-                            chunk: {
-                                row: any;
-                                fields: QueryResult<any>['fields'];
+                stream
+                    .pipe(
+                        new Writable({
+                            objectMode: true,
+                            write(
+                                chunk: {
+                                    row: any;
+                                    fields: QueryResult<any>['fields'];
+                                },
+                                encoding,
+                                callback,
+                            ) {
+                                rows.push(chunk.row);
+                                fields = chunk.fields;
+                                callback();
                             },
-                            encoding,
-                            callback,
-                        ) {
-                            rows.push(chunk.row);
-                            fields = chunk.fields;
-                            callback();
-                        },
-                    }),
-                );
+                        }),
+                    )
+                    .on('error', (err2) => {
+                        reject(err2);
+                        done();
+                    });
             });
         })
             .catch((e) => {

@@ -1,4 +1,3 @@
-import { Popover2Props } from '@blueprintjs/popover2';
 import {
     assertUnreachable,
     createDashboardFilterRuleFromField,
@@ -18,6 +17,7 @@ import {
     Button,
     Flex,
     Group,
+    PopoverProps,
     Stack,
     Tabs,
     Text,
@@ -57,7 +57,7 @@ interface Props {
     availableTileFilters: Record<string, FilterableField[] | undefined>;
     originalFilterRule?: DashboardFilterRule;
     defaultFilterRule?: DashboardFilterRule;
-    popoverProps?: Popover2Props;
+    popoverProps?: Omit<PopoverProps, 'children'>;
     isEditMode: boolean;
     isCreatingNew?: boolean;
     isTemporary?: boolean;
@@ -287,6 +287,9 @@ const FilterConfiguration: FC<Props> = ({
                                         </Text>{' '}
                                     </Text>
                                 }
+                                withinPortal={popoverProps?.withinPortal}
+                                onDropdownOpen={popoverProps?.onOpen}
+                                onDropdownClose={popoverProps?.onClose}
                                 hasGrouping
                                 item={selectedField}
                                 items={fields}

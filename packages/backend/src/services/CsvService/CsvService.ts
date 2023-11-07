@@ -388,14 +388,14 @@ export class CsvService {
               )
             : metricQuery;
 
-        const rows = await this.projectService.runMetricQuery(
+        const { rows } = await this.projectService.runMetricQuery({
             user,
-            metricQueryWithDashboardFilters,
-            chart.projectUuid,
-            exploreId,
-            getSchedulerCsvLimit(options),
-            QueryExecutionContext.CSV,
-        );
+            metricQuery: metricQueryWithDashboardFilters,
+            projectUuid: chart.projectUuid,
+            exploreName: exploreId,
+            csvLimit: getSchedulerCsvLimit(options),
+            context: QueryExecutionContext.CSV,
+        });
         const numberRows = rows.length;
 
         if (numberRows === 0)
@@ -663,14 +663,14 @@ export class CsvService {
                 properties: analyticsProperties,
             });
 
-            const rows = await this.projectService.runMetricQuery(
+            const { rows } = await this.projectService.runMetricQuery({
                 user,
                 metricQuery,
                 projectUuid,
-                exploreId,
+                exploreName: exploreId,
                 csvLimit,
-                QueryExecutionContext.CSV,
-            );
+                context: QueryExecutionContext.CSV,
+            });
             const numberRows = rows.length;
 
             const explore = await this.projectService.getExplore(

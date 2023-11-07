@@ -1,55 +1,55 @@
 import {
-    Button,
-    Classes,
-    Collapse,
-    Colors,
-    FormGroup,
-    NumericInput,
-    Radio,
-    RadioGroup,
-} from '@blueprintjs/core';
-import { MenuItem2, Tooltip2 } from '@blueprintjs/popover2';
-import {
     CreateSchedulerAndTargetsWithoutIds,
+    CreateSchedulerTarget,
+    isSchedulerCsvOptions,
+    isSchedulerImageOptions,
+    isSlackTarget,
+    SchedulerAndTargets,
     SchedulerFormat,
+    validateEmail,
 } from '@lightdash/common';
-import { Anchor, Box, Switch, Tooltip } from '@mantine/core';
-import React, { FC, useEffect, useMemo, useState } from 'react';
-import { Controller, useFormContext } from 'react-hook-form';
-import useHealth from '../../../hooks/health/useHealth';
-
-import { IconInfoCircle } from '@tabler/icons-react';
-import MDEditor, { commands } from '@uiw/react-md-editor';
-import MantineIcon from '../../../components/common/MantineIcon';
-import { ArrayInput } from '../../../components/ReactHookForm/ArrayInput';
-import AutoComplete from '../../../components/ReactHookForm/AutoComplete';
-import CronInput from '../../../components/ReactHookForm/CronInput';
 import {
-    InlinedInputs,
-    InlinedLabel,
-    InlineIcon,
-} from '../../../components/ReactHookForm/CronInput/CronInput.styles';
-import Form from '../../../components/ReactHookForm/Form';
-import Input from '../../../components/ReactHookForm/Input';
+    Anchor,
+    Box,
+    Button,
+    Checkbox,
+    Collapse,
+    Group,
+    HoverCard,
+    Input,
+    Loader,
+    MultiSelect,
+    NumberInput,
+    Radio,
+    SegmentedControl,
+    Space,
+    Stack,
+    Tabs,
+    Text,
+    TextInput,
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import {
+    IconChevronDown,
+    IconChevronUp,
+    IconMail,
+    IconSettings,
+} from '@tabler/icons-react';
+import MDEditor, { commands } from '@uiw/react-md-editor';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
+import { FC, useCallback, useMemo, useState } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { TagInput } from '../../../components/common/TagInput/TagInput';
+import { CronInternalInputs } from '../../../components/ReactHookForm/CronInput';
 import { hasRequiredScopes } from '../../../components/UserSettings/SlackSettingsPanel';
+import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
+import useHealth from '../../../hooks/health/useHealth';
 import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
 import { useGetSlack } from '../../../hooks/useSlack';
+import { ReactComponent as SlackSvg } from '../../../svgs/slack.svg';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
-import {
-    EmailIcon,
-    InputGroupWrapper,
-    InputWrapper,
-    SlackIcon,
-    StyledSelect,
-    TargetRow,
-    Title,
-} from './SchedulerModalBase.styles';
-
-const isSlack = (
-    target: CreateSchedulerAndTargetsWithoutIds['targets'][number],
-): target is {
-    channel: string;
-} => 'channel' in target && target.channel !== undefined;
+import SchedulerFilters from './SchedulerFilters';
+import SchedulersModalFooter from './SchedulerModalFooter';
 
 export enum Limit {
     TABLE = 'table',
@@ -69,14 +69,73 @@ enum SlackStates {
     MISSING_SCOPES,
 }
 
-const SlackErrorContent: FC<{ slackState: SlackStates }> = ({
-    slackState,
-}): JSX.Element => {
+const DEFAULT_VALUES = {
+    name: '',
+    message: '',
+    format: SchedulerFormat.CSV,
+    cron: '0 9 * * 1',
+    options: {
+        formatted: Values.FORMATTED,
+        limit: Limit.TABLE,
+        customLimit: 1,
+        withPdf: false,
+    },
+    emailTargets: [] as string[],
+    slackTargets: [] as string[],
+};
+
+const getFormValuesFromScheduler = (
+    schedulerData: SchedulerAndTargets,
+): any => {
+    const options = schedulerData.options;
+
+    const formOptions = DEFAULT_VALUES.options;
+
+    if (isSchedulerCsvOptions(options)) {
+        formOptions.formatted = options.formatted
+            ? Values.FORMATTED
+            : Values.RAW;
+        formOptions.limit =
+            options.limit === Limit.TABLE
+                ? Limit.TABLE
+                : options.limit === Limit.ALL
+                ? Limit.ALL
+                : Limit.CUSTOM;
+        if (formOptions.limit === Limit.CUSTOM) {
+            formOptions.customLimit = options.limit as number;
+        }
+    } else if (isSchedulerImageOptions(options)) {
+        formOptions.withPdf = options.withPdf || false;
+    }
+
+    const emailTargets: string[] = [];
+    const slackTargets: string[] = [];
+
+    schedulerData.targets.forEach((target) => {
+        if (isSlackTarget(target)) {
+            slackTargets.push(target.channel);
+        } else {
+            emailTargets.push(target.recipient);
+        }
+    });
+
+    return {
+        name: schedulerData.name,
+        message: schedulerData.message,
+        format: schedulerData.format,
+        cron: schedulerData.cron,
+        options: formOptions,
+        emailTargets: emailTargets,
+        slackTargets: slackTargets,
+    };
+};
+
+const SlackErrorContent: FC<{ slackState: SlackStates }> = ({ slackState }) => {
     if (slackState === SlackStates.NO_SLACK) {
         return (
             <>
-                <p>No Slack integration found</p>
-                <p>
+                <Text pb="sm">No Slack integration found</Text>
+                <Text>
                     To create a slack scheduled delivery, you need to
                     <Anchor
                         target="_blank"
@@ -86,186 +145,138 @@ const SlackErrorContent: FC<{ slackState: SlackStates }> = ({
                         setup Slack{' '}
                     </Anchor>
                     for your Lightdash instance
-                </p>
+                </Text>
             </>
         );
     } else if (slackState === SlackStates.MISSING_SCOPES) {
         return (
             <>
-                <p>Slack integration needs to be reinstalled</p>
-                <p>
+                <Text pb="sm">Slack integration needs to be reinstalled</Text>
+                <Text>
                     To create a slack scheduled delivery, you need to
                     <Anchor href="/generalSettings/integrations/slack">
                         {' '}
                         reinstall the Slack integration{' '}
                     </Anchor>
                     for your organization
-                </p>
+                </Text>
             </>
         );
     }
     return <></>;
 };
 
-const SchedulerOptions: FC<
-    { disabled: boolean } & React.ComponentProps<typeof Form>
-> = ({ disabled: _disabled, methods, ...rest }) => {
-    const [format, setFormat] = useState(
-        methods.getValues()?.options?.formatted === false
-            ? Values.RAW
-            : Values.FORMATTED,
-    );
-    const [defaultCustomLimit, defaultLimit] = useMemo(() => {
-        const limit = methods.getValues()?.options?.limit;
-        switch (limit) {
-            case undefined:
-            case Limit.TABLE:
-                return [1, Limit.TABLE];
-            case Limit.ALL:
-                return [1, Limit.ALL];
-
-            default:
-                return [limit, Limit.CUSTOM];
-        }
-    }, [methods]);
-    const [customLimit, setCustomLimit] = useState<number>(defaultCustomLimit);
-    const [limit, setLimit] = useState<string>(defaultLimit);
-    const health = useHealth();
-
-    useEffect(() => {
-        if (limit === Limit.CUSTOM) {
-            methods.setValue('options.limit', customLimit);
-        } else {
-            methods.setValue('options.limit', limit);
-        }
-    }, [methods, customLimit, limit]);
-    useEffect(() => {
-        methods.setValue('options.formatted', format === Values.FORMATTED);
-    }, [methods, format]);
-
-    return (
-        <Form name="options" methods={methods} {...rest}>
-            <RadioGroup
-                onChange={(e: any) => {
-                    setFormat(e.currentTarget.value);
-                }}
-                selectedValue={format}
-                label={<Title>Values</Title>}
-            >
-                <Radio label="Formatted" value={Values.FORMATTED} />
-                <Radio label="Raw" value={Values.RAW} />
-            </RadioGroup>
-
-            <RadioGroup
-                selectedValue={limit}
-                label={<Title>Limit</Title>}
-                onChange={(e: any) => {
-                    const limitValue = e.currentTarget.value;
-                    setLimit(limitValue);
-                }}
-            >
-                <Radio label="Results in Table" value={Limit.TABLE} />
-                <Radio label="All Results" value={Limit.ALL} />
-                <Radio label="Custom..." value={Limit.CUSTOM} />
-            </RadioGroup>
-            {limit === Limit.CUSTOM && (
-                <InputWrapper>
-                    <NumericInput
-                        value={customLimit}
-                        min={1}
-                        fill
-                        onValueChange={(value: any) => {
-                            setCustomLimit(value);
-                        }}
-                    />
-                </InputWrapper>
-            )}
-
-            {(limit === Limit.ALL || limit === Limit.CUSTOM) && (
-                <i>
-                    Results are limited to{' '}
-                    {Number(
-                        health.data?.query.csvCellsLimit || 100000,
-                    ).toLocaleString()}{' '}
-                    cells for each file
-                </i>
-            )}
-        </Form>
-    );
-};
-
-const SchedulerAdvancedOptions: FC = () => {
-    const form = useFormContext<CreateSchedulerAndTargetsWithoutIds>();
-
-    const [isAdvanced, setIsAdvanced] = useState(false);
-
-    return (
-        <>
-            <Button
-                minimal
-                small
-                icon={isAdvanced ? 'chevron-down' : 'chevron-right'}
-                onClick={() => setIsAdvanced(!isAdvanced)}
-            >
-                Customize body message
-            </Button>
-
-            <Collapse isOpen={isAdvanced}>
-                <Box pt="lg">
-                    <Controller
-                        name="message"
-                        control={form.control}
-                        render={({ field }) => (
-                            <MDEditor
-                                preview="edit"
-                                commands={[
-                                    commands.bold,
-                                    commands.italic,
-                                    commands.strikethrough,
-                                    commands.divider,
-                                    commands.link,
-                                ]}
-                                value={field.value ?? ''}
-                                onChange={(value) =>
-                                    field.onChange(value ?? '')
-                                }
-                            />
-                        )}
-                    />
-                </Box>
-            </Collapse>
-        </>
-    );
-};
-
-const SchedulerImageOptions: FC<
-    { disabled: boolean } & React.ComponentProps<typeof Form>
-> = ({ methods }) => {
-    const [withPdf, setWithPdf] = useState(
-        methods.getValues()?.options?.withPdf,
-    );
-
-    // TODO: This form is using useEffect to interact
-    // with the form library and it's not a great
-    // pattern. We should consider moving to a different
-    // form manager and not doing this
-    useEffect(() => {
-        methods.setValue('options.withPdf', withPdf);
-    }, [methods, withPdf]);
-
-    return (
-        <Switch
-            label="Also include image as PDF attachment"
-            checked={withPdf}
-            onChange={() => setWithPdf((old: boolean) => !old)}
-        />
-    );
-};
-
-const SchedulerForm: FC<{
+type Props = {
     disabled: boolean;
-}> = ({ disabled }) => {
-    const methods = useFormContext<CreateSchedulerAndTargetsWithoutIds>();
+    savedSchedulerData?: SchedulerAndTargets;
+    resource?: {
+        uuid: string;
+        type: 'chart' | 'dashboard';
+    };
+    onSubmit: (data: any) => void;
+    onSendNow: (data: CreateSchedulerAndTargetsWithoutIds) => void;
+    onBack?: () => void;
+    loading?: boolean;
+    confirmText?: string;
+};
+
+const SchedulerForm: FC<Props> = ({
+    disabled,
+    resource,
+    savedSchedulerData,
+    onSubmit,
+    onSendNow,
+    onBack,
+    loading,
+    confirmText,
+}) => {
+    const isSchedulerFiltersEnabled =
+        useFeatureFlagEnabled('scheduler-filters');
+
+    const form = useForm({
+        initialValues:
+            savedSchedulerData !== undefined
+                ? getFormValuesFromScheduler(savedSchedulerData)
+                : DEFAULT_VALUES,
+        validateInputOnBlur: ['options.customLimit'],
+
+        validate: {
+            name: (value) => {
+                return value.length > 0 ? null : 'Name is required';
+            },
+            options: {
+                customLimit: (value, values) => {
+                    return values.options.limit === Limit.CUSTOM &&
+                        !Number.isInteger(value)
+                        ? 'Custom limit must be an integer'
+                        : null;
+                },
+            },
+            cron: (cronExpression) => {
+                return isInvalidCronExpression('Cron expression')(
+                    cronExpression,
+                );
+            },
+        },
+
+        transformValues: (values): CreateSchedulerAndTargetsWithoutIds => {
+            let options = {};
+            if (values.format === SchedulerFormat.CSV) {
+                options = {
+                    formatted: values.options.formatted,
+                    limit:
+                        values.options.limit === Limit.CUSTOM
+                            ? values.options.customLimit
+                            : values.options.limit,
+                };
+            } else if (values.format === SchedulerFormat.IMAGE) {
+                options = {
+                    withPdf: values.options.withPdf,
+                };
+            }
+
+            const emailTargets = values.emailTargets.map((email: string) => ({
+                recipient: email,
+            }));
+
+            const slackTargets = values.slackTargets.map(
+                (channelId: string) => ({
+                    channel: channelId,
+                }),
+            );
+
+            const targets: CreateSchedulerTarget[] = [
+                ...emailTargets,
+                ...slackTargets,
+            ];
+            return {
+                name: values.name,
+                message: values.message,
+                format: values.format,
+                cron: values.cron,
+                options,
+                targets,
+            };
+        },
+    });
+    const health = useHealth();
+    const [emailValidationError, setEmailValidationError] = useState<
+        string | undefined
+    >();
+    const [privateChannels, setPrivateChannels] = useState<
+        Array<{
+            label: string;
+            value: string;
+            group: 'Private channels';
+        }>
+    >([]);
+
+    const [showFormatting, setShowFormatting] = useState(false);
+
+    const isDashboard = resource && resource.type === 'dashboard';
+    const { data: dashboard } = useDashboardQuery(resource?.uuid, {
+        enabled: isDashboard && isSchedulerFiltersEnabled,
+    });
 
     const slackQuery = useGetSlack();
     const slackState = useMemo(() => {
@@ -285,323 +296,289 @@ const SchedulerForm: FC<{
     }, [slackQuery]);
 
     const slackChannelsQuery = useSlackChannels();
-    const slackChannels = useMemo(
-        () =>
-            (slackChannelsQuery.data || []).map((channel) => ({
-                value: channel.id,
-                label: channel.name,
-            })),
-        [slackChannelsQuery.data],
-    );
-    const health = useHealth();
+
+    const slackChannels = useMemo(() => {
+        return (slackChannelsQuery.data || [])
+            .map((channel) => {
+                const channelPrefix = channel.name.charAt(0);
+
+                return {
+                    value: channel.id,
+                    label: channel.name,
+                    group:
+                        channelPrefix === '#'
+                            ? 'Channels'
+                            : channelPrefix === '@'
+                            ? 'Users'
+                            : 'Private channels',
+                };
+            })
+            .concat(privateChannels);
+    }, [slackChannelsQuery.data, privateChannels]);
+
+    const handleSendNow = useCallback(() => {
+        if (form.isValid()) {
+            onSendNow(form.getTransformedValues(form.values));
+        } else {
+            form.validate();
+        }
+    }, [form, onSendNow]);
+
     const isAddSlackDisabled = disabled || slackState !== SlackStates.SUCCESS;
     const isAddEmailDisabled = disabled || !health.data?.hasEmailClient;
-    const [showDestinationLabel, setShowDestinationLabel] =
-        useState<boolean>(true);
-
     const isImageDisabled = !health.data?.hasHeadlessBrowser;
 
-    const format = methods.watch(
-        'format',
-        isImageDisabled ? SchedulerFormat.CSV : SchedulerFormat.IMAGE,
-    );
+    const limit = form.values?.options?.limit;
 
     return (
-        <Form name="scheduler" methods={methods}>
-            <FormGroup label={<Title>1. Name the delivery</Title>}>
-                <Input
-                    name="name"
-                    placeholder="Scheduled delivery name"
-                    disabled={disabled}
-                    rules={{
-                        required: 'Required field',
-                    }}
-                />
-            </FormGroup>
-            <FormGroup label={<Title>2. Set the frequency</Title>}>
-                <CronInput
-                    name="cron"
-                    defaultValue="0 9 * * 1"
-                    disabled={disabled}
-                    rules={{
-                        required: 'Required field',
-                        validate: {
-                            isValidCronExpression:
-                                isInvalidCronExpression('Cron expression'),
-                        },
-                    }}
-                />
-            </FormGroup>
-            <FormGroup label={<Title>3. Select format</Title>}>
-                <InputGroupWrapper>
-                    <InlinedInputs>
-                        <InlinedLabel>Format</InlinedLabel>
+        <form onSubmit={form.onSubmit((values) => onSubmit(values))}>
+            <Tabs defaultValue="setup">
+                <Tabs.List mt="sm" mb={0}>
+                    <Tabs.Tab value="setup" ml="md">
+                        Setup
+                    </Tabs.Tab>
+                    {isSchedulerFiltersEnabled && isDashboard && dashboard ? (
+                        <Tabs.Tab value="filters">Filters</Tabs.Tab>
+                    ) : null}
+                    <Tabs.Tab value="customization">Customization</Tabs.Tab>
+                </Tabs.List>
 
-                        <StyledSelect
-                            value={format}
-                            {...methods.register('format', {
-                                value: format,
-
-                                onChange: (e) => {
-                                    methods.setValue(
-                                        'format',
-                                        e.currentTarget.value,
-                                    );
-
-                                    const isCsvValue =
-                                        e.currentTarget.value ===
-                                        SchedulerFormat.CSV;
-                                    if (!isCsvValue) {
-                                        methods.setValue('options', {
-                                            withPdf: false,
-                                        });
-                                    } else {
-                                        methods.setValue('options', {});
-                                    }
-                                },
-                            })}
-                            options={[
-                                {
-                                    value: SchedulerFormat.IMAGE,
-                                    label: 'Image',
-                                    disabled: isImageDisabled,
-                                },
-                                { value: SchedulerFormat.CSV, label: 'CSV' },
-                            ]}
+                <Tabs.Panel value="setup" mt="md">
+                    <Stack
+                        sx={(theme) => ({
+                            backgroundColor: theme.white,
+                            paddingRight: theme.spacing.xl,
+                        })}
+                        spacing="xl"
+                        px="md"
+                    >
+                        <TextInput
+                            label="Delivery name"
+                            placeholder="Name your delivery"
+                            required
+                            {...form.getInputProps('name')}
                         />
-                        {isImageDisabled && (
-                            <Tooltip2
-                                position={'top'}
-                                interactionKind="hover"
-                                content={
-                                    <p>
+                        <Input.Wrapper label="Delivery frequency">
+                            <Box mt="xxs">
+                                <CronInternalInputs
+                                    disabled={disabled}
+                                    {...form.getInputProps('cron')}
+                                    name="cron"
+                                />
+                            </Box>
+                        </Input.Wrapper>
+                        <Stack spacing={0}>
+                            <Input.Label mb="xxs"> Format </Input.Label>
+                            <Group spacing="xs" noWrap>
+                                <SegmentedControl
+                                    data={[
+                                        {
+                                            label: '.csv',
+                                            value: SchedulerFormat.CSV,
+                                        },
+                                        {
+                                            label: 'Image',
+                                            value: SchedulerFormat.IMAGE,
+                                            disabled: isImageDisabled,
+                                        },
+                                    ]}
+                                    w="50%"
+                                    mb="xs"
+                                    {...form.getInputProps('format')}
+                                />
+                                {isImageDisabled && (
+                                    <Text
+                                        size="xs"
+                                        color="gray.6"
+                                        w="30%"
+                                        sx={{ alignSelf: 'start' }}
+                                    >
                                         You must enable the
                                         <Anchor href="https://docs.lightdash.com/self-host/customize-deployment/enable-headless-browser-for-lightdash">
                                             {' '}
                                             headless browser{' '}
                                         </Anchor>
-                                        for sending images.
-                                    </p>
-                                }
-                            >
-                                <InlineIcon
-                                    icon="info-sign"
-                                    color={Colors.GRAY5}
+                                        to send images
+                                    </Text>
+                                )}
+                            </Group>
+                            <Space h="xxs" />
+                            {form.getInputProps('format').value ===
+                            SchedulerFormat.IMAGE ? (
+                                <Checkbox
+                                    h={26}
+                                    label="Also include image as PDF attachment"
+                                    labelPosition="left"
+                                    {...form.getInputProps('options.withPdf', {
+                                        type: 'checkbox',
+                                    })}
                                 />
-                            </Tooltip2>
-                        )}
-                    </InlinedInputs>
-
-                    {format === SchedulerFormat.CSV && (
-                        <InlinedInputs>
-                            <SchedulerOptions
-                                disabled={disabled}
-                                methods={methods}
-                            />
-                        </InlinedInputs>
-                    )}
-
-                    {format === SchedulerFormat.IMAGE && (
-                        <SchedulerImageOptions methods={methods} />
-                    )}
-                    <Title>4. Add destination(s)</Title>
-
-                    {showDestinationLabel && (
-                        <InlinedLabel>No destination(s) selected</InlinedLabel>
-                    )}
-
-                    <InlinedInputs>
-                        <ArrayInput
-                            name="targets"
-                            label=""
-                            disabled={disabled}
-                            renderRow={(key, index, remove) => {
-                                setShowDestinationLabel(false);
-
-                                const target =
-                                    methods.getValues()?.targets?.[index];
-
-                                if (isSlack(target)) {
-                                    const isPrivateChannel =
-                                        !slackChannels.find(
-                                            (channel) =>
-                                                channel.value ===
-                                                target.channel,
-                                        );
-                                    const allChannels =
-                                        isPrivateChannel &&
-                                        target.channel !== ''
-                                            ? [
-                                                  {
-                                                      value: target.channel,
-                                                      label: target.channel,
-                                                  },
-                                                  ...slackChannels,
-                                              ]
-                                            : slackChannels;
-
-                                    return (
-                                        <TargetRow key={key}>
-                                            <SlackIcon />
-                                            <AutoComplete
-                                                groupBy={(item) => {
-                                                    const channelPrefix =
-                                                        item.label.charAt(0);
-                                                    switch (channelPrefix) {
-                                                        case '#':
-                                                            return 'Channels';
-                                                        case '@':
-                                                            return 'Users';
-                                                        default:
-                                                            return 'Private Channels';
-                                                    }
-                                                }}
-                                                name={`targets.${index}.channel`}
-                                                items={allChannels}
-                                                disabled={disabled}
-                                                isLoading={
-                                                    slackChannelsQuery.isLoading
-                                                }
-                                                rules={{
-                                                    required: 'Required field',
-                                                }}
-                                                suggestProps={{
-                                                    inputProps: {
-                                                        placeholder:
-                                                            'Search slack channel...',
-                                                    },
-
-                                                    createNewItemFromQuery: (
-                                                        newItem: string,
-                                                    ) => ({
-                                                        label: newItem,
-                                                        value: newItem,
-                                                    }),
-                                                    createNewItemRenderer: (
-                                                        newItem: string,
-                                                    ) => {
-                                                        return (
-                                                            <MenuItem2
-                                                                icon="lock"
-                                                                key={newItem}
-                                                                text={newItem}
-                                                                title={`Send to private channel #${newItem}`}
-                                                                onClick={() => {
-                                                                    methods.setValue(
-                                                                        `targets.${index}.channel`,
-                                                                        newItem,
-                                                                    );
-                                                                }}
-                                                                shouldDismissPopover={
-                                                                    true
-                                                                }
-                                                            />
-                                                        );
-                                                    },
-                                                }}
-                                            />
-                                            <Tooltip
-                                                multiline
-                                                maw={300}
-                                                withArrow
-                                                label="If delivering to a private Slack channel, please type the name of the channel in the input box exactly as it appears in Slack. Also ensure you invite the Lightdash Slackbot into that channel."
-                                            >
-                                                <Box mt={7}>
-                                                    <MantineIcon
-                                                        icon={IconInfoCircle}
-                                                        color="gray.6"
-                                                    />
-                                                </Box>
-                                            </Tooltip>
-                                            <Button
-                                                minimal={true}
-                                                icon={'cross'}
-                                                onClick={() => {
-                                                    remove(index);
-                                                    setShowDestinationLabel(
-                                                        true,
-                                                    );
-                                                }}
-                                                disabled={disabled}
-                                            />
-                                        </TargetRow>
-                                    );
-                                } else {
-                                    // Email
-                                    return (
-                                        <TargetRow key={key}>
-                                            <EmailIcon
-                                                size={20}
-                                                color={Colors.GRAY1}
-                                            />
-                                            <Input
-                                                name={`targets.${index}.recipient`}
-                                                placeholder="Email recipient"
-                                                disabled={disabled}
-                                                rules={{
-                                                    required: 'Required field',
-                                                }}
-                                            />
-                                            <Button
-                                                minimal={true}
-                                                icon={'cross'}
-                                                onClick={() => {
-                                                    remove(index);
-                                                    setShowDestinationLabel(
-                                                        true,
-                                                    );
-                                                }}
-                                                disabled={disabled}
-                                            />
-                                        </TargetRow>
-                                    );
-                                }
-                            }}
-                            renderAppendRowButton={(append) => (
-                                <>
-                                    <Tooltip2
-                                        interactionKind="hover"
-                                        hoverCloseDelay={500}
-                                        content={
-                                            <>
-                                                {SlackErrorContent({
-                                                    slackState,
-                                                })}
-                                            </>
+                            ) : (
+                                <Stack spacing="xs">
+                                    <Button
+                                        variant="subtle"
+                                        compact
+                                        sx={{
+                                            alignSelf: 'start',
+                                        }}
+                                        leftIcon={
+                                            <MantineIcon icon={IconSettings} />
                                         }
-                                        position="bottom"
-                                        disabled={
-                                            slackState === SlackStates.SUCCESS
+                                        rightIcon={
+                                            <MantineIcon
+                                                icon={
+                                                    showFormatting
+                                                        ? IconChevronUp
+                                                        : IconChevronDown
+                                                }
+                                            />
+                                        }
+                                        onClick={() =>
+                                            setShowFormatting((old) => !old)
                                         }
                                     >
-                                        <Button
-                                            minimal
-                                            className={
-                                                isAddSlackDisabled
-                                                    ? Classes.DISABLED
-                                                    : undefined
-                                            }
-                                            onClick={
-                                                isAddSlackDisabled
-                                                    ? undefined
-                                                    : () =>
-                                                          append({
-                                                              channel: '',
-                                                          })
-                                            }
-                                            icon={'plus'}
-                                            text="Add slack"
-                                        />
-                                    </Tooltip2>
-                                    <Tooltip2
-                                        interactionKind="hover"
-                                        hoverCloseDelay={500}
-                                        content={
+                                        Formatting options
+                                    </Button>
+                                    <Collapse in={showFormatting} pl="md">
+                                        <Group align="start" spacing="xxl">
+                                            <Radio.Group
+                                                label="Values"
+                                                {...form.getInputProps(
+                                                    'options.formatted',
+                                                )}
+                                            >
+                                                <Stack spacing="xxs" pt="xs">
+                                                    <Radio
+                                                        label="Formatted"
+                                                        value={Values.FORMATTED}
+                                                    />
+                                                    <Radio
+                                                        label="Raw"
+                                                        value={Values.RAW}
+                                                    />
+                                                </Stack>
+                                            </Radio.Group>
+                                            <Stack spacing="xs">
+                                                <Radio.Group
+                                                    label="Limit"
+                                                    {...form.getInputProps(
+                                                        'options.limit',
+                                                    )}
+                                                >
+                                                    <Stack
+                                                        spacing="xxs"
+                                                        pt="xs"
+                                                    >
+                                                        <Radio
+                                                            label="Results in Table"
+                                                            value={Limit.TABLE}
+                                                        />
+                                                        <Radio
+                                                            label="All Results"
+                                                            value={Limit.ALL}
+                                                        />
+                                                        <Radio
+                                                            label="Custom..."
+                                                            value={Limit.CUSTOM}
+                                                        />
+                                                    </Stack>
+                                                </Radio.Group>
+                                                {limit === Limit.CUSTOM && (
+                                                    <NumberInput
+                                                        w={150}
+                                                        min={1}
+                                                        precision={0}
+                                                        required
+                                                        {...form.getInputProps(
+                                                            'options.customLimit',
+                                                        )}
+                                                    />
+                                                )}
+
+                                                {(form.values?.options
+                                                    ?.limit === Limit.ALL ||
+                                                    form.values?.options
+                                                        ?.limit ===
+                                                        Limit.CUSTOM) && (
+                                                    <i>
+                                                        Results are limited to{' '}
+                                                        {Number(
+                                                            health.data?.query
+                                                                .csvCellsLimit ||
+                                                                100000,
+                                                        ).toLocaleString()}{' '}
+                                                        cells for each file
+                                                    </i>
+                                                )}
+                                            </Stack>
+                                        </Group>
+                                    </Collapse>
+                                </Stack>
+                            )}
+                        </Stack>
+
+                        <Input.Wrapper label="Destinations">
+                            <Stack mt="sm">
+                                <Group noWrap>
+                                    <MantineIcon
+                                        icon={IconMail}
+                                        size="xl"
+                                        color="gray.7"
+                                    />
+                                    <HoverCard
+                                        disabled={!isAddEmailDisabled}
+                                        width={300}
+                                        position="bottom-start"
+                                        shadow="md"
+                                    >
+                                        <HoverCard.Target>
+                                            <Box w="100%">
+                                                <TagInput
+                                                    clearable
+                                                    error={
+                                                        emailValidationError ||
+                                                        null
+                                                    }
+                                                    placeholder="Enter email addresses"
+                                                    disabled={
+                                                        isAddEmailDisabled
+                                                    }
+                                                    value={
+                                                        form.values.emailTargets
+                                                    }
+                                                    allowDuplicates={false}
+                                                    splitChars={[',', ' ']}
+                                                    validationFunction={
+                                                        validateEmail
+                                                    }
+                                                    onBlur={() =>
+                                                        setEmailValidationError(
+                                                            undefined,
+                                                        )
+                                                    }
+                                                    onValidationReject={(val) =>
+                                                        setEmailValidationError(
+                                                            `'${val}' doesn't appear to be an email address`,
+                                                        )
+                                                    }
+                                                    onChange={(val) => {
+                                                        setEmailValidationError(
+                                                            undefined,
+                                                        );
+                                                        form.setFieldValue(
+                                                            'emailTargets',
+                                                            val,
+                                                        );
+                                                    }}
+                                                />
+                                            </Box>
+                                        </HoverCard.Target>
+                                        <HoverCard.Dropdown>
                                             <>
-                                                <p>
+                                                <Text pb="sm">
                                                     No Email integration found
-                                                </p>
-                                                <p>
+                                                </Text>
+                                                <Text>
                                                     To create an email scheduled
                                                     delivery, you need to add
                                                     <Anchor
@@ -613,42 +590,138 @@ const SchedulerForm: FC<{
                                                         variables{' '}
                                                     </Anchor>
                                                     for your Lightdash instance
-                                                </p>
+                                                </Text>
                                             </>
-                                        }
-                                        position="bottom"
-                                        disabled={health.data?.hasEmailClient}
-                                    >
-                                        <Button
-                                            minimal
-                                            onClick={
-                                                isAddEmailDisabled
-                                                    ? undefined
-                                                    : () =>
-                                                          append({
-                                                              recipients: '',
-                                                          })
-                                            }
-                                            icon={'plus'}
-                                            text="Add email"
-                                            className={
-                                                isAddEmailDisabled
-                                                    ? Classes.DISABLED
-                                                    : undefined
-                                            }
-                                        />
-                                    </Tooltip2>
-                                </>
-                            )}
-                        />
-                    </InlinedInputs>
-                </InputGroupWrapper>
-            </FormGroup>
+                                        </HoverCard.Dropdown>
+                                    </HoverCard>
+                                </Group>
+                                <Stack spacing="xs" mb="sm">
+                                    <Group noWrap>
+                                        <SlackSvg
+                                            style={{
+                                                margin: '5px 2px',
 
-            <FormGroup>
-                <SchedulerAdvancedOptions />
-            </FormGroup>
-        </Form>
+                                                width: '20px',
+                                                height: '20px',
+                                            }}
+                                        />
+                                        <HoverCard
+                                            disabled={!isAddSlackDisabled}
+                                            width={300}
+                                            position="bottom-start"
+                                            shadow="md"
+                                        >
+                                            <HoverCard.Target>
+                                                <Box w="100%">
+                                                    <MultiSelect
+                                                        placeholder="Search slack channels"
+                                                        data={slackChannels}
+                                                        searchable
+                                                        creatable
+                                                        withinPortal
+                                                        value={
+                                                            form.values
+                                                                .slackTargets
+                                                        }
+                                                        rightSection={
+                                                            slackChannelsQuery.isLoading ?? (
+                                                                <Loader size="sm" />
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            isAddSlackDisabled
+                                                        }
+                                                        getCreateLabel={(
+                                                            query,
+                                                        ) =>
+                                                            `Send to private channel #${query}`
+                                                        }
+                                                        onCreate={(newItem) => {
+                                                            setPrivateChannels(
+                                                                (current) => [
+                                                                    ...current,
+                                                                    {
+                                                                        label: newItem,
+                                                                        value: newItem,
+                                                                        group: 'Private channels',
+                                                                    },
+                                                                ],
+                                                            );
+                                                            return newItem;
+                                                        }}
+                                                        onChange={(val) => {
+                                                            form.setFieldValue(
+                                                                'slackTargets',
+                                                                val,
+                                                            );
+                                                        }}
+                                                    />
+                                                </Box>
+                                            </HoverCard.Target>
+                                            <HoverCard.Dropdown>
+                                                <SlackErrorContent
+                                                    slackState={slackState}
+                                                />
+                                            </HoverCard.Dropdown>
+                                        </HoverCard>
+                                    </Group>
+                                    {!isAddSlackDisabled && (
+                                        <Text size="xs" color="gray.6" ml="3xl">
+                                            If delivering to a private Slack
+                                            channel, please type the name of the
+                                            channel in the input box exactly as
+                                            it appears in Slack. Also ensure you
+                                            invite the Lightdash Slackbot into
+                                            that channel.
+                                        </Text>
+                                    )}
+                                </Stack>
+                            </Stack>
+                        </Input.Wrapper>
+                    </Stack>
+                </Tabs.Panel>
+
+                {isSchedulerFiltersEnabled && isDashboard && dashboard ? (
+                    <Tabs.Panel value="filters" p="md">
+                        <SchedulerFilters
+                            dashboard={dashboard}
+                            onChange={(schedulerFilters) => {
+                                console.info(
+                                    'TODO: implement me!',
+                                    schedulerFilters,
+                                );
+                            }}
+                        />
+                    </Tabs.Panel>
+                ) : null}
+
+                <Tabs.Panel value="customization">
+                    <Text m="md">Customize delivery message body</Text>
+
+                    <MDEditor
+                        preview="edit"
+                        commands={[
+                            commands.bold,
+                            commands.italic,
+                            commands.strikethrough,
+                            commands.divider,
+                            commands.link,
+                        ]}
+                        value={form.values.message}
+                        onChange={(value) =>
+                            form.setFieldValue('message', value || '')
+                        }
+                    />
+                </Tabs.Panel>
+            </Tabs>
+
+            <SchedulersModalFooter
+                confirmText={confirmText}
+                onBack={onBack}
+                onSendNow={handleSendNow}
+                loading={loading}
+            />
+        </form>
     );
 };
 

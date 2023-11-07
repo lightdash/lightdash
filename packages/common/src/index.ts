@@ -322,8 +322,14 @@ export const snakeCaseName = (text: string): string =>
 
 export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 
+export type CacheMetadata = {
+    cacheUpdatedTime?: Date;
+    cacheHit: boolean;
+};
+
 export type ApiQueryResults = {
     metricQuery: MetricQuery;
+    cacheMetadata: CacheMetadata;
     rows: ResultRow[];
 };
 

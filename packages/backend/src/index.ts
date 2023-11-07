@@ -40,6 +40,7 @@ import { apiV1Router } from './routers/apiV1Router';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { VERSION } from './version';
 import { registerNodeMetrics } from './nodeMetrics';
+import { wrapOtelSpan } from './utils';
 
 // @ts-ignore
 // eslint-disable-next-line no-extend-native, func-names
@@ -276,7 +277,9 @@ passport.serializeUser((user, done) => {
 passport.deserializeUser(async (id: string, done) => {
     // Convert to a full user profile
     try {
-        const user = await userModel.findSessionUserByUUID(id);
+        const user = await wrapOtelSpan('Passport.deserializeUser', {}, () =>
+            userModel.findSessionUserByUUID(id),
+        );
         // Store that user on the request (`req`) object
         done(null, user);
     } catch (e) {

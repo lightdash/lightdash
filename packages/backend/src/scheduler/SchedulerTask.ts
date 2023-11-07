@@ -65,6 +65,7 @@ import {
 const getChartOrDashboard = async (
     chartUuid: string | null,
     dashboardUuid: string | null,
+    schedulerUuid: string | undefined,
 ) => {
     if (chartUuid) {
         const chart = await schedulerService.savedChartModel.getSummary(
@@ -87,9 +88,14 @@ const getChartOrDashboard = async (
         const dashboard = await schedulerService.dashboardModel.getById(
             dashboardUuid,
         );
+
         return {
             url: `${lightdashConfig.siteUrl}/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}/view`,
-            minimalUrl: `${lightdashConfig.siteUrl}/minimal/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}`,
+            minimalUrl: `${lightdashConfig.siteUrl}/minimal/projects/${
+                dashboard.projectUuid
+            }/dashboards/${dashboardUuid}${
+                schedulerUuid ? `?schedulerUuid=${schedulerUuid}` : ''
+            }`,
             details: {
                 name: dashboard.name,
                 description: dashboard.description,
@@ -119,6 +125,13 @@ export const getNotificationPageData = async (
     let csvUrl;
     let csvUrls;
     let pdfFile;
+
+    const schedulerUuid =
+        'schedulerUuid' in scheduler &&
+        typeof scheduler.schedulerUuid === 'string'
+            ? scheduler.schedulerUuid
+            : undefined;
+
     const {
         url,
         minimalUrl,
@@ -126,7 +139,7 @@ export const getNotificationPageData = async (
         details,
         organizationUuid,
         projectUuid,
-    } = await getChartOrDashboard(savedChartUuid, dashboardUuid);
+    } = await getChartOrDashboard(savedChartUuid, dashboardUuid, schedulerUuid);
 
     switch (format) {
         case SchedulerFormat.IMAGE:
@@ -301,14 +314,11 @@ export const sendSlackNotification = async (
             description: details.description,
             message: scheduler.message && slackifyMarkdown(scheduler.message),
             ctaUrl: url,
-            footerMarkdown:
-                schedulerUuid !== undefined
-                    ? `This is a <${url}?scheduler_uuid=${schedulerUuid}|scheduled delivery> ${getHumanReadableCronExpression(
-                          cron,
-                      )} from Lightdash\n${
-                          s3Client.getExpirationWarning()?.slack || ''
-                      }`
-                    : `This is a scheduled delivery triggered manually from Lightdash`,
+            footerMarkdown: `This is a <${url}?scheduler_uuid=${
+                schedulerUuid || ''
+            }|scheduled delivery> ${getHumanReadableCronExpression(
+                cron,
+            )} from Lightdash\n${s3Client.getExpirationWarning()?.slack || ''}`,
         };
 
         if (format === SchedulerFormat.IMAGE) {
@@ -669,14 +679,14 @@ export const uploadGsheetFromQuery = async (
         });
         const user = await userService.getSessionByUserUuid(payload.userUuid);
 
-        const rows = await projectService.runMetricQuery(
+        const { rows } = await projectService.runMetricQuery({
             user,
-            payload.metricQuery,
-            payload.projectUuid,
-            payload.exploreId,
-            undefined,
-            QueryExecutionContext.GSHEETS,
-        );
+            metricQuery: payload.metricQuery,
+            projectUuid: payload.projectUuid,
+            exploreName: payload.exploreId,
+            csvLimit: undefined,
+            context: QueryExecutionContext.GSHEETS,
+        });
         const refreshToken = await userService.getRefreshToken(
             payload.userUuid,
         );
@@ -941,7 +951,7 @@ export const uploadGsheets = async (
                 `Unable to process format ${format} on sendGdriveNotification`,
             );
         } else if (savedChartUuid) {
-            const rows = await projectService.getResultsForChart(
+            const { rows } = await projectService.getResultsForChart(
                 user,
                 savedChartUuid,
             );
@@ -1008,7 +1018,7 @@ export const uploadGsheets = async (
             // We want to process all charts in sequence, so we don't load all chart results in memory
             chartUuids.reduce(async (promise, chartUuid) => {
                 await promise;
-                const rows = await projectService.getResultsForChart(
+                const { rows } = await projectService.getResultsForChart(
                     user,
                     chartUuid,
                 );

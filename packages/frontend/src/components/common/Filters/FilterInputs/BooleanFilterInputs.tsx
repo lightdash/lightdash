@@ -4,13 +4,14 @@ import {
     isFilterRule,
 } from '@lightdash/common';
 import { Select } from '@mantine/core';
+import { FilterInputsProps } from '.';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
-import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
+import DefaultFilterInputs from './DefaultFilterInputs';
 
 const BooleanFilterInputs = <T extends ConditionalRule>(
-    props: React.PropsWithChildren<FilterInputsProps<T>>,
+    props: FilterInputsProps<T>,
 ) => {
-    const { rule, onChange, disabled, filterType } = props;
+    const { rule, onChange, disabled, filterType, popoverProps } = props;
 
     const isFilterRuleDisabled = isFilterRule(rule) && rule.disabled;
 
@@ -26,7 +27,9 @@ const BooleanFilterInputs = <T extends ConditionalRule>(
                 <Select
                     w="100%"
                     size="xs"
-                    withinPortal
+                    withinPortal={popoverProps?.withinPortal}
+                    onDropdownOpen={popoverProps?.onOpen}
+                    onDropdownClose={popoverProps?.onClose}
                     disabled={disabled}
                     placeholder={placeholder}
                     data={[

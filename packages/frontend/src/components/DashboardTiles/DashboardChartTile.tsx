@@ -51,7 +51,7 @@ import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';
 import ErrorState from '../common/ErrorState';
-import { getConditionalRuleLabel } from '../common/Filters/configs';
+import { getConditionalRuleLabel } from '../common/Filters/FilterInputs';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
@@ -165,12 +165,13 @@ const ValidDashboardChartTile: FC<{
         series: EChartSeries[],
     ) => void;
 }> = ({ tileUuid, isTitleHidden = false, data, onSeriesContextMenu }) => {
+    const { addSuggestions, addResultsCacheTime, invalidateCache } =
+        useDashboardContext();
     const {
         data: resultData,
         isLoading,
         error,
-    } = useChartResults(data.uuid, data.metricQuery.filters);
-    const { addSuggestions } = useDashboardContext();
+    } = useChartResults(data.uuid, data.metricQuery.filters, invalidateCache);
     const { data: explore } = useExplore(data.tableName);
     const { health } = useApp();
 
@@ -189,8 +190,9 @@ const ValidDashboardChartTile: FC<{
                     return { ...sum, [dimensionId]: newSuggestions };
                 }, {}),
             );
+            addResultsCacheTime(resultData.cacheMetadata);
         }
-    }, [addSuggestions, resultData]);
+    }, [addSuggestions, addResultsCacheTime, resultData]);
 
     if (health.isLoading || !health.data) {
         return null;

@@ -2518,6 +2518,19 @@
                 "required": ["rows", "fields"],
                 "type": "object"
             },
+            "CacheMetadata": {
+                "properties": {
+                    "cacheHit": {
+                        "type": "boolean"
+                    },
+                    "cacheUpdatedTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": ["cacheHit"],
+                "type": "object"
+            },
             "ApiRunQueryResponse": {
                 "properties": {
                     "results": {
@@ -2526,11 +2539,14 @@
                                 "items": {},
                                 "type": "array"
                             },
+                            "cacheMetadata": {
+                                "$ref": "#/components/schemas/CacheMetadata"
+                            },
                             "metricQuery": {
                                 "$ref": "#/components/schemas/MetricQueryResponse"
                             }
                         },
-                        "required": ["rows", "metricQuery"],
+                        "required": ["rows", "cacheMetadata", "metricQuery"],
                         "type": "object"
                     },
                     "status": {
@@ -5228,7 +5244,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.832.0",
+        "version": "0.844.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -7061,6 +7077,9 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "invalidateCache": {
+                                        "type": "boolean"
+                                    },
                                     "filters": {
                                         "$ref": "#/components/schemas/FiltersResponse"
                                     }

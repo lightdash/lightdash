@@ -1,38 +1,28 @@
 import {
-    Button,
-    DialogBody,
-    DialogFooter,
-    DialogProps,
-    NonIdealState,
-    Spinner,
-} from '@blueprintjs/core';
-import {
     ApiError,
     CreateSchedulerAndTargets,
     CreateSchedulerAndTargetsWithoutIds,
     SchedulerAndTargets,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
-import { FC, useEffect, useState } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
+import { Box, Loader, Stack, Text } from '@mantine/core';
+import { FC, useCallback, useEffect, useState } from 'react';
 import {
     UseMutationResult,
     UseQueryResult,
 } from 'react-query/types/react/types';
 import { useHistory, useLocation } from 'react-router-dom';
+import { getSchedulerUuidFromUrlParams } from '../utils';
+import SchedulersList from './SchedulersList';
+
 import ErrorState from '../../../components/common/ErrorState';
 import useUser from '../../../hooks/user/useUser';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import {
-    sendNowScheduler,
-    useScheduler,
-    useSendNowScheduler,
-} from '../hooks/useScheduler';
+import { useScheduler, useSendNowScheduler } from '../hooks/useScheduler';
 import { useSchedulersUpdateMutation } from '../hooks/useSchedulersUpdateMutation';
-import { getSchedulerUuidFromUrlParams } from '../utils';
 import SchedulerForm from './SchedulerForm';
-import SchedulersList from './SchedulersList';
+import SchedulersModalFooter from './SchedulerModalFooter';
 
 enum States {
     LIST,
@@ -42,27 +32,27 @@ enum States {
 
 const ListStateContent: FC<{
     schedulersQuery: UseQueryResult<SchedulerAndTargets[], ApiError>;
-    onClose: DialogProps['onClose'];
+    onClose: () => void;
     onConfirm: () => void;
     onEdit: (schedulerUuid: string) => void;
 }> = ({ schedulersQuery, onClose, onConfirm, onEdit }) => {
     return (
         <>
-            <DialogBody>
+            <Box
+                py="sm"
+                mih={220}
+                px="sm"
+                sx={(theme) => ({ backgroundColor: theme.colors.gray[2] })}
+            >
                 <SchedulersList
                     schedulersQuery={schedulersQuery}
                     onEdit={onEdit}
                 />
-            </DialogBody>
-            <DialogFooter
-                actions={
-                    <>
-                        <Button onClick={onClose}>Cancel</Button>
-                        <Button intent="primary" onClick={onConfirm}>
-                            Create new
-                        </Button>
-                    </>
-                }
+            </Box>
+            <SchedulersModalFooter
+                confirmText="Create new"
+                onConfirm={onConfirm}
+                onCancel={onClose}
             />
         </>
     );
@@ -78,9 +68,6 @@ const CreateStateContent: FC<{
     isChart: boolean;
     onBack: () => void;
 }> = ({ resourceUuid, createMutation, isChart, onBack }) => {
-    const methods = useForm<CreateSchedulerAndTargetsWithoutIds>({
-        mode: 'onSubmit',
-    });
     useEffect(() => {
         if (createMutation.isSuccess) {
             createMutation.reset();
@@ -93,55 +80,52 @@ const CreateStateContent: FC<{
     const { data: user } = useUser(true);
     const { track } = useTracking();
     const { mutate: sendNow } = useSendNowScheduler();
+
+    const handleSendNow = useCallback(
+        (schedulerData: CreateSchedulerAndTargetsWithoutIds) => {
+            if (user?.userUuid === undefined) return;
+            const resource = isChart
+                ? {
+                      savedChartUuid: resourceUuid,
+                      dashboardUuid: null,
+                  }
+                : {
+                      dashboardUuid: resourceUuid,
+                      savedChartUuid: null,
+                  };
+            const unsavedScheduler: CreateSchedulerAndTargets = {
+                ...schedulerData,
+                ...resource,
+                createdBy: user.userUuid,
+            };
+            track({
+                name: EventName.SCHEDULER_SEND_NOW_BUTTON,
+            });
+            sendNow(unsavedScheduler);
+        },
+        [isChart, resourceUuid, track, sendNow, user],
+    );
+
     return (
-        <>
-            <DialogBody>
-                <FormProvider {...methods}>
-                    <SchedulerForm disabled={createMutation.isLoading} />
-                </FormProvider>
-            </DialogBody>
-            <DialogFooter
-                actions={
-                    <>
-                        <Button onClick={onBack}>Back</Button>
-                        <Button
-                            onClick={() => {
-                                if (user?.userUuid === undefined) return;
-                                const schedulerData = methods.getValues();
-                                const resource = isChart
-                                    ? {
-                                          savedChartUuid: resourceUuid,
-                                          dashboardUuid: null,
-                                      }
-                                    : {
-                                          dashboardUuid: resourceUuid,
-                                          savedChartUuid: null,
-                                      };
-                                const unsavedScheduler: CreateSchedulerAndTargets =
-                                    {
-                                        ...schedulerData,
-                                        ...resource,
-                                        createdBy: user.userUuid,
-                                    };
-                                track({
-                                    name: EventName.SCHEDULER_SEND_NOW_BUTTON,
-                                });
-                                sendNow(unsavedScheduler);
-                            }}
-                        >
-                            Send now
-                        </Button>
-                        <Button
-                            intent="primary"
-                            loading={createMutation.isLoading}
-                            onClick={methods.handleSubmit(handleSubmit)}
-                        >
-                            Create schedule
-                        </Button>
-                    </>
-                }
-            />
-        </>
+        <SchedulerForm
+            disabled={createMutation.isLoading}
+            resource={
+                isChart
+                    ? {
+                          uuid: resourceUuid,
+                          type: 'chart',
+                      }
+                    : {
+                          uuid: resourceUuid,
+                          type: 'dashboard',
+                      }
+            }
+            onSubmit={handleSubmit}
+            confirmText="Create schedule"
+            onBack={onBack}
+            onSendNow={handleSendNow}
+            loading={createMutation.isLoading}
+        />
     );
 };
 
@@ -150,16 +134,7 @@ const UpdateStateContent: FC<{
     onBack: () => void;
 }> = ({ schedulerUuid, onBack }) => {
     const scheduler = useScheduler(schedulerUuid);
-    const methods = useForm<UpdateSchedulerAndTargetsWithoutId>({
-        mode: 'onSubmit',
-        defaultValues: scheduler.data,
-    });
 
-    useEffect(() => {
-        if (scheduler.isSuccess) {
-            methods.reset(scheduler.data);
-        }
-    }, [methods, scheduler.data, scheduler.isSuccess]);
     const mutation = useSchedulersUpdateMutation(schedulerUuid);
     useEffect(() => {
         if (mutation.isSuccess) {
@@ -167,86 +142,78 @@ const UpdateStateContent: FC<{
             onBack();
         }
     }, [mutation, mutation.isSuccess, onBack]);
+
     const handleSubmit = (data: UpdateSchedulerAndTargetsWithoutId) => {
         mutation.mutate(data);
     };
+
     const { data: user } = useUser(true);
     const { track } = useTracking();
+    const { mutate: sendNow } = useSendNowScheduler();
+
+    const handleSendNow = useCallback(
+        (schedulerData: CreateSchedulerAndTargetsWithoutIds) => {
+            if (scheduler.data === undefined) return;
+            if (user?.userUuid === undefined) return;
+            const unsavedScheduler: CreateSchedulerAndTargets = {
+                ...schedulerData,
+                savedChartUuid: scheduler.data.savedChartUuid,
+                dashboardUuid: scheduler.data.dashboardUuid,
+                createdBy: user.userUuid,
+            };
+
+            track({
+                name: EventName.SCHEDULER_SEND_NOW_BUTTON,
+            });
+            sendNow(unsavedScheduler);
+        },
+        [scheduler.data, user?.userUuid, track, sendNow],
+    );
 
     if (scheduler.isLoading || scheduler.error) {
         return (
             <>
-                <DialogBody>
+                <Box m="xl">
                     {scheduler.isLoading ? (
-                        <NonIdealState
-                            title="Loading scheduler"
-                            icon={<Spinner />}
-                        />
+                        <Stack h={300} w="100%" align="center">
+                            <Text fw={600}>Loading scheduler</Text>
+                            <Loader size="lg" />
+                        </Stack>
                     ) : (
                         <ErrorState error={scheduler.error.error} />
                     )}
-                </DialogBody>
-                <DialogFooter
-                    actions={
-                        <>
-                            <Button onClick={onBack}>Back</Button>
-                        </>
-                    }
-                />
+                </Box>
+                <SchedulersModalFooter onBack={onBack} />
             </>
         );
     }
     return (
-        <>
-            <DialogBody>
-                <FormProvider {...methods}>
-                    <SchedulerForm disabled={mutation.isLoading} />
-                </FormProvider>
-            </DialogBody>
-            <DialogFooter
-                actions={
-                    <>
-                        <Button onClick={onBack}>Back</Button>
-                        <Button
-                            disabled={scheduler.data === undefined}
-                            onClick={() => {
-                                if (scheduler.data === undefined) return;
-                                if (user?.userUuid === undefined) return;
-
-                                const schedulerData = methods.getValues();
-                                const unsavedScheduler: CreateSchedulerAndTargets =
-                                    {
-                                        ...schedulerData,
-                                        savedChartUuid:
-                                            scheduler.data.savedChartUuid,
-                                        dashboardUuid:
-                                            scheduler.data.dashboardUuid,
-                                        createdBy: user.userUuid,
-                                    };
-
-                                track({
-                                    name: EventName.SCHEDULER_SEND_NOW_BUTTON,
-                                });
-                                sendNowScheduler(unsavedScheduler);
-                            }}
-                        >
-                            Send now
-                        </Button>
-                        <Button
-                            intent="primary"
-                            loading={mutation.isLoading}
-                            onClick={methods.handleSubmit(handleSubmit)}
-                        >
-                            Save
-                        </Button>
-                    </>
-                }
-            />
-        </>
+        <SchedulerForm
+            resource={
+                scheduler.data &&
+                (scheduler.data.dashboardUuid || scheduler.data.savedChartUuid)
+                    ? {
+                          type: scheduler.data.dashboardUuid
+                              ? 'dashboard'
+                              : 'chart',
+                          uuid:
+                              scheduler.data.dashboardUuid ??
+                              scheduler.data.savedChartUuid,
+                      }
+                    : undefined
+            }
+            disabled={mutation.isLoading}
+            savedSchedulerData={scheduler.data}
+            onSubmit={handleSubmit}
+            confirmText="Save"
+            onBack={onBack}
+            onSendNow={handleSendNow}
+            loading={mutation.isLoading || scheduler.isLoading}
+        />
     );
 };
 
-interface Props extends DialogProps {
+interface Props {
     resourceUuid: string;
     schedulersQuery: UseQueryResult<SchedulerAndTargets[], ApiError>;
     createMutation: UseMutationResult<
@@ -254,15 +221,16 @@ interface Props extends DialogProps {
         ApiError,
         { resourceUuid: string; data: CreateSchedulerAndTargetsWithoutIds }
     >;
+    onClose: () => void;
     isChart: boolean;
 }
 
-const SchedulersModalContent: FC<Omit<Props, 'name'>> = ({
+const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
     resourceUuid,
     schedulersQuery,
     createMutation,
     isChart,
-    ...modalProps
+    onClose = () => {},
 }) => {
     const [state, setState] = useState<States>(States.LIST);
     const [schedulerUuid, setSchedulerUuid] = useState<string | undefined>();
@@ -291,7 +259,7 @@ const SchedulersModalContent: FC<Omit<Props, 'name'>> = ({
             {state === States.LIST && (
                 <ListStateContent
                     schedulersQuery={schedulersQuery}
-                    onClose={modalProps.onClose}
+                    onClose={onClose}
                     onConfirm={() => setState(States.CREATE)}
                     onEdit={(schedulerUuidToUpdate) => {
                         setState(States.EDIT);
@@ -317,4 +285,4 @@ const SchedulersModalContent: FC<Omit<Props, 'name'>> = ({
     );
 };
 
-export default SchedulersModalContent;
+export default SchedulerModalContent;

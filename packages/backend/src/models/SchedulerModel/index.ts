@@ -3,6 +3,7 @@ import {
     CreateSchedulerLog,
     isChartScheduler,
     isCreateSchedulerSlackTarget,
+    isDashboardScheduler,
     isSlackTarget,
     isUpdateSchedulerEmailTarget,
     isUpdateSchedulerSlackTarget,
@@ -64,6 +65,7 @@ export class SchedulerModel {
             dashboardUuid: scheduler.dashboard_uuid,
             format: scheduler.format,
             options: scheduler.options,
+            filters: scheduler.filters,
         } as Scheduler;
     }
 
@@ -211,6 +213,11 @@ export class SchedulerModel {
                     dashboard_uuid: newScheduler.dashboardUuid,
                     updated_at: new Date(),
                     options: newScheduler.options,
+                    filters:
+                        isDashboardScheduler(newScheduler) &&
+                        newScheduler.filters
+                            ? JSON.stringify(newScheduler.filters)
+                            : null,
                 })
                 .returning('*');
             const targetPromises = newScheduler.targets.map(async (target) => {
@@ -247,6 +254,10 @@ export class SchedulerModel {
                     cron: scheduler.cron,
                     updated_at: new Date(),
                     options: scheduler.options,
+                    filters:
+                        'filters' in scheduler && scheduler.filters
+                            ? JSON.stringify(scheduler.filters)
+                            : null,
                 })
                 .where('scheduler_uuid', scheduler.schedulerUuid);
 

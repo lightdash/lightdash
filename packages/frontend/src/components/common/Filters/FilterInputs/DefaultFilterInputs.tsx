@@ -1,28 +1,17 @@
-import { Popover2Props } from '@blueprintjs/popover2';
 import {
     assertUnreachable,
     ConditionalRule,
-    FilterableItem,
     FilterOperator,
     FilterType,
     isFilterRule,
 } from '@lightdash/common';
 import isString from 'lodash-es/isString';
-import { PropsWithChildren } from 'react';
+import { FilterInputsProps } from '.';
 import { TagInput } from '../../TagInput/TagInput';
 import { useFiltersContext } from '../FiltersProvider';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import FilterNumberInput from './FilterNumberInput';
 import FilterStringAutoComplete from './FilterStringAutoComplete';
-
-export type FilterInputsProps<T extends ConditionalRule> = {
-    filterType: FilterType;
-    field: FilterableItem;
-    rule: T;
-    onChange: (value: T) => void;
-    disabled?: boolean;
-    popoverProps?: Popover2Props;
-};
 
 const DefaultFilterInputs = <T extends ConditionalRule>({
     field,
@@ -30,7 +19,8 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
     rule,
     disabled,
     onChange,
-}: PropsWithChildren<FilterInputsProps<T>>) => {
+    popoverProps,
+}: FilterInputsProps<T>) => {
     const { getField } = useFiltersContext();
     const suggestions = isFilterRule(rule)
         ? getField(rule)?.suggestions
@@ -62,8 +52,11 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                             disabled={disabled}
                             field={field}
                             placeholder={placeholder}
-                            values={(rule.values || []).filter(isString)}
                             suggestions={suggestions || []}
+                            withinPortal={popoverProps?.withinPortal}
+                            onDropdownOpen={popoverProps?.onOpen}
+                            onDropdownClose={popoverProps?.onClose}
+                            values={(rule.values || []).filter(isString)}
                             onChange={(values) =>
                                 onChange({
                                     ...rule,

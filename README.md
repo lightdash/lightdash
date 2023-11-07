@@ -349,6 +349,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/rohitverma007"><img src="https://avatars.githubusercontent.com/u/3745109?v=4?s=100" width="100px;" alt="Rohit Verma"/><br /><sub><b>Rohit Verma</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=rohitverma007" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="http://dwitkowski.eu"><img src="https://avatars.githubusercontent.com/u/43667775?v=4?s=100" width="100px;" alt="David Witkowski"/><br /><sub><b>David Witkowski</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=chodera" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/iMac7"><img src="https://avatars.githubusercontent.com/u/76876702?v=4?s=100" width="100px;" alt="iMac"/><br /><sub><b>iMac</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=iMac7" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Kobold"><img src="https://avatars.githubusercontent.com/u/36694?v=4?s=100" width="100px;" alt="Andy Kish"/><br /><sub><b>Andy Kish</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=Kobold" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

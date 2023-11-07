@@ -13,7 +13,7 @@ const DailyInputs: FC<{
     };
 
     return (
-        <Group spacing="xs">
+        <Group spacing="sm">
             <Input.Label>at</Input.Label>
             <TimePicker
                 disabled={disabled}

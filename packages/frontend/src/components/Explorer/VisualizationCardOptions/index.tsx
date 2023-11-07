@@ -171,6 +171,7 @@ const VisualizationCardOptions: FC = memo(() => {
                     rightIcon={
                         <MantineIcon icon={IconChevronDown} color="gray" />
                     }
+                    data-testid="VisualizationCardOptions"
                 >
                     {selectedChartType.text}
                 </Button>

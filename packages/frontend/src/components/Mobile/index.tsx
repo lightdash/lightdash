@@ -1,4 +1,4 @@
-import { Anchor, Box, Image, Stack, Text, Title } from '@mantine/core';
+import { Box, Image, Stack, Text, Title } from '@mantine/core';
 import LightdashLogo from '../../svgs/lightdash-black.svg';
 import MantineLinkButton from '../common/MantineLinkButton';
 
@@ -16,23 +16,12 @@ const MobileView = () => (
                 &#128586;
             </Box>
             <Title ta="center" order={4}>
-                Lightdash currently works best on bigger screens.
+                This page is not available to view on mobile yet.
             </Title>
             <Text ta="center" color="gray.6">
-                Sign in on a laptop or desktop to get started! In the meantime:
+                Sign in on a laptop or desktop to access this page!
             </Text>
-            <MantineLinkButton
-                href="https://www.lightdash.com/"
-                target="_blank"
-            >
-                Check out our website
-            </MantineLinkButton>
-            <Anchor
-                href="https://join.slack.com/t/lightdash-community/shared_invite/zt-16q953ork-NZr1qdEqxSwB17E2ckUe7A"
-                target="_blank"
-            >
-                ...or join our community!
-            </Anchor>
+            <MantineLinkButton href="/">Back to home page</MantineLinkButton>
         </Stack>
     </Box>
 );

@@ -1,4 +1,3 @@
-import { DateInput2 } from '@blueprintjs/datetime2';
 import {
     CompiledDimension,
     CustomDimension,
@@ -6,7 +5,6 @@ import {
     Field,
     fieldId as getFieldId,
     formatDate,
-    getDateFormat,
     isCustomDimension,
     isDateItem,
     isDimension,
@@ -16,9 +14,8 @@ import {
     TimeFrames,
     WeekDay,
 } from '@lightdash/common';
-import debounce from 'lodash/debounce';
 import moment from 'moment';
-import { FC, useCallback, useMemo, useState } from 'react';
+import { FC, useMemo, useState } from 'react';
 
 import {
     ActionIcon,
@@ -34,12 +31,13 @@ import {
 import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import FieldSelect from '../../../common/FieldSelect';
-import { getFirstDayOfWeek } from '../../../common/Filters/FilterInputs/dateUtils';
+import FilterDatePicker from '../../../common/Filters/FilterInputs/FilterDatePicker';
+import FilterMonthAndYearPicker from '../../../common/Filters/FilterInputs/FilterMonthAndYearPicker';
+import FilterWeekPicker from '../../../common/Filters/FilterInputs/FilterWeekPicker';
+import FilterYearPicker from '../../../common/Filters/FilterInputs/FilterYearPicker';
+import { getFirstDayOfWeek } from '../../../common/Filters/utils/filterDateUtils';
 import MantineIcon from '../../../common/MantineIcon';
-import MonthAndYearInput from '../../../common/MonthAndYearInput';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
-import WeekPicker from '../../../common/WeekPicker';
-import YearInput from '../../../common/YearInput';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 
 type Props = {
@@ -82,9 +80,9 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
             switch (field.timeInterval.toUpperCase()) {
                 case TimeFrames.WEEK:
                     return (
-                        <WeekPicker
+                        <FilterWeekPicker
+                            size="sm"
                             value={moment(value).toDate()}
-                            popoverProps={{ withinPortal: false }}
                             firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                             onChange={(dateValue) => {
                                 if (!dateValue) return;
@@ -101,25 +99,25 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                     );
                 case TimeFrames.MONTH:
                     return (
-                        <Group noWrap spacing={0}>
-                            <MonthAndYearInput
-                                value={moment(value).toDate()}
-                                onChange={(dateValue: Date) => {
-                                    onChange(
-                                        formatDate(
-                                            dateValue,
-                                            TimeFrames.MONTH,
-                                            false,
-                                        ),
-                                    );
-                                }}
-                            />
-                        </Group>
+                        <FilterMonthAndYearPicker
+                            size="sm"
+                            value={moment(value).toDate()}
+                            onChange={(dateValue: Date) => {
+                                onChange(
+                                    formatDate(
+                                        dateValue,
+                                        TimeFrames.MONTH,
+                                        false,
+                                    ),
+                                );
+                            }}
+                        />
                     );
 
                 case TimeFrames.YEAR:
                     return (
-                        <YearInput
+                        <FilterYearPicker
+                            size="sm"
                             value={moment(value).toDate()}
                             onChange={(dateValue: Date) => {
                                 onChange(
@@ -135,25 +133,12 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
             }
 
             return (
-                <DateInput2
-                    fill
-                    value={value}
-                    popoverProps={{ usePortal: false }}
-                    formatDate={(dateValue: Date) =>
-                        formatDate(dateValue, undefined, false)
-                    }
-                    parseDate={(
-                        str: string,
-                        timeInterval: TimeFrames | undefined = TimeFrames.DAY,
-                    ) => {
-                        return moment(
-                            str,
-                            getDateFormat(timeInterval),
-                        ).toDate();
-                    }}
-                    defaultValue={new Date().toString()}
-                    onChange={(dateValue: string | null) => {
-                        if (dateValue) onChange(dateValue);
+                <FilterDatePicker
+                    size="sm"
+                    value={moment(value).toDate()}
+                    firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
+                    onChange={(newValue) => {
+                        onChange(formatDate(newValue, TimeFrames.DAY, false));
                     }}
                 />
             );
@@ -248,21 +233,6 @@ export const ReferenceLine: FC<Props> = ({
         | undefined
     >(selectedFieldDefault);
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const debouncedUpdateLabel = useCallback(
-        debounce((updatedLabel: string) => {
-            if (value !== undefined && selectedField !== undefined)
-                updateReferenceLine(
-                    value,
-                    selectedField,
-                    updatedLabel,
-                    lineColor,
-                    referenceLine.data.name,
-                );
-        }, 500),
-        [value, selectedField, updateReferenceLine],
-    );
-
     return (
         <Stack spacing="xs">
             <Group noWrap position="apart">
@@ -346,7 +316,16 @@ export const ReferenceLine: FC<Props> = ({
                         placeholder={value}
                         onChange={(e) => {
                             setLabel(e.target.value);
-                            debouncedUpdateLabel(e.target.value);
+                        }}
+                        onBlur={() => {
+                            if (value && selectedField)
+                                updateReferenceLine(
+                                    value,
+                                    selectedField,
+                                    label,
+                                    lineColor,
+                                    referenceLine.data.name,
+                                );
                         }}
                     />
 

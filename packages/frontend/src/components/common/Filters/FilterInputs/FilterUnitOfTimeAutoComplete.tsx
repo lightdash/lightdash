@@ -1,4 +1,3 @@
-import { Popover2Props } from '@blueprintjs/popover2';
 import { UnitOfTime } from '@lightdash/common';
 import { Select, SelectProps } from '@mantine/core';
 import { FC } from 'react';
@@ -64,18 +63,16 @@ interface Props extends Omit<SelectProps, 'data' | 'onChange'> {
     showOptionsInPlural?: boolean;
     showCompletedOptions?: boolean;
     completed: boolean;
-    popoverProps?: Popover2Props;
     onChange: (value: { unitOfTime: UnitOfTime; completed: boolean }) => void;
 }
 
-const UnitOfTimeAutoComplete: FC<Props> = ({
+const FilterUnitOfTimeAutoComplete: FC<Props> = ({
     isTimestamp,
     unitOfTime,
     showOptionsInPlural = true,
     showCompletedOptions = true,
     completed,
     onChange,
-    popoverProps,
     ...rest
 }) => (
     <Select
@@ -101,4 +98,4 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
     />
 );
 
-export default UnitOfTimeAutoComplete;
+export default FilterUnitOfTimeAutoComplete;
