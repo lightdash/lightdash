@@ -1,4 +1,5 @@
-import { Tabs, Text, TextInput } from '@mantine/core';
+import { JsonInput, Tabs, Text } from '@mantine/core';
+
 import React, { memo } from 'react';
 const CustomVisConfigTabs: React.FC = memo(() => {
     return (
@@ -9,7 +10,13 @@ const CustomVisConfigTabs: React.FC = memo(() => {
             </Tabs.List>
 
             <Tabs.Panel value="config">
-                <TextInput />
+                <JsonInput
+                    label="Chart config"
+                    validationError="Invalid JSON"
+                    formatOnBlur
+                    autosize
+                    minRows={20}
+                />
             </Tabs.Panel>
             <Tabs.Panel value="data">
                 <Text>Transform data</Text>
