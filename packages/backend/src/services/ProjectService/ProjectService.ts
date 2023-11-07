@@ -916,12 +916,6 @@ export class ProjectService {
             chart_uuid: chartUuid,
         };
 
-        const explore = await this.getExplore(
-            user,
-            projectUuid,
-            savedChart.tableName,
-        );
-
         const { cacheMetadata, rows } = await this.runQueryAndFormatRows({
             user,
             metricQuery,
@@ -941,6 +935,7 @@ export class ProjectService {
             metricQuery,
             cacheMetadata,
             rows,
+            appliedDashboardFilters,
         };
     }
 

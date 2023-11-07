@@ -36,7 +36,6 @@ import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { downloadCsv } from '../../api/csv';
 import { ExportToGoogleSheet } from '../../features/export';
-import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
@@ -263,7 +262,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         chartAndResults,
         isEditMode,
     } = props;
-    const { chart, explore, metricQuery, rows } = chartAndResults;
+    const { chart, explore, metricQuery, rows, appliedDashboardFilters } =
+        chartAndResults;
 
     const { projectUuid, dashboardUuid } = useParams<{
         projectUuid: string;
@@ -392,15 +392,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         },
         [explore, chart],
     );
-
-    const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
-        tileUuid,
-        explore,
-    );
-    const appliedFilterRules = [
-        ...dashboardFiltersThatApplyToChart.dimensions,
-        ...dashboardFiltersThatApplyToChart.metrics,
-    ];
+    const appliedFilterRules = appliedDashboardFilters
+        ? [
+              ...appliedDashboardFilters.dimensions,
+              ...appliedDashboardFilters.metrics,
+          ]
+        : [];
 
     const renderFilterRule = useCallback(
         (filterRule: DashboardFilterRule) => {
@@ -607,7 +604,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                     openUnderlyingDataModal({
                                                         ...viewUnderlyingDataOptions,
                                                         dashboardFilters:
-                                                            dashboardFiltersThatApplyToChart,
+                                                            appliedDashboardFilters,
                                                     });
                                                     track({
                                                         name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
@@ -637,7 +634,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                         <DrillDownMenuItem
                                             {...viewUnderlyingDataOptions}
                                             dashboardFilters={
-                                                dashboardFiltersThatApplyToChart
+                                                appliedDashboardFilters
                                             }
                                             trackingData={{
                                                 organizationId:

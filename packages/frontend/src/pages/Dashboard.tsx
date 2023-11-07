@@ -91,8 +91,9 @@ const GridTile: FC<
         tile.type === DashboardTileTypes.SAVED_CHART
             ? tile.properties?.savedChartUuid || undefined
             : undefined;
-    // TODO: jose pass dashboard filters
+
     const { isError, isLoading, data } = useDashboardChart(
+        props.tile.uuid,
         savedChartUuid ?? null,
     );
 
