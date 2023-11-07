@@ -1,3 +1,10 @@
+# [0.855.0](https://github.com/lightdash/lightdash/compare/0.854.4...0.855.0) (2023-11-07)
+
+
+### Features
+
+* apply dashboard filter to chart in server ([#7843](https://github.com/lightdash/lightdash/issues/7843)) ([5994eea](https://github.com/lightdash/lightdash/commit/5994eeae6c561955f36e7fef3352577e2a6d4abb))
+
 ## [0.854.4](https://github.com/lightdash/lightdash/compare/0.854.3...0.854.4) (2023-11-07)
 
 
