@@ -1,3 +1,10 @@
+## [0.855.2](https://github.com/lightdash/lightdash/compare/0.855.1...0.855.2) (2023-11-08)
+
+
+### Bug Fixes
+
+* google sheet column order ([#7820](https://github.com/lightdash/lightdash/issues/7820)) ([ebe9f85](https://github.com/lightdash/lightdash/commit/ebe9f852e4b089d00424001546236683cb5c398e))
+
 ## [0.855.1](https://github.com/lightdash/lightdash/compare/0.855.0...0.855.1) (2023-11-07)
 
 
