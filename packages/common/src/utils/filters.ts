@@ -467,7 +467,7 @@ export const getDashboardFiltersForTileAndTables = (
         tables,
         dashboardFilters.metrics,
     ),
-    tableCalculations: getDashboardFilterRulesForTile(
+    tableCalculations: getDashboardFilterRulesForTileAndTables(
         tileUuid,
         tables,
         dashboardFilters.metrics,
