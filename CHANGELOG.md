@@ -1,3 +1,10 @@
+## [0.857.3](https://github.com/lightdash/lightdash/compare/0.857.2...0.857.3) (2023-11-08)
+
+
+### Bug Fixes
+
+* remove duplicate requests on page load ([#7865](https://github.com/lightdash/lightdash/issues/7865)) ([37bebfe](https://github.com/lightdash/lightdash/commit/37bebfee3e9f3a5265fd3ab818a26653e53ee3ca))
+
 ## [0.857.2](https://github.com/lightdash/lightdash/compare/0.857.1...0.857.2) (2023-11-08)
 
 
