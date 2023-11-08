@@ -66,6 +66,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         projectUuid,
         true,
         {
+            staleTime: 0,
             onSuccess: (data) => {
                 if (data.length > 0) {
                     const currentSpace = defaultSpaceUuid

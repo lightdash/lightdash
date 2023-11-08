@@ -57,6 +57,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     const { data: dashboards, isLoading: isLoadingDashboards } = useDashboards(
         projectUuid,
         {
+            staleTime: 0,
             onSuccess: (data) => {
                 if (data.length === 0) {
                     setIsCreatingNewDashboard(true);
@@ -69,6 +70,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         projectUuid,
         true,
         {
+            staleTime: 0,
             onSuccess: (data) => {
                 if (data.length === 0) {
                     setIsCreatingNewSpace(true);

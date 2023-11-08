@@ -41,6 +41,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
     useProjects({
         refetchInterval: 3000,
         refetchIntervalInBackground: true,
+        staleTime: 0,
         onSuccess: async (newProjects) => {
             if (!initialProjectFetch.current) {
                 existingProjects.current = newProjects;
