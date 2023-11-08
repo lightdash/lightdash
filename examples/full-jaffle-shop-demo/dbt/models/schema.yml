@@ -54,7 +54,6 @@ models:
         meta:
           dimension:
             hidden: true
-      - name: list_amounts
       - name: number_of_orders
         description: ""
         meta:
