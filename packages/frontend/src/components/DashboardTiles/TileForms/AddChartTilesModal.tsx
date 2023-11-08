@@ -67,7 +67,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                 : 0,
         );
         return (reorderedCharts || []).map(({ uuid, name, spaceName }) => {
-            const alreadyAddedChart = dashboardTiles.find((tile) => {
+            const alreadyAddedChart = dashboardTiles?.find((tile) => {
                 return (
                     tile.type === DashboardTileTypes.SAVED_CHART &&
                     tile.properties.savedChartUuid === uuid

@@ -37,7 +37,7 @@ const useDashboardStorage = () => {
 
     const storeDashboard = useCallback(
         (
-            dashboardTiles: DashboardTile[],
+            dashboardTiles: DashboardTile[] | undefined,
             dashboardFilters: DashboardFilters,
             haveTilesChanged: boolean,
             haveFiltersChanged: boolean,
@@ -48,7 +48,7 @@ const useDashboardStorage = () => {
             sessionStorage.setItem('dashboardUuid', dashboardUuid ?? '');
             sessionStorage.setItem(
                 'unsavedDashboardTiles',
-                JSON.stringify(dashboardTiles),
+                JSON.stringify(dashboardTiles ?? []),
             );
             if (
                 dashboardFilters.dimensions.length > 0 ||
