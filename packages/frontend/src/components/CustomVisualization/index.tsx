@@ -15,7 +15,13 @@ const VegaLite = lazy(() =>
     import('react-vega').then((module) => ({ default: module.VegaLite })),
 );
 
-const defaultValue = '{}';
+const defaultValue = JSON.stringify(
+    {
+        $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+    },
+    null,
+    2,
+);
 
 const CustomVisualizationContext = createContext<{
     chartConfig: string;

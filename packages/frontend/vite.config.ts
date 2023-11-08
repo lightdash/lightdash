@@ -2,6 +2,7 @@ import reactPlugin from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { compression } from 'vite-plugin-compression2';
 import eslintPlugin from 'vite-plugin-eslint';
+import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 import svgrPlugin from 'vite-plugin-svgr';
 import tsconfigPathsPlugin from 'vite-tsconfig-paths';
 
@@ -30,6 +31,10 @@ export default defineConfig({
         compression({
             include: [/\.(js)$/, /\.(css)$/, /\.js\.map$/],
             filename: '[path][base].gzip',
+        }),
+        monacoEditorPlugin({
+            forceBuildCDN: true,
+            languageWorkers: ['json'],
         }),
     ],
     css: {
