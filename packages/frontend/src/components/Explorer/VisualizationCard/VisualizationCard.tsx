@@ -1,4 +1,4 @@
-import { NotFoundError } from '@lightdash/common';
+import { getHiddenTableFields, NotFoundError } from '@lightdash/common';
 import { FC, memo, useCallback, useMemo, useState } from 'react';
 
 import { Space } from '@mantine/core';
@@ -117,6 +117,9 @@ const VisualizationCard: FC<{
                 showTableNames,
                 columnOrder: columnOrder,
                 customLabels,
+                hiddenFields: getHiddenTableFields(
+                    unsavedChartVersion.chartConfig,
+                ),
             });
             return csvResponse;
         }

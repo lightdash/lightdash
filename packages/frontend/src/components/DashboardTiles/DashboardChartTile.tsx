@@ -17,6 +17,7 @@ import {
     getCustomLabelsFromTableConfig,
     getDimensions,
     getFields,
+    getHiddenTableFields,
     getItemMap,
     getVisibleFields,
     hasCustomDimension,
@@ -97,6 +98,7 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
             customLabels: getCustomLabelsFromTableConfig(
                 savedChart.chartConfig.config,
             ),
+            hiddenFields: getHiddenTableFields(savedChart.chartConfig),
         });
     };
 
