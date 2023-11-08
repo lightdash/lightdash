@@ -287,7 +287,7 @@ const SqlRunnerPage = () => {
                             )
                         }
                         isOpen={expandedCards.get(SqlRunnerCards.CHART)}
-                        shouldExpand
+                        isVisualizationCard
                         onToggle={(value) =>
                             handleCardExpand(SqlRunnerCards.CHART, value)
                         }

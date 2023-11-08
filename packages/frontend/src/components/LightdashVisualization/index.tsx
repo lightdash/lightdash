@@ -72,8 +72,12 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                     />
                 );
             case ChartType.CUSTOM:
-                // TODO: pass props to custom visualization
-                return <CustomVisualization />;
+                return (
+                    <CustomVisualization
+                        data-testid={props['data-testid']}
+                        className={className}
+                    />
+                );
 
             default:
                 return assertUnreachable(
