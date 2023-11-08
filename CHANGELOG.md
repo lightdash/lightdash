@@ -1,3 +1,10 @@
+## [0.857.2](https://github.com/lightdash/lightdash/compare/0.857.1...0.857.2) (2023-11-08)
+
+
+### Bug Fixes
+
+* do not skip ci on release ([#7880](https://github.com/lightdash/lightdash/issues/7880)) ([3742083](https://github.com/lightdash/lightdash/commit/374208348ddf392fe475583d6a097c11e6d5fe43))
+
 ## [0.857.1](https://github.com/lightdash/lightdash/compare/0.857.0...0.857.1) (2023-11-08)
 
 
