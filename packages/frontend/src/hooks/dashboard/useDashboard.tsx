@@ -66,13 +66,11 @@ const exportDashboard = async (id: string, queryFilters: string) =>
         body: JSON.stringify({ queryFilters }),
     });
 
-export const useDashboardsAvailableFilters = (
-    savedQueryUuids: string[] | undefined,
-) =>
+export const useDashboardsAvailableFilters = (savedQueryUuids: string[]) =>
     useQuery<DashboardAvailableFilters, ApiError>(
-        ['dashboards', 'availableFilters', ...(savedQueryUuids ?? [])],
-        () => postDashboardsAvailableFilters(savedQueryUuids!),
-        { enabled: savedQueryUuids && savedQueryUuids.length > 0 },
+        ['dashboards', 'availableFilters', ...savedQueryUuids],
+        () => postDashboardsAvailableFilters(savedQueryUuids),
+        { enabled: savedQueryUuids.length > 0 },
     );
 
 export const useDashboardQuery = (

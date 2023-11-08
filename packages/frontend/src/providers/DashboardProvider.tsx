@@ -123,12 +123,14 @@ export const DashboardProvider: React.FC = ({ children }) => {
         removeSavedFilterOverride,
     } = useSavedDashboardFiltersOverrides();
 
-    const tileSavedChartUuids = useMemo(() => {
-        return dashboardTiles
-            ?.filter(isDashboardChartTileType)
-            .map((tile) => tile.properties.savedChartUuid)
-            .filter((uuid): uuid is string => !!uuid);
-    }, [dashboardTiles]);
+    const tileSavedChartUuids = useMemo(
+        () =>
+            dashboardTiles
+                ?.filter(isDashboardChartTileType)
+                .map((tile) => tile.properties.savedChartUuid)
+                .filter((uuid): uuid is string => !!uuid),
+        [dashboardTiles],
+    );
 
     useEffect(() => {
         if (dashboard) {
@@ -246,7 +248,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
         isLoading: isLoadingDashboardFilters,
         isFetching: isFetchingDashboardFilters,
         data: filterableFieldsBySavedQueryUuid,
-    } = useDashboardsAvailableFilters(tileSavedChartUuids);
+    } = useDashboardsAvailableFilters(tileSavedChartUuids ?? []);
 
     const filterableFieldsByTileUuid = useMemo(() => {
         if (!dashboard || !dashboardTiles || !filterableFieldsBySavedQueryUuid)
