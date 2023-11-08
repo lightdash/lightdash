@@ -52,6 +52,8 @@ import {
 } from '../clients/Slack/SlackMessageBlocks';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
+import { metricQuery } from '../services/CsvService/CsvService.mock';
+import { SavedChartService } from '../services/SavedChartsService/SavedChartService';
 import {
     csvService,
     dashboardService,
@@ -703,6 +705,8 @@ export const uploadGsheetFromQuery = async (
             refreshToken,
             spreadsheetId,
             rows,
+            undefined,
+            payload.columnOrder,
         );
         const truncated = csvService.couldBeTruncated(rows);
 
@@ -951,6 +955,9 @@ export const uploadGsheets = async (
                 `Unable to process format ${format} on sendGdriveNotification`,
             );
         } else if (savedChartUuid) {
+            const chart = await schedulerService.savedChartModel.get(
+                savedChartUuid,
+            );
             const { rows } = await projectService.getResultsForChart(
                 user,
                 savedChartUuid,
@@ -965,7 +972,13 @@ export const uploadGsheets = async (
                 getHumanReadableCronExpression(scheduler.cron),
             );
 
-            await googleDriveClient.appendToSheet(refreshToken, gdriveId, rows);
+            await googleDriveClient.appendToSheet(
+                refreshToken,
+                gdriveId,
+                rows,
+                undefined,
+                chart.tableConfig.columnOrder,
+            );
         } else if (dashboardUuid) {
             const dashboard = await dashboardService.getById(
                 user,
@@ -1018,6 +1031,9 @@ export const uploadGsheets = async (
             // We want to process all charts in sequence, so we don't load all chart results in memory
             chartUuids.reduce(async (promise, chartUuid) => {
                 await promise;
+                const chart = await schedulerService.savedChartModel.get(
+                    chartUuid,
+                );
                 const { rows } = await projectService.getResultsForChart(
                     user,
                     chartUuid,
@@ -1034,6 +1050,7 @@ export const uploadGsheets = async (
                     gdriveId,
                     rows,
                     tabName,
+                    chart.tableConfig.columnOrder,
                 );
             }, Promise.resolve());
         } else {
