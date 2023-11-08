@@ -17,6 +17,7 @@ import {
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, memo, useMemo } from 'react';
 import { useApp } from '../../../providers/AppProvider';
 import {
@@ -28,6 +29,11 @@ import { useVisualizationContext } from '../../LightdashVisualization/Visualizat
 
 const VisualizationCardOptions: FC = memo(() => {
     const { health } = useApp();
+
+    // FEATURE FLAG: custom-visualizations-enabled
+    const customVizEnabled = useFeatureFlagEnabled(
+        'custom-visualizations-enabled',
+    );
 
     const {
         chartType,
@@ -341,21 +347,25 @@ const VisualizationCardOptions: FC = memo(() => {
                 >
                     Big value
                 </Menu.Item>
-                {health.data && health.data.customVisualizationsEnabled && (
-                    <Menu.Item
-                        disabled={disabled}
-                        color={
-                            chartType === ChartType.CUSTOM ? 'blue' : undefined
-                        }
-                        icon={<MantineIcon icon={IconCode} />}
-                        onClick={() => {
-                            setChartType(ChartType.CUSTOM);
-                            setPivotDimensions(undefined);
-                        }}
-                    >
-                        Custom
-                    </Menu.Item>
-                )}
+                {health.data &&
+                    health.data.customVisualizationsEnabled &&
+                    customVizEnabled && (
+                        <Menu.Item
+                            disabled={disabled}
+                            color={
+                                chartType === ChartType.CUSTOM
+                                    ? 'blue'
+                                    : undefined
+                            }
+                            icon={<MantineIcon icon={IconCode} />}
+                            onClick={() => {
+                                setChartType(ChartType.CUSTOM);
+                                setPivotDimensions(undefined);
+                            }}
+                        >
+                            Custom
+                        </Menu.Item>
+                    )}
             </Menu.Dropdown>
         </Menu>
     );
