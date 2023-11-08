@@ -1,3 +1,11 @@
+## [0.856.1](https://github.com/lightdash/lightdash/compare/0.856.0...0.856.1) (2023-11-08)
+
+
+### Bug Fixes
+
+* custom metric submenu ([#7861](https://github.com/lightdash/lightdash/issues/7861)) ([41e8a52](https://github.com/lightdash/lightdash/commit/41e8a52e50de45eda2b94bdaa06987455f5a7f8f))
+* download csv column order ([#7842](https://github.com/lightdash/lightdash/issues/7842)) ([d9df36f](https://github.com/lightdash/lightdash/commit/d9df36f8459e20c558af8597a7dad41addb1370d))
+
 # [0.856.0](https://github.com/lightdash/lightdash/compare/0.855.2...0.856.0) (2023-11-08)
 
 
