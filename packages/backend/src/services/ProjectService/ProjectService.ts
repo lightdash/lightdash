@@ -4,6 +4,7 @@ import {
     AdditionalMetric,
     AlreadyProcessingError,
     AndFilterGroup,
+    ApiChartAndResults,
     ApiQueryResults,
     ApiSqlQueryResults,
     CacheMetadata,
@@ -855,7 +856,7 @@ export class ProjectService {
         dashboardFilters?: DashboardFilters;
         versionUuid?: string;
         invalidateCache?: boolean;
-    }): Promise<ApiQueryResults> {
+    }): Promise<ApiChartAndResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -915,7 +916,7 @@ export class ProjectService {
             chart_uuid: chartUuid,
         };
 
-        return this.runQueryAndFormatRows({
+        const { cacheMetadata, rows } = await this.runQueryAndFormatRows({
             user,
             metricQuery,
             projectUuid,
@@ -927,6 +928,15 @@ export class ProjectService {
             queryTags,
             invalidateCache,
         });
+
+        return {
+            chart: savedChart,
+            explore,
+            metricQuery,
+            cacheMetadata,
+            rows,
+            appliedDashboardFilters,
+        };
     }
 
     async runExploreQuery(

@@ -28,9 +28,6 @@ import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import EmptyStateNoTiles from '../components/DashboardTiles/EmptyStateNoTiles';
 import TileBase from '../components/DashboardTiles/TileBase/index';
-import DrillDownModal from '../components/MetricQueryData/DrillDownModal';
-import MetricQueryDataProvider from '../components/MetricQueryData/MetricQueryDataProvider';
-import UnderlyingDataModal from '../components/MetricQueryData/UnderlyingDataModal';
 import {
     appendNewTilesToBottom,
     useDuplicateDashboardMutation,
@@ -39,7 +36,6 @@ import {
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
-import useSavedQueryWithDashboardFilters from '../hooks/dashboard/useSavedQueryWithDashboardFilters';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { deleteSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../hooks/useSpaces';
@@ -87,40 +83,9 @@ const GridTile: FC<
 
     useProfiler(`Dashboard-${tile.type}`);
 
-    const savedChartUuid: string | undefined =
-        tile.type === DashboardTileTypes.SAVED_CHART
-            ? tile.properties?.savedChartUuid || undefined
-            : undefined;
-
-    const {
-        isError,
-        isLoading,
-        data: savedQuery,
-    } = useSavedQueryWithDashboardFilters(tile.uuid, savedChartUuid ?? null);
-
     switch (tile.type) {
         case DashboardTileTypes.SAVED_CHART:
-            if (isLoading)
-                return <TileBase isLoading={true} title={''} {...props} />;
-            if (isError)
-                return (
-                    <TileBase title={''} {...props}>
-                        <NonIdealState
-                            icon="lock"
-                            title={`You don't have access to view this chart`}
-                        ></NonIdealState>
-                    </TileBase>
-                );
-            return (
-                <MetricQueryDataProvider
-                    metricQuery={savedQuery?.metricQuery}
-                    tableName={savedQuery?.tableName || ''}
-                >
-                    <ChartTile {...props} tile={tile} />
-                    <UnderlyingDataModal />
-                    <DrillDownModal />
-                </MetricQueryDataProvider>
-            );
+            return <ChartTile {...props} tile={tile} />;
         case DashboardTileTypes.MARKDOWN:
             return <MarkdownTile {...props} tile={tile} />;
         case DashboardTileTypes.LOOM:
