@@ -18,6 +18,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { FC, memo, useMemo } from 'react';
+import { useApp } from '../../../providers/AppProvider';
 import {
     COLLAPSABLE_CARD_BUTTON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
@@ -26,6 +27,8 @@ import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const VisualizationCardOptions: FC = memo(() => {
+    const { health } = useApp();
+
     const {
         chartType,
         setChartType,
@@ -338,17 +341,21 @@ const VisualizationCardOptions: FC = memo(() => {
                 >
                     Big value
                 </Menu.Item>
-                <Menu.Item
-                    disabled={disabled}
-                    color={chartType === ChartType.CUSTOM ? 'blue' : undefined}
-                    icon={<MantineIcon icon={IconCode} />}
-                    onClick={() => {
-                        setChartType(ChartType.CUSTOM);
-                        setPivotDimensions(undefined);
-                    }}
-                >
-                    Custom
-                </Menu.Item>
+                {health.data && health.data.customVisualizationsEnabled && (
+                    <Menu.Item
+                        disabled={disabled}
+                        color={
+                            chartType === ChartType.CUSTOM ? 'blue' : undefined
+                        }
+                        icon={<MantineIcon icon={IconCode} />}
+                        onClick={() => {
+                            setChartType(ChartType.CUSTOM);
+                            setPivotDimensions(undefined);
+                        }}
+                    >
+                        Custom
+                    </Menu.Item>
+                )}
             </Menu.Dropdown>
         </Menu>
     );

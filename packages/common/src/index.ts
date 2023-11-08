@@ -650,6 +650,7 @@ export type HealthState = {
     pivotTable: {
         maxColumnLimit: number;
     };
+    customVisualizationsEnabled: boolean;
     hasSlack: boolean;
     hasHeadlessBrowser: boolean;
 };
