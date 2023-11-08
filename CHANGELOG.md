@@ -1,3 +1,10 @@
+# [0.857.0](https://github.com/lightdash/lightdash/compare/0.856.1...0.857.0) (2023-11-08)
+
+
+### Features
+
+* pin add option to the bottom of the string autocomplete list ([#7863](https://github.com/lightdash/lightdash/issues/7863)) ([4985a1d](https://github.com/lightdash/lightdash/commit/4985a1d8b94c18838450e8831b01808a222d77a0))
+
 ## [0.856.1](https://github.com/lightdash/lightdash/compare/0.856.0...0.856.1) (2023-11-08)
 
 
