@@ -172,6 +172,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                             trigger="hover"
                             position="right-start"
                             shadow="md"
+                            offset={0}
                             closeOnItemClick
                             onOpen={() => toggle()}
                             onClose={() => toggle()}
@@ -198,17 +199,22 @@ const TreeSingleNodeActions: FC<Props> = ({
                                 {customMetrics.map((metric) => (
                                     <Menu.Item
                                         key={metric}
+                                        role="menuitem"
                                         component="button"
                                         onClick={(e) => {
                                             e.stopPropagation();
-
-                                            track({
-                                                name: EventName.ADD_CUSTOM_METRIC_CLICKED,
-                                            });
+                                            console.debug(
+                                                'opening custom metric modal: ' +
+                                                    metric,
+                                            );
                                             toggleAdditionalMetricModal({
                                                 type: metric,
                                                 item,
                                                 isEditing: false,
+                                            });
+
+                                            track({
+                                                name: EventName.ADD_CUSTOM_METRIC_CLICKED,
                                             });
                                         }}
                                     >
