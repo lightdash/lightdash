@@ -1,8 +1,19 @@
 import { ResultRow } from '@lightdash/common';
-import { Code } from '@mantine/core';
-import { createContext, FC, useContext, useMemo, useState } from 'react';
-import { VegaLite } from 'react-vega';
+import { Code, Loader } from '@mantine/core';
+import {
+    createContext,
+    FC,
+    lazy,
+    Suspense,
+    useContext,
+    useMemo,
+    useState,
+} from 'react';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
+
+const VegaLite = lazy(() =>
+    import('react-vega').then((module) => ({ default: module.VegaLite })),
+);
 
 const defaultValue = '{}';
 
@@ -89,26 +100,28 @@ const CustomVisualization: FC<CustomVisualizationProps> = (props) => {
                 width: '100%',
             }}
         >
-            <VegaLite
-                style={{
-                    width: 'inherit',
-                    height: 'inherit',
-                    minHeight: 'inherit',
-                }}
-                config={{
-                    autosize: {
-                        resize: true,
-                        type: 'fit',
-                    },
-                }}
-                spec={{
-                    ...config,
-                    width: 'container',
-                    height: 'container',
-                    // data: { name: 'table' },
-                }}
-                data={data}
-            />
+            <Suspense fallback={<Loader />}>
+                <VegaLite
+                    style={{
+                        width: 'inherit',
+                        height: 'inherit',
+                        minHeight: 'inherit',
+                    }}
+                    config={{
+                        autosize: {
+                            resize: true,
+                            type: 'fit',
+                        },
+                    }}
+                    spec={{
+                        ...config,
+                        width: 'container',
+                        height: 'container',
+                        // data: { name: 'table' },
+                    }}
+                    data={data}
+                />
+            </Suspense>
         </div>
     );
 };

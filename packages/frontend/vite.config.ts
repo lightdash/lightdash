@@ -51,6 +51,7 @@ export default defineConfig({
                     '@mapbox/': 'mapbox-vendor',
                     rudder: 'rudder-vendor',
                     sentry: 'sentry-vendor',
+                    'react-vega': 'react-vega-vendor',
                 }),
             },
         },
