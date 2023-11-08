@@ -1,3 +1,10 @@
+## [0.857.1](https://github.com/lightdash/lightdash/compare/0.857.0...0.857.1) (2023-11-08)
+
+
+### Bug Fixes
+
+* disable dashboard filter validation ([#7872](https://github.com/lightdash/lightdash/issues/7872)) ([34b3d89](https://github.com/lightdash/lightdash/commit/34b3d891f4b45aaba1837fae009abde81bd3f588))
+
 # [0.857.0](https://github.com/lightdash/lightdash/compare/0.856.1...0.857.0) (2023-11-08)
 
 
