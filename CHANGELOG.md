@@ -1,3 +1,15 @@
+# [0.856.0](https://github.com/lightdash/lightdash/compare/0.855.2...0.856.0) (2023-11-08)
+
+
+### Bug Fixes
+
+* missing custom metric on join ([#7858](https://github.com/lightdash/lightdash/issues/7858)) ([a5911f6](https://github.com/lightdash/lightdash/commit/a5911f6b38e183ae8f96a33617213390084da899))
+
+
+### Features
+
+* combine dashboard chart requests ([#7850](https://github.com/lightdash/lightdash/issues/7850)) ([fa0201a](https://github.com/lightdash/lightdash/commit/fa0201a17bcc398fac0f13bed5bb064c71f0bd2f))
+
 ## [0.855.2](https://github.com/lightdash/lightdash/compare/0.855.1...0.855.2) (2023-11-08)
 
 
