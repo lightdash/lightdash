@@ -18,12 +18,12 @@ const VegaLite = lazy(() =>
 const defaultValue = '{}';
 
 const CustomVisualizationContext = createContext<{
-    echartsConfig: string;
-    setEchartsConfig: (newConfig: string) => void;
+    chartConfig: string;
+    setChartConfig: (newConfig: string) => void;
     rows: ResultRow[] | undefined;
 }>({
-    echartsConfig: defaultValue,
-    setEchartsConfig: () => {},
+    chartConfig: defaultValue,
+    setChartConfig: () => {},
     rows: undefined,
 });
 
@@ -48,13 +48,13 @@ export const CustomVisualizationProvider: FC = ({ children }) => {
         (context) => context.queryResults.data?.rows,
     );
 
-    const [echartsConfig, setEchartsConfig] = useState<string>(defaultValue);
+    const [chartConfig, setChartConfig] = useState<string>(defaultValue);
 
     return (
         <CustomVisualizationContext.Provider
             value={{
-                echartsConfig,
-                setEchartsConfig,
+                chartConfig,
+                setChartConfig,
                 rows,
             }}
         >
@@ -69,20 +69,20 @@ type CustomVisualizationProps = {
 };
 
 const CustomVisualization: FC<CustomVisualizationProps> = (props) => {
-    const { echartsConfig, rows } = useCustomVisualizationContext();
+    const { chartConfig, rows } = useCustomVisualizationContext();
 
     const [config, error] = useMemo(() => {
         try {
             return [
                 {
-                    ...JSON.parse(echartsConfig),
+                    ...JSON.parse(chartConfig),
                 },
                 null,
             ];
         } catch (e) {
             return [null, e];
         }
-    }, [echartsConfig]);
+    }, [chartConfig]);
 
     if (error) {
         return <Code>{error.toString()}</Code>;

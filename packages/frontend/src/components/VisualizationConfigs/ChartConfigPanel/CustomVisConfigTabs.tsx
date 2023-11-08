@@ -5,7 +5,7 @@ import React, { memo } from 'react';
 import { useCustomVisualizationContext } from '../../CustomVisualization';
 
 const CustomVisConfigTabs: React.FC = memo(() => {
-    const { echartsConfig, setEchartsConfig } = useCustomVisualizationContext();
+    const { chartConfig, setChartConfig } = useCustomVisualizationContext();
 
     return (
         <Tabs defaultValue="config" keepMounted={false}>
@@ -16,9 +16,9 @@ const CustomVisConfigTabs: React.FC = memo(() => {
 
             <Tabs.Panel value="config">
                 <CodeMirror
-                    value={echartsConfig}
+                    value={chartConfig}
                     extensions={[json()]}
-                    onChange={(config) => setEchartsConfig(config)}
+                    onChange={(config) => setChartConfig(config)}
                 />
             </Tabs.Panel>
 
