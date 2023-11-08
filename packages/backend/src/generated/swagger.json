@@ -2622,83 +2622,6 @@
                 ],
                 "type": "object"
             },
-            "DashboardFieldTarget": {
-                "properties": {
-                    "tableName": {
-                        "type": "string"
-                    },
-                    "fieldId": {
-                        "type": "string"
-                    }
-                },
-                "required": ["tableName", "fieldId"],
-                "type": "object"
-            },
-            "FilterRule_ConditionalOperator.T.V.any_": {
-                "properties": {
-                    "values": {
-                        "items": {},
-                        "type": "array"
-                    },
-                    "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
-                    },
-                    "id": {
-                        "type": "string"
-                    },
-                    "target": {
-                        "$ref": "#/components/schemas/DashboardFieldTarget"
-                    },
-                    "settings": {},
-                    "disabled": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["operator", "id", "target"],
-                "type": "object",
-                "additionalProperties": false
-            },
-            "Record_string.DashboardTileTarget_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "DashboardFilterRule": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/FilterRule_ConditionalOperator.T.V.any_"
-                    },
-                    {
-                        "properties": {
-                            "label": {
-                                "type": "string"
-                            },
-                            "tileTargets": {
-                                "$ref": "#/components/schemas/Record_string.DashboardTileTarget_"
-                            }
-                        },
-                        "type": "object"
-                    }
-                ]
-            },
-            "DashboardFilters": {
-                "properties": {
-                    "metrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/DashboardFilterRule"
-                        },
-                        "type": "array"
-                    },
-                    "dimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/DashboardFilterRule"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["metrics", "dimensions"],
-                "type": "object"
-            },
             "Pick_LightdashUser.userUuid-or-firstName-or-lastName_": {
                 "properties": {
                     "userUuid": {
@@ -3899,6 +3822,65 @@
                             }
                         },
                         "required": ["dashboardUuid", "savedChartUuid"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardFieldTarget": {
+                "properties": {
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["tableName", "fieldId"],
+                "type": "object"
+            },
+            "FilterRule_ConditionalOperator.T.V.any_": {
+                "properties": {
+                    "values": {
+                        "items": {},
+                        "type": "array"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/ConditionalOperator"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "target": {
+                        "$ref": "#/components/schemas/DashboardFieldTarget"
+                    },
+                    "settings": {},
+                    "disabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["operator", "id", "target"],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "Record_string.DashboardTileTarget_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "DashboardFilterRule": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/FilterRule_ConditionalOperator.T.V.any_"
+                    },
+                    {
+                        "properties": {
+                            "label": {
+                                "type": "string"
+                            },
+                            "tileTargets": {
+                                "$ref": "#/components/schemas/Record_string.DashboardTileTarget_"
+                            }
+                        },
                         "type": "object"
                     }
                 ]
@@ -5327,7 +5309,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.853.0",
+        "version": "0.857.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -7163,9 +7145,7 @@
                                     "invalidateCache": {
                                         "type": "boolean"
                                     },
-                                    "dashboardFilters": {
-                                        "$ref": "#/components/schemas/DashboardFilters"
-                                    }
+                                    "dashboardFilters": {}
                                 },
                                 "type": "object"
                             }
