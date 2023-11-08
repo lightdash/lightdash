@@ -1,5 +1,5 @@
 import { ResultRow } from '@lightdash/common';
-import { Code, Loader } from '@mantine/core';
+import { Center, Code, Loader } from '@mantine/core';
 import {
     createContext,
     FC,
@@ -100,7 +100,13 @@ const CustomVisualization: FC<CustomVisualizationProps> = (props) => {
                 width: '100%',
             }}
         >
-            <Suspense fallback={<Loader />}>
+            <Suspense
+                fallback={
+                    <Center>
+                        <Loader color="gray" />
+                    </Center>
+                }
+            >
                 <VegaLite
                     style={{
                         width: 'inherit',
@@ -117,7 +123,7 @@ const CustomVisualization: FC<CustomVisualizationProps> = (props) => {
                         ...config,
                         width: 'container',
                         height: 'container',
-                        // data: { name: 'table' },
+                        data: { name: 'table' },
                     }}
                     data={data}
                 />
