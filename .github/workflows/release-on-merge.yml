@@ -5,11 +5,6 @@ on:
       - main
       - alpha
 
-permissions:
-  contents: write
-  issues: write
-  pull-requests: write
-
 jobs:
   release:
     runs-on: ubuntu-20.04
@@ -55,6 +50,6 @@ jobs:
           curl \
             -X POST \
             -H "Accept: application/vnd.github.v3+json" \
-            -H "Authorization: token ${{ secrets.LIGHTDASH_BOT_PAT }}" \
+            -H "Authorization: token ${{ secrets.CI_GITHUB_TOKEN }}" \
             -d '{"ref": "main", "inputs": {"lightdash-version": "${{ steps.semantic.outputs.new_release_version }}"}}' \
             https://api.github.com/repos/lightdash/helm-charts/action/workflows/increment-lightdash-app-version.yml/dispatches
