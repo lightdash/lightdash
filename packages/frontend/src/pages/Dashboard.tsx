@@ -13,11 +13,15 @@ import React, {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 
+import { Box } from '@mantine/core';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
+import { useIntersection } from 'react-use';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
 import DashboardDeleteModal from '../components/common/modal/DashboardDeleteModal';
@@ -77,11 +81,29 @@ const GridTile: FC<
     Pick<
         React.ComponentProps<typeof TileBase>,
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
-    >
+    > & { isLazyLoadEnabled: boolean }
 > = memo((props) => {
-    const { tile } = props;
-
+    const { tile, isLazyLoadEnabled } = props;
     useProfiler(`Dashboard-${tile.type}`);
+    const [isTiledViewed, setIsTiledViewed] = useState(false);
+    const ref = useRef(null);
+    const intersection = useIntersection(ref, {
+        root: null,
+        threshold: 0.3,
+    });
+    useEffect(() => {
+        if (intersection?.isIntersecting) {
+            setIsTiledViewed(true);
+        }
+    }, [intersection]);
+
+    if (isLazyLoadEnabled && !isTiledViewed) {
+        return (
+            <Box ref={ref} h="100%">
+                <TileBase isLoading={true} {...props} title={''} />
+            </Box>
+        );
+    }
 
     switch (tile.type) {
         case DashboardTileTypes.SAVED_CHART:
@@ -100,6 +122,11 @@ const GridTile: FC<
 });
 
 const Dashboard: FC = () => {
+    const isLazyLoadFeatureFlagEnabled = useFeatureFlagEnabled(
+        'lazy-load-dashboard-tiles',
+    );
+    const isLazyLoadEnabled =
+        !!isLazyLoadFeatureFlagEnabled && !(window as any).Cypress; // disable lazy load for e2e test
     const history = useHistory();
     const { projectUuid, dashboardUuid, mode } = useParams<{
         projectUuid: string;
@@ -508,6 +535,9 @@ const Dashboard: FC = () => {
                             <div key={tile.uuid}>
                                 <TrackSection name={SectionName.DASHBOARD_TILE}>
                                     <GridTile
+                                        isLazyLoadEnabled={
+                                            isLazyLoadEnabled ?? true
+                                        }
                                         isEditMode={isEditMode}
                                         tile={tile}
                                         onDelete={handleDeleteTile}
