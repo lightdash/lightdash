@@ -897,9 +897,27 @@ export class ProjectService {
         console.log('has access');
 
         //! GEts space if user has access to space, but also gets extra stuff:  pinnedListUuid, pinnedListOrder, chartCount, dashboardCount
-        const space = await this.spaceModel.getSpaceSummary(
-            savedChart.spaceUuid,
-        );
+        const [
+            space,
+            exploreFromCache,
+            onboardingRecord,
+            { warehouseClient, sshTunnel },
+            userAttributes,
+            { warehouseConnection },
+        ] = await Promise.all([
+            this.spaceModel.getSpaceSummary(savedChart.spaceUuid),
+            this.projectModel.getExploreFromCache(
+                projectUuid,
+                savedChart.tableName,
+            ),
+            this.onboardingModel.getByOrganizationUuid(user.organizationUuid!),
+            this._getWarehouseClient(projectUuid),
+            this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            }),
+            this.projectModel.getWithSensitiveFields(projectUuid),
+        ]);
 
         //! Checks is user has admin access to space, but only needs these from space:    organizationUuid: space.organizationUuid,space.projectUuid,access, isPrivate
         if (!hasSpaceAccess(user, space)) {
@@ -978,15 +996,43 @@ export class ProjectService {
         //     span?.finish();
         // }
 
-        const explore = await this.getExplore(
-            user,
-            projectUuid,
-            savedChart.tableName,
+        const transaction = Sentry.getCurrentHub()
+            ?.getScope()
+            ?.getTransaction();
+        const span = transaction?.startChild({
+            op: 'ProjectService.getExplore',
+            description: 'Gets a single explore from the cache',
+        });
+
+        const explore = await wrapOtelSpan(
+            'ProjectService.getExplore',
+            {},
+            async () => {
+                if (isExploreError(exploreFromCache)) {
+                    throw new NotExistsError(
+                        `Explore "${savedChart.tableName}" does not exist.`,
+                    );
+                }
+
+                if (!exploreHasFilteredAttribute(exploreFromCache)) {
+                    return exploreFromCache;
+                }
+
+                // // TODO parallel with get space
+                // const userAttributes =
+                //     await this.userAttributesModel.getAttributeValuesForOrgMember(
+                //         {
+                //             organizationUuid,
+                //             userUuid: user.userUuid,
+                //         },
+                //     );
+
+                return filterDimensionsFromExplore(
+                    exploreFromCache,
+                    userAttributes,
+                );
+            },
         );
-
-        console.log('have an explore1', explore);
-
-        console.log('have an explore2', explore);
 
         // this.getExplore END
 
@@ -1057,17 +1103,6 @@ export class ProjectService {
                                     undefined,
                                 );
 
-                            const { warehouseClient, sshTunnel } =
-                                await this._getWarehouseClient(projectUuid);
-
-                            const userAttributes =
-                                await this.userAttributesModel.getAttributeValuesForOrgMember(
-                                    {
-                                        organizationUuid,
-                                        userUuid: user.userUuid,
-                                    },
-                                );
-
                             const { query, hasExampleMetric } =
                                 await ProjectService._compileQuery(
                                     metricQueryWithLimit,
@@ -1076,10 +1111,6 @@ export class ProjectService {
                                     userAttributes,
                                 );
 
-                            const onboardingRecord =
-                                await this.onboardingModel.getByOrganizationUuid(
-                                    user.organizationUuid!,
-                                );
                             if (!onboardingRecord.ranQueryAt) {
                                 await this.onboardingModel.update(
                                     user.organizationUuid!,
@@ -1194,8 +1225,6 @@ export class ProjectService {
                 );
                 runQueryAndFormatRowsSpan.setAttribute('rows', rows.length);
 
-                const { warehouseConnection } =
-                    await this.projectModel.getWithSensitiveFields(projectUuid);
                 if (warehouseConnection) {
                     runQueryAndFormatRowsSpan.setAttribute(
                         'warehouse',
