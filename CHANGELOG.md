@@ -1,3 +1,10 @@
+## [0.857.6](https://github.com/lightdash/lightdash/compare/0.857.5...0.857.6) (2023-11-09)
+
+
+### Bug Fixes
+
+* typo in docker build action ([#7891](https://github.com/lightdash/lightdash/issues/7891)) ([4e7e9c4](https://github.com/lightdash/lightdash/commit/4e7e9c4f80204944441f1c8f3a230cc5b97e5b46))
+
 ## [0.857.5](https://github.com/lightdash/lightdash/compare/0.857.4...0.857.5) (2023-11-09)
 
 
