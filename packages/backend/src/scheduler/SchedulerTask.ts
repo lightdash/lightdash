@@ -6,7 +6,10 @@ import {
     CreateSchedulerTarget,
     DownloadCsvPayload,
     EmailNotificationPayload,
+    getCustomLabelsFromTableConfig,
+    getHiddenTableFields,
     getHumanReadableCronExpression,
+    getItemMap,
     getRequestMethod,
     getSchedulerUuid,
     GsheetsNotificationPayload,
@@ -18,6 +21,7 @@ import {
     isSchedulerCsvOptions,
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
+    isTableChartConfig,
     LightdashPage,
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
@@ -701,12 +705,27 @@ export const uploadGsheetFromQuery = async (
         if (!spreadsheetId) {
             throw new Error('Unable to create new sheet');
         }
+
+        const explore = await projectService.getExplore(
+            user,
+            payload.projectUuid,
+            payload.exploreId,
+        );
+        const itemMap = getItemMap(
+            explore,
+            payload.metricQuery.additionalMetrics,
+            payload.metricQuery.tableCalculations,
+        );
         await googleDriveClient.appendToSheet(
             refreshToken,
             spreadsheetId,
             rows,
-            undefined,
+            itemMap,
+            payload.showTableNames,
+            undefined, // tabName
             payload.columnOrder,
+            payload.customLabels,
+            payload.hiddenFields,
         );
         const truncated = csvService.couldBeTruncated(rows);
 
@@ -963,6 +982,23 @@ export const uploadGsheets = async (
                 savedChartUuid,
             );
 
+            const explore = await projectService.getExplore(
+                user,
+                chart.projectUuid,
+                chart.tableName,
+            );
+            const itemMap = getItemMap(
+                explore,
+                chart.metricQuery.additionalMetrics,
+                chart.metricQuery.tableCalculations,
+            );
+            const showTableNames = isTableChartConfig(chart.chartConfig.config)
+                ? chart.chartConfig.config.showTableNames ?? false
+                : true;
+            const customLabels = getCustomLabelsFromTableConfig(
+                chart.chartConfig.config,
+            );
+
             const refreshToken = await userService.getRefreshToken(
                 scheduler.createdBy,
             );
@@ -976,8 +1012,12 @@ export const uploadGsheets = async (
                 refreshToken,
                 gdriveId,
                 rows,
+                itemMap,
+                showTableNames,
                 undefined,
                 chart.tableConfig.columnOrder,
+                customLabels,
+                getHiddenTableFields(chart.chartConfig),
             );
         } else if (dashboardUuid) {
             const dashboard = await dashboardService.getById(
@@ -1038,6 +1078,24 @@ export const uploadGsheets = async (
                     user,
                     chartUuid,
                 );
+                const explore = await projectService.getExplore(
+                    user,
+                    chart.projectUuid,
+                    chart.tableName,
+                );
+                const itemMap = getItemMap(
+                    explore,
+                    chart.metricQuery.additionalMetrics,
+                    chart.metricQuery.tableCalculations,
+                );
+                const showTableNames = isTableChartConfig(
+                    chart.chartConfig.config,
+                )
+                    ? chart.chartConfig.config.showTableNames ?? false
+                    : true;
+                const customLabels = getCustomLabelsFromTableConfig(
+                    chart.chartConfig.config,
+                );
 
                 const tabName = await googleDriveClient.createNewTab(
                     refreshToken,
@@ -1049,8 +1107,12 @@ export const uploadGsheets = async (
                     refreshToken,
                     gdriveId,
                     rows,
+                    itemMap,
+                    showTableNames,
                     tabName,
                     chart.tableConfig.columnOrder,
+                    customLabels,
+                    getHiddenTableFields(chart.chartConfig),
                 );
             }, Promise.resolve());
         } else {

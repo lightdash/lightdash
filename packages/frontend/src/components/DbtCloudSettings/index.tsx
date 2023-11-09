@@ -45,6 +45,7 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
         },
     });
     const dbtCloudSettings = useProjectDbtCloud(projectUuid, {
+        staleTime: 0,
         onSuccess: (data) => {
             form.setFieldValue('metricsJobId', data?.metricsJobId ?? '');
         },

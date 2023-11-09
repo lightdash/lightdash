@@ -45,7 +45,7 @@ export class SavedChartController extends Controller {
     async postDashboardTile(
         @Body()
         body: {
-            dashboardFilters?: DashboardFilters;
+            dashboardFilters?: any; // DashboardFilters; temp disable validation
             invalidateCache?: boolean;
         },
         @Path() chartUuid: string,

@@ -56,6 +56,7 @@ export const useGdriveAccessToken = (
         refetchOnWindowFocus: false,
         refetchOnMount: false,
         ...useQueryOptions,
+        staleTime: 0,
         onSuccess: (result) => {
             if (googleLoginPopup) {
                 googleLoginPopup.close();
