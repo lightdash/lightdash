@@ -23,10 +23,12 @@ const CustomVisualizationContext = createContext<{
     rows: {
         [k: string]: unknown;
     }[];
+    fields: string[];
 }>({
     chartConfig: defaultValue,
     setChartConfig: () => {},
     rows: [],
+    fields: [],
 });
 
 export const useCustomVisualizationContext = () =>
@@ -35,11 +37,9 @@ export const useCustomVisualizationContext = () =>
 const convertRowsToSeries = (rows: ResultRow[]) => {
     return rows.map((row) => {
         return Object.fromEntries(
-            Object.entries(row).map(([key, value]) => [
+            Object.entries(row).map(([key, rowValue]) => [
                 key,
-                key === 'payments_unique_payment_count'
-                    ? parseInt(value.value.raw as string)
-                    : value.value.raw,
+                rowValue.value.raw,
             ]),
         );
     });
@@ -52,12 +52,21 @@ export const CustomVisualizationProvider: FC = ({ children }) => {
 
     const [chartConfig, setChartConfig] = useState<string>(defaultValue);
 
+    const convertedRows = useMemo(() => {
+        return rows ? convertRowsToSeries(rows) : [];
+    }, [rows]);
+
+    const fields = useMemo(() => {
+        return rows ? Object.keys(rows[0]) : [];
+    }, [rows]);
+
     return (
         <CustomVisualizationContext.Provider
             value={{
                 chartConfig,
                 setChartConfig,
-                rows: rows ? convertRowsToSeries(rows) : [],
+                rows: convertedRows,
+                fields,
             }}
         >
             {children}
