@@ -1,3 +1,10 @@
+## [0.859.1](https://github.com/lightdash/lightdash/compare/0.859.0...0.859.1) (2023-11-09)
+
+
+### Bug Fixes
+
+* filter inputs timestamp input parsing and formatting ([#7888](https://github.com/lightdash/lightdash/issues/7888)) ([aa5cd4c](https://github.com/lightdash/lightdash/commit/aa5cd4c2cd49b1d0940baa610aaacf8afc26ac5d))
+
 # [0.859.0](https://github.com/lightdash/lightdash/compare/0.858.0...0.859.0) (2023-11-09)
 
 
