@@ -844,14 +844,6 @@ export class ProjectService {
         });
     }
 
-    /**
-     * Permission Checks:
-     * - User must be part of an organization
-     * - User must be able to view saved chart
-     * - User must be able to view space
-     * - User must be able to view project - we might not need this
-     */
-
     async runViewChartQuery({
         user,
         chartUuid,
@@ -865,19 +857,16 @@ export class ProjectService {
         versionUuid?: string;
         invalidateCache?: boolean;
     }): Promise<ApiChartAndResults> {
-        //! Check if user is part of org
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
 
-        //! Get saved chart - info that is extra: this includes the space Uuid, the space name, the pinned list uuid and its order
         const savedChart = await this.savedChartModel.get(
             chartUuid,
             versionUuid,
         );
         const { organizationUuid, projectUuid } = savedChart;
 
-        //! Checks if user can't view saved chart
         if (
             user.ability.cannot(
                 'view',
@@ -896,145 +885,19 @@ export class ProjectService {
 
         console.log('has access');
 
-        //! GEts space if user has access to space, but also gets extra stuff:  pinnedListUuid, pinnedListOrder, chartCount, dashboardCount
-        const [
-            space,
-            exploreFromCache,
-            onboardingRecord,
-            { warehouseClient, sshTunnel },
-            userAttributes,
-            { warehouseConnection },
-        ] = await Promise.all([
+        const [space, explore] = await Promise.all([
             this.spaceModel.getSpaceSummary(savedChart.spaceUuid),
-            this.projectModel.getExploreFromCache(
+            this.getExplore(
+                user,
                 projectUuid,
                 savedChart.tableName,
-            ),
-            this.onboardingModel.getByOrganizationUuid(user.organizationUuid!),
-            this._getWarehouseClient(projectUuid),
-            this.userAttributesModel.getAttributeValuesForOrgMember({
                 organizationUuid,
-                userUuid: user.userUuid,
-            }),
-            this.projectModel.getWithSensitiveFields(projectUuid),
+            ),
         ]);
 
-        //! Checks is user has admin access to space, but only needs these from space:    organizationUuid: space.organizationUuid,space.projectUuid,access, isPrivate
         if (!hasSpaceAccess(user, space)) {
             throw new ForbiddenError();
         }
-
-        console.log('has access to space');
-        // this.getExplore - START
-        // const explore = await this.getExplore(
-        //     user,
-        //     projectUuid,
-        //     savedChart.tableName,
-        // );
-
-        // let explore: Explore | undefined;
-
-        //! fix this later
-        // const transaction = Sentry.getCurrentHub()
-        //     ?.getScope()
-        //     ?.getTransaction();
-        // const span = transaction?.startChild({
-        //     op: 'ProjectService.getExplore',
-        //     description: 'Gets a single explore from the cache',
-        // });
-        // try {
-        //     explore = await wrapOtelSpan(
-        //         'ProjectService.getExplore',
-        //         {},
-        //         async () => {
-        //             // //! Gets organzationuuid just to check if user can view project
-        //             // const { organizationUuid } =
-        //             //     await this.projectModel.getSummary(projectUuid);
-        //             // if (
-        //             //     user.ability.cannot(
-        //             //         'view',
-        //             //         subject('Project', {
-        //             //             organizationUuid,
-        //             //             projectUuid,
-        //             //         }),
-        //             //     )
-        //             // ) {
-        //             //     throw new ForbiddenError();
-        //             // }
-        //             const exploreFromCache =
-        //                 await this.projectModel.getExploreFromCache(
-        //                     projectUuid,
-        //                     savedChart.tableName,
-        //                 );
-
-        //             console.log({ exploreFromCache });
-
-        //             if (isExploreError(exploreFromCache)) {
-        //                 throw new NotExistsError(
-        //                     `Explore "${exploreFromCache}" does not exist.`,
-        //                 );
-        //             }
-
-        //             if (!exploreHasFilteredAttribute(exploreFromCache)) {
-        //                 return explore;
-        //             }
-        //             const userAttributes =
-        //                 await this.userAttributesModel.getAttributeValuesForOrgMember(
-        //                     {
-        //                         organizationUuid,
-        //                         userUuid: user.userUuid,
-        //                     },
-        //                 );
-
-        //             return filterDimensionsFromExplore(
-        //                 exploreFromCache,
-        //                 userAttributes,
-        //             );
-        //         },
-        //     );
-        // } finally {
-        //     span?.finish();
-        // }
-
-        const transaction = Sentry.getCurrentHub()
-            ?.getScope()
-            ?.getTransaction();
-        const span = transaction?.startChild({
-            op: 'ProjectService.getExplore',
-            description: 'Gets a single explore from the cache',
-        });
-
-        const explore = await wrapOtelSpan(
-            'ProjectService.getExplore',
-            {},
-            async () => {
-                if (isExploreError(exploreFromCache)) {
-                    throw new NotExistsError(
-                        `Explore "${savedChart.tableName}" does not exist.`,
-                    );
-                }
-
-                if (!exploreHasFilteredAttribute(exploreFromCache)) {
-                    return exploreFromCache;
-                }
-
-                // // TODO parallel with get space
-                // const userAttributes =
-                //     await this.userAttributesModel.getAttributeValuesForOrgMember(
-                //         {
-                //             organizationUuid,
-                //             userUuid: user.userUuid,
-                //         },
-                //     );
-
-                return filterDimensionsFromExplore(
-                    exploreFromCache,
-                    userAttributes,
-                );
-            },
-        );
-
-        // this.getExplore END
 
         const tables = Object.keys(explore.tables);
         const appliedDashboardFilters = dashboardFilters
@@ -1063,243 +926,26 @@ export class ProjectService {
             chart_uuid: chartUuid,
         };
 
-        // this.runQueryAndFormatRows START
-        // const { cacheMetadata, rows } = await this.runQueryAndFormatRows({
-        //     user,
-        //     metricQuery,
-        //     projectUuid,
-        //     exploreName: savedChart.tableName,
-        //     csvLimit: undefined,
-        //     context: dashboardFilters
-        //         ? QueryExecutionContext.DASHBOARD
-        //         : QueryExecutionContext.CHART,
-        //     queryTags,
-        //     invalidateCache,
-        // });
-
-        // user,
-        // metricQuery,
-        // projectUuid,
-        // exploreName: savedChart.tableName,
-        // csvLimit: undefined,
-        // context: dashboardFilters
-        //     ? QueryExecutionContext.DASHBOARD
-        //     : QueryExecutionContext.CHART,
-        // queryTags,
-        // invalidateCache,
-
-        const runQueryAndFormatRows = await wrapOtelSpan(
-            'ProjectService.runQueryAndFormatRows',
-            {},
-            async (runQueryAndFormatRowsSpan) => {
-                const tracer = opentelemetry.trace.getTracer('default');
-                const { rows, cacheMetadata } = await tracer.startActiveSpan(
-                    'ProjectService.runMetricQuery',
-                    async (runMetricQuerySpan) => {
-                        try {
-                            const metricQueryWithLimit =
-                                ProjectService.metricQueryWithLimit(
-                                    metricQuery,
-                                    undefined,
-                                );
-
-                            const { query, hasExampleMetric } =
-                                await ProjectService._compileQuery(
-                                    metricQueryWithLimit,
-                                    explore!,
-                                    warehouseClient,
-                                    userAttributes,
-                                );
-
-                            if (!onboardingRecord.ranQueryAt) {
-                                await this.onboardingModel.update(
-                                    user.organizationUuid!,
-                                    {
-                                        ranQueryAt: new Date(),
-                                    },
-                                );
-                            }
-
-                            await analytics.track({
-                                userId: user.userUuid,
-                                event: 'query.executed',
-                                properties: {
-                                    projectId: projectUuid,
-                                    hasExampleMetric,
-                                    dimensionsCount:
-                                        metricQuery.dimensions.length,
-                                    metricsCount: metricQuery.metrics.length,
-                                    filtersCount: countTotalFilterRules(
-                                        metricQuery.filters,
-                                    ),
-                                    sortsCount: metricQuery.sorts.length,
-                                    tableCalculationsCount:
-                                        metricQuery.tableCalculations.length,
-                                    tableCalculationsPercentFormatCount:
-                                        metricQuery.tableCalculations.filter(
-                                            (tableCalculation) =>
-                                                tableCalculation.format
-                                                    ?.type ===
-                                                TableCalculationFormatType.PERCENT,
-                                        ).length,
-                                    tableCalculationsCurrencyFormatCount:
-                                        metricQuery.tableCalculations.filter(
-                                            (tableCalculation) =>
-                                                tableCalculation.format
-                                                    ?.type ===
-                                                TableCalculationFormatType.CURRENCY,
-                                        ).length,
-                                    tableCalculationsNumberFormatCount:
-                                        metricQuery.tableCalculations.filter(
-                                            (tableCalculation) =>
-                                                tableCalculation.format
-                                                    ?.type ===
-                                                TableCalculationFormatType.NUMBER,
-                                        ).length,
-                                    additionalMetricsCount: (
-                                        metricQuery.additionalMetrics || []
-                                    ).filter((metric) =>
-                                        metricQuery.metrics.includes(
-                                            getFieldId(metric),
-                                        ),
-                                    ).length,
-                                    additionalMetricsFilterCount: (
-                                        metricQuery.additionalMetrics || []
-                                    ).filter(
-                                        (metric) =>
-                                            metricQuery.metrics.includes(
-                                                getFieldId(metric),
-                                            ) &&
-                                            metric.filters &&
-                                            metric.filters.length > 0,
-                                    ).length,
-                                    context: dashboardFilters
-                                        ? QueryExecutionContext.DASHBOARD
-                                        : QueryExecutionContext.CHART,
-                                    ...countCustomDimensionsInMetricQuery(
-                                        metricQuery,
-                                    ),
-                                },
-                            });
-
-                            Logger.debug(
-                                `Fetch query results from cache or warehouse`,
-                            );
-                            runMetricQuerySpan.setAttribute(
-                                'generatedSql',
-                                query,
-                            );
-                            runMetricQuerySpan.setAttribute(
-                                'lightdash.projectUuid',
-                                projectUuid,
-                            );
-                            runMetricQuerySpan.setAttribute(
-                                'warehouse.type',
-                                warehouseClient.credentials.type,
-                            );
-
-                            const results =
-                                await this.getResultsFromCacheOrWarehouse({
-                                    projectUuid,
-                                    context: dashboardFilters
-                                        ? QueryExecutionContext.DASHBOARD
-                                        : QueryExecutionContext.CHART,
-                                    warehouseClient,
-                                    metricQuery,
-                                    query,
-                                    queryTags,
-                                    invalidateCache,
-                                });
-                            await sshTunnel.disconnect();
-                            return results;
-                        } catch (e) {
-                            runMetricQuerySpan.setStatus({
-                                code: SpanStatusCode.ERROR,
-                                message: e.message,
-                            });
-                            throw e;
-                        } finally {
-                            runMetricQuerySpan.end();
-                        }
-                    },
-                );
-                runQueryAndFormatRowsSpan.setAttribute('rows', rows.length);
-
-                if (warehouseConnection) {
-                    runQueryAndFormatRowsSpan.setAttribute(
-                        'warehouse',
-                        warehouseConnection?.type,
-                    );
-                }
-
-                // //! Getting explore again to then get itemMap
-                // const explore = await this.getExplore(
-                //     user,
-                //     projectUuid,
-                //     exploreName,
-                // );
-
-                const itemMap = await wrapOtelSpan(
-                    'ProjectService.runQueryAndFormatRows.getItemMap',
-                    {},
-                    async () =>
-                        getItemMap(
-                            explore!,
-                            metricQuery.additionalMetrics,
-                            metricQuery.tableCalculations,
-                        ),
-                );
-
-                // If there are more than 500 rows, we need to format them in a background job
-                const formattedRows = await wrapOtelSpan(
-                    'ProjectService.runQueryAndFormatRows.formatRows',
-                    {
-                        rows: rows.length,
-                        warehouse: warehouseConnection?.type,
-                    },
-                    async (formatRowsSpan) =>
-                        wrapSentryTransaction<ResultRow[]>(
-                            'ProjectService.runQueryAndFormatRows.formatRows',
-                            {
-                                rows: rows.length,
-                                warehouse: warehouseConnection?.type,
-                            },
-                            async () => {
-                                const useWorker = rows.length > 500;
-                                formatRowsSpan.setAttribute(
-                                    'useWorker',
-                                    useWorker,
-                                );
-                                return useWorker
-                                    ? runWorkerThread<ResultRow[]>(
-                                          new Worker(
-                                              './dist/services/ProjectService/formatRows.js',
-                                              {
-                                                  workerData: {
-                                                      rows,
-                                                      itemMap,
-                                                  },
-                                              },
-                                          ),
-                                      )
-                                    : formatRows(rows, itemMap);
-                            },
-                        ),
-                );
-                return {
-                    rows: formattedRows,
-                    metricQuery,
-                    cacheMetadata,
-                };
-            },
-        );
+        const { cacheMetadata, rows } = await this.runQueryAndFormatRows({
+            user,
+            metricQuery,
+            projectUuid,
+            exploreName: savedChart.tableName,
+            csvLimit: undefined,
+            context: dashboardFilters
+                ? QueryExecutionContext.DASHBOARD
+                : QueryExecutionContext.CHART,
+            queryTags,
+            invalidateCache,
+            explore,
+        });
 
         return {
             chart: savedChart,
             explore,
             metricQuery,
-            cacheMetadata: runQueryAndFormatRows.cacheMetadata,
-            rows: runQueryAndFormatRows.rows,
+            cacheMetadata,
+            rows,
             appliedDashboardFilters,
         };
     }
@@ -1352,6 +998,7 @@ export class ProjectService {
         context,
         queryTags,
         invalidateCache,
+        explore,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -1361,6 +1008,7 @@ export class ProjectService {
         context: QueryExecutionContext;
         queryTags?: RunQueryTags;
         invalidateCache?: boolean;
+        explore?: Explore;
     }): Promise<ApiQueryResults> {
         return wrapOtelSpan(
             'ProjectService.runQueryAndFormatRows',
@@ -1375,6 +1023,7 @@ export class ProjectService {
                     context,
                     queryTags,
                     invalidateCache,
+                    explore,
                 });
                 span.setAttribute('rows', rows.length);
 
@@ -1384,18 +1033,17 @@ export class ProjectService {
                     span.setAttribute('warehouse', warehouseConnection?.type);
                 }
 
-                const explore = await this.getExplore(
-                    user,
-                    projectUuid,
-                    exploreName,
-                );
-
                 const itemMap = await wrapOtelSpan(
                     'ProjectService.runQueryAndFormatRows.getItemMap',
                     {},
                     async () =>
                         getItemMap(
-                            explore,
+                            explore ??
+                                (await this.getExplore(
+                                    user,
+                                    projectUuid,
+                                    exploreName,
+                                )),
                             metricQuery.additionalMetrics,
                             metricQuery.tableCalculations,
                         ),
@@ -1586,6 +1234,7 @@ export class ProjectService {
         context,
         queryTags,
         invalidateCache,
+        explore,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -1595,6 +1244,7 @@ export class ProjectService {
         context: QueryExecutionContext;
         queryTags?: RunQueryTags;
         invalidateCache?: boolean;
+        explore?: Explore;
     }): Promise<{ rows: Record<string, any>[]; cacheMetadata: CacheMetadata }> {
         const tracer = opentelemetry.trace.getTracer('default');
         return tracer.startActiveSpan(
@@ -1631,11 +1281,6 @@ export class ProjectService {
                     const { warehouseClient, sshTunnel } =
                         await this._getWarehouseClient(projectUuid);
 
-                    const explore = await this.getExplore(
-                        user,
-                        projectUuid,
-                        exploreName,
-                    );
                     const userAttributes =
                         await this.userAttributesModel.getAttributeValuesForOrgMember(
                             {
@@ -1647,7 +1292,12 @@ export class ProjectService {
                     const { query, hasExampleMetric } =
                         await ProjectService._compileQuery(
                             metricQueryWithLimit,
-                            explore,
+                            explore ??
+                                (await this.getExplore(
+                                    user,
+                                    projectUuid,
+                                    exploreName,
+                                )),
                             warehouseClient,
                             userAttributes,
                         );
@@ -2275,6 +1925,7 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
         exploreName: string,
+        organizationUuid?: string,
     ): Promise<Explore> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
@@ -2288,13 +1939,14 @@ export class ProjectService {
                 'ProjectService.getExplore',
                 {},
                 async () => {
-                    const { organizationUuid } =
-                        await this.projectModel.getSummary(projectUuid);
+                    const project = organizationUuid
+                        ? { organizationUuid }
+                        : await this.projectModel.getSummary(projectUuid);
                     if (
                         user.ability.cannot(
                             'view',
                             subject('Project', {
-                                organizationUuid,
+                                organizationUuid: project.organizationUuid,
                                 projectUuid,
                             }),
                         )
@@ -2318,7 +1970,7 @@ export class ProjectService {
                     const userAttributes =
                         await this.userAttributesModel.getAttributeValuesForOrgMember(
                             {
-                                organizationUuid,
+                                organizationUuid: project.organizationUuid,
                                 userUuid: user.userUuid,
                             },
                         );
