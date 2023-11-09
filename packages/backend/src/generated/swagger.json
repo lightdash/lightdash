@@ -527,10 +527,12 @@
                 ],
                 "type": "object"
             },
-            "Record_string.string_": {
+            "CustomLabel": {
                 "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object"
             },
             "UploadMetricGsheet": {
                 "properties": {
@@ -541,7 +543,7 @@
                         "type": "array"
                     },
                     "customLabels": {
-                        "$ref": "#/components/schemas/Record_string.string_"
+                        "$ref": "#/components/schemas/CustomLabel"
                     },
                     "columnOrder": {
                         "items": {
@@ -2869,6 +2871,11 @@
                 "type": "string",
                 "enum": ["hidden", "inside", "outside"],
                 "nullable": false
+            },
+            "Record_string.string_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
             },
             "Record_string.Partial_PieChartValueOptions__": {
                 "properties": {},
