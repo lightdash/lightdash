@@ -1,3 +1,10 @@
+# [0.858.0](https://github.com/lightdash/lightdash/compare/0.857.8...0.858.0) (2023-11-09)
+
+
+### Features
+
+* upgrade posthog to 1.88.3 ([#7893](https://github.com/lightdash/lightdash/issues/7893)) ([00f4ddc](https://github.com/lightdash/lightdash/commit/00f4ddc110503c6a762428f61d4c0e1510145c32))
+
 ## [0.857.8](https://github.com/lightdash/lightdash/compare/0.857.7...0.857.8) (2023-11-09)
 
 
