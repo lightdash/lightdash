@@ -89,7 +89,7 @@ const GridTile: FC<
     const ref = useRef(null);
     const intersection = useIntersection(ref, {
         root: null,
-        threshold: 1,
+        threshold: 0.3,
     });
     useEffect(() => {
         if (intersection?.isIntersecting) {
