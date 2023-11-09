@@ -378,7 +378,8 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             },
         },
         customVisualizations: {
-            enabled: process.env.CUSTOM_VISUALIZATIONS_ENABLED === 'true',
+            enabled:
+                process.env.CUSTOM_VISUALIZATIONS_ENABLED === 'true' || false,
         },
         pivotTable: {
             maxColumnLimit:

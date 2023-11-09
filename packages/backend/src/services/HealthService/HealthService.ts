@@ -63,6 +63,7 @@ export class HealthService {
             query: this.lightdashConfig.query,
             pivotTable: this.lightdashConfig.pivotTable,
             customVisualizationsEnabled:
+                this.lightdashConfig.customVisualizations &&
                 this.lightdashConfig.customVisualizations.enabled,
             hasSlack: this.hasSlackConfig(),
             auth: {
