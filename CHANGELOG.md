@@ -1,3 +1,10 @@
+## [0.861.2](https://github.com/lightdash/lightdash/compare/0.861.1...0.861.2) (2023-11-09)
+
+
+### Bug Fixes
+
+* custom viz empty rows ([#7903](https://github.com/lightdash/lightdash/issues/7903)) ([73c7e8f](https://github.com/lightdash/lightdash/commit/73c7e8f2eec6e144e56d103ef0351cf7ccb0bf1f))
+
 ## [0.861.1](https://github.com/lightdash/lightdash/compare/0.861.0...0.861.1) (2023-11-09)
 
 
