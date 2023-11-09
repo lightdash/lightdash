@@ -864,7 +864,7 @@ export class ProjectService {
         dashboardFilters?: DashboardFilters;
         versionUuid?: string;
         invalidateCache?: boolean;
-    }): Promise<ApiChartAndResults | undefined> {
+    }): Promise<ApiChartAndResults> {
         //! Check if user is part of org
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -986,309 +986,293 @@ export class ProjectService {
 
         console.log('have an explore1', explore);
 
-        if (explore) {
-            console.log('have an explore2', explore);
+        console.log('have an explore2', explore);
 
-            // this.getExplore END
+        // this.getExplore END
 
-            const tables = Object.keys(explore.tables);
-            const appliedDashboardFilters = dashboardFilters
-                ? {
-                      dimensions: getDashboardFilterRulesForTables(
-                          tables,
-                          dashboardFilters.dimensions,
-                      ),
-                      metrics: getDashboardFilterRulesForTables(
-                          tables,
-                          dashboardFilters.metrics,
-                      ),
-                  }
-                : undefined;
-            const metricQuery: MetricQuery = appliedDashboardFilters
-                ? addDashboardFiltersToMetricQuery(
-                      savedChart.metricQuery,
-                      appliedDashboardFilters,
-                  )
-                : savedChart.metricQuery;
+        const tables = Object.keys(explore.tables);
+        const appliedDashboardFilters = dashboardFilters
+            ? {
+                  dimensions: getDashboardFilterRulesForTables(
+                      tables,
+                      dashboardFilters.dimensions,
+                  ),
+                  metrics: getDashboardFilterRulesForTables(
+                      tables,
+                      dashboardFilters.metrics,
+                  ),
+              }
+            : undefined;
+        const metricQuery: MetricQuery = appliedDashboardFilters
+            ? addDashboardFiltersToMetricQuery(
+                  savedChart.metricQuery,
+                  appliedDashboardFilters,
+              )
+            : savedChart.metricQuery;
 
-            const queryTags: RunQueryTags = {
-                organization_uuid: organizationUuid,
-                project_uuid: projectUuid,
-                user_uuid: user.userUuid,
-                chart_uuid: chartUuid,
-            };
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+            chart_uuid: chartUuid,
+        };
 
-            // this.runQueryAndFormatRows START
-            // const { cacheMetadata, rows } = await this.runQueryAndFormatRows({
-            //     user,
-            //     metricQuery,
-            //     projectUuid,
-            //     exploreName: savedChart.tableName,
-            //     csvLimit: undefined,
-            //     context: dashboardFilters
-            //         ? QueryExecutionContext.DASHBOARD
-            //         : QueryExecutionContext.CHART,
-            //     queryTags,
-            //     invalidateCache,
-            // });
+        // this.runQueryAndFormatRows START
+        // const { cacheMetadata, rows } = await this.runQueryAndFormatRows({
+        //     user,
+        //     metricQuery,
+        //     projectUuid,
+        //     exploreName: savedChart.tableName,
+        //     csvLimit: undefined,
+        //     context: dashboardFilters
+        //         ? QueryExecutionContext.DASHBOARD
+        //         : QueryExecutionContext.CHART,
+        //     queryTags,
+        //     invalidateCache,
+        // });
 
-            // user,
-            // metricQuery,
-            // projectUuid,
-            // exploreName: savedChart.tableName,
-            // csvLimit: undefined,
-            // context: dashboardFilters
-            //     ? QueryExecutionContext.DASHBOARD
-            //     : QueryExecutionContext.CHART,
-            // queryTags,
-            // invalidateCache,
+        // user,
+        // metricQuery,
+        // projectUuid,
+        // exploreName: savedChart.tableName,
+        // csvLimit: undefined,
+        // context: dashboardFilters
+        //     ? QueryExecutionContext.DASHBOARD
+        //     : QueryExecutionContext.CHART,
+        // queryTags,
+        // invalidateCache,
 
-            const runQueryAndFormatRows = await wrapOtelSpan(
-                'ProjectService.runQueryAndFormatRows',
-                {},
-                async (runQueryAndFormatRowsSpan) => {
-                    const tracer = opentelemetry.trace.getTracer('default');
-                    const { rows, cacheMetadata } =
-                        await tracer.startActiveSpan(
-                            'ProjectService.runMetricQuery',
-                            async (runMetricQuerySpan) => {
-                                try {
-                                    const metricQueryWithLimit =
-                                        ProjectService.metricQueryWithLimit(
-                                            metricQuery,
-                                            undefined,
-                                        );
+        const runQueryAndFormatRows = await wrapOtelSpan(
+            'ProjectService.runQueryAndFormatRows',
+            {},
+            async (runQueryAndFormatRowsSpan) => {
+                const tracer = opentelemetry.trace.getTracer('default');
+                const { rows, cacheMetadata } = await tracer.startActiveSpan(
+                    'ProjectService.runMetricQuery',
+                    async (runMetricQuerySpan) => {
+                        try {
+                            const metricQueryWithLimit =
+                                ProjectService.metricQueryWithLimit(
+                                    metricQuery,
+                                    undefined,
+                                );
 
-                                    const { warehouseClient, sshTunnel } =
-                                        await this._getWarehouseClient(
-                                            projectUuid,
-                                        );
+                            const { warehouseClient, sshTunnel } =
+                                await this._getWarehouseClient(projectUuid);
 
-                                    const userAttributes =
-                                        await this.userAttributesModel.getAttributeValuesForOrgMember(
-                                            {
-                                                organizationUuid,
-                                                userUuid: user.userUuid,
-                                            },
-                                        );
+                            const userAttributes =
+                                await this.userAttributesModel.getAttributeValuesForOrgMember(
+                                    {
+                                        organizationUuid,
+                                        userUuid: user.userUuid,
+                                    },
+                                );
 
-                                    const { query, hasExampleMetric } =
-                                        await ProjectService._compileQuery(
-                                            metricQueryWithLimit,
-                                            explore!,
-                                            warehouseClient,
-                                            userAttributes,
-                                        );
+                            const { query, hasExampleMetric } =
+                                await ProjectService._compileQuery(
+                                    metricQueryWithLimit,
+                                    explore!,
+                                    warehouseClient,
+                                    userAttributes,
+                                );
 
-                                    const onboardingRecord =
-                                        await this.onboardingModel.getByOrganizationUuid(
-                                            user.organizationUuid!,
-                                        );
-                                    if (!onboardingRecord.ranQueryAt) {
-                                        await this.onboardingModel.update(
-                                            user.organizationUuid!,
-                                            {
-                                                ranQueryAt: new Date(),
-                                            },
-                                        );
-                                    }
+                            const onboardingRecord =
+                                await this.onboardingModel.getByOrganizationUuid(
+                                    user.organizationUuid!,
+                                );
+                            if (!onboardingRecord.ranQueryAt) {
+                                await this.onboardingModel.update(
+                                    user.organizationUuid!,
+                                    {
+                                        ranQueryAt: new Date(),
+                                    },
+                                );
+                            }
 
-                                    await analytics.track({
-                                        userId: user.userUuid,
-                                        event: 'query.executed',
-                                        properties: {
-                                            projectId: projectUuid,
-                                            hasExampleMetric,
-                                            dimensionsCount:
-                                                metricQuery.dimensions.length,
-                                            metricsCount:
-                                                metricQuery.metrics.length,
-                                            filtersCount: countTotalFilterRules(
-                                                metricQuery.filters,
-                                            ),
-                                            sortsCount:
-                                                metricQuery.sorts.length,
-                                            tableCalculationsCount:
-                                                metricQuery.tableCalculations
-                                                    .length,
-                                            tableCalculationsPercentFormatCount:
-                                                metricQuery.tableCalculations.filter(
-                                                    (tableCalculation) =>
-                                                        tableCalculation.format
-                                                            ?.type ===
-                                                        TableCalculationFormatType.PERCENT,
-                                                ).length,
-                                            tableCalculationsCurrencyFormatCount:
-                                                metricQuery.tableCalculations.filter(
-                                                    (tableCalculation) =>
-                                                        tableCalculation.format
-                                                            ?.type ===
-                                                        TableCalculationFormatType.CURRENCY,
-                                                ).length,
-                                            tableCalculationsNumberFormatCount:
-                                                metricQuery.tableCalculations.filter(
-                                                    (tableCalculation) =>
-                                                        tableCalculation.format
-                                                            ?.type ===
-                                                        TableCalculationFormatType.NUMBER,
-                                                ).length,
-                                            additionalMetricsCount: (
-                                                metricQuery.additionalMetrics ||
-                                                []
-                                            ).filter((metric) =>
-                                                metricQuery.metrics.includes(
-                                                    getFieldId(metric),
-                                                ),
-                                            ).length,
-                                            additionalMetricsFilterCount: (
-                                                metricQuery.additionalMetrics ||
-                                                []
-                                            ).filter(
-                                                (metric) =>
-                                                    metricQuery.metrics.includes(
-                                                        getFieldId(metric),
-                                                    ) &&
-                                                    metric.filters &&
-                                                    metric.filters.length > 0,
-                                            ).length,
-                                            context: dashboardFilters
-                                                ? QueryExecutionContext.DASHBOARD
-                                                : QueryExecutionContext.CHART,
-                                            ...countCustomDimensionsInMetricQuery(
-                                                metricQuery,
-                                            ),
-                                        },
-                                    });
+                            await analytics.track({
+                                userId: user.userUuid,
+                                event: 'query.executed',
+                                properties: {
+                                    projectId: projectUuid,
+                                    hasExampleMetric,
+                                    dimensionsCount:
+                                        metricQuery.dimensions.length,
+                                    metricsCount: metricQuery.metrics.length,
+                                    filtersCount: countTotalFilterRules(
+                                        metricQuery.filters,
+                                    ),
+                                    sortsCount: metricQuery.sorts.length,
+                                    tableCalculationsCount:
+                                        metricQuery.tableCalculations.length,
+                                    tableCalculationsPercentFormatCount:
+                                        metricQuery.tableCalculations.filter(
+                                            (tableCalculation) =>
+                                                tableCalculation.format
+                                                    ?.type ===
+                                                TableCalculationFormatType.PERCENT,
+                                        ).length,
+                                    tableCalculationsCurrencyFormatCount:
+                                        metricQuery.tableCalculations.filter(
+                                            (tableCalculation) =>
+                                                tableCalculation.format
+                                                    ?.type ===
+                                                TableCalculationFormatType.CURRENCY,
+                                        ).length,
+                                    tableCalculationsNumberFormatCount:
+                                        metricQuery.tableCalculations.filter(
+                                            (tableCalculation) =>
+                                                tableCalculation.format
+                                                    ?.type ===
+                                                TableCalculationFormatType.NUMBER,
+                                        ).length,
+                                    additionalMetricsCount: (
+                                        metricQuery.additionalMetrics || []
+                                    ).filter((metric) =>
+                                        metricQuery.metrics.includes(
+                                            getFieldId(metric),
+                                        ),
+                                    ).length,
+                                    additionalMetricsFilterCount: (
+                                        metricQuery.additionalMetrics || []
+                                    ).filter(
+                                        (metric) =>
+                                            metricQuery.metrics.includes(
+                                                getFieldId(metric),
+                                            ) &&
+                                            metric.filters &&
+                                            metric.filters.length > 0,
+                                    ).length,
+                                    context: dashboardFilters
+                                        ? QueryExecutionContext.DASHBOARD
+                                        : QueryExecutionContext.CHART,
+                                    ...countCustomDimensionsInMetricQuery(
+                                        metricQuery,
+                                    ),
+                                },
+                            });
 
-                                    Logger.debug(
-                                        `Fetch query results from cache or warehouse`,
-                                    );
-                                    runMetricQuerySpan.setAttribute(
-                                        'generatedSql',
-                                        query,
-                                    );
-                                    runMetricQuerySpan.setAttribute(
-                                        'lightdash.projectUuid',
-                                        projectUuid,
-                                    );
-                                    runMetricQuerySpan.setAttribute(
-                                        'warehouse.type',
-                                        warehouseClient.credentials.type,
-                                    );
+                            Logger.debug(
+                                `Fetch query results from cache or warehouse`,
+                            );
+                            runMetricQuerySpan.setAttribute(
+                                'generatedSql',
+                                query,
+                            );
+                            runMetricQuerySpan.setAttribute(
+                                'lightdash.projectUuid',
+                                projectUuid,
+                            );
+                            runMetricQuerySpan.setAttribute(
+                                'warehouse.type',
+                                warehouseClient.credentials.type,
+                            );
 
-                                    const results =
-                                        await this.getResultsFromCacheOrWarehouse(
-                                            {
-                                                projectUuid,
-                                                context: dashboardFilters
-                                                    ? QueryExecutionContext.DASHBOARD
-                                                    : QueryExecutionContext.CHART,
-                                                warehouseClient,
-                                                metricQuery,
-                                                query,
-                                                queryTags,
-                                                invalidateCache,
-                                            },
-                                        );
-                                    await sshTunnel.disconnect();
-                                    return results;
-                                } catch (e) {
-                                    runMetricQuerySpan.setStatus({
-                                        code: SpanStatusCode.ERROR,
-                                        message: e.message,
-                                    });
-                                    throw e;
-                                } finally {
-                                    runMetricQuerySpan.end();
-                                }
+                            const results =
+                                await this.getResultsFromCacheOrWarehouse({
+                                    projectUuid,
+                                    context: dashboardFilters
+                                        ? QueryExecutionContext.DASHBOARD
+                                        : QueryExecutionContext.CHART,
+                                    warehouseClient,
+                                    metricQuery,
+                                    query,
+                                    queryTags,
+                                    invalidateCache,
+                                });
+                            await sshTunnel.disconnect();
+                            return results;
+                        } catch (e) {
+                            runMetricQuerySpan.setStatus({
+                                code: SpanStatusCode.ERROR,
+                                message: e.message,
+                            });
+                            throw e;
+                        } finally {
+                            runMetricQuerySpan.end();
+                        }
+                    },
+                );
+                runQueryAndFormatRowsSpan.setAttribute('rows', rows.length);
+
+                const { warehouseConnection } =
+                    await this.projectModel.getWithSensitiveFields(projectUuid);
+                if (warehouseConnection) {
+                    runQueryAndFormatRowsSpan.setAttribute(
+                        'warehouse',
+                        warehouseConnection?.type,
+                    );
+                }
+
+                // //! Getting explore again to then get itemMap
+                // const explore = await this.getExplore(
+                //     user,
+                //     projectUuid,
+                //     exploreName,
+                // );
+
+                const itemMap = await wrapOtelSpan(
+                    'ProjectService.runQueryAndFormatRows.getItemMap',
+                    {},
+                    async () =>
+                        getItemMap(
+                            explore!,
+                            metricQuery.additionalMetrics,
+                            metricQuery.tableCalculations,
+                        ),
+                );
+
+                // If there are more than 500 rows, we need to format them in a background job
+                const formattedRows = await wrapOtelSpan(
+                    'ProjectService.runQueryAndFormatRows.formatRows',
+                    {
+                        rows: rows.length,
+                        warehouse: warehouseConnection?.type,
+                    },
+                    async (formatRowsSpan) =>
+                        wrapSentryTransaction<ResultRow[]>(
+                            'ProjectService.runQueryAndFormatRows.formatRows',
+                            {
+                                rows: rows.length,
+                                warehouse: warehouseConnection?.type,
                             },
-                        );
-                    runQueryAndFormatRowsSpan.setAttribute('rows', rows.length);
-
-                    const { warehouseConnection } =
-                        await this.projectModel.getWithSensitiveFields(
-                            projectUuid,
-                        );
-                    if (warehouseConnection) {
-                        runQueryAndFormatRowsSpan.setAttribute(
-                            'warehouse',
-                            warehouseConnection?.type,
-                        );
-                    }
-
-                    // //! Getting explore again to then get itemMap
-                    // const explore = await this.getExplore(
-                    //     user,
-                    //     projectUuid,
-                    //     exploreName,
-                    // );
-
-                    const itemMap = await wrapOtelSpan(
-                        'ProjectService.runQueryAndFormatRows.getItemMap',
-                        {},
-                        async () =>
-                            getItemMap(
-                                explore!,
-                                metricQuery.additionalMetrics,
-                                metricQuery.tableCalculations,
-                            ),
-                    );
-
-                    // If there are more than 500 rows, we need to format them in a background job
-                    const formattedRows = await wrapOtelSpan(
-                        'ProjectService.runQueryAndFormatRows.formatRows',
-                        {
-                            rows: rows.length,
-                            warehouse: warehouseConnection?.type,
-                        },
-                        async (formatRowsSpan) =>
-                            wrapSentryTransaction<ResultRow[]>(
-                                'ProjectService.runQueryAndFormatRows.formatRows',
-                                {
-                                    rows: rows.length,
-                                    warehouse: warehouseConnection?.type,
-                                },
-                                async () => {
-                                    const useWorker = rows.length > 500;
-                                    formatRowsSpan.setAttribute(
-                                        'useWorker',
-                                        useWorker,
-                                    );
-                                    return useWorker
-                                        ? runWorkerThread<ResultRow[]>(
-                                              new Worker(
-                                                  './dist/services/ProjectService/formatRows.js',
-                                                  {
-                                                      workerData: {
-                                                          rows,
-                                                          itemMap,
-                                                      },
+                            async () => {
+                                const useWorker = rows.length > 500;
+                                formatRowsSpan.setAttribute(
+                                    'useWorker',
+                                    useWorker,
+                                );
+                                return useWorker
+                                    ? runWorkerThread<ResultRow[]>(
+                                          new Worker(
+                                              './dist/services/ProjectService/formatRows.js',
+                                              {
+                                                  workerData: {
+                                                      rows,
+                                                      itemMap,
                                                   },
-                                              ),
-                                          )
-                                        : formatRows(rows, itemMap);
-                                },
-                            ),
-                    );
-                    return {
-                        rows: formattedRows,
-                        metricQuery,
-                        cacheMetadata,
-                    };
-                },
-            );
+                                              },
+                                          ),
+                                      )
+                                    : formatRows(rows, itemMap);
+                            },
+                        ),
+                );
+                return {
+                    rows: formattedRows,
+                    metricQuery,
+                    cacheMetadata,
+                };
+            },
+        );
 
-            return {
-                chart: savedChart,
-                explore,
-                metricQuery,
-                cacheMetadata: runQueryAndFormatRows.cacheMetadata,
-                rows: runQueryAndFormatRows.rows,
-                appliedDashboardFilters,
-            };
-        }
-
-        return undefined;
+        return {
+            chart: savedChart,
+            explore,
+            metricQuery,
+            cacheMetadata: runQueryAndFormatRows.cacheMetadata,
+            rows: runQueryAndFormatRows.rows,
+            appliedDashboardFilters,
+        };
     }
 
     async runExploreQuery(
