@@ -1,3 +1,10 @@
+# [0.862.0](https://github.com/lightdash/lightdash/compare/0.861.2...0.862.0) (2023-11-09)
+
+
+### Features
+
+* lazy load assets per route ([#7902](https://github.com/lightdash/lightdash/issues/7902)) ([8bdec12](https://github.com/lightdash/lightdash/commit/8bdec1235e9f34e70981f5e242b98950e5f73163))
+
 ## [0.861.2](https://github.com/lightdash/lightdash/compare/0.861.1...0.861.2) (2023-11-09)
 
 
