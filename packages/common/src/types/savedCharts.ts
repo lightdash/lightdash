@@ -560,3 +560,19 @@ export type ApiGetChartVersionResponse = {
     status: 'ok';
     results: ChartVersion;
 };
+
+export const getHiddenTableFields = (config: ChartConfig) => {
+    // get hidden fields from chart config
+
+    if (config.type === 'table' && config.config?.columns) {
+        return Object.entries(config.config?.columns).reduce<string[]>(
+            (acc, [col, props]) => {
+                if (props.visible === false) return [...acc, col];
+                return acc;
+            },
+            [],
+        );
+    }
+
+    return [];
+};
