@@ -347,25 +347,23 @@ const VisualizationCardOptions: FC = memo(() => {
                 >
                     Big value
                 </Menu.Item>
-                {health.data &&
-                    health.data.customVisualizationsEnabled &&
-                    customVizEnabled && (
-                        <Menu.Item
-                            disabled={disabled}
-                            color={
-                                chartType === ChartType.CUSTOM
-                                    ? 'blue'
-                                    : undefined
-                            }
-                            icon={<MantineIcon icon={IconCode} />}
-                            onClick={() => {
-                                setChartType(ChartType.CUSTOM);
-                                setPivotDimensions(undefined);
-                            }}
-                        >
-                            Custom
-                        </Menu.Item>
-                    )}
+
+                {(health.data?.customVisualizationsEnabled ||
+                    customVizEnabled) && (
+                    <Menu.Item
+                        disabled={disabled}
+                        color={
+                            chartType === ChartType.CUSTOM ? 'blue' : undefined
+                        }
+                        icon={<MantineIcon icon={IconCode} />}
+                        onClick={() => {
+                            setChartType(ChartType.CUSTOM);
+                            setPivotDimensions(undefined);
+                        }}
+                    >
+                        Custom
+                    </Menu.Item>
+                )}
             </Menu.Dropdown>
         </Menu>
     );
