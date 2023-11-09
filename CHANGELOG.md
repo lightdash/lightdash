@@ -1,3 +1,11 @@
+## [0.861.1](https://github.com/lightdash/lightdash/compare/0.861.0...0.861.1) (2023-11-09)
+
+
+### Bug Fixes
+
+* optimise chart results endpoint ([#7898](https://github.com/lightdash/lightdash/issues/7898)) ([92c6eb9](https://github.com/lightdash/lightdash/commit/92c6eb9f6308c16bfb432b26f77abc3d32499a34))
+* sql runner run button styles ([#7897](https://github.com/lightdash/lightdash/issues/7897)) ([a63d7a7](https://github.com/lightdash/lightdash/commit/a63d7a788f055ec9e522052794e2fc8d0a77b153))
+
 # [0.861.0](https://github.com/lightdash/lightdash/compare/0.860.0...0.861.0) (2023-11-09)
 
 
