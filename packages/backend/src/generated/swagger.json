@@ -1201,7 +1201,8 @@
                     "mixed",
                     "pie",
                     "table",
-                    "big_number"
+                    "big_number",
+                    "custom"
                 ],
                 "type": "string"
             },
@@ -2279,7 +2280,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ChartType": {
-                "enum": ["cartesian", "table", "big_number", "pie"],
+                "enum": ["cartesian", "table", "big_number", "pie", "custom"],
                 "type": "string"
             },
             "ChartSummary": {
@@ -3519,6 +3520,23 @@
                 "required": ["config", "type"],
                 "type": "object"
             },
+            "ChartType.CUSTOM": {
+                "enum": ["custom"],
+                "type": "string"
+            },
+            "CustomVisConfig": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.CUSTOM"
+                    },
+                    "config": {
+                        "properties": {},
+                        "type": "object"
+                    }
+                },
+                "required": ["type", "config"],
+                "type": "object"
+            },
             "ChartConfig": {
                 "anyOf": [
                     {
@@ -3532,6 +3550,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/CartesianChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CustomVisConfig"
                     }
                 ]
             },
@@ -5309,7 +5330,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.857.0",
+        "version": "0.857.1",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

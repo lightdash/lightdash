@@ -1089,6 +1089,7 @@ const models: TsoaRoute.Models = {
             'pie',
             'table',
             'big_number',
+            'custom',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -1964,7 +1965,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ChartType: {
         dataType: 'refEnum',
-        enums: ['cartesian', 'table', 'big_number', 'pie'],
+        enums: ['cartesian', 'table', 'big_number', 'pie', 'custom'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ChartSummary: {
@@ -3095,6 +3096,27 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ChartType.CUSTOM': {
+        dataType: 'refEnum',
+        enums: ['custom'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CustomVisConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                type: { ref: 'ChartType.CUSTOM', required: true },
+                config: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {},
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ChartConfig: {
         dataType: 'refAlias',
         type: {
@@ -3104,6 +3126,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'BigNumberConfig' },
                 { ref: 'TableChartConfig' },
                 { ref: 'CartesianChartConfig' },
+                { ref: 'CustomVisConfig' },
             ],
             validators: {},
         },

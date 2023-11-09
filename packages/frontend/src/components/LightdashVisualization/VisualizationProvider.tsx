@@ -273,6 +273,9 @@ const VisualizationProvider: FC<Props> = ({
             case ChartType.PIE:
                 validConfig = validPieChartConfig;
                 break;
+            case ChartType.CUSTOM:
+                validConfig = {};
+                break;
             default:
                 assertUnreachable(
                     chartType,

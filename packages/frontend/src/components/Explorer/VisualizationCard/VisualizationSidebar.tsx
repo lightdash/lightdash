@@ -1,5 +1,5 @@
 import { assertUnreachable, ChartType, SavedChart } from '@lightdash/common';
-import { Button, Drawer, Group, Stack, Text } from '@mantine/core';
+import { Button, Drawer, Group, Text } from '@mantine/core';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
@@ -9,6 +9,7 @@ import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import BigNumberConfigTabs from '../../VisualizationConfigs/BigNumberConfig/BigNumberConfigTabs';
 import ChartConfigTabs from '../../VisualizationConfigs/ChartConfigPanel/ChartConfigTabs';
+import CustomVisConfigTabs from '../../VisualizationConfigs/ChartConfigPanel/CustomVisConfigTabs';
 import PieChartConfigTabs from '../../VisualizationConfigs/PieChartConfig/PieChartConfigTabs';
 import TableConfigTabs from '../../VisualizationConfigs/TableConfigPanel/TableConfigTabs';
 import VisualizationCardOptions from '../VisualizationCardOptions';
@@ -55,39 +56,51 @@ const VisualizationSidebar: FC<{
                     shadow="lg"
                     size={410}
                     styles={(theme) => ({
+                        inner: {
+                            top: sidebarVerticalOffset,
+                            height: `calc(100% - ${sidebarVerticalOffset}px)`,
+                        },
+                        content: {
+                            display: 'flex',
+                            flexDirection: 'column',
+                        },
                         header: {
                             borderBottom: `1px solid ${theme.colors.gray[4]}`,
                             borderTop: `1px solid ${theme.colors.gray[2]}`,
+                            flexShrink: 0,
                         },
-                        inner: {
-                            marginTop: sidebarVerticalOffset,
+                        body: {
+                            flexGrow: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
                         },
                     })}
                     onClose={() => setIsOpen((old) => !old)}
                 >
-                    <Stack mt="md" pb="xl" spacing="lg">
-                        <Group>
-                            <Text fw={600}>Chart type</Text>
-                            <VisualizationCardOptions />
-                        </Group>
-                        {(() => {
-                            switch (chartType) {
-                                case ChartType.BIG_NUMBER:
-                                    return <BigNumberConfigTabs />;
-                                case ChartType.TABLE:
-                                    return <TableConfigTabs />;
-                                case ChartType.CARTESIAN:
-                                    return <ChartConfigTabs />;
-                                case ChartType.PIE:
-                                    return <PieChartConfigTabs />;
-                                default:
-                                    return assertUnreachable(
-                                        chartType,
-                                        `Chart type ${chartType} not supported`,
-                                    );
-                            }
-                        })()}
-                    </Stack>
+                    <Group py="lg">
+                        <Text fw={600}>Chart type</Text>
+                        <VisualizationCardOptions />
+                    </Group>
+
+                    {(() => {
+                        switch (chartType) {
+                            case ChartType.BIG_NUMBER:
+                                return <BigNumberConfigTabs />;
+                            case ChartType.TABLE:
+                                return <TableConfigTabs />;
+                            case ChartType.CARTESIAN:
+                                return <ChartConfigTabs />;
+                            case ChartType.PIE:
+                                return <PieChartConfigTabs />;
+                            case ChartType.CUSTOM:
+                                return <CustomVisConfigTabs />;
+                            default:
+                                return assertUnreachable(
+                                    chartType,
+                                    `Chart type ${chartType} not supported`,
+                                );
+                        }
+                    })()}
                 </Drawer>
             </>
         );
