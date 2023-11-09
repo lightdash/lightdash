@@ -11,6 +11,8 @@ export type UploadMetricGsheet = {
     metricQuery: MetricQueryResponse; // tsoa doesn't support complex types like MetricQuery
     showTableNames: boolean;
     columnOrder: string[];
+    customLabels?: Record<string, string>;
+    hiddenFields?: string[];
 };
 
 export type UploadMetricGsheetPayload = UploadMetricGsheet & {

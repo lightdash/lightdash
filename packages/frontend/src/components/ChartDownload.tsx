@@ -222,7 +222,11 @@ interface ChartDownloadMenuProps {
         columnOrder: string[],
         customLabels?: Record<string, string>,
     ) => Promise<ApiScheduledDownloadCsv>;
-    getGsheetLink?: (columnOrder: string[]) => Promise<ApiScheduledDownloadCsv>;
+    getGsheetLink?: (
+        columnOrder: string[],
+        showTableNames: boolean,
+        customLabels?: Record<string, string>,
+    ) => Promise<ApiScheduledDownloadCsv>;
 }
 
 export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
@@ -288,7 +292,14 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                             getGsheetLink={
                                 getGsheetLink === undefined
                                     ? undefined
-                                    : () => getGsheetLink(columnOrder)
+                                    : () =>
+                                          getGsheetLink(
+                                              columnOrder,
+                                              showTableNames,
+                                              getCustomLabelsFromColumnProperties(
+                                                  columnProperties,
+                                              ),
+                                          )
                             }
                         />
                     </Popover.Dropdown>

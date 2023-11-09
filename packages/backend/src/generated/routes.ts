@@ -498,11 +498,25 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.string_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     UploadMetricGsheet: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                hiddenFields: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                customLabels: { ref: 'Record_string.string_' },
                 columnOrder: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -2572,15 +2586,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'enum',
             enums: ['hidden', 'inside', 'outside'],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.string_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
             validators: {},
         },
     },
