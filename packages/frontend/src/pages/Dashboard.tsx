@@ -122,9 +122,11 @@ const GridTile: FC<
 });
 
 const Dashboard: FC = () => {
-    const isLazyLoadEnabled = useFeatureFlagEnabled(
+    const isLazyLoadFeatureFlagEnabled = useFeatureFlagEnabled(
         'lazy-load-dashboard-tiles',
     );
+    const isLazyLoadEnabled =
+        isLazyLoadFeatureFlagEnabled && !(window as any).Cypress; // disable lazy load for e2e test
     const history = useHistory();
     const { projectUuid, dashboardUuid, mode } = useParams<{
         projectUuid: string;
