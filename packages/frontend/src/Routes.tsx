@@ -1,6 +1,6 @@
 import { Stack } from '@mantine/core';
 import React, { ComponentProps, FC, lazy, Suspense } from 'react';
-import { Redirect, Route as ReactRouterRoute, Switch } from 'react-router-dom';
+import { Redirect, Route, Switch } from 'react-router-dom';
 
 import { TrackPage } from './providers/TrackingProvider';
 import { PageName } from './types/Events';
@@ -43,13 +43,14 @@ const SqlRunner = lazy(() => import('./pages/SqlRunner'));
 const UserActivity = lazy(() => import('./pages/UserActivity'));
 const VerifyEmailPage = lazy(() => import('./pages/VerifyEmail'));
 
-const Route: FC<ComponentProps<typeof ReactRouterRoute>> = (props) => {
+const LazyLoadPage: FC<ComponentProps<typeof TrackPage>> = ({
+    children,
+    ...props
+}) => {
     return (
-        <ReactRouterRoute {...props}>
-            <Suspense fallback={<PageSpinner />}>
-                <>{props.children}</>
-            </Suspense>
-        </ReactRouterRoute>
+        <TrackPage name={props.name}>
+            <Suspense fallback={<PageSpinner />}>{children}</Suspense>
+        </TrackPage>
     );
 };
 
@@ -59,56 +60,60 @@ const Routes: FC = () => {
             <PrivateRoute path="/minimal">
                 <Switch>
                     <Route path="/minimal/projects/:projectUuid/saved/:savedQueryUuid">
-                        <Stack p="lg" h="100vh">
-                            <MinimalSavedExplorer />
-                        </Stack>
+                        <LazyLoadPage name={PageName.MINIMAL_SAVED_QUERIES}>
+                            <Stack p="lg" h="100vh">
+                                <MinimalSavedExplorer />
+                            </Stack>
+                        </LazyLoadPage>
                     </Route>
 
                     <Route path="/minimal/projects/:projectUuid/dashboards/:dashboardUuid">
-                        <MinimalDashboard />
+                        <LazyLoadPage name={PageName.MINIMAL_DASHBOARD}>
+                            <MinimalDashboard />
+                        </LazyLoadPage>
                     </Route>
                 </Switch>
             </PrivateRoute>
 
             <Route path="/register">
-                <TrackPage name={PageName.REGISTER}>
+                <LazyLoadPage name={PageName.REGISTER}>
                     <Register />
-                </TrackPage>
+                </LazyLoadPage>
             </Route>
 
             <Route path="/login">
-                <TrackPage name={PageName.LOGIN}>
+                <LazyLoadPage name={PageName.LOGIN}>
                     <Login />
-                </TrackPage>
+                </LazyLoadPage>
             </Route>
 
             <Route path="/recover-password">
-                <TrackPage name={PageName.PASSWORD_RECOVERY}>
+                <LazyLoadPage name={PageName.PASSWORD_RECOVERY}>
                     <PasswordRecovery />
-                </TrackPage>
+                </LazyLoadPage>
             </Route>
 
             <Route path="/reset-password/:code">
-                <TrackPage name={PageName.PASSWORD_RESET}>
+                <LazyLoadPage name={PageName.PASSWORD_RESET}>
                     <PasswordReset />
-                </TrackPage>
+                </LazyLoadPage>
             </Route>
 
             <Route path="/invite/:inviteCode">
-                <TrackPage name={PageName.SIGNUP}>
+                <LazyLoadPage name={PageName.SIGNUP}>
                     <Invite />
-                </TrackPage>
+                </LazyLoadPage>
             </Route>
             <Route path="/verify-email">
-                <TrackPage name={PageName.VERIFY_EMAIL}>
+                <LazyLoadPage name={PageName.VERIFY_EMAIL}>
                     <VerifyEmailPage />
-                </TrackPage>
+                </LazyLoadPage>
             </Route>
 
             <Route path="/join-organization">
-                <TrackPage name={PageName.JOIN_ORGANIZATION}>
+                <LazyLoadPage name={PageName.JOIN_ORGANIZATION}>
                     <JoinOrganization />
-                </TrackPage>
+                </LazyLoadPage>
             </Route>
 
             <PrivateRoute path="/">
@@ -117,39 +122,39 @@ const Routes: FC = () => {
                 <Switch>
                     <Route path="/createProject/:method?">
                         <NavBar />
-                        <TrackPage name={PageName.CREATE_PROJECT}>
+                        <LazyLoadPage name={PageName.CREATE_PROJECT}>
                             <CreateProject />
-                        </TrackPage>
+                        </LazyLoadPage>
                     </Route>
                     <Route path="/createProjectSettings/:projectUuid">
                         <NavBar />
-                        <TrackPage name={PageName.CREATE_PROJECT_SETTINGS}>
+                        <LazyLoadPage name={PageName.CREATE_PROJECT_SETTINGS}>
                             <CreateProjectSettings />
-                        </TrackPage>
+                        </LazyLoadPage>
                     </Route>
                     <Route path="/generalSettings/:tab?">
                         <NavBar />
-                        <TrackPage name={PageName.GENERAL_SETTINGS}>
+                        <LazyLoadPage name={PageName.GENERAL_SETTINGS}>
                             <Settings />
-                        </TrackPage>
+                        </LazyLoadPage>
                     </Route>
                     <Route path="/no-access">
                         <NavBar />
-                        <TrackPage name={PageName.NO_ACCESS}>
+                        <LazyLoadPage name={PageName.NO_ACCESS}>
                             <ForbiddenPanel />
-                        </TrackPage>
+                        </LazyLoadPage>
                     </Route>
                     <Route path="/no-project-access">
                         <NavBar />
-                        <TrackPage name={PageName.NO_PROJECT_ACCESS}>
+                        <LazyLoadPage name={PageName.NO_PROJECT_ACCESS}>
                             <ForbiddenPanel subject="project" />
-                        </TrackPage>
+                        </LazyLoadPage>
                     </Route>
                     <Route path="/share/:shareNanoid">
                         <NavBar />
-                        <TrackPage name={PageName.SHARE}>
+                        <LazyLoadPage name={PageName.SHARE}>
                             <ShareRedirect />
-                        </TrackPage>
+                        </LazyLoadPage>
                     </Route>
 
                     <AppRoute path="/">
@@ -158,38 +163,36 @@ const Routes: FC = () => {
                                 <Switch>
                                     <Route path="/projects/:projectUuid/saved/:savedQueryUuid/history">
                                         <NavBar />
-                                        <TrackPage
+                                        <LazyLoadPage
                                             name={PageName.CHART_HISTORY}
                                         >
                                             <ChartHistory />
-                                        </TrackPage>
+                                        </LazyLoadPage>
                                     </Route>
                                     <Route path="/projects/:projectUuid/saved/:savedQueryUuid/:mode?">
                                         <NavBar />
-                                        <TrackPage
+                                        <LazyLoadPage
                                             name={PageName.SAVED_QUERY_EXPLORER}
                                         >
                                             <SavedExplorer />
-                                        </TrackPage>
+                                        </LazyLoadPage>
                                     </Route>
 
                                     <Route path="/projects/:projectUuid/saved">
                                         <NavBar />
-                                        <TrackPage
+                                        <LazyLoadPage
                                             name={PageName.SAVED_QUERIES}
                                         >
                                             <SavedQueries />
-                                        </TrackPage>
+                                        </LazyLoadPage>
                                     </Route>
 
-                                    <ReactRouterRoute
+                                    <Route
                                         path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?"
                                         render={(props) => (
-                                            <Suspense
-                                                fallback={<PageSpinner />}
-                                            >
+                                            <>
                                                 <NavBar />
-                                                <TrackPage
+                                                <LazyLoadPage
                                                     name={PageName.DASHBOARD}
                                                 >
                                                     <Dashboard
@@ -198,62 +201,66 @@ const Routes: FC = () => {
                                                                 .dashboardUuid
                                                         }
                                                     />
-                                                </TrackPage>
-                                            </Suspense>
+                                                </LazyLoadPage>
+                                            </>
                                         )}
                                     />
 
                                     <Route path="/projects/:projectUuid/dashboards">
                                         <NavBar />
-                                        <TrackPage
+                                        <LazyLoadPage
                                             name={PageName.SAVED_DASHBOARDS}
                                         >
                                             <SavedDashboards />
-                                        </TrackPage>
+                                        </LazyLoadPage>
                                     </Route>
 
                                     <Route path="/projects/:projectUuid/sqlRunner">
                                         <NavBar />
-                                        <TrackPage name={PageName.SQL_RUNNER}>
+                                        <LazyLoadPage
+                                            name={PageName.SQL_RUNNER}
+                                        >
                                             <SqlRunner />
-                                        </TrackPage>
+                                        </LazyLoadPage>
                                     </Route>
 
                                     <Route path="/projects/:projectUuid/dbtsemanticlayer">
                                         <NavBar />
-                                        <TrackPage name={PageName.METRIC_FLOW}>
+                                        <LazyLoadPage
+                                            name={PageName.METRIC_FLOW}
+                                        >
                                             <MetricFlowPage />
-                                        </TrackPage>
+                                        </LazyLoadPage>
                                     </Route>
 
                                     <Route path="/projects/:projectUuid/tables/:tableId">
                                         <NavBar />
-                                        <TrackPage name={PageName.EXPLORER}>
+                                        <LazyLoadPage name={PageName.EXPLORER}>
                                             <Explorer />
-                                        </TrackPage>
+                                        </LazyLoadPage>
                                     </Route>
 
                                     <Route path="/projects/:projectUuid/tables">
                                         <NavBar />
-                                        <TrackPage
+                                        <LazyLoadPage
                                             name={PageName.EXPLORE_TABLES}
                                         >
                                             <Explorer />
-                                        </TrackPage>
+                                        </LazyLoadPage>
                                     </Route>
 
                                     <Route path="/projects/:projectUuid/spaces/:spaceUuid">
                                         <NavBar />
-                                        <TrackPage name={PageName.SPACE}>
+                                        <LazyLoadPage name={PageName.SPACE}>
                                             <Space />
-                                        </TrackPage>
+                                        </LazyLoadPage>
                                     </Route>
 
                                     <Route path="/projects/:projectUuid/spaces">
                                         <NavBar />
-                                        <TrackPage name={PageName.SPACES}>
+                                        <LazyLoadPage name={PageName.SPACES}>
                                             <Spaces />
-                                        </TrackPage>
+                                        </LazyLoadPage>
                                     </Route>
 
                                     <Route
@@ -261,9 +268,9 @@ const Routes: FC = () => {
                                         exact
                                     >
                                         <NavBar />
-                                        <TrackPage name={PageName.HOME}>
+                                        <LazyLoadPage name={PageName.HOME}>
                                             <Home />
-                                        </TrackPage>
+                                        </LazyLoadPage>
                                     </Route>
 
                                     <Route
@@ -271,11 +278,11 @@ const Routes: FC = () => {
                                         exact
                                     >
                                         <NavBar />
-                                        <TrackPage
+                                        <LazyLoadPage
                                             name={PageName.USER_ACTIVITY}
                                         >
                                             <UserActivity />
-                                        </TrackPage>
+                                        </LazyLoadPage>
                                     </Route>
 
                                     <Redirect to="/projects" />
@@ -283,7 +290,9 @@ const Routes: FC = () => {
                             </ProjectRoute>
 
                             <Route path="/projects/:projectUuid?" exact>
-                                <Projects />
+                                <Suspense fallback={<PageSpinner />}>
+                                    <Projects />
+                                </Suspense>
                             </Route>
 
                             <Redirect to="/projects" />
