@@ -1,3 +1,10 @@
+# [0.861.0](https://github.com/lightdash/lightdash/compare/0.860.0...0.861.0) (2023-11-09)
+
+
+### Features
+
+* enable custom visualizations with vega ([#7878](https://github.com/lightdash/lightdash/issues/7878)) ([5cf8f78](https://github.com/lightdash/lightdash/commit/5cf8f78b77c373820b4e9dfd1b1501de3f6e74d9))
+
 # [0.860.0](https://github.com/lightdash/lightdash/compare/0.859.1...0.860.0) (2023-11-09)
 
 
