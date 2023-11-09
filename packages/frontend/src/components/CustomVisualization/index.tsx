@@ -20,11 +20,13 @@ const defaultValue = JSON.stringify({}, null, 2);
 const CustomVisualizationContext = createContext<{
     chartConfig: string;
     setChartConfig: (newConfig: string) => void;
-    rows: ResultRow[] | undefined;
+    rows: {
+        [k: string]: unknown;
+    }[];
 }>({
     chartConfig: defaultValue,
     setChartConfig: () => {},
-    rows: undefined,
+    rows: [],
 });
 
 export const useCustomVisualizationContext = () =>
@@ -55,7 +57,7 @@ export const CustomVisualizationProvider: FC = ({ children }) => {
             value={{
                 chartConfig,
                 setChartConfig,
-                rows,
+                rows: rows ? convertRowsToSeries(rows) : [],
             }}
         >
             {children}
@@ -88,7 +90,7 @@ const CustomVisualization: FC<CustomVisualizationProps> = (props) => {
         return <Code>{error.toString()}</Code>;
     }
 
-    const data = { table: convertRowsToSeries(rows || []) };
+    const data = { table: rows };
 
     return (
         <div
