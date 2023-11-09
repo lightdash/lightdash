@@ -253,7 +253,10 @@ export const ReferenceLine: FC<Props> = ({
                 >
                     <ActionIcon
                         onClick={() =>
-                            removeReferenceLine(referenceLine.data.name)
+                            removeReferenceLine(
+                                referenceLine.data.value ||
+                                    referenceLine.data.name,
+                            )
                         }
                         size="sm"
                     >
@@ -284,7 +287,8 @@ export const ReferenceLine: FC<Props> = ({
                                     newField,
                                     label,
                                     lineColor,
-                                    referenceLine.data.name,
+                                    referenceLine.data.value ||
+                                        referenceLine.data.name,
                                 );
                         }}
                     />
@@ -304,7 +308,8 @@ export const ReferenceLine: FC<Props> = ({
                                         selectedField,
                                         label,
                                         lineColor,
-                                        referenceLine.data.name,
+                                        referenceLine.data.value ||
+                                            referenceLine.data.name,
                                     );
                             }}
                         />
@@ -324,7 +329,8 @@ export const ReferenceLine: FC<Props> = ({
                                     selectedField,
                                     label,
                                     lineColor,
-                                    referenceLine.data.name,
+                                    referenceLine.data.value ||
+                                        referenceLine.data.name,
                                 );
                         }}
                     />
@@ -348,7 +354,8 @@ export const ReferenceLine: FC<Props> = ({
                                     selectedField,
                                     label,
                                     color,
-                                    referenceLine.data.name,
+                                    referenceLine.data.value ||
+                                        referenceLine.data.name,
                                 );
                         }}
                     />
