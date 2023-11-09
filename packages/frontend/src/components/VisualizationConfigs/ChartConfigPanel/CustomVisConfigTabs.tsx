@@ -1,6 +1,6 @@
 import { Loader, Tabs } from '@mantine/core';
-import Editor, { Monaco } from '@monaco-editor/react';
-import { merge } from 'lodash-es';
+import Editor, { EditorProps, Monaco } from '@monaco-editor/react';
+import merge from 'lodash-es/merge';
 import React, { memo, useEffect, useRef, useState } from 'react';
 import { useCustomVisualizationContext } from '../../CustomVisualization';
 
@@ -10,7 +10,7 @@ type Schema = {
     readonly schema?: any;
 };
 
-const MONACO_DEFAULT_OPTIONS = {
+const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     cursorBlinking: 'smooth',
     folding: true,
     lineNumbersMinChars: 1,
@@ -18,7 +18,8 @@ const MONACO_DEFAULT_OPTIONS = {
     scrollBeyondLastLine: false,
     wordWrap: 'off',
     quickSuggestions: true,
-} as const;
+    contextmenu: false,
+};
 
 const initVegaLazySchema = async (fields: string[]) => {
     const vegaLiteSchema = await import(
