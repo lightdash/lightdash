@@ -1,3 +1,10 @@
+# [0.860.0](https://github.com/lightdash/lightdash/compare/0.859.1...0.860.0) (2023-11-09)
+
+
+### Features
+
+* remove ssh2 promise ([#7894](https://github.com/lightdash/lightdash/issues/7894)) ([2151a7a](https://github.com/lightdash/lightdash/commit/2151a7acdbcabdb5011ac672b33f15b1949b3e7c))
+
 ## [0.859.1](https://github.com/lightdash/lightdash/compare/0.859.0...0.859.1) (2023-11-09)
 
 
