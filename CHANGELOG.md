@@ -1,3 +1,10 @@
+## [0.857.7](https://github.com/lightdash/lightdash/compare/0.857.6...0.857.7) (2023-11-09)
+
+
+### Bug Fixes
+
+* readd share short link button to edit mode ([#7886](https://github.com/lightdash/lightdash/issues/7886)) ([3e46dcb](https://github.com/lightdash/lightdash/commit/3e46dcb247e56dd58b04b030af4e4637eb1ebe23))
+
 ## [0.857.6](https://github.com/lightdash/lightdash/compare/0.857.5...0.857.6) (2023-11-09)
 
 
