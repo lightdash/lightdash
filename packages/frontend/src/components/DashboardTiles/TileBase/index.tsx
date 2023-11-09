@@ -1,13 +1,7 @@
-import {
-    Button,
-    Classes,
-    Menu,
-    MenuDivider,
-    PopoverPosition,
-} from '@blueprintjs/core';
+import { Button, Menu, MenuDivider, PopoverPosition } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { Dashboard, DashboardTileTypes, isChartTile } from '@lightdash/common';
-import { Text, Tooltip } from '@mantine/core';
+import { Flex, Skeleton, Text, Tooltip } from '@mantine/core';
 import { useHover, useToggle } from '@mantine/hooks';
 import React, { ReactNode, useState } from 'react';
 import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/DeleteChartTileThatBelongsToDashboardModal';
@@ -17,7 +11,6 @@ import {
     ButtonsWrapper,
     ChartContainer,
     HeaderContainer,
-    TileBaseWrapper,
     TileTitleLink,
     TitleWrapper,
 } from './TileBase.styles';
@@ -57,7 +50,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         isDeletingChartThatBelongsToDashboard,
         setIsDeletingChartThatBelongsToDashboard,
     ] = useState(false);
-    const [isHovering, setIsHovering] = useState(false);
     const { hovered: containerHovered, ref: containerRef } = useHover();
     const { hovered: titleHovered, ref: titleRef } =
         useHover<HTMLAnchorElement>();
@@ -74,18 +66,28 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         tile.type === DashboardTileTypes.MARKDOWN && !title;
 
     return (
-        <TileBaseWrapper
-            className={isLoading ? Classes.SKELETON : undefined}
-            ref={containerRef}
-            $isEditMode={isEditMode}
-            $isHovering={isHovering}
-        >
-            {!isLoading && (
+        <Skeleton h="100%" visible={isLoading}>
+            <Flex
+                ref={containerRef}
+                h="100%"
+                direction="column"
+                p="sm"
+                bg="white"
+                sx={{
+                    borderRadius: '2px',
+                    ...(isEditMode
+                        ? {
+                              border: '1px dashed #7ea5ff',
+                          }
+                        : {
+                              border: '1px solid transparent',
+                              boxShadow: '0 0 0 1px #bec1c426',
+                          }),
+                }}
+            >
                 <>
                     <HeaderContainer
                         $isEditMode={isEditMode}
-                        onMouseEnter={() => setIsHovering(true)}
-                        onMouseLeave={() => setIsHovering(false)}
                         $isEmpty={isMarkdownTileTitleEmpty || hideTitle}
                     >
                         <Tooltip
@@ -243,8 +245,8 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         }}
                     />
                 </>
-            )}
-        </TileBaseWrapper>
+            </Flex>
+        </Skeleton>
     );
 };
 

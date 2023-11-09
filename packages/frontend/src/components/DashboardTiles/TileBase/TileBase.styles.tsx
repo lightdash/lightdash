@@ -3,25 +3,8 @@ import styled, { createGlobalStyle, css } from 'styled-components';
 
 interface HeaderContainerProps {
     $isEditMode: boolean;
-    $isHovering?: boolean;
     $isEmpty?: boolean;
 }
-
-export const TileBaseWrapper = styled.div<HeaderContainerProps>`
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    padding: 16px;
-    background: ${Colors.WHITE};
-    border-radius: 2px;
-    box-sizing: border-box;
-    border: 1px solid transparent;
-
-    ${(props) =>
-        props.$isEditMode
-            ? `border: 1px dashed #7ea5ff;`
-            : `box-shadow: 0 0 0 1px #bec1c426;`}
-`;
 
 export const TILE_HEADER_HEIGHT = 24;
 const TILE_HEADER_MARGIN_BOTTOM = 12;
@@ -56,7 +39,7 @@ export const HeaderContainer = styled.div<HeaderContainerProps>`
 `;
 
 export const GlobalTileStyles = createGlobalStyle`
-  .react-draggable.react-draggable-dragging ${TileBaseWrapper} {
+  .react-draggable.react-draggable-dragging {
     box-shadow: 0 0 0 1px ${Colors.BLUE4};
   }
 `;
@@ -86,7 +69,6 @@ export const TitleWrapper = styled.div<TileTitleProps>`
                       }
                   `
                 : ''}
-        }
     }
 `;
 
