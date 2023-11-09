@@ -1,3 +1,15 @@
+# [0.859.0](https://github.com/lightdash/lightdash/compare/0.858.0...0.859.0) (2023-11-09)
+
+
+### Bug Fixes
+
+* make dashboard tiles initially undefined to avoid extra call ([#7868](https://github.com/lightdash/lightdash/issues/7868)) ([a19ee19](https://github.com/lightdash/lightdash/commit/a19ee19fb3f1280dd4f9040cfd613cffcca87565))
+
+
+### Features
+
+* lazy load dashboard tiles ([#7876](https://github.com/lightdash/lightdash/issues/7876)) ([1732805](https://github.com/lightdash/lightdash/commit/17328053eedd6e8f521e229e2d0d829d578c2169))
+
 # [0.858.0](https://github.com/lightdash/lightdash/compare/0.857.8...0.858.0) (2023-11-09)
 
 
