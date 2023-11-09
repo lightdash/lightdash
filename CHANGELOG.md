@@ -1,3 +1,32 @@
+## [0.857.8](https://github.com/lightdash/lightdash/compare/0.857.7...0.857.8) (2023-11-09)
+
+
+### Bug Fixes
+
+* hide columns on csv ([#7874](https://github.com/lightdash/lightdash/issues/7874)) ([d184383](https://github.com/lightdash/lightdash/commit/d184383ee7de72abc138146d0a95e22acdb4441f))
+* multiple reference lines ([#7884](https://github.com/lightdash/lightdash/issues/7884)) ([3d79976](https://github.com/lightdash/lightdash/commit/3d799768ce4000a6aa2ba14f359bb7643e7adcb7))
+
+## [0.857.7](https://github.com/lightdash/lightdash/compare/0.857.6...0.857.7) (2023-11-09)
+
+
+### Bug Fixes
+
+* readd share short link button to edit mode ([#7886](https://github.com/lightdash/lightdash/issues/7886)) ([3e46dcb](https://github.com/lightdash/lightdash/commit/3e46dcb247e56dd58b04b030af4e4637eb1ebe23))
+
+## [0.857.6](https://github.com/lightdash/lightdash/compare/0.857.5...0.857.6) (2023-11-09)
+
+
+### Bug Fixes
+
+* typo in docker build action ([#7891](https://github.com/lightdash/lightdash/issues/7891)) ([4e7e9c4](https://github.com/lightdash/lightdash/commit/4e7e9c4f80204944441f1c8f3a230cc5b97e5b46))
+
+## [0.857.5](https://github.com/lightdash/lightdash/compare/0.857.4...0.857.5) (2023-11-09)
+
+
+### Bug Fixes
+
+* docker build syntax ([#7890](https://github.com/lightdash/lightdash/issues/7890)) ([513ee32](https://github.com/lightdash/lightdash/commit/513ee32587fdb227d2ab431192d9f0d714923308))
+
 ## [0.857.4](https://github.com/lightdash/lightdash/compare/0.857.3...0.857.4) (2023-11-09)
 
 
