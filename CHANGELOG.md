@@ -1,3 +1,10 @@
+## [0.857.4](https://github.com/lightdash/lightdash/compare/0.857.3...0.857.4) (2023-11-09)
+
+
+### Bug Fixes
+
+* google sheet column names ([#7869](https://github.com/lightdash/lightdash/issues/7869)) ([3f9cde1](https://github.com/lightdash/lightdash/commit/3f9cde114b155d473a8086988bfc859537893e2b))
+
 ## [0.857.3](https://github.com/lightdash/lightdash/compare/0.857.2...0.857.3) (2023-11-08)
 
 
