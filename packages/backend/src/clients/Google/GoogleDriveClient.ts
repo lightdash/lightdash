@@ -1,3 +1,9 @@
+import {
+    Field,
+    getItemLabel,
+    getItemLabelWithoutTableName,
+    TableCalculation,
+} from '@lightdash/common';
 import { google, sheets_v4 } from 'googleapis';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import Logger from '../../logging/logger';
@@ -193,8 +199,12 @@ export class GoogleDriveClient {
         refreshToken: string,
         fileId: string,
         csvContent: Record<string, string>[],
+        itemMap: Record<string, Field | TableCalculation>,
+        showTableNames: boolean,
+
         tabName?: string,
         columnOrder: string[] = [],
+        customLabels: Record<string, string> = {},
     ) {
         if (!this.isEnabled) {
             throw new Error('Google Drive is not enabled');
@@ -215,6 +225,18 @@ export class GoogleDriveClient {
             (a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b),
         );
 
+        const csvHeader = sortedFieldIds.map((id) => {
+            if (customLabels[id]) {
+                return customLabels[id];
+            }
+            if (itemMap[id]) {
+                return showTableNames
+                    ? getItemLabel(itemMap[id])
+                    : getItemLabelWithoutTableName(itemMap[id]);
+            }
+            return id;
+        });
+
         Logger.info(
             `Writing ${csvContent.length} rows and ${sortedFieldIds.length} columns to Google sheets`,
         );
@@ -232,7 +254,7 @@ export class GoogleDriveClient {
             range: tabName ? `${tabName}!A1` : 'A1',
             valueInputOption: 'RAW',
             requestBody: {
-                values: [sortedFieldIds, ...values],
+                values: [csvHeader, ...values],
             },
         });
     }
