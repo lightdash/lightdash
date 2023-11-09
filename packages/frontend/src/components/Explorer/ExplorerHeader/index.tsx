@@ -49,6 +49,7 @@ const ExplorerHeader: FC = memo(() => {
                             <SaveChartButton isExplorer />
                         </Can>
                     )}
+                    <ShareShortLinkButton disabled={!isValidQuery} />
                 </Group>
             </Group>
         );
