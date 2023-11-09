@@ -43,7 +43,7 @@
         "lodash-es": "^4.17.21",
         "moment": "^2.29.4",
         "polished": "^4.2.2",
-        "posthog-js": "^1.82.2",
+        "posthog-js": "^1.88.3",
         "react": "^17.0.2",
         "react-ace": "^9.5.0",
         "react-beautiful-dnd": "^13.1.0",
