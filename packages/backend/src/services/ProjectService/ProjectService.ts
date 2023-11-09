@@ -883,8 +883,6 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
-        console.log('has access');
-
         const [space, explore] = await Promise.all([
             this.spaceModel.getSpaceSummary(savedChart.spaceUuid),
             this.getExplore(
