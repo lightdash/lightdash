@@ -1,3 +1,11 @@
+## [0.857.8](https://github.com/lightdash/lightdash/compare/0.857.7...0.857.8) (2023-11-09)
+
+
+### Bug Fixes
+
+* hide columns on csv ([#7874](https://github.com/lightdash/lightdash/issues/7874)) ([d184383](https://github.com/lightdash/lightdash/commit/d184383ee7de72abc138146d0a95e22acdb4441f))
+* multiple reference lines ([#7884](https://github.com/lightdash/lightdash/issues/7884)) ([3d79976](https://github.com/lightdash/lightdash/commit/3d799768ce4000a6aa2ba14f359bb7643e7adcb7))
+
 ## [0.857.7](https://github.com/lightdash/lightdash/compare/0.857.6...0.857.7) (2023-11-09)
 
 
