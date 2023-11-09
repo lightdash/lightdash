@@ -57,7 +57,7 @@ export const CustomVisualizationProvider: FC = ({ children }) => {
     }, [rows]);
 
     const fields = useMemo(() => {
-        return rows ? Object.keys(rows[0]) : [];
+        return rows && rows.length > 0 ? Object.keys(rows[0]) : [];
     }, [rows]);
 
     return (
