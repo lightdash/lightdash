@@ -735,18 +735,19 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     opened={isMovingChart}
                     onClose={() => setIsMovingChart(false)}
                     onConfirm={() => {
-                        setDashboardTiles((currentDashboardTiles) =>
-                            currentDashboardTiles.map((tile) =>
-                                tile.uuid === tileUuid && isChartTile(tile)
-                                    ? {
-                                          ...tile,
-                                          properties: {
-                                              ...tile.properties,
-                                              belongsToDashboard: false,
-                                          },
-                                      }
-                                    : tile,
-                            ),
+                        setDashboardTiles(
+                            (currentDashboardTiles) =>
+                                currentDashboardTiles?.map((tile) =>
+                                    tile.uuid === tileUuid && isChartTile(tile)
+                                        ? {
+                                              ...tile,
+                                              properties: {
+                                                  ...tile.properties,
+                                                  belongsToDashboard: false,
+                                              },
+                                          }
+                                        : tile,
+                                ) ?? [],
                         );
                     }}
                 />

@@ -217,7 +217,7 @@ const Filter: FC<Props> = ({
             </Popover.Target>
 
             <Popover.Dropdown ml={5}>
-                {filterableFieldsByTileUuid && (
+                {filterableFieldsByTileUuid && dashboardTiles && (
                     <FilterConfiguration
                         isCreatingNew={isCreatingNew}
                         isEditMode={isEditMode}

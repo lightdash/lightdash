@@ -178,9 +178,10 @@ const Dashboard: FC = () => {
 
     const layouts = useMemo(
         () => ({
-            lg: dashboardTiles.map<Layout>((tile) =>
-                getReactGridLayoutConfig(tile, isEditMode),
-            ),
+            lg:
+                dashboardTiles?.map<Layout>((tile) =>
+                    getReactGridLayoutConfig(tile, isEditMode),
+                ) ?? [],
         }),
         [dashboardTiles, isEditMode],
     );
@@ -244,7 +245,7 @@ const Dashboard: FC = () => {
     const handleUpdateTiles = useCallback(
         async (layout: Layout[]) => {
             setDashboardTiles((currentDashboardTiles) =>
-                currentDashboardTiles.map((tile) => {
+                currentDashboardTiles?.map((tile) => {
                     const layoutTile = layout.find(({ i }) => i === tile.uuid);
                     if (
                         layoutTile &&
@@ -272,9 +273,9 @@ const Dashboard: FC = () => {
 
     const handleAddTiles = useCallback(
         async (tiles: IDashboard['tiles'][number][]) => {
-            setDashboardTiles((currentDashboardTiles) => {
-                return appendNewTilesToBottom(currentDashboardTiles, tiles);
-            });
+            setDashboardTiles((currentDashboardTiles) =>
+                appendNewTilesToBottom(currentDashboardTiles, tiles),
+            );
 
             setHaveTilesChanged(true);
         },
@@ -284,7 +285,7 @@ const Dashboard: FC = () => {
     const handleDeleteTile = useCallback(
         async (tile: IDashboard['tiles'][number]) => {
             setDashboardTiles((currentDashboardTiles) =>
-                currentDashboardTiles.filter(
+                currentDashboardTiles?.filter(
                     (filteredTile) => filteredTile.uuid !== tile.uuid,
                 ),
             );
@@ -297,7 +298,7 @@ const Dashboard: FC = () => {
     const handleEditTiles = useCallback(
         (updatedTile: IDashboard['tiles'][number]) => {
             setDashboardTiles((currentDashboardTiles) =>
-                currentDashboardTiles.map((tile) =>
+                currentDashboardTiles?.map((tile) =>
                     tile.uuid === updatedTile.uuid ? updatedTile : tile,
                 ),
             );
@@ -310,7 +311,7 @@ const Dashboard: FC = () => {
         sessionStorage.clear();
 
         // Delete charts that were created in edit mode
-        dashboardTiles.forEach((tile) => {
+        dashboardTiles?.forEach((tile) => {
             if (
                 isDashboardChartTileType(tile) &&
                 tile.properties.belongsToDashboard &&
@@ -447,7 +448,7 @@ const Dashboard: FC = () => {
             </div>
         );
     }
-    const dashboardChartTiles = dashboardTiles.filter(
+    const dashboardChartTiles = dashboardTiles?.filter(
         (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
     );
 
@@ -520,7 +521,7 @@ const Dashboard: FC = () => {
                     />
                 }
             >
-                {dashboardChartTiles.length > 0 && (
+                {dashboardChartTiles && dashboardChartTiles.length > 0 && (
                     <DashboardFilter isEditMode={isEditMode} />
                 )}
 
@@ -530,7 +531,7 @@ const Dashboard: FC = () => {
                     onResizeStop={handleUpdateTiles}
                     layouts={layouts}
                 >
-                    {dashboardTiles.map((tile) => {
+                    {dashboardTiles?.map((tile) => {
                         return (
                             <div key={tile.uuid}>
                                 <TrackSection name={SectionName.DASHBOARD_TILE}>
@@ -549,7 +550,7 @@ const Dashboard: FC = () => {
                     })}
                 </ResponsiveGridLayout>
 
-                {dashboardTiles.length <= 0 && (
+                {dashboardTiles && dashboardTiles.length === 0 && (
                     <EmptyStateNoTiles
                         onAddTiles={handleAddTiles}
                         isEditMode={isEditMode}
