@@ -125,9 +125,6 @@ describe('Dashboard', () => {
         // Wait to be redirected to dashboard
         cy.url().should('include', '/dashboards');
 
-        // Note: Dismiss alert. Bug when history.block prompt.pathname has the wrong value because of a fast navigation
-        cy.findAllByText('Stay').first().click();
-
         // Add filter Payment method is credit_card and apply
         cy.contains('Add filter').click();
         cy.findByTestId('FilterConfiguration/FieldSelect')
