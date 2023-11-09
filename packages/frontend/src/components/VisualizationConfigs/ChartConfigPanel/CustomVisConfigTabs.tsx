@@ -1,5 +1,6 @@
 import { Loader, Tabs } from '@mantine/core';
 import Editor, { Monaco } from '@monaco-editor/react';
+import { merge } from 'lodash-es';
 import React, { memo, useEffect, useRef, useState } from 'react';
 import { useCustomVisualizationContext } from '../../CustomVisualization';
 
@@ -19,16 +20,23 @@ const MONACO_DEFAULT_OPTIONS = {
     quickSuggestions: true,
 } as const;
 
-const initVegaLazySchema = async () => {
+const initVegaLazySchema = async (fields: string[]) => {
     const vegaLiteSchema = await import(
         'vega-lite/build/vega-lite-schema.json'
     );
 
     return [
         {
-            uri: 'https://vega.github.io/schema/vega-lite/v5.json',
+            uri: 'https://lightdash.com/schemas/vega-lite-schema-custom.json',
             fileMatch: ['*'],
-            schema: vegaLiteSchema.default,
+            schema: merge(vegaLiteSchema.default, {
+                definitions: {
+                    FieldName: {
+                        type: 'string',
+                        enum: fields,
+                    },
+                },
+            }),
         },
     ];
 };
@@ -56,17 +64,17 @@ const loadMonaco = (monaco: Monaco, schemas: Schema[]) => {
 };
 
 const CustomVisConfigTabs: React.FC = memo(() => {
-    const { chartConfig, setChartConfig, rows } =
+    const { chartConfig, setChartConfig, rows, fields } =
         useCustomVisualizationContext();
     const [isLoading, setIsLoading] = useState(true);
     const schemas = useRef<Schema[] | null>(null);
 
     useEffect(() => {
-        initVegaLazySchema().then((vegaSchemas) => {
+        initVegaLazySchema(fields).then((vegaSchemas) => {
             schemas.current = vegaSchemas;
             setIsLoading(false);
         });
-    }, []);
+    }, [fields]);
 
     if (isLoading) {
         return <Loader color="gray" size="xs" />;
@@ -107,9 +115,6 @@ const CustomVisConfigTabs: React.FC = memo(() => {
             <Tabs.Panel value="data">
                 <Editor
                     loading={<Loader color="gray" size="xs" />}
-                    beforeMount={(monaco) =>
-                        loadMonaco(monaco, schemas.current!)
-                    }
                     defaultLanguage="json"
                     options={{
                         ...MONACO_DEFAULT_OPTIONS,
