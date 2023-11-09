@@ -1,6 +1,6 @@
 import { Stack } from '@mantine/core';
-import { FC } from 'react';
-import { Redirect, Route, Switch } from 'react-router-dom';
+import React, { ComponentProps, FC, lazy, Suspense } from 'react';
+import { Redirect, Route as ReactRouterRoute, Switch } from 'react-router-dom';
 
 import { TrackPage } from './providers/TrackingProvider';
 import { PageName } from './types/Events';
@@ -9,36 +9,49 @@ import AppRoute from './components/AppRoute';
 import ForbiddenPanel from './components/ForbiddenPanel';
 import JobDetailsDrawer from './components/JobDetailsDrawer';
 import NavBar from './components/NavBar';
+import PageSpinner from './components/PageSpinner';
 import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
 import UserCompletionModal from './components/UserCompletionModal';
 
-import ChartHistory from './pages/ChartHistory';
-import CreateProject from './pages/CreateProject';
-import CreateProjectSettings from './pages/CreateProjectSettings';
-import Dashboard from './pages/Dashboard';
-import Explorer from './pages/Explorer';
-import Home from './pages/Home';
-import Invite from './pages/Invite';
-import JoinOrganization from './pages/JoinOrganization';
-import Login from './pages/Login';
-import MetricFlowPage from './pages/MetricFlow';
-import MinimalDashboard from './pages/MinimalDashboard';
-import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
-import PasswordRecovery from './pages/PasswordRecovery';
-import PasswordReset from './pages/PasswordReset';
-import Projects from './pages/Projects';
-import Register from './pages/Register';
-import SavedDashboards from './pages/SavedDashboards';
-import SavedExplorer from './pages/SavedExplorer';
-import SavedQueries from './pages/SavedQueries';
-import Settings from './pages/Settings';
-import ShareRedirect from './pages/ShareRedirect';
-import Space from './pages/Space';
-import Spaces from './pages/Spaces';
-import SqlRunner from './pages/SqlRunner';
-import UserActivity from './pages/UserActivity';
-import VerifyEmailPage from './pages/VerifyEmail';
+const ChartHistory = lazy(() => import('./pages/ChartHistory'));
+const CreateProject = lazy(() => import('./pages/CreateProject'));
+const CreateProjectSettings = lazy(
+    () => import('./pages/CreateProjectSettings'),
+);
+const Home = lazy(() => import('./pages/Home'));
+const Invite = lazy(() => import('./pages/Invite'));
+const JoinOrganization = lazy(() => import('./pages/JoinOrganization'));
+const Login = lazy(() => import('./pages/Login'));
+const MetricFlowPage = lazy(() => import('./pages/MetricFlow'));
+const PasswordReset = lazy(() => import('./pages/PasswordReset'));
+const PasswordRecovery = lazy(() => import('./pages/PasswordRecovery'));
+const MinimalSavedExplorer = lazy(() => import('./pages/MinimalSavedExplorer'));
+const MinimalDashboard = lazy(() => import('./pages/MinimalDashboard'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Explorer = lazy(() => import('./pages/Explorer'));
+const Projects = lazy(() => import('./pages/Projects'));
+const Register = lazy(() => import('./pages/Register'));
+const SavedDashboards = lazy(() => import('./pages/SavedDashboards'));
+const SavedExplorer = lazy(() => import('./pages/SavedExplorer'));
+const SavedQueries = lazy(() => import('./pages/SavedQueries'));
+const Settings = lazy(() => import('./pages/Settings'));
+const ShareRedirect = lazy(() => import('./pages/ShareRedirect'));
+const Space = lazy(() => import('./pages/Space'));
+const Spaces = lazy(() => import('./pages/Spaces'));
+const SqlRunner = lazy(() => import('./pages/SqlRunner'));
+const UserActivity = lazy(() => import('./pages/UserActivity'));
+const VerifyEmailPage = lazy(() => import('./pages/VerifyEmail'));
+
+const Route: FC<ComponentProps<typeof ReactRouterRoute>> = (props) => {
+    return (
+        <ReactRouterRoute {...props}>
+            <Suspense fallback={<PageSpinner />}>
+                <>{props.children}</>
+            </Suspense>
+        </ReactRouterRoute>
+    );
+};
 
 const Routes: FC = () => {
     return (
@@ -101,7 +114,6 @@ const Routes: FC = () => {
             <PrivateRoute path="/">
                 <UserCompletionModal />
                 <JobDetailsDrawer />
-
                 <Switch>
                     <Route path="/createProject/:method?">
                         <NavBar />
@@ -170,10 +182,12 @@ const Routes: FC = () => {
                                         </TrackPage>
                                     </Route>
 
-                                    <Route
+                                    <ReactRouterRoute
                                         path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?"
                                         render={(props) => (
-                                            <>
+                                            <Suspense
+                                                fallback={<PageSpinner />}
+                                            >
                                                 <NavBar />
                                                 <TrackPage
                                                     name={PageName.DASHBOARD}
@@ -185,7 +199,7 @@ const Routes: FC = () => {
                                                         }
                                                     />
                                                 </TrackPage>
-                                            </>
+                                            </Suspense>
                                         )}
                                     />
 
