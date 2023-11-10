@@ -1,3 +1,10 @@
+## [0.863.2](https://github.com/lightdash/lightdash/compare/0.863.1...0.863.2) (2023-11-10)
+
+
+### Bug Fixes
+
+* remove custom metric submenu ([#7907](https://github.com/lightdash/lightdash/issues/7907)) ([6645aac](https://github.com/lightdash/lightdash/commit/6645aacf9a802fdef9f55c928f18dec366e02855))
+
 ## [0.863.1](https://github.com/lightdash/lightdash/compare/0.863.0...0.863.1) (2023-11-10)
 
 
