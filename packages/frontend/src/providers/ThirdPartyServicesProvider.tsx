@@ -48,6 +48,7 @@ const ThirdPartyServicesEnabledProvider: FC = ({ children }) => {
                     bootstrap: {
                         featureFlags: {
                             'extended-usage-analytics': false,
+                            'lazy-load-dashboard-tiles': true,
                         },
                     },
                 }}

@@ -1,3 +1,65 @@
+# [0.862.0](https://github.com/lightdash/lightdash/compare/0.861.2...0.862.0) (2023-11-09)
+
+
+### Features
+
+* lazy load assets per route ([#7902](https://github.com/lightdash/lightdash/issues/7902)) ([8bdec12](https://github.com/lightdash/lightdash/commit/8bdec1235e9f34e70981f5e242b98950e5f73163))
+
+## [0.861.2](https://github.com/lightdash/lightdash/compare/0.861.1...0.861.2) (2023-11-09)
+
+
+### Bug Fixes
+
+* custom viz empty rows ([#7903](https://github.com/lightdash/lightdash/issues/7903)) ([73c7e8f](https://github.com/lightdash/lightdash/commit/73c7e8f2eec6e144e56d103ef0351cf7ccb0bf1f))
+
+## [0.861.1](https://github.com/lightdash/lightdash/compare/0.861.0...0.861.1) (2023-11-09)
+
+
+### Bug Fixes
+
+* optimise chart results endpoint ([#7898](https://github.com/lightdash/lightdash/issues/7898)) ([92c6eb9](https://github.com/lightdash/lightdash/commit/92c6eb9f6308c16bfb432b26f77abc3d32499a34))
+* sql runner run button styles ([#7897](https://github.com/lightdash/lightdash/issues/7897)) ([a63d7a7](https://github.com/lightdash/lightdash/commit/a63d7a788f055ec9e522052794e2fc8d0a77b153))
+
+# [0.861.0](https://github.com/lightdash/lightdash/compare/0.860.0...0.861.0) (2023-11-09)
+
+
+### Features
+
+* enable custom visualizations with vega ([#7878](https://github.com/lightdash/lightdash/issues/7878)) ([5cf8f78](https://github.com/lightdash/lightdash/commit/5cf8f78b77c373820b4e9dfd1b1501de3f6e74d9))
+
+# [0.860.0](https://github.com/lightdash/lightdash/compare/0.859.1...0.860.0) (2023-11-09)
+
+
+### Features
+
+* remove ssh2 promise ([#7894](https://github.com/lightdash/lightdash/issues/7894)) ([2151a7a](https://github.com/lightdash/lightdash/commit/2151a7acdbcabdb5011ac672b33f15b1949b3e7c))
+
+## [0.859.1](https://github.com/lightdash/lightdash/compare/0.859.0...0.859.1) (2023-11-09)
+
+
+### Bug Fixes
+
+* filter inputs timestamp input parsing and formatting ([#7888](https://github.com/lightdash/lightdash/issues/7888)) ([aa5cd4c](https://github.com/lightdash/lightdash/commit/aa5cd4c2cd49b1d0940baa610aaacf8afc26ac5d))
+
+# [0.859.0](https://github.com/lightdash/lightdash/compare/0.858.0...0.859.0) (2023-11-09)
+
+
+### Bug Fixes
+
+* make dashboard tiles initially undefined to avoid extra call ([#7868](https://github.com/lightdash/lightdash/issues/7868)) ([a19ee19](https://github.com/lightdash/lightdash/commit/a19ee19fb3f1280dd4f9040cfd613cffcca87565))
+
+
+### Features
+
+* lazy load dashboard tiles ([#7876](https://github.com/lightdash/lightdash/issues/7876)) ([1732805](https://github.com/lightdash/lightdash/commit/17328053eedd6e8f521e229e2d0d829d578c2169))
+
+# [0.858.0](https://github.com/lightdash/lightdash/compare/0.857.8...0.858.0) (2023-11-09)
+
+
+### Features
+
+* upgrade posthog to 1.88.3 ([#7893](https://github.com/lightdash/lightdash/issues/7893)) ([00f4ddc](https://github.com/lightdash/lightdash/commit/00f4ddc110503c6a762428f61d4c0e1510145c32))
+
 ## [0.857.8](https://github.com/lightdash/lightdash/compare/0.857.7...0.857.8) (2023-11-09)
 
 

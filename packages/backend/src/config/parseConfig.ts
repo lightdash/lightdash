@@ -104,6 +104,9 @@ export type LightdashConfig = {
             daysLimit: number;
         };
     };
+    customVisualizations: {
+        enabled: boolean;
+    };
     s3?: S3Config;
     headlessBrowser?: HeadlessBrowserConfig;
     resultsCache: {
@@ -373,6 +376,10 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                         'LIGHTDASH_CHART_VERSION_HISTORY_DAYS_LIMIT',
                     ) || 3,
             },
+        },
+        customVisualizations: {
+            enabled:
+                process.env.CUSTOM_VISUALIZATIONS_ENABLED === 'true' || false,
         },
         pivotTable: {
             maxColumnLimit:

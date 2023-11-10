@@ -871,24 +871,32 @@ export class ProjectService {
             user.ability.cannot(
                 'view',
                 subject('SavedChart', { organizationUuid, projectUuid }),
+            ) ||
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
         }
 
-        const space = await this.spaceModel.getSpaceSummary(
-            savedChart.spaceUuid,
-        );
+        const [space, explore] = await Promise.all([
+            this.spaceModel.getSpaceSummary(savedChart.spaceUuid),
+            this.getExplore(
+                user,
+                projectUuid,
+                savedChart.tableName,
+                organizationUuid,
+            ),
+        ]);
 
         if (!hasSpaceAccess(user, space)) {
             throw new ForbiddenError();
         }
 
-        const explore = await this.getExplore(
-            user,
-            projectUuid,
-            savedChart.tableName,
-        );
         const tables = Object.keys(explore.tables);
         const appliedDashboardFilters = dashboardFilters
             ? {
@@ -927,6 +935,7 @@ export class ProjectService {
                 : QueryExecutionContext.CHART,
             queryTags,
             invalidateCache,
+            explore,
         });
 
         return {
@@ -987,6 +996,7 @@ export class ProjectService {
         context,
         queryTags,
         invalidateCache,
+        explore,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -996,6 +1006,7 @@ export class ProjectService {
         context: QueryExecutionContext;
         queryTags?: RunQueryTags;
         invalidateCache?: boolean;
+        explore?: Explore;
     }): Promise<ApiQueryResults> {
         return wrapOtelSpan(
             'ProjectService.runQueryAndFormatRows',
@@ -1010,6 +1021,7 @@ export class ProjectService {
                     context,
                     queryTags,
                     invalidateCache,
+                    explore,
                 });
                 span.setAttribute('rows', rows.length);
 
@@ -1019,18 +1031,17 @@ export class ProjectService {
                     span.setAttribute('warehouse', warehouseConnection?.type);
                 }
 
-                const explore = await this.getExplore(
-                    user,
-                    projectUuid,
-                    exploreName,
-                );
-
                 const itemMap = await wrapOtelSpan(
                     'ProjectService.runQueryAndFormatRows.getItemMap',
                     {},
                     async () =>
                         getItemMap(
-                            explore,
+                            explore ??
+                                (await this.getExplore(
+                                    user,
+                                    projectUuid,
+                                    exploreName,
+                                )),
                             metricQuery.additionalMetrics,
                             metricQuery.tableCalculations,
                         ),
@@ -1221,6 +1232,7 @@ export class ProjectService {
         context,
         queryTags,
         invalidateCache,
+        explore,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -1230,6 +1242,7 @@ export class ProjectService {
         context: QueryExecutionContext;
         queryTags?: RunQueryTags;
         invalidateCache?: boolean;
+        explore?: Explore;
     }): Promise<{ rows: Record<string, any>[]; cacheMetadata: CacheMetadata }> {
         const tracer = opentelemetry.trace.getTracer('default');
         return tracer.startActiveSpan(
@@ -1266,11 +1279,6 @@ export class ProjectService {
                     const { warehouseClient, sshTunnel } =
                         await this._getWarehouseClient(projectUuid);
 
-                    const explore = await this.getExplore(
-                        user,
-                        projectUuid,
-                        exploreName,
-                    );
                     const userAttributes =
                         await this.userAttributesModel.getAttributeValuesForOrgMember(
                             {
@@ -1282,7 +1290,12 @@ export class ProjectService {
                     const { query, hasExampleMetric } =
                         await ProjectService._compileQuery(
                             metricQueryWithLimit,
-                            explore,
+                            explore ??
+                                (await this.getExplore(
+                                    user,
+                                    projectUuid,
+                                    exploreName,
+                                )),
                             warehouseClient,
                             userAttributes,
                         );
@@ -1910,6 +1923,7 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
         exploreName: string,
+        organizationUuid?: string,
     ): Promise<Explore> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
@@ -1923,13 +1937,14 @@ export class ProjectService {
                 'ProjectService.getExplore',
                 {},
                 async () => {
-                    const { organizationUuid } =
-                        await this.projectModel.getSummary(projectUuid);
+                    const project = organizationUuid
+                        ? { organizationUuid }
+                        : await this.projectModel.getSummary(projectUuid);
                     if (
                         user.ability.cannot(
                             'view',
                             subject('Project', {
-                                organizationUuid,
+                                organizationUuid: project.organizationUuid,
                                 projectUuid,
                             }),
                         )
@@ -1953,7 +1968,7 @@ export class ProjectService {
                     const userAttributes =
                         await this.userAttributesModel.getAttributeValuesForOrgMember(
                             {
-                                organizationUuid,
+                                organizationUuid: project.organizationUuid,
                                 userUuid: user.userUuid,
                             },
                         );

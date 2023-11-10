@@ -1,7 +1,6 @@
 import { getHiddenTableFields, NotFoundError } from '@lightdash/common';
 import { FC, memo, useCallback, useMemo, useState } from 'react';
 
-import { Space } from '@mantine/core';
 import { downloadCsv } from '../../../api/csv';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
@@ -169,7 +168,7 @@ const VisualizationCard: FC<{
             <CollapsableCard
                 title="Charts"
                 isOpen={isOpen}
-                shouldExpand
+                isVisualizationCard
                 onToggle={toggleSection}
                 rightHeaderElement={
                     isOpen && (
@@ -192,7 +191,6 @@ const VisualizationCard: FC<{
                     )
                 }
             >
-                <Space h="sm" />
                 <LightdashVisualization
                     className="sentry-block ph-no-capture"
                     data-testid="visualization"

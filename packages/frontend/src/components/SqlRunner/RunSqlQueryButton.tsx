@@ -1,7 +1,16 @@
-import { Box, Group, Kbd, MantineProvider, Text, Tooltip } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Group,
+    Kbd,
+    MantineProvider,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import { useOs } from '@mantine/hooks';
+import { IconPlayerPlay } from '@tabler/icons-react';
 import { FC } from 'react';
-import { BigButton } from '../common/BigButton';
+import MantineIcon from '../common/MantineIcon';
 
 const RunSqlQueryButton: FC<{
     isLoading: boolean;
@@ -29,15 +38,14 @@ const RunSqlQueryButton: FC<{
             disabled={isLoading}
         >
             <Box>
-                <BigButton
-                    icon="play"
-                    intent="primary"
-                    style={{ width: 150 }}
+                <Button
+                    size="xs"
+                    leftIcon={<MantineIcon icon={IconPlayerPlay} />}
                     onClick={onSubmit}
                     loading={isLoading}
                 >
                     Run query
-                </BigButton>
+                </Button>
             </Box>
         </Tooltip>
     );
