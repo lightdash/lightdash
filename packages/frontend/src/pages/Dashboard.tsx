@@ -81,9 +81,9 @@ const GridTile: FC<
     Pick<
         React.ComponentProps<typeof TileBase>,
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
-    > & { isLazyLoadEnabled: boolean }
+    > & { isLazyLoadEnabled: boolean; index: number }
 > = memo((props) => {
-    const { tile, isLazyLoadEnabled } = props;
+    const { tile, isLazyLoadEnabled, index } = props;
     useProfiler(`Dashboard-${tile.type}`);
     const [isTiledViewed, setIsTiledViewed] = useState(false);
     const ref = useRef(null);
@@ -98,6 +98,10 @@ const GridTile: FC<
     }, [intersection]);
 
     if (isLazyLoadEnabled && !isTiledViewed) {
+        setTimeout(() => {
+            setIsTiledViewed(true);
+            // Prefetch tile sequentially, even if it's not in view
+        }, index * 1000);
         return (
             <Box ref={ref} h="100%">
                 <TileBase isLoading={true} {...props} title={''} />
@@ -452,6 +456,16 @@ const Dashboard: FC = () => {
         (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
     );
 
+    const sortedTiles = dashboardTiles?.sort((a, b) => {
+        if (a.y === b.y) {
+            // If 'y' is the same, sort by 'x'
+            return a.x - b.x;
+        } else {
+            // Otherwise, sort by 'y'
+            return a.y - b.y;
+        }
+    });
+
     return (
         <>
             <Alert
@@ -531,7 +545,7 @@ const Dashboard: FC = () => {
                     onResizeStop={handleUpdateTiles}
                     layouts={layouts}
                 >
-                    {dashboardTiles?.map((tile) => {
+                    {sortedTiles?.map((tile, idx) => {
                         return (
                             <div key={tile.uuid}>
                                 <TrackSection name={SectionName.DASHBOARD_TILE}>
@@ -539,6 +553,7 @@ const Dashboard: FC = () => {
                                         isLazyLoadEnabled={
                                             isLazyLoadEnabled ?? true
                                         }
+                                        index={idx}
                                         isEditMode={isEditMode}
                                         tile={tile}
                                         onDelete={handleDeleteTile}
