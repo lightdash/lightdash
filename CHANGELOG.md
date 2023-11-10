@@ -1,3 +1,10 @@
+# [0.863.0](https://github.com/lightdash/lightdash/compare/0.862.0...0.863.0) (2023-11-10)
+
+
+### Features
+
+* prefetch tiles sequentially ([#7904](https://github.com/lightdash/lightdash/issues/7904)) ([4a6020d](https://github.com/lightdash/lightdash/commit/4a6020d3e7675b44584e618a79061e8bfd5e7aec))
+
 # [0.862.0](https://github.com/lightdash/lightdash/compare/0.861.2...0.862.0) (2023-11-09)
 
 
