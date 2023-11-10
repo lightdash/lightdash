@@ -1,3 +1,10 @@
+## [0.863.4](https://github.com/lightdash/lightdash/compare/0.863.3...0.863.4) (2023-11-10)
+
+
+### Bug Fixes
+
+* fix tracking on minimal pages ([#7916](https://github.com/lightdash/lightdash/issues/7916)) ([6408c44](https://github.com/lightdash/lightdash/commit/6408c443d2a96427104a802c25b816bb71d6ce7b))
+
 ## [0.863.3](https://github.com/lightdash/lightdash/compare/0.863.2...0.863.3) (2023-11-10)
 
 
