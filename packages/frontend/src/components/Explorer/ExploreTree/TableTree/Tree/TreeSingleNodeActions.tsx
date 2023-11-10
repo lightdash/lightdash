@@ -14,9 +14,7 @@ import {
     MetricType,
 } from '@lightdash/common';
 import { ActionIcon, Box, Menu, MenuProps, Tooltip } from '@mantine/core';
-import { useToggle } from '@mantine/hooks';
 import {
-    IconChevronRight,
     IconDots,
     IconEdit,
     IconFilter,
@@ -91,11 +89,6 @@ const TreeSingleNodeActions: FC<Props> = ({
         (context) => context.actions.toggleCustomDimensionModal,
     );
 
-    const [customMetricsMenuItemBgColor, toggle] = useToggle([
-        'default',
-        'gray.1',
-    ]);
-
     const customMetrics = useMemo(
         () => (isDimension(item) ? getCustomMetricType(item.type) : []),
         [item],
@@ -167,83 +160,58 @@ const TreeSingleNodeActions: FC<Props> = ({
 
                 {customMetrics.length > 0 && isDimension(item) ? (
                     <>
-                        <Menu
-                            withinPortal
-                            trigger="hover"
-                            position="right-start"
-                            shadow="md"
-                            offset={0}
-                            closeOnItemClick
-                            onOpen={() => toggle()}
-                            onClose={() => toggle()}
-                        >
-                            <Menu.Target>
-                                <Menu.Item
-                                    bg={customMetricsMenuItemBgColor}
-                                    component="button"
-                                    role="menuitem"
-                                    icon={<MantineIcon icon={IconSparkles} />}
-                                    rightSection={
-                                        <Box ml="xs">
-                                            <MantineIcon
-                                                icon={IconChevronRight}
-                                            />
-                                        </Box>
-                                    }
-                                >
-                                    Add custom metrics
-                                </Menu.Item>
-                            </Menu.Target>
+                        <Menu.Divider />
 
-                            <Menu.Dropdown>
-                                {customMetrics.map((metric) => (
-                                    <Menu.Item
-                                        key={metric}
-                                        role="menuitem"
-                                        component="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            console.debug(
-                                                'opening custom metric modal: ' +
-                                                    metric,
-                                            );
-                                            toggleAdditionalMetricModal({
-                                                type: metric,
-                                                item,
-                                                isEditing: false,
-                                            });
+                        <Menu.Label>Add custom metrics</Menu.Label>
+                        {customMetrics.map((metric) => (
+                            <Menu.Item
+                                key={metric}
+                                role="menuitem"
+                                component="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    console.debug(
+                                        'opening custom metric modal: ' +
+                                            metric,
+                                    );
+                                    toggleAdditionalMetricModal({
+                                        type: metric,
+                                        item,
+                                        isEditing: false,
+                                    });
 
-                                            track({
-                                                name: EventName.ADD_CUSTOM_METRIC_CLICKED,
-                                            });
-                                        }}
-                                    >
-                                        {friendlyName(metric)}
-                                    </Menu.Item>
-                                ))}
-                            </Menu.Dropdown>
-                        </Menu>
+                                    track({
+                                        name: EventName.ADD_CUSTOM_METRIC_CLICKED,
+                                    });
+                                }}
+                            >
+                                {friendlyName(metric)}
+                            </Menu.Item>
+                        ))}
                     </>
                 ) : null}
 
                 {isDimension(item) && item.type === DimensionType.NUMBER ? (
-                    <Menu.Item
-                        component="button"
-                        icon={<MantineIcon icon={IconSparkles} />}
-                        onClick={(e) => {
-                            e.stopPropagation();
+                    <>
+                        <Menu.Divider />
+                        <Menu.Item
+                            component="button"
+                            icon={<MantineIcon icon={IconSparkles} />}
+                            onClick={(e) => {
+                                e.stopPropagation();
 
-                            track({
-                                name: EventName.ADD_CUSTOM_DIMENSION_CLICKED,
-                            });
-                            toggleCustomDimensionModal({
-                                item,
-                                isEditing: false,
-                            });
-                        }}
-                    >
-                        Add custom dimensions
-                    </Menu.Item>
+                                track({
+                                    name: EventName.ADD_CUSTOM_DIMENSION_CLICKED,
+                                });
+                                toggleCustomDimensionModal({
+                                    item,
+                                    isEditing: false,
+                                });
+                            }}
+                        >
+                            Add custom dimensions
+                        </Menu.Item>
+                    </>
                 ) : null}
 
                 {isCustomDimension(item) && (
