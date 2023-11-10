@@ -1,3 +1,10 @@
+## [0.863.3](https://github.com/lightdash/lightdash/compare/0.863.2...0.863.3) (2023-11-10)
+
+
+### Bug Fixes
+
+* increase timeout sshTunnel.ts ([#7913](https://github.com/lightdash/lightdash/issues/7913)) ([d44bfa5](https://github.com/lightdash/lightdash/commit/d44bfa5520acd6ff59baaf3ac8de13187b8aaffb))
+
 ## [0.863.2](https://github.com/lightdash/lightdash/compare/0.863.1...0.863.2) (2023-11-10)
 
 
