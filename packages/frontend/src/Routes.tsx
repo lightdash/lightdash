@@ -43,15 +43,16 @@ const SqlRunner = lazy(() => import('./pages/SqlRunner'));
 const UserActivity = lazy(() => import('./pages/UserActivity'));
 const VerifyEmailPage = lazy(() => import('./pages/VerifyEmail'));
 
-const LazyLoadPage: FC<ComponentProps<typeof TrackPage>> = ({
-    children,
-    ...props
-}) => {
-    return (
-        <TrackPage name={props.name}>
-            <Suspense fallback={<PageSpinner />}>{children}</Suspense>
-        </TrackPage>
-    );
+const LazyLoadPage: FC<
+    ComponentProps<typeof TrackPage> & { trackingEnabled?: boolean }
+> = ({ children, trackingEnabled = true, ...props }) => {
+    if (trackingEnabled)
+        return (
+            <TrackPage name={props.name}>
+                <Suspense fallback={<PageSpinner />}>{children}</Suspense>
+            </TrackPage>
+        );
+    return <Suspense fallback={<PageSpinner />}>{children}</Suspense>;
 };
 
 const Routes: FC = () => {
@@ -60,7 +61,10 @@ const Routes: FC = () => {
             <PrivateRoute path="/minimal">
                 <Switch>
                     <Route path="/minimal/projects/:projectUuid/saved/:savedQueryUuid">
-                        <LazyLoadPage name={PageName.MINIMAL_SAVED_QUERIES}>
+                        <LazyLoadPage
+                            name={PageName.MINIMAL_SAVED_QUERIES}
+                            trackingEnabled={false}
+                        >
                             <Stack p="lg" h="100vh">
                                 <MinimalSavedExplorer />
                             </Stack>
@@ -68,7 +72,10 @@ const Routes: FC = () => {
                     </Route>
 
                     <Route path="/minimal/projects/:projectUuid/dashboards/:dashboardUuid">
-                        <LazyLoadPage name={PageName.MINIMAL_DASHBOARD}>
+                        <LazyLoadPage
+                            name={PageName.MINIMAL_DASHBOARD}
+                            trackingEnabled={false}
+                        >
                             <MinimalDashboard />
                         </LazyLoadPage>
                     </Route>
