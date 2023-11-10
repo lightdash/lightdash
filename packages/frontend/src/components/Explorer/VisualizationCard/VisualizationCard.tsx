@@ -124,14 +124,22 @@ const VisualizationCard: FC<{
         }
         throw new NotFoundError('no metric query defined');
     };
-    const getGsheetLink = async (columnOrder: string[]) => {
+    const getGsheetLink = async (
+        columnOrder: string[],
+        showTableNames: boolean,
+        customLabels?: Record<string, string>,
+    ) => {
         if (explore?.name && unsavedChartVersion?.metricQuery && projectUuid) {
             const gsheetResponse = await uploadGsheet({
                 projectUuid,
                 exploreId: explore?.name,
                 metricQuery: unsavedChartVersion?.metricQuery,
                 columnOrder,
-                showTableNames: true,
+                showTableNames,
+                customLabels,
+                hiddenFields: getHiddenTableFields(
+                    unsavedChartVersion.chartConfig,
+                ),
             });
             return gsheetResponse;
         }

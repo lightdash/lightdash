@@ -7,6 +7,7 @@ import {
     DownloadCsvPayload,
     EmailNotificationPayload,
     getCustomLabelsFromTableConfig,
+    getHiddenTableFields,
     getHumanReadableCronExpression,
     getItemMap,
     getRequestMethod,
@@ -720,10 +721,11 @@ export const uploadGsheetFromQuery = async (
             spreadsheetId,
             rows,
             itemMap,
-            true, // showTableNames
+            payload.showTableNames,
             undefined, // tabName
             payload.columnOrder,
-            {}, // customLabels
+            payload.customLabels,
+            payload.hiddenFields,
         );
         const truncated = csvService.couldBeTruncated(rows);
 
@@ -1015,6 +1017,7 @@ export const uploadGsheets = async (
                 undefined,
                 chart.tableConfig.columnOrder,
                 customLabels,
+                getHiddenTableFields(chart.chartConfig),
             );
         } else if (dashboardUuid) {
             const dashboard = await dashboardService.getById(
@@ -1109,6 +1112,7 @@ export const uploadGsheets = async (
                     tabName,
                     chart.tableConfig.columnOrder,
                     customLabels,
+                    getHiddenTableFields(chart.chartConfig),
                 );
             }, Promise.resolve());
         } else {

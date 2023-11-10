@@ -527,8 +527,24 @@
                 ],
                 "type": "object"
             },
+            "CustomLabel": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object"
+            },
             "UploadMetricGsheet": {
                 "properties": {
+                    "hiddenFields": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "customLabels": {
+                        "$ref": "#/components/schemas/CustomLabel"
+                    },
                     "columnOrder": {
                         "items": {
                             "type": "string"
@@ -5330,7 +5346,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.857.1",
+        "version": "0.862.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

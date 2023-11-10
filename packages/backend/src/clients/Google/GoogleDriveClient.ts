@@ -205,6 +205,7 @@ export class GoogleDriveClient {
         tabName?: string,
         columnOrder: string[] = [],
         customLabels: Record<string, string> = {},
+        hiddenFields: string[] = [],
     ) {
         if (!this.isEnabled) {
             throw new Error('Google Drive is not enabled');
@@ -221,9 +222,9 @@ export class GoogleDriveClient {
             return;
         }
 
-        const sortedFieldIds = Object.keys(csvContent[0]).sort(
-            (a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b),
-        );
+        const sortedFieldIds = Object.keys(csvContent[0])
+            .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b))
+            .filter((id) => !hiddenFields.includes(id));
 
         const csvHeader = sortedFieldIds.map((id) => {
             if (customLabels[id]) {
