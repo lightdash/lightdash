@@ -1,3 +1,10 @@
+## [0.863.1](https://github.com/lightdash/lightdash/compare/0.863.0...0.863.1) (2023-11-10)
+
+
+### Bug Fixes
+
+* google sheet parameters ([#7895](https://github.com/lightdash/lightdash/issues/7895)) ([4c87748](https://github.com/lightdash/lightdash/commit/4c87748d120d3348ffac89d1767ea1171e68a60e))
+
 # [0.863.0](https://github.com/lightdash/lightdash/compare/0.862.0...0.863.0) (2023-11-10)
 
 
