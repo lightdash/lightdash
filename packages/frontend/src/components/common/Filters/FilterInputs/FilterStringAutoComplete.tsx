@@ -9,7 +9,15 @@ import {
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash-es/uniq';
-import { FC, ReactNode, useCallback, useMemo, useState } from 'react';
+import {
+    FC,
+    ReactNode,
+    useCallback,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import {
     MAX_AUTOCOMPLETE_RESULTS,
     useFieldValues,
@@ -42,6 +50,10 @@ const FilterStringAutoComplete: FC<Props> = ({
 
     const [search, setSearch] = useState('');
 
+    const [scrollHeight, setScrollHeight] = useState(0);
+
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
     const autocompleteFilterGroup = useMemo(
         () => getAutocompleteFilterGroup(filterId, field),
         [field, filterId, getAutocompleteFilterGroup],
@@ -65,6 +77,8 @@ const FilterStringAutoComplete: FC<Props> = ({
 
     const handleChange = useCallback(
         (updatedValues: string[]) => {
+            if (dropdownRef.current)
+                setScrollHeight(dropdownRef.current.scrollTop);
             onChange(uniq(updatedValues));
         },
         [onChange],
@@ -109,6 +123,11 @@ const FilterStringAutoComplete: FC<Props> = ({
             label: value,
         }));
     }, [results, values]);
+
+    useLayoutEffect(() => {
+        //scroll restoration in dropdown
+        if (dropdownRef.current) dropdownRef.current.scrollTop = scrollHeight;
+    }, [onChange, scrollHeight]);
 
     return (
         <MultiSelect
@@ -155,7 +174,7 @@ const FilterStringAutoComplete: FC<Props> = ({
             }: {
                 children: ReactNode;
             }) => (
-                <div {...others}>
+                <div {...others} ref={dropdownRef}>
                     {results.length === MAX_AUTOCOMPLETE_RESULTS ? (
                         <Text
                             color="dimmed"
