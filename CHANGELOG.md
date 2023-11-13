@@ -1,3 +1,10 @@
+## [0.863.8](https://github.com/lightdash/lightdash/compare/0.863.7...0.863.8) (2023-11-13)
+
+
+### Bug Fixes
+
+* make custom dimensions selectable in pie charts ([#7929](https://github.com/lightdash/lightdash/issues/7929)) ([38e6b74](https://github.com/lightdash/lightdash/commit/38e6b74efe69326e768e4538a926e4447b566eb0))
+
 ## [0.863.7](https://github.com/lightdash/lightdash/compare/0.863.6...0.863.7) (2023-11-13)
 
 
