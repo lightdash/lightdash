@@ -31,6 +31,7 @@ const ItemComponent = forwardRef<HTMLDivElement, ItemComponentProps>(
             maw={400}
             offset={-2}
             withinPortal
+            openDelay={500}
         >
             <Box ref={ref} {...rest}>
                 <Group
