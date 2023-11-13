@@ -1,4 +1,4 @@
-import { Menu, NonIdealState, Portal, Tag } from '@blueprintjs/core';
+import { Menu, NonIdealState, Tag } from '@blueprintjs/core';
 import {
     MenuItem2,
     Popover2,
@@ -29,7 +29,7 @@ import {
     SavedChart,
     TableCalculation,
 } from '@lightdash/common';
-import { Box, Text, Tooltip } from '@mantine/core';
+import { Box, Portal, Text, Tooltip } from '@mantine/core';
 import { IconFilter, IconFolders } from '@tabler/icons-react';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';

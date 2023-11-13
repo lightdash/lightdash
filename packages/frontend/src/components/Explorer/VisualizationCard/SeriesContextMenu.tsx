@@ -1,4 +1,4 @@
-import { Menu, Portal } from '@blueprintjs/core';
+import { Menu } from '@blueprintjs/core';
 import {
     MenuItem2,
     Popover2,
@@ -6,6 +6,7 @@ import {
 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { getItemMap, hasCustomDimension } from '@lightdash/common';
+import { Portal } from '@mantine/core';
 import React, {
     FC,
     memo,
