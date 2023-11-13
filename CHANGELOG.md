@@ -1,3 +1,10 @@
+## [0.863.9](https://github.com/lightdash/lightdash/compare/0.863.8...0.863.9) (2023-11-13)
+
+
+### Bug Fixes
+
+* reuse fields with suggestions ([#7933](https://github.com/lightdash/lightdash/issues/7933)) ([06e27ce](https://github.com/lightdash/lightdash/commit/06e27ced31e80ce7be3ba84a0303312b16b14d97))
+
 ## [0.863.8](https://github.com/lightdash/lightdash/compare/0.863.7...0.863.8) (2023-11-13)
 
 
