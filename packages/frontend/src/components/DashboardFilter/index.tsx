@@ -23,12 +23,15 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const project = useProject(projectUuid);
-    const {
-        allFilters,
-        fieldsWithSuggestions,
-        addDimensionDashboardFilter,
-        hasChartTiles,
-    } = useDashboardContext();
+
+    const allFilters = useDashboardContext((c) => c.allFilters);
+    const fieldsWithSuggestions = useDashboardContext(
+        (c) => c.fieldsWithSuggestions,
+    );
+    const addDimensionDashboardFilter = useDashboardContext(
+        (c) => c.addDimensionDashboardFilter,
+    );
+    const hasChartTiles = useDashboardContext((c) => c.hasChartTiles);
 
     const handleSaveNew = (
         value: DashboardFilterRule<

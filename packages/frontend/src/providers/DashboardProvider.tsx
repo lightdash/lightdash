@@ -14,17 +14,16 @@ import {
 import { min } from 'lodash-es';
 import uniqBy from 'lodash-es/uniqBy';
 import React, {
-    createContext,
     Dispatch,
     SetStateAction,
     useCallback,
-    useContext,
     useEffect,
     useMemo,
     useState,
 } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
+import { createContext, useContextSelector } from 'use-context-selector';
 import { FieldsWithSuggestions } from '../components/common/Filters/FiltersProvider';
 import { isFilterConfigRevertButtonEnabled as hasSavedFilterValueChanged } from '../components/DashboardFilter/FilterConfiguration/utils';
 import {
@@ -493,12 +492,15 @@ export const DashboardProvider: React.FC = ({ children }) => {
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };
 
-export const useDashboardContext = (): DashboardContext => {
-    const context = useContext(Context);
-    if (context === undefined) {
-        throw new Error(
-            'useDashboardContext must be used within a DashboardProvider',
-        );
-    }
-    return context;
-};
+export function useDashboardContext<Selected>(
+    selector: (value: DashboardContext) => Selected,
+) {
+    return useContextSelector(Context, (context) => {
+        if (context === undefined) {
+            throw new Error(
+                'useDashboardContext must be used within a DashboardProvider',
+            );
+        }
+        return selector(context);
+    });
+}
