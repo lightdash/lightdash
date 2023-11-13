@@ -1,3 +1,15 @@
+## [0.863.5](https://github.com/lightdash/lightdash/compare/0.863.4...0.863.5) (2023-11-13)
+
+
+### Bug Fixes
+
+* increase ssh timeout to 5mins ([#7919](https://github.com/lightdash/lightdash/issues/7919)) ([a82cecd](https://github.com/lightdash/lightdash/commit/a82cecd9d5cc8dd6b15bd660784340e06520efec))
+
+
+### Reverts
+
+* revert lazy load assets per route ([#7925](https://github.com/lightdash/lightdash/issues/7925)) ([d4fd1d8](https://github.com/lightdash/lightdash/commit/d4fd1d877b78cc20486135eddcb01418eaa8b690))
+
 ## [0.863.4](https://github.com/lightdash/lightdash/compare/0.863.3...0.863.4) (2023-11-10)
 
 
