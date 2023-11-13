@@ -768,7 +768,8 @@ function reducer(
                                 .customDimensions || []
                         ).filter(
                             (customDimension) =>
-                                getFieldId(customDimension) !== action.payload,
+                                getCustomDimensionId(customDimension) !==
+                                action.payload,
                         ),
                         dimensions:
                             state.unsavedChartVersion.metricQuery.dimensions.filter(
