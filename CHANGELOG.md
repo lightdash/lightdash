@@ -1,3 +1,10 @@
+## [0.863.7](https://github.com/lightdash/lightdash/compare/0.863.6...0.863.7) (2023-11-13)
+
+
+### Bug Fixes
+
+* dashboard filters performance (Part 1) ([#7928](https://github.com/lightdash/lightdash/issues/7928)) ([2536605](https://github.com/lightdash/lightdash/commit/2536605e6141c202d0ff0662756f0dfe96e64ac8))
+
 ## [0.863.6](https://github.com/lightdash/lightdash/compare/0.863.5...0.863.6) (2023-11-13)
 
 
