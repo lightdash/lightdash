@@ -1,4 +1,4 @@
-import { getPivotedData } from './usePlottedData';
+import { getPivotedData } from './getPlottedData';
 import {
     EXPECTED_MULTIPLE_PIVOT_RESULTS,
     EXPECTED_MULTIPLE_PIVOT_ROW_KEY_MAP,

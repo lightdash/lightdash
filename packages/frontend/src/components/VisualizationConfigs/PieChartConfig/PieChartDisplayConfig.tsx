@@ -1,4 +1,5 @@
 import {
+    ChartType,
     PieChartLegendPosition,
     PieChartLegendPositions,
 } from '@lightdash/common';
@@ -7,14 +8,16 @@ import React from 'react';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const PieChartDisplayConfig: React.FC = () => {
+    const { visualizationConfig } = useVisualizationContext();
+
+    if (visualizationConfig?.chartType !== ChartType.PIE) return null;
+
     const {
-        pieChartConfig: {
-            showLegend,
-            toggleShowLegend,
-            legendPosition,
-            legendPositionChange,
-        },
-    } = useVisualizationContext();
+        showLegend,
+        toggleShowLegend,
+        legendPosition,
+        legendPositionChange,
+    } = visualizationConfig.chartConfig;
 
     return (
         <Stack>

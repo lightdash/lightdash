@@ -1256,21 +1256,19 @@ const getEchartsCartesianConfig = (
         animation: true,
     },
 ) => {
-    const { validCartesianConfig } = cartesianVisualizationConfig;
+    const { validConfig } = cartesianVisualizationConfig;
 
     const [pivotedKeys, nonPivotedKeys] =
-        resultsData &&
-        validCartesianConfig &&
-        isCompleteLayout(validCartesianConfig.layout)
+        resultsData && validConfig && isCompleteLayout(validConfig.layout)
             ? [
-                  validCartesianConfig.layout.yField.filter(
+                  validConfig.layout.yField.filter(
                       (y) => !resultsData.metricQuery.dimensions.includes(y),
                   ),
                   [
-                      ...validCartesianConfig.layout.yField.filter((y) =>
+                      ...validConfig.layout.yField.filter((y) =>
                           resultsData.metricQuery.dimensions.includes(y),
                       ),
-                      validCartesianConfig.layout.xField,
+                      validConfig.layout.xField,
                   ],
               ]
             : [];
@@ -1313,21 +1311,16 @@ const getEchartsCartesianConfig = (
               ];
 
     const series =
-        !explore || !validCartesianConfig || !resultsData
+        !explore || !validConfig || !resultsData
             ? []
-            : getEchartsSeries(
-                  items,
-                  validCartesianConfig,
-                  pivotDimensions,
-                  formats,
-              );
+            : getEchartsSeries(items, validConfig, pivotDimensions, formats);
 
-    const axis = !validCartesianConfig
+    const axis = !validConfig
         ? { xAxis: [], yAxis: [] }
         : getEchartAxis({
               items,
               series,
-              validCartesianConfig,
+              validCartesianConfig: validConfig,
               resultsData,
           });
 
@@ -1342,14 +1335,14 @@ const getEchartsCartesianConfig = (
             rows,
             seriesWithValidStack,
             items,
-            validCartesianConfig?.layout.flipAxes,
+            validConfig?.layout.flipAxes,
             validCartesianConfigLegend,
         ),
     ];
 
     //Do not use colors from hidden series
-    const seriesColors = validCartesianConfig?.eChartsConfig.series
-        ? validCartesianConfig.eChartsConfig.series.reduce<string[]>(
+    const seriesColors = validConfig?.eChartsConfig.series
+        ? validConfig.eChartsConfig.series.reduce<string[]>(
               (acc, serie, index) => {
                   if (!serie.hidden)
                       return [
@@ -1365,7 +1358,7 @@ const getEchartsCartesianConfig = (
     // TODO: optimize this
     const sortedResults = (() => {
         const results =
-            validCartesianConfig?.layout?.xField === EMPTY_X_AXIS
+            validConfig?.layout?.xField === EMPTY_X_AXIS
                 ? getResultValueArray(rows, true).map((s) => ({
                       ...s,
                       [EMPTY_X_AXIS]: ' ',
@@ -1377,7 +1370,7 @@ const getEchartsCartesianConfig = (
             const customDimensions =
                 resultsData?.metricQuery.customDimensions || [];
 
-            const xFieldId = validCartesianConfig?.layout?.xField;
+            const xFieldId = validConfig?.layout?.xField;
             if (xFieldId === undefined) return results;
 
             const alreadySorted =
@@ -1387,7 +1380,7 @@ const getEchartsCartesianConfig = (
             const xField = [...dimensions, ...customDimensions].find(
                 (dimension) => getItemId(dimension) === xFieldId,
             );
-            const hasTotal = validCartesianConfig?.eChartsConfig?.series?.some(
+            const hasTotal = validConfig?.eChartsConfig?.series?.some(
                 (s) => s.stackLabel?.show,
             );
 
@@ -1535,7 +1528,7 @@ const getEchartsCartesianConfig = (
         series: stackedSeries,
         animation: options.animation,
         legend: mergeLegendSettings(
-            validCartesianConfig?.eChartsConfig.legend,
+            validConfig?.eChartsConfig.legend,
             validCartesianConfigLegend,
             series,
         ),
@@ -1546,17 +1539,12 @@ const getEchartsCartesianConfig = (
         tooltip,
         grid: {
             ...defaultGrid,
-            ...removeEmptyProperties(validCartesianConfig?.eChartsConfig.grid),
+            ...removeEmptyProperties(validConfig?.eChartsConfig.grid),
         },
         color: seriesColors,
     };
 
-    if (
-        !explore ||
-        series.length <= 0 ||
-        rows.length <= 0 ||
-        !validCartesianConfig
-    ) {
+    if (!explore || series.length <= 0 || rows.length <= 0 || !validConfig) {
         return undefined;
     }
     return eChartsOptions;

@@ -1,3 +1,4 @@
+import { ChartType } from '@lightdash/common';
 import { Box, Button, Popover } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import React from 'react';
@@ -10,10 +11,13 @@ import { useVisualizationContext } from '../../LightdashVisualization/Visualizat
 import BigNumberConfigTabs from './BigNumberConfigTabs';
 
 const BigNumberConfig: React.FC = () => {
-    const {
-        bigNumberConfig: { selectedField },
-    } = useVisualizationContext();
-    const disabled = !selectedField;
+    const { visualizationConfig } = useVisualizationContext();
+
+    const isBigNumber = visualizationConfig?.chartType === ChartType.BIG_NUMBER;
+
+    if (!isBigNumber) return null;
+
+    const disabled = !visualizationConfig.chartConfig.selectedField;
 
     return (
         <Popover {...COLLAPSABLE_CARD_POPOVER_PROPS} disabled={disabled}>

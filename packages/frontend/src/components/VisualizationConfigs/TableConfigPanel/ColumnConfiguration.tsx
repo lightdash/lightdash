@@ -1,4 +1,4 @@
-import { isDimension } from '@lightdash/common';
+import { ChartType, isDimension } from '@lightdash/common';
 import { ActionIcon, Box, Group, TextInput, Tooltip } from '@mantine/core';
 import {
     IconEye,
@@ -11,20 +11,23 @@ import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const ColumnConfiguration: React.FC<{ fieldId: string }> = ({ fieldId }) => {
-    const {
-        pivotDimensions,
-        tableConfig: {
-            updateColumnProperty,
-            getFieldLabelOverride,
-            getFieldLabelDefault,
-            isColumnVisible,
-            isColumnFrozen,
-            getField,
-        },
-    } = useVisualizationContext();
+    const { pivotDimensions, visualizationConfig } = useVisualizationContext();
+
+    const isTableConfig = visualizationConfig?.chartType === ChartType.TABLE;
 
     const [isShowTooltipVisible, setShowTooltipVisible] = useState(false);
     const [isFreezeTooltipVisible, setFreezeTooltipVisible] = useState(false);
+
+    if (!isTableConfig) return null;
+
+    const {
+        updateColumnProperty,
+        getFieldLabelOverride,
+        getFieldLabelDefault,
+        isColumnVisible,
+        isColumnFrozen,
+        getField,
+    } = visualizationConfig.chartConfig;
 
     const field = getField(fieldId);
     const isPivotingDimension = pivotDimensions?.includes(fieldId);

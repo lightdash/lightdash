@@ -1,5 +1,5 @@
 import { Colors } from '@blueprintjs/core';
-import { ComparisonDiffTypes } from '@lightdash/common';
+import { ChartType, ComparisonDiffTypes } from '@lightdash/common';
 import { Tooltip } from '@mantine/core';
 import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import clamp from 'lodash-es/clamp';
@@ -69,23 +69,10 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     tileUuid,
     ...wrapperProps
 }) => {
-    const {
-        resultsData,
-        isLoading,
-        bigNumberConfig: {
-            bigNumber,
-            bigNumberLabel,
-            defaultLabel,
-            comparisonValue,
-            showComparison,
-            showBigNumberLabel,
-            comparisonDiff,
-            flipColors,
-            comparisonTooltip,
-            comparisonLabel,
-        },
-        isSqlRunner,
-    } = useVisualizationContext();
+    const { resultsData, isLoading, visualizationConfig, isSqlRunner } =
+        useVisualizationContext();
+
+    const isBigNumber = visualizationConfig?.chartType === ChartType.BIG_NUMBER;
 
     const [setRef, observerElementSize] = useResizeObserver();
 
@@ -131,6 +118,10 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     }, [observerElementSize]);
 
     const comparisonValueColor = useMemo(() => {
+        if (!isBigNumber) return 'inherit';
+
+        const { comparisonDiff, flipColors } = visualizationConfig.chartConfig;
+
         switch (comparisonDiff) {
             case ComparisonDiffTypes.NAN:
             case ComparisonDiffTypes.UNDEFINED:
@@ -142,7 +133,21 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             case ComparisonDiffTypes.NONE:
                 return 'inherit';
         }
-    }, [comparisonDiff, flipColors]);
+    }, [isBigNumber, visualizationConfig]);
+
+    if (!isBigNumber) return null;
+
+    const {
+        bigNumber,
+        showBigNumberLabel,
+        bigNumberLabel,
+        defaultLabel,
+        showComparison,
+        comparisonTooltip,
+        comparisonLabel,
+        comparisonValue,
+        comparisonDiff,
+    } = visualizationConfig.chartConfig;
 
     const validData = bigNumber && resultsData?.rows.length;
 

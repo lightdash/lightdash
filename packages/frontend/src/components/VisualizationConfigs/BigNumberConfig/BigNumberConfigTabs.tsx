@@ -1,4 +1,5 @@
 import {
+    ChartType,
     CompactConfigMap,
     CompactOrAlias,
     ComparisonFormatTypes,
@@ -28,30 +29,34 @@ const StyleOptions = [
 ];
 
 const BigNumberConfigTabs = memo(() => {
+    const { visualizationConfig } = useVisualizationContext();
+
+    const isBigNumber = visualizationConfig?.chartType === ChartType.BIG_NUMBER;
+
+    if (!isBigNumber) return null;
+
     const {
-        bigNumberConfig: {
-            bigNumberLabel,
-            defaultLabel,
-            setBigNumberLabel,
-            bigNumberStyle,
-            setBigNumberStyle,
-            showStyle,
-            availableFields,
-            selectedField: selectedFieldId,
-            setSelectedField,
-            getField,
-            showBigNumberLabel,
-            setShowBigNumberLabel,
-            showComparison,
-            setShowComparison,
-            comparisonFormat,
-            setComparisonFormat,
-            flipColors,
-            setFlipColors,
-            comparisonLabel,
-            setComparisonLabel,
-        },
-    } = useVisualizationContext();
+        bigNumberLabel,
+        defaultLabel,
+        setBigNumberLabel,
+        bigNumberStyle,
+        setBigNumberStyle,
+        showStyle,
+        availableFields,
+        selectedField: selectedFieldId,
+        setSelectedField,
+        getField,
+        showBigNumberLabel,
+        setShowBigNumberLabel,
+        showComparison,
+        setShowComparison,
+        comparisonFormat,
+        setComparisonFormat,
+        flipColors,
+        setFlipColors,
+        comparisonLabel,
+        setComparisonLabel,
+    } = visualizationConfig.chartConfig;
 
     const selectedField = getField(selectedFieldId);
 

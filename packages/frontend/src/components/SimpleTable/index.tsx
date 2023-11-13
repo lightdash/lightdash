@@ -1,4 +1,5 @@
 import { NonIdealState } from '@blueprintjs/core';
+import { ChartType } from '@lightdash/common';
 import { Box, Flex } from '@mantine/core';
 import { FC } from 'react';
 import PivotTable from '../common/PivotTable';
@@ -28,21 +29,27 @@ const SimpleTable: FC<SimpleTableProps> = ({
     const {
         isLoading,
         columnOrder,
-        tableConfig: {
-            rows,
-            error,
-            columns,
-            showColumnCalculation,
-            conditionalFormattings,
-            hideRowNumbers,
-            pivotTableData,
-            getFieldLabel,
-            getField,
-            showResultsTotal,
-        },
         isSqlRunner,
         explore,
+        visualizationConfig,
     } = useVisualizationContext();
+
+    const isTable = visualizationConfig?.chartType === ChartType.TABLE;
+    if (!isTable) return null;
+
+    const {
+        rows,
+        error,
+        columns,
+        showColumnCalculation,
+        conditionalFormattings,
+        hideRowNumbers,
+        pivotTableData,
+        getFieldLabel,
+        getField,
+        showResultsTotal,
+    } = visualizationConfig.chartConfig;
+
     if (isLoading) return <LoadingChart />;
 
     if (error) {

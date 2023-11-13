@@ -24,7 +24,7 @@ const getEchartsPieConfig = (
         selectedMetric,
         data,
         sortedGroupLabels,
-        validPieChartConfig: {
+        validConfig: {
             isDonut,
             valueLabel: valueLabelDefault,
             showValue: showValueDefault,

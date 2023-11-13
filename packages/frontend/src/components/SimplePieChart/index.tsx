@@ -48,13 +48,15 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
     const { chartRef, isLoading, visualizationConfig } =
         useVisualizationContext();
 
+    const isPieChart = visualizationConfig?.chartType === ChartType.PIE;
+
     const pieChartOptions = useMemo(() => {
-        return visualizationConfig.chartType === ChartType.PIE
+        return isPieChart
             ? getEchartsPieConfig(visualizationConfig.chartConfig, {
                   animation: !props.isInDashboard,
               })
             : undefined;
-    }, [visualizationConfig, props.isInDashboard]);
+    }, [isPieChart, props.isInDashboard, visualizationConfig]);
 
     const [isOpen, { open, close }] = useDisclosure();
     const [menuProps, setMenuProps] = useState<{

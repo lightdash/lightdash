@@ -3,7 +3,7 @@ import {
     getAxisDefaultMaxValue,
     getAxisDefaultMinValue,
     getMinAndMaxValues,
-} from './useEcharts';
+} from './getEchartsCartesianConfig';
 
 jest.mock('./../../providers/TrackingProvider');
 

@@ -1,4 +1,5 @@
 import {
+    ChartType,
     PieChartValueLabel,
     PieChartValueLabels,
     PieChartValueOptions,
@@ -246,39 +247,47 @@ const GroupItem = forwardRef<HTMLDivElement, StackProps & GroupItemProps>(
 );
 
 const PieChartSeriesConfig: FC = () => {
-    const {
-        pieChartConfig: {
-            defaultColors,
-            valueLabel,
-            valueLabelChange,
-            showValue,
-            toggleShowValue,
-            showPercentage,
-            toggleShowPercentage,
-            isValueLabelOverriden,
-            isShowValueOverriden,
-            isShowPercentageOverriden,
-            sortedGroupLabels,
-            groupLabelOverrides,
-            groupLabelChange,
-            groupColorOverrides,
-            groupColorDefaults,
-            groupColorChange,
-            groupValueOptionOverrides,
-            groupValueOptionChange,
-            groupSortChange,
-        },
-    } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationContext();
+
+    const isPieChartConfig = visualizationConfig?.chartType === ChartType.PIE;
 
     const handleDragEnd = useCallback(
         (result: DropResult) => {
+            if (!isPieChartConfig) return;
+
             if (!result.destination) return;
             if (result.source.index === result.destination.index) return;
 
-            groupSortChange(result.source.index, result.destination.index);
+            visualizationConfig.chartConfig.groupSortChange(
+                result.source.index,
+                result.destination.index,
+            );
         },
-        [groupSortChange],
+        [visualizationConfig, isPieChartConfig],
     );
+
+    if (!isPieChartConfig) return null;
+
+    const {
+        defaultColors,
+        valueLabel,
+        valueLabelChange,
+        showValue,
+        toggleShowValue,
+        showPercentage,
+        toggleShowPercentage,
+        isValueLabelOverriden,
+        isShowValueOverriden,
+        isShowPercentageOverriden,
+        sortedGroupLabels,
+        groupLabelOverrides,
+        groupLabelChange,
+        groupColorOverrides,
+        groupColorDefaults,
+        groupColorChange,
+        groupValueOptionOverrides,
+        groupValueOptionChange,
+    } = visualizationConfig.chartConfig;
 
     return (
         <Stack>

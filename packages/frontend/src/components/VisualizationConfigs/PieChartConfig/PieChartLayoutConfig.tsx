@@ -1,4 +1,5 @@
 import {
+    ChartType,
     fieldId,
     getCustomDimensionId,
     isCustomDimension,
@@ -15,21 +16,25 @@ const PieChartLayoutConfig: React.FC = () => {
         dimensions,
         allNumericMetrics,
         customDimensions,
-        pieChartConfig: {
-            groupFieldIds,
-            groupAdd,
-            groupChange,
-            groupRemove,
-
-            selectedMetric,
-            metricChange,
-
-            isDonut,
-            toggleDonut,
-        },
+        visualizationConfig,
     } = useVisualizationContext();
 
+    if (visualizationConfig?.chartType !== ChartType.PIE) return null;
+
     const allDimensions = [...dimensions, ...customDimensions];
+
+    const {
+        groupFieldIds,
+        groupAdd,
+        groupChange,
+        groupRemove,
+
+        selectedMetric,
+        metricChange,
+
+        isDonut,
+        toggleDonut,
+    } = visualizationConfig.chartConfig;
 
     return (
         <Stack>

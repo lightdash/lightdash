@@ -1,4 +1,5 @@
 import {
+    ChartType,
     CustomDimension,
     Field,
     getDefaultSeriesColor,
@@ -42,19 +43,18 @@ type Props = {
 };
 
 const SeriesTab: FC<Props> = ({ items }) => {
-    const {
-        cartesianConfig: {
-            dirtyLayout,
-            dirtyEchartsConfig,
-            updateSingleSeries,
-            updateAllGroupedSeries,
-            updateSeries,
-        },
-    } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationContext();
     const { data: orgData } = useOrganization({ refetchOnMount: false });
 
+    const isCartesianChart =
+        visualizationConfig?.chartType === ChartType.CARTESIAN;
+
     const fallbackSeriesColours = useMemo(() => {
-        return (dirtyEchartsConfig?.series || [])
+        if (!isCartesianChart) return;
+
+        return (
+            visualizationConfig.chartConfig.dirtyEchartsConfig?.series || []
+        )
             .filter(({ color }) => !color)
             .reduce<Record<string, string>>(
                 (sum, series, index) => ({
@@ -65,23 +65,27 @@ const SeriesTab: FC<Props> = ({ items }) => {
                 }),
                 {},
             );
-    }, [dirtyEchartsConfig, orgData]);
+    }, [isCartesianChart, visualizationConfig, orgData]);
 
     const getSeriesColor = useCallback(
         (seriesId: string) => {
-            return fallbackSeriesColours[seriesId];
+            return fallbackSeriesColours?.[seriesId];
         },
         [fallbackSeriesColours],
     );
 
-    const { series } = dirtyEchartsConfig || {};
-
     const seriesGroupedByField = useMemo(() => {
-        return getSeriesGroupedByField(series || []);
-    }, [series]);
+        return getSeriesGroupedByField(
+            (isCartesianChart
+                ? visualizationConfig.chartConfig.dirtyEchartsConfig?.series
+                : []) ?? [],
+        );
+    }, [isCartesianChart, visualizationConfig]);
 
     const onDragEnd = useCallback(
         (result: DropResult) => {
+            if (!isCartesianChart) return;
+
             if (!result.destination) return;
             if (result.destination.index === result.source.index) return;
             const sourceIndex = result.source.index;
@@ -103,10 +107,25 @@ const SeriesTab: FC<Props> = ({ items }) => {
                 ],
                 [],
             );
-            updateSeries(reorderedSeries);
+            visualizationConfig.chartConfig.updateSeries(reorderedSeries);
         },
-        [getSeriesColor, seriesGroupedByField, updateSeries],
+        [
+            isCartesianChart,
+            visualizationConfig,
+            seriesGroupedByField,
+            getSeriesColor,
+        ],
     );
+
+    if (!isCartesianChart) return null;
+
+    const {
+        dirtyEchartsConfig,
+        dirtyLayout,
+        updateSeries,
+        updateSingleSeries,
+        updateAllGroupedSeries,
+    } = visualizationConfig.chartConfig;
 
     return (
         <DragDropContext onDragEnd={onDragEnd}>
@@ -184,7 +203,10 @@ const SeriesTab: FC<Props> = ({ items }) => {
                                                         updateSeries={
                                                             updateSeries
                                                         }
-                                                        series={series || []}
+                                                        series={
+                                                            dirtyEchartsConfig?.series ||
+                                                            []
+                                                        }
                                                     />
                                                 ) : (
                                                     <BasicSeriesConfiguration

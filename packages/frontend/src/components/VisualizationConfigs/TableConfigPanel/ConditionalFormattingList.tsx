@@ -1,4 +1,5 @@
 import {
+    ChartType,
     createConditionalFormattingConfigWithSingleColor,
     ECHARTS_DEFAULT_COLORS,
     FilterableItem,
@@ -20,11 +21,10 @@ const ConditionalFormattingList = ({}) => {
     const { data: org } = useOrganization();
 
     const [isAddingNew, setIsAddingNew] = useState(false);
-    const {
-        explore,
-        resultsData,
-        tableConfig: { conditionalFormattings, onSetConditionalFormattings },
-    } = useVisualizationContext();
+    const { explore, resultsData, visualizationConfig } =
+        useVisualizationContext();
+
+    const isTableConfig = visualizationConfig?.chartType === ChartType.TABLE;
 
     const defaultColors = useMemo(
         () => org?.chartColors ?? ECHARTS_DEFAULT_COLORS,
@@ -57,18 +57,25 @@ const ConditionalFormattingList = ({}) => {
     }, [explore, resultsData, activeFields]);
 
     const activeConfigs = useMemo(() => {
-        return conditionalFormattings.filter((config) =>
-            config.target
-                ? visibleActiveNumericFields.find(
-                      (field) => getItemId(field) === config.target?.fieldId,
-                  )
-                : true,
+        if (!isTableConfig) return [];
+
+        return visualizationConfig.chartConfig.conditionalFormattings.filter(
+            (config) => {
+                return config.target
+                    ? visibleActiveNumericFields.find(
+                          (field) =>
+                              getItemId(field) === config.target?.fieldId,
+                      )
+                    : true;
+            },
         );
-    }, [conditionalFormattings, visibleActiveNumericFields]);
+    }, [isTableConfig, visualizationConfig, visibleActiveNumericFields]);
 
     const handleAdd = useCallback(() => {
+        if (!isTableConfig) return;
+
         setIsAddingNew(true);
-        onSetConditionalFormattings(
+        visualizationConfig.chartConfig.onSetConditionalFormattings(
             produce(activeConfigs, (draft) => {
                 draft.push(
                     createConditionalFormattingConfigWithSingleColor(
@@ -77,26 +84,32 @@ const ConditionalFormattingList = ({}) => {
                 );
             }),
         );
-    }, [onSetConditionalFormattings, activeConfigs, defaultColors]);
+    }, [isTableConfig, visualizationConfig, activeConfigs, defaultColors]);
 
     const handleRemove = useCallback(
-        (index) =>
-            onSetConditionalFormattings(
+        (index) => {
+            if (!isTableConfig) return;
+
+            visualizationConfig.chartConfig.onSetConditionalFormattings(
                 produce(activeConfigs, (draft) => {
                     draft.splice(index, 1);
                 }),
-            ),
-        [onSetConditionalFormattings, activeConfigs],
+            );
+        },
+        [isTableConfig, visualizationConfig, activeConfigs],
     );
 
     const handleChange = useCallback(
-        (index, newConfig) =>
-            onSetConditionalFormattings(
+        (index, newConfig) => {
+            if (!isTableConfig) return;
+
+            visualizationConfig.chartConfig.onSetConditionalFormattings(
                 produce(activeConfigs, (draft) => {
                     draft[index] = newConfig;
                 }),
-            ),
-        [onSetConditionalFormattings, activeConfigs],
+            );
+        },
+        [isTableConfig, visualizationConfig, activeConfigs],
     );
 
     return (

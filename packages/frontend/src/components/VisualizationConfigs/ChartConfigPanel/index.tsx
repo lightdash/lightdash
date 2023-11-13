@@ -1,3 +1,4 @@
+import { ChartType } from '@lightdash/common';
 import { Box, Button, Popover } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import {
@@ -9,13 +10,21 @@ import { useVisualizationContext } from '../../LightdashVisualization/Visualizat
 import ChartConfigTabs from './ChartConfigTabs';
 
 const ChartConfigPanel: React.FC = () => {
-    const { resultsData, explore, cartesianConfig } = useVisualizationContext();
+    const { resultsData, explore, visualizationConfig } =
+        useVisualizationContext();
+
+    const isCartesianChart =
+        visualizationConfig?.chartType === ChartType.CARTESIAN;
+
+    if (!isCartesianChart) return null;
+
+    const { chartConfig } = visualizationConfig;
 
     const disabled =
         !resultsData ||
         resultsData?.rows.length === 0 ||
         !explore ||
-        !cartesianConfig.validCartesianConfig;
+        !chartConfig.validConfig;
 
     return (
         <Popover

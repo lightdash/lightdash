@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    ChartType,
     DashboardFilters,
     hasCustomDimension,
     ResultRow,
@@ -41,7 +42,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
     const { data: project } = useProject(projectUuid);
-    const { pieChartConfig } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationContext();
 
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
@@ -54,6 +55,12 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
 
     const { openUnderlyingDataModal, metricQuery } = metricQueryData;
     const { track } = tracking;
+
+    const isPieChart = visualizationConfig?.chartType === ChartType.PIE;
+
+    if (!isPieChart) return null;
+
+    const { chartConfig } = visualizationConfig;
 
     const canViewUnderlyingData = user.data?.ability?.can(
         'view',
@@ -84,9 +91,9 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     };
 
     const handleOpenUnderlyingDataModal = () => {
-        if (!pieChartConfig.selectedMetric) return;
+        if (!chartConfig.selectedMetric) return;
 
-        const fieldValues = pieChartConfig.groupFieldIds.reduce<
+        const fieldValues = chartConfig.groupFieldIds.reduce<
             Record<string, ResultValue>
         >((acc, fieldId) => {
             if (!fieldId) return acc;
@@ -98,7 +105,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
         }, {});
 
         openUnderlyingDataModal({
-            item: pieChartConfig.selectedMetric,
+            item: chartConfig.selectedMetric,
             value,
             fieldValues,
             dashboardFilters,

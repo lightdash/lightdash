@@ -7,7 +7,6 @@ import getEchartsCartesianConfig, {
     isLineSeriesOption,
 } from '../../hooks/echarts/getEchartsCartesianConfig';
 import { useOrganization } from '../../hooks/organization/useOrganization';
-import { useExplore } from '../../hooks/useExplore';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
 type EchartBaseClickEvent = {
@@ -87,11 +86,9 @@ type SimpleChartProps = Omit<EChartsReactProps, 'option'> & {
 const SimpleChart: FC<SimpleChartProps> = memo((props) => {
     const { data: organizationData } = useOrganization();
 
-    // TODO: fixme...
-    const { data: explore } = useExplore('test');
-
     const {
         chartRef,
+        explore,
         isLoading,
         resultsData,
         pivotDimensions,

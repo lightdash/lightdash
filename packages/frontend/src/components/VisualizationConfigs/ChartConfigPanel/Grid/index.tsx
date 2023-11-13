@@ -1,7 +1,7 @@
-import { EchartsGrid } from '@lightdash/common';
+import { ChartType } from '@lightdash/common';
 import { SimpleGrid } from '@mantine/core';
 import startCase from 'lodash-es/startCase';
-import { FC, useMemo } from 'react';
+import { FC } from 'react';
 import UnitInput from '../../../common/UnitInput';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 
@@ -23,17 +23,18 @@ enum Units {
 const units = Object.values(Units);
 
 const GridPanel: FC = () => {
-    const {
-        cartesianConfig: { dirtyEchartsConfig, setGrid },
-    } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationContext();
+    const isCartesianChart =
+        visualizationConfig?.chartType === ChartType.CARTESIAN;
 
-    const config = useMemo<EchartsGrid>(
-        () => ({
-            ...defaultGrid,
-            ...dirtyEchartsConfig?.grid,
-        }),
-        [dirtyEchartsConfig?.grid],
-    );
+    if (!isCartesianChart) return null;
+
+    const { dirtyEchartsConfig, setGrid } = visualizationConfig.chartConfig;
+
+    const config = {
+        ...defaultGrid,
+        ...dirtyEchartsConfig?.grid,
+    };
 
     const handleUpdate = (position: string, newValue: string | undefined) => {
         const newState = { ...config, [position]: newValue };

@@ -1,7 +1,7 @@
 import {
+    ChartType,
     CompiledDimension,
     CustomDimension,
-    EchartsLegend,
     Field,
     TableCalculation,
 } from '@lightdash/common';
@@ -14,7 +14,7 @@ import {
     Text,
 } from '@mantine/core';
 import startCase from 'lodash-es/startCase';
-import { FC, useMemo } from 'react';
+import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import UnitInput from '../../../common/UnitInput';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
@@ -37,17 +37,18 @@ type Props = {
     items: (Field | TableCalculation | CompiledDimension | CustomDimension)[];
 };
 const LegendPanel: FC<Props> = ({ items }) => {
-    const {
-        cartesianConfig: { dirtyEchartsConfig, setLegend },
-    } = useVisualizationContext();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const legendConfig = useMemo<EchartsLegend>(
-        () => ({
-            ...dirtyEchartsConfig?.legend,
-        }),
-        [dirtyEchartsConfig?.legend],
-    );
+    const { visualizationConfig } = useVisualizationContext();
+
+    const isCartesianChart =
+        visualizationConfig?.chartType === ChartType.CARTESIAN;
+
+    if (!isCartesianChart) return null;
+
+    const { dirtyEchartsConfig, setLegend } = visualizationConfig.chartConfig;
+
+    const legendConfig = dirtyEchartsConfig?.legend ?? {};
 
     const handleChange = (
         prop: string,

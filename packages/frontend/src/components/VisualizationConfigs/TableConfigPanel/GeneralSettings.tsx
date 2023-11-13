@@ -1,4 +1,4 @@
-import { getCustomDimensionId } from '@lightdash/common';
+import { ChartType, getCustomDimensionId } from '@lightdash/common';
 import { Box, Checkbox, Stack, Title, Tooltip } from '@mantine/core';
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
@@ -18,22 +18,7 @@ const GeneralSettings: FC = () => {
     const {
         resultsData,
         pivotDimensions,
-        tableConfig: {
-            selectedItemIds,
-            showTableNames,
-            setShowTableNames,
-            hideRowNumbers,
-            setHideRowNumbers,
-            showColumnCalculation,
-            setShowColumnCalculation,
-            showRowCalculation,
-            setShowRowCalculation,
-            showResultsTotal,
-            setShowResultsTotal,
-            metricsAsRows,
-            setMetricsAsRows,
-            canUsePivotTable,
-        },
+        visualizationConfig,
         setPivotDimensions,
     } = useVisualizationContext();
     const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -41,6 +26,12 @@ const GeneralSettings: FC = () => {
     const {
         metricQuery: { dimensions, customDimensions },
     } = resultsData || { metricQuery: { dimensions: [] as string[] } };
+
+    const chartConfig = useMemo(() => {
+        return visualizationConfig?.chartType === ChartType.TABLE
+            ? visualizationConfig.chartConfig
+            : undefined;
+    }, [visualizationConfig]);
 
     const {
         columns,
@@ -53,7 +44,7 @@ const GeneralSettings: FC = () => {
                 ...dimensions,
                 ...(customDimensions?.map(getCustomDimensionId) || []),
             ].filter((itemId) => !pivotDimensions?.includes(itemId));
-            const metricsFields = (selectedItemIds ?? []).filter(
+            const metricsFields = (chartConfig?.selectedItemIds ?? []).filter(
                 (id) => ![...columnFields, ...rowsFields].includes(id),
             );
             return {
@@ -61,31 +52,36 @@ const GeneralSettings: FC = () => {
                 rows: rowsFields,
                 metrics: metricsFields,
             };
-        }, [pivotDimensions, dimensions, selectedItemIds, customDimensions]);
+        }, [pivotDimensions, dimensions, chartConfig, customDimensions]);
 
     const handleToggleMetricsAsRows = useCallback(() => {
-        const newValue = !metricsAsRows;
+        if (!chartConfig) return;
+
+        const newValue = !chartConfig.metricsAsRows;
 
         if (newValue) {
-            setShowColumnCalculation(showRowCalculation);
-            setShowRowCalculation(showColumnCalculation);
+            chartConfig.setShowColumnCalculation(
+                chartConfig.showRowCalculation,
+            );
+            chartConfig.setShowRowCalculation(
+                chartConfig.showColumnCalculation,
+            );
         } else {
-            setShowColumnCalculation(showRowCalculation);
-            setShowRowCalculation(showColumnCalculation);
+            chartConfig.setShowColumnCalculation(
+                chartConfig.showRowCalculation,
+            );
+            chartConfig.setShowRowCalculation(
+                chartConfig.showColumnCalculation,
+            );
         }
 
-        setMetricsAsRows(newValue);
-    }, [
-        metricsAsRows,
-        setMetricsAsRows,
-        showColumnCalculation,
-        setShowColumnCalculation,
-        showRowCalculation,
-        setShowRowCalculation,
-    ]);
+        chartConfig.setMetricsAsRows(newValue);
+    }, [chartConfig]);
 
     const onDragEnd = useCallback(
         ({ source, destination }: DropResult) => {
+            if (!chartConfig) return;
+
             setIsDragging(false);
             if (!destination) return;
 
@@ -112,7 +108,7 @@ const GeneralSettings: FC = () => {
                     );
 
                     if (
-                        metricsAsRows &&
+                        chartConfig.metricsAsRows &&
                         (!newPivotDimensions || newPivotDimensions.length === 0)
                     ) {
                         handleToggleMetricsAsRows();
@@ -134,11 +130,11 @@ const GeneralSettings: FC = () => {
         },
         [
             columns,
-            handleToggleMetricsAsRows,
-            metricsAsRows,
             rows,
+            chartConfig,
             setPivotDimensions,
             showToastError,
+            handleToggleMetricsAsRows,
         ],
     );
 
@@ -169,7 +165,7 @@ const GeneralSettings: FC = () => {
 
             <Title order={6}>Metrics</Title>
             <Tooltip
-                disabled={!!canUsePivotTable}
+                disabled={!!chartConfig?.canUsePivotTable}
                 label={
                     'To use metrics as rows, you need to move a dimension to "Columns"'
                 }
@@ -180,9 +176,9 @@ const GeneralSettings: FC = () => {
             >
                 <Box my="sm">
                     <Checkbox
-                        disabled={!canUsePivotTable}
+                        disabled={!chartConfig?.canUsePivotTable}
                         label="Show metrics as rows"
-                        checked={metricsAsRows}
+                        checked={chartConfig?.metricsAsRows}
                         onChange={() => handleToggleMetricsAsRows()}
                     />
                 </Box>
@@ -197,40 +193,50 @@ const GeneralSettings: FC = () => {
             <Stack mt="sm" spacing="xs">
                 <Checkbox
                     label="Show table names"
-                    checked={showTableNames}
+                    checked={chartConfig?.showTableNames}
                     onChange={() => {
-                        setShowTableNames(!showTableNames);
+                        chartConfig?.setShowTableNames(
+                            !chartConfig?.showTableNames,
+                        );
                     }}
                 />
 
                 <Checkbox
                     label="Show row numbers"
-                    checked={!hideRowNumbers}
+                    checked={!chartConfig?.hideRowNumbers}
                     onChange={() => {
-                        setHideRowNumbers(!hideRowNumbers);
+                        chartConfig?.setHideRowNumbers(
+                            !chartConfig?.hideRowNumbers,
+                        );
                     }}
                 />
-                {canUsePivotTable ? (
+                {chartConfig?.canUsePivotTable ? (
                     <Checkbox
                         label="Show row totals"
-                        checked={showRowCalculation}
+                        checked={chartConfig?.showRowCalculation}
                         onChange={() => {
-                            setShowRowCalculation(!showRowCalculation);
+                            chartConfig?.setShowRowCalculation(
+                                !chartConfig?.showRowCalculation,
+                            );
                         }}
                     />
                 ) : null}
                 <Checkbox
                     label="Show column totals"
-                    checked={showColumnCalculation}
+                    checked={chartConfig?.showColumnCalculation}
                     onChange={() => {
-                        setShowColumnCalculation(!showColumnCalculation);
+                        chartConfig?.setShowColumnCalculation(
+                            !chartConfig?.showColumnCalculation,
+                        );
                     }}
                 />
                 <Checkbox
                     label="Show number of results"
-                    checked={showResultsTotal}
+                    checked={chartConfig?.showResultsTotal}
                     onChange={() => {
-                        setShowResultsTotal(!showResultsTotal);
+                        chartConfig?.setShowResultsTotal(
+                            !chartConfig?.showResultsTotal,
+                        );
                     }}
                 />
             </Stack>

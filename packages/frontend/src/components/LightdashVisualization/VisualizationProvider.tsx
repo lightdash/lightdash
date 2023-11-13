@@ -72,6 +72,7 @@ type VisualizationContext = {
     minimal: boolean;
     chartRef: RefObject<EChartsReact>;
     pivotDimensions: string[] | undefined;
+    explore: Explore | undefined;
     originalData: ApiQueryResults['rows'];
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
@@ -429,6 +430,7 @@ const VisualizationProvider: FC<Props> = ({
             originalData: lastValidResultsData?.rows || [],
             resultsData: lastValidResultsData,
             isLoading,
+            explore,
             columnOrder,
             isSqlRunner: isSqlRunner || false,
             dimensions,
@@ -448,6 +450,7 @@ const VisualizationProvider: FC<Props> = ({
             minimal,
             columnOrder,
             isLoading,
+            explore,
             isSqlRunner,
             lastValidResultsData,
             validPivotDimensions,

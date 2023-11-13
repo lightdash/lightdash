@@ -1,4 +1,5 @@
 import {
+    ChartType,
     CustomDimension,
     Field,
     getAxisName,
@@ -85,19 +86,24 @@ type Props = {
 };
 
 const AxesOptions: FC<Props> = ({ items }) => {
+    const { visualizationConfig } = useVisualizationContext();
+
+    const isCartesianChart =
+        visualizationConfig?.chartType === ChartType.CARTESIAN;
+
+    if (!isCartesianChart) return null;
+
     const {
-        cartesianConfig: {
-            dirtyLayout,
-            dirtyEchartsConfig,
-            setXAxisName,
-            setYAxisName,
-            setYMinValue,
-            setYMaxValue,
-            setShowGridX,
-            setShowGridY,
-            setInverseX,
-        },
-    } = useVisualizationContext();
+        dirtyLayout,
+        dirtyEchartsConfig,
+        setXAxisName,
+        setYAxisName,
+        setYMinValue,
+        setYMaxValue,
+        setShowGridX,
+        setShowGridY,
+        setInverseX,
+    } = visualizationConfig.chartConfig;
 
     const xAxisField = items.find(
         (item) => getItemId(item) === dirtyLayout?.xField,

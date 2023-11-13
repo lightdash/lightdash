@@ -20,7 +20,6 @@ import { Button, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import getEchartsCartesianConfig from '../hooks/echarts/getEchartsCartesianConfig';
 import { useOrganization } from '../hooks/organization/useOrganization';
-import { useExplore } from '../hooks/useExplore';
 import { useApp } from '../providers/AppProvider';
 import { Can } from './common/Authorization';
 import {
@@ -233,11 +232,13 @@ interface ChartDownloadMenuProps {
 
 export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
     ({ getCsvLink, getGsheetLink, projectUuid }) => {
-        // TODO: fixme...
-        const { data: explore } = useExplore('test');
-
-        const { chartRef, visualizationConfig, resultsData, pivotDimensions } =
-            useVisualizationContext();
+        const {
+            chartRef,
+            explore,
+            visualizationConfig,
+            resultsData,
+            pivotDimensions,
+        } = useVisualizationContext();
 
         const { data: org } = useOrganization();
 
