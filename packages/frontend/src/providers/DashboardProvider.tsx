@@ -498,7 +498,7 @@ export function useDashboardContext<Selected>(
     return useContextSelector(Context, (context) => {
         if (context === undefined) {
             throw new Error(
-                'useExplorer must be used within a ExplorerProvider',
+                'useDashboardContext must be used within a DashboardProvider',
             );
         }
         return selector(context);
