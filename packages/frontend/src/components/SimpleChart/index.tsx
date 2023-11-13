@@ -1,9 +1,13 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
-import { PivotReference } from '@lightdash/common';
+import { ChartType, PivotReference } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import { EChartsReactProps, Opts } from 'echarts-for-react/lib/types';
 import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
-import useEcharts, { isLineSeriesOption } from '../../hooks/echarts/useEcharts';
+import getEchartsCartesianConfig, {
+    isLineSeriesOption,
+} from '../../hooks/echarts/getEchartsCartesianConfig';
+import { useOrganization } from '../../hooks/organization/useOrganization';
+import { useExplore } from '../../hooks/useExplore';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
 type EchartBaseClickEvent = {
@@ -81,11 +85,21 @@ type SimpleChartProps = Omit<EChartsReactProps, 'option'> & {
 };
 
 const SimpleChart: FC<SimpleChartProps> = memo((props) => {
-    const { chartRef, isLoading, onSeriesContextMenu } =
-        useVisualizationContext();
+    const { data: organizationData } = useOrganization();
+
+    // TODO: fixme...
+    const { data: explore } = useExplore('test');
+
+    const {
+        chartRef,
+        isLoading,
+        resultsData,
+        pivotDimensions,
+        visualizationConfig,
+        onSeriesContextMenu,
+    } = useVisualizationContext();
 
     const [selectedLegends, setSelectedLegends] = useState({});
-
     const [selectedLegendsUpdated, setSelectedLegendsUpdated] = useState({});
 
     const onLegendChange = useCallback((params: LegendClickEvent) => {
@@ -96,10 +110,27 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
         setSelectedLegendsUpdated(selectedLegends);
     }, [selectedLegends]);
 
-    const eChartsOptions = useEcharts(
+    const eChartsOptions = useMemo(() => {
+        if (visualizationConfig?.chartType !== ChartType.CARTESIAN) return;
+
+        return getEchartsCartesianConfig(
+            visualizationConfig.chartConfig,
+            explore,
+            resultsData,
+            pivotDimensions,
+            selectedLegendsUpdated,
+            organizationData?.chartColors,
+            { animation: !props.isInDashboard },
+        );
+    }, [
+        visualizationConfig,
+        explore,
+        resultsData,
+        pivotDimensions,
         selectedLegendsUpdated,
+        organizationData?.chartColors,
         props.isInDashboard,
-    );
+    ]);
 
     useEffect(() => {
         const listener = () => {

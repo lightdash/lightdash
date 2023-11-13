@@ -3,7 +3,7 @@ import { FC, memo, useCallback, useMemo, useState } from 'react';
 
 import { downloadCsv } from '../../../api/csv';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
-import { EChartSeries } from '../../../hooks/echarts/useEcharts';
+import { EChartSeries } from '../../../hooks/echarts/getEchartsCartesianConfig';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useExplore } from '../../../hooks/useExplore';
 import { useApp } from '../../../providers/AppProvider';

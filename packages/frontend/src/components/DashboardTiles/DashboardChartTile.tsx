@@ -39,7 +39,7 @@ import { downloadCsv } from '../../api/csv';
 import { ExportToGoogleSheet } from '../../features/export';
 import useDashboardChart from '../../hooks/dashboard/useDashboardChart';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
-import { EChartSeries } from '../../hooks/echarts/useEcharts';
+import { EChartSeries } from '../../hooks/echarts/getEchartsCartesianConfig';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import useToaster from '../../hooks/toaster/useToaster';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';

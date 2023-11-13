@@ -627,7 +627,7 @@ const useCartesianChartConfig = ({
         referenceLines,
     ]);
 
-    const validCartesianConfig: CartesianChart | undefined = useMemo(
+    const validConfig: CartesianChart | undefined = useMemo(
         () =>
             isCompleteLayout(dirtyLayout) &&
             isCompleteEchartsConfig(dirtyEchartsConfig)
@@ -653,7 +653,7 @@ const useCartesianChartConfig = ({
     }, [dirtyEchartsConfig]);
 
     return {
-        validCartesianConfig,
+        validConfig,
         dirtyChartType,
         dirtyLayout,
         dirtyEchartsConfig,

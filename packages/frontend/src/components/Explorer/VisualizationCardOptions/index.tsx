@@ -36,30 +36,36 @@ const VisualizationCardOptions: FC = memo(() => {
     );
 
     const {
-        chartType,
         setChartType,
         isLoading,
         resultsData,
-        cartesianConfig,
+        visualizationConfig,
         setPivotDimensions,
         pivotDimensions,
-        cartesianConfig: { setStacking },
     } = useVisualizationContext();
-    const disabled = isLoading || !resultsData || resultsData.rows.length <= 0;
-    const cartesianType = cartesianConfig.dirtyChartType;
-    const cartesianFlipAxis = cartesianConfig.dirtyLayout?.flipAxes;
-    const isChartTypeTheSameForAllSeries: boolean =
-        !isSeriesWithMixedChartTypes(
-            cartesianConfig.dirtyEchartsConfig?.series,
+
+    const isCartesian = visualizationConfig?.chartType === ChartType.CARTESIAN;
+    const cartesianType = isCartesian
+        ? visualizationConfig.chartConfig.dirtyChartType
+        : undefined;
+    const isCartesianChartTypeTheSameForAllSeries =
+        isCartesian &&
+        isSeriesWithMixedChartTypes(
+            visualizationConfig.chartConfig.dirtyEchartsConfig?.series,
         );
 
-    const selectedChartType = useMemo<{
-        text: string;
-        icon: JSX.Element;
-    }>(() => {
-        switch (chartType) {
+    const cartesianFlipAxis = isCartesian
+        ? visualizationConfig.chartConfig.dirtyLayout?.flipAxes
+        : undefined;
+
+    const disabled = isLoading || !resultsData || resultsData.rows.length <= 0;
+
+    const selectedChartType = useMemo(() => {
+        if (!visualizationConfig) return null;
+
+        switch (visualizationConfig.chartType) {
             case ChartType.CARTESIAN: {
-                if (!isChartTypeTheSameForAllSeries) {
+                if (!isCartesianChartTypeTheSameForAllSeries) {
                     return {
                         text: 'Mixed',
                         icon: (
@@ -70,9 +76,14 @@ const VisualizationCardOptions: FC = memo(() => {
                         ),
                     };
                 }
+
                 switch (cartesianType) {
+                    case undefined:
+                        throw new Error(
+                            'Cartesian type should not be undefined',
+                        );
                     case CartesianSeriesType.AREA:
-                        setStacking(true);
+                        visualizationConfig.chartConfig.setStacking(true);
 
                         return {
                             text: 'Area chart',
@@ -84,7 +95,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             ),
                         };
                     case CartesianSeriesType.LINE:
-                        setStacking(false);
+                        visualizationConfig.chartConfig.setStacking(false);
                         return {
                             text: 'Line chart',
                             icon: (
@@ -96,7 +107,10 @@ const VisualizationCardOptions: FC = memo(() => {
                         };
 
                     case CartesianSeriesType.BAR:
-                        if (!pivotDimensions) setStacking(false);
+                        if (!pivotDimensions) {
+                            visualizationConfig.chartConfig.setStacking(false);
+                        }
+
                         return cartesianFlipAxis
                             ? {
                                   text: 'Horizontal bar chart',
@@ -118,7 +132,7 @@ const VisualizationCardOptions: FC = memo(() => {
                                   ),
                               };
                     case CartesianSeriesType.SCATTER:
-                        setStacking(false);
+                        visualizationConfig.chartConfig.setStacking(false);
 
                         return {
                             text: 'Scatter chart',
@@ -158,18 +172,17 @@ const VisualizationCardOptions: FC = memo(() => {
                 };
             default: {
                 return assertUnreachable(
-                    chartType,
-                    `Unknown chart type ${chartType}`,
+                    visualizationConfig,
+                    'Unknown chart type',
                 );
             }
         }
     }, [
-        chartType,
-        isChartTypeTheSameForAllSeries,
+        visualizationConfig,
         cartesianType,
-        setStacking,
-        pivotDimensions,
         cartesianFlipAxis,
+        isCartesianChartTypeTheSameForAllSeries,
+        pivotDimensions,
     ]);
 
     return (
@@ -178,26 +191,27 @@ const VisualizationCardOptions: FC = memo(() => {
             closeOnItemClick
             disabled={disabled}
         >
-            <Menu.Target>
-                <Button
-                    {...COLLAPSABLE_CARD_BUTTON_PROPS}
-                    disabled={disabled}
-                    leftIcon={selectedChartType.icon}
-                    rightIcon={
-                        <MantineIcon icon={IconChevronDown} color="gray" />
-                    }
-                    data-testid="VisualizationCardOptions"
-                >
-                    {selectedChartType.text}
-                </Button>
-            </Menu.Target>
+            {selectedChartType && (
+                <Menu.Target>
+                    <Button
+                        {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                        disabled={disabled}
+                        leftIcon={selectedChartType.icon}
+                        rightIcon={
+                            <MantineIcon icon={IconChevronDown} color="gray" />
+                        }
+                        data-testid="VisualizationCardOptions"
+                    >
+                        {selectedChartType.text}
+                    </Button>
+                </Menu.Target>
+            )}
 
             <Menu.Dropdown>
                 <Menu.Item
                     disabled={disabled}
                     color={
-                        isChartTypeTheSameForAllSeries &&
-                        chartType === ChartType.CARTESIAN &&
+                        isCartesianChartTypeTheSameForAllSeries &&
                         cartesianType === CartesianSeriesType.BAR &&
                         !cartesianFlipAxis
                             ? 'blue'
@@ -205,12 +219,14 @@ const VisualizationCardOptions: FC = memo(() => {
                     }
                     icon={<MantineIcon icon={IconChartBar} />}
                     onClick={() => {
-                        setChartType(ChartType.CARTESIAN);
-                        cartesianConfig.setType(
-                            CartesianSeriesType.BAR,
-                            false,
-                            false,
-                        );
+                        if (isCartesian) {
+                            setChartType(ChartType.CARTESIAN);
+                            visualizationConfig.chartConfig.setType(
+                                CartesianSeriesType.BAR,
+                                false,
+                                false,
+                            );
+                        }
                     }}
                 >
                     Bar chart
@@ -219,8 +235,7 @@ const VisualizationCardOptions: FC = memo(() => {
                 <Menu.Item
                     disabled={disabled}
                     color={
-                        isChartTypeTheSameForAllSeries &&
-                        chartType === ChartType.CARTESIAN &&
+                        isCartesianChartTypeTheSameForAllSeries &&
                         cartesianType === CartesianSeriesType.BAR &&
                         cartesianFlipAxis
                             ? 'blue'
@@ -233,12 +248,14 @@ const VisualizationCardOptions: FC = memo(() => {
                         />
                     }
                     onClick={() => {
-                        setChartType(ChartType.CARTESIAN);
-                        cartesianConfig.setType(
-                            CartesianSeriesType.BAR,
-                            true,
-                            false,
-                        );
+                        if (isCartesian) {
+                            setChartType(ChartType.CARTESIAN);
+                            visualizationConfig.chartConfig.setType(
+                                CartesianSeriesType.BAR,
+                                true,
+                                false,
+                            );
+                        }
                     }}
                 >
                     Horizontal bar chart
@@ -247,20 +264,21 @@ const VisualizationCardOptions: FC = memo(() => {
                 <Menu.Item
                     disabled={disabled}
                     color={
-                        isChartTypeTheSameForAllSeries &&
-                        chartType === ChartType.CARTESIAN &&
+                        isCartesianChartTypeTheSameForAllSeries &&
                         cartesianType === CartesianSeriesType.LINE
                             ? 'blue'
                             : undefined
                     }
                     icon={<MantineIcon icon={IconChartLine} />}
                     onClick={() => {
-                        setChartType(ChartType.CARTESIAN);
-                        cartesianConfig.setType(
-                            CartesianSeriesType.LINE,
-                            false,
-                            false,
-                        );
+                        if (isCartesian) {
+                            setChartType(ChartType.CARTESIAN);
+                            visualizationConfig.chartConfig.setType(
+                                CartesianSeriesType.LINE,
+                                false,
+                                false,
+                            );
+                        }
                     }}
                 >
                     Line chart
@@ -269,20 +287,21 @@ const VisualizationCardOptions: FC = memo(() => {
                 <Menu.Item
                     disabled={disabled}
                     color={
-                        isChartTypeTheSameForAllSeries &&
-                        chartType === ChartType.CARTESIAN &&
+                        isCartesianChartTypeTheSameForAllSeries &&
                         cartesianType === CartesianSeriesType.AREA
                             ? 'blue'
                             : undefined
                     }
                     icon={<MantineIcon icon={IconChartArea} />}
                     onClick={() => {
-                        setChartType(ChartType.CARTESIAN);
-                        cartesianConfig.setType(
-                            CartesianSeriesType.LINE,
-                            false,
-                            true,
-                        );
+                        if (isCartesian) {
+                            setChartType(ChartType.CARTESIAN);
+                            visualizationConfig.chartConfig.setType(
+                                CartesianSeriesType.LINE,
+                                false,
+                                true,
+                            );
+                        }
                     }}
                 >
                     Area chart
@@ -291,20 +310,21 @@ const VisualizationCardOptions: FC = memo(() => {
                 <Menu.Item
                     disabled={disabled}
                     color={
-                        isChartTypeTheSameForAllSeries &&
-                        chartType === ChartType.CARTESIAN &&
+                        isCartesianChartTypeTheSameForAllSeries &&
                         cartesianType === CartesianSeriesType.SCATTER
                             ? 'blue'
                             : undefined
                     }
                     icon={<MantineIcon icon={IconChartDots} />}
                     onClick={() => {
-                        setChartType(ChartType.CARTESIAN);
-                        cartesianConfig.setType(
-                            CartesianSeriesType.SCATTER,
-                            false,
-                            false,
-                        );
+                        if (isCartesian) {
+                            setChartType(ChartType.CARTESIAN);
+                            visualizationConfig.chartConfig.setType(
+                                CartesianSeriesType.SCATTER,
+                                false,
+                                false,
+                            );
+                        }
                     }}
                 >
                     Scatter chart
@@ -312,7 +332,11 @@ const VisualizationCardOptions: FC = memo(() => {
 
                 <Menu.Item
                     disabled={disabled}
-                    color={chartType === ChartType.PIE ? 'blue' : undefined}
+                    color={
+                        visualizationConfig?.chartType === ChartType.PIE
+                            ? 'blue'
+                            : undefined
+                    }
                     icon={<MantineIcon icon={IconChartPie} />}
                     onClick={() => {
                         setChartType(ChartType.PIE);
@@ -324,7 +348,11 @@ const VisualizationCardOptions: FC = memo(() => {
 
                 <Menu.Item
                     disabled={disabled}
-                    color={chartType === ChartType.TABLE ? 'blue' : undefined}
+                    color={
+                        visualizationConfig?.chartType === ChartType.TABLE
+                            ? 'blue'
+                            : undefined
+                    }
                     icon={<MantineIcon icon={IconTable} />}
                     onClick={() => {
                         setChartType(ChartType.TABLE);
@@ -337,7 +365,9 @@ const VisualizationCardOptions: FC = memo(() => {
                 <Menu.Item
                     disabled={disabled}
                     color={
-                        chartType === ChartType.BIG_NUMBER ? 'blue' : undefined
+                        visualizationConfig?.chartType === ChartType.BIG_NUMBER
+                            ? 'blue'
+                            : undefined
                     }
                     icon={<MantineIcon icon={IconSquareNumber1} />}
                     onClick={() => {
@@ -347,23 +377,26 @@ const VisualizationCardOptions: FC = memo(() => {
                 >
                     Big value
                 </Menu.Item>
-
-                {(health.data?.customVisualizationsEnabled ||
-                    customVizEnabled) && (
-                    <Menu.Item
-                        disabled={disabled}
-                        color={
-                            chartType === ChartType.CUSTOM ? 'blue' : undefined
-                        }
-                        icon={<MantineIcon icon={IconCode} />}
-                        onClick={() => {
-                            setChartType(ChartType.CUSTOM);
-                            setPivotDimensions(undefined);
-                        }}
-                    >
-                        Custom
-                    </Menu.Item>
-                )}
+                {health.data &&
+                    health.data.customVisualizationsEnabled &&
+                    customVizEnabled && (
+                        <Menu.Item
+                            disabled={disabled}
+                            color={
+                                visualizationConfig?.chartType ===
+                                ChartType.CUSTOM
+                                    ? 'blue'
+                                    : undefined
+                            }
+                            icon={<MantineIcon icon={IconCode} />}
+                            onClick={() => {
+                                setChartType(ChartType.CUSTOM);
+                                setPivotDimensions(undefined);
+                            }}
+                        >
+                            Custom
+                        </Menu.Item>
+                    )}
             </Menu.Dropdown>
         </Menu>
     );

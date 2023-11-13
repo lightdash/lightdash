@@ -29,7 +29,7 @@ import { isHexCodeColor } from '../utils/colorUtils';
 import { useOrganization } from './organization/useOrganization';
 
 type PieChartConfig = {
-    validPieChartConfig: PieChart;
+    validConfig: PieChart;
 
     groupFieldIds: (string | null)[];
     groupAdd: () => void;
@@ -415,7 +415,7 @@ const usePieChartConfig: PieChartConfigFn = (
         [],
     );
 
-    const validPieChartConfig: PieChart = useMemo(
+    const validConfig: PieChart = useMemo(
         () => ({
             groupFieldIds,
             metricId: metricId ?? undefined,
@@ -460,7 +460,7 @@ const usePieChartConfig: PieChartConfigFn = (
 
     const values: PieChartConfig = useMemo(
         () => ({
-            validPieChartConfig,
+            validConfig,
 
             groupFieldIds: Array.from(groupFieldIds),
             groupAdd: handleGroupAdd,
@@ -506,7 +506,7 @@ const usePieChartConfig: PieChartConfigFn = (
             data,
         }),
         [
-            validPieChartConfig,
+            validConfig,
 
             groupFieldIds,
             handleGroupAdd,

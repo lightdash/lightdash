@@ -23,9 +23,13 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
         className,
         ...props
     }) => {
-        const { chartType, minimal } = useVisualizationContext();
+        const { visualizationConfig, minimal } = useVisualizationContext();
 
-        switch (chartType) {
+        if (!visualizationConfig) {
+            return null;
+        }
+
+        switch (visualizationConfig.chartType) {
             case ChartType.BIG_NUMBER:
                 return (
                     <SimpleStatistic
@@ -81,8 +85,8 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
 
             default:
                 return assertUnreachable(
-                    chartType,
-                    `Chart type ${chartType} not implemented`,
+                    visualizationConfig,
+                    `Chart type is not implemented`,
                 );
         }
     },
