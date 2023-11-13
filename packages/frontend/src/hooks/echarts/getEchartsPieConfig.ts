@@ -12,7 +12,7 @@ export type PieSeriesDataPoint = NonNullable<
 };
 
 const getEchartsPieConfig = (
-    pieConfig: VisualizationConfigPie,
+    pieVisualizationConfig: VisualizationConfigPie,
     options: {
         animation: boolean;
     } = {
@@ -35,7 +35,7 @@ const getEchartsPieConfig = (
             showLegend,
             legendPosition,
         },
-    } = pieConfig;
+    } = pieVisualizationConfig;
 
     if (!data || data.length === 0) {
         return undefined;
