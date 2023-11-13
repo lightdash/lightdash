@@ -106,9 +106,9 @@ class SSH2Tunnel {
                 this.error = e;
                 socket.destroy();
             });
-            socket.setTimeout(6000 * 10, () => {
+            socket.setTimeout(60000 * 5, () => {
                 console.log(
-                    `SSH tunnel ${this.id} - local tcp server connection timed out after 60 seconds`,
+                    `SSH tunnel ${this.id} - local tcp server connection timed out after 5 minutes`,
                 );
                 socket.destroy();
             });
