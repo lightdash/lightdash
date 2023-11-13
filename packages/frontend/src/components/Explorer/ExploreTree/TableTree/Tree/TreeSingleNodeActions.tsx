@@ -5,6 +5,7 @@ import {
     DimensionType,
     fieldId,
     friendlyName,
+    getCustomDimensionId,
     isAdditionalMetric,
     isCustomDimension,
     isDimension,
@@ -235,13 +236,9 @@ const TreeSingleNodeActions: FC<Props> = ({
                             icon={<MantineIcon icon={IconTrash} />}
                             onClick={(e) => {
                                 e.stopPropagation();
-
-                                // TODO: Add tracking
-                                // track({
-                                //     name: EventName.REMOVE_CUSTOM_DIMENSION_CLICKED,
-                                // });
-
-                                removeCustomDimension(fieldId(item));
+                                removeCustomDimension(
+                                    getCustomDimensionId(item),
+                                );
                             }}
                         >
                             Remove custom dimension
