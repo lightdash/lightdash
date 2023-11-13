@@ -6,7 +6,7 @@ import {
 import { Button, CloseButton, Popover, Text, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconFilter } from '@tabler/icons-react';
-import { FC, useCallback } from 'react';
+import { FC, useCallback, useMemo } from 'react';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import {
     getConditionalRuleLabel,
@@ -50,28 +50,48 @@ const Filter: FC<Props> = ({
     const [isSubPopoverOpen, { close: closeSubPopover, open: openSubPopover }] =
         useDisclosure();
 
-    const defaultFilterRule =
-        filterableFieldsByTileUuid && filterRule && field
-            ? applyDefaultTileTargets(
-                  filterRule,
-                  field,
-                  filterableFieldsByTileUuid,
-              )
-            : undefined;
+    const defaultFilterRule = useMemo(() => {
+        if (!filterableFieldsByTileUuid || !field || !filterRule) return;
+
+        console.time('applyDefaultTileTargets');
+        const test = applyDefaultTileTargets(
+            filterRule,
+            field,
+            filterableFieldsByTileUuid,
+        );
+        console.timeEnd('applyDefaultTileTargets');
+        return test;
+    }, [filterableFieldsByTileUuid, field, filterRule]);
 
     // Only used by active filters
-    const originalFilterRule = dashboard?.filters?.dimensions.find(
-        (item) => filterRule && item.id === filterRule.id,
-    );
+    const originalFilterRule = useMemo(() => {
+        console.time('originalFilterRule');
+        const test = dashboard?.filters?.dimensions.find(
+            (item) => filterRule && item.id === filterRule.id,
+        );
+        console.timeEnd('originalFilterRule');
+        return test;
+    }, [dashboard, filterRule]);
 
-    const filterRuleLabels =
-        filterRule && field
-            ? getConditionalRuleLabel(filterRule, field)
-            : undefined;
-    const filterRuleTables =
-        filterRule && field && allFilterableFields
-            ? getFilterRuleTables(filterRule, field, allFilterableFields)
-            : undefined;
+    const filterRuleLabels = useMemo(() => {
+        if (!filterRule || !field) return;
+        console.time('getConditionalRuleLabel');
+        const test = getConditionalRuleLabel(filterRule, field);
+        console.timeEnd('getConditionalRuleLabel');
+        return test;
+    }, [filterRule, field]);
+
+    const filterRuleTables = useMemo(() => {
+        if (!filterRule || !field || !allFilterableFields) return;
+        console.time('getFilterRuleTables');
+        const test = getFilterRuleTables(
+            filterRule,
+            field,
+            allFilterableFields,
+        );
+        console.timeEnd('getFilterRuleTables');
+        return test;
+    }, [filterRule, field, allFilterableFields]);
 
     const handleClose = useCallback(() => {
         closeSubPopover();
