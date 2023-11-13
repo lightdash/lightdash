@@ -1,3 +1,10 @@
+## [0.863.6](https://github.com/lightdash/lightdash/compare/0.863.5...0.863.6) (2023-11-13)
+
+
+### Bug Fixes
+
+* remove custom dimension sort ([#7921](https://github.com/lightdash/lightdash/issues/7921)) ([26d358b](https://github.com/lightdash/lightdash/commit/26d358b9edd68271e4be6f9276f1919cb38953ae))
+
 ## [0.863.5](https://github.com/lightdash/lightdash/compare/0.863.4...0.863.5) (2023-11-13)
 
 
