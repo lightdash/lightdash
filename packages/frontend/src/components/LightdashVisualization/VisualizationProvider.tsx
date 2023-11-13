@@ -86,7 +86,6 @@ type VisualizationContext = {
     customMetrics: AdditionalMetric[];
     tableCalculations: TableCalculation[];
     visualizationConfig: VisualizationConfig | undefined;
-    changeVisualizationConfig: (value: VisualizationConfig) => void;
     onSeriesContextMenu?: (
         e: EchartSeriesClickEvent,
         series: EChartSeries[],
@@ -108,6 +107,9 @@ export function useVisualizationContext(): VisualizationContext {
 }
 
 const VisualizationCartesianConfig: FC<{
+    children: (props: {
+        visualizationConfig: VisualizationConfig;
+    }) => JSX.Element;
     chartType: ChartType.CARTESIAN;
     initialChartConfig: ChartConfig | undefined;
     validPivotDimensions: string[] | undefined;
@@ -127,8 +129,6 @@ const VisualizationCartesianConfig: FC<{
     explore,
     setPivotDimensions,
 }) => {
-    const { changeVisualizationConfig } = useVisualizationContext();
-
     const cartesianConfig = useCartesianChartConfig({
         // TODO: we should not be doing this...
         chartType,
@@ -143,17 +143,24 @@ const VisualizationCartesianConfig: FC<{
         explore,
     });
 
-    useEffect(() => {
-        changeVisualizationConfig({
+    if (typeof children !== 'function') {
+        throw new Error(
+            'VisualizationCartesianConfig children must be a function',
+        );
+    }
+
+    return children({
+        visualizationConfig: {
             chartType: ChartType.CARTESIAN,
             chartConfig: cartesianConfig,
-        });
-    }, [changeVisualizationConfig, cartesianConfig]);
-
-    return <>{children}</>;
+        },
+    });
 };
 
 const VisualizationPieConfig: FC<{
+    children: (props: {
+        visualizationConfig: VisualizationConfig;
+    }) => JSX.Element;
     initialChartConfig: ChartConfig | undefined;
     resultsData: ApiQueryResults | undefined;
     dimensions: Dimension[];
@@ -169,8 +176,6 @@ const VisualizationPieConfig: FC<{
     customDimensions,
     explore,
 }) => {
-    const { changeVisualizationConfig } = useVisualizationContext();
-
     const pieChartConfig = usePieChartConfig(
         explore,
         resultsData,
@@ -182,23 +187,26 @@ const VisualizationPieConfig: FC<{
         customDimensions,
     );
 
-    useEffect(() => {
-        changeVisualizationConfig({
+    if (typeof children !== 'function') {
+        throw new Error('VisualizationPieConfig children must be a function');
+    }
+
+    return children({
+        visualizationConfig: {
             chartType: ChartType.PIE,
             chartConfig: pieChartConfig,
-        });
-    }, [changeVisualizationConfig, pieChartConfig]);
-
-    return <>{children}</>;
+        },
+    });
 };
 
 const VisualizationBigNumberConfig: FC<{
+    children: (props: {
+        visualizationConfig: VisualizationConfig;
+    }) => JSX.Element;
     initialChartConfig: ChartConfig | undefined;
     lastValidResultsData: ApiQueryResults | undefined;
     explore?: Explore;
 }> = ({ children, initialChartConfig, lastValidResultsData, explore }) => {
-    const { changeVisualizationConfig } = useVisualizationContext();
-
     const bigNumberConfig = useBigNumberConfig(
         initialChartConfig?.type === ChartType.BIG_NUMBER
             ? initialChartConfig.config
@@ -207,17 +215,24 @@ const VisualizationBigNumberConfig: FC<{
         explore,
     );
 
-    useEffect(() => {
-        changeVisualizationConfig({
+    if (typeof children !== 'function') {
+        throw new Error(
+            'VisualizationBigNumberConfig children must be a function',
+        );
+    }
+
+    return children({
+        visualizationConfig: {
             chartType: ChartType.BIG_NUMBER,
             chartConfig: bigNumberConfig,
-        });
-    }, [changeVisualizationConfig, bigNumberConfig]);
-
-    return <>{children}</>;
+        },
+    });
 };
 
 const VisualizationTableConfig: FC<{
+    children: (props: {
+        visualizationConfig: VisualizationConfig;
+    }) => JSX.Element;
     initialChartConfig: ChartConfig | undefined;
     lastValidResultsData: ApiQueryResults | undefined;
     explore?: Explore;
@@ -233,8 +248,6 @@ const VisualizationTableConfig: FC<{
     validPivotDimensions,
     pivotTableMaxColumnLimit,
 }) => {
-    const { changeVisualizationConfig } = useVisualizationContext();
-
     const tableConfig = useTableConfig(
         initialChartConfig?.type === ChartType.TABLE
             ? initialChartConfig.config
@@ -246,29 +259,35 @@ const VisualizationTableConfig: FC<{
         pivotTableMaxColumnLimit,
     );
 
-    useEffect(() => {
-        changeVisualizationConfig({
+    if (typeof children !== 'function') {
+        throw new Error('VisualizationTableConfig children must be a function');
+    }
+
+    return children({
+        visualizationConfig: {
             chartType: ChartType.TABLE,
             chartConfig: tableConfig,
-        });
-    }, [changeVisualizationConfig, tableConfig]);
-
-    return <>{children}</>;
+        },
+    });
 };
 
-const VisualizationCustomConfig: FC<{}> = () => {
-    const { changeVisualizationConfig } = useVisualizationContext();
+const VisualizationCustomConfig: FC<{
+    children: (props: {
+        visualizationConfig: VisualizationConfig;
+    }) => JSX.Element;
+}> = ({ children }) => {
+    if (typeof children !== 'function') {
+        throw new Error(
+            'VisualizationCustomConfig children must be a function',
+        );
+    }
 
-    useEffect(() => {
-        changeVisualizationConfig({
+    return children({
+        visualizationConfig: {
             chartType: ChartType.CUSTOM,
-            chartConfig: {
-                test: true,
-            },
-        });
-    }, [changeVisualizationConfig]);
-
-    return <></>;
+            chartConfig: { test: true },
+        },
+    });
 };
 
 type Props = {
@@ -301,7 +320,6 @@ const VisualizationProvider: FC<Props> = ({
     columnOrder,
     onSeriesContextMenu,
     onChartTypeChange,
-    onChartConfigChange,
     onPivotDimensionsChange,
     explore,
     isSqlRunner,
@@ -314,10 +332,6 @@ const VisualizationProvider: FC<Props> = ({
         (value: ChartType) => onChartTypeChange?.(value),
         [onChartTypeChange],
     );
-
-    const [visualizationConfig, setVisualizationConfig] = useState<
-        VisualizationConfig | undefined
-    >(undefined);
 
     const [lastValidResultsData, setLastValidResultsData] =
         useState<ApiQueryResults>();
@@ -418,11 +432,12 @@ const VisualizationProvider: FC<Props> = ({
         onPivotDimensionsChange?.(validPivotDimensions);
     }, [validPivotDimensions, onPivotDimensionsChange]);
 
-    useEffect(() => {
-        onChartConfigChange?.(visualizationConfig?.chartConfig);
-    }, [visualizationConfig, onChartConfigChange]);
+    // TODO: fix...
+    // useEffect(() => {
+    //     onChartConfigChange?.(visualizationConfig?.chartConfig);
+    // }, [visualizationConfig, onChartConfigChange]);
 
-    const value: VisualizationContext = useMemo(
+    const value: Omit<VisualizationContext, 'visualizationConfig'> = useMemo(
         () => ({
             minimal,
             pivotDimensions: validPivotDimensions,
@@ -440,8 +455,6 @@ const VisualizationProvider: FC<Props> = ({
             tableCalculations,
             allMetrics,
             allNumericMetrics,
-            visualizationConfig,
-            changeVisualizationConfig: setVisualizationConfig,
             onSeriesContextMenu,
             setChartType,
             setPivotDimensions,
@@ -461,69 +474,80 @@ const VisualizationProvider: FC<Props> = ({
             tableCalculations,
             allMetrics,
             allNumericMetrics,
-            visualizationConfig,
-            setVisualizationConfig,
             onSeriesContextMenu,
             setChartType,
             setPivotDimensions,
         ],
     );
 
-    return (
-        <Context.Provider value={value}>
-            {chartType === ChartType.CARTESIAN ? (
-                <VisualizationCartesianConfig
-                    chartType={chartType}
-                    initialChartConfig={initialChartConfig}
-                    validPivotDimensions={validPivotDimensions}
-                    lastValidResultsData={lastValidResultsData}
-                    columnOrder={isSqlRunner ? [] : defaultColumnOrder}
-                    explore={isSqlRunner ? undefined : explore}
-                    setPivotDimensions={setPivotDimensions}
-                >
+    return chartType === ChartType.CARTESIAN ? (
+        <VisualizationCartesianConfig
+            chartType={chartType}
+            initialChartConfig={initialChartConfig}
+            validPivotDimensions={validPivotDimensions}
+            lastValidResultsData={lastValidResultsData}
+            columnOrder={isSqlRunner ? [] : defaultColumnOrder}
+            explore={isSqlRunner ? undefined : explore}
+            setPivotDimensions={setPivotDimensions}
+        >
+            {({ visualizationConfig }) => (
+                <Context.Provider value={{ ...value, visualizationConfig }}>
                     {children}
-                </VisualizationCartesianConfig>
-            ) : chartType === ChartType.PIE ? (
-                <VisualizationPieConfig
-                    initialChartConfig={initialChartConfig}
-                    resultsData={lastValidResultsData}
-                    dimensions={dimensions}
-                    allNumericMetrics={allNumericMetrics}
-                    customDimensions={customDimensions}
-                    explore={explore}
-                >
-                    {children}
-                </VisualizationPieConfig>
-            ) : chartType === ChartType.BIG_NUMBER ? (
-                <VisualizationBigNumberConfig
-                    initialChartConfig={initialChartConfig}
-                    lastValidResultsData={lastValidResultsData}
-                    explore={explore}
-                >
-                    {children}
-                </VisualizationBigNumberConfig>
-            ) : chartType === ChartType.TABLE ? (
-                <VisualizationTableConfig
-                    initialChartConfig={initialChartConfig}
-                    lastValidResultsData={lastValidResultsData}
-                    explore={explore}
-                    columnOrder={defaultColumnOrder}
-                    validPivotDimensions={validPivotDimensions}
-                    pivotTableMaxColumnLimit={pivotTableMaxColumnLimit}
-                >
-                    {children}
-                </VisualizationTableConfig>
-            ) : chartType === ChartType.CUSTOM ? (
-                <VisualizationCustomConfig>
-                    {children}
-                </VisualizationCustomConfig>
-            ) : (
-                assertUnreachable(
-                    chartType,
-                    `Unexpected chart type: ${chartType}`,
-                )
+                </Context.Provider>
             )}
-        </Context.Provider>
+        </VisualizationCartesianConfig>
+    ) : chartType === ChartType.PIE ? (
+        <VisualizationPieConfig
+            initialChartConfig={initialChartConfig}
+            resultsData={lastValidResultsData}
+            dimensions={dimensions}
+            allNumericMetrics={allNumericMetrics}
+            customDimensions={customDimensions}
+            explore={explore}
+        >
+            {({ visualizationConfig }) => (
+                <Context.Provider value={{ ...value, visualizationConfig }}>
+                    {children}
+                </Context.Provider>
+            )}
+        </VisualizationPieConfig>
+    ) : chartType === ChartType.BIG_NUMBER ? (
+        <VisualizationBigNumberConfig
+            initialChartConfig={initialChartConfig}
+            lastValidResultsData={lastValidResultsData}
+            explore={explore}
+        >
+            {({ visualizationConfig }) => (
+                <Context.Provider value={{ ...value, visualizationConfig }}>
+                    {children}
+                </Context.Provider>
+            )}
+        </VisualizationBigNumberConfig>
+    ) : chartType === ChartType.TABLE ? (
+        <VisualizationTableConfig
+            initialChartConfig={initialChartConfig}
+            lastValidResultsData={lastValidResultsData}
+            explore={explore}
+            columnOrder={defaultColumnOrder}
+            validPivotDimensions={validPivotDimensions}
+            pivotTableMaxColumnLimit={pivotTableMaxColumnLimit}
+        >
+            {({ visualizationConfig }) => (
+                <Context.Provider value={{ ...value, visualizationConfig }}>
+                    {children}
+                </Context.Provider>
+            )}
+        </VisualizationTableConfig>
+    ) : chartType === ChartType.CUSTOM ? (
+        <VisualizationCustomConfig>
+            {({ visualizationConfig }) => (
+                <Context.Provider value={{ ...value, visualizationConfig }}>
+                    {children}
+                </Context.Provider>
+            )}
+        </VisualizationCustomConfig>
+    ) : (
+        assertUnreachable(chartType, `Unexpected chart type: ${chartType}`)
     );
 };
 

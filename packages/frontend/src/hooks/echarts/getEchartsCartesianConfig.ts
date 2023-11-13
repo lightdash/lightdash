@@ -1248,8 +1248,8 @@ const getEchartsCartesianConfig = (
     explore: Explore | undefined,
     resultsData: ApiQueryResults | undefined,
     pivotDimensions: string[] | undefined,
-    validCartesianConfigLegend?: LegendValues,
-    colors: string[] = ECHARTS_DEFAULT_COLORS,
+    validCartesianConfigLegend: LegendValues | undefined,
+    orgColors: string[] | undefined,
     options: {
         animation: boolean;
     } = {
@@ -1257,6 +1257,7 @@ const getEchartsCartesianConfig = (
     },
 ) => {
     const { validConfig } = cartesianVisualizationConfig;
+    const orgColorsWithFallback = orgColors || ECHARTS_DEFAULT_COLORS;
 
     const [pivotedKeys, nonPivotedKeys] =
         resultsData && validConfig && isCompleteLayout(validConfig.layout)
@@ -1347,13 +1348,14 @@ const getEchartsCartesianConfig = (
                   if (!serie.hidden)
                       return [
                           ...acc,
-                          colors[index] || getDefaultSeriesColor(index),
+                          orgColorsWithFallback[index] ||
+                              getDefaultSeriesColor(index),
                       ];
                   else return acc;
               },
               [],
           )
-        : colors;
+        : orgColorsWithFallback;
 
     // TODO: optimize this
     const sortedResults = (() => {
