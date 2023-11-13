@@ -1,12 +1,13 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
+import { ChartType } from '@lightdash/common';
 import { useDisclosure } from '@mantine/hooks';
 import { ECElementEvent } from 'echarts';
 import EChartsReact from 'echarts-for-react';
 import { EChartsReactProps, Opts } from 'echarts-for-react/lib/types';
-import { FC, memo, useCallback, useEffect, useState } from 'react';
-import useEchartsPieConfig, {
+import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
+import getEchartsPieConfig, {
     PieSeriesDataPoint,
-} from '../../hooks/echarts/useEchartsPieChart';
+} from '../../hooks/echarts/getEchartsPieConfig';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import PieChartContextMenu, {
     PieChartContextMenuProps,
@@ -44,8 +45,17 @@ type SimplePieChartProps = Omit<EChartsReactProps, 'option'> & {
 const EchartOptions: Opts = { renderer: 'svg' };
 
 const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
-    const { chartRef, isLoading } = useVisualizationContext();
-    const pieChartOptions = useEchartsPieConfig(props.isInDashboard);
+    const { chartRef, isLoading, visualizationConfig } =
+        useVisualizationContext();
+
+    const pieChartOptions = useMemo(() => {
+        return visualizationConfig.chartType === ChartType.PIE
+            ? getEchartsPieConfig(visualizationConfig.chartConfig, {
+                  animation: !props.isInDashboard,
+              })
+            : undefined;
+    }, [visualizationConfig, props.isInDashboard]);
+
     const [isOpen, { open, close }] = useDisclosure();
     const [menuProps, setMenuProps] = useState<{
         position: PieChartContextMenuProps['menuPosition'];

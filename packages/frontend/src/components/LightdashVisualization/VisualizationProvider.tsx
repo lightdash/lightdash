@@ -37,16 +37,43 @@ import usePieChartConfig from '../../hooks/usePieChartConfig';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 
+export type VisualizationConfigCartesian = ReturnType<
+    typeof useCartesianChartConfig
+>;
+export type VisualizationConfigTable = ReturnType<typeof useTableConfig>;
+export type VisualizationConfigBigNumber = ReturnType<
+    typeof useBigNumberConfig
+>;
+export type VisualizationConfigPie = ReturnType<typeof usePieChartConfig>;
+
+export type VisualizationConfig =
+    | {
+          chartType: ChartType.CARTESIAN;
+          chartConfig: VisualizationConfigCartesian;
+      }
+    | {
+          chartType: ChartType.BIG_NUMBER;
+          chartConfig: VisualizationConfigBigNumber;
+      }
+    | {
+          chartType: ChartType.TABLE;
+          chartConfig: VisualizationConfigTable;
+      }
+    | {
+          chartType: ChartType.PIE;
+          chartConfig: VisualizationConfigPie;
+      }
+    | {
+          chartType: ChartType.CUSTOM;
+          chartConfig: { test: true };
+      };
+
 type VisualizationContext = {
     minimal: boolean;
     chartRef: RefObject<EChartsReact>;
-    chartType: ChartType;
-    cartesianConfig: ReturnType<typeof useCartesianChartConfig>;
-    bigNumberConfig: ReturnType<typeof useBigNumberConfig>;
-    pieChartConfig: ReturnType<typeof usePieChartConfig>;
-    tableConfig: ReturnType<typeof useTableConfig>;
+    visualizationConfig: VisualizationConfig;
     pivotDimensions: string[] | undefined;
-    explore: Explore | undefined;
+    originalData: ApiQueryResults['rows'];
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     columnOrder: string[];
@@ -107,23 +134,17 @@ const VisualizationProvider: FC<Props> = ({
 }) => {
     const chartRef = useRef<EChartsReact>(null);
 
+    const setChartType = useCallback(
+        (value: ChartType) => onChartTypeChange?.(value),
+        [onChartTypeChange],
+    );
+
     const [lastValidResultsData, setLastValidResultsData] =
         useState<ApiQueryResults>();
-    useEffect(() => {
-        if (!!resultsData) {
-            setLastValidResultsData(resultsData);
-        }
-    }, [resultsData]);
 
     const { validPivotDimensions, setPivotDimensions } = usePivotDimensions(
         initialPivotDimensions,
         lastValidResultsData,
-    );
-    const setChartType = useCallback(
-        (value: ChartType) => {
-            onChartTypeChange?.(value);
-        },
-        [onChartTypeChange],
     );
 
     const dimensions = useMemo(() => {
@@ -184,14 +205,6 @@ const VisualizationProvider: FC<Props> = ({
         [allMetrics],
     );
 
-    const bigNumberConfig = useBigNumberConfig(
-        initialChartConfig?.type === ChartType.BIG_NUMBER
-            ? initialChartConfig.config
-            : undefined,
-        lastValidResultsData,
-        explore,
-    );
-
     // If we don't toggle any fields, (eg: when you `explore from here`) columnOrder on tableConfig might be empty
     // so we initialize it with the fields from resultData
     const defaultColumnOrder = useMemo(() => {
@@ -215,6 +228,7 @@ const VisualizationProvider: FC<Props> = ({
             return metricQueryFields;
         }
     }, [resultsData?.metricQuery, columnOrder]);
+
     const tableConfig = useTableConfig(
         initialChartConfig?.type === ChartType.TABLE
             ? initialChartConfig.config
@@ -226,8 +240,13 @@ const VisualizationProvider: FC<Props> = ({
         pivotTableMaxColumnLimit,
     );
 
-    const { validBigNumberConfig } = bigNumberConfig;
-    const { validTableConfig } = tableConfig;
+    const bigNumberConfig = useBigNumberConfig(
+        initialChartConfig?.type === ChartType.BIG_NUMBER
+            ? initialChartConfig.config
+            : undefined,
+        lastValidResultsData,
+        explore,
+    );
 
     const cartesianConfig = useCartesianChartConfig({
         chartType,
@@ -242,8 +261,6 @@ const VisualizationProvider: FC<Props> = ({
         explore: isSqlRunner ? undefined : explore,
     });
 
-    const { validCartesianConfig } = cartesianConfig;
-
     const pieChartConfig = usePieChartConfig(
         explore,
         resultsData,
@@ -255,6 +272,9 @@ const VisualizationProvider: FC<Props> = ({
         customDimensions,
     );
 
+    const { validTableConfig } = tableConfig;
+    const { validBigNumberConfig } = bigNumberConfig;
+    const { validCartesianConfig } = cartesianConfig;
     const { validPieChartConfig } = pieChartConfig;
 
     useEffect(() => {
@@ -292,20 +312,63 @@ const VisualizationProvider: FC<Props> = ({
     ]);
 
     useEffect(() => {
+        if (!!resultsData) {
+            setLastValidResultsData(resultsData);
+        }
+    }, [resultsData]);
+
+    useEffect(() => {
         onPivotDimensionsChange?.(validPivotDimensions);
     }, [validPivotDimensions, onPivotDimensionsChange]);
+
+    const visualizationConfig: VisualizationConfig = useMemo(() => {
+        switch (chartType) {
+            case ChartType.CARTESIAN:
+                return {
+                    chartType: ChartType.CARTESIAN,
+                    chartConfig: cartesianConfig,
+                } as const;
+            case ChartType.BIG_NUMBER:
+                return {
+                    chartType: ChartType.BIG_NUMBER,
+                    chartConfig: bigNumberConfig,
+                } as const;
+            case ChartType.TABLE:
+                return {
+                    chartType: ChartType.TABLE,
+                    chartConfig: tableConfig,
+                } as const;
+            case ChartType.PIE:
+                return {
+                    chartType: ChartType.PIE,
+                    chartConfig: pieChartConfig,
+                };
+            case ChartType.CUSTOM:
+                return {
+                    chartType: ChartType.CUSTOM,
+                    chartConfig: { test: true },
+                } as const;
+            default:
+                return assertUnreachable(
+                    chartType,
+                    `Unexpected chart type: ${chartType}`,
+                );
+        }
+    }, [
+        chartType,
+        cartesianConfig,
+        bigNumberConfig,
+        tableConfig,
+        pieChartConfig,
+    ]);
 
     const value: VisualizationContext = useMemo(
         () => ({
             minimal,
             pivotDimensions: validPivotDimensions,
-            cartesianConfig,
-            bigNumberConfig,
-            pieChartConfig,
-            tableConfig,
+            visualizationConfig,
             chartRef,
-            chartType,
-            explore,
+            originalData: lastValidResultsData?.rows || [],
             resultsData: lastValidResultsData,
             isLoading,
             columnOrder,
@@ -323,16 +386,11 @@ const VisualizationProvider: FC<Props> = ({
         }),
         [
             minimal,
-            chartType,
             columnOrder,
-            explore,
             isLoading,
             isSqlRunner,
             lastValidResultsData,
-            tableConfig,
-            bigNumberConfig,
-            cartesianConfig,
-            pieChartConfig,
+            visualizationConfig,
             validPivotDimensions,
             dimensions,
             metrics,
