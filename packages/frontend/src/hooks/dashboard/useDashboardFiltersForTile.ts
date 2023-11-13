@@ -6,8 +6,10 @@ import { useMemo } from 'react';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 
 const useDashboardFiltersForTile = (tileUuid: string): DashboardFilters => {
-    const { dashboardFilters, dashboardTemporaryFilters } =
-        useDashboardContext();
+    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const dashboardTemporaryFilters = useDashboardContext(
+        (c) => c.dashboardTemporaryFilters,
+    );
 
     return useMemo(
         () => ({

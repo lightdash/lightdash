@@ -9,15 +9,25 @@ interface ActiveFiltersProps {
 }
 
 const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
-    const {
-        dashboardFilters,
-        dashboardTemporaryFilters,
-        updateDimensionDashboardFilter,
-        removeDimensionDashboardFilter,
-        allFilterableFields,
-        isLoadingDashboardFilters,
-        isFetchingDashboardFilters,
-    } = useDashboardContext();
+    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const dashboardTemporaryFilters = useDashboardContext(
+        (c) => c.dashboardTemporaryFilters,
+    );
+    const allFilterableFields = useDashboardContext(
+        (c) => c.allFilterableFields,
+    );
+    const isLoadingDashboardFilters = useDashboardContext(
+        (c) => c.isLoadingDashboardFilters,
+    );
+    const isFetchingDashboardFilters = useDashboardContext(
+        (c) => c.isFetchingDashboardFilters,
+    );
+    const removeDimensionDashboardFilter = useDashboardContext(
+        (c) => c.removeDimensionDashboardFilter,
+    );
+    const updateDimensionDashboardFilter = useDashboardContext(
+        (c) => c.updateDimensionDashboardFilter,
+    );
 
     if (isLoadingDashboardFilters || isFetchingDashboardFilters) {
         return (

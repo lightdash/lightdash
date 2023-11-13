@@ -157,7 +157,10 @@ const ValidDashboardChartTile: FC<{
     chartAndResults: { chart, explore, metricQuery, rows, cacheMetadata },
     onSeriesContextMenu,
 }) => {
-    const { addSuggestions, addResultsCacheTime } = useDashboardContext();
+    const addSuggestions = useDashboardContext((c) => c.addSuggestions);
+    const addResultsCacheTime = useDashboardContext(
+        (c) => c.addResultsCacheTime,
+    );
 
     const { health } = useApp();
 
@@ -281,15 +284,16 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         dashboardUuid: string;
     }>();
 
-    const {
-        addDimensionDashboardFilter,
-        setDashboardTiles,
-        dashboardTiles,
-        dashboardFilters: filtersFromCOntext,
-        haveTilesChanged,
-        haveFiltersChanged,
-        dashboard,
-    } = useDashboardContext();
+    const addDimensionDashboardFilter = useDashboardContext(
+        (c) => c.addDimensionDashboardFilter,
+    );
+
+    const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
+    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const filtersFromContext = useDashboardContext((c) => c.dashboardFilters);
+    const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
+    const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
+    const dashboard = useDashboardContext((c) => c.dashboard);
 
     const { storeDashboard } = useDashboardStorage();
 
@@ -511,7 +515,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                             if (belongsToDashboard) {
                                                 storeDashboard(
                                                     dashboardTiles,
-                                                    filtersFromCOntext,
+                                                    filtersFromContext,
                                                     haveTilesChanged,
                                                     haveFiltersChanged,
                                                     dashboard?.uuid,

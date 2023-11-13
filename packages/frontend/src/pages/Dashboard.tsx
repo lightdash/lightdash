@@ -141,21 +141,29 @@ const Dashboard: FC = () => {
 
     const { clearIsEditingDashboardChart } = useDashboardStorage();
 
-    const {
-        dashboard,
-        dashboardError,
-        dashboardFilters,
-        dashboardTemporaryFilters,
-        haveFiltersChanged,
-        setHaveFiltersChanged,
-        dashboardTiles,
-        setDashboardTiles,
-        haveTilesChanged,
-        setHaveTilesChanged,
-        setDashboardFilters,
-        setDashboardTemporaryFilters,
-        oldestCacheTime,
-    } = useDashboardContext();
+    const dashboard = useDashboardContext((c) => c.dashboard);
+    const dashboardError = useDashboardContext((c) => c.dashboardError);
+    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const dashboardTemporaryFilters = useDashboardContext(
+        (c) => c.dashboardTemporaryFilters,
+    );
+    const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
+    const setHaveFiltersChanged = useDashboardContext(
+        (c) => c.setHaveFiltersChanged,
+    );
+    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
+    const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
+    const setHaveTilesChanged = useDashboardContext(
+        (c) => c.setHaveTilesChanged,
+    );
+    const setDashboardFilters = useDashboardContext(
+        (c) => c.setDashboardFilters,
+    );
+    const setDashboardTemporaryFilters = useDashboardContext(
+        (c) => c.setDashboardTemporaryFilters,
+    );
+    const oldestCacheTime = useDashboardContext((c) => c.oldestCacheTime);
 
     const { data: organization } = useOrganization();
     const hasTemporaryFilters = useMemo(

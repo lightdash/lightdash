@@ -52,7 +52,10 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
 const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: savedCharts, isLoading } = useChartSummaries(projectUuid);
-    const { dashboardTiles, dashboard } = useDashboardContext();
+
+    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboard = useDashboardContext((c) => c.dashboard);
+
     const form = useForm({
         initialValues: {
             savedChartsUuids: [],

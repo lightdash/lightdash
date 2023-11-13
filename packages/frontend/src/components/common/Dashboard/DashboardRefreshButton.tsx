@@ -48,7 +48,7 @@ export const DashboardRefreshButton = () => {
 
     const { isFetching, invalidateDashboardRelatedQueries } =
         useDashboardRefresh();
-    const { clearCacheAndFetch } = useDashboardContext();
+    const clearCacheAndFetch = useDashboardContext((c) => c.clearCacheAndFetch);
 
     const isOneAtLeastFetching = isFetching > 0;
 
