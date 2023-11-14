@@ -45,6 +45,8 @@ const ThirdPartyServicesEnabledProvider: FC = ({ children }) => {
                 apiKey={health.data?.posthog.projectApiKey || ''}
                 options={{
                     api_host: health.data?.posthog.apiHost,
+                    autocapture: false,
+                    capture_pageview: false,
                     bootstrap: {
                         featureFlags: {
                             'extended-usage-analytics': false,
