@@ -181,6 +181,15 @@ const ValidDashboardChartTile: FC<{
         addResultsCacheTime(cacheMetadata);
     }, [addSuggestions, addResultsCacheTime, metricQuery, cacheMetadata, rows]);
 
+    const resultData = useMemo(
+        () => ({
+            rows,
+            metricQuery,
+            cacheMetadata,
+        }),
+        [rows, metricQuery, cacheMetadata],
+    );
+
     if (health.isLoading || !health.data) {
         return null;
     }
@@ -190,11 +199,7 @@ const ValidDashboardChartTile: FC<{
             chartType={chart.chartConfig.type}
             initialChartConfig={chart.chartConfig}
             initialPivotDimensions={chart.pivotConfig?.columns}
-            resultsData={{
-                rows,
-                metricQuery,
-                cacheMetadata,
-            }}
+            resultsData={resultData}
             explore={explore}
             isLoading={false}
             onSeriesContextMenu={onSeriesContextMenu}
@@ -222,6 +227,11 @@ const ValidDashboardChartTileMinimal: FC<{
 }) => {
     const { health } = useApp();
 
+    const resultData = useMemo(
+        () => ({ rows, metricQuery, cacheMetadata }),
+        [rows, metricQuery, cacheMetadata],
+    );
+
     if (health.isLoading || !health.data) {
         return null;
     }
@@ -232,11 +242,7 @@ const ValidDashboardChartTileMinimal: FC<{
             chartType={chart.chartConfig.type}
             initialChartConfig={chart.chartConfig}
             initialPivotDimensions={chart.pivotConfig?.columns}
-            resultsData={{
-                rows,
-                cacheMetadata,
-                metricQuery,
-            }}
+            resultsData={resultData}
             isLoading={false}
             explore={explore}
             columnOrder={chart.tableConfig.columnOrder}
