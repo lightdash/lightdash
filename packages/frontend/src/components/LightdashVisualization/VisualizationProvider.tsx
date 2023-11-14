@@ -30,7 +30,7 @@ import {
 } from 'react';
 
 import useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import { EChartSeries } from '../../hooks/echarts/getEchartsCartesianConfig';
+import { EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
 import useTableConfig from '../../hooks/tableVisualization/useTableConfig';
 import useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import usePieChartConfig from '../../hooks/usePieChartConfig';
