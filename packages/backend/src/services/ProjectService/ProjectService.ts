@@ -2138,27 +2138,23 @@ export class ProjectService {
                 await this.savedChartModel.getInfoForAvailableFilters(
                     savedQueryUuids,
                 );
+            const exploreCacheKeys: Record<string, boolean> = {};
             const exploreCache: Record<string, Explore> = {};
 
-            const uniqueExplores = new Set<string>();
-            savedCharts.forEach((chart) => {
+            const explorePromises = savedCharts.reduce<
+                Promise<{ key: string; explore: Explore }>[]
+            >((acc, chart) => {
                 const key = chart.tableName;
-                if (!uniqueExplores.has(key)) {
-                    uniqueExplores.add(key);
-                }
-            });
-
-            const explorePromises = Array.from(uniqueExplores).map(
-                async (key) => {
-                    const [projectUuid, tableName] = key.split('_');
-                    const explore = await this.getExplore(
-                        user,
-                        projectUuid,
-                        tableName,
+                if (!exploreCacheKeys[key]) {
+                    acc.push(
+                        this.getExplore(user, chart.projectUuid, key).then(
+                            (explore) => ({ key, explore }),
+                        ),
                     );
-                    return { key, explore };
-                },
-            );
+                    exploreCacheKeys[key] = true;
+                }
+                return acc;
+            }, []);
 
             const resolvedExplores = await Promise.all(explorePromises);
 
