@@ -2142,7 +2142,7 @@ export class ProjectService {
 
             const uniqueExplores = new Set<string>();
             savedCharts.forEach((chart) => {
-                const key = `${chart.projectUuid}_${chart.tableName}`;
+                const key = chart.tableName;
                 if (!uniqueExplores.has(key)) {
                     uniqueExplores.add(key);
                 }
@@ -2183,8 +2183,7 @@ export class ProjectService {
                     return { uuid: savedChart.uuid, filters: [] };
                 }
 
-                const exploreKey = `${savedChart.projectUuid}_${savedChart.tableName}`;
-                const explore = exploreCache[exploreKey];
+                const explore = exploreCache[savedChart.tableName];
 
                 const filters = getDimensions(explore).filter(
                     (field) => isFilterableDimension(field) && !field.hidden,
