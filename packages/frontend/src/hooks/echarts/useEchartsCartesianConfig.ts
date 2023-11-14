@@ -2,11 +2,11 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
+    ChartType,
     convertAdditionalMetric,
     CustomDimension,
     DimensionType,
     ECHARTS_DEFAULT_COLORS,
-    Explore,
     Field,
     findItem,
     formatItemValue,
@@ -46,9 +46,11 @@ import {
 import groupBy from 'lodash-es/groupBy';
 import toNumber from 'lodash-es/toNumber';
 import moment from 'moment';
-import { VisualizationConfigCartesian } from '../../components/LightdashVisualization/VisualizationProvider';
+import { useMemo } from 'react';
+import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 import { defaultGrid } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
+import { useOrganization } from '../organization/useOrganization';
 import getPlottedData from '../plottedData/getPlottedData';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
@@ -546,7 +548,6 @@ const getMinAndMaxReferenceLines = (
                 : undefined,
     };
 };
-
 type GetPivotSeriesArg = {
     series: Series;
     items: Array<Field | TableCalculation | CustomDimension>;
@@ -1243,124 +1244,153 @@ const getStackTotalSeries = (
     );
 };
 
-const getEchartsCartesianConfig = (
-    cartesianVisualizationConfig: VisualizationConfigCartesian,
-    explore: Explore | undefined,
-    resultsData: ApiQueryResults | undefined,
-    pivotDimensions: string[] | undefined,
-    validCartesianConfigLegend: LegendValues | undefined,
-    orgColors: string[] | undefined,
-    options: {
-        animation: boolean;
-    } = {
-        animation: true,
-    },
+const useEchartsCartesianConfig = (
+    validCartesianConfigLegend?: LegendValues,
+    isInDashboard?: boolean,
 ) => {
-    const { validConfig } = cartesianVisualizationConfig;
-    const orgColorsWithFallback = orgColors || ECHARTS_DEFAULT_COLORS;
+    const { visualizationConfig, explore, pivotDimensions, resultsData } =
+        useVisualizationContext();
 
-    const [pivotedKeys, nonPivotedKeys] =
-        resultsData && validConfig && isCompleteLayout(validConfig.layout)
-            ? [
-                  validConfig.layout.yField.filter(
-                      (y) => !resultsData.metricQuery.dimensions.includes(y),
-                  ),
-                  [
-                      ...validConfig.layout.yField.filter((y) =>
-                          resultsData.metricQuery.dimensions.includes(y),
-                      ),
-                      validConfig.layout.xField,
-                  ],
-              ]
-            : [];
+    const chartConfig = useMemo(() => {
+        if (visualizationConfig?.chartType !== ChartType.CARTESIAN) return;
 
-    const { rows } = getPlottedData(
-        resultsData?.rows,
-        pivotDimensions,
-        pivotedKeys,
-        nonPivotedKeys,
+        return visualizationConfig.chartConfig.validConfig;
+    }, [visualizationConfig]);
+
+    const { data: organizationData } = useOrganization();
+
+    const [pivotedKeys, nonPivotedKeys] = useMemo(() => {
+        if (
+            resultsData &&
+            chartConfig &&
+            isCompleteLayout(chartConfig.layout)
+        ) {
+            const yFieldPivotedKeys = chartConfig.layout.yField.filter(
+                (yField) =>
+                    !resultsData.metricQuery.dimensions.includes(yField),
+            );
+            const yFieldNonPivotedKeys = chartConfig.layout.yField.filter(
+                (yField) => resultsData.metricQuery.dimensions.includes(yField),
+            );
+
+            return [
+                yFieldPivotedKeys,
+                [...yFieldNonPivotedKeys, chartConfig.layout.xField],
+            ];
+        }
+        return [];
+    }, [chartConfig, resultsData]);
+
+    const { rows } = useMemo(() => {
+        return getPlottedData(
+            resultsData?.rows,
+            pivotDimensions,
+            pivotedKeys,
+            nonPivotedKeys,
+        );
+    }, [resultsData?.rows, pivotDimensions, pivotedKeys, nonPivotedKeys]);
+
+    const formats = useMemo(
+        () =>
+            explore
+                ? getItemMap(
+                      explore,
+                      resultsData?.metricQuery.additionalMetrics,
+                      resultsData?.metricQuery.tableCalculations,
+                  )
+                : undefined,
+        [explore, resultsData],
     );
 
-    const formats = explore
-        ? getItemMap(
-              explore,
-              resultsData?.metricQuery.additionalMetrics,
-              resultsData?.metricQuery.tableCalculations,
-          )
-        : undefined;
+    const items = useMemo(() => {
+        if (!explore || !resultsData) {
+            return [];
+        }
+        return [
+            ...getFields(explore),
+            ...(resultsData?.metricQuery.additionalMetrics || []).reduce<
+                Metric[]
+            >((acc, additionalMetric) => {
+                const table = explore.tables[additionalMetric.table];
+                if (table) {
+                    const metric = convertAdditionalMetric({
+                        additionalMetric,
+                        table,
+                    });
+                    return [...acc, metric];
+                }
+                return acc;
+            }, []),
+            ...(resultsData?.metricQuery.tableCalculations || []),
+            ...(resultsData?.metricQuery.customDimensions || []),
+        ];
+    }, [explore, resultsData]);
 
-    const items =
-        !explore || !resultsData
-            ? []
-            : [
-                  ...getFields(explore),
-                  ...(resultsData?.metricQuery.additionalMetrics || []).reduce<
-                      Metric[]
-                  >((acc, additionalMetric) => {
-                      const table = explore.tables[additionalMetric.table];
-                      if (table) {
-                          const metric = convertAdditionalMetric({
-                              additionalMetric,
-                              table,
-                          });
-                          return [...acc, metric];
-                      }
-                      return acc;
-                  }, []),
-                  ...(resultsData?.metricQuery.tableCalculations || []),
-                  ...(resultsData?.metricQuery.customDimensions || []),
-              ];
+    const series = useMemo(() => {
+        if (!explore || !chartConfig || !resultsData) {
+            return [];
+        }
 
-    const series =
-        !explore || !validConfig || !resultsData
-            ? []
-            : getEchartsSeries(items, validConfig, pivotDimensions, formats);
+        return getEchartsSeries(items, chartConfig, pivotDimensions, formats);
+    }, [explore, chartConfig, resultsData, pivotDimensions, formats, items]);
 
-    const axis = !validConfig
-        ? { xAxis: [], yAxis: [] }
-        : getEchartAxis({
-              items,
-              series,
-              validCartesianConfig: validConfig,
-              resultsData,
-          });
+    const axis = useMemo(() => {
+        if (!chartConfig) {
+            return { xAxis: [], yAxis: [] };
+        }
 
-    const seriesWithValidStack = series.map<EChartSeries>((serie) => ({
-        ...serie,
-        stack: getValidStack(serie),
-    }));
-
-    const stackedSeries = [
-        ...seriesWithValidStack,
-        ...getStackTotalSeries(
-            rows,
-            seriesWithValidStack,
+        return getEchartAxis({
             items,
-            validConfig?.layout.flipAxes,
-            validCartesianConfigLegend,
-        ),
-    ];
+            series,
+            validCartesianConfig: chartConfig,
+            resultsData,
+        });
+    }, [items, series, chartConfig, resultsData]);
 
-    //Do not use colors from hidden series
-    const seriesColors = validConfig?.eChartsConfig.series
-        ? validConfig.eChartsConfig.series.reduce<string[]>(
-              (acc, serie, index) => {
-                  if (!serie.hidden)
-                      return [
-                          ...acc,
-                          orgColorsWithFallback[index] ||
-                              getDefaultSeriesColor(index),
-                      ];
-                  else return acc;
-              },
-              [],
-          )
-        : orgColorsWithFallback;
+    const stackedSeries = useMemo(() => {
+        const seriesWithValidStack = series.map<EChartSeries>((serie) => ({
+            ...serie,
+            stack: getValidStack(serie),
+        }));
+        return [
+            ...seriesWithValidStack,
+            ...getStackTotalSeries(
+                rows,
+                seriesWithValidStack,
+                items,
+                chartConfig?.layout.flipAxes,
+                validCartesianConfigLegend,
+            ),
+        ];
+    }, [
+        series,
+        rows,
+        items,
+        chartConfig?.layout.flipAxes,
+        validCartesianConfigLegend,
+    ]);
 
-    // TODO: optimize this
-    const sortedResults = (() => {
+    const colors = useMemo<string[]>(() => {
+        const allColors =
+            organizationData?.chartColors || ECHARTS_DEFAULT_COLORS;
+        //Do not use colors from hidden series
+        return chartConfig?.eChartsConfig.series
+            ? chartConfig.eChartsConfig.series.reduce<string[]>(
+                  (acc, serie, index) => {
+                      if (!serie.hidden)
+                          return [
+                              ...acc,
+                              allColors[index] || getDefaultSeriesColor(index),
+                          ];
+                      else return acc;
+                  },
+                  [],
+              )
+            : allColors;
+    }, [organizationData?.chartColors, chartConfig]);
+    const sortedResults = useMemo(() => {
         const results =
-            validConfig?.layout?.xField === EMPTY_X_AXIS
+            chartConfig?.layout?.xField === EMPTY_X_AXIS
                 ? getResultValueArray(rows, true).map((s) => ({
                       ...s,
                       [EMPTY_X_AXIS]: ' ',
@@ -1372,7 +1402,7 @@ const getEchartsCartesianConfig = (
             const customDimensions =
                 resultsData?.metricQuery.customDimensions || [];
 
-            const xFieldId = validConfig?.layout?.xField;
+            const xFieldId = chartConfig?.layout?.xField;
             if (xFieldId === undefined) return results;
 
             const alreadySorted =
@@ -1382,7 +1412,7 @@ const getEchartsCartesianConfig = (
             const xField = [...dimensions, ...customDimensions].find(
                 (dimension) => getItemId(dimension) === xFieldId,
             );
-            const hasTotal = validConfig?.eChartsConfig?.series?.some(
+            const hasTotal = chartConfig?.eChartsConfig?.series?.some(
                 (s) => s.stackLabel?.show,
             );
 
@@ -1432,39 +1462,47 @@ const getEchartsCartesianConfig = (
             console.error('Unable to sort date results', e);
             return results;
         }
-    })();
+    }, [
+        rows,
+        resultsData?.metricQuery.sorts,
+        explore,
+        chartConfig?.layout?.xField,
+        chartConfig?.eChartsConfig?.series,
+        resultsData?.metricQuery.customDimensions,
+    ]);
 
-    const tooltip: TooltipOption = {
-        show: true,
-        confine: true,
-        trigger: 'axis',
-        enterable: true,
-        extraCssText: 'overflow-y: auto; max-height:280px;',
-        axisPointer: {
-            type: 'shadow',
-            label: { show: true },
-        },
-        formatter: (params) => {
-            if (!Array.isArray(params)) return '';
+    const tooltip = useMemo<TooltipOption>(
+        () => ({
+            show: true,
+            confine: true,
+            trigger: 'axis',
+            enterable: true,
+            extraCssText: 'overflow-y: auto; max-height:280px;',
+            axisPointer: {
+                type: 'shadow',
+                label: { show: true },
+            },
+            formatter: (params) => {
+                if (!Array.isArray(params)) return '';
 
-            const tooltipRows = params
-                .map((param) => {
-                    const {
-                        marker,
-                        seriesName,
-                        dimensionNames,
-                        encode,
-                        value,
-                    } = param;
+                const tooltipRows = params
+                    .map((param) => {
+                        const {
+                            marker,
+                            seriesName,
+                            dimensionNames,
+                            encode,
+                            value,
+                        } = param;
 
-                    if (dimensionNames) {
-                        const dim =
-                            encode?.y[0] !== undefined
-                                ? dimensionNames[encode?.y[0]]
-                                : '';
+                        if (dimensionNames) {
+                            const dim =
+                                encode?.y[0] !== undefined
+                                    ? dimensionNames[encode?.y[0]]
+                                    : '';
 
-                        if (typeof value === 'object' && dim in value) {
-                            return `
+                            if (typeof value === 'object' && dim in value) {
+                                return `
                             <tr>
                                 <td>${marker}</td>
                                 <td>${seriesName}</td>
@@ -1475,81 +1513,98 @@ const getEchartsCartesianConfig = (
                                 )}</b></td>
                             </tr>
                         `;
+                            }
                         }
+                        return '';
+                    })
+                    .join('');
+
+                const dimensionId = params[0].dimensionNames?.[0];
+
+                if (dimensionId !== undefined) {
+                    const field = items.find(
+                        (item) => getItemId(item) === dimensionId,
+                    );
+
+                    if (
+                        isDimension(field) &&
+                        (field.type === DimensionType.DATE ||
+                            field.type === DimensionType.TIMESTAMP)
+                    ) {
+                        const date = (params[0].data as Record<string, any>)[
+                            dimensionId
+                        ]; // get full timestamp from data
+                        const dateFormatted = getFormattedValue(
+                            date,
+                            dimensionId,
+                            items,
+                            false,
+                        );
+                        return `${dateFormatted}<br/><table>${tooltipRows}</table>`;
                     }
-                    return '';
-                })
-                .join('');
 
-            const dimensionId = params[0].dimensionNames?.[0];
+                    const hasFormat = isField(field)
+                        ? field.format !== undefined
+                        : false;
 
-            if (dimensionId !== undefined) {
-                const field = items.find(
-                    (item) => getItemId(item) === dimensionId,
-                );
+                    if (hasFormat) {
+                        const tooltipHeader = getFormattedValue(
+                            params[0].axisValueLabel,
+                            dimensionId,
+                            items,
+                        );
 
-                if (
-                    isDimension(field) &&
-                    (field.type === DimensionType.DATE ||
-                        field.type === DimensionType.TIMESTAMP)
-                ) {
-                    const date = (params[0].data as Record<string, any>)[
-                        dimensionId
-                    ]; // get full timestamp from data
-                    const dateFormatted = getFormattedValue(
-                        date,
-                        dimensionId,
-                        items,
-                        false,
-                    );
-                    return `${dateFormatted}<br/><table>${tooltipRows}</table>`;
+                        return `${tooltipHeader}<br/><table>${tooltipRows}</table>`;
+                    }
                 }
+                return `${params[0].axisValueLabel}<br/><table>${tooltipRows}</table>`;
+            },
+        }),
+        [items],
+    );
 
-                const hasFormat = isField(field)
-                    ? field.format !== undefined
-                    : false;
-
-                if (hasFormat) {
-                    const tooltipHeader = getFormattedValue(
-                        params[0].axisValueLabel,
-                        dimensionId,
-                        items,
-                    );
-
-                    return `${tooltipHeader}<br/><table>${tooltipRows}</table>`;
-                }
-            }
-            return `${params[0].axisValueLabel}<br/><table>${tooltipRows}</table>`;
-        },
-    };
-
-    const eChartsOptions = {
-        xAxis: axis.xAxis,
-        yAxis: axis.yAxis,
-        useUTC: true,
-        series: stackedSeries,
-        animation: options.animation,
-        legend: mergeLegendSettings(
-            validConfig?.eChartsConfig.legend,
+    const eChartsOptions = useMemo(
+        () => ({
+            xAxis: axis.xAxis,
+            yAxis: axis.yAxis,
+            useUTC: true,
+            series: stackedSeries,
+            animation: !isInDashboard,
+            legend: mergeLegendSettings(
+                chartConfig?.eChartsConfig.legend,
+                validCartesianConfigLegend,
+                series,
+            ),
+            dataset: {
+                id: 'lightdashResults',
+                source: sortedResults,
+            },
+            tooltip,
+            grid: {
+                ...defaultGrid,
+                ...removeEmptyProperties(chartConfig?.eChartsConfig.grid),
+            },
+            color: colors,
+        }),
+        [
+            axis.xAxis,
+            axis.yAxis,
+            stackedSeries,
+            isInDashboard,
+            chartConfig?.eChartsConfig.legend,
+            chartConfig?.eChartsConfig.grid,
             validCartesianConfigLegend,
             series,
-        ),
-        dataset: {
-            id: 'lightdashResults',
-            source: sortedResults,
-        },
-        tooltip,
-        grid: {
-            ...defaultGrid,
-            ...removeEmptyProperties(validConfig?.eChartsConfig.grid),
-        },
-        color: seriesColors,
-    };
+            sortedResults,
+            tooltip,
+            colors,
+        ],
+    );
 
-    if (!explore || series.length <= 0 || rows.length <= 0 || !validConfig) {
+    if (!explore || series.length <= 0 || rows.length <= 0 || !chartConfig) {
         return undefined;
     }
     return eChartsOptions;
 };
 
-export default getEchartsCartesianConfig;
+export default useEchartsCartesianConfig;

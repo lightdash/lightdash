@@ -14,12 +14,11 @@ import {
 } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
-import React, { memo, RefObject, useCallback, useMemo, useState } from 'react';
+import React, { memo, RefObject, useCallback, useState } from 'react';
 
 import { Button, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
-import getEchartsCartesianConfig from '../hooks/echarts/getEchartsCartesianConfig';
-import { useOrganization } from '../hooks/organization/useOrganization';
+import useEchartsCartesianConfig from '../hooks/echarts/useEchartsCartesianConfig';
 import { useApp } from '../providers/AppProvider';
 import { Can } from './common/Authorization';
 import {
@@ -232,28 +231,10 @@ interface ChartDownloadMenuProps {
 
 export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
     ({ getCsvLink, getGsheetLink, projectUuid }) => {
-        const {
-            chartRef,
-            explore,
-            visualizationConfig,
-            resultsData,
-            pivotDimensions,
-        } = useVisualizationContext();
+        const { chartRef, visualizationConfig, resultsData } =
+            useVisualizationContext();
 
-        const { data: org } = useOrganization();
-
-        const eChartsOptions = useMemo(() => {
-            if (visualizationConfig?.chartType !== ChartType.CARTESIAN) return;
-
-            return getEchartsCartesianConfig(
-                visualizationConfig.chartConfig,
-                explore,
-                resultsData,
-                pivotDimensions,
-                undefined,
-                org?.chartColors,
-            );
-        }, [visualizationConfig, explore, pivotDimensions, resultsData, org]);
+        const eChartsOptions = useEchartsCartesianConfig();
 
         const disabled =
             (visualizationConfig?.chartType === ChartType.TABLE &&

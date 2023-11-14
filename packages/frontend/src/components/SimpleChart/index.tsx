@@ -1,12 +1,11 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
-import { ChartType, PivotReference } from '@lightdash/common';
+import { PivotReference } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import { EChartsReactProps, Opts } from 'echarts-for-react/lib/types';
 import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
-import getEchartsCartesianConfig, {
+import useEchartsCartesianConfig, {
     isLineSeriesOption,
-} from '../../hooks/echarts/getEchartsCartesianConfig';
-import { useOrganization } from '../../hooks/organization/useOrganization';
+} from '../../hooks/echarts/useEchartsCartesianConfig';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
 type EchartBaseClickEvent = {
@@ -84,17 +83,8 @@ type SimpleChartProps = Omit<EChartsReactProps, 'option'> & {
 };
 
 const SimpleChart: FC<SimpleChartProps> = memo((props) => {
-    const { data: organizationData } = useOrganization();
-
-    const {
-        chartRef,
-        explore,
-        isLoading,
-        resultsData,
-        pivotDimensions,
-        visualizationConfig,
-        onSeriesContextMenu,
-    } = useVisualizationContext();
+    const { chartRef, isLoading, onSeriesContextMenu } =
+        useVisualizationContext();
 
     const [selectedLegends, setSelectedLegends] = useState({});
     const [selectedLegendsUpdated, setSelectedLegendsUpdated] = useState({});
@@ -107,27 +97,10 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
         setSelectedLegendsUpdated(selectedLegends);
     }, [selectedLegends]);
 
-    const eChartsOptions = useMemo(() => {
-        if (visualizationConfig?.chartType !== ChartType.CARTESIAN) return;
-
-        return getEchartsCartesianConfig(
-            visualizationConfig.chartConfig,
-            explore,
-            resultsData,
-            pivotDimensions,
-            selectedLegendsUpdated,
-            organizationData?.chartColors,
-            { animation: !props.isInDashboard },
-        );
-    }, [
-        visualizationConfig,
-        explore,
-        resultsData,
-        pivotDimensions,
+    const eChartsOptions = useEchartsCartesianConfig(
         selectedLegendsUpdated,
-        organizationData?.chartColors,
         props.isInDashboard,
-    ]);
+    );
 
     useEffect(() => {
         const listener = () => {
