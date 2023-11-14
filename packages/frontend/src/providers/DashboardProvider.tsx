@@ -259,11 +259,9 @@ export const DashboardProvider: React.FC = ({ children }) => {
 
         const filterFieldsMapping = savedChartUuidsAndTileUuids?.reduce<
             Record<string, FilterableField[]>
-        >((acc, { tileUuid, savedChartUuid }) => {
+        >((acc, { tileUuid }) => {
             const filterFields =
-                dashboardAvailableFiltersData.savedQueryFilters[
-                    savedChartUuid
-                ]?.map(
+                dashboardAvailableFiltersData.savedQueryFilters[tileUuid]?.map(
                     (index) =>
                         dashboardAvailableFiltersData.allFilterableFields[
                             index
