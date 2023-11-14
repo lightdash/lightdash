@@ -335,7 +335,7 @@ const useBigNumberConfig = (
         !isTableCalculation(item) &&
         (!isField(item) || item.format !== 'percent');
 
-    const validConfig: BigNumber = useMemo(() => {
+    const validBigNumberConfig: BigNumber = useMemo(() => {
         return {
             label: bigNumberLabel,
             style: bigNumberStyle,
@@ -361,7 +361,7 @@ const useBigNumberConfig = (
         bigNumberLabel,
         defaultLabel: label,
         setBigNumberLabel,
-        validConfig,
+        validBigNumberConfig,
         bigNumberStyle,
         setBigNumberStyle,
         showStyle,
