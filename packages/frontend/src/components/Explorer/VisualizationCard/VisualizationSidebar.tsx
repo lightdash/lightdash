@@ -4,7 +4,7 @@ import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
-import { FC, memo, useState } from 'react';
+import { FC, memo, useMemo } from 'react';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import BigNumberConfigTabs from '../../VisualizationConfigs/BigNumberConfig/BigNumberConfigTabs';
@@ -19,20 +19,49 @@ const VisualizationSidebar: FC<{
     savedChart?: SavedChart;
     isProjectPreview?: boolean;
     isEditingDashboardChart?: boolean;
+    isOpen: boolean;
+    onClose: () => void;
+    onOpen: () => void;
 }> = memo(
-    ({ chartType, savedChart, isProjectPreview, isEditingDashboardChart }) => {
-        const [isOpen, setIsOpen] = useState(false);
-
+    ({
+        chartType,
+        savedChart,
+        isProjectPreview,
+        isEditingDashboardChart,
+        isOpen,
+        onOpen,
+        onClose,
+    }) => {
         const sidebarVerticalOffset =
             (isProjectPreview && !isEditingDashboardChart ? 35 : 0) + // Preview header
             (isEditingDashboardChart ? 35 : 50) + // Normal header or dashboardChart header
             (savedChart === undefined ? 0 : 80); // Include the saved chart header or not
 
+        const ConfigTab = useMemo(() => {
+            switch (chartType) {
+                case ChartType.BIG_NUMBER:
+                    return BigNumberConfigTabs;
+                case ChartType.TABLE:
+                    return TableConfigTabs;
+                case ChartType.CARTESIAN:
+                    return ChartConfigTabs;
+                case ChartType.PIE:
+                    return PieChartConfigTabs;
+                case ChartType.CUSTOM:
+                    return CustomVisConfigTabs;
+                default:
+                    return assertUnreachable(
+                        chartType,
+                        `Chart type ${chartType} not supported`,
+                    );
+            }
+        }, [chartType]);
+
         return (
             <>
                 <Button
                     {...COLLAPSABLE_CARD_BUTTON_PROPS}
-                    onClick={() => setIsOpen((old) => !old)}
+                    onClick={isOpen ? onClose : onOpen}
                     rightIcon={
                         <MantineIcon
                             color="gray"
@@ -75,32 +104,14 @@ const VisualizationSidebar: FC<{
                             flexDirection: 'column',
                         },
                     })}
-                    onClose={() => setIsOpen((old) => !old)}
+                    onClose={onClose}
                 >
                     <Group py="lg">
                         <Text fw={600}>Chart type</Text>
                         <VisualizationCardOptions />
                     </Group>
 
-                    {(() => {
-                        switch (chartType) {
-                            case ChartType.BIG_NUMBER:
-                                return <BigNumberConfigTabs />;
-                            case ChartType.TABLE:
-                                return <TableConfigTabs />;
-                            case ChartType.CARTESIAN:
-                                return <ChartConfigTabs />;
-                            case ChartType.PIE:
-                                return <PieChartConfigTabs />;
-                            case ChartType.CUSTOM:
-                                return <CustomVisConfigTabs />;
-                            default:
-                                return assertUnreachable(
-                                    chartType,
-                                    `Chart type ${chartType} not supported`,
-                                );
-                        }
-                    })()}
+                    <ConfigTab />
                 </Drawer>
             </>
         );

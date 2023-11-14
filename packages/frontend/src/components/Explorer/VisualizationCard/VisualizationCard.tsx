@@ -1,6 +1,7 @@
 import { getHiddenTableFields, NotFoundError } from '@lightdash/common';
 import { FC, memo, useCallback, useMemo, useState } from 'react';
 
+import { useDisclosure } from '@mantine/hooks';
 import { downloadCsv } from '../../../api/csv';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
@@ -83,6 +84,9 @@ const VisualizationCard: FC<{
         useState<EchartsClickEvent>();
 
     const { getIsEditingDashboardChart } = useDashboardStorage();
+
+    const [isSidebarOpen, { open: openSidebar, close: closeSidebar }] =
+        useDisclosure();
 
     const onSeriesContextMenu = useCallback(
         (e: EchartSeriesClickEvent, series: EChartSeries[]) => {
@@ -179,6 +183,9 @@ const VisualizationCard: FC<{
                                     savedChart={savedChart}
                                     isEditingDashboardChart={getIsEditingDashboardChart()}
                                     isProjectPreview={isProjectPreview}
+                                    isOpen={isSidebarOpen}
+                                    onOpen={openSidebar}
+                                    onClose={closeSidebar}
                                 />
                             ) : null}
 
