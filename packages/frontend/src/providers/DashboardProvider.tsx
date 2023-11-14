@@ -6,6 +6,7 @@ import {
     Dashboard,
     DashboardFilterRule,
     DashboardFilters,
+    fieldId,
     FilterableField,
     isDashboardChartTileType,
 } from '@lightdash/common';
@@ -21,6 +22,7 @@ import React, {
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 import { createContext, useContextSelector } from 'use-context-selector';
+import { FieldsWithSuggestions } from '../components/common/Filters/FiltersProvider';
 import { isFilterConfigRevertButtonEnabled as hasSavedFilterValueChanged } from '../components/DashboardFilter/FilterConfiguration/utils';
 import {
     useDashboardQuery,
@@ -74,6 +76,7 @@ type DashboardContext = {
     oldestCacheTime: Date | undefined;
     invalidateCache: boolean | undefined;
     clearCacheAndFetch: () => void;
+    fieldsWithSuggestions: FieldsWithSuggestions;
     allFilterableFields: FilterableField[] | undefined;
     filterableFieldsByTileUuid: Record<string, FilterableField[]> | undefined;
     hasChartTiles: boolean;
@@ -274,6 +277,20 @@ export const DashboardProvider: React.FC = ({ children }) => {
             );
     }, [dashboard, dashboardTiles, dashboardAvailableFiltersData]);
 
+    const fieldsWithSuggestions = useMemo(() => {
+        return dashboardAvailableFiltersData &&
+            dashboardAvailableFiltersData.allFilterableFields &&
+            dashboardAvailableFiltersData.allFilterableFields.length > 0
+            ? dashboardAvailableFiltersData.allFilterableFields.reduce<FieldsWithSuggestions>(
+                  (sum, field) => ({
+                      ...sum,
+                      [fieldId(field)]: field,
+                  }),
+                  {},
+              )
+            : {};
+    }, [dashboardAvailableFiltersData]);
+
     const allFilters = useMemo(() => {
         return {
             dimensions: [
@@ -438,6 +455,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
         oldestCacheTime,
         invalidateCache,
         clearCacheAndFetch,
+        fieldsWithSuggestions,
         allFilterableFields: dashboardAvailableFiltersData?.allFilterableFields,
         isLoadingDashboardFilters,
         isFetchingDashboardFilters,
