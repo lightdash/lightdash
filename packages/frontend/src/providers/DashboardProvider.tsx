@@ -4,7 +4,6 @@ import {
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
     Dashboard,
-    DashboardAvailableFilters,
     DashboardFilterRule,
     DashboardFilters,
     fieldId,
@@ -12,7 +11,6 @@ import {
     isDashboardChartTileType,
 } from '@lightdash/common';
 import { min } from 'lodash-es';
-import uniqBy from 'lodash-es/uniqBy';
 import React, {
     Dispatch,
     SetStateAction,
@@ -81,8 +79,7 @@ type DashboardContext = {
     invalidateCache: boolean | undefined;
     clearCacheAndFetch: () => void;
     allFilterableFields: FilterableField[] | undefined;
-    filterableFieldsBySavedQueryUuid: DashboardAvailableFilters | undefined;
-    filterableFieldsByTileUuid: DashboardAvailableFilters | undefined;
+    filterableFieldsByTileUuid: Record<string, FilterableField[]> | undefined;
     hasChartTiles: boolean;
 };
 
@@ -246,38 +243,41 @@ export const DashboardProvider: React.FC = ({ children }) => {
     const {
         isLoading: isLoadingDashboardFilters,
         isFetching: isFetchingDashboardFilters,
-        data: filterableFieldsBySavedQueryUuid,
+        data: dashboardAvailableFiltersData,
     } = useDashboardsAvailableFilters(tileSavedChartUuids ?? []);
 
     const filterableFieldsByTileUuid = useMemo(() => {
-        if (!dashboard || !dashboardTiles || !filterableFieldsBySavedQueryUuid)
+        if (!dashboard || !dashboardTiles || !dashboardAvailableFiltersData)
             return;
+
+        const tileFilters: Record<string, FilterableField[] | undefined> = {};
+        Object.entries(dashboardAvailableFiltersData.savedQueryFilters).forEach(
+            ([tileUuid, indexes]) => {
+                tileFilters[tileUuid] = indexes.map(
+                    (index) =>
+                        dashboardAvailableFiltersData.allFilterableFields[
+                            index
+                        ],
+                );
+            },
+        );
 
         return dashboardTiles
             .filter(isDashboardChartTileType)
-            .reduce<DashboardAvailableFilters>((acc, tile) => {
-                const savedChartUuid = tile.properties.savedChartUuid;
-                if (!savedChartUuid) return acc;
+            .reduce<DashboardContext['filterableFieldsByTileUuid']>(
+                (acc, tile) => {
+                    const savedChartUuid = tile.properties.savedChartUuid;
+                    if (!savedChartUuid) return acc;
 
-                return {
-                    ...acc,
-                    [tile.uuid]:
-                        filterableFieldsBySavedQueryUuid[savedChartUuid],
-                };
-            }, {});
-    }, [dashboard, dashboardTiles, filterableFieldsBySavedQueryUuid]);
-
-    const allFilterableFields = useMemo(() => {
-        if (isLoadingDashboardFilters || !filterableFieldsBySavedQueryUuid)
-            return;
-
-        const allFilters = Object.values(
-            filterableFieldsBySavedQueryUuid,
-        ).flat();
-        if (allFilters.length === 0) return;
-
-        return uniqBy(allFilters, (f) => fieldId(f));
-    }, [isLoadingDashboardFilters, filterableFieldsBySavedQueryUuid]);
+                    const filterFields = tileFilters[savedChartUuid];
+                    if (filterFields && acc) {
+                        acc[tile.uuid] = filterFields;
+                    }
+                    return acc;
+                },
+                {},
+            );
+    }, [dashboard, dashboardTiles, dashboardAvailableFiltersData]);
 
     const allFilters = useMemo(() => {
         return {
@@ -302,9 +302,13 @@ export const DashboardProvider: React.FC = ({ children }) => {
     );
 
     useEffect(() => {
-        if (allFilterableFields && allFilterableFields.length > 0) {
+        if (
+            dashboardAvailableFiltersData &&
+            dashboardAvailableFiltersData.allFilterableFields &&
+            dashboardAvailableFiltersData.allFilterableFields.length > 0
+        ) {
             setFieldsWithSuggestions((prev) => {
-                return allFilterableFields.reduce<FieldsWithSuggestions>(
+                return dashboardAvailableFiltersData.allFilterableFields.reduce<FieldsWithSuggestions>(
                     (sum, field) => ({
                         ...sum,
                         [fieldId(field)]: {
@@ -317,7 +321,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
                 );
             });
         }
-    }, [allFilterableFields]);
+    }, [dashboardAvailableFiltersData]);
 
     const addDimensionDashboardFilter = useCallback(
         (filter: DashboardFilterRule, isTemporary: boolean) => {
@@ -420,17 +424,29 @@ export const DashboardProvider: React.FC = ({ children }) => {
     const addSuggestions = useCallback(
         (newSuggestionsMap: Record<string, string[]>) => {
             setFieldsWithSuggestions((prev) => {
-                return Object.entries(prev).reduce<FieldsWithSuggestions>(
-                    (sum, [key, field]) => {
-                        const currentSuggestions = field?.suggestions || [];
-                        const newSuggestions = newSuggestionsMap[key] || [];
+                const updatedFields: FieldsWithSuggestions = {};
+                for (const key in prev) {
+                    if (prev.hasOwnProperty(key)) {
+                        const field = prev[key];
+
+                        const currentSuggestions = field?.suggestions ?? [];
+
+                        const newSuggestions =
+                            newSuggestionsMap[key] || new Set();
                         const suggestions = Array.from(
-                            new Set([...currentSuggestions, ...newSuggestions]),
+                            new Set([
+                                ...currentSuggestions,
+                                ...Array.from(newSuggestions),
+                            ]),
                         ).sort((a, b) => a.localeCompare(b));
-                        return { ...sum, [key]: { ...field, suggestions } };
-                    },
-                    {},
-                );
+
+                        updatedFields[key] = {
+                            ...field,
+                            suggestions,
+                        };
+                    }
+                }
+                return updatedFields;
             });
         },
         [],
@@ -481,8 +497,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
         oldestCacheTime,
         invalidateCache,
         clearCacheAndFetch,
-        allFilterableFields,
-        filterableFieldsBySavedQueryUuid,
+        allFilterableFields: dashboardAvailableFiltersData?.allFilterableFields,
         isLoadingDashboardFilters,
         isFetchingDashboardFilters,
         filterableFieldsByTileUuid,

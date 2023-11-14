@@ -938,6 +938,21 @@ export class ProjectService {
             explore,
         });
 
+        const suggestionsToAddToFields = dashboardFilters
+            ? metricQuery.dimensions.reduce((sum, dimensionId) => {
+                  //! this is bad, but necessary for UX - optimise so it's not extremely slow when there are many rows
+                  const newSuggestions: string[] =
+                      rows.reduce<string[]>((acc, row) => {
+                          const value = row[dimensionId]?.value.raw;
+                          if (typeof value === 'string') {
+                              return [...acc, value];
+                          }
+                          return acc;
+                      }, []) || [];
+                  return { ...sum, [dimensionId]: newSuggestions };
+              }, {})
+            : {};
+
         return {
             chart: savedChart,
             explore,
@@ -945,6 +960,7 @@ export class ProjectService {
             cacheMetadata,
             rows,
             appliedDashboardFilters,
+            suggestionsToAddToFields,
         };
     }
 

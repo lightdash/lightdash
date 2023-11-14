@@ -341,6 +341,7 @@ export type ApiChartAndResults = {
     metricQuery: MetricQuery;
     cacheMetadata: CacheMetadata;
     rows: ResultRow[];
+    suggestionsToAddToFields: Record<string, string[]> | undefined;
 };
 
 export type ApiSqlQueryResults = {

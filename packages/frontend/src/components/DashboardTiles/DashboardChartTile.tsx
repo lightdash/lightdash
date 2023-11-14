@@ -154,7 +154,14 @@ const ValidDashboardChartTile: FC<{
 }> = ({
     tileUuid,
     isTitleHidden = false,
-    chartAndResults: { chart, explore, metricQuery, rows, cacheMetadata },
+    chartAndResults: {
+        chart,
+        explore,
+        metricQuery,
+        rows,
+        cacheMetadata,
+        suggestionsToAddToFields,
+    },
     onSeriesContextMenu,
 }) => {
     const addSuggestions = useDashboardContext((c) => c.addSuggestions);
@@ -165,21 +172,16 @@ const ValidDashboardChartTile: FC<{
     const { health } = useApp();
 
     useEffect(() => {
-        addSuggestions(
-            metricQuery.dimensions.reduce((sum, dimensionId) => {
-                const newSuggestions: string[] =
-                    rows.reduce<string[]>((acc, row) => {
-                        const value = row[dimensionId]?.value.raw;
-                        if (typeof value === 'string') {
-                            return [...acc, value];
-                        }
-                        return acc;
-                    }, []) || [];
-                return { ...sum, [dimensionId]: newSuggestions };
-            }, {}),
-        );
+        if (suggestionsToAddToFields) {
+            addSuggestions(suggestionsToAddToFields);
+        }
         addResultsCacheTime(cacheMetadata);
-    }, [addSuggestions, addResultsCacheTime, metricQuery, cacheMetadata, rows]);
+    }, [
+        suggestionsToAddToFields,
+        cacheMetadata,
+        addResultsCacheTime,
+        addSuggestions,
+    ]);
 
     const resultData = useMemo(
         () => ({
