@@ -1,3 +1,11 @@
+## [0.863.10](https://github.com/lightdash/lightdash/compare/0.863.9...0.863.10) (2023-11-14)
+
+
+### Bug Fixes
+
+* dashboard chart tile perf by caching results ([#7947](https://github.com/lightdash/lightdash/issues/7947)) ([a74c4f0](https://github.com/lightdash/lightdash/commit/a74c4f0fdf3f99988aa395a55e8f713de56d10a0))
+* generic error on dashboard ([#7945](https://github.com/lightdash/lightdash/issues/7945)) ([ab16ce9](https://github.com/lightdash/lightdash/commit/ab16ce9526238dbea9ab51ae529089b6ff5bd22c))
+
 ## [0.863.9](https://github.com/lightdash/lightdash/compare/0.863.8...0.863.9) (2023-11-13)
 
 
