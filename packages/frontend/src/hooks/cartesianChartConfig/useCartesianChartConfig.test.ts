@@ -188,8 +188,7 @@ describe('useCartesianChartConfig', () => {
             () => useCartesianChartConfig(useCartesianChartConfigParamsMock),
         );
 
-        const series =
-            result.current.validCartesianConfig!.eChartsConfig.series!;
+        const series = result.current.validConfig!.eChartsConfig.series!;
 
         series.forEach((serie) => expect(serie.yAxisIndex).toBe(0));
     });
@@ -234,8 +233,7 @@ describe('useCartesianChartConfig', () => {
             }),
         );
 
-        const series =
-            result.current.validCartesianConfig!.eChartsConfig.series!;
+        const series = result.current.validConfig!.eChartsConfig.series!;
 
         expect(series[0].yAxisIndex).toBe(1);
         expect(series[1].yAxisIndex).toBe(0);
