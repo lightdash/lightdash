@@ -113,7 +113,6 @@ const Filter: FC<Props> = ({
             trapFocus
             opened={isPopoverOpen}
             closeOnEscape={!isSubPopoverOpen}
-            closeOnClickOutside={!isSubPopoverOpen}
             onClose={handleClose}
             disabled={isPopoverDisabled}
             transitionProps={{
