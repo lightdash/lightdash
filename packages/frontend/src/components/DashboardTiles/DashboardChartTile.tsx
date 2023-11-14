@@ -154,17 +154,9 @@ const ValidDashboardChartTile: FC<{
 }> = ({
     tileUuid,
     isTitleHidden = false,
-    chartAndResults: {
-        chart,
-        explore,
-        metricQuery,
-        rows,
-        cacheMetadata,
-        suggestionsToAddToFields,
-    },
+    chartAndResults: { chart, explore, metricQuery, rows, cacheMetadata },
     onSeriesContextMenu,
 }) => {
-    const addSuggestions = useDashboardContext((c) => c.addSuggestions);
     const addResultsCacheTime = useDashboardContext(
         (c) => c.addResultsCacheTime,
     );
@@ -172,16 +164,8 @@ const ValidDashboardChartTile: FC<{
     const { health } = useApp();
 
     useEffect(() => {
-        if (suggestionsToAddToFields) {
-            addSuggestions(suggestionsToAddToFields);
-        }
         addResultsCacheTime(cacheMetadata);
-    }, [
-        suggestionsToAddToFields,
-        cacheMetadata,
-        addResultsCacheTime,
-        addSuggestions,
-    ]);
+    }, [cacheMetadata, addResultsCacheTime]);
 
     const resultData = useMemo(
         () => ({

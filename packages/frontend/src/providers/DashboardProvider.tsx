@@ -6,7 +6,6 @@ import {
     Dashboard,
     DashboardFilterRule,
     DashboardFilters,
-    fieldId,
     FilterableField,
     isDashboardChartTileType,
 } from '@lightdash/common';
@@ -22,7 +21,6 @@ import React, {
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 import { createContext, useContextSelector } from 'use-context-selector';
-import { FieldsWithSuggestions } from '../components/common/Filters/FiltersProvider';
 import { isFilterConfigRevertButtonEnabled as hasSavedFilterValueChanged } from '../components/DashboardFilter/FilterConfiguration/utils';
 import {
     useDashboardQuery,
@@ -42,7 +40,6 @@ const emptyFilters: DashboardFilters = {
 type DashboardContext = {
     dashboard: Dashboard | undefined;
     dashboardError: ApiError | null;
-    fieldsWithSuggestions: FieldsWithSuggestions;
     dashboardTiles: Dashboard['tiles'] | undefined;
     setDashboardTiles: Dispatch<SetStateAction<Dashboard['tiles'] | undefined>>;
     haveTilesChanged: boolean;
@@ -73,7 +70,6 @@ type DashboardContext = {
     ) => void;
     haveFiltersChanged: boolean;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
-    addSuggestions: (newSuggestionsMap: Record<string, string[]>) => void;
     addResultsCacheTime: (cacheMetadata: CacheMetadata) => void;
     oldestCacheTime: Date | undefined;
     invalidateCache: boolean | undefined;
@@ -98,8 +94,6 @@ export const DashboardProvider: React.FC = ({ children }) => {
     const [dashboardTiles, setDashboardTiles] = useState<Dashboard['tiles']>();
 
     const [haveTilesChanged, setHaveTilesChanged] = useState<boolean>(false);
-    const [fieldsWithSuggestions, setFieldsWithSuggestions] =
-        useState<FieldsWithSuggestions>({});
     const [dashboardTemporaryFilters, setDashboardTemporaryFilters] =
         useState<DashboardFilters>(emptyFilters);
     const [dashboardFilters, setDashboardFilters] =
@@ -250,6 +244,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
         if (!dashboard || !dashboardTiles || !dashboardAvailableFiltersData)
             return;
 
+        //! TODO: add tile uuid to the payload!
         const tileFilters: Record<string, FilterableField[] | undefined> = {};
         Object.entries(dashboardAvailableFiltersData.savedQueryFilters).forEach(
             ([tileUuid, indexes]) => {
@@ -300,28 +295,6 @@ export const DashboardProvider: React.FC = ({ children }) => {
             ),
         [dashboardTiles],
     );
-
-    useEffect(() => {
-        if (
-            dashboardAvailableFiltersData &&
-            dashboardAvailableFiltersData.allFilterableFields &&
-            dashboardAvailableFiltersData.allFilterableFields.length > 0
-        ) {
-            setFieldsWithSuggestions((prev) => {
-                return dashboardAvailableFiltersData.allFilterableFields.reduce<FieldsWithSuggestions>(
-                    (sum, field) => ({
-                        ...sum,
-                        [fieldId(field)]: {
-                            ...field,
-                            suggestions:
-                                prev[fieldId(field)]?.suggestions || [],
-                        },
-                    }),
-                    {},
-                );
-            });
-        }
-    }, [dashboardAvailableFiltersData]);
 
     const addDimensionDashboardFilter = useCallback(
         (filter: DashboardFilterRule, isTemporary: boolean) => {
@@ -421,36 +394,6 @@ export const DashboardProvider: React.FC = ({ children }) => {
         },
         [removeSavedFilterOverride],
     );
-    const addSuggestions = useCallback(
-        (newSuggestionsMap: Record<string, string[]>) => {
-            setFieldsWithSuggestions((prev) => {
-                const updatedFields: FieldsWithSuggestions = {};
-                for (const key in prev) {
-                    if (prev.hasOwnProperty(key)) {
-                        const field = prev[key];
-
-                        const currentSuggestions = field?.suggestions ?? [];
-
-                        const newSuggestions =
-                            newSuggestionsMap[key] || new Set();
-                        const suggestions = Array.from(
-                            new Set([
-                                ...currentSuggestions,
-                                ...Array.from(newSuggestions),
-                            ]),
-                        ).sort((a, b) => a.localeCompare(b));
-
-                        updatedFields[key] = {
-                            ...field,
-                            suggestions,
-                        };
-                    }
-                }
-                return updatedFields;
-            });
-        },
-        [],
-    );
 
     const addResultsCacheTime = useCallback((cacheMetadata: CacheMetadata) => {
         if (cacheMetadata.cacheHit && cacheMetadata.cacheUpdatedTime) {
@@ -477,7 +420,6 @@ export const DashboardProvider: React.FC = ({ children }) => {
     const value = {
         dashboard,
         dashboardError,
-        fieldsWithSuggestions,
         dashboardTiles,
         setDashboardTiles,
         haveTilesChanged,
@@ -492,7 +434,6 @@ export const DashboardProvider: React.FC = ({ children }) => {
         setDashboardFilters,
         haveFiltersChanged,
         setHaveFiltersChanged,
-        addSuggestions,
         addResultsCacheTime,
         oldestCacheTime,
         invalidateCache,
