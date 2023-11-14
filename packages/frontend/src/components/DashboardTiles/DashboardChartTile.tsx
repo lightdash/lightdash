@@ -821,17 +821,18 @@ const DashboardChartTile: FC<DashboardChartTileProps> = ({
     minimal = false,
     ...rest
 }) => {
-    const { isError, isLoading, data } = useDashboardChart(
+    const { isLoading, data, error } = useDashboardChart(
         rest.tile.uuid,
         rest.tile.properties?.savedChartUuid ?? null,
     );
     if (isLoading) return <TileBase isLoading={true} title={''} {...rest} />;
-    if (isError || !data)
+
+    if (error !== null || !data)
         return (
             <TileBase title={''} {...rest}>
                 <NonIdealState
-                    icon="lock"
-                    title={`You don't have access to view this chart`}
+                    icon="error"
+                    title={error?.error?.message || 'No data available'}
                 ></NonIdealState>
             </TileBase>
         );
