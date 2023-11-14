@@ -8,6 +8,7 @@ import { useVisualizationContext } from '../LightdashVisualization/Visualization
 import { LoadingChart } from '../SimpleChart';
 import CellContextMenu from './CellContextMenu';
 import DashboardCellContextMenu from './DashboardCellContextMenu';
+import DashboardHeaderContextMenu from './DashboardHeaderContextMenu';
 
 type SimpleTableProps = {
     isDashboard: boolean;
@@ -111,6 +112,16 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 conditionalFormattings={conditionalFormattings}
                 footer={{
                     show: showColumnCalculation,
+                }}
+                headerContextMenu={(props) => {
+                    if (isDashboard && tileUuid)
+                        return (
+                            <DashboardHeaderContextMenu
+                                {...props}
+                                tileUuid={tileUuid}
+                            />
+                        );
+                    return null;
                 }}
                 cellContextMenu={(props) => {
                     if (isSqlRunner) return <>{props.children}</>;

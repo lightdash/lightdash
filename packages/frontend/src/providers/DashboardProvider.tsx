@@ -10,6 +10,7 @@ import {
     fieldId,
     FilterableField,
     isDashboardChartTileType,
+    SortField,
 } from '@lightdash/common';
 import { min } from 'lodash-es';
 import uniqBy from 'lodash-es/uniqBy';
@@ -84,6 +85,8 @@ type DashboardContext = {
     filterableFieldsBySavedQueryUuid: DashboardAvailableFilters | undefined;
     filterableFieldsByTileUuid: DashboardAvailableFilters | undefined;
     hasChartTiles: boolean;
+    chartSort: Record<string, SortField[]>;
+    setChartSort: (sort: Record<string, SortField[]>) => void;
 };
 
 const Context = createContext<DashboardContext | undefined>(undefined);
@@ -114,6 +117,8 @@ export const DashboardProvider: React.FC = ({ children }) => {
     const [resultsCacheTimes, setResultsCacheTimes] = useState<Date[]>([]);
 
     const [invalidateCache, setInvalidateCache] = useState<boolean>(false);
+
+    const [chartSort, setChartSort] = useState<Record<string, SortField[]>>({});
 
     const {
         overridesForSavedDashboardFilters,
@@ -488,6 +493,8 @@ export const DashboardProvider: React.FC = ({ children }) => {
         filterableFieldsByTileUuid,
         allFilters,
         hasChartTiles,
+        chartSort,
+        setChartSort,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };
