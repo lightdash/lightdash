@@ -3,9 +3,9 @@ import {
     ApiDbtCloudSettingsDeleteSuccess,
     ApiErrorPayload,
 } from '@lightdash/common';
-import { Controller, Delete } from '@tsoa/runtime';
-import express from 'express';
 import {
+    Controller,
+    Delete,
     Get,
     Middlewares,
     OperationId,
@@ -15,7 +15,8 @@ import {
     Response,
     Route,
     Tags,
-} from 'tsoa';
+} from '@tsoa/runtime';
+import express from 'express';
 import { projectService } from '../services/services';
 import { isAuthenticated } from './authentication';
 
