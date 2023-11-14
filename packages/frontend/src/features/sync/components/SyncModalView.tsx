@@ -8,7 +8,6 @@ import {
     Group,
     Menu,
     Popover,
-    ScrollArea,
     Stack,
     Text,
 } from '@mantine/core';
@@ -31,10 +30,10 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
         ({ format }) => format === SchedulerFormat.GSHEETS,
     );
     return (
-        <Stack spacing="lg">
-            {googleSheetsSyncs && googleSheetsSyncs.length ? (
-                <ScrollArea h={450}>
-                    <Stack>
+        <>
+            <Stack spacing="lg" mih={300}>
+                {googleSheetsSyncs && googleSheetsSyncs.length ? (
+                    <Stack pt="md" pb="xl">
                         {googleSheetsSyncs.map((sync) => (
                             <Card
                                 key={sync.schedulerUuid}
@@ -117,19 +116,38 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                             </Card>
                         ))}
                     </Stack>
-                </ScrollArea>
-            ) : (
-                <Group position="center" ta="center" spacing="xs" my="sm">
-                    <Text fz="sm" fw={450} c="gray.7">
-                        This chart has no Syncs set up yet
-                    </Text>
-                    <Text fz="xs" fw={400} c="gray.6">
-                        Get started by clicking 'Create new Sync' to seamlessly
-                        integrate your chart data with Google Sheets
-                    </Text>
-                </Group>
-            )}
-            <Flex justify="space-between" align="center">
+                ) : (
+                    <Group
+                        position="center"
+                        ta="center"
+                        spacing="xs"
+                        my="sm"
+                        pt="md"
+                    >
+                        <Text fz="sm" fw={450} c="gray.7">
+                            This chart has no Syncs set up yet
+                        </Text>
+                        <Text fz="xs" fw={400} c="gray.6">
+                            Get started by clicking 'Create new Sync' to
+                            seamlessly integrate your chart data with Google
+                            Sheets
+                        </Text>
+                    </Group>
+                )}
+            </Stack>
+            <Flex
+                sx={(theme) => ({
+                    position: 'sticky',
+                    backgroundColor: 'white',
+                    borderTop: `1px solid ${theme.colors.gray[4]}`,
+                    bottom: 0,
+                    zIndex: 2,
+                    margin: -16, // TODO: is there a way to negate theme values?
+                    padding: theme.spacing.md,
+                })}
+                justify="space-between"
+                align="center"
+            >
                 <Popover withinPortal width={150} withArrow>
                     <Popover.Target>
                         <Button
@@ -169,6 +187,6 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                     Create New Sync
                 </Button>
             </Flex>
-        </Stack>
+        </>
     );
 };
