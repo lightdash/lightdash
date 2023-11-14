@@ -177,8 +177,6 @@ const useBigNumberConfig = (
     const itemMap = useMemo(() => {
         if (!explore) return;
 
-        console.log('this still happens? wth?');
-
         return getItemMap(
             explore,
             resultsData?.metricQuery.additionalMetrics,
