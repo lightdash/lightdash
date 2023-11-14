@@ -50,7 +50,7 @@ const VisualizationCardOptions: FC = memo(() => {
         : undefined;
     const isCartesianChartTypeTheSameForAllSeries =
         isCartesian &&
-        isSeriesWithMixedChartTypes(
+        !isSeriesWithMixedChartTypes(
             visualizationConfig.chartConfig.dirtyEchartsConfig?.series,
         );
 
@@ -83,8 +83,6 @@ const VisualizationCardOptions: FC = memo(() => {
                             'Cartesian type should not be undefined',
                         );
                     case CartesianSeriesType.AREA:
-                        visualizationConfig.chartConfig.setStacking(true);
-
                         return {
                             text: 'Area chart',
                             icon: (
@@ -95,7 +93,6 @@ const VisualizationCardOptions: FC = memo(() => {
                             ),
                         };
                     case CartesianSeriesType.LINE:
-                        visualizationConfig.chartConfig.setStacking(false);
                         return {
                             text: 'Line chart',
                             icon: (
@@ -107,10 +104,6 @@ const VisualizationCardOptions: FC = memo(() => {
                         };
 
                     case CartesianSeriesType.BAR:
-                        if (!pivotDimensions) {
-                            visualizationConfig.chartConfig.setStacking(false);
-                        }
-
                         return cartesianFlipAxis
                             ? {
                                   text: 'Horizontal bar chart',
@@ -132,8 +125,6 @@ const VisualizationCardOptions: FC = memo(() => {
                                   ),
                               };
                     case CartesianSeriesType.SCATTER:
-                        visualizationConfig.chartConfig.setStacking(false);
-
                         return {
                             text: 'Scatter chart',
                             icon: (
@@ -182,7 +173,6 @@ const VisualizationCardOptions: FC = memo(() => {
         cartesianType,
         cartesianFlipAxis,
         isCartesianChartTypeTheSameForAllSeries,
-        pivotDimensions,
     ]);
 
     return (
@@ -219,8 +209,14 @@ const VisualizationCardOptions: FC = memo(() => {
                     }
                     icon={<MantineIcon icon={IconChartBar} />}
                     onClick={() => {
+                        setChartType(ChartType.CARTESIAN);
+
                         if (isCartesian) {
-                            setChartType(ChartType.CARTESIAN);
+                            if (pivotDimensions) {
+                                visualizationConfig.chartConfig.setStacking(
+                                    true,
+                                );
+                            }
                             visualizationConfig.chartConfig.setType(
                                 CartesianSeriesType.BAR,
                                 false,
@@ -248,8 +244,14 @@ const VisualizationCardOptions: FC = memo(() => {
                         />
                     }
                     onClick={() => {
+                        setChartType(ChartType.CARTESIAN);
+
                         if (isCartesian) {
-                            setChartType(ChartType.CARTESIAN);
+                            if (pivotDimensions) {
+                                visualizationConfig.chartConfig.setStacking(
+                                    true,
+                                );
+                            }
                             visualizationConfig.chartConfig.setType(
                                 CartesianSeriesType.BAR,
                                 true,
@@ -271,8 +273,10 @@ const VisualizationCardOptions: FC = memo(() => {
                     }
                     icon={<MantineIcon icon={IconChartLine} />}
                     onClick={() => {
+                        setChartType(ChartType.CARTESIAN);
+
                         if (isCartesian) {
-                            setChartType(ChartType.CARTESIAN);
+                            visualizationConfig.chartConfig.setStacking(false);
                             visualizationConfig.chartConfig.setType(
                                 CartesianSeriesType.LINE,
                                 false,
@@ -294,8 +298,10 @@ const VisualizationCardOptions: FC = memo(() => {
                     }
                     icon={<MantineIcon icon={IconChartArea} />}
                     onClick={() => {
+                        setChartType(ChartType.CARTESIAN);
+
                         if (isCartesian) {
-                            setChartType(ChartType.CARTESIAN);
+                            visualizationConfig.chartConfig.setStacking(true);
                             visualizationConfig.chartConfig.setType(
                                 CartesianSeriesType.LINE,
                                 false,
@@ -317,8 +323,9 @@ const VisualizationCardOptions: FC = memo(() => {
                     }
                     icon={<MantineIcon icon={IconChartDots} />}
                     onClick={() => {
+                        setChartType(ChartType.CARTESIAN);
+
                         if (isCartesian) {
-                            setChartType(ChartType.CARTESIAN);
                             visualizationConfig.chartConfig.setType(
                                 CartesianSeriesType.SCATTER,
                                 false,
