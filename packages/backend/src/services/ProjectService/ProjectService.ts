@@ -60,6 +60,7 @@ import {
     ProjectType,
     RequestMethod,
     ResultRow,
+    SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
     SpaceQuery,
     SpaceSummary,
@@ -2113,7 +2114,7 @@ export class ProjectService {
 
     async getAvailableFiltersForSavedQueries(
         user: SessionUser,
-        savedQueryUuids: string[],
+        savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
     ): Promise<DashboardAvailableFilters> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
@@ -2127,6 +2128,10 @@ export class ProjectService {
             uuid: string;
             filters: CompiledDimension[];
         }[] = [];
+
+        const savedQueryUuids = savedChartUuidsAndTileUuids.map(
+            ({ savedChartUuid }) => savedChartUuid,
+        );
 
         try {
             const savedCharts =
@@ -2206,11 +2211,12 @@ export class ProjectService {
             });
         });
 
-        const savedQueryFilters = savedQueryUuids.reduce<
+        const savedQueryFilters = savedChartUuidsAndTileUuids.reduce<
             DashboardAvailableFilters['savedQueryFilters']
-        >((acc, savedQueryUuid) => {
+        >((acc, savedChartUuidAndTileUuid) => {
             const filterResult = allFilters.find(
-                (result) => result.uuid === savedQueryUuid,
+                (result) =>
+                    result.uuid === savedChartUuidAndTileUuid.savedChartUuid,
             );
             if (!filterResult || !filterResult.filters.length) return acc;
 
@@ -2219,7 +2225,7 @@ export class ProjectService {
             );
             return {
                 ...acc,
-                [savedQueryUuid]: filterIndexes,
+                [savedChartUuidAndTileUuid.tileUuid]: filterIndexes,
             };
         }, {});
 

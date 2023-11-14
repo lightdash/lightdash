@@ -153,6 +153,13 @@ export type DashboardAvailableFilters = {
     allFilterableFields: FilterableField[];
 };
 
+export type SavedChartsInfoForDashboardAvailableFilters = {
+    tileUuid: DashboardChartTile['uuid'];
+    savedChartUuid: NonNullable<
+        DashboardChartTile['properties']['savedChartUuid']
+    >;
+}[];
+
 export const isDashboardUnversionedFields = (
     data: UpdateDashboard,
 ): data is DashboardUnversionedFields =>

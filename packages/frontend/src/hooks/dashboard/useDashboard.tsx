@@ -5,6 +5,7 @@ import {
     Dashboard,
     DashboardAvailableFilters,
     DashboardTile,
+    SavedChartsInfoForDashboardAvailableFilters,
     UpdateDashboard,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
@@ -52,11 +53,13 @@ const deleteDashboard = async (id: string) =>
         body: undefined,
     });
 
-const postDashboardsAvailableFilters = async (savedQueryUuids: string[]) =>
+const postDashboardsAvailableFilters = async (
+    savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
+) =>
     lightdashApi<DashboardAvailableFilters>({
         url: `/dashboards/availableFilters`,
         method: 'POST',
-        body: JSON.stringify(savedQueryUuids),
+        body: JSON.stringify(savedChartUuidsAndTileUuids),
     });
 
 const exportDashboard = async (id: string, queryFilters: string) =>
@@ -66,12 +69,17 @@ const exportDashboard = async (id: string, queryFilters: string) =>
         body: JSON.stringify({ queryFilters }),
     });
 
-export const useDashboardsAvailableFilters = (savedQueryUuids: string[]) =>
-    useQuery<DashboardAvailableFilters, ApiError>(
-        ['dashboards', 'availableFilters', ...savedQueryUuids],
-        () => postDashboardsAvailableFilters(savedQueryUuids),
-        { enabled: savedQueryUuids.length > 0 },
+export const useDashboardsAvailableFilters = (
+    savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
+) => {
+    console.log('useDashboardsAvailableFilters', savedChartUuidsAndTileUuids);
+
+    return useQuery<DashboardAvailableFilters, ApiError>(
+        ['dashboards', 'availableFilters', ...savedChartUuidsAndTileUuids],
+        () => postDashboardsAvailableFilters(savedChartUuidsAndTileUuids),
+        { enabled: savedChartUuidsAndTileUuids.length > 0 },
     );
+};
 
 export const useDashboardQuery = (
     id?: string,

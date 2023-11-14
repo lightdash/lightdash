@@ -9,6 +9,7 @@ import {
     fieldId,
     FilterableField,
     isDashboardChartTileType,
+    SavedChartsInfoForDashboardAvailableFilters,
 } from '@lightdash/common';
 import { min } from 'lodash-es';
 import React, {
@@ -112,16 +113,25 @@ export const DashboardProvider: React.FC = ({ children }) => {
     const {
         overridesForSavedDashboardFilters,
         addSavedFilterOverride,
-
         removeSavedFilterOverride,
     } = useSavedDashboardFiltersOverrides();
 
-    const tileSavedChartUuids = useMemo(
+    const savedChartUuidsAndTileUuids = useMemo(
         () =>
             dashboardTiles
                 ?.filter(isDashboardChartTileType)
-                .map((tile) => tile.properties.savedChartUuid)
-                .filter((uuid): uuid is string => !!uuid),
+                .reduce<SavedChartsInfoForDashboardAvailableFilters>(
+                    (acc, tile) => {
+                        if (tile.properties.savedChartUuid) {
+                            acc.push({
+                                tileUuid: tile.uuid,
+                                savedChartUuid: tile.properties.savedChartUuid,
+                            });
+                        }
+                        return acc;
+                    },
+                    [],
+                ),
         [dashboardTiles],
     );
 
@@ -241,41 +251,39 @@ export const DashboardProvider: React.FC = ({ children }) => {
         isLoading: isLoadingDashboardFilters,
         isFetching: isFetchingDashboardFilters,
         data: dashboardAvailableFiltersData,
-    } = useDashboardsAvailableFilters(tileSavedChartUuids ?? []);
+    } = useDashboardsAvailableFilters(savedChartUuidsAndTileUuids ?? []);
 
     const filterableFieldsByTileUuid = useMemo(() => {
         if (!dashboard || !dashboardTiles || !dashboardAvailableFiltersData)
             return;
 
-        //! TODO: add tile uuid to the payload!
-        const tileFilters: Record<string, FilterableField[] | undefined> = {};
-        Object.entries(dashboardAvailableFiltersData.savedQueryFilters).forEach(
-            ([tileUuid, indexes]) => {
-                tileFilters[tileUuid] = indexes.map(
+        const filterFieldsMapping = savedChartUuidsAndTileUuids?.reduce<
+            Record<string, FilterableField[]>
+        >((acc, { tileUuid, savedChartUuid }) => {
+            const filterFields =
+                dashboardAvailableFiltersData.savedQueryFilters[
+                    savedChartUuid
+                ]?.map(
                     (index) =>
                         dashboardAvailableFiltersData.allFilterableFields[
                             index
                         ],
                 );
-            },
-        );
 
-        return dashboardTiles
-            .filter(isDashboardChartTileType)
-            .reduce<DashboardContext['filterableFieldsByTileUuid']>(
-                (acc, tile) => {
-                    const savedChartUuid = tile.properties.savedChartUuid;
-                    if (!savedChartUuid) return acc;
+            if (filterFields) {
+                acc[tileUuid] = filterFields;
+            }
 
-                    const filterFields = tileFilters[savedChartUuid];
-                    if (filterFields && acc) {
-                        acc[tile.uuid] = filterFields;
-                    }
-                    return acc;
-                },
-                {},
-            );
-    }, [dashboard, dashboardTiles, dashboardAvailableFiltersData]);
+            return acc;
+        }, {});
+
+        return filterFieldsMapping;
+    }, [
+        dashboard,
+        dashboardTiles,
+        dashboardAvailableFiltersData,
+        savedChartUuidsAndTileUuids,
+    ]);
 
     const fieldsWithSuggestions = useMemo(() => {
         return dashboardAvailableFiltersData &&
