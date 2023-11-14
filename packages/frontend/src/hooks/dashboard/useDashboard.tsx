@@ -71,15 +71,12 @@ const exportDashboard = async (id: string, queryFilters: string) =>
 
 export const useDashboardsAvailableFilters = (
     savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
-) => {
-    console.log('useDashboardsAvailableFilters', savedChartUuidsAndTileUuids);
-
-    return useQuery<DashboardAvailableFilters, ApiError>(
+) =>
+    useQuery<DashboardAvailableFilters, ApiError>(
         ['dashboards', 'availableFilters', ...savedChartUuidsAndTileUuids],
         () => postDashboardsAvailableFilters(savedChartUuidsAndTileUuids),
         { enabled: savedChartUuidsAndTileUuids.length > 0 },
     );
-};
 
 export const useDashboardQuery = (
     id?: string,
