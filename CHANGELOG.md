@@ -1,3 +1,10 @@
+## [0.863.11](https://github.com/lightdash/lightdash/compare/0.863.10...0.863.11) (2023-11-14)
+
+
+### Bug Fixes
+
+* keep google sync dialog footer in view ([#7956](https://github.com/lightdash/lightdash/issues/7956)) ([a23dc99](https://github.com/lightdash/lightdash/commit/a23dc99bb5738c723b7e4ee4b8d23b50a1a10824))
+
 ## [0.863.10](https://github.com/lightdash/lightdash/compare/0.863.9...0.863.10) (2023-11-14)
 
 
