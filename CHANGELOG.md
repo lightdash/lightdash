@@ -1,3 +1,11 @@
+## [0.863.14](https://github.com/lightdash/lightdash/compare/0.863.13...0.863.14) (2023-11-15)
+
+
+### Bug Fixes
+
+* don't show gsheets sync in schedulers list ([#7979](https://github.com/lightdash/lightdash/issues/7979)) ([8ac1818](https://github.com/lightdash/lightdash/commit/8ac1818d62ca66dc51afa1bc601bdba4e46ae54d))
+* run query stays on the right ([#7962](https://github.com/lightdash/lightdash/issues/7962)) ([23b91be](https://github.com/lightdash/lightdash/commit/23b91befacf121c3e4929721fd49f97f0964dff0))
+
 ## [0.863.13](https://github.com/lightdash/lightdash/compare/0.863.12...0.863.13) (2023-11-15)
 
 
