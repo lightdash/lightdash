@@ -356,6 +356,7 @@ const useBigNumberConfig = (
         flipColors,
         comparisonLabel,
     ]);
+
     return {
         bigNumber,
         bigNumberLabel,

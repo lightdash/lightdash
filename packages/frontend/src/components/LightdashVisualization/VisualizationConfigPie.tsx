@@ -41,7 +41,8 @@ const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
     );
 
     useEffect(() => {
-        onChartConfigChange?.(pieChartConfig.validConfig);
+        if (!onChartConfigChange || !pieChartConfig.validConfig) return;
+        onChartConfigChange(pieChartConfig.validConfig);
     }, [pieChartConfig, onChartConfigChange]);
 
     return children({

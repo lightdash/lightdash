@@ -458,99 +458,52 @@ const usePieChartConfig: PieChartConfigFn = (
         ],
     );
 
-    const values: PieChartConfig = useMemo(
-        () => ({
-            validConfig,
+    return {
+        validConfig,
 
-            groupFieldIds: Array.from(groupFieldIds),
-            groupAdd: handleGroupAdd,
-            groupChange: handleGroupChange,
-            groupRemove: handleRemoveGroup,
+        groupFieldIds: Array.from(groupFieldIds),
+        groupAdd: handleGroupAdd,
+        groupChange: handleGroupChange,
+        groupRemove: handleRemoveGroup,
 
-            selectedMetric,
-            metricId,
-            metricChange: setMetricId,
+        selectedMetric,
+        metricId,
+        metricChange: setMetricId,
 
-            isDonut,
-            toggleDonut: () => setIsDonut((prev) => !prev),
+        isDonut,
+        toggleDonut: () => setIsDonut((prev) => !prev),
 
-            valueLabel,
-            valueLabelChange: handleValueLabelChange,
-            showValue,
-            toggleShowValue: handleToggleShowValue,
-            showPercentage,
-            toggleShowPercentage: handleToggleShowPercentage,
+        valueLabel,
+        valueLabelChange: handleValueLabelChange,
+        showValue,
+        toggleShowValue: handleToggleShowValue,
+        showPercentage,
+        toggleShowPercentage: handleToggleShowPercentage,
 
-            isValueLabelOverriden,
-            isShowValueOverriden,
-            isShowPercentageOverriden,
+        isValueLabelOverriden,
+        isShowValueOverriden,
+        isShowPercentageOverriden,
 
-            defaultColors,
+        defaultColors,
 
-            sortedGroupLabels,
-            groupLabelOverrides,
-            groupLabelChange: handleGroupLabelChange,
-            groupColorOverrides,
-            groupColorDefaults,
-            groupColorChange: handleGroupColorChange,
-            groupValueOptionOverrides,
-            groupValueOptionChange: handleGroupValueOptionChange,
-            groupSortOverrides,
-            groupSortChange: handleGroupSortChange,
+        sortedGroupLabels,
+        groupLabelOverrides,
+        groupLabelChange: handleGroupLabelChange,
+        groupColorOverrides,
+        groupColorDefaults,
+        groupColorChange: handleGroupColorChange,
+        groupValueOptionOverrides,
+        groupValueOptionChange: handleGroupValueOptionChange,
+        groupSortOverrides,
+        groupSortChange: handleGroupSortChange,
 
-            showLegend,
-            toggleShowLegend: () => setShowLegend((prev) => !prev),
-            legendPosition,
-            legendPositionChange: handleLegendPositionChange,
+        showLegend,
+        toggleShowLegend: () => setShowLegend((prev) => !prev),
+        legendPosition,
+        legendPositionChange: handleLegendPositionChange,
 
-            data,
-        }),
-        [
-            validConfig,
-
-            groupFieldIds,
-            handleGroupAdd,
-            handleGroupChange,
-            handleRemoveGroup,
-
-            selectedMetric,
-            metricId,
-
-            isDonut,
-
-            valueLabel,
-            handleValueLabelChange,
-            showValue,
-            handleToggleShowValue,
-            showPercentage,
-            handleToggleShowPercentage,
-
-            isValueLabelOverriden,
-            isShowValueOverriden,
-            isShowPercentageOverriden,
-
-            defaultColors,
-
-            sortedGroupLabels,
-            groupLabelOverrides,
-            handleGroupLabelChange,
-            groupColorOverrides,
-            groupColorDefaults,
-            handleGroupColorChange,
-            groupValueOptionOverrides,
-            handleGroupValueOptionChange,
-            groupSortOverrides,
-            handleGroupSortChange,
-
-            showLegend,
-            legendPosition,
-            handleLegendPositionChange,
-
-            data,
-        ],
-    );
-
-    return values;
+        data,
+    };
 };
 
 export default usePieChartConfig;

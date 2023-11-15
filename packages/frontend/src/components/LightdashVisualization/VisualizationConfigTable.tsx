@@ -35,7 +35,8 @@ const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
     );
 
     useEffect(() => {
-        onChartConfigChange?.(tableConfig.validConfig);
+        if (!onChartConfigChange || !tableConfig.validConfig) return;
+        onChartConfigChange(tableConfig.validConfig);
     }, [tableConfig, onChartConfigChange]);
 
     return children({

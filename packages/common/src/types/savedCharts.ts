@@ -263,7 +263,10 @@ export type CartesianChartConfig = {
     config: CartesianChart;
 };
 
-export type CustomVisConfig = { config: {}; type: ChartType.CUSTOM };
+export type CustomVisConfig = {
+    type: ChartType.CUSTOM;
+    config: {};
+};
 
 export type ChartConfig =
     | PieChartConfig

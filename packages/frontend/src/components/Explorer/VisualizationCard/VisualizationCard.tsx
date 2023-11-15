@@ -159,12 +159,12 @@ const VisualizationCard: FC<{
             explore={explore}
             resultsData={queryResults}
             isLoading={isLoadingQueryResults}
-            onChartConfigChange={setChartConfig}
-            onChartTypeChange={setChartType}
-            onPivotDimensionsChange={setPivotFields}
             columnOrder={unsavedChartVersion.tableConfig.columnOrder}
             onSeriesContextMenu={onSeriesContextMenu}
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
+            onChartConfigChange={setChartConfig}
+            onChartTypeChange={setChartType}
+            onPivotDimensionsChange={setPivotFields}
         >
             <CollapsableCard
                 title="Charts"

@@ -17,6 +17,7 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
+import isEqual from 'lodash-es/isEqual';
 import {
     createContext,
     FC,
@@ -121,18 +122,18 @@ type Props = {
 
 const VisualizationProvider: FC<Props> = ({
     minimal = false,
-    chartConfig,
     initialPivotDimensions,
     resultsData,
     isLoading,
     columnOrder,
-    onSeriesContextMenu,
-    onChartTypeChange,
-    // onChartConfigChange,
-    onPivotDimensionsChange,
     explore,
     isSqlRunner,
     pivotTableMaxColumnLimit,
+    chartConfig,
+    onChartConfigChange,
+    onSeriesContextMenu,
+    onChartTypeChange,
+    onPivotDimensionsChange,
     children,
 }) => {
     const chartRef = useRef<EChartsReact>(null);
@@ -232,6 +233,16 @@ const VisualizationProvider: FC<Props> = ({
         }
     }, [resultsData?.metricQuery, columnOrder]);
 
+    const handleChartConfigChange = useCallback(
+        (newChartConfig: ChartConfig['config']) => {
+            if (!onChartConfigChange) return;
+            if (isEqual(newChartConfig, chartConfig?.config)) return;
+
+            onChartConfigChange(newChartConfig);
+        },
+        [onChartConfigChange, chartConfig?.config],
+    );
+
     useEffect(() => {
         if (!resultsData) return;
         setLastValidResultsData(resultsData);
@@ -263,15 +274,17 @@ const VisualizationProvider: FC<Props> = ({
         setPivotDimensions,
     };
 
-    switch (chartConfig?.type) {
-        case undefined:
-            return (
-                <Context.Provider
-                    value={{ ...value, visualizationConfig: undefined }}
-                >
-                    {children}
-                </Context.Provider>
-            );
+    if (!chartConfig) {
+        return (
+            <Context.Provider
+                value={{ ...value, visualizationConfig: undefined }}
+            >
+                {children}
+            </Context.Provider>
+        );
+    }
+
+    switch (chartConfig.type) {
         case ChartType.CARTESIAN:
             return (
                 <VisualizationCartesianConfig
@@ -281,7 +294,7 @@ const VisualizationProvider: FC<Props> = ({
                     columnOrder={isSqlRunner ? [] : defaultColumnOrder}
                     setPivotDimensions={setPivotDimensions}
                     initialChartConfig={chartConfig.config}
-                    //onChartConfigChange={onChartConfigChange}
+                    onChartConfigChange={handleChartConfigChange}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider
@@ -301,7 +314,7 @@ const VisualizationProvider: FC<Props> = ({
                     allNumericMetrics={allNumericMetrics}
                     customDimensions={customDimensions}
                     initialChartConfig={chartConfig.config}
-                    //onChartConfigChange={onChartConfigChange}
+                    onChartConfigChange={handleChartConfigChange}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider
@@ -318,7 +331,7 @@ const VisualizationProvider: FC<Props> = ({
                     explore={explore}
                     resultsData={lastValidResultsData}
                     initialChartConfig={chartConfig.config}
-                    //onChartConfigChange={onChartConfigChange}
+                    onChartConfigChange={handleChartConfigChange}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider
@@ -338,7 +351,7 @@ const VisualizationProvider: FC<Props> = ({
                     validPivotDimensions={validPivotDimensions}
                     pivotTableMaxColumnLimit={pivotTableMaxColumnLimit}
                     initialChartConfig={chartConfig.config}
-                    //onChartConfigChange={onChartConfigChange}
+                    onChartConfigChange={handleChartConfigChange}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider
@@ -355,7 +368,7 @@ const VisualizationProvider: FC<Props> = ({
                     explore={explore}
                     resultsData={lastValidResultsData}
                     initialChartConfig={chartConfig.config}
-                    //onChartConfigChange={onChartConfigChange}
+                    onChartConfigChange={handleChartConfigChange}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider
