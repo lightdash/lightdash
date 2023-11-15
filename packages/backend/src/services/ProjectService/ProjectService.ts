@@ -60,6 +60,7 @@ import {
     ProjectType,
     RequestMethod,
     ResultRow,
+    SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
     SpaceQuery,
     SpaceSummary,
@@ -2113,7 +2114,7 @@ export class ProjectService {
 
     async getAvailableFiltersForSavedQueries(
         user: SessionUser,
-        savedQueryUuids: string[],
+        savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
     ): Promise<DashboardAvailableFilters> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
@@ -2128,11 +2129,38 @@ export class ProjectService {
             filters: CompiledDimension[];
         }[] = [];
 
+        const savedQueryUuids = savedChartUuidsAndTileUuids.map(
+            ({ savedChartUuid }) => savedChartUuid,
+        );
+
         try {
             const savedCharts =
                 await this.savedChartModel.getInfoForAvailableFilters(
                     savedQueryUuids,
                 );
+            const exploreCacheKeys: Record<string, boolean> = {};
+            const exploreCache: Record<string, Explore> = {};
+
+            const explorePromises = savedCharts.reduce<
+                Promise<{ key: string; explore: Explore }>[]
+            >((acc, chart) => {
+                const key = chart.tableName;
+                if (!exploreCacheKeys[key]) {
+                    acc.push(
+                        this.getExplore(user, chart.projectUuid, key).then(
+                            (explore) => ({ key, explore }),
+                        ),
+                    );
+                    exploreCacheKeys[key] = true;
+                }
+                return acc;
+            }, []);
+
+            const resolvedExplores = await Promise.all(explorePromises);
+
+            resolvedExplores.forEach(({ key, explore }) => {
+                exploreCache[key] = explore;
+            });
 
             const filterPromises = savedCharts.map(async (savedChart) => {
                 if (
@@ -2151,11 +2179,7 @@ export class ProjectService {
                     return { uuid: savedChart.uuid, filters: [] };
                 }
 
-                const explore = await this.getExplore(
-                    user,
-                    savedChart.projectUuid,
-                    savedChart.tableName,
-                );
+                const explore = exploreCache[savedChart.tableName];
 
                 const filters = getDimensions(explore).filter(
                     (field) => isFilterableDimension(field) && !field.hidden,
@@ -2169,20 +2193,41 @@ export class ProjectService {
             span?.finish();
         }
 
-        return savedQueryUuids.reduce<DashboardAvailableFilters>(
-            (acc, savedQueryUuid) => {
-                const filterResult = allFilters.find(
-                    (result) => result.uuid === savedQueryUuid,
-                );
-                if (!filterResult || !filterResult.filters.length) return acc;
+        const allFilterableFields: FilterableField[] = [];
+        const filterIndexMap: Record<string, number> = {};
 
-                return {
-                    ...acc,
-                    [savedQueryUuid]: filterResult.filters,
-                };
-            },
-            {},
-        );
+        allFilters.forEach((filterSet) => {
+            filterSet.filters.forEach((filter) => {
+                const fieldId = getFieldId(filter);
+                if (!(fieldId in filterIndexMap)) {
+                    filterIndexMap[fieldId] = allFilterableFields.length;
+                    allFilterableFields.push(filter);
+                }
+            });
+        });
+
+        const savedQueryFilters = savedChartUuidsAndTileUuids.reduce<
+            DashboardAvailableFilters['savedQueryFilters']
+        >((acc, savedChartUuidAndTileUuid) => {
+            const filterResult = allFilters.find(
+                (result) =>
+                    result.uuid === savedChartUuidAndTileUuid.savedChartUuid,
+            );
+            if (!filterResult || !filterResult.filters.length) return acc;
+
+            const filterIndexes = filterResult.filters.map(
+                (filter) => filterIndexMap[getFieldId(filter)],
+            );
+            return {
+                ...acc,
+                [savedChartUuidAndTileUuid.tileUuid]: filterIndexes,
+            };
+        }, {});
+
+        return {
+            savedQueryFilters,
+            allFilterableFields,
+        };
     }
 
     async hasSavedCharts(
