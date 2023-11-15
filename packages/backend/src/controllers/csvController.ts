@@ -1,8 +1,7 @@
 import { ApiCsvUrlResponse, ApiErrorPayload } from '@lightdash/common';
-import { Get } from '@tsoa/runtime';
-import express from 'express';
 import {
     Controller,
+    Get,
     Middlewares,
     OperationId,
     Path,
@@ -11,7 +10,8 @@ import {
     Route,
     SuccessResponse,
     Tags,
-} from 'tsoa';
+} from '@tsoa/runtime';
+import express from 'express';
 import { schedulerService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
