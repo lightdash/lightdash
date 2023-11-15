@@ -1354,7 +1354,7 @@ const useEchartsCartesianConfig = (
         return getEchartAxis({
             items,
             series,
-            validCartesianConfig: validCartesianConfig,
+            validCartesianConfig,
             resultsData,
         });
     }, [items, series, validCartesianConfig, resultsData]);
