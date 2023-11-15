@@ -5,20 +5,22 @@ import {
     ApiSuccessEmpty,
     UpdateGroup,
 } from '@lightdash/common';
-import { Controller, Delete, Put } from '@tsoa/runtime';
-import express from 'express';
 import {
     Body,
+    Controller,
+    Delete,
     Get,
     Middlewares,
     OperationId,
     Patch,
     Path,
+    Put,
     Request,
     Response,
     Route,
     Tags,
-} from 'tsoa';
+} from '@tsoa/runtime';
+import express from 'express';
 import { groupService } from '../services/services';
 import {
     allowApiKeyAuthentication,
