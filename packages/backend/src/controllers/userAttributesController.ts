@@ -7,19 +7,22 @@ import {
     getRequestMethod,
     LightdashRequestMethodHeader,
 } from '@lightdash/common';
-import { Controller, Delete, Post, Put } from '@tsoa/runtime';
-import express from 'express';
 import {
     Body,
+    Controller,
+    Delete,
     Get,
     Middlewares,
     OperationId,
     Path,
+    Post,
+    Put,
     Request,
     Response,
     Route,
     Tags,
-} from 'tsoa';
+} from '@tsoa/runtime';
+import express from 'express';
 import { userAttributesService } from '../services/services';
 import {
     allowApiKeyAuthentication,
