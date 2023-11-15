@@ -182,8 +182,7 @@ const ValidDashboardChartTile: FC<{
 
     return (
         <VisualizationProvider
-            chartType={chart.chartConfig.type}
-            initialChartConfig={chart.chartConfig}
+            chartConfig={chart.chartConfig}
             initialPivotDimensions={chart.pivotConfig?.columns}
             resultsData={resultData}
             explore={explore}
@@ -225,8 +224,7 @@ const ValidDashboardChartTileMinimal: FC<{
     return (
         <VisualizationProvider
             minimal
-            chartType={chart.chartConfig.type}
-            initialChartConfig={chart.chartConfig}
+            chartConfig={chart.chartConfig}
             initialPivotDimensions={chart.pivotConfig?.columns}
             resultsData={resultData}
             isLoading={false}

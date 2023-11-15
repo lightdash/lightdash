@@ -250,8 +250,7 @@ const SqlRunnerPage = () => {
 
             <Stack mt="lg" spacing="sm" sx={{ flexGrow: 1 }}>
                 <VisualizationProvider
-                    initialChartConfig={initialChartConfig}
-                    chartType={chartType}
+                    chartConfig={initialChartConfig}
                     initialPivotDimensions={initialPivotDimensions}
                     resultsData={resultsData}
                     isLoading={isLoading}

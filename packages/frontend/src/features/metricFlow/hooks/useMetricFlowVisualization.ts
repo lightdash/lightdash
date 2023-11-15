@@ -1,5 +1,5 @@
 import { ApiQueryResults, ChartConfig, ChartType } from '@lightdash/common';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { getValidChartConfig } from '../../../providers/ExplorerProvider';
 
 const useMetricFlowVisualization = (
@@ -9,17 +9,22 @@ const useMetricFlowVisualization = (
     const [chartConfig, setChartConfig] = useState<ChartConfig['config']>();
     const [_pivotFields, setPivotFields] = useState<string[] | undefined>();
 
-    const columnOrder = resultsData
-        ? [
-              ...resultsData.metricQuery.dimensions,
-              ...resultsData.metricQuery.metrics,
-          ]
-        : [];
+    const columnOrder = useMemo(() => {
+        return resultsData
+            ? [
+                  ...resultsData.metricQuery.dimensions,
+                  ...resultsData.metricQuery.metrics,
+              ]
+            : [];
+    }, [resultsData]);
+
+    const validChartConfig = useMemo(() => {
+        return getValidChartConfig(chartType, chartConfig);
+    }, [chartType, chartConfig]);
 
     return {
-        chartType,
         columnOrder,
-        chartConfig: getValidChartConfig(chartType, chartConfig),
+        chartConfig: validChartConfig,
         setChartType,
         setChartConfig,
         setPivotFields,

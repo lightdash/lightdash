@@ -114,8 +114,8 @@ const MetricFlowPage = () => {
             columns: convertFieldMapToTableColumns(results.fieldsMap),
         };
     }, [explore, metricFlowQueryResultsQuery.data]);
+
     const {
-        chartType,
         columnOrder,
         chartConfig,
         setChartType,
@@ -320,9 +320,8 @@ const MetricFlowPage = () => {
         >
             <Stack spacing="sm" sx={{ flexGrow: 1 }}>
                 <VisualizationProvider
-                    initialChartConfig={chartConfig}
+                    chartConfig={chartConfig}
                     initialPivotDimensions={undefined}
-                    chartType={chartType}
                     resultsData={resultsData}
                     isLoading={metricFlowQueryResultsQuery.isLoading}
                     onChartConfigChange={setChartConfig}
@@ -341,7 +340,7 @@ const MetricFlowPage = () => {
                             <>
                                 <VisualizationCardOptions />
                                 <VisualizationConfigPanel
-                                    chartType={chartType}
+                                    chartType={chartConfig.type}
                                 />
                                 {activeProjectUuid && (
                                     <ChartDownloadMenu

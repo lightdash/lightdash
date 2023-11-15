@@ -1,0 +1,51 @@
+import { ChartType } from '@lightdash/common';
+import { FC, useEffect } from 'react';
+import useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import { VisualizationConfigCommon } from './VisualizationProvider';
+
+export type VisualizationConfigCartesian = {
+    chartType: ChartType.CARTESIAN;
+    chartConfig: ReturnType<typeof useCartesianChartConfig>;
+};
+
+type VisualizationCartesianConfigProps =
+    VisualizationConfigCommon<VisualizationConfigCartesian> & {
+        columnOrder: string[];
+        validPivotDimensions: string[] | undefined;
+        setPivotDimensions: React.Dispatch<
+            React.SetStateAction<string[] | undefined>
+        >;
+    };
+
+const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
+    explore,
+    resultsData,
+    validPivotDimensions,
+    columnOrder,
+    setPivotDimensions,
+    initialChartConfig,
+    onChartConfigChange,
+    children,
+}) => {
+    const cartesianConfig = useCartesianChartConfig({
+        initialChartConfig,
+        pivotKeys: validPivotDimensions,
+        resultsData,
+        setPivotDimensions,
+        columnOrder,
+        explore,
+    });
+
+    useEffect(() => {
+        onChartConfigChange?.(cartesianConfig.validConfig);
+    }, [cartesianConfig, onChartConfigChange]);
+
+    return children({
+        visualizationConfig: {
+            chartType: ChartType.CARTESIAN,
+            chartConfig: cartesianConfig,
+        },
+    });
+};
+
+export default VisualizationCartesianConfig;

@@ -36,9 +36,6 @@ const VisualizationCard: FC<{
         (context) => context.state.savedChart,
     );
 
-    const unsavedChartVersion = useExplorerContext(
-        (context) => context.state.unsavedChartVersion,
-    );
     const isLoadingQueryResults = useExplorerContext(
         (context) => context.queryResults.isLoading,
     );
@@ -63,9 +60,10 @@ const VisualizationCard: FC<{
     const toggleExpandedSection = useExplorerContext(
         (context) => context.actions.toggleExpandedSection,
     );
-    const chartType = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.chartConfig.type,
+    const unsavedChartVersion = useExplorerContext(
+        (context) => context.state.unsavedChartVersion,
     );
+
     const isOpen = useMemo(
         () => expandedSections.includes(ExplorerSection.VISUALIZATION),
         [expandedSections],
@@ -156,8 +154,7 @@ const VisualizationCard: FC<{
 
     return (
         <VisualizationProvider
-            initialChartConfig={unsavedChartVersion.chartConfig}
-            chartType={unsavedChartVersion.chartConfig.type}
+            chartConfig={unsavedChartVersion.chartConfig}
             initialPivotDimensions={unsavedChartVersion.pivotConfig?.columns}
             explore={explore}
             resultsData={queryResults}
@@ -179,7 +176,9 @@ const VisualizationCard: FC<{
                         <>
                             {isEditMode ? (
                                 <VisualizationSidebar
-                                    chartType={chartType}
+                                    chartType={
+                                        unsavedChartVersion.chartConfig.type
+                                    }
                                     savedChart={savedChart}
                                     isEditingDashboardChart={getIsEditingDashboardChart()}
                                     isProjectPreview={isProjectPreview}

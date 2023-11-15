@@ -2,7 +2,6 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
-    ChartType,
     CompleteCartesianChartLayout,
     EchartsGrid,
     EchartsLegend,
@@ -28,7 +27,6 @@ import {
 export const EMPTY_X_AXIS = 'empty_x_axis';
 
 type Args = {
-    chartType: ChartType;
     initialChartConfig: CartesianChart | undefined;
     pivotKeys: string[] | undefined;
     resultsData: ApiQueryResults | undefined;
@@ -98,7 +96,6 @@ const applyReferenceLines = (
 };
 
 const useCartesianChartConfig = ({
-    chartType,
     initialChartConfig,
     pivotKeys,
     resultsData,
@@ -393,7 +390,7 @@ const useCartesianChartConfig = ({
     // Set fallout layout values
     // https://www.notion.so/lightdash/Default-chart-configurations-5d3001af990d4b6fa990dba4564540f6
     useEffect(() => {
-        if (availableFields.length > 0 && chartType === ChartType.CARTESIAN) {
+        if (availableFields.length > 0) {
             setDirtyLayout((prev) => {
                 const isCurrentXFieldValid: boolean =
                     prev?.xField === EMPTY_X_AXIS ||
@@ -523,7 +520,6 @@ const useCartesianChartConfig = ({
             });
         }
     }, [
-        chartType,
         availableFields,
         availableDimensions,
         availableMetrics,

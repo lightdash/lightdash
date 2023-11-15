@@ -28,45 +28,31 @@ import {
     useRef,
     useState,
 } from 'react';
-
-import useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
-import useTableConfig from '../../hooks/tableVisualization/useTableConfig';
-import useBigNumberConfig from '../../hooks/useBigNumberConfig';
-import usePieChartConfig from '../../hooks/usePieChartConfig';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { EchartSeriesClickEvent } from '../SimpleChart';
-
-export type VisualizationConfigCartesian = ReturnType<
-    typeof useCartesianChartConfig
->;
-export type VisualizationConfigTable = ReturnType<typeof useTableConfig>;
-export type VisualizationConfigBigNumber = ReturnType<
-    typeof useBigNumberConfig
->;
-export type VisualizationConfigPie = ReturnType<typeof usePieChartConfig>;
+import VisualizationBigNumberConfig, {
+    VisualizationConfigBigNumber,
+} from './VisualizationBigNumberConfig';
+import VisualizationCartesianConfig, {
+    VisualizationConfigCartesian,
+} from './VisualizationConfigCartesian';
+import VisualizationPieConfig, {
+    VisualizationConfigPie,
+} from './VisualizationConfigPie';
+import VisualizationTableConfig, {
+    VisualizationConfigTable,
+} from './VisualizationConfigTable';
+import VisualizationCustomConfig, {
+    VisualizationConfigCustom,
+} from './VisualizationCustomConfigProps';
 
 export type VisualizationConfig =
-    | {
-          chartType: ChartType.CARTESIAN;
-          chartConfig: VisualizationConfigCartesian;
-      }
-    | {
-          chartType: ChartType.BIG_NUMBER;
-          chartConfig: VisualizationConfigBigNumber;
-      }
-    | {
-          chartType: ChartType.TABLE;
-          chartConfig: VisualizationConfigTable;
-      }
-    | {
-          chartType: ChartType.PIE;
-          chartConfig: VisualizationConfigPie;
-      }
-    | {
-          chartType: ChartType.CUSTOM;
-          chartConfig: { test: true };
-      };
+    | VisualizationConfigBigNumber
+    | VisualizationConfigCartesian
+    | VisualizationConfigCustom
+    | VisualizationConfigPie
+    | VisualizationConfigTable;
 
 type VisualizationContext = {
     minimal: boolean;
@@ -106,194 +92,17 @@ export function useVisualizationContext(): VisualizationContext {
     return context;
 }
 
-const VisualizationCartesianConfig: FC<{
-    children: (props: {
-        visualizationConfig: VisualizationConfig;
-    }) => JSX.Element;
-    chartType: ChartType.CARTESIAN;
-    initialChartConfig: ChartConfig | undefined;
-    validPivotDimensions: string[] | undefined;
-    lastValidResultsData: ApiQueryResults | undefined;
-    setPivotDimensions: React.Dispatch<
-        React.SetStateAction<string[] | undefined>
-    >;
-    columnOrder: string[];
+export type VisualizationConfigCommon<T extends VisualizationConfig> = {
     explore?: Explore;
-}> = ({
-    children,
-    chartType,
-    initialChartConfig,
-    validPivotDimensions,
-    lastValidResultsData,
-    columnOrder,
-    explore,
-    setPivotDimensions,
-}) => {
-    const cartesianConfig = useCartesianChartConfig({
-        // TODO: we should not be doing this...
-        chartType,
-        initialChartConfig:
-            initialChartConfig?.type === ChartType.CARTESIAN
-                ? initialChartConfig.config
-                : undefined,
-        pivotKeys: validPivotDimensions,
-        resultsData: lastValidResultsData,
-        setPivotDimensions,
-        columnOrder,
-        explore,
-    });
-
-    if (typeof children !== 'function') {
-        throw new Error(
-            'VisualizationCartesianConfig children must be a function',
-        );
-    }
-
-    return children({
-        visualizationConfig: {
-            chartType: ChartType.CARTESIAN,
-            chartConfig: cartesianConfig,
-        },
-    });
-};
-
-const VisualizationPieConfig: FC<{
-    children: (props: {
-        visualizationConfig: VisualizationConfig;
-    }) => JSX.Element;
-    initialChartConfig: ChartConfig | undefined;
     resultsData: ApiQueryResults | undefined;
-    dimensions: Dimension[];
-    allNumericMetrics: (Metric | TableCalculation)[];
-    customDimensions: CustomDimension[];
-    explore?: Explore;
-}> = ({
-    children,
-    initialChartConfig,
-    resultsData,
-    dimensions,
-    allNumericMetrics,
-    customDimensions,
-    explore,
-}) => {
-    const pieChartConfig = usePieChartConfig(
-        explore,
-        resultsData,
-        initialChartConfig?.type === ChartType.PIE
-            ? initialChartConfig.config
-            : undefined,
-        dimensions,
-        allNumericMetrics,
-        customDimensions,
-    );
-
-    if (typeof children !== 'function') {
-        throw new Error('VisualizationPieConfig children must be a function');
-    }
-
-    return children({
-        visualizationConfig: {
-            chartType: ChartType.PIE,
-            chartConfig: pieChartConfig,
-        },
-    });
-};
-
-const VisualizationBigNumberConfig: FC<{
-    children: (props: {
-        visualizationConfig: VisualizationConfig;
-    }) => JSX.Element;
-    initialChartConfig: ChartConfig | undefined;
-    lastValidResultsData: ApiQueryResults | undefined;
-    explore?: Explore;
-}> = ({ children, initialChartConfig, lastValidResultsData, explore }) => {
-    const bigNumberConfig = useBigNumberConfig(
-        initialChartConfig?.type === ChartType.BIG_NUMBER
-            ? initialChartConfig.config
-            : undefined,
-        lastValidResultsData,
-        explore,
-    );
-
-    if (typeof children !== 'function') {
-        throw new Error(
-            'VisualizationBigNumberConfig children must be a function',
-        );
-    }
-
-    return children({
-        visualizationConfig: {
-            chartType: ChartType.BIG_NUMBER,
-            chartConfig: bigNumberConfig,
-        },
-    });
-};
-
-const VisualizationTableConfig: FC<{
-    children: (props: {
-        visualizationConfig: VisualizationConfig;
-    }) => JSX.Element;
-    initialChartConfig: ChartConfig | undefined;
-    lastValidResultsData: ApiQueryResults | undefined;
-    explore?: Explore;
-    columnOrder: string[];
-    validPivotDimensions: string[] | undefined;
-    pivotTableMaxColumnLimit: number;
-}> = ({
-    children,
-    initialChartConfig,
-    lastValidResultsData,
-    explore,
-    columnOrder,
-    validPivotDimensions,
-    pivotTableMaxColumnLimit,
-}) => {
-    const tableConfig = useTableConfig(
-        initialChartConfig?.type === ChartType.TABLE
-            ? initialChartConfig.config
-            : undefined,
-        lastValidResultsData,
-        explore,
-        columnOrder,
-        validPivotDimensions,
-        pivotTableMaxColumnLimit,
-    );
-
-    if (typeof children !== 'function') {
-        throw new Error('VisualizationTableConfig children must be a function');
-    }
-
-    return children({
-        visualizationConfig: {
-            chartType: ChartType.TABLE,
-            chartConfig: tableConfig,
-        },
-    });
-};
-
-const VisualizationCustomConfig: FC<{
-    children: (props: {
-        visualizationConfig: VisualizationConfig;
-    }) => JSX.Element;
-}> = ({ children }) => {
-    if (typeof children !== 'function') {
-        throw new Error(
-            'VisualizationCustomConfig children must be a function',
-        );
-    }
-
-    return children({
-        visualizationConfig: {
-            chartType: ChartType.CUSTOM,
-            chartConfig: { test: true },
-        },
-    });
+    initialChartConfig: T['chartConfig']['validConfig'] | undefined;
+    onChartConfigChange?: (value: T['chartConfig']['validConfig']) => void;
+    children: (props: { visualizationConfig: T }) => JSX.Element;
 };
 
 type Props = {
     minimal?: boolean;
-    chartType: ChartType;
-    initialChartConfig: ChartConfig | undefined;
+    chartConfig: ChartConfig | undefined;
     initialPivotDimensions: string[] | undefined;
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
@@ -312,14 +121,14 @@ type Props = {
 
 const VisualizationProvider: FC<Props> = ({
     minimal = false,
-    initialChartConfig,
-    chartType,
+    chartConfig,
     initialPivotDimensions,
     resultsData,
     isLoading,
     columnOrder,
     onSeriesContextMenu,
     onChartTypeChange,
+    // onChartConfigChange,
     onPivotDimensionsChange,
     explore,
     isSqlRunner,
@@ -432,123 +241,134 @@ const VisualizationProvider: FC<Props> = ({
         onPivotDimensionsChange?.(validPivotDimensions);
     }, [validPivotDimensions, onPivotDimensionsChange]);
 
-    // TODO: fix...
-    // useEffect(() => {
-    //     onChartConfigChange?.(visualizationConfig?.chartConfig);
-    // }, [visualizationConfig, onChartConfigChange]);
+    const value: Omit<VisualizationContext, 'visualizationConfig'> = {
+        minimal,
+        pivotDimensions: validPivotDimensions,
+        chartRef,
+        originalData: lastValidResultsData?.rows || [],
+        resultsData: lastValidResultsData,
+        isLoading,
+        explore,
+        columnOrder,
+        isSqlRunner: isSqlRunner || false,
+        dimensions,
+        metrics,
+        customMetrics,
+        customDimensions,
+        tableCalculations,
+        allMetrics,
+        allNumericMetrics,
+        onSeriesContextMenu,
+        setChartType,
+        setPivotDimensions,
+    };
 
-    const value: Omit<VisualizationContext, 'visualizationConfig'> = useMemo(
-        () => ({
-            minimal,
-            pivotDimensions: validPivotDimensions,
-            chartRef,
-            originalData: lastValidResultsData?.rows || [],
-            resultsData: lastValidResultsData,
-            isLoading,
-            explore,
-            columnOrder,
-            isSqlRunner: isSqlRunner || false,
-            dimensions,
-            metrics,
-            customMetrics,
-            customDimensions,
-            tableCalculations,
-            allMetrics,
-            allNumericMetrics,
-            onSeriesContextMenu,
-            setChartType,
-            setPivotDimensions,
-        }),
-        [
-            minimal,
-            columnOrder,
-            isLoading,
-            explore,
-            isSqlRunner,
-            lastValidResultsData,
-            validPivotDimensions,
-            dimensions,
-            metrics,
-            customMetrics,
-            customDimensions,
-            tableCalculations,
-            allMetrics,
-            allNumericMetrics,
-            onSeriesContextMenu,
-            setChartType,
-            setPivotDimensions,
-        ],
-    );
-
-    return chartType === ChartType.CARTESIAN ? (
-        <VisualizationCartesianConfig
-            chartType={chartType}
-            initialChartConfig={initialChartConfig}
-            validPivotDimensions={validPivotDimensions}
-            lastValidResultsData={lastValidResultsData}
-            columnOrder={isSqlRunner ? [] : defaultColumnOrder}
-            explore={isSqlRunner ? undefined : explore}
-            setPivotDimensions={setPivotDimensions}
-        >
-            {({ visualizationConfig }) => (
-                <Context.Provider value={{ ...value, visualizationConfig }}>
+    switch (chartConfig?.type) {
+        case undefined:
+            return (
+                <Context.Provider
+                    value={{ ...value, visualizationConfig: undefined }}
+                >
                     {children}
                 </Context.Provider>
-            )}
-        </VisualizationCartesianConfig>
-    ) : chartType === ChartType.PIE ? (
-        <VisualizationPieConfig
-            initialChartConfig={initialChartConfig}
-            resultsData={lastValidResultsData}
-            dimensions={dimensions}
-            allNumericMetrics={allNumericMetrics}
-            customDimensions={customDimensions}
-            explore={explore}
-        >
-            {({ visualizationConfig }) => (
-                <Context.Provider value={{ ...value, visualizationConfig }}>
-                    {children}
-                </Context.Provider>
-            )}
-        </VisualizationPieConfig>
-    ) : chartType === ChartType.BIG_NUMBER ? (
-        <VisualizationBigNumberConfig
-            initialChartConfig={initialChartConfig}
-            lastValidResultsData={lastValidResultsData}
-            explore={explore}
-        >
-            {({ visualizationConfig }) => (
-                <Context.Provider value={{ ...value, visualizationConfig }}>
-                    {children}
-                </Context.Provider>
-            )}
-        </VisualizationBigNumberConfig>
-    ) : chartType === ChartType.TABLE ? (
-        <VisualizationTableConfig
-            initialChartConfig={initialChartConfig}
-            lastValidResultsData={lastValidResultsData}
-            explore={explore}
-            columnOrder={defaultColumnOrder}
-            validPivotDimensions={validPivotDimensions}
-            pivotTableMaxColumnLimit={pivotTableMaxColumnLimit}
-        >
-            {({ visualizationConfig }) => (
-                <Context.Provider value={{ ...value, visualizationConfig }}>
-                    {children}
-                </Context.Provider>
-            )}
-        </VisualizationTableConfig>
-    ) : chartType === ChartType.CUSTOM ? (
-        <VisualizationCustomConfig>
-            {({ visualizationConfig }) => (
-                <Context.Provider value={{ ...value, visualizationConfig }}>
-                    {children}
-                </Context.Provider>
-            )}
-        </VisualizationCustomConfig>
-    ) : (
-        assertUnreachable(chartType, `Unexpected chart type: ${chartType}`)
-    );
+            );
+        case ChartType.CARTESIAN:
+            return (
+                <VisualizationCartesianConfig
+                    explore={isSqlRunner ? undefined : explore}
+                    resultsData={lastValidResultsData}
+                    validPivotDimensions={validPivotDimensions}
+                    columnOrder={isSqlRunner ? [] : defaultColumnOrder}
+                    setPivotDimensions={setPivotDimensions}
+                    initialChartConfig={chartConfig.config}
+                    //onChartConfigChange={onChartConfigChange}
+                >
+                    {({ visualizationConfig }) => (
+                        <Context.Provider
+                            value={{ ...value, visualizationConfig }}
+                        >
+                            {children}
+                        </Context.Provider>
+                    )}
+                </VisualizationCartesianConfig>
+            );
+        case ChartType.PIE:
+            return (
+                <VisualizationPieConfig
+                    explore={explore}
+                    resultsData={lastValidResultsData}
+                    dimensions={dimensions}
+                    allNumericMetrics={allNumericMetrics}
+                    customDimensions={customDimensions}
+                    initialChartConfig={chartConfig.config}
+                    //onChartConfigChange={onChartConfigChange}
+                >
+                    {({ visualizationConfig }) => (
+                        <Context.Provider
+                            value={{ ...value, visualizationConfig }}
+                        >
+                            {children}
+                        </Context.Provider>
+                    )}
+                </VisualizationPieConfig>
+            );
+        case ChartType.BIG_NUMBER:
+            return (
+                <VisualizationBigNumberConfig
+                    explore={explore}
+                    resultsData={lastValidResultsData}
+                    initialChartConfig={chartConfig.config}
+                    //onChartConfigChange={onChartConfigChange}
+                >
+                    {({ visualizationConfig }) => (
+                        <Context.Provider
+                            value={{ ...value, visualizationConfig }}
+                        >
+                            {children}
+                        </Context.Provider>
+                    )}
+                </VisualizationBigNumberConfig>
+            );
+        case ChartType.TABLE:
+            return (
+                <VisualizationTableConfig
+                    explore={explore}
+                    resultsData={lastValidResultsData}
+                    columnOrder={defaultColumnOrder}
+                    validPivotDimensions={validPivotDimensions}
+                    pivotTableMaxColumnLimit={pivotTableMaxColumnLimit}
+                    initialChartConfig={chartConfig.config}
+                    //onChartConfigChange={onChartConfigChange}
+                >
+                    {({ visualizationConfig }) => (
+                        <Context.Provider
+                            value={{ ...value, visualizationConfig }}
+                        >
+                            {children}
+                        </Context.Provider>
+                    )}
+                </VisualizationTableConfig>
+            );
+        case ChartType.CUSTOM:
+            return (
+                <VisualizationCustomConfig
+                    explore={explore}
+                    resultsData={lastValidResultsData}
+                    initialChartConfig={chartConfig.config}
+                    //onChartConfigChange={onChartConfigChange}
+                >
+                    {({ visualizationConfig }) => (
+                        <Context.Provider
+                            value={{ ...value, visualizationConfig }}
+                        >
+                            {children}
+                        </Context.Provider>
+                    )}
+                </VisualizationCustomConfig>
+            );
+        default:
+            return assertUnreachable(chartConfig, 'Unknown chart type');
+    }
 };
 
 export default VisualizationProvider;

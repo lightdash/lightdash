@@ -117,7 +117,7 @@ export type TableChart = {
     metricsAsRows?: boolean;
 };
 
-type TableChartConfig = {
+export type TableChartConfig = {
     type: ChartType.TABLE;
     config?: TableChart;
 };
