@@ -1,3 +1,10 @@
+## [0.863.15](https://github.com/lightdash/lightdash/compare/0.863.14...0.863.15) (2023-11-15)
+
+
+### Bug Fixes
+
+* drag and drop offset when reordering pie chart series ([#7968](https://github.com/lightdash/lightdash/issues/7968)) ([ed931b9](https://github.com/lightdash/lightdash/commit/ed931b9688c4df14e45df250ae087a94179c2058))
+
 ## [0.863.14](https://github.com/lightdash/lightdash/compare/0.863.13...0.863.14) (2023-11-15)
 
 
