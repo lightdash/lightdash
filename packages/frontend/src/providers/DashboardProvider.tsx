@@ -88,7 +88,9 @@ type DashboardContext = {
 
 const Context = createContext<DashboardContext | undefined>(undefined);
 
-export const DashboardProvider: React.FC = ({ children }) => {
+export const DashboardProvider: React.FC<{
+    schedulerFilters: DashboardFilterRule[] | undefined;
+}> = ({ schedulerFilters, children }) => {
     const { search, pathname } = useLocation();
     const history = useHistory();
 
@@ -96,8 +98,40 @@ export const DashboardProvider: React.FC = ({ children }) => {
         dashboardUuid: string;
     }>();
 
-    const { data: dashboard, error: dashboardError } =
-        useDashboardQuery(dashboardUuid);
+    const { data: dashboard, error: dashboardError } = useDashboardQuery(
+        dashboardUuid,
+        {
+            select: (d) => {
+                if (schedulerFilters) {
+                    // TODO: Reuse applyDimensionOverrides from hook useSavedDashboardFiltersOverrides
+                    return {
+                        ...d,
+                        filters: {
+                            ...d.filters,
+                            dimensions: d.filters.dimensions.map(
+                                (dimension) => {
+                                    const override = schedulerFilters.find(
+                                        (overrideDimension) =>
+                                            overrideDimension.id ===
+                                            dimension.id,
+                                    );
+                                    if (override) {
+                                        return {
+                                            ...override,
+                                            tileTargets: dimension.tileTargets,
+                                        };
+                                    }
+                                    return dimension;
+                                },
+                            ),
+                        },
+                    };
+                }
+                return d;
+            },
+        },
+    );
+
     const [dashboardTiles, setDashboardTiles] = useState<Dashboard['tiles']>();
 
     const [haveTilesChanged, setHaveTilesChanged] = useState<boolean>(false);

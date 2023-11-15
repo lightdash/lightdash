@@ -1,12 +1,17 @@
-import { assertUnreachable, DashboardTileTypes } from '@lightdash/common';
+import {
+    assertUnreachable,
+    DashboardTileTypes,
+    isDashboardScheduler,
+} from '@lightdash/common';
 import { FC } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useParams } from 'react-router-dom';
-
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
+import { useScheduler } from '../features/scheduler/hooks/useScheduler';
 import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
+import useSearchParams from '../hooks/useSearchParams';
 import { DashboardProvider } from '../providers/DashboardProvider';
 import {
     getReactGridLayoutConfig,
@@ -19,17 +24,27 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const MinimalDashboard: FC = () => {
     const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
+    const schedulerUuid = useSearchParams('schedulerUuid');
+
     const {
         data: dashboard,
         isError,
         error,
     } = useDashboardQuery(dashboardUuid);
 
+    const { data: scheduler } = useScheduler(schedulerUuid!, {
+        enabled: !!schedulerUuid,
+    });
+
     if (isError) {
         return <>{error.error.message}</>;
     }
 
     if (!dashboard) {
+        return <>Loading...</>;
+    }
+
+    if (schedulerUuid && !scheduler) {
         return <>Loading...</>;
     }
 
@@ -44,7 +59,13 @@ const MinimalDashboard: FC = () => {
     };
 
     return (
-        <DashboardProvider>
+        <DashboardProvider
+            schedulerFilters={
+                schedulerUuid && scheduler && isDashboardScheduler(scheduler)
+                    ? scheduler?.filters
+                    : undefined
+            }
+        >
             <ResponsiveGridLayout
                 {...getResponsiveGridLayoutProps(false)}
                 layouts={layouts}
