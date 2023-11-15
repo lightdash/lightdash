@@ -187,6 +187,7 @@ Packages overview:
 -   `e2e` - End-to-end and integration tests
 -   `warehouses` - Classes for connecting to different databases
 
+<!-- commented out until Codespaces is working -->
 <!--
 
 #### using Github Codespaces / VS Code Remote Containers
