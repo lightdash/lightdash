@@ -28,11 +28,11 @@ const GeneralSettings: FC = () => {
         metricQuery: { dimensions, customDimensions },
     } = resultsData || { metricQuery: { dimensions: [] as string[] } };
 
+    const isTableConfig = isTableVisualizationConfig(visualizationConfig);
+
     const chartConfig = useMemo(() => {
-        return isTableVisualizationConfig(visualizationConfig)
-            ? visualizationConfig.chartConfig
-            : undefined;
-    }, [visualizationConfig]);
+        return isTableConfig ? visualizationConfig.chartConfig : undefined;
+    }, [visualizationConfig, isTableConfig]);
 
     const {
         columns,
@@ -58,25 +58,26 @@ const GeneralSettings: FC = () => {
     const handleToggleMetricsAsRows = useCallback(() => {
         if (!chartConfig) return;
 
-        const newValue = !chartConfig.metricsAsRows;
+        const {
+            metricsAsRows,
+            showRowCalculation,
+            showColumnCalculation,
+            setShowColumnCalculation,
+            setShowRowCalculation,
+            setMetricsAsRows,
+        } = chartConfig;
+
+        const newValue = !metricsAsRows;
 
         if (newValue) {
-            chartConfig.setShowColumnCalculation(
-                chartConfig.showRowCalculation,
-            );
-            chartConfig.setShowRowCalculation(
-                chartConfig.showColumnCalculation,
-            );
+            setShowColumnCalculation(showRowCalculation);
+            setShowRowCalculation(showColumnCalculation);
         } else {
-            chartConfig.setShowColumnCalculation(
-                chartConfig.showRowCalculation,
-            );
-            chartConfig.setShowRowCalculation(
-                chartConfig.showColumnCalculation,
-            );
+            setShowColumnCalculation(showRowCalculation);
+            setShowRowCalculation(showColumnCalculation);
         }
 
-        chartConfig.setMetricsAsRows(newValue);
+        setMetricsAsRows(newValue);
     }, [chartConfig]);
 
     const onDragEnd = useCallback(
@@ -139,6 +140,23 @@ const GeneralSettings: FC = () => {
         ],
     );
 
+    if (!chartConfig) return null;
+
+    const {
+        canUsePivotTable,
+        hideRowNumbers,
+        metricsAsRows,
+        setHideRowNumbers,
+        setShowColumnCalculation,
+        setShowResultsTotal,
+        setShowRowCalculation,
+        setShowTableNames,
+        showColumnCalculation,
+        showResultsTotal,
+        showRowCalculation,
+        showTableNames,
+    } = chartConfig;
+
     return (
         <Stack spacing={0}>
             <DragDropContext
@@ -166,7 +184,7 @@ const GeneralSettings: FC = () => {
 
             <Title order={6}>Metrics</Title>
             <Tooltip
-                disabled={!!chartConfig?.canUsePivotTable}
+                disabled={!!canUsePivotTable}
                 label={
                     'To use metrics as rows, you need to move a dimension to "Columns"'
                 }
@@ -177,9 +195,9 @@ const GeneralSettings: FC = () => {
             >
                 <Box my="sm">
                     <Checkbox
-                        disabled={!chartConfig?.canUsePivotTable}
+                        disabled={!canUsePivotTable}
                         label="Show metrics as rows"
-                        checked={chartConfig?.metricsAsRows}
+                        checked={metricsAsRows}
                         onChange={() => handleToggleMetricsAsRows()}
                     />
                 </Box>
@@ -194,50 +212,40 @@ const GeneralSettings: FC = () => {
             <Stack mt="sm" spacing="xs">
                 <Checkbox
                     label="Show table names"
-                    checked={chartConfig?.showTableNames}
+                    checked={showTableNames}
                     onChange={() => {
-                        chartConfig?.setShowTableNames(
-                            !chartConfig?.showTableNames,
-                        );
+                        setShowTableNames(!showTableNames);
                     }}
                 />
 
                 <Checkbox
                     label="Show row numbers"
-                    checked={!chartConfig?.hideRowNumbers}
+                    checked={!hideRowNumbers}
                     onChange={() => {
-                        chartConfig?.setHideRowNumbers(
-                            !chartConfig?.hideRowNumbers,
-                        );
+                        setHideRowNumbers(!hideRowNumbers);
                     }}
                 />
-                {chartConfig?.canUsePivotTable ? (
+                {canUsePivotTable ? (
                     <Checkbox
                         label="Show row totals"
-                        checked={chartConfig?.showRowCalculation}
+                        checked={showRowCalculation}
                         onChange={() => {
-                            chartConfig?.setShowRowCalculation(
-                                !chartConfig?.showRowCalculation,
-                            );
+                            setShowRowCalculation(!showRowCalculation);
                         }}
                     />
                 ) : null}
                 <Checkbox
                     label="Show column totals"
-                    checked={chartConfig?.showColumnCalculation}
+                    checked={showColumnCalculation}
                     onChange={() => {
-                        chartConfig?.setShowColumnCalculation(
-                            !chartConfig?.showColumnCalculation,
-                        );
+                        setShowColumnCalculation(!showColumnCalculation);
                     }}
                 />
                 <Checkbox
                     label="Show number of results"
-                    checked={chartConfig?.showResultsTotal}
+                    checked={showResultsTotal}
                     onChange={() => {
-                        chartConfig?.setShowResultsTotal(
-                            !chartConfig?.showResultsTotal,
-                        );
+                        setShowResultsTotal(!showResultsTotal);
                     }}
                 />
             </Stack>
