@@ -928,14 +928,14 @@ export class ProjectService {
             chart_uuid: chartUuid,
         };
 
-        const metricQueryWithDashboardSorting: MetricQuery = {
+        const metricWithOverrideSorting: MetricQuery = {
             ...metricQuery,
             sorts: dashboardSorts || metricQuery.sorts,
         };
 
         const { cacheMetadata, rows } = await this.runQueryAndFormatRows({
             user,
-            metricQuery: metricQueryWithDashboardSorting,
+            metricQuery: metricWithOverrideSorting,
             projectUuid,
             exploreName: savedChart.tableName,
             csvLimit: undefined,

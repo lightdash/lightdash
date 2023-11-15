@@ -16,13 +16,12 @@ import MantineIcon from '../common/MantineIcon';
 import { HeaderProps, TableColumn } from '../common/Table/types';
 
 import { useDashboardContext } from '../../providers/DashboardProvider';
-import { getSortDirectionOrder, getSortLabel } from '../../utils/sortUtils';
+import {
+    getSortDirectionOrder,
+    getSortLabel,
+    SortDirection,
+} from '../../utils/sortUtils';
 import { BolderLabel } from '../Explorer/ResultsCard/ColumnHeaderContextMenu.styles';
-
-export enum SortDirection {
-    ASC = 'ASC',
-    DESC = 'DESC',
-}
 
 type Props = {
     item: Field | TableCalculation | CustomDimension;
