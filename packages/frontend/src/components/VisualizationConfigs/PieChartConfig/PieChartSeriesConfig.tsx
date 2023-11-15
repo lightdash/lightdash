@@ -323,10 +323,11 @@ const PieChartSeriesConfig: FC = () => {
                                             <GroupItem
                                                 ref={draggableProvided.innerRef}
                                                 {...draggableProvided.draggableProps}
-                                                style={
-                                                    draggableProvided
-                                                        .draggableProps.style
-                                                }
+                                                style={{
+                                                    ...draggableProvided
+                                                        .draggableProps.style,
+                                                    top: 'auto',
+                                                }}
                                                 dragHandleProps={
                                                     draggableProvided.dragHandleProps
                                                 }
