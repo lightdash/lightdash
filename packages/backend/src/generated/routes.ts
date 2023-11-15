@@ -6438,6 +6438,58 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.post(
+        '/api/v1/projects/:projectUuid/calculate-total',
+        ...fetchMiddlewares<RequestHandler>(ProjectController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectController.prototype.calculateTotal,
+        ),
+
+        function ProjectController_calculateTotal(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    dataType: 'any',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new ProjectController();
+
+                const promise = controller.calculateTotal.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.post(
         '/api/v1/projects/:projectUuid/explores/:exploreId/runUnderlyingDataQuery',
         ...fetchMiddlewares<RequestHandler>(RunViewChartQueryController),
         ...fetchMiddlewares<RequestHandler>(

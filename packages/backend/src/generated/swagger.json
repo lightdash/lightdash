@@ -5346,7 +5346,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.863.9",
+        "version": "0.863.13",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -7005,6 +7005,53 @@
                                 "type": "object",
                                 "description": "The query to run"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/calculate-total": {
+            "post": {
+                "operationId": "CalculateTotal",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get all metric totals from a metricQuery",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the project to get charts for",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {}
                         }
                     }
                 }

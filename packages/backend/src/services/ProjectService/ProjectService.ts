@@ -2621,4 +2621,26 @@ export class ProjectService {
             },
         );
     }
+
+    async calculateTotal(
+        user: SessionUser,
+        projectUuid: string,
+        query: any,
+    ): Promise<void> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return query.fields.reduce(
+            (acc: any, field: any) => ({ ...acc, [field]: 1200 }),
+            {},
+        );
+    }
 }

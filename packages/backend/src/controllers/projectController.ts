@@ -265,4 +265,29 @@ export class ProjectController extends Controller {
             ),
         };
     }
+
+    /**
+     * Get all metric totals from a metricQuery
+     * @param projectUuid The uuid of the project to get charts for
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/calculate-total')
+    @OperationId('CalculateTotal')
+    async calculateTotal(
+        @Path() projectUuid: string,
+        @Body() body: any,
+        @Request() req: express.Request,
+    ): Promise<any> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await projectService.calculateTotal(
+                req.user!,
+                projectUuid,
+                body,
+            ),
+        };
+    }
 }

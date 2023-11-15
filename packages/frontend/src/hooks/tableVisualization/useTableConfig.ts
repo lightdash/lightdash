@@ -3,6 +3,7 @@ import {
     ColumnProperties,
     ConditionalFormattingConfig,
     Explore,
+    fieldId as getFieldId,
     getItemLabel,
     getItemMap,
     isDimension,
@@ -10,6 +11,7 @@ import {
     isMetric,
     isTableCalculation,
     itemsInMetricQuery,
+    MetricType,
     PivotData,
     ResultRow,
     TableChart,
@@ -18,6 +20,7 @@ import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TableColumn, TableHeader } from '../../components/common/Table/types';
 import { isSummable } from '../useColumnTotals';
+import { useTotalCalculation } from '../useTotalCalculation';
 import getDataAndColumns from './getDataAndColumns';
 
 const createWorker = createWorkerFactory(
@@ -157,6 +160,31 @@ const useTableConfig = (
         pivotDimensions &&
         pivotDimensions.length > 0;
 
+    //TODo implement here total
+    const metricsWithTotals = useMemo(() => {
+        const items = selectedItemIds
+            ?.map((item) => {
+                return itemsMap[item];
+            })
+            .filter(
+                (item) =>
+                    isField(item) &&
+                    isMetric(item) &&
+                    item.type === MetricType.AVERAGE,
+            );
+        //TODO add more metrictypes
+        //TODo filter is visible in table config
+
+        return items?.reduce<string[]>((acc, item) => {
+            if (isField(item)) return [...acc, getFieldId(item)];
+            return acc;
+        }, []);
+    }, [itemsMap, selectedItemIds]);
+
+    const { data: totalCalculations } = useTotalCalculation({
+        metricQuery: resultsData?.metricQuery,
+        fields: metricsWithTotals,
+    });
     const { rows, columns, error } = useMemo<{
         rows: ResultRow[];
         columns: Array<TableColumn | TableHeader>;
@@ -185,6 +213,7 @@ const useTableConfig = (
             getFieldLabelOverride,
             isColumnFrozen,
             columnOrder,
+            totalCalculations,
         });
     }, [
         columnOrder,
@@ -196,6 +225,7 @@ const useTableConfig = (
         showTableNames,
         isColumnFrozen,
         getFieldLabelOverride,
+        totalCalculations,
     ]);
     const worker = useWorker(createWorker);
     const [pivotTableData, setPivotTableData] = useState<{
