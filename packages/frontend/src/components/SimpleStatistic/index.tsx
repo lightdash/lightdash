@@ -119,7 +119,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     }, [observerElementSize]);
 
     const comparisonValueColor = useMemo(() => {
-        if (!isBigNumber) return 'inherit';
+        if (!isBigNumber) return undefined;
 
         const { comparisonDiff, flipColors } = visualizationConfig.chartConfig;
 
