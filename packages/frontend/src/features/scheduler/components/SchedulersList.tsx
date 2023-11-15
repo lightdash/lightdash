@@ -1,4 +1,8 @@
-import { ApiError, SchedulerAndTargets } from '@lightdash/common';
+import {
+    ApiError,
+    SchedulerAndTargets,
+    SchedulerFormat,
+} from '@lightdash/common';
 import { Loader, Stack, Text, Title } from '@mantine/core';
 import React, { FC, useState } from 'react';
 import { UseQueryResult } from 'react-query/types/react/types';
@@ -40,14 +44,17 @@ const SchedulersList: FC<Props> = ({ schedulersQuery, onEdit }) => {
     }
     return (
         <div>
-            {schedulers.map((scheduler) => (
-                <SchedulersListItem
-                    key={scheduler.schedulerUuid}
-                    scheduler={scheduler}
-                    onEdit={onEdit}
-                    onDelete={setSchedulerUuid}
-                />
-            ))}
+            {schedulers.map(
+                (scheduler) =>
+                    scheduler.format !== SchedulerFormat.GSHEETS && (
+                        <SchedulersListItem
+                            key={scheduler.schedulerUuid}
+                            scheduler={scheduler}
+                            onEdit={onEdit}
+                            onDelete={setSchedulerUuid}
+                        />
+                    ),
+            )}
             {schedulerUuid && (
                 <SchedulerDeleteModal
                     opened={true}
