@@ -1251,7 +1251,7 @@ const useEchartsCartesianConfig = (
     const { visualizationConfig, explore, pivotDimensions, resultsData } =
         useVisualizationContext();
 
-    const chartConfig = useMemo(() => {
+    const validCartesianConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
         return visualizationConfig.chartConfig.validConfig;
     }, [visualizationConfig]);
@@ -1261,24 +1261,25 @@ const useEchartsCartesianConfig = (
     const [pivotedKeys, nonPivotedKeys] = useMemo(() => {
         if (
             resultsData &&
-            chartConfig &&
-            isCompleteLayout(chartConfig.layout)
+            validCartesianConfig &&
+            isCompleteLayout(validCartesianConfig.layout)
         ) {
-            const yFieldPivotedKeys = chartConfig.layout.yField.filter(
+            const yFieldPivotedKeys = validCartesianConfig.layout.yField.filter(
                 (yField) =>
                     !resultsData.metricQuery.dimensions.includes(yField),
             );
-            const yFieldNonPivotedKeys = chartConfig.layout.yField.filter(
-                (yField) => resultsData.metricQuery.dimensions.includes(yField),
-            );
+            const yFieldNonPivotedKeys =
+                validCartesianConfig.layout.yField.filter((yField) =>
+                    resultsData.metricQuery.dimensions.includes(yField),
+                );
 
             return [
                 yFieldPivotedKeys,
-                [...yFieldNonPivotedKeys, chartConfig.layout.xField],
+                [...yFieldNonPivotedKeys, validCartesianConfig.layout.xField],
             ];
         }
         return [];
-    }, [chartConfig, resultsData]);
+    }, [validCartesianConfig, resultsData]);
 
     const { rows } = useMemo(() => {
         return getPlottedData(
@@ -1326,25 +1327,37 @@ const useEchartsCartesianConfig = (
     }, [explore, resultsData]);
 
     const series = useMemo(() => {
-        if (!explore || !chartConfig || !resultsData) {
+        if (!explore || !validCartesianConfig || !resultsData) {
             return [];
         }
 
-        return getEchartsSeries(items, chartConfig, pivotDimensions, formats);
-    }, [explore, chartConfig, resultsData, pivotDimensions, formats, items]);
+        return getEchartsSeries(
+            items,
+            validCartesianConfig,
+            pivotDimensions,
+            formats,
+        );
+    }, [
+        explore,
+        validCartesianConfig,
+        resultsData,
+        pivotDimensions,
+        formats,
+        items,
+    ]);
 
     const axis = useMemo(() => {
-        if (!chartConfig) {
+        if (!validCartesianConfig) {
             return { xAxis: [], yAxis: [] };
         }
 
         return getEchartAxis({
             items,
             series,
-            validCartesianConfig: chartConfig,
+            validCartesianConfig: validCartesianConfig,
             resultsData,
         });
-    }, [items, series, chartConfig, resultsData]);
+    }, [items, series, validCartesianConfig, resultsData]);
 
     const stackedSeries = useMemo(() => {
         const seriesWithValidStack = series.map<EChartSeries>((serie) => ({
@@ -1357,7 +1370,7 @@ const useEchartsCartesianConfig = (
                 rows,
                 seriesWithValidStack,
                 items,
-                chartConfig?.layout.flipAxes,
+                validCartesianConfig?.layout.flipAxes,
                 validCartesianConfigLegend,
             ),
         ];
@@ -1365,7 +1378,7 @@ const useEchartsCartesianConfig = (
         series,
         rows,
         items,
-        chartConfig?.layout.flipAxes,
+        validCartesianConfig?.layout.flipAxes,
         validCartesianConfigLegend,
     ]);
 
@@ -1373,8 +1386,8 @@ const useEchartsCartesianConfig = (
         const allColors =
             organizationData?.chartColors || ECHARTS_DEFAULT_COLORS;
         //Do not use colors from hidden series
-        return chartConfig?.eChartsConfig.series
-            ? chartConfig.eChartsConfig.series.reduce<string[]>(
+        return validCartesianConfig?.eChartsConfig.series
+            ? validCartesianConfig.eChartsConfig.series.reduce<string[]>(
                   (acc, serie, index) => {
                       if (!serie.hidden)
                           return [
@@ -1386,10 +1399,10 @@ const useEchartsCartesianConfig = (
                   [],
               )
             : allColors;
-    }, [organizationData?.chartColors, chartConfig]);
+    }, [organizationData?.chartColors, validCartesianConfig]);
     const sortedResults = useMemo(() => {
         const results =
-            chartConfig?.layout?.xField === EMPTY_X_AXIS
+            validCartesianConfig?.layout?.xField === EMPTY_X_AXIS
                 ? getResultValueArray(rows, true).map((s) => ({
                       ...s,
                       [EMPTY_X_AXIS]: ' ',
@@ -1401,7 +1414,7 @@ const useEchartsCartesianConfig = (
             const customDimensions =
                 resultsData?.metricQuery.customDimensions || [];
 
-            const xFieldId = chartConfig?.layout?.xField;
+            const xFieldId = validCartesianConfig?.layout?.xField;
             if (xFieldId === undefined) return results;
 
             const alreadySorted =
@@ -1411,7 +1424,7 @@ const useEchartsCartesianConfig = (
             const xField = [...dimensions, ...customDimensions].find(
                 (dimension) => getItemId(dimension) === xFieldId,
             );
-            const hasTotal = chartConfig?.eChartsConfig?.series?.some(
+            const hasTotal = validCartesianConfig?.eChartsConfig?.series?.some(
                 (s) => s.stackLabel?.show,
             );
 
@@ -1465,8 +1478,8 @@ const useEchartsCartesianConfig = (
         rows,
         resultsData?.metricQuery.sorts,
         explore,
-        chartConfig?.layout?.xField,
-        chartConfig?.eChartsConfig?.series,
+        validCartesianConfig?.layout?.xField,
+        validCartesianConfig?.eChartsConfig?.series,
         resultsData?.metricQuery.customDimensions,
     ]);
 
@@ -1570,7 +1583,7 @@ const useEchartsCartesianConfig = (
             series: stackedSeries,
             animation: !isInDashboard,
             legend: mergeLegendSettings(
-                chartConfig?.eChartsConfig.legend,
+                validCartesianConfig?.eChartsConfig.legend,
                 validCartesianConfigLegend,
                 series,
             ),
@@ -1581,7 +1594,9 @@ const useEchartsCartesianConfig = (
             tooltip,
             grid: {
                 ...defaultGrid,
-                ...removeEmptyProperties(chartConfig?.eChartsConfig.grid),
+                ...removeEmptyProperties(
+                    validCartesianConfig?.eChartsConfig.grid,
+                ),
             },
             color: colors,
         }),
@@ -1590,8 +1605,8 @@ const useEchartsCartesianConfig = (
             axis.yAxis,
             stackedSeries,
             isInDashboard,
-            chartConfig?.eChartsConfig.legend,
-            chartConfig?.eChartsConfig.grid,
+            validCartesianConfig?.eChartsConfig.legend,
+            validCartesianConfig?.eChartsConfig.grid,
             validCartesianConfigLegend,
             series,
             sortedResults,
@@ -1600,7 +1615,12 @@ const useEchartsCartesianConfig = (
         ],
     );
 
-    if (!explore || series.length <= 0 || rows.length <= 0 || !chartConfig) {
+    if (
+        !explore ||
+        series.length <= 0 ||
+        rows.length <= 0 ||
+        !validCartesianConfig
+    ) {
         return undefined;
     }
     return eChartsOptions;
