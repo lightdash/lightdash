@@ -527,8 +527,24 @@
                 ],
                 "type": "object"
             },
+            "CustomLabel": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object"
+            },
             "UploadMetricGsheet": {
                 "properties": {
+                    "hiddenFields": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "customLabels": {
+                        "$ref": "#/components/schemas/CustomLabel"
+                    },
                     "columnOrder": {
                         "items": {
                             "type": "string"
@@ -1201,7 +1217,8 @@
                     "mixed",
                     "pie",
                     "table",
-                    "big_number"
+                    "big_number",
+                    "custom"
                 ],
                 "type": "string"
             },
@@ -2279,7 +2296,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ChartType": {
-                "enum": ["cartesian", "table", "big_number", "pie"],
+                "enum": ["cartesian", "table", "big_number", "pie", "custom"],
                 "type": "string"
             },
             "ChartSummary": {
@@ -2620,83 +2637,6 @@
                     "metrics",
                     "dimensions"
                 ],
-                "type": "object"
-            },
-            "DashboardFieldTarget": {
-                "properties": {
-                    "tableName": {
-                        "type": "string"
-                    },
-                    "fieldId": {
-                        "type": "string"
-                    }
-                },
-                "required": ["tableName", "fieldId"],
-                "type": "object"
-            },
-            "FilterRule_ConditionalOperator.T.V.any_": {
-                "properties": {
-                    "values": {
-                        "items": {},
-                        "type": "array"
-                    },
-                    "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
-                    },
-                    "id": {
-                        "type": "string"
-                    },
-                    "target": {
-                        "$ref": "#/components/schemas/DashboardFieldTarget"
-                    },
-                    "settings": {},
-                    "disabled": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["operator", "id", "target"],
-                "type": "object",
-                "additionalProperties": false
-            },
-            "Record_string.DashboardTileTarget_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "DashboardFilterRule": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/FilterRule_ConditionalOperator.T.V.any_"
-                    },
-                    {
-                        "properties": {
-                            "label": {
-                                "type": "string"
-                            },
-                            "tileTargets": {
-                                "$ref": "#/components/schemas/Record_string.DashboardTileTarget_"
-                            }
-                        },
-                        "type": "object"
-                    }
-                ]
-            },
-            "DashboardFilters": {
-                "properties": {
-                    "metrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/DashboardFilterRule"
-                        },
-                        "type": "array"
-                    },
-                    "dimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/DashboardFilterRule"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["metrics", "dimensions"],
                 "type": "object"
             },
             "Pick_LightdashUser.userUuid-or-firstName-or-lastName_": {
@@ -3596,6 +3536,23 @@
                 "required": ["config", "type"],
                 "type": "object"
             },
+            "ChartType.CUSTOM": {
+                "enum": ["custom"],
+                "type": "string"
+            },
+            "CustomVisConfig": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.CUSTOM"
+                    },
+                    "config": {
+                        "properties": {},
+                        "type": "object"
+                    }
+                },
+                "required": ["type", "config"],
+                "type": "object"
+            },
             "ChartConfig": {
                 "anyOf": [
                     {
@@ -3609,6 +3566,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/CartesianChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CustomVisConfig"
                     }
                 ]
             },
@@ -3899,6 +3859,65 @@
                             }
                         },
                         "required": ["dashboardUuid", "savedChartUuid"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardFieldTarget": {
+                "properties": {
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["tableName", "fieldId"],
+                "type": "object"
+            },
+            "FilterRule_ConditionalOperator.T.V.any_": {
+                "properties": {
+                    "values": {
+                        "items": {},
+                        "type": "array"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/ConditionalOperator"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "target": {
+                        "$ref": "#/components/schemas/DashboardFieldTarget"
+                    },
+                    "settings": {},
+                    "disabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["operator", "id", "target"],
+                "type": "object",
+                "additionalProperties": false
+            },
+            "Record_string.DashboardTileTarget_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "DashboardFilterRule": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/FilterRule_ConditionalOperator.T.V.any_"
+                    },
+                    {
+                        "properties": {
+                            "label": {
+                                "type": "string"
+                            },
+                            "tileTargets": {
+                                "$ref": "#/components/schemas/Record_string.DashboardTileTarget_"
+                            }
+                        },
                         "type": "object"
                     }
                 ]
@@ -5327,7 +5346,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.853.0",
+        "version": "0.863.9",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -7163,9 +7182,7 @@
                                     "invalidateCache": {
                                         "type": "boolean"
                                     },
-                                    "dashboardFilters": {
-                                        "$ref": "#/components/schemas/DashboardFilters"
-                                    }
+                                    "dashboardFilters": {}
                                 },
                                 "type": "object"
                             }

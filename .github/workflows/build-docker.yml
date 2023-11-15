@@ -1,4 +1,4 @@
-name: Deploy to Docker Hub
+name: Build & Deploy to Docker Hub
 
 on:
   pull_request:
@@ -56,10 +56,11 @@ jobs:
         with:
           file: dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=registry,ref=${{ env.REGISTRY_IMAGE }}
+          cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,mode=min,ref={0}', env.REGISTRY_IMAGE) || '' }}
 
       - name: Export digest
         run: |

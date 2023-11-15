@@ -1,4 +1,4 @@
-import { Menu, NonIdealState, Portal, Tag } from '@blueprintjs/core';
+import { Menu, NonIdealState, Tag } from '@blueprintjs/core';
 import {
     MenuItem2,
     Popover2,
@@ -17,6 +17,7 @@ import {
     getCustomLabelsFromTableConfig,
     getDimensions,
     getFields,
+    getHiddenTableFields,
     getItemMap,
     getVisibleFields,
     hasCustomDimension,
@@ -28,7 +29,7 @@ import {
     SavedChart,
     TableCalculation,
 } from '@lightdash/common';
-import { Box, Text, Tooltip } from '@mantine/core';
+import { Box, Portal, Text, Tooltip } from '@mantine/core';
 import { IconFilter, IconFolders } from '@tabler/icons-react';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
@@ -97,6 +98,7 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
             customLabels: getCustomLabelsFromTableConfig(
                 savedChart.chartConfig.config,
             ),
+            hiddenFields: getHiddenTableFields(savedChart.chartConfig),
         });
     };
 
@@ -121,7 +123,13 @@ const ExportGoogleSheet: FC<{ savedChart: SavedChart; disabled?: boolean }> = ({
             exploreId: savedChart.tableName,
             metricQuery: savedChart.metricQuery,
             columnOrder: savedChart.tableConfig.columnOrder,
-            showTableNames: true,
+            showTableNames: isTableChartConfig(savedChart.chartConfig.config)
+                ? savedChart.chartConfig.config.showTableNames ?? false
+                : true,
+            customLabels: getCustomLabelsFromTableConfig(
+                savedChart.chartConfig.config,
+            ),
+            hiddenFields: getHiddenTableFields(savedChart.chartConfig),
         });
     };
 
@@ -149,26 +157,24 @@ const ValidDashboardChartTile: FC<{
     chartAndResults: { chart, explore, metricQuery, rows, cacheMetadata },
     onSeriesContextMenu,
 }) => {
-    const { addSuggestions, addResultsCacheTime } = useDashboardContext();
+    const addResultsCacheTime = useDashboardContext(
+        (c) => c.addResultsCacheTime,
+    );
 
     const { health } = useApp();
 
     useEffect(() => {
-        addSuggestions(
-            metricQuery.dimensions.reduce((sum, dimensionId) => {
-                const newSuggestions: string[] =
-                    rows.reduce<string[]>((acc, row) => {
-                        const value = row[dimensionId]?.value.raw;
-                        if (typeof value === 'string') {
-                            return [...acc, value];
-                        }
-                        return acc;
-                    }, []) || [];
-                return { ...sum, [dimensionId]: newSuggestions };
-            }, {}),
-        );
         addResultsCacheTime(cacheMetadata);
-    }, [addSuggestions, addResultsCacheTime, metricQuery, cacheMetadata, rows]);
+    }, [cacheMetadata, addResultsCacheTime]);
+
+    const resultData = useMemo(
+        () => ({
+            rows,
+            metricQuery,
+            cacheMetadata,
+        }),
+        [rows, metricQuery, cacheMetadata],
+    );
 
     if (health.isLoading || !health.data) {
         return null;
@@ -179,11 +185,7 @@ const ValidDashboardChartTile: FC<{
             chartType={chart.chartConfig.type}
             initialChartConfig={chart.chartConfig}
             initialPivotDimensions={chart.pivotConfig?.columns}
-            resultsData={{
-                rows,
-                metricQuery,
-                cacheMetadata,
-            }}
+            resultsData={resultData}
             explore={explore}
             isLoading={false}
             onSeriesContextMenu={onSeriesContextMenu}
@@ -211,6 +213,11 @@ const ValidDashboardChartTileMinimal: FC<{
 }) => {
     const { health } = useApp();
 
+    const resultData = useMemo(
+        () => ({ rows, metricQuery, cacheMetadata }),
+        [rows, metricQuery, cacheMetadata],
+    );
+
     if (health.isLoading || !health.data) {
         return null;
     }
@@ -221,11 +228,7 @@ const ValidDashboardChartTileMinimal: FC<{
             chartType={chart.chartConfig.type}
             initialChartConfig={chart.chartConfig}
             initialPivotDimensions={chart.pivotConfig?.columns}
-            resultsData={{
-                rows,
-                cacheMetadata,
-                metricQuery,
-            }}
+            resultsData={resultData}
             isLoading={false}
             explore={explore}
             columnOrder={chart.tableConfig.columnOrder}
@@ -273,15 +276,16 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         dashboardUuid: string;
     }>();
 
-    const {
-        addDimensionDashboardFilter,
-        setDashboardTiles,
-        dashboardTiles,
-        dashboardFilters: filtersFromCOntext,
-        haveTilesChanged,
-        haveFiltersChanged,
-        dashboard,
-    } = useDashboardContext();
+    const addDimensionDashboardFilter = useDashboardContext(
+        (c) => c.addDimensionDashboardFilter,
+    );
+
+    const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
+    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const filtersFromContext = useDashboardContext((c) => c.dashboardFilters);
+    const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
+    const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
+    const dashboard = useDashboardContext((c) => c.dashboard);
 
     const { storeDashboard } = useDashboardStorage();
 
@@ -503,7 +507,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                             if (belongsToDashboard) {
                                                 storeDashboard(
                                                     dashboardTiles,
-                                                    filtersFromCOntext,
+                                                    filtersFromContext,
                                                     haveTilesChanged,
                                                     haveFiltersChanged,
                                                     dashboard?.uuid,
@@ -733,18 +737,19 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     opened={isMovingChart}
                     onClose={() => setIsMovingChart(false)}
                     onConfirm={() => {
-                        setDashboardTiles((currentDashboardTiles) =>
-                            currentDashboardTiles.map((tile) =>
-                                tile.uuid === tileUuid && isChartTile(tile)
-                                    ? {
-                                          ...tile,
-                                          properties: {
-                                              ...tile.properties,
-                                              belongsToDashboard: false,
-                                          },
-                                      }
-                                    : tile,
-                            ),
+                        setDashboardTiles(
+                            (currentDashboardTiles) =>
+                                currentDashboardTiles?.map((tile) =>
+                                    tile.uuid === tileUuid && isChartTile(tile)
+                                        ? {
+                                              ...tile,
+                                              properties: {
+                                                  ...tile.properties,
+                                                  belongsToDashboard: false,
+                                              },
+                                          }
+                                        : tile,
+                                ) ?? [],
                         );
                     }}
                 />
@@ -802,17 +807,18 @@ const DashboardChartTile: FC<DashboardChartTileProps> = ({
     minimal = false,
     ...rest
 }) => {
-    const { isError, isLoading, data } = useDashboardChart(
+    const { isLoading, data, error } = useDashboardChart(
         rest.tile.uuid,
         rest.tile.properties?.savedChartUuid ?? null,
     );
     if (isLoading) return <TileBase isLoading={true} title={''} {...rest} />;
-    if (isError || !data)
+
+    if (error !== null || !data)
         return (
             <TileBase title={''} {...rest}>
                 <NonIdealState
-                    icon="lock"
-                    title={`You don't have access to view this chart`}
+                    icon="error"
+                    title={error?.error?.message || 'No data available'}
                 ></NonIdealState>
             </TileBase>
         );

@@ -60,6 +60,7 @@ import {
     ProjectType,
     RequestMethod,
     ResultRow,
+    SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
     SpaceQuery,
     SpaceSummary,
@@ -871,24 +872,32 @@ export class ProjectService {
             user.ability.cannot(
                 'view',
                 subject('SavedChart', { organizationUuid, projectUuid }),
+            ) ||
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
         }
 
-        const space = await this.spaceModel.getSpaceSummary(
-            savedChart.spaceUuid,
-        );
+        const [space, explore] = await Promise.all([
+            this.spaceModel.getSpaceSummary(savedChart.spaceUuid),
+            this.getExplore(
+                user,
+                projectUuid,
+                savedChart.tableName,
+                organizationUuid,
+            ),
+        ]);
 
         if (!hasSpaceAccess(user, space)) {
             throw new ForbiddenError();
         }
 
-        const explore = await this.getExplore(
-            user,
-            projectUuid,
-            savedChart.tableName,
-        );
         const tables = Object.keys(explore.tables);
         const appliedDashboardFilters = dashboardFilters
             ? {
@@ -931,6 +940,7 @@ export class ProjectService {
                 : QueryExecutionContext.CHART,
             queryTags,
             invalidateCache,
+            explore,
         });
 
         return {
@@ -991,6 +1001,7 @@ export class ProjectService {
         context,
         queryTags,
         invalidateCache,
+        explore,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -1000,6 +1011,7 @@ export class ProjectService {
         context: QueryExecutionContext;
         queryTags?: RunQueryTags;
         invalidateCache?: boolean;
+        explore?: Explore;
     }): Promise<ApiQueryResults> {
         return wrapOtelSpan(
             'ProjectService.runQueryAndFormatRows',
@@ -1014,6 +1026,7 @@ export class ProjectService {
                     context,
                     queryTags,
                     invalidateCache,
+                    explore,
                 });
                 span.setAttribute('rows', rows.length);
 
@@ -1023,18 +1036,17 @@ export class ProjectService {
                     span.setAttribute('warehouse', warehouseConnection?.type);
                 }
 
-                const explore = await this.getExplore(
-                    user,
-                    projectUuid,
-                    exploreName,
-                );
-
                 const itemMap = await wrapOtelSpan(
                     'ProjectService.runQueryAndFormatRows.getItemMap',
                     {},
                     async () =>
                         getItemMap(
-                            explore,
+                            explore ??
+                                (await this.getExplore(
+                                    user,
+                                    projectUuid,
+                                    exploreName,
+                                )),
                             metricQuery.additionalMetrics,
                             metricQuery.tableCalculations,
                         ),
@@ -1225,6 +1237,7 @@ export class ProjectService {
         context,
         queryTags,
         invalidateCache,
+        explore,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -1234,6 +1247,7 @@ export class ProjectService {
         context: QueryExecutionContext;
         queryTags?: RunQueryTags;
         invalidateCache?: boolean;
+        explore?: Explore;
     }): Promise<{ rows: Record<string, any>[]; cacheMetadata: CacheMetadata }> {
         const tracer = opentelemetry.trace.getTracer('default');
         return tracer.startActiveSpan(
@@ -1270,11 +1284,6 @@ export class ProjectService {
                     const { warehouseClient, sshTunnel } =
                         await this._getWarehouseClient(projectUuid);
 
-                    const explore = await this.getExplore(
-                        user,
-                        projectUuid,
-                        exploreName,
-                    );
                     const userAttributes =
                         await this.userAttributesModel.getAttributeValuesForOrgMember(
                             {
@@ -1286,7 +1295,12 @@ export class ProjectService {
                     const { query, hasExampleMetric } =
                         await ProjectService._compileQuery(
                             metricQueryWithLimit,
-                            explore,
+                            explore ??
+                                (await this.getExplore(
+                                    user,
+                                    projectUuid,
+                                    exploreName,
+                                )),
                             warehouseClient,
                             userAttributes,
                         );
@@ -1914,6 +1928,7 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
         exploreName: string,
+        organizationUuid?: string,
     ): Promise<Explore> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
@@ -1927,13 +1942,14 @@ export class ProjectService {
                 'ProjectService.getExplore',
                 {},
                 async () => {
-                    const { organizationUuid } =
-                        await this.projectModel.getSummary(projectUuid);
+                    const project = organizationUuid
+                        ? { organizationUuid }
+                        : await this.projectModel.getSummary(projectUuid);
                     if (
                         user.ability.cannot(
                             'view',
                             subject('Project', {
-                                organizationUuid,
+                                organizationUuid: project.organizationUuid,
                                 projectUuid,
                             }),
                         )
@@ -1957,7 +1973,7 @@ export class ProjectService {
                     const userAttributes =
                         await this.userAttributesModel.getAttributeValuesForOrgMember(
                             {
-                                organizationUuid,
+                                organizationUuid: project.organizationUuid,
                                 userUuid: user.userUuid,
                             },
                         );
@@ -2102,7 +2118,7 @@ export class ProjectService {
 
     async getAvailableFiltersForSavedQueries(
         user: SessionUser,
-        savedQueryUuids: string[],
+        savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
     ): Promise<DashboardAvailableFilters> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
@@ -2117,11 +2133,38 @@ export class ProjectService {
             filters: CompiledDimension[];
         }[] = [];
 
+        const savedQueryUuids = savedChartUuidsAndTileUuids.map(
+            ({ savedChartUuid }) => savedChartUuid,
+        );
+
         try {
             const savedCharts =
                 await this.savedChartModel.getInfoForAvailableFilters(
                     savedQueryUuids,
                 );
+            const exploreCacheKeys: Record<string, boolean> = {};
+            const exploreCache: Record<string, Explore> = {};
+
+            const explorePromises = savedCharts.reduce<
+                Promise<{ key: string; explore: Explore }>[]
+            >((acc, chart) => {
+                const key = chart.tableName;
+                if (!exploreCacheKeys[key]) {
+                    acc.push(
+                        this.getExplore(user, chart.projectUuid, key).then(
+                            (explore) => ({ key, explore }),
+                        ),
+                    );
+                    exploreCacheKeys[key] = true;
+                }
+                return acc;
+            }, []);
+
+            const resolvedExplores = await Promise.all(explorePromises);
+
+            resolvedExplores.forEach(({ key, explore }) => {
+                exploreCache[key] = explore;
+            });
 
             const filterPromises = savedCharts.map(async (savedChart) => {
                 if (
@@ -2140,11 +2183,7 @@ export class ProjectService {
                     return { uuid: savedChart.uuid, filters: [] };
                 }
 
-                const explore = await this.getExplore(
-                    user,
-                    savedChart.projectUuid,
-                    savedChart.tableName,
-                );
+                const explore = exploreCache[savedChart.tableName];
 
                 const filters = getDimensions(explore).filter(
                     (field) => isFilterableDimension(field) && !field.hidden,
@@ -2158,20 +2197,41 @@ export class ProjectService {
             span?.finish();
         }
 
-        return savedQueryUuids.reduce<DashboardAvailableFilters>(
-            (acc, savedQueryUuid) => {
-                const filterResult = allFilters.find(
-                    (result) => result.uuid === savedQueryUuid,
-                );
-                if (!filterResult || !filterResult.filters.length) return acc;
+        const allFilterableFields: FilterableField[] = [];
+        const filterIndexMap: Record<string, number> = {};
 
-                return {
-                    ...acc,
-                    [savedQueryUuid]: filterResult.filters,
-                };
-            },
-            {},
-        );
+        allFilters.forEach((filterSet) => {
+            filterSet.filters.forEach((filter) => {
+                const fieldId = getFieldId(filter);
+                if (!(fieldId in filterIndexMap)) {
+                    filterIndexMap[fieldId] = allFilterableFields.length;
+                    allFilterableFields.push(filter);
+                }
+            });
+        });
+
+        const savedQueryFilters = savedChartUuidsAndTileUuids.reduce<
+            DashboardAvailableFilters['savedQueryFilters']
+        >((acc, savedChartUuidAndTileUuid) => {
+            const filterResult = allFilters.find(
+                (result) =>
+                    result.uuid === savedChartUuidAndTileUuid.savedChartUuid,
+            );
+            if (!filterResult || !filterResult.filters.length) return acc;
+
+            const filterIndexes = filterResult.filters.map(
+                (filter) => filterIndexMap[getFieldId(filter)],
+            );
+            return {
+                ...acc,
+                [savedChartUuidAndTileUuid.tileUuid]: filterIndexes,
+            };
+        }, {});
+
+        return {
+            savedQueryFilters,
+            allFilterableFields,
+        };
     }
 
     async hasSavedCharts(

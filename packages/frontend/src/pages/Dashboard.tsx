@@ -13,11 +13,15 @@ import React, {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 
+import { Box } from '@mantine/core';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
+import { useIntersection } from 'react-use';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
 import DashboardDeleteModal from '../components/common/modal/DashboardDeleteModal';
@@ -77,11 +81,33 @@ const GridTile: FC<
     Pick<
         React.ComponentProps<typeof TileBase>,
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
-    >
+    > & { isLazyLoadEnabled: boolean; index: number }
 > = memo((props) => {
-    const { tile } = props;
-
+    const { tile, isLazyLoadEnabled, index } = props;
     useProfiler(`Dashboard-${tile.type}`);
+    const [isTiledViewed, setIsTiledViewed] = useState(false);
+    const ref = useRef(null);
+    const intersection = useIntersection(ref, {
+        root: null,
+        threshold: 0.3,
+    });
+    useEffect(() => {
+        if (intersection?.isIntersecting) {
+            setIsTiledViewed(true);
+        }
+    }, [intersection]);
+
+    if (isLazyLoadEnabled && !isTiledViewed) {
+        setTimeout(() => {
+            setIsTiledViewed(true);
+            // Prefetch tile sequentially, even if it's not in view
+        }, index * 1000);
+        return (
+            <Box ref={ref} h="100%">
+                <TileBase isLoading={true} {...props} title={''} />
+            </Box>
+        );
+    }
 
     switch (tile.type) {
         case DashboardTileTypes.SAVED_CHART:
@@ -100,6 +126,11 @@ const GridTile: FC<
 });
 
 const Dashboard: FC = () => {
+    const isLazyLoadFeatureFlagEnabled = useFeatureFlagEnabled(
+        'lazy-load-dashboard-tiles',
+    );
+    const isLazyLoadEnabled =
+        !!isLazyLoadFeatureFlagEnabled && !(window as any).Cypress; // disable lazy load for e2e test
     const history = useHistory();
     const { projectUuid, dashboardUuid, mode } = useParams<{
         projectUuid: string;
@@ -110,21 +141,29 @@ const Dashboard: FC = () => {
 
     const { clearIsEditingDashboardChart } = useDashboardStorage();
 
-    const {
-        dashboard,
-        dashboardError,
-        dashboardFilters,
-        dashboardTemporaryFilters,
-        haveFiltersChanged,
-        setHaveFiltersChanged,
-        dashboardTiles,
-        setDashboardTiles,
-        haveTilesChanged,
-        setHaveTilesChanged,
-        setDashboardFilters,
-        setDashboardTemporaryFilters,
-        oldestCacheTime,
-    } = useDashboardContext();
+    const dashboard = useDashboardContext((c) => c.dashboard);
+    const dashboardError = useDashboardContext((c) => c.dashboardError);
+    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const dashboardTemporaryFilters = useDashboardContext(
+        (c) => c.dashboardTemporaryFilters,
+    );
+    const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
+    const setHaveFiltersChanged = useDashboardContext(
+        (c) => c.setHaveFiltersChanged,
+    );
+    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
+    const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
+    const setHaveTilesChanged = useDashboardContext(
+        (c) => c.setHaveTilesChanged,
+    );
+    const setDashboardFilters = useDashboardContext(
+        (c) => c.setDashboardFilters,
+    );
+    const setDashboardTemporaryFilters = useDashboardContext(
+        (c) => c.setDashboardTemporaryFilters,
+    );
+    const oldestCacheTime = useDashboardContext((c) => c.oldestCacheTime);
 
     const { data: organization } = useOrganization();
     const hasTemporaryFilters = useMemo(
@@ -151,9 +190,10 @@ const Dashboard: FC = () => {
 
     const layouts = useMemo(
         () => ({
-            lg: dashboardTiles.map<Layout>((tile) =>
-                getReactGridLayoutConfig(tile, isEditMode),
-            ),
+            lg:
+                dashboardTiles?.map<Layout>((tile) =>
+                    getReactGridLayoutConfig(tile, isEditMode),
+                ) ?? [],
         }),
         [dashboardTiles, isEditMode],
     );
@@ -221,7 +261,7 @@ const Dashboard: FC = () => {
     const handleUpdateTiles = useCallback(
         async (layout: Layout[]) => {
             setDashboardTiles((currentDashboardTiles) =>
-                currentDashboardTiles.map((tile) => {
+                currentDashboardTiles?.map((tile) => {
                     const layoutTile = layout.find(({ i }) => i === tile.uuid);
                     if (
                         layoutTile &&
@@ -249,9 +289,9 @@ const Dashboard: FC = () => {
 
     const handleAddTiles = useCallback(
         async (tiles: IDashboard['tiles'][number][]) => {
-            setDashboardTiles((currentDashboardTiles) => {
-                return appendNewTilesToBottom(currentDashboardTiles, tiles);
-            });
+            setDashboardTiles((currentDashboardTiles) =>
+                appendNewTilesToBottom(currentDashboardTiles, tiles),
+            );
 
             setHaveTilesChanged(true);
         },
@@ -261,7 +301,7 @@ const Dashboard: FC = () => {
     const handleDeleteTile = useCallback(
         async (tile: IDashboard['tiles'][number]) => {
             setDashboardTiles((currentDashboardTiles) =>
-                currentDashboardTiles.filter(
+                currentDashboardTiles?.filter(
                     (filteredTile) => filteredTile.uuid !== tile.uuid,
                 ),
             );
@@ -274,7 +314,7 @@ const Dashboard: FC = () => {
     const handleEditTiles = useCallback(
         (updatedTile: IDashboard['tiles'][number]) => {
             setDashboardTiles((currentDashboardTiles) =>
-                currentDashboardTiles.map((tile) =>
+                currentDashboardTiles?.map((tile) =>
                     tile.uuid === updatedTile.uuid ? updatedTile : tile,
                 ),
             );
@@ -287,7 +327,7 @@ const Dashboard: FC = () => {
         sessionStorage.clear();
 
         // Delete charts that were created in edit mode
-        dashboardTiles.forEach((tile) => {
+        dashboardTiles?.forEach((tile) => {
             if (
                 isDashboardChartTileType(tile) &&
                 tile.properties.belongsToDashboard &&
@@ -424,9 +464,19 @@ const Dashboard: FC = () => {
             </div>
         );
     }
-    const dashboardChartTiles = dashboardTiles.filter(
+    const dashboardChartTiles = dashboardTiles?.filter(
         (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
     );
+
+    const sortedTiles = dashboardTiles?.sort((a, b) => {
+        if (a.y === b.y) {
+            // If 'y' is the same, sort by 'x'
+            return a.x - b.x;
+        } else {
+            // Otherwise, sort by 'y'
+            return a.y - b.y;
+        }
+    });
 
     return (
         <>
@@ -501,7 +551,7 @@ const Dashboard: FC = () => {
                     />
                 }
             >
-                {dashboardChartTiles.length > 0 && (
+                {dashboardChartTiles && dashboardChartTiles.length > 0 && (
                     <DashboardFilter isEditMode={isEditMode} />
                 )}
 
@@ -511,11 +561,15 @@ const Dashboard: FC = () => {
                     onResizeStop={handleUpdateTiles}
                     layouts={layouts}
                 >
-                    {dashboardTiles.map((tile) => {
+                    {sortedTiles?.map((tile, idx) => {
                         return (
                             <div key={tile.uuid}>
                                 <TrackSection name={SectionName.DASHBOARD_TILE}>
                                     <GridTile
+                                        isLazyLoadEnabled={
+                                            isLazyLoadEnabled ?? true
+                                        }
+                                        index={idx}
                                         isEditMode={isEditMode}
                                         tile={tile}
                                         onDelete={handleDeleteTile}
@@ -527,7 +581,7 @@ const Dashboard: FC = () => {
                     })}
                 </ResponsiveGridLayout>
 
-                {dashboardTiles.length <= 0 && (
+                {dashboardTiles && dashboardTiles.length === 0 && (
                     <EmptyStateNoTiles
                         onAddTiles={handleAddTiles}
                         isEditMode={isEditMode}

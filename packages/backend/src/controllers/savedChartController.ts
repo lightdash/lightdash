@@ -5,19 +5,21 @@ import {
     ApiSuccessEmpty,
     DashboardFilters,
 } from '@lightdash/common';
-import { Body, Get, Post } from '@tsoa/runtime';
-import express from 'express';
 import {
+    Body,
     Controller,
+    Get,
     Middlewares,
     OperationId,
     Path,
+    Post,
     Request,
     Response,
     Route,
     SuccessResponse,
     Tags,
-} from 'tsoa';
+} from '@tsoa/runtime';
+import express from 'express';
 import { projectService, savedChartsService } from '../services/services';
 import {
     allowApiKeyAuthentication,
@@ -45,7 +47,7 @@ export class SavedChartController extends Controller {
     async postDashboardTile(
         @Body()
         body: {
-            dashboardFilters?: DashboardFilters;
+            dashboardFilters?: any; // DashboardFilters; temp disable validation
             invalidateCache?: boolean;
         },
         @Path() chartUuid: string,

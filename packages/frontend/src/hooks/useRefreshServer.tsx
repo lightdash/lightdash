@@ -108,6 +108,7 @@ export const useJob = (
             [JobStatusType.DONE, JobStatusType.ERROR].includes(data.jobStatus)
                 ? false
                 : 500,
+        staleTime: 0,
         onSuccess: (job) => {
             if (job.jobStatus === JobStatusType.DONE) {
                 queryClient.invalidateQueries('tables');

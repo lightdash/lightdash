@@ -15,7 +15,6 @@ import {
     UpdateOrganization,
     UUID,
 } from '@lightdash/common';
-import express from 'express';
 import {
     Body,
     Controller,
@@ -31,7 +30,8 @@ import {
     Response,
     Route,
     Tags,
-} from 'tsoa';
+} from '@tsoa/runtime';
+import express from 'express';
 import { userModel } from '../models/models';
 import { organizationService, userService } from '../services/services';
 import {

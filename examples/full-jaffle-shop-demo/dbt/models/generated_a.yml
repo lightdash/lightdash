@@ -1,0 +1,317 @@
+version: 2
+models:
+  - name: generated_a
+    meta:
+      joins:
+        - join: generated_b
+          sql_on: ${generated_a.foreign_key} = ${join_1.primary_key}
+          alias: join_1
+        - join: generated_b
+          sql_on: ${generated_a.foreign_key} = ${join_2.primary_key}
+          alias: join_2
+        - join: generated_b
+          sql_on: ${generated_a.foreign_key} = ${join_3.primary_key}
+          alias: join_3
+        - join: generated_b
+          sql_on: ${generated_a.foreign_key} = ${join_4.primary_key}
+          alias: join_4
+        - join: generated_b
+          sql_on: ${generated_a.foreign_key} = ${join_5.primary_key}
+          alias: join_5
+        - join: generated_b
+          sql_on: ${generated_a.foreign_key} = ${join_6.primary_key}
+          alias: join_6
+        - join: generated_b
+          sql_on: ${generated_a.foreign_key} = ${join_7.primary_key}
+          alias: join_7
+        - join: generated_b
+          sql_on: ${generated_a.foreign_key} = ${join_8.primary_key}
+          alias: join_8
+        - join: generated_b
+          sql_on: ${generated_a.foreign_key} = ${join_9.primary_key}
+          alias: join_9
+        - join: generated_b
+          sql_on: ${generated_a.foreign_key} = ${join_10.primary_key}
+          alias: join_10
+        - join: generated_b
+          sql_on: ${generated_a.foreign_key} = ${join_11.primary_key}
+          alias: join_11
+        - join: generated_b
+          sql_on: ${generated_a.foreign_key} = ${join_12.primary_key}
+          alias: join_12
+        - join: generated_b
+          sql_on: ${generated_a.foreign_key} = ${join_13.primary_key}
+          alias: join_13
+        - join: generated_b
+          sql_on: ${generated_a.foreign_key} = ${join_14.primary_key}
+          alias: join_14
+        - join: generated_b
+          sql_on: ${generated_a.foreign_key} = ${join_15.primary_key}
+          alias: join_15
+        - join: generated_b
+          sql_on: ${generated_a.foreign_key} = ${join_16.primary_key}
+          alias: join_16
+        - join: generated_b
+          sql_on: ${generated_a.foreign_key} = ${join_17.primary_key}
+          alias: join_17
+        - join: generated_b
+          sql_on: ${generated_a.foreign_key} = ${join_18.primary_key}
+          alias: join_18
+        - join: generated_b
+          sql_on: ${generated_a.foreign_key} = ${join_19.primary_key}
+          alias: join_19
+        - join: generated_b
+          sql_on: ${generated_a.foreign_key} = ${join_20.primary_key}
+          alias: join_20
+
+    columns:
+      - name: name
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: phone
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: email
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: address
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: postalzip
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: region
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: country
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: alphanumeric
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: currency
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: text
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: name1
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: email1
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: phone1
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: address1
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: text1
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: url
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: numberrange1
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange2
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange3
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange4
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange5
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange6
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange7
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: primary_key
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: foreign_key
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: track1
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: autoincrement2
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange8
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange9
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange10
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange11
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: text2
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: date
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: date1
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: time
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: date2
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: date3
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: date4
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: date5
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: date6
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: date7
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: date8
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: numberrange12
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange13
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: date9
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: date10
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: numberrange14
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange15
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: date11
+        description: ""
+        meta:
+          dimension:
+            type: string

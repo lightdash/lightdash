@@ -180,6 +180,7 @@ projectRouter.post(
                 showTableNames,
                 customLabels,
                 columnOrder,
+                hiddenFields,
             } = body;
             const { projectUuid, exploreId } = req.params;
 
@@ -204,6 +205,7 @@ projectRouter.post(
                 showTableNames,
                 customLabels,
                 columnOrder,
+                hiddenFields,
             });
 
             res.json({

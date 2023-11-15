@@ -10,8 +10,10 @@ const useDashboardFiltersForExplore = (
     tileUuid: string,
     explore: Explore | undefined,
 ): DashboardFilters => {
-    const { dashboardFilters, dashboardTemporaryFilters } =
-        useDashboardContext();
+    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const dashboardTemporaryFilters = useDashboardContext(
+        (c) => c.dashboardTemporaryFilters,
+    );
 
     const tables = useMemo(
         () => (explore ? Object.keys(explore.tables) : []),

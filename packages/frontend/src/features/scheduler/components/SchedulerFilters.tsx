@@ -139,8 +139,13 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
         [schedulerFilters],
     );
 
-    const { isLoadingDashboardFilters, allFilters, fieldsWithSuggestions } =
-        useDashboardContext();
+    const isLoadingDashboardFilters = useDashboardContext(
+        (c) => c.isLoadingDashboardFilters,
+    );
+    const allFilters = useDashboardContext((c) => c.allFilters);
+    const fieldsWithSuggestions = useDashboardContext(
+        (c) => c.fieldsWithSuggestions,
+    );
 
     if (isLoading || isLoadingDashboardFilters || !project) {
         return (

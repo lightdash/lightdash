@@ -26,13 +26,11 @@ const AddTileButton: FC<Props> = ({ onAddTiles, disabled }) => {
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
 
-    const {
-        dashboardTiles,
-        dashboardFilters,
-        haveTilesChanged,
-        haveFiltersChanged,
-        dashboard,
-    } = useDashboardContext();
+    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
+    const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
+    const dashboard = useDashboardContext((c) => c.dashboard);
 
     const { storeDashboard } = useDashboardStorage();
     const history = useHistory();

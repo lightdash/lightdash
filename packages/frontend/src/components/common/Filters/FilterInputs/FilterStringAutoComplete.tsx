@@ -1,18 +1,20 @@
 import { FilterableItem } from '@lightdash/common';
 import {
+    Group,
     Highlight,
     Loader,
     MultiSelect,
     MultiSelectProps,
     Text,
 } from '@mantine/core';
+import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash-es/uniq';
 import { FC, ReactNode, useCallback, useMemo, useState } from 'react';
-
 import {
     MAX_AUTOCOMPLETE_RESULTS,
     useFieldValues,
 } from '../../../../hooks/useFieldValues';
+import MantineIcon from '../../MantineIcon';
 import { useFiltersContext } from '../FiltersProvider';
 
 type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
@@ -117,7 +119,26 @@ const FilterStringAutoComplete: FC<Props> = ({
             }
             disabled={disabled}
             creatable
-            getCreateLabel={(query) => `+ Add "${query}"`}
+            getCreateLabel={(query) => (
+                <Group spacing="xxs">
+                    <MantineIcon icon={IconPlus} color="blue" size="sm" />
+                    <Text color="blue">Add "{query}"</Text>
+                </Group>
+            )}
+            styles={{
+                item: {
+                    // makes add new item button sticky to bottom
+                    '&:last-child:not([value])': {
+                        position: 'sticky',
+                        bottom: 4,
+                        // casts shadow on the bottom of the list to avoid transparency
+                        boxShadow: '0 4px 0 0 white',
+                    },
+                    '&:last-child:not([value]):not(:hover)': {
+                        background: 'white',
+                    },
+                },
+            }}
             disableSelectedItemFiltering
             searchable
             clearSearchOnChange
@@ -149,7 +170,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                         </Text>
                     ) : null}
 
-                    <div>{children}</div>
+                    {children}
                 </div>
             )}
             itemComponent={({ label, ...others }) =>

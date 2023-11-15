@@ -5,6 +5,7 @@ import { useParams } from 'react-router-dom';
 import { ProjectType } from '@lightdash/common';
 import { useProjects } from '../../hooks/useProjects';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
+import { CustomVisualizationProvider } from '../CustomVisualization';
 import DrillDownModal from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
@@ -43,10 +44,12 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
                     <FiltersCard />
 
-                    <VisualizationCard
-                        projectUuid={projectUuid}
-                        isProjectPreview={isProjectPreview}
-                    />
+                    <CustomVisualizationProvider>
+                        <VisualizationCard
+                            projectUuid={projectUuid}
+                            isProjectPreview={isProjectPreview}
+                        />
+                    </CustomVisualizationProvider>
 
                     <ResultsCard />
 

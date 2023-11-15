@@ -8,9 +8,8 @@ import {
 import * as crypto from 'crypto';
 import * as net from 'net';
 import * as ssh2 from 'ssh2';
-import SSH2Promise from 'ssh2-promise';
 
-class BetaTunnel {
+class SSH2Tunnel {
     private readonly id: string;
 
     private readonly sshConnectConfig: ssh2.ConnectConfig;
@@ -107,9 +106,9 @@ class BetaTunnel {
                 this.error = e;
                 socket.destroy();
             });
-            socket.setTimeout(1000 * 10, () => {
+            socket.setTimeout(60000 * 5, () => {
                 console.log(
-                    `SSH tunnel ${this.id} - local tcp server connection timed out after 10 seconds`,
+                    `SSH tunnel ${this.id} - local tcp server connection timed out after 5 minutes`,
                 );
                 socket.destroy();
             });
@@ -226,7 +225,7 @@ export class SshTunnel<T extends CreateWarehouseCredentials> {
 
     localPort: number | undefined;
 
-    private sshConnection: SSH2Promise | BetaTunnel | undefined;
+    private sshConnection: SSH2Tunnel | undefined;
 
     constructor(credentials: T) {
         this.originalCredentials = credentials;
@@ -253,44 +252,18 @@ export class SshTunnel<T extends CreateWarehouseCredentials> {
                             reconnect: false,
                         };
 
-                        if (process.env.USE_BETA_SSH_TUNNEL) {
-                            this.sshConnection = new BetaTunnel({
-                                sshHost: remoteHostConfig.host,
-                                sshPort: remoteHostConfig.port,
-                                sshUser: remoteHostConfig.username,
-                                sshPrivateKey: remoteHostConfig.privateKey,
-                                databaseHostOnRemote:
-                                    this.originalCredentials.host,
-                                databasePortOnRemote:
-                                    this.originalCredentials.port,
-                            });
-                            console.info(
-                                `Opening SSH tunnel to remote host: ${this.originalCredentials.host}:${this.originalCredentials.port}`,
-                            );
-                            this.localPort = await this.sshConnection.connect();
-                        } else {
-                            this.sshConnection = new SSH2Promise(
-                                remoteHostConfig,
-                            );
-                            console.info(
-                                `Opening SSH tunnel to remote host: ${this.originalCredentials.host}:${this.originalCredentials.port}`,
-                            );
-                            const sshTunnel =
-                                await this.sshConnection.addTunnel({
-                                    remoteAddr: this.originalCredentials.host,
-                                    remotePort: this.originalCredentials.port,
-                                });
-
-                            this.sshConnection.on('tunnel', (message) => {
-                                if (message === 'disconnect') {
-                                    console.error('SSH tunnel disconnected');
-                                }
-                            });
-                            console.info(
-                                `SSH tunnel ready at ${sshTunnel.localPort}`,
-                            );
-                            this.localPort = sshTunnel.localPort;
-                        }
+                        this.sshConnection = new SSH2Tunnel({
+                            sshHost: remoteHostConfig.host,
+                            sshPort: remoteHostConfig.port,
+                            sshUser: remoteHostConfig.username,
+                            sshPrivateKey: remoteHostConfig.privateKey,
+                            databaseHostOnRemote: this.originalCredentials.host,
+                            databasePortOnRemote: this.originalCredentials.port,
+                        });
+                        console.info(
+                            `Opening SSH tunnel to remote host: ${this.originalCredentials.host}:${this.originalCredentials.port}`,
+                        );
+                        this.localPort = await this.sshConnection.connect();
                         this.overrideCredentials = {
                             ...this.originalCredentials,
                             host: '127.0.0.1',
@@ -320,7 +293,7 @@ export class SshTunnel<T extends CreateWarehouseCredentials> {
 
     disconnect = async (): Promise<void> => {
         if (this.sshConnection) {
-            await this.sshConnection.close();
+            this.sshConnection.close();
         }
     };
 }

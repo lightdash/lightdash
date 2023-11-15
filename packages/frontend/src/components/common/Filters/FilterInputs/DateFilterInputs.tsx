@@ -4,10 +4,12 @@ import {
     DimensionType,
     FilterOperator,
     formatDate,
+    formatTimestamp,
     isDimension,
     isField,
     isFilterRule,
     parseDate,
+    parseTimestamp,
     TimeFrames,
 } from '@lightdash/common';
 import { Flex, NumberInput, Text } from '@mantine/core';
@@ -175,8 +177,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         popoverProps={popoverProps}
                         value={
                             rule.values
-                                ? parseDate(
-                                      formatDate(
+                                ? parseTimestamp(
+                                      formatTimestamp(
                                           rule.values[0],
                                           TimeFrames.MILLISECOND,
                                       ),
@@ -191,7 +193,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                     value === null
                                         ? []
                                         : [
-                                              formatDate(
+                                              formatTimestamp(
                                                   value,
                                                   TimeFrames.MILLISECOND,
                                               ),
@@ -304,15 +306,15 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         value={
                             rule.values && rule.values[0] && rule.values[1]
                                 ? [
-                                      parseDate(
-                                          formatDate(
+                                      parseTimestamp(
+                                          formatTimestamp(
                                               rule.values[0],
                                               TimeFrames.MILLISECOND,
                                           ),
                                           TimeFrames.MILLISECOND,
                                       ),
-                                      parseDate(
-                                          formatDate(
+                                      parseTimestamp(
+                                          formatTimestamp(
                                               rule.values[1],
                                               TimeFrames.MILLISECOND,
                                           ),
@@ -327,11 +329,11 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 ...rule,
                                 values: value
                                     ? [
-                                          formatDate(
+                                          formatTimestamp(
                                               value[0],
                                               TimeFrames.MILLISECOND,
                                           ),
-                                          formatDate(
+                                          formatTimestamp(
                                               value[1],
                                               TimeFrames.MILLISECOND,
                                           ),

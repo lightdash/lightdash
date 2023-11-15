@@ -13,6 +13,7 @@ import {
     getCustomDimensionId,
     getCustomLabelsFromTableConfig,
     getDashboardFiltersForTileAndTables,
+    getHiddenTableFields,
     getItemLabel,
     getItemLabelWithoutTableName,
     getItemMap,
@@ -211,6 +212,7 @@ export class CsvService {
         truncated: boolean,
         customLabels: Record<string, string> = {},
         columnOrder: string[] = [],
+        hiddenFields: string[] = [],
     ): Promise<string> {
         // Ignore fields from results that are not selected in metrics or dimensions
         const selectedFieldIds = [
@@ -218,7 +220,8 @@ export class CsvService {
             ...metricQuery.dimensions,
             ...metricQuery.tableCalculations.map((tc: any) => tc.name),
             ...(metricQuery.customDimensions?.map(getCustomDimensionId) || []),
-        ];
+        ].filter((id) => !hiddenFields.includes(id));
+
         Logger.debug(
             `writeRowsToFile with ${rows.length} rows and ${selectedFieldIds.length} columns`,
         );
@@ -423,6 +426,7 @@ export class CsvService {
             truncated,
             getCustomLabelsFromTableConfig(config),
             chart.tableConfig.columnOrder,
+            getHiddenTableFields(chart.chartConfig),
         );
 
         if (analyticProperties) {
@@ -618,6 +622,7 @@ export class CsvService {
             showTableNames,
             customLabels,
             columnOrder,
+            hiddenFields,
         }: DownloadMetricCsv,
     ) {
         const user = await this.userModel.findSessionUserByUUID(userUuid);
@@ -697,6 +702,7 @@ export class CsvService {
                 truncated,
                 customLabels,
                 columnOrder || [],
+                hiddenFields,
             );
 
             let fileUrl;

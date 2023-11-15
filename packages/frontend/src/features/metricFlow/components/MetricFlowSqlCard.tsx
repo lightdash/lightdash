@@ -1,7 +1,7 @@
 import { ApiError } from '@lightdash/common';
 import { Box, Button } from '@mantine/core';
 import { IconTerminal2 } from '@tabler/icons-react';
-import React, { FC, useMemo, useState } from 'react';
+import { FC, useMemo, useState } from 'react';
 import { useQuery } from 'react-query';
 import { Link } from 'react-router-dom';
 import CollapsableCard from '../../../components/common/CollapsableCard';

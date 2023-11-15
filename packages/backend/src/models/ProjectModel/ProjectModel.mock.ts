@@ -112,6 +112,9 @@ export const lightdashConfigMock: LightdashConfig = {
     chart: {
         versionHistory: { daysLimit: 3 },
     },
+    customVisualizations: {
+        enabled: false,
+    },
     pivotTable: {
         maxColumnLimit: 60,
     },
