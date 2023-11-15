@@ -1,5 +1,4 @@
 import {
-    ChartType,
     CompiledDimension,
     CustomDimension,
     Field,
@@ -17,6 +16,7 @@ import startCase from 'lodash-es/startCase';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import UnitInput from '../../../common/UnitInput';
+import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import { ReferenceLines } from './ReferenceLines';
 
@@ -41,10 +41,7 @@ const LegendPanel: FC<Props> = ({ items }) => {
 
     const { visualizationConfig } = useVisualizationContext();
 
-    const isCartesianChart =
-        visualizationConfig?.chartType === ChartType.CARTESIAN;
-
-    if (!isCartesianChart) return null;
+    if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
 
     const { dirtyEchartsConfig, setLegend } = visualizationConfig.chartConfig;
 

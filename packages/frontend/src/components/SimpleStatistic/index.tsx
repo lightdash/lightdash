@@ -1,5 +1,5 @@
 import { Colors } from '@blueprintjs/core';
-import { ChartType, ComparisonDiffTypes } from '@lightdash/common';
+import { ComparisonDiffTypes } from '@lightdash/common';
 import { Tooltip } from '@mantine/core';
 import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import clamp from 'lodash-es/clamp';
@@ -7,6 +7,7 @@ import { FC, HTMLAttributes, useMemo } from 'react';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import MantineIcon from '../common/MantineIcon';
 import { TILE_HEADER_HEIGHT } from '../DashboardTiles/TileBase/TileBase.styles';
+import { isBigNumberVisualizationConfig } from '../LightdashVisualization/VisualizationBigNumberConfig';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { EmptyChart, LoadingChart } from '../SimpleChart';
 import BigNumberContextMenu from './BigNumberContextMenu';
@@ -72,7 +73,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     const { resultsData, isLoading, visualizationConfig, isSqlRunner } =
         useVisualizationContext();
 
-    const isBigNumber = visualizationConfig?.chartType === ChartType.BIG_NUMBER;
+    const isBigNumber = isBigNumberVisualizationConfig(visualizationConfig);
 
     const [setRef, observerElementSize] = useResizeObserver();
 

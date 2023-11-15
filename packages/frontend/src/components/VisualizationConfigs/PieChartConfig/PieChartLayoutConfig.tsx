@@ -1,5 +1,4 @@
 import {
-    ChartType,
     fieldId,
     getCustomDimensionId,
     isCustomDimension,
@@ -9,6 +8,7 @@ import { Box, Button, Stack, Switch, Tooltip } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
+import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const PieChartLayoutConfig: React.FC = () => {
@@ -19,7 +19,7 @@ const PieChartLayoutConfig: React.FC = () => {
         visualizationConfig,
     } = useVisualizationContext();
 
-    if (visualizationConfig?.chartType !== ChartType.PIE) return null;
+    if (!isPieVisualizationConfig(visualizationConfig)) return null;
 
     const allDimensions = [...dimensions, ...customDimensions];
 

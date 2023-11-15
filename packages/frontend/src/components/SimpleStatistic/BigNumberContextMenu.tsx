@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    ChartType,
     DashboardFilters,
     hasCustomDimension,
     ResultValue,
@@ -18,6 +17,7 @@ import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';
 import MantineIcon from '../common/MantineIcon';
+import { isBigNumberVisualizationConfig } from '../LightdashVisualization/VisualizationBigNumberConfig';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
@@ -44,7 +44,7 @@ const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const isBigNumber = visualizationConfig?.chartType === ChartType.BIG_NUMBER;
+    const isBigNumber = isBigNumberVisualizationConfig(visualizationConfig);
 
     const fieldValues: Record<string, ResultValue> = useMemo(() => {
         return mapValues(resultsData?.rows?.[0], (col) => col.value) ?? {};

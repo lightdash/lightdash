@@ -25,6 +25,11 @@ import {
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from '../../common/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
+import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/VisualizationBigNumberConfig';
+import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
+import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
+import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
+import { isCustomVisualizationConfig } from '../../LightdashVisualization/VisualizationCustomConfigProps';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const VisualizationCardOptions: FC = memo(() => {
@@ -44,10 +49,12 @@ const VisualizationCardOptions: FC = memo(() => {
         pivotDimensions,
     } = useVisualizationContext();
 
-    const isCartesian = visualizationConfig?.chartType === ChartType.CARTESIAN;
+    const isCartesian = isCartesianVisualizationConfig(visualizationConfig);
+
     const cartesianType = isCartesian
         ? visualizationConfig.chartConfig.dirtyChartType
         : undefined;
+
     const isCartesianChartTypeTheSameForAllSeries =
         isCartesian &&
         !isSeriesWithMixedChartTypes(
@@ -340,7 +347,7 @@ const VisualizationCardOptions: FC = memo(() => {
                 <Menu.Item
                     disabled={disabled}
                     color={
-                        visualizationConfig?.chartType === ChartType.PIE
+                        isPieVisualizationConfig(visualizationConfig)
                             ? 'blue'
                             : undefined
                     }
@@ -356,7 +363,7 @@ const VisualizationCardOptions: FC = memo(() => {
                 <Menu.Item
                     disabled={disabled}
                     color={
-                        visualizationConfig?.chartType === ChartType.TABLE
+                        isTableVisualizationConfig(visualizationConfig)
                             ? 'blue'
                             : undefined
                     }
@@ -372,7 +379,7 @@ const VisualizationCardOptions: FC = memo(() => {
                 <Menu.Item
                     disabled={disabled}
                     color={
-                        visualizationConfig?.chartType === ChartType.BIG_NUMBER
+                        isBigNumberVisualizationConfig(visualizationConfig)
                             ? 'blue'
                             : undefined
                     }
@@ -390,8 +397,7 @@ const VisualizationCardOptions: FC = memo(() => {
                         <Menu.Item
                             disabled={disabled}
                             color={
-                                visualizationConfig?.chartType ===
-                                ChartType.CUSTOM
+                                isCustomVisualizationConfig(visualizationConfig)
                                     ? 'blue'
                                     : undefined
                             }

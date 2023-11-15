@@ -27,6 +27,9 @@ import {
 } from './common/CollapsableCard';
 import MantineIcon from './common/MantineIcon';
 import ExportSelector from './ExportSelector';
+import { isBigNumberVisualizationConfig } from './LightdashVisualization/VisualizationBigNumberConfig';
+import { isCartesianVisualizationConfig } from './LightdashVisualization/VisualizationConfigCartesian';
+import { isTableVisualizationConfig } from './LightdashVisualization/VisualizationConfigTable';
 import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
 
 const FILE_NAME = 'lightdash_chart';
@@ -237,18 +240,17 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
         const eChartsOptions = useEchartsCartesianConfig();
 
         const disabled =
-            (visualizationConfig?.chartType === ChartType.TABLE &&
+            (isTableVisualizationConfig(visualizationConfig) &&
                 resultsData?.rows &&
                 resultsData.rows.length <= 0) ||
             !resultsData?.metricQuery ||
-            visualizationConfig?.chartType === ChartType.BIG_NUMBER ||
-            (visualizationConfig?.chartType === ChartType.CARTESIAN &&
+            isBigNumberVisualizationConfig(visualizationConfig) ||
+            (isCartesianVisualizationConfig(visualizationConfig) &&
                 !eChartsOptions);
 
         const { user } = useApp();
 
-        return visualizationConfig?.chartType === ChartType.TABLE &&
-            getCsvLink ? (
+        return isTableVisualizationConfig(visualizationConfig) && getCsvLink ? (
             <Can
                 I="manage"
                 this={subject('ExportCsv', {
@@ -311,7 +313,7 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                     </Popover.Dropdown>
                 </Popover>
             </Can>
-        ) : visualizationConfig?.chartType === ChartType.TABLE &&
+        ) : isTableVisualizationConfig(visualizationConfig) &&
           !getCsvLink ? null : (
             <Popover
                 {...COLLAPSABLE_CARD_POPOVER_PROPS}

@@ -1,5 +1,4 @@
 import {
-    ChartType,
     CompiledDimension,
     CustomDimension,
     ECHARTS_DEFAULT_COLORS,
@@ -39,6 +38,7 @@ import FilterYearPicker from '../../../common/Filters/FilterInputs/FilterYearPic
 import { getFirstDayOfWeek } from '../../../common/Filters/utils/filterDateUtils';
 import MantineIcon from '../../../common/MantineIcon';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
+import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 
 type Props = {
@@ -181,7 +181,7 @@ export const ReferenceLine: FC<Props> = ({
     );
 
     const isCartesianChart =
-        visualizationConfig?.chartType === ChartType.CARTESIAN;
+        isCartesianVisualizationConfig(visualizationConfig);
 
     const fieldsInAxes = useMemo(() => {
         if (!isCartesianChart) return [];

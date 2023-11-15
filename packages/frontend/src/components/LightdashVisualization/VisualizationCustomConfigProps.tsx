@@ -1,11 +1,20 @@
 import { ChartType } from '@lightdash/common';
 import { FC } from 'react';
-import { VisualizationConfigCommon } from './VisualizationProvider';
+import {
+    VisualizationConfig,
+    VisualizationConfigCommon,
+} from './VisualizationProvider';
 
 // TODO: this is a placeholder for custom visualizations
 export type VisualizationConfigCustom = {
     chartType: ChartType.CUSTOM;
     chartConfig: { validConfig: {} };
+};
+
+export const isCustomVisualizationConfig = (
+    visualizationConfig: VisualizationConfig | undefined,
+): visualizationConfig is VisualizationConfigCustom => {
+    return visualizationConfig?.chartType === ChartType.CUSTOM;
 };
 
 type VisualizationCustomConfigProps =

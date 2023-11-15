@@ -1,4 +1,4 @@
-import { ChartType, isDimension } from '@lightdash/common';
+import { isDimension } from '@lightdash/common';
 import { ActionIcon, Box, Group, TextInput, Tooltip } from '@mantine/core';
 import {
     IconEye,
@@ -8,17 +8,16 @@ import {
 } from '@tabler/icons-react';
 import React, { useState } from 'react';
 import MantineIcon from '../../common/MantineIcon';
+import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const ColumnConfiguration: React.FC<{ fieldId: string }> = ({ fieldId }) => {
     const { pivotDimensions, visualizationConfig } = useVisualizationContext();
 
-    const isTableConfig = visualizationConfig?.chartType === ChartType.TABLE;
-
     const [isShowTooltipVisible, setShowTooltipVisible] = useState(false);
     const [isFreezeTooltipVisible, setFreezeTooltipVisible] = useState(false);
 
-    if (!isTableConfig) return null;
+    if (!isTableVisualizationConfig(visualizationConfig)) return null;
 
     const {
         updateColumnProperty,

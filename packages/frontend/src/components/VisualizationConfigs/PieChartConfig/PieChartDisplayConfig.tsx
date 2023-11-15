@@ -1,16 +1,16 @@
 import {
-    ChartType,
     PieChartLegendPosition,
     PieChartLegendPositions,
 } from '@lightdash/common';
 import { Collapse, SegmentedControl, Stack, Switch, Text } from '@mantine/core';
 import React from 'react';
+import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const PieChartDisplayConfig: React.FC = () => {
     const { visualizationConfig } = useVisualizationContext();
 
-    if (visualizationConfig?.chartType !== ChartType.PIE) return null;
+    if (!isPieVisualizationConfig(visualizationConfig)) return null;
 
     const {
         showLegend,

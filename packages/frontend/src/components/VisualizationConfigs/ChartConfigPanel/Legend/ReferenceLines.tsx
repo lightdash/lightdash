@@ -1,5 +1,4 @@
 import {
-    ChartType,
     CompiledDimension,
     CustomDimension,
     Field,
@@ -16,6 +15,7 @@ import { IconPlus } from '@tabler/icons-react';
 import { useProject } from '../../../../hooks/useProject';
 import MantineIcon from '../../../common/MantineIcon';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
+import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import { ReferenceLine } from './ReferenceLine';
 
@@ -27,7 +27,7 @@ type Props = {
 export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
     const { visualizationConfig } = useVisualizationContext();
     const isCartesianChart =
-        visualizationConfig?.chartType === ChartType.CARTESIAN;
+        isCartesianVisualizationConfig(visualizationConfig);
 
     const project = useProject(projectUuid);
     const startOfWeek = useMemo(
@@ -47,6 +47,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
             lineId: string,
         ) => {
             if (!isCartesianChart) return;
+
             const {
                 dirtyEchartsConfig,
                 dirtyLayout,

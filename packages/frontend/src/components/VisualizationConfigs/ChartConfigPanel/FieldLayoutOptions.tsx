@@ -1,6 +1,5 @@
 import {
     CartesianSeriesType,
-    ChartType,
     CustomDimension,
     Field,
     getItemId,
@@ -24,6 +23,7 @@ import { FC, useCallback, useMemo } from 'react';
 import { EMPTY_X_AXIS } from '../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
+import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { MAX_PIVOTS } from '../TableConfigPanel/GeneralSettings';
 
@@ -36,7 +36,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         useVisualizationContext();
 
     const isCartesianChart =
-        visualizationConfig?.chartType === ChartType.CARTESIAN;
+        isCartesianVisualizationConfig(visualizationConfig);
 
     const cartesianType = isCartesianChart
         ? visualizationConfig.chartConfig.dirtyChartType

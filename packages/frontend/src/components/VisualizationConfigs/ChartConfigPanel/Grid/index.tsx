@@ -1,8 +1,8 @@
-import { ChartType } from '@lightdash/common';
 import { SimpleGrid } from '@mantine/core';
 import startCase from 'lodash-es/startCase';
 import { FC } from 'react';
 import UnitInput from '../../../common/UnitInput';
+import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 
 export const defaultGrid = {
@@ -24,10 +24,8 @@ const units = Object.values(Units);
 
 const GridPanel: FC = () => {
     const { visualizationConfig } = useVisualizationContext();
-    const isCartesianChart =
-        visualizationConfig?.chartType === ChartType.CARTESIAN;
 
-    if (!isCartesianChart) return null;
+    if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
 
     const { dirtyEchartsConfig, setGrid } = visualizationConfig.chartConfig;
 

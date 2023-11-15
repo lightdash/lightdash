@@ -1,5 +1,4 @@
 import {
-    ChartType,
     PieChartValueLabel,
     PieChartValueLabels,
     PieChartValueOptions,
@@ -31,6 +30,7 @@ import {
     DropResult,
 } from 'react-beautiful-dnd';
 import MantineIcon from '../../common/MantineIcon';
+import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import ColorSelector from '../ColorSelector';
 
@@ -249,7 +249,7 @@ const GroupItem = forwardRef<HTMLDivElement, StackProps & GroupItemProps>(
 const PieChartSeriesConfig: FC = () => {
     const { visualizationConfig } = useVisualizationContext();
 
-    const isPieChartConfig = visualizationConfig?.chartType === ChartType.PIE;
+    const isPieChartConfig = isPieVisualizationConfig(visualizationConfig);
 
     const handleDragEnd = useCallback(
         (result: DropResult) => {

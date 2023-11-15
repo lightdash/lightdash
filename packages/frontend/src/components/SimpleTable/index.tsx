@@ -1,10 +1,10 @@
 import { NonIdealState } from '@blueprintjs/core';
-import { ChartType } from '@lightdash/common';
 import { Box, Flex } from '@mantine/core';
 import { FC } from 'react';
 import PivotTable from '../common/PivotTable';
 import Table from '../common/Table';
 import { ResultCount } from '../common/Table/TablePagination';
+import { isTableVisualizationConfig } from '../LightdashVisualization/VisualizationConfigTable';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
 import CellContextMenu from './CellContextMenu';
@@ -34,8 +34,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         visualizationConfig,
     } = useVisualizationContext();
 
-    const isTable = visualizationConfig?.chartType === ChartType.TABLE;
-    if (!isTable) return null;
+    if (!isTableVisualizationConfig(visualizationConfig)) return null;
 
     const {
         rows,

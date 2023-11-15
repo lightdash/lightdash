@@ -2,7 +2,6 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
-    ChartType,
     convertAdditionalMetric,
     CustomDimension,
     DimensionType,
@@ -47,6 +46,7 @@ import groupBy from 'lodash-es/groupBy';
 import toNumber from 'lodash-es/toNumber';
 import moment from 'moment';
 import { useMemo } from 'react';
+import { isCartesianVisualizationConfig } from '../../components/LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 import { defaultGrid } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
@@ -1252,8 +1252,7 @@ const useEchartsCartesianConfig = (
         useVisualizationContext();
 
     const chartConfig = useMemo(() => {
-        if (visualizationConfig?.chartType !== ChartType.CARTESIAN) return;
-
+        if (!isCartesianVisualizationConfig(visualizationConfig)) return;
         return visualizationConfig.chartConfig.validConfig;
     }, [visualizationConfig]);
 

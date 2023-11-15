@@ -1,11 +1,20 @@
 import { ChartType } from '@lightdash/common';
 import { FC, useEffect } from 'react';
 import useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import { VisualizationConfigCommon } from './VisualizationProvider';
+import {
+    VisualizationConfig,
+    VisualizationConfigCommon,
+} from './VisualizationProvider';
 
 export type VisualizationConfigCartesian = {
     chartType: ChartType.CARTESIAN;
     chartConfig: ReturnType<typeof useCartesianChartConfig>;
+};
+
+export const isCartesianVisualizationConfig = (
+    visualizationConfig: VisualizationConfig | undefined,
+): visualizationConfig is VisualizationConfigCartesian => {
+    return visualizationConfig?.chartType === ChartType.CARTESIAN;
 };
 
 type VisualizationCartesianConfigProps =

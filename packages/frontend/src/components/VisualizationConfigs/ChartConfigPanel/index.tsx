@@ -1,4 +1,3 @@
-import { ChartType } from '@lightdash/common';
 import { Box, Button, Popover } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import {
@@ -6,6 +5,7 @@ import {
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from '../../common/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
+import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import ChartConfigTabs from './ChartConfigTabs';
 
@@ -13,10 +13,7 @@ const ChartConfigPanel: React.FC = () => {
     const { resultsData, explore, visualizationConfig } =
         useVisualizationContext();
 
-    const isCartesianChart =
-        visualizationConfig?.chartType === ChartType.CARTESIAN;
-
-    if (!isCartesianChart) return null;
+    if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
 
     const { chartConfig } = visualizationConfig;
 

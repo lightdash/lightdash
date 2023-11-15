@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    ChartType,
     DashboardFilters,
     hasCustomDimension,
     ResultRow,
@@ -17,6 +16,7 @@ import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
+import { isPieVisualizationConfig } from '../LightdashVisualization/VisualizationConfigPie';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
@@ -56,9 +56,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     const { openUnderlyingDataModal, metricQuery } = metricQueryData;
     const { track } = tracking;
 
-    const isPieChart = visualizationConfig?.chartType === ChartType.PIE;
-
-    if (!isPieChart) return null;
+    if (!isPieVisualizationConfig(visualizationConfig)) return null;
 
     const { chartConfig } = visualizationConfig;
 

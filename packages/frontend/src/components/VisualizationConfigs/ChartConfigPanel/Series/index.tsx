@@ -1,5 +1,4 @@
 import {
-    ChartType,
     CustomDimension,
     Field,
     getDefaultSeriesColor,
@@ -21,6 +20,7 @@ import {
 import { createPortal } from 'react-dom';
 import { getSeriesGroupedByField } from '../../../../hooks/cartesianChartConfig/utils';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
+import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
 import GroupedSeriesConfiguration from './GroupedSeriesConfiguration';
@@ -47,7 +47,7 @@ const SeriesTab: FC<Props> = ({ items }) => {
     const { data: orgData } = useOrganization({ refetchOnMount: false });
 
     const isCartesianChart =
-        visualizationConfig?.chartType === ChartType.CARTESIAN;
+        isCartesianVisualizationConfig(visualizationConfig);
 
     const fallbackSeriesColours = useMemo(() => {
         if (!isCartesianChart) return;

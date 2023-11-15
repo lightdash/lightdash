@@ -1,11 +1,7 @@
-import {
-    ChartType,
-    formatItemValue,
-    ResultRow,
-    ResultValue,
-} from '@lightdash/common';
+import { formatItemValue, ResultRow, ResultValue } from '@lightdash/common';
 import { EChartsOption, PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
+import { isPieVisualizationConfig } from '../../components/LightdashVisualization/VisualizationConfigPie';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 
 export type PieSeriesDataPoint = NonNullable<
@@ -21,10 +17,7 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
     const { visualizationConfig, explore } = useVisualizationContext();
 
     const chartConfig = useMemo(() => {
-        const isPieChart = visualizationConfig?.chartType === ChartType.PIE;
-
-        if (!isPieChart) return;
-
+        if (!isPieVisualizationConfig(visualizationConfig)) return;
         return visualizationConfig.chartConfig;
     }, [visualizationConfig]);
 

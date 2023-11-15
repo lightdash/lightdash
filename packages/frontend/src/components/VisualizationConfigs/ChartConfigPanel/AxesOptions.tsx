@@ -1,5 +1,4 @@
 import {
-    ChartType,
     CustomDimension,
     Field,
     getAxisName,
@@ -21,6 +20,7 @@ import { FC, useCallback } from 'react';
 import { useToggle } from 'react-use';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
+import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 interface MinMaxProps {
@@ -88,10 +88,7 @@ type Props = {
 const AxesOptions: FC<Props> = ({ items }) => {
     const { visualizationConfig } = useVisualizationContext();
 
-    const isCartesianChart =
-        visualizationConfig?.chartType === ChartType.CARTESIAN;
-
-    if (!isCartesianChart) return null;
+    if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
 
     const {
         dirtyLayout,

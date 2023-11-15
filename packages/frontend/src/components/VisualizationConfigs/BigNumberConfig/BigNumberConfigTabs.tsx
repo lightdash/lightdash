@@ -1,5 +1,4 @@
 import {
-    ChartType,
     CompactConfigMap,
     CompactOrAlias,
     ComparisonFormatTypes,
@@ -18,6 +17,7 @@ import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { memo } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
+import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/VisualizationBigNumberConfig';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const StyleOptions = [
@@ -31,9 +31,7 @@ const StyleOptions = [
 const BigNumberConfigTabs = memo(() => {
     const { visualizationConfig } = useVisualizationContext();
 
-    const isBigNumber = visualizationConfig?.chartType === ChartType.BIG_NUMBER;
-
-    if (!isBigNumber) return null;
+    if (!isBigNumberVisualizationConfig(visualizationConfig)) return null;
 
     const {
         bigNumberLabel,

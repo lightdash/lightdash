@@ -1,5 +1,4 @@
 import {
-    ChartType,
     createConditionalFormattingConfigWithSingleColor,
     ECHARTS_DEFAULT_COLORS,
     FilterableItem,
@@ -14,6 +13,7 @@ import produce from 'immer';
 import { useCallback, useMemo, useState } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import MantineIcon from '../../common/MantineIcon';
+import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import ConditionalFormatting from './ConditionalFormatting';
 
@@ -24,7 +24,7 @@ const ConditionalFormattingList = ({}) => {
     const { explore, resultsData, visualizationConfig } =
         useVisualizationContext();
 
-    const isTableConfig = visualizationConfig?.chartType === ChartType.TABLE;
+    const isTableConfig = isTableVisualizationConfig(visualizationConfig);
 
     const defaultColors = useMemo(
         () => org?.chartColors ?? ECHARTS_DEFAULT_COLORS,
