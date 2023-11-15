@@ -49,12 +49,17 @@ const SeriesTab: FC<Props> = ({ items }) => {
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);
 
-    const fallbackSeriesColours = useMemo(() => {
+    const chartConfig = useMemo(() => {
         if (!isCartesianChart) return;
+        return visualizationConfig.chartConfig;
+    }, [isCartesianChart, visualizationConfig]);
 
-        return (
-            visualizationConfig.chartConfig.dirtyEchartsConfig?.series || []
-        )
+    const fallbackSeriesColours = useMemo(() => {
+        if (!chartConfig) return;
+
+        const dirtyEchartsConfig = chartConfig.dirtyEchartsConfig;
+
+        return (dirtyEchartsConfig?.series || [])
             .filter(({ color }) => !color)
             .reduce<Record<string, string>>(
                 (sum, series, index) => ({
@@ -65,7 +70,7 @@ const SeriesTab: FC<Props> = ({ items }) => {
                 }),
                 {},
             );
-    }, [isCartesianChart, visualizationConfig, orgData]);
+    }, [chartConfig, orgData]);
 
     const getSeriesColor = useCallback(
         (seriesId: string) => {
@@ -75,16 +80,18 @@ const SeriesTab: FC<Props> = ({ items }) => {
     );
 
     const seriesGroupedByField = useMemo(() => {
-        return getSeriesGroupedByField(
-            (isCartesianChart
-                ? visualizationConfig.chartConfig.dirtyEchartsConfig?.series
-                : []) ?? [],
-        );
+        if (!isCartesianChart) return;
+
+        const { dirtyEchartsConfig } = visualizationConfig.chartConfig;
+
+        return getSeriesGroupedByField(dirtyEchartsConfig?.series ?? []);
     }, [isCartesianChart, visualizationConfig]);
 
     const onDragEnd = useCallback(
         (result: DropResult) => {
-            if (!isCartesianChart) return;
+            if (!chartConfig || !seriesGroupedByField) return;
+
+            const { updateSeries } = chartConfig;
 
             if (!result.destination) return;
             if (result.destination.index === result.source.index) return;
@@ -107,14 +114,9 @@ const SeriesTab: FC<Props> = ({ items }) => {
                 ],
                 [],
             );
-            visualizationConfig.chartConfig.updateSeries(reorderedSeries);
+            updateSeries(reorderedSeries);
         },
-        [
-            isCartesianChart,
-            visualizationConfig,
-            seriesGroupedByField,
-            getSeriesColor,
-        ],
+        [seriesGroupedByField, chartConfig, getSeriesColor],
     );
 
     if (!isCartesianChart) return null;
