@@ -6,7 +6,10 @@ import {
     CreateSchedulerTarget,
     DownloadCsvPayload,
     EmailNotificationPayload,
+    getCustomLabelsFromTableConfig,
+    getHiddenTableFields,
     getHumanReadableCronExpression,
+    getItemMap,
     getRequestMethod,
     getSchedulerUuid,
     GsheetsNotificationPayload,
@@ -18,6 +21,7 @@ import {
     isSchedulerCsvOptions,
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
+    isTableChartConfig,
     LightdashPage,
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
@@ -52,6 +56,8 @@ import {
 } from '../clients/Slack/SlackMessageBlocks';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
+import { metricQuery } from '../services/CsvService/CsvService.mock';
+import { SavedChartService } from '../services/SavedChartsService/SavedChartService';
 import {
     csvService,
     dashboardService,
@@ -699,10 +705,27 @@ export const uploadGsheetFromQuery = async (
         if (!spreadsheetId) {
             throw new Error('Unable to create new sheet');
         }
+
+        const explore = await projectService.getExplore(
+            user,
+            payload.projectUuid,
+            payload.exploreId,
+        );
+        const itemMap = getItemMap(
+            explore,
+            payload.metricQuery.additionalMetrics,
+            payload.metricQuery.tableCalculations,
+        );
         await googleDriveClient.appendToSheet(
             refreshToken,
             spreadsheetId,
             rows,
+            itemMap,
+            payload.showTableNames,
+            undefined, // tabName
+            payload.columnOrder,
+            payload.customLabels,
+            payload.hiddenFields,
         );
         const truncated = csvService.couldBeTruncated(rows);
 
@@ -951,9 +974,29 @@ export const uploadGsheets = async (
                 `Unable to process format ${format} on sendGdriveNotification`,
             );
         } else if (savedChartUuid) {
+            const chart = await schedulerService.savedChartModel.get(
+                savedChartUuid,
+            );
             const { rows } = await projectService.getResultsForChart(
                 user,
                 savedChartUuid,
+            );
+
+            const explore = await projectService.getExplore(
+                user,
+                chart.projectUuid,
+                chart.tableName,
+            );
+            const itemMap = getItemMap(
+                explore,
+                chart.metricQuery.additionalMetrics,
+                chart.metricQuery.tableCalculations,
+            );
+            const showTableNames = isTableChartConfig(chart.chartConfig.config)
+                ? chart.chartConfig.config.showTableNames ?? false
+                : true;
+            const customLabels = getCustomLabelsFromTableConfig(
+                chart.chartConfig.config,
             );
 
             const refreshToken = await userService.getRefreshToken(
@@ -965,7 +1008,17 @@ export const uploadGsheets = async (
                 getHumanReadableCronExpression(scheduler.cron),
             );
 
-            await googleDriveClient.appendToSheet(refreshToken, gdriveId, rows);
+            await googleDriveClient.appendToSheet(
+                refreshToken,
+                gdriveId,
+                rows,
+                itemMap,
+                showTableNames,
+                undefined,
+                chart.tableConfig.columnOrder,
+                customLabels,
+                getHiddenTableFields(chart.chartConfig),
+            );
         } else if (dashboardUuid) {
             const dashboard = await dashboardService.getById(
                 user,
@@ -1018,9 +1071,30 @@ export const uploadGsheets = async (
             // We want to process all charts in sequence, so we don't load all chart results in memory
             chartUuids.reduce(async (promise, chartUuid) => {
                 await promise;
+                const chart = await schedulerService.savedChartModel.get(
+                    chartUuid,
+                );
                 const { rows } = await projectService.getResultsForChart(
                     user,
                     chartUuid,
+                );
+                const explore = await projectService.getExplore(
+                    user,
+                    chart.projectUuid,
+                    chart.tableName,
+                );
+                const itemMap = getItemMap(
+                    explore,
+                    chart.metricQuery.additionalMetrics,
+                    chart.metricQuery.tableCalculations,
+                );
+                const showTableNames = isTableChartConfig(
+                    chart.chartConfig.config,
+                )
+                    ? chart.chartConfig.config.showTableNames ?? false
+                    : true;
+                const customLabels = getCustomLabelsFromTableConfig(
+                    chart.chartConfig.config,
                 );
 
                 const tabName = await googleDriveClient.createNewTab(
@@ -1033,7 +1107,12 @@ export const uploadGsheets = async (
                     refreshToken,
                     gdriveId,
                     rows,
+                    itemMap,
+                    showTableNames,
                     tabName,
+                    chart.tableConfig.columnOrder,
+                    customLabels,
+                    getHiddenTableFields(chart.chartConfig),
                 );
             }, Promise.resolve());
         } else {

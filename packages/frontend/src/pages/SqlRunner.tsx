@@ -4,7 +4,7 @@ import {
     getCustomLabelsFromTableConfig,
     NotFoundError,
 } from '@lightdash/common';
-import { Alert, Box, Flex, Group, Stack, Tabs } from '@mantine/core';
+import { Alert, Box, Group, Stack, Tabs } from '@mantine/core';
 import { getHotkeyHandler } from '@mantine/hooks';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -236,7 +236,7 @@ const SqlRunnerPage = () => {
                 <Group position="apart">
                     <RefreshDbtButton />
 
-                    <Flex>
+                    <Group spacing="sm">
                         <RunSqlQueryButton
                             onSubmit={handleSubmit}
                             isLoading={isLoading}
@@ -244,7 +244,7 @@ const SqlRunnerPage = () => {
                         <ShareShortLinkButton
                             disabled={lastSqlRan === undefined}
                         />
-                    </Flex>
+                    </Group>
                 </Group>
             </TrackSection>
 
@@ -287,7 +287,7 @@ const SqlRunnerPage = () => {
                             )
                         }
                         isOpen={expandedCards.get(SqlRunnerCards.CHART)}
-                        shouldExpand
+                        isVisualizationCard
                         onToggle={(value) =>
                             handleCardExpand(SqlRunnerCards.CHART, value)
                         }

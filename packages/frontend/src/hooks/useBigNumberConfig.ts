@@ -87,6 +87,9 @@ const formatComparisonValue = (
     }
 };
 
+const isNumber = (i: Field | TableCalculation | undefined, value: any) =>
+    isNumericItem(i) && !(value instanceof Date) && !valueIsNaN(value);
+
 const useBigNumberConfig = (
     bigNumberConfigData: BigNumber | undefined,
     resultsData: ApiQueryResults | undefined,
@@ -135,6 +138,7 @@ const useBigNumberConfig = (
     }, [resultsData, explore]);
 
     const [selectedField, setSelectedField] = useState<string | undefined>();
+
     const getField = useCallback(
         (fieldNameOrId: string | undefined) => {
             if (fieldNameOrId === undefined) return;
@@ -170,17 +174,27 @@ const useBigNumberConfig = (
         getField,
     ]);
 
-    const item =
-        explore && selectedField
-            ? getItemMap(
-                  explore,
-                  resultsData?.metricQuery.additionalMetrics,
-                  resultsData?.metricQuery.tableCalculations,
-              )[selectedField]
-            : undefined;
-    const label = item
-        ? getItemLabel(item)
-        : selectedField && friendlyName(selectedField);
+    const itemMap = useMemo(() => {
+        if (!explore) return;
+
+        return getItemMap(
+            explore,
+            resultsData?.metricQuery.additionalMetrics,
+            resultsData?.metricQuery.tableCalculations,
+        );
+    }, [explore, resultsData]);
+
+    const item = useMemo(() => {
+        if (!itemMap || !selectedField) return;
+
+        return itemMap[selectedField];
+    }, [itemMap, selectedField]);
+
+    const label = useMemo(() => {
+        return item
+            ? getItemLabel(item)
+            : selectedField && friendlyName(selectedField);
+    }, [item, selectedField]);
 
     const [bigNumberLabel, setBigNumberLabel] = useState<
         BigNumber['label'] | undefined
@@ -223,14 +237,17 @@ const useBigNumberConfig = (
     }, [bigNumberConfigData]);
 
     // big number value (first row)
-    const firstRowValueRaw =
-        selectedField && resultsData?.rows?.[0]?.[selectedField]?.value.raw;
+    const firstRowValueRaw = useMemo(() => {
+        if (!selectedField || !resultsData) return;
+
+        return resultsData.rows?.[0]?.[selectedField]?.value.raw;
+    }, [selectedField, resultsData]);
 
     // value for comparison (second row)
-    const secondRowValueRaw =
-        selectedField && resultsData?.rows?.[1]?.[selectedField]?.value.raw;
-    const isNumber = (i: Field | TableCalculation | undefined, value: any) =>
-        isNumericItem(i) && !(value instanceof Date) && !valueIsNaN(value);
+    const secondRowValueRaw = useMemo(() => {
+        if (!selectedField || !resultsData) return;
+        return resultsData.rows?.[1]?.[selectedField]?.value.raw;
+    }, [selectedField, resultsData]);
 
     const bigNumber = useMemo(() => {
         if (!isNumber(item, firstRowValueRaw)) {
@@ -253,8 +270,9 @@ const useBigNumberConfig = (
         }
     }, [item, firstRowValueRaw, selectedField, bigNumberStyle, resultsData]);
 
-    const unformattedValue =
-        isNumber(item, secondRowValueRaw) && isNumber(item, firstRowValueRaw)
+    const unformattedValue = useMemo(() => {
+        return isNumber(item, secondRowValueRaw) &&
+            isNumber(item, firstRowValueRaw)
             ? calculateComparisonValue(
                   Number(firstRowValueRaw),
                   Number(secondRowValueRaw),
@@ -263,21 +281,24 @@ const useBigNumberConfig = (
             : secondRowValueRaw === undefined
             ? UNDEFINED
             : NOT_APPLICABLE;
+    }, [item, secondRowValueRaw, firstRowValueRaw, comparisonFormat]);
 
     const comparisonDiff = useMemo(() => {
-        return unformattedValue > 0
+        return unformattedValue === UNDEFINED
+            ? ComparisonDiffTypes.UNDEFINED
+            : unformattedValue === NOT_APPLICABLE
+            ? ComparisonDiffTypes.NAN
+            : unformattedValue > 0
             ? ComparisonDiffTypes.POSITIVE
             : unformattedValue < 0
             ? ComparisonDiffTypes.NEGATIVE
             : unformattedValue === 0
             ? ComparisonDiffTypes.NONE
-            : unformattedValue === UNDEFINED
-            ? ComparisonDiffTypes.UNDEFINED
             : ComparisonDiffTypes.NAN;
     }, [unformattedValue]);
 
-    const comparisonValue =
-        unformattedValue === NOT_APPLICABLE
+    const comparisonValue = useMemo(() => {
+        return unformattedValue === NOT_APPLICABLE
             ? NOT_APPLICABLE
             : formatComparisonValue(
                   comparisonFormat,
@@ -286,6 +307,13 @@ const useBigNumberConfig = (
                   unformattedValue,
                   bigNumberStyle,
               );
+    }, [
+        comparisonFormat,
+        comparisonDiff,
+        item,
+        unformattedValue,
+        bigNumberStyle,
+    ]);
 
     const comparisonTooltip = useMemo(() => {
         switch (comparisonDiff) {

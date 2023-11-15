@@ -15,6 +15,7 @@ import {
     Text,
     TextInput,
 } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { uuid4 } from '@sentry/utils';
 import { IconChartBar } from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
@@ -56,22 +57,34 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     const { mutateAsync: createSpaceAsync, isLoading: isCreatingSpace } =
         useSpaceCreateMutation(projectUuid);
 
-    const [spaceUuid, setSpaceUuid] = useState<string | null>();
-    const [name, setName] = useState('');
-    const [description, setDescription] = useState<string>();
-    const [newSpaceName, setNewSpaceName] = useState('');
+    const form = useForm({
+        initialValues: {
+            name: '',
+            spaceUuid: '',
+            description: '',
+            newSpaceName: null,
+        },
+
+        validate: {
+            name: (value) => {
+                return value.length > 0 ? null : 'Name is required';
+            },
+        },
+    });
+
     const [shouldCreateNewSpace, setShouldCreateNewSpace] = useState(false);
 
     const { data: spaces, isLoading: isLoadingSpaces } = useSpaceSummaries(
         projectUuid,
         true,
         {
+            staleTime: 0,
             onSuccess: (data) => {
                 if (data.length > 0) {
                     const currentSpace = defaultSpaceUuid
                         ? data.find((space) => space.uuid === defaultSpaceUuid)
                         : data[0];
-                    setSpaceUuid(currentSpace?.uuid);
+                    form.setFieldValue('spaceUuid', currentSpace?.uuid || '');
                 } else {
                     setShouldCreateNewSpace(true);
                 }
@@ -80,94 +93,79 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     );
     const showSpaceInput = shouldCreateNewSpace || spaces?.length === 0;
 
-    const handleClose = useCallback(() => {
-        setName('');
-        setDescription('');
-        setNewSpaceName('');
-        setSpaceUuid(undefined);
-        setShouldCreateNewSpace(false);
-        onClose?.();
-    }, [onClose]);
+    const handleConfirm = useCallback(
+        async (values) => {
+            let newSpace = showSpaceInput
+                ? await createSpaceAsync({
+                      name: values.newSpaceName,
+                      access: [],
+                      isPrivate: true,
+                  })
+                : undefined;
 
-    const handleConfirm = useCallback(async () => {
-        let newSpace = showSpaceInput
-            ? await createSpaceAsync({
-                  name: newSpaceName,
-                  access: [],
-                  isPrivate: true,
-              })
-            : undefined;
+            const savedQuery = await mutateAsync({
+                ...savedData,
+                name: values.name,
+                description: values.description,
+                spaceUuid: newSpace?.uuid || values.spaceUuid || undefined,
+            });
 
-        const savedQuery = await mutateAsync({
-            ...savedData,
-            name,
-            description,
-            spaceUuid: newSpace?.uuid || spaceUuid || undefined,
-        });
+            setShouldCreateNewSpace(false);
+            onConfirm(savedQuery);
+            return savedQuery;
+        },
+        [savedData, createSpaceAsync, mutateAsync, showSpaceInput, onConfirm],
+    );
 
-        setName('');
-        setDescription('');
-        setNewSpaceName('');
-        setSpaceUuid(undefined);
-        setShouldCreateNewSpace(false);
-        onConfirm(savedQuery);
-        return savedQuery;
-    }, [
-        name,
-        description,
-        savedData,
-        spaceUuid,
-        newSpaceName,
-        createSpaceAsync,
-        mutateAsync,
-        showSpaceInput,
-        onConfirm,
-    ]);
-
-    const handleSaveChartInDashboard = useCallback(async () => {
-        if (!fromDashboard || !unsavedDashboardTiles || !dashboardUuid) return;
-        const newChartInDashboard: CreateChartInDashboard = {
-            ...savedData,
-            name,
-            description,
+    const handleSaveChartInDashboard = useCallback(
+        async (values) => {
+            if (!fromDashboard || !unsavedDashboardTiles || !dashboardUuid)
+                return;
+            const newChartInDashboard: CreateChartInDashboard = {
+                ...savedData,
+                name: values.name,
+                description: values.description,
+                dashboardUuid: values.dashboardUuid,
+            };
+            const newTile: CreateDashboardChartTile = {
+                uuid: uuid4(),
+                type: DashboardTileTypes.SAVED_CHART,
+                properties: {
+                    belongsToDashboard: true,
+                    savedChartUuid: (await mutateAsync(newChartInDashboard))
+                        .uuid,
+                    chartName: newChartInDashboard.name,
+                },
+                ...getDefaultChartTileSize(savedData.chartConfig?.type),
+            };
+            sessionStorage.setItem(
+                'unsavedDashboardTiles',
+                JSON.stringify(
+                    appendNewTilesToBottom(unsavedDashboardTiles ?? [], [
+                        newTile,
+                    ]),
+                ),
+            );
+            sessionStorage.removeItem('fromDashboard');
+            sessionStorage.removeItem('dashboardUuid');
+            history.push(
+                `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+            );
+            showToastSuccess({
+                title: `Success! ${values.name} was added to ${fromDashboard}`,
+            });
+        },
+        [
+            fromDashboard,
+            unsavedDashboardTiles,
             dashboardUuid,
-        };
-        const newTile: CreateDashboardChartTile = {
-            uuid: uuid4(),
-            type: DashboardTileTypes.SAVED_CHART,
-            properties: {
-                belongsToDashboard: true,
-                savedChartUuid: (await mutateAsync(newChartInDashboard)).uuid,
-                chartName: newChartInDashboard.name,
-            },
-            ...getDefaultChartTileSize(savedData.chartConfig?.type),
-        };
-        sessionStorage.setItem(
-            'unsavedDashboardTiles',
-            JSON.stringify(
-                appendNewTilesToBottom(unsavedDashboardTiles ?? [], [newTile]),
-            ),
-        );
-        sessionStorage.removeItem('fromDashboard');
-        sessionStorage.removeItem('dashboardUuid');
-        history.push(
-            `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
-        );
-        showToastSuccess({
-            title: `Success! ${name} was added to ${fromDashboard}`,
-        });
-    }, [
-        fromDashboard,
-        unsavedDashboardTiles,
-        dashboardUuid,
-        mutateAsync,
-        savedData,
-        name,
-        description,
-        history,
-        projectUuid,
-        showToastSuccess,
-    ]);
+            mutateAsync,
+            savedData,
+            history,
+            projectUuid,
+            showToastSuccess,
+        ],
+    );
 
     if (isLoadingSpaces || !spaces) return null;
 
@@ -191,95 +189,99 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                 body: { padding: 0 },
             })}
         >
-            <Stack p="md">
-                <TextInput
-                    label="Enter a memorable name for your chart"
-                    placeholder="eg. How many weekly active users do we have?"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    data-testid="ChartCreateModal/NameInput"
-                />
-                <TextInput
-                    label="Chart description"
-                    placeholder="A few words to give your team some context"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                />
-                {fromDashboard && fromDashboard.length > 0 && (
-                    <Stack spacing="xxs">
-                        <Input.Label>Save to {fromDashboard}</Input.Label>
-                        <Text fw={400} color="gray.6">
-                            This chart will be saved exclusively to the
-                            dashboard "{fromDashboard}", keeping your space
-                            clutter-free.
-                        </Text>
-                    </Stack>
-                )}
-                {!showSpaceInput && !fromDashboard && (
-                    <Stack spacing="xxs">
-                        <Select
-                            label="Select space"
-                            value={spaceUuid}
-                            withinPortal
-                            onChange={(id) => setSpaceUuid(id)}
-                            data={spaces?.map((space) => ({
-                                value: space.uuid,
-                                label: space.name,
-                            }))}
-                        />
-                        <Button
-                            variant="subtle"
-                            compact
-                            onClick={() => setShouldCreateNewSpace(true)}
-                            sx={{
-                                alignSelf: 'start',
-                            }}
-                        >
-                            + Create new space
-                        </Button>
-                    </Stack>
-                )}
-                {showSpaceInput && (
-                    <TextInput
-                        label="Space"
-                        description="Create a new space to add this chart to"
-                        value={newSpaceName}
-                        onChange={(e) => setNewSpaceName(e.target.value)}
-                        placeholder="eg. KPIs"
-                    />
-                )}
-            </Stack>
-
-            <Group
-                position="right"
-                w="100%"
-                sx={(theme) => ({
-                    borderTop: `1px solid ${theme.colors.gray[4]}`,
-                    bottom: 0,
-                    padding: theme.spacing.md,
+            <form
+                onSubmit={form.onSubmit((values) => {
+                    if (fromDashboard && dashboardUuid) {
+                        handleSaveChartInDashboard(values);
+                    } else {
+                        handleConfirm(values);
+                    }
                 })}
             >
-                <Button onClick={handleClose} variant="outline">
-                    Cancel
-                </Button>
+                <Stack p="md">
+                    <TextInput
+                        label="Enter a memorable name for your chart"
+                        placeholder="eg. How many weekly active users do we have?"
+                        required
+                        {...form.getInputProps('name')}
+                        data-testid="ChartCreateModal/NameInput"
+                    />
+                    <TextInput
+                        label="Chart description"
+                        placeholder="A few words to give your team some context"
+                        {...form.getInputProps('description')}
+                    />
+                    {fromDashboard && fromDashboard.length > 0 && (
+                        <Stack spacing="xxs">
+                            <Input.Label>Save to {fromDashboard}</Input.Label>
+                            <Text fw={400} color="gray.6">
+                                This chart will be saved exclusively to the
+                                dashboard "{fromDashboard}", keeping your space
+                                clutter-free.
+                            </Text>
+                        </Stack>
+                    )}
+                    {!showSpaceInput && !fromDashboard && (
+                        <Stack spacing="xxs">
+                            <Select
+                                label="Select space"
+                                withinPortal
+                                data={spaces?.map((space) => ({
+                                    value: space.uuid,
+                                    label: space.name,
+                                }))}
+                                {...form.getInputProps('spaceUuid')}
+                            />
+                            <Button
+                                variant="subtle"
+                                compact
+                                onClick={() => setShouldCreateNewSpace(true)}
+                                sx={{
+                                    alignSelf: 'start',
+                                }}
+                            >
+                                + Create new space
+                            </Button>
+                        </Stack>
+                    )}
+                    {showSpaceInput && (
+                        <TextInput
+                            label="Space"
+                            description="Create a new space to add this chart to"
+                            placeholder="eg. KPIs"
+                            {...form.getInputProps('newSpaceName')}
+                        />
+                    )}
+                </Stack>
 
-                <Button
-                    onClick={
-                        fromDashboard && dashboardUuid
-                            ? handleSaveChartInDashboard
-                            : handleConfirm
-                    }
-                    disabled={
-                        isCreating ||
-                        isCreatingSpace ||
-                        !name ||
-                        (!fromDashboard && showSpaceInput && !newSpaceName)
-                    }
+                <Group
+                    position="right"
+                    w="100%"
+                    sx={(theme) => ({
+                        borderTop: `1px solid ${theme.colors.gray[4]}`,
+                        bottom: 0,
+                        padding: theme.spacing.md,
+                    })}
                 >
-                    Save
-                </Button>
-            </Group>
+                    <Button onClick={onClose} variant="outline">
+                        Cancel
+                    </Button>
+
+                    <Button
+                        type="submit"
+                        disabled={
+                            isCreating ||
+                            isCreatingSpace ||
+                            !form.values.name ||
+                            (!fromDashboard &&
+                                showSpaceInput &&
+                                !form.values.newSpaceName)
+                        }
+                    >
+                        Save
+                    </Button>
+                </Group>
+            </form>
         </Modal>
     );
 };

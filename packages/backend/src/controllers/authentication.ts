@@ -164,9 +164,9 @@ export const redirectOIDC: RequestHandler = (req, res) => {
         new URL(queryReturn, lightdashConfig.siteUrl).host ===
             new URL(lightdashConfig.siteUrl).host
     ) {
-        res.redirect(queryReturn);
+        return res.redirect(queryReturn);
     }
-    res.redirect('/');
+    return res.redirect('/');
 };
 
 export const googlePassportStrategy: GoogleStrategy | undefined = !(

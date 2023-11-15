@@ -1,4 +1,4 @@
-import { Menu, NonIdealState, Portal, Tag } from '@blueprintjs/core';
+import { Menu, NonIdealState, Tag } from '@blueprintjs/core';
 import {
     MenuItem2,
     Popover2,
@@ -6,6 +6,7 @@ import {
 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import {
+    ApiChartAndResults,
     ChartType,
     DashboardChartTile as IDashboardChartTile,
     DashboardFilterRule,
@@ -16,6 +17,7 @@ import {
     getCustomLabelsFromTableConfig,
     getDimensions,
     getFields,
+    getHiddenTableFields,
     getItemMap,
     getVisibleFields,
     hasCustomDimension,
@@ -27,7 +29,7 @@ import {
     SavedChart,
     TableCalculation,
 } from '@lightdash/common';
-import { Box, Text, Tooltip } from '@mantine/core';
+import { Box, Portal, Text, Tooltip } from '@mantine/core';
 import { IconFilter, IconFolders } from '@tabler/icons-react';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
@@ -35,22 +37,17 @@ import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { downloadCsv } from '../../api/csv';
 import { ExportToGoogleSheet } from '../../features/export';
-import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
+import useDashboardChart from '../../hooks/dashboard/useDashboardChart';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
-import useSavedQueryWithDashboardFilters from '../../hooks/dashboard/useSavedQueryWithDashboardFilters';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import useToaster from '../../hooks/toaster/useToaster';
-import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
-import { useChartResults } from '../../hooks/useQueryResults';
-import { useSavedQuery } from '../../hooks/useSavedQuery';
 import { useApp } from '../../providers/AppProvider';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';
-import ErrorState from '../common/ErrorState';
 import { getConditionalRuleLabel } from '../common/Filters/FilterInputs';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
@@ -59,10 +56,12 @@ import ExportCSVModal from '../ExportCSV/ExportCSVModal';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
-import {
+import DrillDownModal from '../MetricQueryData/DrillDownModal';
+import MetricQueryDataProvider, {
     getDataFromChartClick,
     useMetricQueryDataContext,
 } from '../MetricQueryData/MetricQueryDataProvider';
+import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 import TileBase from './TileBase/index';
 import {
@@ -74,36 +73,19 @@ import {
 interface ExportResultAsCSVModalProps {
     projectUuid: string;
     savedChart: SavedChart;
+    rows: ApiChartAndResults['rows'];
     onClose: () => void;
     onConfirm: () => void;
 }
 
 const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
     savedChart,
+    rows,
     onClose,
     onConfirm,
 }) => {
-    const { showToastError } = useToaster();
-    const {
-        data: resultData,
-        isLoading,
-        error,
-    } = useChartResults(savedChart.uuid, savedChart.metricQuery.filters);
-
-    useEffect(() => {
-        if (error) {
-            showToastError({
-                title: 'Error exporting CSV',
-                subtitle: error.error.message,
-                key: 'error-exporting-csv',
-            });
-        }
-    }, [error, showToastError]);
-    if (isLoading || error || !resultData) return null;
-
-    const rows = resultData?.rows;
     const getCsvLink = async (limit: number | null, onlyRaw: boolean) => {
-        const csvResponse = await downloadCsv({
+        return downloadCsv({
             projectUuid: savedChart.projectUuid,
             tableId: savedChart.tableName,
             query: savedChart.metricQuery,
@@ -116,8 +98,8 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
             customLabels: getCustomLabelsFromTableConfig(
                 savedChart.chartConfig.config,
             ),
+            hiddenFields: getHiddenTableFields(savedChart.chartConfig),
         });
-        return csvResponse;
     };
 
     return (
@@ -136,14 +118,19 @@ const ExportGoogleSheet: FC<{ savedChart: SavedChart; disabled?: boolean }> = ({
     disabled,
 }) => {
     const getGsheetLink = async () => {
-        const gsheetResponse = await uploadGsheet({
+        return uploadGsheet({
             projectUuid: savedChart.projectUuid,
             exploreId: savedChart.tableName,
             metricQuery: savedChart.metricQuery,
             columnOrder: savedChart.tableConfig.columnOrder,
-            showTableNames: true,
+            showTableNames: isTableChartConfig(savedChart.chartConfig.config)
+                ? savedChart.chartConfig.config.showTableNames ?? false
+                : true,
+            customLabels: getCustomLabelsFromTableConfig(
+                savedChart.chartConfig.config,
+            ),
+            hiddenFields: getHiddenTableFields(savedChart.chartConfig),
         });
-        return gsheetResponse;
     };
 
     return (
@@ -157,61 +144,66 @@ const ExportGoogleSheet: FC<{ savedChart: SavedChart; disabled?: boolean }> = ({
 
 const ValidDashboardChartTile: FC<{
     tileUuid: string;
-    data: SavedChart;
+    chartAndResults: ApiChartAndResults;
     isTitleHidden?: boolean;
     project: string;
     onSeriesContextMenu?: (
         e: EchartSeriesClickEvent,
         series: EChartSeries[],
     ) => void;
-}> = ({ tileUuid, isTitleHidden = false, data, onSeriesContextMenu }) => {
-    const { addSuggestions, addResultsCacheTime, invalidateCache } =
-        useDashboardContext();
-    const {
-        data: resultData,
-        isLoading,
-        error,
-    } = useChartResults(data.uuid, data.metricQuery.filters, invalidateCache);
-    const { data: explore } = useExplore(data.tableName);
+}> = ({
+    tileUuid,
+    isTitleHidden = false,
+    chartAndResults: { chart, explore, metricQuery, rows, cacheMetadata },
+    onSeriesContextMenu,
+}) => {
+    const addSuggestions = useDashboardContext((c) => c.addSuggestions);
+    const addResultsCacheTime = useDashboardContext(
+        (c) => c.addResultsCacheTime,
+    );
+
     const { health } = useApp();
 
     useEffect(() => {
-        if (resultData) {
-            addSuggestions(
-                resultData.metricQuery.dimensions.reduce((sum, dimensionId) => {
-                    const newSuggestions: string[] =
-                        resultData.rows.reduce<string[]>((acc, row) => {
-                            const value = row[dimensionId]?.value.raw;
-                            if (typeof value === 'string') {
-                                return [...acc, value];
-                            }
-                            return acc;
-                        }, []) || [];
-                    return { ...sum, [dimensionId]: newSuggestions };
-                }, {}),
-            );
-            addResultsCacheTime(resultData.cacheMetadata);
-        }
-    }, [addSuggestions, addResultsCacheTime, resultData]);
+        addSuggestions(
+            metricQuery.dimensions.reduce((sum, dimensionId) => {
+                const newSuggestions: string[] =
+                    rows.reduce<string[]>((acc, row) => {
+                        const value = row[dimensionId]?.value.raw;
+                        if (typeof value === 'string') {
+                            return [...acc, value];
+                        }
+                        return acc;
+                    }, []) || [];
+                return { ...sum, [dimensionId]: newSuggestions };
+            }, {}),
+        );
+        addResultsCacheTime(cacheMetadata);
+    }, [addSuggestions, addResultsCacheTime, metricQuery, cacheMetadata, rows]);
+
+    const resultData = useMemo(
+        () => ({
+            rows,
+            metricQuery,
+            cacheMetadata,
+        }),
+        [rows, metricQuery, cacheMetadata],
+    );
 
     if (health.isLoading || !health.data) {
         return null;
     }
 
-    if (error) {
-        return <ErrorState error={error.error} />;
-    }
-
     return (
         <VisualizationProvider
-            chartType={data.chartConfig.type}
-            initialChartConfig={data.chartConfig}
-            initialPivotDimensions={data.pivotConfig?.columns}
+            chartType={chart.chartConfig.type}
+            initialChartConfig={chart.chartConfig}
+            initialPivotDimensions={chart.pivotConfig?.columns}
             resultsData={resultData}
             explore={explore}
-            isLoading={isLoading}
+            isLoading={false}
             onSeriesContextMenu={onSeriesContextMenu}
-            columnOrder={data.tableConfig.columnOrder}
+            columnOrder={chart.tableConfig.columnOrder}
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
         >
             <LightdashVisualization
@@ -227,35 +219,33 @@ const ValidDashboardChartTileMinimal: FC<{
     tileUuid: string;
     isTitleHidden?: boolean;
     title: string;
-    data: SavedChart;
-}> = ({ tileUuid, data, isTitleHidden = false }) => {
-    const {
-        data: resultData,
-        isLoading,
-        error,
-    } = useChartResults(data.uuid, data.metricQuery.filters);
-    const { data: explore } = useExplore(data.tableName);
-
+    chartAndResults: ApiChartAndResults;
+}> = ({
+    tileUuid,
+    chartAndResults: { chart, metricQuery, explore, rows, cacheMetadata },
+    isTitleHidden = false,
+}) => {
     const { health } = useApp();
+
+    const resultData = useMemo(
+        () => ({ rows, metricQuery, cacheMetadata }),
+        [rows, metricQuery, cacheMetadata],
+    );
 
     if (health.isLoading || !health.data) {
         return null;
     }
 
-    if (error) {
-        return <ErrorState error={error.error} />;
-    }
-
     return (
         <VisualizationProvider
             minimal
-            chartType={data.chartConfig.type}
-            initialChartConfig={data.chartConfig}
-            initialPivotDimensions={data.pivotConfig?.columns}
+            chartType={chart.chartConfig.type}
+            initialChartConfig={chart.chartConfig}
+            initialPivotDimensions={chart.pivotConfig?.columns}
             resultsData={resultData}
+            isLoading={false}
             explore={explore}
-            isLoading={isLoading}
-            columnOrder={data.tableConfig.columnOrder}
+            columnOrder={chart.tableConfig.columnOrder}
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
         >
             <LightdashVisualization
@@ -267,24 +257,13 @@ const ValidDashboardChartTileMinimal: FC<{
     );
 };
 
-const InvalidDashboardChartTile: FC<
-    Pick<DashboardChartTileMainProps, 'tile'>
-> = () => {
-    return (
-        <NonIdealState
-            title="No chart available"
-            description="Chart might have been deleted or you don't have permissions to see it."
-            icon="search"
-        />
-    );
-};
-
 interface DashboardChartTileMainProps
     extends Pick<
         React.ComponentProps<typeof TileBase>,
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
     > {
     tile: IDashboardChartTile;
+    chartAndResults: ApiChartAndResults;
 }
 
 const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
@@ -300,29 +279,27 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 belongsToDashboard,
             },
         },
+        chartAndResults,
         isEditMode,
     } = props;
+    const { chart, explore, metricQuery, rows, appliedDashboardFilters } =
+        chartAndResults;
+
     const { projectUuid, dashboardUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
     }>();
-    const { data: savedQuery, isLoading } = useSavedQuery({
-        id: savedChartUuid || undefined,
-        useQueryOptions: { refetchOnMount: false },
-    });
-    const { data: explore, isLoading: isLoadingExplore } = useExplore(
-        savedQuery?.tableName,
+
+    const addDimensionDashboardFilter = useDashboardContext(
+        (c) => c.addDimensionDashboardFilter,
     );
 
-    const {
-        addDimensionDashboardFilter,
-        setDashboardTiles,
-        dashboardTiles,
-        dashboardFilters: filtersFromCOntext,
-        haveTilesChanged,
-        haveFiltersChanged,
-        dashboard,
-    } = useDashboardContext();
+    const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
+    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const filtersFromContext = useDashboardContext((c) => c.dashboardFilters);
+    const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
+    const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
+    const dashboard = useDashboardContext((c) => c.dashboard);
 
     const { storeDashboard } = useDashboardStorage();
 
@@ -383,7 +360,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             }));
             const serie = series[e.seriesIndex];
             const fields = getFields(explore);
-            const pivot = savedQuery?.pivotConfig?.columns?.[0];
+            const pivot = chart.pivotConfig?.columns?.[0];
             const pivotField = fields.find(
                 (field) => `${field.table}_${field.name}` === pivot,
             );
@@ -419,8 +396,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
             const allItemsMap = getItemMap(
                 explore,
-                savedQuery?.metricQuery.additionalMetrics,
-                savedQuery?.metricQuery.tableCalculations,
+                chart.metricQuery.additionalMetrics,
+                chart.metricQuery.tableCalculations,
             );
 
             const underlyingData = getDataFromChartClick(
@@ -428,25 +405,19 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 allItemsMap,
                 series,
             );
-            const queryDimensions = savedQuery?.metricQuery.dimensions || [];
+            const queryDimensions = chart.metricQuery.dimensions || [];
             setViewUnderlyingDataOptions({
                 ...underlyingData,
                 dimensions: queryDimensions,
             });
         },
-        [explore, savedQuery],
+        [explore, chart],
     );
-
-    const { data: savedQueryWithDashboardFilters, dashboardFilters } =
-        useSavedQueryWithDashboardFilters(tileUuid, savedChartUuid);
-
-    const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
-        tileUuid,
-        explore,
-    );
-
-    const appliedFilterRules = dashboardFilters
-        ? [...dashboardFilters.dimensions, ...dashboardFilters.metrics]
+    const appliedFilterRules = appliedDashboardFilters
+        ? [
+              ...appliedDashboardFilters.dimensions,
+              ...appliedDashboardFilters.metrics,
+          ]
         : [];
 
     const renderFilterRule = useCallback(
@@ -483,16 +454,20 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         [explore],
     );
 
+    const chartWithDashboardFilters = useMemo(
+        () => ({
+            ...chart,
+            metricQuery,
+        }),
+        [chart, metricQuery],
+    );
     const exploreFromHereUrl = useMemo(() => {
-        if (savedQueryWithDashboardFilters) {
-            const { pathname, search } =
-                getExplorerUrlFromCreateSavedChartVersion(
-                    savedQueryWithDashboardFilters.projectUuid,
-                    savedQueryWithDashboardFilters,
-                );
-            return `${pathname}?${search}`;
-        }
-    }, [savedQueryWithDashboardFilters]);
+        const { pathname, search } = getExplorerUrlFromCreateSavedChartVersion(
+            chartWithDashboardFilters.projectUuid,
+            chartWithDashboardFilters,
+        );
+        return `${pathname}?${search}`;
+    }, [chartWithDashboardFilters]);
 
     const userCanManageChart = user.data?.ability?.can('manage', 'SavedChart');
 
@@ -524,11 +499,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         </Tooltip>
                     )
                 }
-                title={title || savedQueryWithDashboardFilters?.name || ''}
-                chartName={savedQueryWithDashboardFilters?.name}
+                title={title || chart.name || ''}
+                chartName={chart.name}
                 titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
-                description={savedQueryWithDashboardFilters?.description}
-                isLoading={isLoading || isLoadingExplore}
+                description={chart.description}
                 belongsToDashboard={belongsToDashboard}
                 extraMenuItems={
                     savedChartUuid !== null &&
@@ -547,7 +521,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                             if (belongsToDashboard) {
                                                 storeDashboard(
                                                     dashboardTiles,
-                                                    filtersFromCOntext,
+                                                    filtersFromContext,
                                                     haveTilesChanged,
                                                     haveFiltersChanged,
                                                     dashboard?.uuid,
@@ -568,258 +542,237 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     />
                                 )}
 
-                                {savedQueryWithDashboardFilters &&
-                                    savedQueryWithDashboardFilters.chartConfig
-                                        .type === ChartType.TABLE && (
-                                        <MenuItem2
-                                            icon="export"
-                                            text="Export CSV"
-                                            disabled={isEditMode}
-                                            onClick={() =>
-                                                setIsCSVExportModalOpen(true)
-                                            }
-                                        />
-                                    )}
-                                {savedQueryWithDashboardFilters &&
-                                    savedQueryWithDashboardFilters.chartConfig
-                                        .type === ChartType.TABLE && (
-                                        <ExportGoogleSheet
-                                            savedChart={
-                                                savedQueryWithDashboardFilters
-                                            }
-                                            disabled={isEditMode}
-                                        />
-                                    )}
+                                {chart.chartConfig.type === ChartType.TABLE && (
+                                    <MenuItem2
+                                        icon="export"
+                                        text="Export CSV"
+                                        disabled={isEditMode}
+                                        onClick={() =>
+                                            setIsCSVExportModalOpen(true)
+                                        }
+                                    />
+                                )}
+                                {chart.chartConfig.type === ChartType.TABLE && (
+                                    <ExportGoogleSheet
+                                        savedChart={chartWithDashboardFilters}
+                                        disabled={isEditMode}
+                                    />
+                                )}
 
-                                {savedQueryWithDashboardFilters?.dashboardUuid &&
-                                    userCanManageChart && (
-                                        <MenuItem2
-                                            icon={<IconFolders size={16} />}
-                                            text="Move to space"
-                                            onClick={() =>
-                                                setIsMovingChart(true)
-                                            }
-                                            disabled={isEditMode}
-                                        />
-                                    )}
+                                {chart.dashboardUuid && userCanManageChart && (
+                                    <MenuItem2
+                                        icon={<IconFolders size={16} />}
+                                        text="Move to space"
+                                        onClick={() => setIsMovingChart(true)}
+                                        disabled={isEditMode}
+                                    />
+                                )}
                             </Box>
                         </Tooltip>
                     )
                 }
                 {...props}
             >
-                {savedQueryWithDashboardFilters ? (
-                    <>
-                        <Popover2
-                            content={
-                                <div onContextMenu={cancelContextMenu}>
-                                    <Menu>
-                                        {viewUnderlyingDataOptions?.value && (
-                                            <CopyToClipboard
-                                                text={
-                                                    viewUnderlyingDataOptions
-                                                        .value.formatted
-                                                }
-                                                onCopy={() => {
-                                                    showToastSuccess({
-                                                        title: 'Copied to clipboard!',
+                <>
+                    <Popover2
+                        content={
+                            <div onContextMenu={cancelContextMenu}>
+                                <Menu>
+                                    {viewUnderlyingDataOptions?.value && (
+                                        <CopyToClipboard
+                                            text={
+                                                viewUnderlyingDataOptions.value
+                                                    .formatted
+                                            }
+                                            onCopy={() => {
+                                                showToastSuccess({
+                                                    title: 'Copied to clipboard!',
+                                                });
+                                            }}
+                                        >
+                                            <MenuItem2
+                                                text="Copy value"
+                                                icon="duplicate"
+                                            />
+                                        </CopyToClipboard>
+                                    )}
+                                    <Can
+                                        I="view"
+                                        this={subject('UnderlyingData', {
+                                            organizationUuid:
+                                                user.data?.organizationUuid,
+                                            projectUuid: projectUuid,
+                                        })}
+                                    >
+                                        {' '}
+                                        {!hasCustomDimension(metricQuery) && (
+                                            <MenuItem2
+                                                text="View underlying data"
+                                                icon="layers"
+                                                onClick={() => {
+                                                    if (
+                                                        !viewUnderlyingDataOptions
+                                                    ) {
+                                                        return;
+                                                    }
+
+                                                    openUnderlyingDataModal({
+                                                        ...viewUnderlyingDataOptions,
+                                                        dashboardFilters:
+                                                            appliedDashboardFilters,
+                                                    });
+                                                    track({
+                                                        name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                                                        properties: {
+                                                            organizationId:
+                                                                user?.data
+                                                                    ?.organizationUuid,
+                                                            userId: user?.data
+                                                                ?.userUuid,
+                                                            projectId:
+                                                                projectUuid,
+                                                        },
                                                     });
                                                 }}
-                                            >
-                                                <MenuItem2
-                                                    text="Copy value"
-                                                    icon="duplicate"
-                                                />
-                                            </CopyToClipboard>
+                                            />
                                         )}
-                                        <Can
-                                            I="view"
-                                            this={subject('UnderlyingData', {
-                                                organizationUuid:
-                                                    user.data?.organizationUuid,
-                                                projectUuid: projectUuid,
-                                            })}
-                                        >
-                                            {' '}
-                                            {!hasCustomDimension(
-                                                savedQuery?.metricQuery,
-                                            ) && (
-                                                <MenuItem2
-                                                    text="View underlying data"
-                                                    icon="layers"
-                                                    onClick={() => {
-                                                        if (
-                                                            !viewUnderlyingDataOptions
-                                                        ) {
-                                                            return;
-                                                        }
+                                    </Can>
 
-                                                        openUnderlyingDataModal(
-                                                            {
-                                                                ...viewUnderlyingDataOptions,
-                                                                dashboardFilters:
-                                                                    dashboardFiltersThatApplyToChart,
-                                                            },
-                                                        );
+                                    <Can
+                                        I="manage"
+                                        this={subject('Explore', {
+                                            organizationUuid:
+                                                user.data?.organizationUuid,
+                                            projectUuid: projectUuid,
+                                        })}
+                                    >
+                                        <DrillDownMenuItem
+                                            {...viewUnderlyingDataOptions}
+                                            dashboardFilters={
+                                                appliedDashboardFilters
+                                            }
+                                            trackingData={{
+                                                organizationId:
+                                                    user.data?.organizationUuid,
+                                                userId: user.data?.userUuid,
+                                                projectId: projectUuid,
+                                            }}
+                                        />
+                                    </Can>
+                                    <MenuItem2
+                                        icon="filter"
+                                        text="Filter dashboard to..."
+                                    >
+                                        {dashboardTileFilterOptions.map(
+                                            (filter) => (
+                                                <MenuItem2
+                                                    key={filter.id}
+                                                    text={`${friendlyName(
+                                                        filter.target.fieldId,
+                                                    )} is ${
+                                                        filter.values &&
+                                                        filter.values[0]
+                                                    }`}
+                                                    onClick={() => {
                                                         track({
-                                                            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                                                            name: EventName.ADD_FILTER_CLICKED,
                                                             properties: {
-                                                                organizationId:
-                                                                    user?.data
-                                                                        ?.organizationUuid,
-                                                                userId: user
-                                                                    ?.data
-                                                                    ?.userUuid,
-                                                                projectId:
-                                                                    projectUuid,
+                                                                mode: isEditMode
+                                                                    ? 'edit'
+                                                                    : 'viewer',
                                                             },
                                                         });
+
+                                                        const fields = explore
+                                                            ? getFields(explore)
+                                                            : [];
+                                                        const field =
+                                                            fields.find(
+                                                                (f) =>
+                                                                    fieldId(
+                                                                        f,
+                                                                    ) ===
+                                                                    filter
+                                                                        .target
+                                                                        .fieldId,
+                                                            );
+
+                                                        track({
+                                                            name: EventName.CROSS_FILTER_DASHBOARD_APPLIED,
+                                                            properties: {
+                                                                fieldType:
+                                                                    field?.type,
+                                                                projectId:
+                                                                    projectUuid,
+                                                                dashboardId:
+                                                                    dashboardUuid,
+                                                            },
+                                                        });
+
+                                                        addDimensionDashboardFilter(
+                                                            filter,
+                                                            !isEditMode,
+                                                        );
                                                     }}
                                                 />
-                                            )}
-                                        </Can>
-
-                                        <Can
-                                            I="manage"
-                                            this={subject('Explore', {
-                                                organizationUuid:
-                                                    user.data?.organizationUuid,
-                                                projectUuid: projectUuid,
-                                            })}
-                                        >
-                                            <DrillDownMenuItem
-                                                {...viewUnderlyingDataOptions}
-                                                dashboardFilters={
-                                                    dashboardFiltersThatApplyToChart
-                                                }
-                                                trackingData={{
-                                                    organizationId:
-                                                        user.data
-                                                            ?.organizationUuid,
-                                                    userId: user.data?.userUuid,
-                                                    projectId: projectUuid,
-                                                }}
-                                            />
-                                        </Can>
-                                        <MenuItem2
-                                            icon="filter"
-                                            text="Filter dashboard to..."
-                                        >
-                                            {dashboardTileFilterOptions.map(
-                                                (filter) => (
-                                                    <MenuItem2
-                                                        key={filter.id}
-                                                        text={`${friendlyName(
-                                                            filter.target
-                                                                .fieldId,
-                                                        )} is ${
-                                                            filter.values &&
-                                                            filter.values[0]
-                                                        }`}
-                                                        onClick={() => {
-                                                            track({
-                                                                name: EventName.ADD_FILTER_CLICKED,
-                                                                properties: {
-                                                                    mode: isEditMode
-                                                                        ? 'edit'
-                                                                        : 'viewer',
-                                                                },
-                                                            });
-
-                                                            const fields =
-                                                                explore
-                                                                    ? getFields(
-                                                                          explore,
-                                                                      )
-                                                                    : [];
-                                                            const field =
-                                                                fields.find(
-                                                                    (f) =>
-                                                                        fieldId(
-                                                                            f,
-                                                                        ) ===
-                                                                        filter
-                                                                            .target
-                                                                            .fieldId,
-                                                                );
-
-                                                            track({
-                                                                name: EventName.CROSS_FILTER_DASHBOARD_APPLIED,
-                                                                properties: {
-                                                                    fieldType:
-                                                                        field?.type,
-                                                                    projectId:
-                                                                        projectUuid,
-                                                                    dashboardId:
-                                                                        dashboardUuid,
-                                                                },
-                                                            });
-
-                                                            addDimensionDashboardFilter(
-                                                                filter,
-                                                                !isEditMode,
-                                                            );
-                                                        }}
-                                                    />
-                                                ),
-                                            )}
-                                        </MenuItem2>
-                                    </Menu>
-                                </div>
-                            }
-                            enforceFocus={false}
-                            hasBackdrop={true}
-                            isOpen={contextMenuIsOpen}
-                            minimal={true}
-                            onClose={() => setContextMenuIsOpen(false)}
-                            placement="right-start"
-                            positioningStrategy="fixed"
-                            rootBoundary={'viewport'}
-                            renderTarget={contextMenuRenderTarget}
-                            transitionDuration={100}
-                        />
-                        <ValidDashboardChartTile
-                            tileUuid={tileUuid}
-                            data={savedQueryWithDashboardFilters}
-                            project={projectUuid}
-                            isTitleHidden={hideTitle}
-                            onSeriesContextMenu={onSeriesContextMenu}
-                        />
-                    </>
-                ) : (
-                    <InvalidDashboardChartTile tile={props.tile} />
-                )}
+                                            ),
+                                        )}
+                                    </MenuItem2>
+                                </Menu>
+                            </div>
+                        }
+                        enforceFocus={false}
+                        hasBackdrop={true}
+                        isOpen={contextMenuIsOpen}
+                        minimal={true}
+                        onClose={() => setContextMenuIsOpen(false)}
+                        placement="right-start"
+                        positioningStrategy="fixed"
+                        rootBoundary={'viewport'}
+                        renderTarget={contextMenuRenderTarget}
+                        transitionDuration={100}
+                    />
+                    <ValidDashboardChartTile
+                        tileUuid={tileUuid}
+                        chartAndResults={chartAndResults}
+                        project={projectUuid}
+                        isTitleHidden={hideTitle}
+                        onSeriesContextMenu={onSeriesContextMenu}
+                    />
+                </>
             </TileBase>
-            {savedQueryWithDashboardFilters?.spaceUuid && (
+            {chart.spaceUuid && (
                 <MoveChartThatBelongsToDashboardModal
                     className={'non-draggable'}
-                    uuid={savedQueryWithDashboardFilters.uuid}
-                    name={savedQueryWithDashboardFilters.name}
-                    spaceUuid={savedQueryWithDashboardFilters.spaceUuid}
-                    spaceName={savedQueryWithDashboardFilters.spaceName}
+                    uuid={chart.uuid}
+                    name={chart.name}
+                    spaceUuid={chart.spaceUuid}
+                    spaceName={chart.spaceName}
                     opened={isMovingChart}
                     onClose={() => setIsMovingChart(false)}
                     onConfirm={() => {
-                        setDashboardTiles((currentDashboardTiles) =>
-                            currentDashboardTiles.map((tile) =>
-                                tile.uuid === tileUuid && isChartTile(tile)
-                                    ? {
-                                          ...tile,
-                                          properties: {
-                                              ...tile.properties,
-                                              belongsToDashboard: false,
-                                          },
-                                      }
-                                    : tile,
-                            ),
+                        setDashboardTiles(
+                            (currentDashboardTiles) =>
+                                currentDashboardTiles?.map((tile) =>
+                                    tile.uuid === tileUuid && isChartTile(tile)
+                                        ? {
+                                              ...tile,
+                                              properties: {
+                                                  ...tile.properties,
+                                                  belongsToDashboard: false,
+                                              },
+                                          }
+                                        : tile,
+                                ) ?? [],
                         );
                     }}
                 />
             )}
-            {savedQueryWithDashboardFilters && isCSVExportModalOpen ? (
+            {isCSVExportModalOpen ? (
                 <ExportResultAsCSVModal
                     projectUuid={projectUuid}
-                    savedChart={savedQueryWithDashboardFilters}
+                    savedChart={chartWithDashboardFilters}
+                    rows={rows}
                     onClose={() => setIsCSVExportModalOpen(false)}
                     onConfirm={() => setIsCSVExportModalOpen(false)}
                 />
@@ -834,48 +787,70 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
             uuid: tileUuid,
             properties: { savedChartUuid, hideTitle, title },
         },
+        chartAndResults,
     } = props;
+    const { chart } = chartAndResults;
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const { isLoading, data } = useSavedQueryWithDashboardFilters(
-        tileUuid,
-        savedChartUuid,
-    );
     return (
         <TileBase
-            title={title || data?.name || ''}
+            title={title || chart.name || ''}
             titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
-            description={data?.description}
-            isLoading={isLoading}
+            description={chart.description}
+            isLoading={false}
             {...props}
         >
-            {data ? (
-                <ValidDashboardChartTileMinimal
-                    tileUuid={tileUuid}
-                    isTitleHidden={hideTitle}
-                    data={data}
-                    title={title || data.name}
-                />
-            ) : (
-                <InvalidDashboardChartTile tile={props.tile} />
-            )}
+            <ValidDashboardChartTileMinimal
+                tileUuid={tileUuid}
+                isTitleHidden={hideTitle}
+                chartAndResults={chartAndResults}
+                title={title || chart.name}
+            />
         </TileBase>
     );
 };
 
-interface DashboardChartTileProps extends DashboardChartTileMainProps {
+type DashboardChartTileProps = Omit<
+    DashboardChartTileMainProps,
+    'chartAndResults'
+> & {
     minimal?: boolean;
-}
+};
 
 const DashboardChartTile: FC<DashboardChartTileProps> = ({
     minimal = false,
     ...rest
 }) => {
-    if (minimal) {
-        return <DashboardChartTileMinimal {...rest} />;
-    } else {
-        return <DashboardChartTileMain {...rest} />;
-    }
+    const { isLoading, data, error } = useDashboardChart(
+        rest.tile.uuid,
+        rest.tile.properties?.savedChartUuid ?? null,
+    );
+    if (isLoading) return <TileBase isLoading={true} title={''} {...rest} />;
+
+    if (error !== null || !data)
+        return (
+            <TileBase title={''} {...rest}>
+                <NonIdealState
+                    icon="error"
+                    title={error?.error?.message || 'No data available'}
+                ></NonIdealState>
+            </TileBase>
+        );
+
+    return (
+        <MetricQueryDataProvider
+            metricQuery={data?.metricQuery}
+            tableName={data?.chart.tableName || ''}
+        >
+            {minimal ? (
+                <DashboardChartTileMinimal {...rest} chartAndResults={data} />
+            ) : (
+                <DashboardChartTileMain {...rest} chartAndResults={data} />
+            )}
+            <UnderlyingDataModal />
+            <DrillDownModal />
+        </MetricQueryDataProvider>
+    );
 };
 
 export default DashboardChartTile;

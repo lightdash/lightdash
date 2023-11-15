@@ -10,4 +10,5 @@ export type DownloadMetricCsv = {
     showTableNames: boolean;
     customLabels: Record<string, string> | undefined;
     columnOrder: string[];
+    hiddenFields: string[] | undefined;
 };

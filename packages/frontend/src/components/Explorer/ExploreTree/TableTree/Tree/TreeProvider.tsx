@@ -158,6 +158,7 @@ type Props = {
     searchQuery?: string;
     itemsMap: Record<string, Item>;
     selectedItems: Set<string>;
+    missingCustomMetrics?: AdditionalMetric[];
     onItemClick: (key: string, item: Item) => void;
 };
 
@@ -174,6 +175,7 @@ export const TreeProvider: FC<Props> = ({
     children,
     itemsMap,
     selectedItems,
+    missingCustomMetrics,
     ...rest
 }) => {
     const nodeMap = getNodeMapFromItemsMap(itemsMap, selectedItems);
@@ -188,6 +190,7 @@ export const TreeProvider: FC<Props> = ({
                 isSearching,
                 searchQuery,
                 searchResults,
+                missingCustomMetrics,
                 ...rest,
             }}
         >

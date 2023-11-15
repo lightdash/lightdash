@@ -18,6 +18,7 @@ import Routes from './Routes';
 const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
+            staleTime: 30000, // 30 seconds
             refetchOnWindowFocus: false,
             onError: async (result) => {
                 // @ts-ignore

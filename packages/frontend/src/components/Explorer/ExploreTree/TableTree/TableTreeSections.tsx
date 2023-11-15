@@ -17,6 +17,7 @@ type Props = {
     additionalMetrics: AdditionalMetric[];
     selectedItems: Set<string>;
     onSelectedNodeChange: (itemId: string, isDimension: boolean) => void;
+    missingCustomMetrics: AdditionalMetric[];
     customDimensions?: CustomDimension[];
 };
 const TableTreeSections: FC<Props> = ({
@@ -25,6 +26,7 @@ const TableTreeSections: FC<Props> = ({
     additionalMetrics,
     customDimensions,
     selectedItems,
+    missingCustomMetrics,
     onSelectedNodeChange,
 }) => {
     const dimensions = useMemo(() => {
@@ -42,13 +44,14 @@ const TableTreeSections: FC<Props> = ({
     }, [table.metrics]);
 
     const customMetrics = useMemo(() => {
-        return additionalMetrics
-            .filter((metric) => metric.table === table.name)
-            .reduce<Record<string, AdditionalMetric>>(
-                (acc, item) => ({ ...acc, [getItemId(item)]: item }),
-                {},
-            );
-    }, [additionalMetrics, table]);
+        const customMetricsTable = additionalMetrics.filter(
+            (metric) => metric.table === table.name,
+        );
+
+        return [...customMetricsTable, ...missingCustomMetrics].reduce<
+            Record<string, AdditionalMetric>
+        >((acc, item) => ({ ...acc, [getItemId(item)]: item }), {});
+    }, [additionalMetrics, , missingCustomMetrics, table]);
     const customDimensionsMap = useMemo(() => {
         if (customDimensions === undefined) return undefined;
         return customDimensions
@@ -172,6 +175,7 @@ const TableTreeSections: FC<Props> = ({
                     searchQuery={searchQuery}
                     itemsMap={customMetrics}
                     selectedItems={selectedItems}
+                    missingCustomMetrics={missingCustomMetrics}
                     onItemClick={(key) => onSelectedNodeChange(key, false)}
                 >
                     <TreeRoot />

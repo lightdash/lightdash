@@ -1,4 +1,9 @@
-import { fieldId, isField } from '@lightdash/common';
+import {
+    fieldId,
+    getCustomDimensionId,
+    isCustomDimension,
+    isField,
+} from '@lightdash/common';
 import { Box, Button, Stack, Switch, Tooltip } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import FieldSelect from '../../common/FieldSelect';
@@ -31,7 +36,10 @@ const PieChartLayoutConfig: React.FC = () => {
             <Stack spacing="xs">
                 {groupFieldIds.map((dimensionId, index) => {
                     const selectedDimension = allDimensions.find(
-                        (d) => fieldId(d) === dimensionId,
+                        (d) =>
+                            (isCustomDimension(d)
+                                ? getCustomDimensionId(d)
+                                : fieldId(d)) === dimensionId,
                     );
 
                     return (
@@ -50,7 +58,11 @@ const PieChartLayoutConfig: React.FC = () => {
                                 if (!dimensionId) return;
 
                                 if (newField) {
-                                    const newFieldId = fieldId(newField);
+                                    const newFieldId = isCustomDimension(
+                                        newField,
+                                    )
+                                        ? getCustomDimensionId(newField)
+                                        : fieldId(newField);
                                     if (newFieldId !== dimensionId) {
                                         groupChange(dimensionId, newFieldId);
                                     }

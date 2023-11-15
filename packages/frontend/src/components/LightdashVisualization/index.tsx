@@ -1,5 +1,6 @@
 import { assertUnreachable, ChartType } from '@lightdash/common';
 import { FC, memo } from 'react';
+import CustomVisualization from '../CustomVisualization';
 import SimpleChart from '../SimpleChart';
 import SimplePieChart from '../SimplePieChart';
 import SimpleStatistic from '../SimpleStatistic';
@@ -70,6 +71,14 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                         {...props}
                     />
                 );
+            case ChartType.CUSTOM:
+                return (
+                    <CustomVisualization
+                        data-testid={props['data-testid']}
+                        className={className}
+                    />
+                );
+
             default:
                 return assertUnreachable(
                     chartType,

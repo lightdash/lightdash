@@ -34,6 +34,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
         isSearching,
         searchResults,
         searchQuery,
+        missingCustomMetrics,
         onItemClick,
     } = useTableTreeContext();
     const { isFilteredField } = useFilters();
@@ -57,7 +58,15 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
 
     const isFiltered = isField(item) && isFilteredField(item);
 
-    const label = isField(item) ? timeIntervalLabel || item.label : item.name;
+    const label =
+        isField(item) || isAdditionalMetric(item)
+            ? timeIntervalLabel || item.label || item.name
+            : item.name;
+
+    const isMissing =
+        isAdditionalMetric(item) &&
+        missingCustomMetrics &&
+        missingCustomMetrics.includes(item);
     const description = isField(item) ? item.description : undefined;
     const bgColor = getItemBgColor(item);
 
@@ -83,11 +92,15 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                 },
             }}
             icon={
-                <FieldIcon
-                    item={item}
-                    color={getFieldIconColor(item)}
-                    size="md"
-                />
+                isMissing ? (
+                    <MantineIcon icon={IconAlertTriangle} color="gray.7" />
+                ) : (
+                    <FieldIcon
+                        item={item}
+                        color={getFieldIconColor(item)}
+                        size="md"
+                    />
+                )
             }
             onClick={() => onItemClick(node.key, item)}
             onMouseEnter={() => toggle(true)}
@@ -98,8 +111,12 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                         withinPortal
                         multiline
                         sx={{ whiteSpace: 'normal' }}
-                        disabled={!description}
-                        label={description}
+                        disabled={!description && !isMissing}
+                        label={
+                            isMissing
+                                ? `This field from '${item.table}' table is no longer available`
+                                : description
+                        }
                         position="top-start"
                         maw={700}
                     >

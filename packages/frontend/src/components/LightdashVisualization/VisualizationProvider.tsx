@@ -47,7 +47,6 @@ type VisualizationContext = {
     tableConfig: ReturnType<typeof useTableConfig>;
     pivotDimensions: string[] | undefined;
     explore: Explore | undefined;
-    originalData: ApiQueryResults['rows'];
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     columnOrder: string[];
@@ -273,6 +272,9 @@ const VisualizationProvider: FC<Props> = ({
             case ChartType.PIE:
                 validConfig = validPieChartConfig;
                 break;
+            case ChartType.CUSTOM:
+                validConfig = {};
+                break;
             default:
                 assertUnreachable(
                     chartType,
@@ -304,7 +306,6 @@ const VisualizationProvider: FC<Props> = ({
             chartRef,
             chartType,
             explore,
-            originalData: lastValidResultsData?.rows || [],
             resultsData: lastValidResultsData,
             isLoading,
             columnOrder,

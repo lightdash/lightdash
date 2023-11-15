@@ -351,7 +351,7 @@ const MetricFlowPage = () => {
                             </>
                         }
                         isOpen={true}
-                        shouldExpand
+                        isVisualizationCard
                         onToggle={() => undefined}
                     >
                         <LightdashVisualization className="sentry-block ph-no-capture" />

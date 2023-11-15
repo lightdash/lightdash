@@ -1,3 +1,9 @@
+import {
+    Field,
+    getItemLabel,
+    getItemLabelWithoutTableName,
+    TableCalculation,
+} from '@lightdash/common';
 import { google, sheets_v4 } from 'googleapis';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import Logger from '../../logging/logger';
@@ -193,7 +199,13 @@ export class GoogleDriveClient {
         refreshToken: string,
         fileId: string,
         csvContent: Record<string, string>[],
+        itemMap: Record<string, Field | TableCalculation>,
+        showTableNames: boolean,
+
         tabName?: string,
+        columnOrder: string[] = [],
+        customLabels: Record<string, string> = {},
+        hiddenFields: string[] = [],
     ) {
         if (!this.isEnabled) {
             throw new Error('Google Drive is not enabled');
@@ -210,18 +222,40 @@ export class GoogleDriveClient {
             return;
         }
 
-        const header = Object.keys(csvContent[0]);
+        const sortedFieldIds = Object.keys(csvContent[0])
+            .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b))
+            .filter((id) => !hiddenFields.includes(id));
+
+        const csvHeader = sortedFieldIds.map((id) => {
+            if (customLabels[id]) {
+                return customLabels[id];
+            }
+            if (itemMap[id]) {
+                return showTableNames
+                    ? getItemLabel(itemMap[id])
+                    : getItemLabelWithoutTableName(itemMap[id]);
+            }
+            return id;
+        });
+
         Logger.info(
-            `Writing ${csvContent.length} rows and ${header.length} columns to Google sheets`,
+            `Writing ${csvContent.length} rows and ${sortedFieldIds.length} columns to Google sheets`,
         );
-        const values = csvContent.map((row) => Object.values(row));
+
+        const values = csvContent.map((row) =>
+            sortedFieldIds.map((fieldId) => {
+                // Google sheet doesn't like arrays as values, so we need to convert them to strings
+                const value = row[fieldId];
+                return Array.isArray(value) ? value.join(',') : value;
+            }),
+        );
 
         await sheets.spreadsheets.values.update({
             spreadsheetId: fileId,
             range: tabName ? `${tabName}!A1` : 'A1',
             valueInputOption: 'RAW',
             requestBody: {
-                values: [header, ...values],
+                values: [csvHeader, ...values],
             },
         });
     }

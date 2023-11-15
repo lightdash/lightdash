@@ -61,6 +61,7 @@ type Props = {
     additionalMetrics: AdditionalMetric[];
     selectedItems: Set<string>;
     onSelectedNodeChange: (itemId: string, isDimension: boolean) => void;
+    missingCustomMetrics: AdditionalMetric[];
     customDimensions?: CustomDimension[];
 };
 
@@ -88,6 +89,7 @@ const TableTree: FC<Props> = ({
     table,
     additionalMetrics,
     customDimensions,
+    missingCustomMetrics,
 
     ...rest
 }) => {
@@ -101,6 +103,7 @@ const TableTree: FC<Props> = ({
                         table={table}
                         additionalMetrics={additionalMetrics}
                         customDimensions={customDimensions}
+                        missingCustomMetrics={missingCustomMetrics}
                         {...rest}
                     />
                 </Wrapper>

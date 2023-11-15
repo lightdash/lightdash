@@ -36,6 +36,7 @@ import {
 export enum ExplorerSection {
     FILTERS = 'FILTERS',
     VISUALIZATION = 'VISUALIZATION',
+    CUSTOMVISUALIZATION = 'CUSTOMVISUALIZATION',
     RESULTS = 'RESULTS',
     SQL = 'SQL',
 }
@@ -352,6 +353,9 @@ export const getValidChartConfig = (
                 type,
                 config: isPieChartConfig(config) ? config : {},
             };
+        }
+        case ChartType.CUSTOM: {
+            return { type, config: {} };
         }
         default:
             return assertUnreachable(type, 'Invalid chart type');
@@ -764,7 +768,8 @@ function reducer(
                                 .customDimensions || []
                         ).filter(
                             (customDimension) =>
-                                getFieldId(customDimension) !== action.payload,
+                                getCustomDimensionId(customDimension) !==
+                                action.payload,
                         ),
                         dimensions:
                             state.unsavedChartVersion.metricQuery.dimensions.filter(

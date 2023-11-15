@@ -1,5 +1,6 @@
 import {
     fieldId,
+    getCustomDimensionId,
     getItemId,
     isCustomDimension,
     isField,
@@ -186,7 +187,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     color="red"
                     onClick={() => {
                         if (isItemCustomDimension) {
-                            removeCustomDimension(fieldId(item));
+                            removeCustomDimension(getCustomDimensionId(item));
                         } else {
                             track({
                                 name: EventName.DELETE_TABLE_CALCULATION_BUTTON_CLICKED,

@@ -1,7 +1,8 @@
 import {
+    ApiChartAndResults,
     ApiError,
     ApiQueryResults,
-    Filters,
+    DashboardFilters,
     getCustomDimensionId,
     MetricQuery,
 } from '@lightdash/common';
@@ -9,7 +10,10 @@ import { useCallback, useMemo } from 'react';
 import { useMutation, useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { convertDateFilters } from '../utils/dateFilter';
+import {
+    convertDateDashboardFilters,
+    convertDateFilters,
+} from '../utils/dateFilter';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
@@ -24,18 +28,18 @@ type QueryResultsProps = {
 // This API call will be used for getting charts in view mode and dashboard tiles
 const getChartResults = async ({
     chartUuid,
-    filters,
+    dashboardFilters,
     invalidateCache,
 }: {
     chartUuid?: string;
-    filters?: Filters;
+    dashboardFilters?: DashboardFilters;
     invalidateCache?: boolean;
 }) => {
-    return lightdashApi<ApiQueryResults>({
+    return lightdashApi<ApiChartAndResults>({
         url: `/saved/${chartUuid}/results`,
         method: 'POST',
         body: JSON.stringify({
-            filters,
+            dashboardFilters,
             ...(invalidateCache && { invalidateCache: true }),
         }),
     });
@@ -169,26 +173,28 @@ export const useUnderlyingDataResults = (
 
 // This hook will be used for getting charts in view mode and dashboard tiles
 export const useChartResults = (
-    chartUuid: string,
-    filters?: Filters,
+    chartUuid: string | null,
+    dashboardFilters?: DashboardFilters,
     invalidateCache?: boolean,
 ) => {
     const queryKey = [
         'savedChartResults',
         chartUuid,
-        JSON.stringify(filters),
+        dashboardFilters,
         invalidateCache,
     ];
-    const timezoneFixFilters = filters && convertDateFilters(filters);
+    const timezoneFixFilters =
+        dashboardFilters && convertDateDashboardFilters(dashboardFilters);
 
-    return useQuery<ApiQueryResults, ApiError>({
+    return useQuery<ApiChartAndResults, ApiError>({
         queryKey,
         queryFn: () =>
             getChartResults({
-                chartUuid,
-                filters: timezoneFixFilters,
+                chartUuid: chartUuid!,
+                dashboardFilters: timezoneFixFilters,
                 invalidateCache,
             }),
+        enabled: !!chartUuid,
         retry: false,
         refetchOnMount: false,
     });

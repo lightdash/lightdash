@@ -15,16 +15,8 @@ const useSentry = (
                 dsn: sentryConfig.dsn,
                 release: sentryConfig.release,
                 environment: sentryConfig.environment,
-                integrations: [
-                    new Integrations.BrowserTracing(),
-                    new Sentry.Replay({
-                        maskAllText: false,
-                        blockAllMedia: true,
-                    }),
-                ],
+                integrations: [new Integrations.BrowserTracing()],
                 tracesSampleRate: 0.2,
-                replaysOnErrorSampleRate: 1.0,
-                replaysSessionSampleRate: 0.0,
             });
             setIsSentryLoaded(true);
         }

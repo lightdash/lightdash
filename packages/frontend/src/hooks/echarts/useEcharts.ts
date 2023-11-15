@@ -725,7 +725,6 @@ const getSimpleSeries = ({
 
 const getEchartsSeries = (
     items: Array<Field | TableCalculation | CustomDimension>,
-    originalData: ApiQueryResults['rows'],
     cartesianChart: CartesianChart,
     pivotKeys: string[] | undefined,
     formats: Record<string, TableCalculation | Field> | undefined,
@@ -1252,7 +1251,6 @@ const useEcharts = (
     const {
         cartesianConfig: { validCartesianConfig },
         explore,
-        originalData,
         pivotDimensions,
         resultsData,
     } = context;
@@ -1332,7 +1330,6 @@ const useEcharts = (
 
         return getEchartsSeries(
             items,
-            originalData,
             validCartesianConfig,
             pivotDimensions,
             formats,
@@ -1342,7 +1339,6 @@ const useEcharts = (
         validCartesianConfig,
         resultsData,
         pivotDimensions,
-        originalData,
         formats,
         items,
     ]);
