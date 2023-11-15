@@ -6,8 +6,8 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Flex, Menu } from '@mantine/core';
 import {
-    IconCaretDownFilled,
-    IconCaretUpFilled,
+    IconArrowDown,
+    IconArrowUp,
     IconCheck,
     IconChevronDown,
 } from '@tabler/icons-react';
@@ -105,7 +105,7 @@ const DashboardHeaderContextMenu: FC<HeaderProps & { tileUuid: string }> = ({
             (s) => s.fieldId === getItemId(item),
         );
         if (sort) {
-            return sort.descending ? IconCaretDownFilled : IconCaretUpFilled;
+            return sort.descending ? IconArrowDown : IconArrowUp;
         } else {
             return undefined;
         }
