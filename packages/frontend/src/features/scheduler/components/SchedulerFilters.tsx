@@ -29,7 +29,7 @@ import {
 import { useProject } from '../../../hooks/useProject';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 
-type SchedulerFilterRule = DashboardFilterRule & {
+type SchedulerFilterRule = Omit<DashboardFilterRule, 'tileTargets'> & {
     tileTargets: undefined;
 };
 
@@ -100,24 +100,26 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
 type SchedulerFiltersProps = {
     dashboard?: Dashboard;
     onChange: (schedulerFilters: SchedulerFilterRule[]) => void;
+    schedulerFilters: DashboardFilterRule[] | undefined;
 };
 
 const SchedulerFilters: FC<SchedulerFiltersProps> = ({
     dashboard,
-    // onChange,
+    schedulerFilters,
+    onChange,
 }) => {
     const { data: project, isLoading } = useProject(dashboard?.projectUuid);
     // TODO: should read initial state from the BE
-    const [schedulerFilters, setSchedulerFilters] = useState<
-        DashboardFilterRule[]
-    >([]);
+    const [filters, setFilters] = useState<DashboardFilterRule[]>(
+        schedulerFilters ?? [],
+    );
 
     const handleUpdateSchedulerFilter = useCallback(
         (schedulerFilter: SchedulerFilterRule) => {
             // TODO: this should diff if the filter is actually
             // different from the dashboard filter
 
-            const newState = produce(schedulerFilters, (draft) => {
+            const newState = produce(filters, (draft) => {
                 const filterIndex = draft.findIndex(
                     (f) =>
                         f.target.fieldId === schedulerFilter.target.fieldId &&
@@ -131,12 +133,15 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
                 }
             });
 
-            setSchedulerFilters(newState);
+            setFilters(newState);
+
+            console.log('newState', newState, schedulerFilter);
 
             // TODO: sync with upper component
             // call onChange - this can be debounced
+            onChange(newState.map((f) => ({ ...f, tileTargets: undefined })));
         },
-        [schedulerFilters],
+        [onChange, filters],
     );
 
     const isLoadingDashboardFilters = useDashboardContext(
@@ -170,7 +175,7 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
                         <FilterItem
                             key={filter.id}
                             dashboardFilter={filter}
-                            schedulerFilter={schedulerFilters.find(
+                            schedulerFilter={filters.find(
                                 (f) =>
                                     f.target.fieldId ===
                                         filter.target.fieldId &&

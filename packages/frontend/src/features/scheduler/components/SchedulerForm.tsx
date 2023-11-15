@@ -1,6 +1,7 @@
 import {
     CreateSchedulerAndTargetsWithoutIds,
     CreateSchedulerTarget,
+    isDashboardScheduler,
     isSchedulerCsvOptions,
     isSchedulerImageOptions,
     isSlackTarget,
@@ -82,11 +83,10 @@ const DEFAULT_VALUES = {
     },
     emailTargets: [] as string[],
     slackTargets: [] as string[],
+    filters: undefined,
 };
 
-const getFormValuesFromScheduler = (
-    schedulerData: SchedulerAndTargets,
-): any => {
+const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
     const options = schedulerData.options;
 
     const formOptions = DEFAULT_VALUES.options;
@@ -127,6 +127,9 @@ const getFormValuesFromScheduler = (
         options: formOptions,
         emailTargets: emailTargets,
         slackTargets: slackTargets,
+        ...(isDashboardScheduler(schedulerData) && {
+            filters: schedulerData.filters,
+        }),
     };
 };
 
@@ -256,6 +259,9 @@ const SchedulerForm: FC<Props> = ({
                 cron: values.cron,
                 options,
                 targets,
+                ...(resource?.type === 'dashboard' && {
+                    filters: values.filters,
+                }),
             };
         },
     });
@@ -685,11 +691,9 @@ const SchedulerForm: FC<Props> = ({
                     <Tabs.Panel value="filters" p="md">
                         <SchedulerFilters
                             dashboard={dashboard}
+                            schedulerFilters={form.values.filters}
                             onChange={(schedulerFilters) => {
-                                console.info(
-                                    'TODO: implement me!',
-                                    schedulerFilters,
-                                );
+                                form.setFieldValue('filters', schedulerFilters);
                             }}
                         />
                     </Tabs.Panel>
