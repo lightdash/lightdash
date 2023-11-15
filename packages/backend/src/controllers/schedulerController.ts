@@ -6,22 +6,23 @@ import {
     ApiSchedulerLogsResponse,
     ApiTestSchedulerResponse,
 } from '@lightdash/common';
-import { Delete, Post } from '@tsoa/runtime';
-import express from 'express';
 import {
     Body,
     Controller,
+    Delete,
     Get,
     Middlewares,
     OperationId,
     Patch,
     Path,
+    Post,
     Request,
     Response,
     Route,
     SuccessResponse,
     Tags,
-} from 'tsoa';
+} from '@tsoa/runtime';
+import express from 'express';
 import { schedulerService } from '../services/services';
 import {
     allowApiKeyAuthentication,

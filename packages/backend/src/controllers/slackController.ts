@@ -3,7 +3,6 @@ import {
     ApiSlackChannelsResponse,
     ForbiddenError,
 } from '@lightdash/common';
-import express from 'express';
 import {
     Controller,
     Get,
@@ -14,7 +13,8 @@ import {
     Route,
     SuccessResponse,
     Tags,
-} from 'tsoa';
+} from '@tsoa/runtime';
+import express from 'express';
 import { slackClient } from '../clients/clients';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
