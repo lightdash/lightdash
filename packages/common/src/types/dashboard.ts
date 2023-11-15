@@ -148,7 +148,17 @@ export type UpdateMultipleDashboards = Pick<
     'uuid' | 'name' | 'description' | 'spaceUuid'
 >;
 
-export type DashboardAvailableFilters = Record<string, FilterableField[]>;
+export type DashboardAvailableFilters = {
+    savedQueryFilters: Record<string, number[]>;
+    allFilterableFields: FilterableField[];
+};
+
+export type SavedChartsInfoForDashboardAvailableFilters = {
+    tileUuid: DashboardChartTile['uuid'];
+    savedChartUuid: NonNullable<
+        DashboardChartTile['properties']['savedChartUuid']
+    >;
+}[];
 
 export const isDashboardUnversionedFields = (
     data: UpdateDashboard,

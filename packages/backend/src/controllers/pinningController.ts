@@ -3,7 +3,6 @@ import {
     ApiPinnedItems,
     UpdatePinnedItemOrder,
 } from '@lightdash/common';
-import express from 'express';
 import {
     Body,
     Controller,
@@ -17,7 +16,8 @@ import {
     Route,
     SuccessResponse,
     Tags,
-} from 'tsoa';
+} from '@tsoa/runtime';
+import express from 'express';
 import { pinningService } from '../services/services';
 import {
     allowApiKeyAuthentication,

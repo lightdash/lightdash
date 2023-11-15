@@ -1,3 +1,17 @@
+## [0.863.13](https://github.com/lightdash/lightdash/compare/0.863.12...0.863.13) (2023-11-15)
+
+
+### Bug Fixes
+
+* upgrade zlib and merge dependencies ([#7952](https://github.com/lightdash/lightdash/issues/7952)) ([2118f24](https://github.com/lightdash/lightdash/commit/2118f248e09b579db3389b3bd4d986512f4b6e75))
+
+## [0.863.12](https://github.com/lightdash/lightdash/compare/0.863.11...0.863.12) (2023-11-15)
+
+
+### Bug Fixes
+
+* improve available filters and metric query suggestions ([#7942](https://github.com/lightdash/lightdash/issues/7942)) ([3315c52](https://github.com/lightdash/lightdash/commit/3315c526fd06450a7b632bc8958f835095dcd228))
+
 ## [0.863.11](https://github.com/lightdash/lightdash/compare/0.863.10...0.863.11) (2023-11-14)
 
 

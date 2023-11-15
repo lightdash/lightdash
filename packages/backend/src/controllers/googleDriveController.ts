@@ -4,7 +4,6 @@ import {
     ApiJobScheduledResponse,
     UploadMetricGsheet,
 } from '@lightdash/common';
-import express from 'express';
 import {
     Body,
     Controller,
@@ -17,7 +16,8 @@ import {
     Route,
     SuccessResponse,
     Tags,
-} from 'tsoa';
+} from '@tsoa/runtime';
+import express from 'express';
 import { GdriveService } from '../services/GdriveService/GdriveService';
 import { userService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
