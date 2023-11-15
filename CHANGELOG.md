@@ -1,3 +1,10 @@
+## [0.863.13](https://github.com/lightdash/lightdash/compare/0.863.12...0.863.13) (2023-11-15)
+
+
+### Bug Fixes
+
+* upgrade zlib and merge dependencies ([#7952](https://github.com/lightdash/lightdash/issues/7952)) ([2118f24](https://github.com/lightdash/lightdash/commit/2118f248e09b579db3389b3bd4d986512f4b6e75))
+
 ## [0.863.12](https://github.com/lightdash/lightdash/compare/0.863.11...0.863.12) (2023-11-15)
 
 
