@@ -72,7 +72,7 @@ type VisualizationContext = {
     allNumericMetrics: (Metric | TableCalculation)[];
     customMetrics: AdditionalMetric[];
     tableCalculations: TableCalculation[];
-    visualizationConfig: VisualizationConfig | undefined;
+    visualizationConfig: VisualizationConfig;
     onSeriesContextMenu?: (
         e: EchartSeriesClickEvent,
         series: EChartSeries[],
@@ -106,7 +106,7 @@ export type VisualizationConfigCommon<T extends VisualizationConfig> = {
 
 type Props = {
     minimal?: boolean;
-    chartConfig: ChartConfig | undefined;
+    chartConfig: ChartConfig;
     initialPivotDimensions: string[] | undefined;
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
@@ -276,16 +276,6 @@ const VisualizationProvider: FC<Props> = ({
         setChartType,
         setPivotDimensions,
     };
-
-    if (!chartConfig) {
-        return (
-            <Context.Provider
-                value={{ ...value, visualizationConfig: undefined }}
-            >
-                {children}
-            </Context.Provider>
-        );
-    }
 
     switch (chartConfig.type) {
         case ChartType.CARTESIAN:
