@@ -1,8 +1,13 @@
 import {
     ApiError,
     CreateSavedChart,
+    Field,
+    fieldId as getFieldId,
+    isField,
+    isMetric,
     MetricQuery,
-    SavedChart,
+    MetricType,
+    TableCalculation,
 } from '@lightdash/common';
 import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
@@ -12,7 +17,7 @@ import { convertDateFilters } from '../utils/dateFilter';
 const getTotalCalculationFromQuery = async (
     projectUuid: string,
     payload: any,
-): Promise<SavedChart> => {
+): Promise<Record<string, number>> => {
     const timezoneFixPayload: CreateSavedChart = {
         ...payload,
         metricQuery: {
@@ -20,7 +25,7 @@ const getTotalCalculationFromQuery = async (
             filters: convertDateFilters(payload.metricQuery.filters),
         },
     };
-    return lightdashApi<SavedChart>({
+    return lightdashApi<any>({
         url: `/projects/${projectUuid}/calculate-total`,
         method: 'POST',
         body: JSON.stringify(timezoneFixPayload),
@@ -29,8 +34,8 @@ const getTotalCalculationFromQuery = async (
 
 const getTotalCalculationFromSavedChart = async (
     savedChartUuid: string,
-): Promise<SavedChart> => {
-    return lightdashApi<SavedChart>({
+): Promise<Record<string, number>> => {
+    return lightdashApi<any>({
         url: `/saved/${savedChartUuid}/calculate-total`,
         method: 'POST',
         body: '',
@@ -53,7 +58,7 @@ export const useTotalCalculation = (data: {
         additionalMetrics: metricQuery?.additionalMetrics,
     });
 
-    return useQuery<SavedChart, ApiError>({
+    return useQuery<Record<string, number>, ApiError>({
         queryKey: ['total_calculation', projectUuid, queryKey],
         queryFn: () =>
             data.savedChartUuid
@@ -66,4 +71,33 @@ export const useTotalCalculation = (data: {
                 `Unable to get total calculation from query: ${result.error.message}`,
             ),
     });
+};
+
+export const getCalculationColumnFields = (
+    selectedItemIds: string[],
+    itemsMap: Record<string, Field | TableCalculation>,
+) => {
+    //This method will return the metric ids that need to be calculated in the backend
+    // We exclude metrics we already calculate
+    const numericTypes: string[] = [
+        MetricType.NUMBER,
+        MetricType.COUNT,
+        MetricType.SUM,
+    ]; // We calculate these types already in the frontend
+
+    const items = selectedItemIds
+        ?.map((item) => {
+            return itemsMap[item];
+        })
+        .filter(
+            (item) =>
+                isField(item) &&
+                isMetric(item) &&
+                !numericTypes.includes(item.type.toString()),
+        );
+
+    return items?.reduce<string[]>((acc, item) => {
+        if (isField(item)) return [...acc, getFieldId(item)];
+        return acc;
+    }, []);
 };

@@ -3,7 +3,6 @@ import {
     ColumnProperties,
     ConditionalFormattingConfig,
     Explore,
-    fieldId as getFieldId,
     getItemLabel,
     getItemMap,
     isDimension,
@@ -11,7 +10,6 @@ import {
     isMetric,
     isTableCalculation,
     itemsInMetricQuery,
-    MetricType,
     PivotData,
     ResultRow,
     TableChart,
@@ -20,7 +18,10 @@ import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TableColumn, TableHeader } from '../../components/common/Table/types';
 import { isSummable } from '../useColumnTotals';
-import { useTotalCalculation } from '../useTotalCalculation';
+import {
+    getCalculationColumnFields,
+    useTotalCalculation,
+} from '../useTotalCalculation';
 import getDataAndColumns from './getDataAndColumns';
 
 const createWorker = createWorkerFactory(
@@ -162,37 +163,14 @@ const useTableConfig = (
         pivotDimensions.length > 0;
 
     const metricsWithTotals = useMemo(() => {
-        //This method will return the metric ids that need to be calculated in the backend
-        // We exclude metrics we already calculate and hidden fields
-        if (tableChartConfig?.showColumnCalculation === false) return [];
-        const numericTypes: string[] = [
-            MetricType.NUMBER,
-            MetricType.COUNT,
-            MetricType.SUM,
-        ]; // We calculate these types already in the frontend
+        if (
+            tableChartConfig?.showColumnCalculation === false ||
+            !selectedItemIds
+        )
+            return [];
 
-        const items = selectedItemIds
-            ?.map((item) => {
-                return itemsMap[item];
-            })
-            .filter(
-                (item) =>
-                    isField(item) &&
-                    isMetric(item) &&
-                    !numericTypes.includes(item.type.toString()) &&
-                    (columnProperties[getFieldId(item)]?.visible ?? true),
-            );
-
-        return items?.reduce<string[]>((acc, item) => {
-            if (isField(item)) return [...acc, getFieldId(item)];
-            return acc;
-        }, []);
-    }, [
-        itemsMap,
-        selectedItemIds,
-        tableChartConfig?.showColumnCalculation,
-        columnProperties,
-    ]);
+        return getCalculationColumnFields(selectedItemIds, itemsMap);
+    }, [itemsMap, selectedItemIds, tableChartConfig?.showColumnCalculation]);
 
     const { data: totalCalculations } = useTotalCalculation({
         metricQuery: resultsData?.metricQuery,

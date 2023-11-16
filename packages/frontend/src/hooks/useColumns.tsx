@@ -12,6 +12,7 @@ import {
     isDimension,
     isField,
     isNumericItem,
+    itemsInMetricQuery,
     TableCalculation,
 } from '@lightdash/common';
 import { useMemo } from 'react';
@@ -24,6 +25,10 @@ import { columnHelper, TableColumn } from '../components/common/Table/types';
 import { useExplorerContext } from '../providers/ExplorerProvider';
 import useColumnTotals from './useColumnTotals';
 import { useExplore } from './useExplore';
+import {
+    getCalculationColumnFields,
+    useTotalCalculation,
+} from './useTotalCalculation';
 
 export const getItemBgColor = (
     item: Field | AdditionalMetric | TableCalculation | CustomDimension,
@@ -111,11 +116,32 @@ export const useColumns = (): TableColumn[] => {
         customDimensions,
     ]);
 
-    // TODO add totals for custom dimensions ?
-    const totals = useColumnTotals({
+    const totalsFromResultsTable = useColumnTotals({
         resultsData,
         itemsMap: activeItemsMap,
     });
+
+    const metricsWithTotals = useMemo(() => {
+        const selectedItemIds = resultsData
+            ? itemsInMetricQuery(resultsData.metricQuery)
+            : undefined;
+        if (!selectedItemIds || !activeItemsMap) return [];
+        return getCalculationColumnFields(selectedItemIds, activeItemsMap);
+    }, [activeItemsMap, resultsData]);
+
+    const { data: totalsFromWarehouse } = useTotalCalculation({
+        metricQuery: resultsData?.metricQuery,
+        explore: exploreData?.baseTable,
+        fields: metricsWithTotals,
+    });
+    const totals = useMemo(() => {
+        return totalsFromWarehouse
+            ? {
+                  ...totalsFromResultsTable,
+                  ...totalsFromWarehouse,
+              }
+            : totalsFromResultsTable;
+    }, [totalsFromResultsTable, totalsFromWarehouse]);
 
     return useMemo(() => {
         const validColumns = Object.entries(activeItemsMap).reduce<
