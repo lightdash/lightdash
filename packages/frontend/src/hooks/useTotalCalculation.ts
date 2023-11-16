@@ -8,7 +8,6 @@ import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
-import useToaster from './toaster/useToaster';
 
 const getTotalCalculation = async (
     projectUuid: string,
@@ -34,7 +33,6 @@ export const useTotalCalculation = (data: {
     fields?: any[];
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { showToastError } = useToaster();
 
     // TODO only add relevant fields to the key (filters, metrics)
     const queryKey = JSON.stringify(data.metricQuery);
@@ -44,9 +42,8 @@ export const useTotalCalculation = (data: {
         retry: false,
         enabled: (data?.fields || []).length > 0,
         onError: (result) =>
-            showToastError({
-                title: `Unable to get total calculation from query`,
-                subtitle: result.error.message,
-            }),
+            console.error(
+                `Unable to get total calculation from query: ${result.error.message}`,
+            ),
     });
 };
