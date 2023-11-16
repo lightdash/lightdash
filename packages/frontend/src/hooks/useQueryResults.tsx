@@ -183,8 +183,9 @@ export const useChartResults = (
     invalidateCache?: boolean,
 ) => {
     const sortKey =
-        dashboardSorts?.map((ds) => `ds.fieldId.${ds.descending}`)?.join(',') ||
-        '';
+        dashboardSorts
+            ?.map((ds) => `${ds.fieldId}.${ds.descending}`)
+            ?.join(',') || '';
     const queryKey = [
         'savedChartResults',
         chartUuid,
