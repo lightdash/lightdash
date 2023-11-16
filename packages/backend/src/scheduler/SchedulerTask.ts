@@ -17,6 +17,7 @@ import {
     isCreateScheduler,
     isCreateSchedulerSlackTarget,
     isDashboardChartTileType,
+    isDashboardScheduler,
     isDashboardValidationError,
     isSchedulerCsvOptions,
     isSchedulerGsheetsOptions,
@@ -209,6 +210,9 @@ export const getNotificationPageData = async (
                         user,
                         dashboardUuid,
                         csvOptions,
+                        isDashboardScheduler(scheduler)
+                            ? scheduler.filters
+                            : undefined,
                     );
 
                     analytics.track({

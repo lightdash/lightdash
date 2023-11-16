@@ -2,6 +2,8 @@ import { subject } from '@casl/ability';
 import {
     addDashboardFiltersToMetricQuery,
     ApiSqlQueryResults,
+    applyDimensionOverrides,
+    DashboardFilterRule,
     DashboardFilters,
     DimensionType,
     DownloadCsvPayload,
@@ -468,8 +470,19 @@ export class CsvService {
         user: SessionUser,
         dashboardUuid: string,
         options: SchedulerCsvOptions | undefined,
+        schedulerFilters?: DashboardFilterRule[],
     ) {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
+
+        const dashboardFilters = dashboard.filters;
+
+        if (schedulerFilters) {
+            dashboardFilters.dimensions = applyDimensionOverrides(
+                dashboard.filters,
+                schedulerFilters,
+                true,
+            );
+        }
 
         const chartTileUuidsWithChartUuids = dashboard.tiles
             .filter(isDashboardChartTileType)
@@ -487,7 +500,7 @@ export class CsvService {
                     options,
                     undefined,
                     tileUuid,
-                    dashboard.filters,
+                    dashboardFilters,
                 ),
         );
 
