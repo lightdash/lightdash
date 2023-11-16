@@ -35,7 +35,11 @@ const VisualizationBigNumberConfig: FC<VisualizationBigNumberConfigProps> = ({
 
     useEffect(() => {
         if (!onChartConfigChange || !bigNumberConfig.validConfig) return;
-        onChartConfigChange(bigNumberConfig.validConfig);
+
+        onChartConfigChange({
+            type: ChartType.BIG_NUMBER,
+            config: bigNumberConfig.validConfig,
+        });
     }, [bigNumberConfig, onChartConfigChange]);
 
     return children({

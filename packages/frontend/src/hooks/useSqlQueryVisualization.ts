@@ -152,9 +152,10 @@ const useSqlQueryVisualization = ({
     const [chartType, setChartType] = useState<ChartType>(
         initialState?.chartConfig?.type || ChartType.CARTESIAN,
     );
-    const [chartConfig, setChartConfig] = useState<ChartConfig['config']>(
-        initialState?.chartConfig?.config,
-    );
+    const [chartConfig, setChartConfig] = useState<
+        ChartConfig['config'] | undefined
+    >(initialState?.chartConfig?.config);
+
     const [pivotFields, setPivotFields] = useState<string[] | undefined>(
         initialState?.pivotConfig?.columns,
     );
@@ -170,7 +171,10 @@ const useSqlQueryVisualization = ({
                                 columns: pivotFields,
                             }
                           : undefined,
-                      chartConfig: getValidChartConfig(chartType, chartConfig),
+                      chartConfig: getValidChartConfig({
+                          type: chartType,
+                          config: chartConfig,
+                      }),
                       tableConfig: {
                           columnOrder: [...dimensionKeys, ...metricKeys],
                       },

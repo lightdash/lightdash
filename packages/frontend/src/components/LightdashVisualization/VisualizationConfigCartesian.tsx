@@ -48,7 +48,10 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
     useEffect(() => {
         if (!onChartConfigChange || !cartesianConfig.validConfig) return;
 
-        onChartConfigChange(cartesianConfig.validConfig);
+        onChartConfigChange({
+            type: ChartType.CARTESIAN,
+            config: cartesianConfig.validConfig,
+        });
     }, [cartesianConfig, onChartConfigChange]);
 
     return children({

@@ -95,6 +95,11 @@ const applyReferenceLines = (
     });
 };
 
+export const EMPTY_CARTESIAN_CHART_CONFIG: CartesianChart = {
+    layout: {},
+    eChartsConfig: {},
+};
+
 const useCartesianChartConfig = ({
     initialChartConfig,
     pivotKeys,
@@ -103,6 +108,7 @@ const useCartesianChartConfig = ({
     columnOrder,
     explore,
 }: Args) => {
+    // FIXME: this might not be necessary
     const hasInitialValue =
         !!initialChartConfig &&
         isCompleteLayout(initialChartConfig.layout) &&
@@ -623,17 +629,12 @@ const useCartesianChartConfig = ({
         referenceLines,
     ]);
 
-    const validConfig: CartesianChart | undefined = useMemo(
-        () =>
-            isCompleteLayout(dirtyLayout) &&
+    const validConfig: CartesianChart = useMemo(() => {
+        return isCompleteLayout(dirtyLayout) &&
             isCompleteEchartsConfig(dirtyEchartsConfig)
-                ? {
-                      layout: dirtyLayout,
-                      eChartsConfig: dirtyEchartsConfig,
-                  }
-                : undefined,
-        [dirtyLayout, dirtyEchartsConfig],
-    );
+            ? { layout: dirtyLayout, eChartsConfig: dirtyEchartsConfig }
+            : EMPTY_CARTESIAN_CHART_CONFIG;
+    }, [dirtyLayout, dirtyEchartsConfig]);
 
     const { dirtyChartType } = useMemo(() => {
         const firstSeriesType =

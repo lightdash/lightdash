@@ -51,11 +51,6 @@ export type BigNumber = {
     comparisonLabel?: string;
 };
 
-export type BigNumberConfig = {
-    type: ChartType.BIG_NUMBER;
-    config?: BigNumber;
-};
-
 export const PieChartValueLabels = {
     hidden: 'Hidden',
     inside: 'Inside',
@@ -95,11 +90,6 @@ export type PieChart = {
     legendPosition?: PieChartLegendPosition;
 };
 
-export type PieChartConfig = {
-    type: ChartType.PIE;
-    config?: PieChart;
-};
-
 export type ColumnProperties = {
     visible?: boolean;
     name?: string;
@@ -115,11 +105,6 @@ export type TableChart = {
     columns?: Record<string, ColumnProperties>;
     conditionalFormattings?: ConditionalFormattingConfig[];
     metricsAsRows?: boolean;
-};
-
-export type TableChartConfig = {
-    type: ChartType.TABLE;
-    config?: TableChart;
 };
 
 export enum CartesianSeriesType {
@@ -258,6 +243,11 @@ export type CartesianChart = {
     eChartsConfig: EChartsConfig;
 };
 
+export type BigNumberConfig = {
+    type: ChartType.BIG_NUMBER;
+    config: BigNumber;
+};
+
 export type CartesianChartConfig = {
     type: ChartType.CARTESIAN;
     config: CartesianChart;
@@ -268,12 +258,22 @@ export type CustomVisConfig = {
     config: {};
 };
 
+export type PieChartConfig = {
+    type: ChartType.PIE;
+    config: PieChart;
+};
+
+export type TableChartConfig = {
+    type: ChartType.TABLE;
+    config: TableChart;
+};
+
 export type ChartConfig =
-    | PieChartConfig
     | BigNumberConfig
-    | TableChartConfig
     | CartesianChartConfig
-    | CustomVisConfig;
+    | CustomVisConfig
+    | PieChartConfig
+    | TableChartConfig;
 
 export type SavedChartType = ChartType;
 
@@ -411,9 +411,9 @@ export const getCustomLabelsFromColumnProperties = (
         : undefined;
 
 export const getCustomLabelsFromTableConfig = (
-    config: ChartConfig['config'],
+    config: ChartConfig['config'] | undefined,
 ): Record<string, string> | undefined =>
-    isTableChartConfig(config)
+    config && isTableChartConfig(config)
         ? getCustomLabelsFromColumnProperties(config.columns)
         : undefined;
 

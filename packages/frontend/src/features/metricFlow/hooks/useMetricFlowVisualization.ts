@@ -19,7 +19,7 @@ const useMetricFlowVisualization = (
     }, [resultsData]);
 
     const validChartConfig = useMemo(() => {
-        return getValidChartConfig(chartType, chartConfig);
+        return getValidChartConfig({ type: chartType, config: chartConfig });
     }, [chartType, chartConfig]);
 
     return {

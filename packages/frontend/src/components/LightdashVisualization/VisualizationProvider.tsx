@@ -97,7 +97,10 @@ export type VisualizationConfigCommon<T extends VisualizationConfig> = {
     explore?: Explore;
     resultsData: ApiQueryResults | undefined;
     initialChartConfig: T['chartConfig']['validConfig'] | undefined;
-    onChartConfigChange?: (value: T['chartConfig']['validConfig']) => void;
+    onChartConfigChange?: (chartConfig: {
+        type: T['chartType'];
+        config: T['chartConfig']['validConfig'];
+    }) => void;
     children: (props: { visualizationConfig: T }) => JSX.Element;
 };
 
@@ -113,7 +116,7 @@ type Props = {
         series: EChartSeries[],
     ) => void;
     onChartTypeChange?: (value: ChartType) => void;
-    onChartConfigChange?: (value: ChartConfig['config']) => void;
+    onChartConfigChange?: (value: ChartConfig) => void;
     onPivotDimensionsChange?: (value: string[] | undefined) => void;
     explore: Explore | undefined;
     isSqlRunner?: boolean;
@@ -234,9 +237,9 @@ const VisualizationProvider: FC<Props> = ({
     }, [resultsData?.metricQuery, columnOrder]);
 
     const handleChartConfigChange = useCallback(
-        (newChartConfig: ChartConfig['config']) => {
+        (newChartConfig: ChartConfig) => {
             if (!onChartConfigChange) return;
-            if (isEqual(newChartConfig, chartConfig?.config)) return;
+            if (isEqual(newChartConfig.config, chartConfig?.config)) return;
 
             onChartConfigChange(newChartConfig);
         },
