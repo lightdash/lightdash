@@ -1,3 +1,10 @@
+## [0.863.16](https://github.com/lightdash/lightdash/compare/0.863.15...0.863.16) (2023-11-16)
+
+
+### Bug Fixes
+
+* improve ui for expired otp on VerifyEmailForm.tsx ([#7995](https://github.com/lightdash/lightdash/issues/7995)) ([2dc2742](https://github.com/lightdash/lightdash/commit/2dc274283fcf63c7b39bde2c009c8457d2e5a77a))
+
 ## [0.863.15](https://github.com/lightdash/lightdash/compare/0.863.14...0.863.15) (2023-11-15)
 
 
