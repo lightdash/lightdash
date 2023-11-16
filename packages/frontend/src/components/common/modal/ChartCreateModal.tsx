@@ -37,6 +37,13 @@ interface ChartCreateModalProps {
     onConfirm: (savedData: CreateSavedChartVersion) => void;
 }
 
+interface ChartCreateModalFormValues {
+    name: string;
+    spaceUuid: string;
+    description: string;
+    newSpaceName: string | null;
+}
+
 const ChartCreateModal: FC<ChartCreateModalProps> = ({
     savedData,
     isOpen,
@@ -57,7 +64,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     const { mutateAsync: createSpaceAsync, isLoading: isCreatingSpace } =
         useSpaceCreateMutation(projectUuid);
 
-    const form = useForm({
+    const form = useForm<ChartCreateModalFormValues>({
         initialValues: {
             name: '',
             spaceUuid: '',
@@ -94,14 +101,15 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     const showSpaceInput = shouldCreateNewSpace || spaces?.length === 0;
 
     const handleConfirm = useCallback(
-        async (values) => {
-            let newSpace = showSpaceInput
-                ? await createSpaceAsync({
-                      name: values.newSpaceName,
-                      access: [],
-                      isPrivate: true,
-                  })
-                : undefined;
+        async (values: ChartCreateModalFormValues) => {
+            let newSpace =
+                showSpaceInput && values.newSpaceName
+                    ? await createSpaceAsync({
+                          name: values.newSpaceName,
+                          access: [],
+                          isPrivate: true,
+                      })
+                    : undefined;
 
             const savedQuery = await mutateAsync({
                 ...savedData,
@@ -118,14 +126,14 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     );
 
     const handleSaveChartInDashboard = useCallback(
-        async (values) => {
+        async (values: ChartCreateModalFormValues) => {
             if (!fromDashboard || !unsavedDashboardTiles || !dashboardUuid)
                 return;
             const newChartInDashboard: CreateChartInDashboard = {
                 ...savedData,
                 name: values.name,
                 description: values.description,
-                dashboardUuid: values.dashboardUuid,
+                dashboardUuid: dashboardUuid,
             };
             const newTile: CreateDashboardChartTile = {
                 uuid: uuid4(),
