@@ -274,14 +274,14 @@ export class ProjectController extends Controller {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('{projectUuid}/calculate-total')
-    @OperationId('CalculateTotal')
-    async calculateTotal(
+    @OperationId('CalculateTotalFromQuery')
+    async CalculateTotalFromQuery(
         @Path() projectUuid: string,
         @Body() body: any,
         @Request() req: express.Request,
     ): Promise<any> {
         this.setStatus(200);
-        const totalResult = await projectService.calculateTotal(
+        const totalResult = await projectService.calculateTotalFromQuery(
             req.user!,
             projectUuid,
             body,

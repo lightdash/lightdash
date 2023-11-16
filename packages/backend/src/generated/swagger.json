@@ -5346,7 +5346,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.863.13",
+        "version": "0.863.15",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -7012,7 +7012,7 @@
         },
         "/api/v1/projects/{projectUuid}/calculate-total": {
             "post": {
-                "operationId": "CalculateTotal",
+                "operationId": "CalculateTotalFromQuery",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -7421,6 +7421,45 @@
                         "description": "versionUuid for the chart version",
                         "in": "path",
                         "name": "versionUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/saved/{chartUuid}/calculate-total": {
+            "post": {
+                "operationId": "CalculateTotalFromSavedChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get all metric totals from a saved chart",
+                "tags": ["Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "chartUuid for the chart to run",
+                        "in": "path",
+                        "name": "chartUuid",
                         "required": true,
                         "schema": {
                             "type": "string"

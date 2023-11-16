@@ -34,6 +34,7 @@ const useTableConfig = (
     columnOrder: string[],
     pivotDimensions: string[] | undefined,
     pivotTableMaxColumnLimit: number,
+    savedChartUuid?: string,
 ) => {
     const [showColumnCalculation, setShowColumnCalculation] = useState<boolean>(
         !!tableChartConfig?.showColumnCalculation,
@@ -160,8 +161,16 @@ const useTableConfig = (
         pivotDimensions &&
         pivotDimensions.length > 0;
 
-    //TODo implement here total
     const metricsWithTotals = useMemo(() => {
+        //This method will return the metric ids that need to be calculated in the backend
+        // We exclude metrics we already calculate and hidden fields
+        if (tableChartConfig?.showColumnCalculation === false) return [];
+        const numericTypes: string[] = [
+            MetricType.NUMBER,
+            MetricType.COUNT,
+            MetricType.SUM,
+        ]; // We calculate these types already in the frontend
+
         const items = selectedItemIds
             ?.map((item) => {
                 return itemsMap[item];
@@ -170,21 +179,26 @@ const useTableConfig = (
                 (item) =>
                     isField(item) &&
                     isMetric(item) &&
-                    item.type === MetricType.AVERAGE,
+                    !numericTypes.includes(item.type.toString()) &&
+                    (columnProperties[getFieldId(item)]?.visible ?? true),
             );
-        //TODO add more metrictypes
-        //TODo filter is visible in table config
 
         return items?.reduce<string[]>((acc, item) => {
             if (isField(item)) return [...acc, getFieldId(item)];
             return acc;
         }, []);
-    }, [itemsMap, selectedItemIds]);
+    }, [
+        itemsMap,
+        selectedItemIds,
+        tableChartConfig?.showColumnCalculation,
+        columnProperties,
+    ]);
 
     const { data: totalCalculations } = useTotalCalculation({
         metricQuery: resultsData?.metricQuery,
         explore: explore?.baseTable,
         fields: metricsWithTotals,
+        savedChartUuid,
     });
     const { rows, columns, error } = useMemo<{
         rows: ResultRow[];

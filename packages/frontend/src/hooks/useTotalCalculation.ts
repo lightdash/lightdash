@@ -9,7 +9,7 @@ import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
 
-const getTotalCalculation = async (
+const getTotalCalculationFromQuery = async (
     projectUuid: string,
     payload: any,
 ): Promise<SavedChart> => {
@@ -27,18 +27,38 @@ const getTotalCalculation = async (
     });
 };
 
+const getTotalCalculationFromSavedChart = async (
+    savedChartUuid: string,
+): Promise<SavedChart> => {
+    return lightdashApi<SavedChart>({
+        url: `/saved/${savedChartUuid}/calculate-total`,
+        method: 'POST',
+        body: '',
+    });
+};
+
 export const useTotalCalculation = (data: {
     metricQuery?: MetricQuery;
     explore?: string;
     fields?: any[];
+    savedChartUuid?: string;
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    // TODO only add relevant fields to the key (filters, metrics)
-    const queryKey = JSON.stringify(data.metricQuery);
+    const metricQuery = data.metricQuery;
+    // only add relevant fields to the key (filters, metrics)
+    const queryKey = JSON.stringify({
+        filters: metricQuery?.filters,
+        metrics: metricQuery?.metrics,
+        additionalMetrics: metricQuery?.additionalMetrics,
+    });
+
     return useQuery<SavedChart, ApiError>({
         queryKey: ['total_calculation', projectUuid, queryKey],
-        queryFn: () => getTotalCalculation(projectUuid, data),
+        queryFn: () =>
+            data.savedChartUuid
+                ? getTotalCalculationFromSavedChart(data.savedChartUuid)
+                : getTotalCalculationFromQuery(projectUuid, data),
         retry: false,
         enabled: (data?.fields || []).length > 0,
         onError: (result) =>

@@ -6441,10 +6441,10 @@ export function RegisterRoutes(app: express.Router) {
         '/api/v1/projects/:projectUuid/calculate-total',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
         ...fetchMiddlewares<RequestHandler>(
-            ProjectController.prototype.calculateTotal,
+            ProjectController.prototype.CalculateTotalFromQuery,
         ),
 
-        function ProjectController_calculateTotal(
+        function ProjectController_CalculateTotalFromQuery(
             request: any,
             response: any,
             next: any,
@@ -6478,7 +6478,7 @@ export function RegisterRoutes(app: express.Router) {
 
                 const controller = new ProjectController();
 
-                const promise = controller.calculateTotal.apply(
+                const promise = controller.CalculateTotalFromQuery.apply(
                     controller,
                     validatedArgs as any,
                 );
@@ -6853,6 +6853,52 @@ export function RegisterRoutes(app: express.Router) {
                 const controller = new SavedChartController();
 
                 const promise = controller.postChartVersionRollback.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.post(
+        '/api/v1/saved/:chartUuid/calculate-total',
+        ...fetchMiddlewares<RequestHandler>(SavedChartController),
+        ...fetchMiddlewares<RequestHandler>(
+            SavedChartController.prototype.calculateTotalFromSavedChart,
+        ),
+
+        function SavedChartController_calculateTotalFromSavedChart(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                chartUuid: {
+                    in: 'path',
+                    name: 'chartUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new SavedChartController();
+
+                const promise = controller.calculateTotalFromSavedChart.apply(
                     controller,
                     validatedArgs as any,
                 );

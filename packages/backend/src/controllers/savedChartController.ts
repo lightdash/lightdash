@@ -165,4 +165,29 @@ export class SavedChartController extends Controller {
             results: undefined,
         };
     }
+
+    /**
+     * Get all metric totals from a saved chart
+     * @param chartUuid chartUuid for the chart to run
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/calculate-total')
+    @OperationId('CalculateTotalFromSavedChart')
+    async calculateTotalFromSavedChart(
+        @Path() chartUuid: string,
+        @Request() req: express.Request,
+    ): Promise<any> {
+        this.setStatus(200);
+        const totalResult = await projectService.calculateTotalFromSavedChart(
+            req.user!,
+            chartUuid,
+        );
+        return {
+            status: 'ok',
+            results: totalResult.results,
+            sql: totalResult.sql,
+        };
+    }
 }

@@ -2623,34 +2623,81 @@ export class ProjectService {
         );
     }
 
-    async calculateTotal(
-        user: SessionUser,
-        projectUuid: string,
-        data: any,
-    ): Promise<Record<string, any>> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
+    async calculateTotalFromSavedChart(user: SessionUser, chartUuid: string) {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        const savedChart = await this.savedChartModel.get(
+            chartUuid,
+            undefined, // VersionUuid
         );
+        const { organizationUuid, projectUuid, tableName, metricQuery } =
+            savedChart;
+
         if (
             user.ability.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('SavedChart', { organizationUuid, projectUuid }),
+            ) ||
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
         }
 
-        const baseQuery: MetricQuery = data.metricQuery;
+        return this._calculateTotal(user, projectUuid, tableName, metricQuery);
+    }
+
+    async calculateTotalFromQuery(
+        user: SessionUser,
+
+        projectUuid: string,
+        data: any,
+    ) {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return this._calculateTotal(
+            user,
+            projectUuid,
+            data.explore,
+            data.metricQuery,
+        );
+    }
+
+    async _calculateTotal(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+        metricQuery: MetricQuery,
+    ) {
         const totalQuery: MetricQuery = {
-            ...baseQuery,
+            ...metricQuery,
             tableCalculations: [],
             sorts: [],
             dimensions: [],
-            metrics: baseQuery.metrics,
-            additionalMetrics: baseQuery.additionalMetrics,
+            metrics: metricQuery.metrics,
+            additionalMetrics: metricQuery.additionalMetrics,
         };
 
-        const exploreName = data.explore;
         const sql = await this.compileQuery(
             user,
             totalQuery,
