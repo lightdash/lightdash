@@ -46,6 +46,7 @@ import {
     JobStatusType,
     JobStepType,
     JobType,
+    Metric,
     MetricQuery,
     MetricType,
     MissingWarehouseCredentialsError,
@@ -2625,8 +2626,8 @@ export class ProjectService {
     async calculateTotal(
         user: SessionUser,
         projectUuid: string,
-        query: any,
-    ): Promise<void> {
+        data: any,
+    ): Promise<Record<string, any>> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -2638,9 +2639,33 @@ export class ProjectService {
         ) {
             throw new ForbiddenError();
         }
-        return query.fields.reduce(
-            (acc: any, field: any) => ({ ...acc, [field]: 1200 }),
-            {},
+
+        const baseQuery: MetricQuery = data.metricQuery;
+        const totalQuery: MetricQuery = {
+            ...baseQuery,
+            tableCalculations: [],
+            sorts: [],
+            dimensions: [],
+            metrics: baseQuery.metrics,
+            additionalMetrics: baseQuery.additionalMetrics,
+        };
+
+        const exploreName = data.explore;
+        const sql = await this.compileQuery(
+            user,
+            totalQuery,
+            projectUuid,
+            exploreName,
         );
+
+        const results = await this.runMetricQuery({
+            user,
+            projectUuid,
+            metricQuery: totalQuery,
+            exploreName,
+            csvLimit: undefined,
+            context: QueryExecutionContext.CALCULATE_TOTALS,
+        });
+        return { results: results.rows[0], sql: sql.query };
     }
 }

@@ -30,13 +30,16 @@ const getTotalCalculation = async (
 
 export const useTotalCalculation = (data: {
     metricQuery?: MetricQuery;
+    explore?: string;
     fields?: any[];
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { showToastError } = useToaster();
 
+    // TODO only add relevant fields to the key (filters, metrics)
+    const queryKey = JSON.stringify(data.metricQuery);
     return useQuery<SavedChart, ApiError>({
-        queryKey: ['total_calculation', projectUuid],
+        queryKey: ['total_calculation', projectUuid, queryKey],
         queryFn: () => getTotalCalculation(projectUuid, data),
         retry: false,
         enabled: (data?.fields || []).length > 0,

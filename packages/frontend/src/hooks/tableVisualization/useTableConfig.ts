@@ -183,6 +183,7 @@ const useTableConfig = (
 
     const { data: totalCalculations } = useTotalCalculation({
         metricQuery: resultsData?.metricQuery,
+        explore: explore?.baseTable,
         fields: metricsWithTotals,
     });
     const { rows, columns, error } = useMemo<{

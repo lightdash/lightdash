@@ -281,13 +281,15 @@ export class ProjectController extends Controller {
         @Request() req: express.Request,
     ): Promise<any> {
         this.setStatus(200);
+        const totalResult = await projectService.calculateTotal(
+            req.user!,
+            projectUuid,
+            body,
+        );
         return {
             status: 'ok',
-            results: await projectService.calculateTotal(
-                req.user!,
-                projectUuid,
-                body,
-            ),
+            results: totalResult.results,
+            sql: totalResult.sql,
         };
     }
 }
