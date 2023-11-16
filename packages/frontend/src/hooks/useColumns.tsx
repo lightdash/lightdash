@@ -26,8 +26,8 @@ import { useExplorerContext } from '../providers/ExplorerProvider';
 import useColumnTotals from './useColumnTotals';
 import { useExplore } from './useExplore';
 import {
-    getCalculationColumnFields,
-    useTotalCalculation,
+    getCalculationFields,
+    useCalculateTotals,
 } from './useTotalCalculation';
 
 export const getItemBgColor = (
@@ -126,10 +126,10 @@ export const useColumns = (): TableColumn[] => {
             ? itemsInMetricQuery(resultsData.metricQuery)
             : undefined;
         if (!selectedItemIds || !activeItemsMap) return [];
-        return getCalculationColumnFields(selectedItemIds, activeItemsMap);
+        return getCalculationFields(selectedItemIds, activeItemsMap);
     }, [activeItemsMap, resultsData]);
 
-    const { data: totalsFromWarehouse } = useTotalCalculation({
+    const { data: totalsFromWarehouse } = useCalculateTotals({
         metricQuery: resultsData?.metricQuery,
         explore: exploreData?.baseTable,
         fields: metricsWithTotals,

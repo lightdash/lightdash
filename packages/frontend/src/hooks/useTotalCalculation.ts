@@ -14,7 +14,7 @@ import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
 
-const getTotalCalculationFromQuery = async (
+const getCalculateTotalsFromQuery = async (
     projectUuid: string,
     payload: any,
 ): Promise<Record<string, number>> => {
@@ -32,7 +32,7 @@ const getTotalCalculationFromQuery = async (
     });
 };
 
-const getTotalCalculationFromSavedChart = async (
+const getCalculateTotalsFromSavedChart = async (
     savedChartUuid: string,
 ): Promise<Record<string, number>> => {
     return lightdashApi<any>({
@@ -42,7 +42,7 @@ const getTotalCalculationFromSavedChart = async (
     });
 };
 
-export const useTotalCalculation = (data: {
+export const useCalculateTotals = (data: {
     metricQuery?: MetricQuery;
     explore?: string;
     fields?: any[];
@@ -59,21 +59,21 @@ export const useTotalCalculation = (data: {
     });
 
     return useQuery<Record<string, number>, ApiError>({
-        queryKey: ['total_calculation', projectUuid, queryKey],
+        queryKey: ['calculate_totals', projectUuid, queryKey],
         queryFn: () =>
             data.savedChartUuid
-                ? getTotalCalculationFromSavedChart(data.savedChartUuid)
-                : getTotalCalculationFromQuery(projectUuid, data),
+                ? getCalculateTotalsFromSavedChart(data.savedChartUuid)
+                : getCalculateTotalsFromQuery(projectUuid, data),
         retry: false,
         enabled: (data?.fields || []).length > 0,
         onError: (result) =>
             console.error(
-                `Unable to get total calculation from query: ${result.error.message}`,
+                `Unable to calculate totals from query: ${result.error.message}`,
             ),
     });
 };
 
-export const getCalculationColumnFields = (
+export const getCalculationFields = (
     selectedItemIds: string[],
     itemsMap: Record<string, Field | TableCalculation>,
 ) => {

@@ -19,8 +19,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TableColumn, TableHeader } from '../../components/common/Table/types';
 import { isSummable } from '../useColumnTotals';
 import {
-    getCalculationColumnFields,
-    useTotalCalculation,
+    getCalculationFields,
+    useCalculateTotals,
 } from '../useTotalCalculation';
 import getDataAndColumns from './getDataAndColumns';
 
@@ -169,10 +169,10 @@ const useTableConfig = (
         )
             return [];
 
-        return getCalculationColumnFields(selectedItemIds, itemsMap);
+        return getCalculationFields(selectedItemIds, itemsMap);
     }, [itemsMap, selectedItemIds, tableChartConfig?.showColumnCalculation]);
 
-    const { data: totalCalculations } = useTotalCalculation({
+    const { data: totalCalculations } = useCalculateTotals({
         metricQuery: resultsData?.metricQuery,
         explore: explore?.baseTable,
         fields: metricsWithTotals,
