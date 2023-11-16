@@ -250,27 +250,27 @@ export type CartesianChart = {
 
 export type BigNumberConfig = {
     type: ChartType.BIG_NUMBER;
-    config: BigNumber;
+    config?: BigNumber;
 };
 
 export type CartesianChartConfig = {
     type: ChartType.CARTESIAN;
-    config: CartesianChart;
+    config?: CartesianChart;
 };
 
 export type CustomVisConfig = {
     type: ChartType.CUSTOM;
-    config: CustomVis;
+    config?: CustomVis;
 };
 
 export type PieChartConfig = {
     type: ChartType.PIE;
-    config: PieChart;
+    config?: PieChart;
 };
 
 export type TableChartConfig = {
     type: ChartType.TABLE;
-    config: TableChart;
+    config?: TableChart;
 };
 
 export type ChartConfig =

@@ -110,7 +110,7 @@ export class SavedChartService {
     ): CreateSavedChartVersionEvent['properties'] {
         const echartsConfig =
             savedChart.chartConfig.type === ChartType.CARTESIAN
-                ? savedChart.chartConfig.config.eChartsConfig
+                ? savedChart.chartConfig.config?.eChartsConfig
                 : undefined;
         const tableConfig =
             savedChart.chartConfig.type === ChartType.TABLE
@@ -158,19 +158,19 @@ export class SavedChartService {
                 savedChart.chartConfig.type === ChartType.CARTESIAN
                     ? {
                           xAxisCount: (
-                              savedChart.chartConfig.config.eChartsConfig
+                              savedChart.chartConfig.config?.eChartsConfig
                                   .xAxis || []
                           ).length,
                           yAxisCount: (
-                              savedChart.chartConfig.config.eChartsConfig
+                              savedChart.chartConfig.config?.eChartsConfig
                                   .yAxis || []
                           ).length,
                           seriesTypes: (
-                              savedChart.chartConfig.config.eChartsConfig
+                              savedChart.chartConfig.config?.eChartsConfig
                                   .series || []
                           ).map(({ type }) => type),
                           seriesCount: (
-                              savedChart.chartConfig.config.eChartsConfig
+                              savedChart.chartConfig.config?.eChartsConfig
                                   .series || []
                           ).length,
                           referenceLinesCount:
