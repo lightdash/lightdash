@@ -1,6 +1,8 @@
 import { ChartType } from '@lightdash/common';
 import { FC, useEffect } from 'react';
-import useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import useCartesianChartConfig, {
+    CartesianTypeOptions,
+} from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import {
     VisualizationConfig,
     VisualizationConfigCommon,
@@ -19,6 +21,8 @@ export const isCartesianVisualizationConfig = (
 
 type VisualizationCartesianConfigProps =
     VisualizationConfigCommon<VisualizationConfigCartesian> & {
+        stacking: boolean | undefined;
+        cartesianType: CartesianTypeOptions | undefined;
         columnOrder: string[];
         validPivotDimensions: string[] | undefined;
         setPivotDimensions: React.Dispatch<
@@ -34,6 +38,8 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
     setPivotDimensions,
     initialChartConfig,
     onChartConfigChange,
+    stacking,
+    cartesianType,
     children,
 }) => {
     const cartesianConfig = useCartesianChartConfig({
@@ -43,6 +49,8 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
         setPivotDimensions,
         columnOrder,
         explore,
+        stacking,
+        cartesianType,
     });
 
     useEffect(() => {

@@ -1289,8 +1289,6 @@ export const ExplorerProvider: FC<{
             };
         }
 
-        console.log(cachedChartConfig);
-
         dispatch({
             type: ActionType.SET_CHART_CONFIG,
             payload: {

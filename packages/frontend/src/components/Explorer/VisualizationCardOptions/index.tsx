@@ -42,10 +42,12 @@ const VisualizationCardOptions: FC = memo(() => {
     const {
         visualizationConfig,
         setChartType,
+        setCartesianType,
+        setStacking,
         isLoading,
         resultsData,
         setPivotDimensions,
-        // pivotDimensions,
+        pivotDimensions,
     } = useVisualizationContext();
     const disabled = isLoading || !resultsData || resultsData.rows.length <= 0;
 
@@ -212,12 +214,12 @@ const VisualizationCardOptions: FC = memo(() => {
                     }
                     icon={<MantineIcon icon={IconChartBar} />}
                     onClick={() => {
+                        setCartesianType({
+                            type: CartesianSeriesType.BAR,
+                            flipAxes: false,
+                            hasAreaStyle: false,
+                        });
                         setChartType(ChartType.CARTESIAN);
-                        cartesianConfig?.setType(
-                            CartesianSeriesType.BAR,
-                            false,
-                            false,
-                        );
                     }}
                 >
                     Bar chart
@@ -239,12 +241,13 @@ const VisualizationCardOptions: FC = memo(() => {
                         />
                     }
                     onClick={() => {
+                        setCartesianType({
+                            type: CartesianSeriesType.BAR,
+                            flipAxes: true,
+                            hasAreaStyle: false,
+                        });
+                        if (!pivotDimensions) setStacking(false);
                         setChartType(ChartType.CARTESIAN);
-                        cartesianConfig?.setType(
-                            CartesianSeriesType.BAR,
-                            true,
-                            false,
-                        );
                     }}
                 >
                     Horizontal bar chart
@@ -260,12 +263,13 @@ const VisualizationCardOptions: FC = memo(() => {
                     }
                     icon={<MantineIcon icon={IconChartLine} />}
                     onClick={() => {
+                        setCartesianType({
+                            type: CartesianSeriesType.LINE,
+                            flipAxes: false,
+                            hasAreaStyle: false,
+                        });
+                        setStacking(false);
                         setChartType(ChartType.CARTESIAN);
-                        cartesianConfig?.setType(
-                            CartesianSeriesType.LINE,
-                            false,
-                            false,
-                        );
                     }}
                 >
                     Line chart
@@ -281,12 +285,13 @@ const VisualizationCardOptions: FC = memo(() => {
                     }
                     icon={<MantineIcon icon={IconChartArea} />}
                     onClick={() => {
+                        setCartesianType({
+                            type: CartesianSeriesType.LINE,
+                            flipAxes: false,
+                            hasAreaStyle: true,
+                        });
+                        setStacking(true);
                         setChartType(ChartType.CARTESIAN);
-                        cartesianConfig?.setType(
-                            CartesianSeriesType.LINE,
-                            false,
-                            true,
-                        );
                     }}
                 >
                     Area chart
@@ -302,12 +307,13 @@ const VisualizationCardOptions: FC = memo(() => {
                     }
                     icon={<MantineIcon icon={IconChartDots} />}
                     onClick={() => {
+                        setCartesianType({
+                            type: CartesianSeriesType.SCATTER,
+                            flipAxes: false,
+                            hasAreaStyle: false,
+                        });
+                        setStacking(false);
                         setChartType(ChartType.CARTESIAN);
-                        cartesianConfig?.setType(
-                            CartesianSeriesType.SCATTER,
-                            false,
-                            false,
-                        );
                     }}
                 >
                     Scatter chart
@@ -322,8 +328,10 @@ const VisualizationCardOptions: FC = memo(() => {
                     }
                     icon={<MantineIcon icon={IconChartPie} />}
                     onClick={() => {
-                        setChartType(ChartType.PIE);
                         setPivotDimensions(undefined);
+                        setStacking(undefined);
+                        setCartesianType(undefined);
+                        setChartType(ChartType.PIE);
                     }}
                 >
                     Pie chart
@@ -338,8 +346,10 @@ const VisualizationCardOptions: FC = memo(() => {
                     }
                     icon={<MantineIcon icon={IconTable} />}
                     onClick={() => {
-                        setChartType(ChartType.TABLE);
                         setPivotDimensions(undefined);
+                        setStacking(undefined);
+                        setCartesianType(undefined);
+                        setChartType(ChartType.TABLE);
                     }}
                 >
                     Table
@@ -353,8 +363,10 @@ const VisualizationCardOptions: FC = memo(() => {
                     }
                     icon={<MantineIcon icon={IconSquareNumber1} />}
                     onClick={() => {
-                        setChartType(ChartType.BIG_NUMBER);
                         setPivotDimensions(undefined);
+                        setStacking(undefined);
+                        setCartesianType(undefined);
+                        setChartType(ChartType.BIG_NUMBER);
                     }}
                 >
                     Big value
@@ -371,8 +383,10 @@ const VisualizationCardOptions: FC = memo(() => {
                         }
                         icon={<MantineIcon icon={IconCode} />}
                         onClick={() => {
-                            setChartType(ChartType.CUSTOM);
                             setPivotDimensions(undefined);
+                            setStacking(undefined);
+                            setCartesianType(undefined);
+                            setChartType(ChartType.CUSTOM);
                         }}
                     >
                         Custom

@@ -29,6 +29,7 @@ import {
     useRef,
     useState,
 } from 'react';
+import { CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { EchartSeriesClickEvent } from '../SimpleChart';
@@ -73,6 +74,10 @@ type VisualizationContext = {
     customMetrics: AdditionalMetric[];
     tableCalculations: TableCalculation[];
     visualizationConfig: VisualizationConfig;
+    // cartesian config related
+    setStacking: (value: boolean | undefined) => void;
+    setCartesianType(args: CartesianTypeOptions | undefined): void;
+    // --
     onSeriesContextMenu?: (
         e: EchartSeriesClickEvent,
         series: EChartSeries[],
@@ -141,11 +146,6 @@ const VisualizationProvider: FC<Props> = ({
 }) => {
     const chartRef = useRef<EChartsReact>(null);
 
-    const setChartType = useCallback(
-        (value: ChartType) => onChartTypeChange?.(value),
-        [onChartTypeChange],
-    );
-
     const [lastValidResultsData, setLastValidResultsData] =
         useState<ApiQueryResults>();
 
@@ -153,6 +153,16 @@ const VisualizationProvider: FC<Props> = ({
         initialPivotDimensions,
         lastValidResultsData,
     );
+
+    const setChartType = useCallback(
+        (value: ChartType) => onChartTypeChange?.(value),
+        [onChartTypeChange],
+    );
+
+    // cartesian config related
+    const [stacking, setStacking] = useState<boolean>();
+    const [cartesianType, setCartesianType] = useState<CartesianTypeOptions>();
+    // --
 
     const dimensions = useMemo(() => {
         if (!explore) return [];
@@ -272,6 +282,8 @@ const VisualizationProvider: FC<Props> = ({
         tableCalculations,
         allMetrics,
         allNumericMetrics,
+        setStacking,
+        setCartesianType,
         onSeriesContextMenu,
         setChartType,
         setPivotDimensions,
@@ -285,8 +297,10 @@ const VisualizationProvider: FC<Props> = ({
                     resultsData={lastValidResultsData}
                     validPivotDimensions={validPivotDimensions}
                     columnOrder={isSqlRunner ? [] : defaultColumnOrder}
-                    setPivotDimensions={setPivotDimensions}
                     initialChartConfig={chartConfig.config}
+                    stacking={stacking}
+                    cartesianType={cartesianType}
+                    setPivotDimensions={setPivotDimensions}
                     onChartConfigChange={handleChartConfigChange}
                 >
                     {({ visualizationConfig }) => (

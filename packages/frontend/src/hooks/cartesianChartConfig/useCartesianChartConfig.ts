@@ -26,6 +26,12 @@ import {
 
 export const EMPTY_X_AXIS = 'empty_x_axis';
 
+export type CartesianTypeOptions = {
+    type: CartesianSeriesType;
+    flipAxes: boolean;
+    hasAreaStyle: boolean;
+};
+
 type Args = {
     initialChartConfig: CartesianChart | undefined;
     pivotKeys: string[] | undefined;
@@ -35,6 +41,8 @@ type Args = {
     >;
     columnOrder: string[];
     explore: Explore | undefined;
+    stacking: boolean | undefined;
+    cartesianType: CartesianTypeOptions | undefined;
 };
 
 const applyReferenceLines = (
@@ -107,6 +115,8 @@ const useCartesianChartConfig = ({
     setPivotDimensions,
     columnOrder,
     explore,
+    stacking,
+    cartesianType,
 }: Args) => {
     // FIXME: this might not be necessary
     const hasInitialValue =
@@ -286,6 +296,16 @@ const useCartesianChartConfig = ({
         [],
     );
 
+    useEffect(() => {
+        if (cartesianType !== undefined) {
+            setType(
+                cartesianType.type,
+                cartesianType.flipAxes,
+                cartesianType.hasAreaStyle,
+            );
+        }
+    }, [cartesianType, setType]);
+
     const setFlipAxis = useCallback((flipAxes: boolean) => {
         setDirtyLayout((prev) => ({
             ...prev,
@@ -354,6 +374,12 @@ const useCartesianChartConfig = ({
         },
         [dirtyLayout?.yField, updateAllGroupedSeries, pivotKeys],
     );
+
+    useEffect(() => {
+        if (stacking !== undefined) {
+            setStacking(stacking);
+        }
+    }, [stacking, setStacking]);
 
     const sortedDimensions = useMemo(() => {
         return sortDimensions(
