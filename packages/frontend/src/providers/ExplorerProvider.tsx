@@ -13,10 +13,6 @@ import {
     FieldId,
     fieldId as getFieldId,
     getCustomDimensionId,
-    isBigNumberConfig,
-    isCartesianChartConfig,
-    isPieChartConfig,
-    isTableChartConfig,
     MetricQuery,
     MetricType,
     PieChartConfig,
@@ -333,68 +329,81 @@ const defaultState: ExplorerReduceState = {
     },
 };
 
-export const getValidChartConfig = <T extends ChartConfig>(
-    chartConfig: { type: T['type']; config: T['config'] | undefined },
+export const getValidChartConfig = (
+    chartType: ChartType,
+    chartConfig: ChartConfig | undefined,
     cachedConfigs?: Partial<ConfigCacheMap>,
 ): ChartConfig => {
-    const cachedConfig = cachedConfigs?.[chartConfig.type]?.config;
-
-    switch (chartConfig.type) {
+    switch (chartType) {
         case ChartType.CARTESIAN: {
+            const cachedConfig = cachedConfigs?.[chartType];
+
             return {
-                type: chartConfig.type,
+                type: chartType,
                 config:
-                    chartConfig.config &&
-                    isCartesianChartConfig(chartConfig.config)
+                    chartConfig && chartConfig.type === ChartType.CARTESIAN
                         ? chartConfig.config
-                        : cachedConfig && isCartesianChartConfig(cachedConfig)
+                        : cachedConfig
                         ? cachedConfig
                         : EMPTY_CARTESIAN_CHART_CONFIG,
             };
         }
         case ChartType.BIG_NUMBER: {
+            const cachedConfig = cachedConfigs?.[chartType];
+
             return {
-                type: chartConfig.type,
+                type: chartType,
                 config:
-                    chartConfig.config && isBigNumberConfig(chartConfig.config)
+                    chartConfig && chartConfig.type === ChartType.BIG_NUMBER
                         ? chartConfig.config
-                        : cachedConfig && isBigNumberConfig(cachedConfig)
+                        : cachedConfig
                         ? cachedConfig
                         : {},
             };
         }
         case ChartType.TABLE: {
+            const cachedConfig = cachedConfigs?.[chartType];
+
             return {
-                type: chartConfig.type,
+                type: chartType,
                 config:
-                    chartConfig.config && isTableChartConfig(chartConfig.config)
+                    chartConfig && chartConfig.type === ChartType.TABLE
                         ? chartConfig.config
-                        : cachedConfig && isTableChartConfig(cachedConfig)
+                        : cachedConfig
                         ? cachedConfig
                         : {},
             };
         }
         case ChartType.PIE: {
+            const cachedConfig = cachedConfigs?.[chartType];
+
             return {
-                type: chartConfig.type,
+                type: chartType,
                 config:
-                    chartConfig.config && isPieChartConfig(chartConfig.config)
+                    chartConfig && chartConfig.type === ChartType.PIE
                         ? chartConfig.config
-                        : cachedConfig && isPieChartConfig(cachedConfig)
+                        : cachedConfig
                         ? cachedConfig
                         : {},
             };
         }
         case ChartType.CUSTOM: {
+            const cachedConfig = cachedConfigs?.[chartType];
+
             return {
-                type: chartConfig.type,
-                config: cachedConfig ?? {},
+                type: chartType,
+                config:
+                    chartConfig && chartConfig.type === ChartType.CUSTOM
+                        ? chartConfig.config
+                        : cachedConfig
+                        ? cachedConfig
+                        : {},
             };
         }
         default:
             return assertUnreachable(
-                chartConfig.type,
-                `Invalid chart type ${chartConfig.type}`,
+                chartType,
+                `Invalid chart type ${chartType}`,
             );
     }
 };
@@ -1058,11 +1067,8 @@ function reducer(
                 unsavedChartVersion: {
                     ...state.unsavedChartVersion,
                     chartConfig: getValidChartConfig(
-                        {
-                            type: action.payload.chartType,
-                            config: state.unsavedChartVersion.chartConfig
-                                .config,
-                        },
+                        action.payload.chartType,
+                        state.unsavedChartVersion.chartConfig,
                         action.payload.cachedConfigs,
                     ),
                 },
@@ -1074,6 +1080,7 @@ function reducer(
                 unsavedChartVersion: {
                     ...state.unsavedChartVersion,
                     chartConfig: getValidChartConfig(
+                        action.payload.chartConfig.type,
                         action.payload.chartConfig,
                         action.payload.cachedConfigs,
                     ),
@@ -1090,11 +1097,11 @@ function reducer(
 }
 
 type ConfigCacheMap = {
-    [ChartType.PIE]: PieChartConfig;
-    [ChartType.BIG_NUMBER]: BigNumberConfig;
-    [ChartType.TABLE]: TableChartConfig;
-    [ChartType.CARTESIAN]: CartesianChartConfig;
-    [ChartType.CUSTOM]: CustomVisConfig;
+    [ChartType.PIE]: PieChartConfig['config'];
+    [ChartType.BIG_NUMBER]: BigNumberConfig['config'];
+    [ChartType.TABLE]: TableChartConfig['config'];
+    [ChartType.CARTESIAN]: CartesianChartConfig['config'];
+    [ChartType.CUSTOM]: CustomVisConfig['config'];
 };
 
 export const ExplorerProvider: FC<{

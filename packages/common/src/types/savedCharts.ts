@@ -238,6 +238,11 @@ export type CompleteCartesianChartLayout = {
 
 export type CartesianChartLayout = Partial<CompleteCartesianChartLayout>;
 
+// TODO: temporary type, wanted to avoid {}
+export type CustomVis = {
+    code?: string;
+};
+
 export type CartesianChart = {
     layout: CartesianChartLayout;
     eChartsConfig: EChartsConfig;
@@ -255,7 +260,7 @@ export type CartesianChartConfig = {
 
 export type CustomVisConfig = {
     type: ChartType.CUSTOM;
-    config: {};
+    config: CustomVis;
 };
 
 export type PieChartConfig = {
