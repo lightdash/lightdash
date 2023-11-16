@@ -113,21 +113,7 @@ const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
                             );
                         }
                         if (data?.otp?.isMaxAttempts) {
-                            return (
-                                <Alert
-                                    icon={
-                                        <MantineIcon icon={IconAlertCircle} />
-                                    }
-                                    color="orange.8"
-                                    radius="xs"
-                                >
-                                    Maximum number of attempts reached. Hit{' '}
-                                    <Text span fw={500}>
-                                        Resend verification email
-                                    </Text>{' '}
-                                    to receive a new code.
-                                </Alert>
-                            );
+                            return <></>;
                         }
                         return (
                             // FIXME: update hardcoded widths with Mantine widths
