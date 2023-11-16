@@ -103,27 +103,17 @@ export const DashboardProvider: React.FC<{
         {
             select: (d) => {
                 if (schedulerFilters) {
-                    // TODO: Reuse applyDimensionOverrides from hook useSavedDashboardFiltersOverrides
+                    const overriddenDimensions = applyDimensionOverrides(
+                        d.filters,
+                        schedulerFilters,
+                        true,
+                    );
+
                     return {
                         ...d,
                         filters: {
                             ...d.filters,
-                            dimensions: d.filters.dimensions.map(
-                                (dimension) => {
-                                    const override = schedulerFilters.find(
-                                        (overrideDimension) =>
-                                            overrideDimension.id ===
-                                            dimension.id,
-                                    );
-                                    if (override) {
-                                        return {
-                                            ...override,
-                                            tileTargets: dimension.tileTargets,
-                                        };
-                                    }
-                                    return dimension;
-                                },
-                            ),
+                            dimensions: overriddenDimensions,
                         },
                     };
                 }
