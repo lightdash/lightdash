@@ -104,8 +104,11 @@ const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
                                     color="orange.8"
                                     radius="xs"
                                 >
-                                    Your one-time password expired. Please
-                                    resend a verification email.
+                                    Your verification code has expired. Hit{' '}
+                                    <Text span fw={500}>
+                                        Resend verification email
+                                    </Text>{' '}
+                                    to receive a new code.
                                 </Alert>
                             );
                         }
@@ -118,8 +121,11 @@ const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
                                     color="orange.8"
                                     radius="xs"
                                 >
-                                    Maximum number of attempts reached. Please
-                                    verification email.
+                                    Maximum number of attempts reached. Hit{' '}
+                                    <Text span fw={500}>
+                                        Resend verification email
+                                    </Text>{' '}
+                                    to receive a new code.
                                 </Alert>
                             );
                         }
@@ -152,7 +158,7 @@ const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
                     sendVerificationEmail();
                 }}
             >
-                Resend email
+                Resend verification email
             </Anchor>
         </Stack>
     );
