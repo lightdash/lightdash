@@ -89,7 +89,7 @@ type DashboardContext = {
 const Context = createContext<DashboardContext | undefined>(undefined);
 
 export const DashboardProvider: React.FC<{
-    schedulerFilters: DashboardFilterRule[] | undefined;
+    schedulerFilters?: DashboardFilterRule[] | undefined;
 }> = ({ schedulerFilters, children }) => {
     const { search, pathname } = useLocation();
     const history = useHistory();
