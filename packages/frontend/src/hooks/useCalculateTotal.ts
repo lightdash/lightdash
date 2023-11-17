@@ -1,18 +1,18 @@
 import {
+    ApiCalculateTotalResponse,
     ApiError,
     CreateSavedChart,
     MetricQuery,
-    SavedChart,
 } from '@lightdash/common';
 import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
 
-const getTotalCalculationFromQuery = async (
+const calculateTotalFromQuery = async (
     projectUuid: string,
     payload: any,
-): Promise<SavedChart> => {
+): Promise<ApiCalculateTotalResponse['results']> => {
     const timezoneFixPayload: CreateSavedChart = {
         ...payload,
         metricQuery: {
@@ -20,27 +20,27 @@ const getTotalCalculationFromQuery = async (
             filters: convertDateFilters(payload.metricQuery.filters),
         },
     };
-    return lightdashApi<SavedChart>({
+    return lightdashApi<ApiCalculateTotalResponse['results']>({
         url: `/projects/${projectUuid}/calculate-total`,
         method: 'POST',
         body: JSON.stringify(timezoneFixPayload),
     });
 };
 
-const getTotalCalculationFromSavedChart = async (
+const calculateTotalFromSavedChart = async (
     savedChartUuid: string,
-): Promise<SavedChart> => {
-    return lightdashApi<SavedChart>({
+): Promise<ApiCalculateTotalResponse['results']> => {
+    return lightdashApi<ApiCalculateTotalResponse['results']>({
         url: `/saved/${savedChartUuid}/calculate-total`,
         method: 'POST',
         body: '',
     });
 };
 
-export const useTotalCalculation = (data: {
+export const useCalculateTotal = (data: {
     metricQuery?: MetricQuery;
     explore?: string;
-    fields?: any[];
+    fields?: string[];
     savedChartUuid?: string;
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -53,17 +53,17 @@ export const useTotalCalculation = (data: {
         additionalMetrics: metricQuery?.additionalMetrics,
     });
 
-    return useQuery<SavedChart, ApiError>({
-        queryKey: ['total_calculation', projectUuid, queryKey],
+    return useQuery<ApiCalculateTotalResponse['results'], ApiError>({
+        queryKey: ['calculate_total', projectUuid, queryKey],
         queryFn: () =>
             data.savedChartUuid
-                ? getTotalCalculationFromSavedChart(data.savedChartUuid)
-                : getTotalCalculationFromQuery(projectUuid, data),
+                ? calculateTotalFromSavedChart(data.savedChartUuid)
+                : calculateTotalFromQuery(projectUuid, data),
         retry: false,
         enabled: (data?.fields || []).length > 0,
         onError: (result) =>
             console.error(
-                `Unable to get total calculation from query: ${result.error.message}`,
+                `Unable to calculate total from query: ${result.error.message}`,
             ),
     });
 };

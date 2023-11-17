@@ -1,4 +1,5 @@
 import {
+    ApiCalculateTotalResponse,
     ApiErrorPayload,
     ApiGetChartHistoryResponse,
     ApiGetChartVersionResponse,
@@ -178,7 +179,7 @@ export class SavedChartController extends Controller {
     async calculateTotalFromSavedChart(
         @Path() chartUuid: string,
         @Request() req: express.Request,
-    ): Promise<any> {
+    ): Promise<ApiCalculateTotalResponse> {
         this.setStatus(200);
         const totalResult = await projectService.calculateTotalFromSavedChart(
             req.user!,
@@ -186,8 +187,7 @@ export class SavedChartController extends Controller {
         );
         return {
             status: 'ok',
-            results: totalResult.results,
-            sql: totalResult.sql,
+            results: totalResult,
         };
     }
 }

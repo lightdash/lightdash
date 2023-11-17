@@ -2699,13 +2699,6 @@ export class ProjectService {
             additionalMetrics: metricQuery.additionalMetrics,
         };
 
-        const sql = await this.compileQuery(
-            user,
-            totalQuery,
-            projectUuid,
-            exploreName,
-        );
-
         const results = await this.runMetricQuery({
             user,
             projectUuid,
@@ -2714,6 +2707,6 @@ export class ProjectService {
             csvLimit: undefined,
             context: QueryExecutionContext.CALCULATE_TOTALS,
         });
-        return { results: results.rows[0], sql: sql.query };
+        return results.rows[0];
     }
 }

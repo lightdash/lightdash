@@ -19,8 +19,8 @@ import {
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TableColumn, TableHeader } from '../../components/common/Table/types';
+import { useCalculateTotal } from '../useCalculateTotal';
 import { isSummable } from '../useColumnTotals';
-import { useTotalCalculation } from '../useTotalCalculation';
 import getDataAndColumns from './getDataAndColumns';
 
 const createWorker = createWorkerFactory(
@@ -194,7 +194,7 @@ const useTableConfig = (
         columnProperties,
     ]);
 
-    const { data: totalCalculations } = useTotalCalculation({
+    const { data: totalCalculations } = useCalculateTotal({
         metricQuery: resultsData?.metricQuery,
         explore: explore?.baseTable,
         fields: metricsWithTotals,

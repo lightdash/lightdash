@@ -1,4 +1,5 @@
 import {
+    ApiCalculateTotalResponse,
     ApiChartSummaryListResponse,
     ApiErrorPayload,
     ApiGetProjectMemberResponse,
@@ -7,6 +8,7 @@ import {
     ApiSpaceSummaryListResponse,
     ApiSqlQueryResults,
     ApiSuccessEmpty,
+    CalculateTotalFromQuery,
     CreateProjectMember,
     UpdateProjectMember,
 } from '@lightdash/common';
@@ -267,8 +269,9 @@ export class ProjectController extends Controller {
     }
 
     /**
-     * Get all metric totals from a metricQuery
+     * Calculate all metric totals from a metricQuery
      * @param projectUuid The uuid of the project to get charts for
+     * @param body The metric query to calculate totals for
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -277,9 +280,9 @@ export class ProjectController extends Controller {
     @OperationId('CalculateTotalFromQuery')
     async CalculateTotalFromQuery(
         @Path() projectUuid: string,
-        @Body() body: any,
+        @Body() body: CalculateTotalFromQuery,
         @Request() req: express.Request,
-    ): Promise<any> {
+    ): Promise<ApiCalculateTotalResponse> {
         this.setStatus(200);
         const totalResult = await projectService.calculateTotalFromQuery(
             req.user!,
@@ -288,8 +291,7 @@ export class ProjectController extends Controller {
         );
         return {
             status: 'ok',
-            results: totalResult.results,
-            sql: totalResult.sql,
+            results: totalResult,
         };
     }
 }
