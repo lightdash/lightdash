@@ -15,6 +15,7 @@ import { IconPlus } from '@tabler/icons-react';
 import { useProject } from '../../../../hooks/useProject';
 import MantineIcon from '../../../common/MantineIcon';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
+import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import { ReferenceLine } from './ReferenceLine';
 
@@ -24,15 +25,9 @@ type Props = {
 };
 
 export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
-    const {
-        cartesianConfig: {
-            dirtyLayout,
-            dirtyEchartsConfig,
-            updateSeries,
-            referenceLines,
-            setReferenceLines,
-        },
-    } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationContext();
+    const isCartesianChart =
+        isCartesianVisualizationConfig(visualizationConfig);
 
     const project = useProject(projectUuid);
     const startOfWeek = useMemo(
@@ -51,6 +46,15 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
             updateColor: string,
             lineId: string,
         ) => {
+            if (!isCartesianChart) return;
+
+            const {
+                dirtyEchartsConfig,
+                dirtyLayout,
+                referenceLines,
+                setReferenceLines,
+            } = visualizationConfig.chartConfig;
+
             if (updateValue && updateField) {
                 const fieldId = isField(updateField)
                     ? getFieldId(updateField)
@@ -92,15 +96,15 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                 }
             }
         },
-        [
-            setReferenceLines,
-            dirtyEchartsConfig?.series,
-            dirtyLayout?.xField,
-            referenceLines,
-        ],
+        [isCartesianChart, visualizationConfig],
     );
 
     const addReferenceLine = useCallback(() => {
+        if (!isCartesianChart) return;
+
+        const { referenceLines, setReferenceLines } =
+            visualizationConfig.chartConfig;
+
         const newReferenceLine: ReferenceLineField = {
             data: {
                 name: 'Reference line',
@@ -108,10 +112,19 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
             },
         };
         setReferenceLines([...referenceLines, newReferenceLine]);
-    }, [referenceLines, setReferenceLines]);
+    }, [isCartesianChart, visualizationConfig]);
 
     const removeReferenceLine = useCallback(
         (markLineId) => {
+            if (!isCartesianChart) return;
+
+            const {
+                dirtyEchartsConfig,
+                referenceLines,
+                setReferenceLines,
+                updateSeries,
+            } = visualizationConfig.chartConfig;
+
             if (!dirtyEchartsConfig?.series) return;
             const series = dirtyEchartsConfig?.series.map((serie) => {
                 return {
@@ -138,13 +151,12 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                 ),
             );
         },
-        [
-            updateSeries,
-            dirtyEchartsConfig?.series,
-            referenceLines,
-            setReferenceLines,
-        ],
+        [isCartesianChart, visualizationConfig],
     );
+
+    if (!isCartesianChart) return null;
+
+    const { referenceLines } = visualizationConfig.chartConfig;
 
     return (
         <Stack spacing="xs">

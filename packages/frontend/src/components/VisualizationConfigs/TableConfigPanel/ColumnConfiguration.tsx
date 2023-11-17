@@ -8,23 +8,25 @@ import {
 } from '@tabler/icons-react';
 import React, { useState } from 'react';
 import MantineIcon from '../../common/MantineIcon';
+import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const ColumnConfiguration: React.FC<{ fieldId: string }> = ({ fieldId }) => {
-    const {
-        pivotDimensions,
-        tableConfig: {
-            updateColumnProperty,
-            getFieldLabelOverride,
-            getFieldLabelDefault,
-            isColumnVisible,
-            isColumnFrozen,
-            getField,
-        },
-    } = useVisualizationContext();
+    const { pivotDimensions, visualizationConfig } = useVisualizationContext();
 
     const [isShowTooltipVisible, setShowTooltipVisible] = useState(false);
     const [isFreezeTooltipVisible, setFreezeTooltipVisible] = useState(false);
+
+    if (!isTableVisualizationConfig(visualizationConfig)) return null;
+
+    const {
+        updateColumnProperty,
+        getFieldLabelOverride,
+        getFieldLabelDefault,
+        isColumnVisible,
+        isColumnFrozen,
+        getField,
+    } = visualizationConfig.chartConfig;
 
     const field = getField(fieldId);
     const isPivotingDimension = pivotDimensions?.includes(fieldId);

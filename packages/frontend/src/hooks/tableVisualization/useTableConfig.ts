@@ -336,7 +336,7 @@ const useTableConfig = (
         [],
     );
 
-    const validTableConfig: TableChart = useMemo(
+    const validConfig: TableChart = useMemo(
         () => ({
             showColumnCalculation,
             showRowCalculation,
@@ -362,7 +362,7 @@ const useTableConfig = (
     return {
         selectedItemIds,
         columnOrder,
-        validTableConfig,
+        validConfig,
         showColumnCalculation,
         setShowColumnCalculation,
         showRowCalculation,

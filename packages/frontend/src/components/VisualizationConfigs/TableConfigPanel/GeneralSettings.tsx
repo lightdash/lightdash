@@ -3,6 +3,7 @@ import { Box, Checkbox, Stack, Title, Tooltip } from '@mantine/core';
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import ColumnConfiguration from './ColumnConfiguration';
 import DroppableItemsList from './DroppableItemsList';
@@ -18,22 +19,7 @@ const GeneralSettings: FC = () => {
     const {
         resultsData,
         pivotDimensions,
-        tableConfig: {
-            selectedItemIds,
-            showTableNames,
-            setShowTableNames,
-            hideRowNumbers,
-            setHideRowNumbers,
-            showColumnCalculation,
-            setShowColumnCalculation,
-            showRowCalculation,
-            setShowRowCalculation,
-            showResultsTotal,
-            setShowResultsTotal,
-            metricsAsRows,
-            setMetricsAsRows,
-            canUsePivotTable,
-        },
+        visualizationConfig,
         setPivotDimensions,
     } = useVisualizationContext();
     const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -41,6 +27,12 @@ const GeneralSettings: FC = () => {
     const {
         metricQuery: { dimensions, customDimensions },
     } = resultsData || { metricQuery: { dimensions: [] as string[] } };
+
+    const isTableConfig = isTableVisualizationConfig(visualizationConfig);
+
+    const chartConfig = useMemo(() => {
+        return isTableConfig ? visualizationConfig.chartConfig : undefined;
+    }, [visualizationConfig, isTableConfig]);
 
     const {
         columns,
@@ -53,7 +45,7 @@ const GeneralSettings: FC = () => {
                 ...dimensions,
                 ...(customDimensions?.map(getCustomDimensionId) || []),
             ].filter((itemId) => !pivotDimensions?.includes(itemId));
-            const metricsFields = (selectedItemIds ?? []).filter(
+            const metricsFields = (chartConfig?.selectedItemIds ?? []).filter(
                 (id) => ![...columnFields, ...rowsFields].includes(id),
             );
             return {
@@ -61,9 +53,20 @@ const GeneralSettings: FC = () => {
                 rows: rowsFields,
                 metrics: metricsFields,
             };
-        }, [pivotDimensions, dimensions, selectedItemIds, customDimensions]);
+        }, [pivotDimensions, dimensions, chartConfig, customDimensions]);
 
     const handleToggleMetricsAsRows = useCallback(() => {
+        if (!chartConfig) return;
+
+        const {
+            metricsAsRows,
+            showRowCalculation,
+            showColumnCalculation,
+            setShowColumnCalculation,
+            setShowRowCalculation,
+            setMetricsAsRows,
+        } = chartConfig;
+
         const newValue = !metricsAsRows;
 
         if (newValue) {
@@ -75,17 +78,12 @@ const GeneralSettings: FC = () => {
         }
 
         setMetricsAsRows(newValue);
-    }, [
-        metricsAsRows,
-        setMetricsAsRows,
-        showColumnCalculation,
-        setShowColumnCalculation,
-        showRowCalculation,
-        setShowRowCalculation,
-    ]);
+    }, [chartConfig]);
 
     const onDragEnd = useCallback(
         ({ source, destination }: DropResult) => {
+            if (!chartConfig) return;
+
             setIsDragging(false);
             if (!destination) return;
 
@@ -112,7 +110,7 @@ const GeneralSettings: FC = () => {
                     );
 
                     if (
-                        metricsAsRows &&
+                        chartConfig.metricsAsRows &&
                         (!newPivotDimensions || newPivotDimensions.length === 0)
                     ) {
                         handleToggleMetricsAsRows();
@@ -134,13 +132,30 @@ const GeneralSettings: FC = () => {
         },
         [
             columns,
-            handleToggleMetricsAsRows,
-            metricsAsRows,
             rows,
+            chartConfig,
             setPivotDimensions,
             showToastError,
+            handleToggleMetricsAsRows,
         ],
     );
+
+    if (!chartConfig) return null;
+
+    const {
+        canUsePivotTable,
+        hideRowNumbers,
+        metricsAsRows,
+        setHideRowNumbers,
+        setShowColumnCalculation,
+        setShowResultsTotal,
+        setShowRowCalculation,
+        setShowTableNames,
+        showColumnCalculation,
+        showResultsTotal,
+        showRowCalculation,
+        showTableNames,
+    } = chartConfig;
 
     return (
         <Stack spacing={0}>

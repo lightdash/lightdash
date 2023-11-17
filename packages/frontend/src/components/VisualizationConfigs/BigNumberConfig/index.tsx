@@ -6,14 +6,16 @@ import {
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from '../../common/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
+import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/VisualizationBigNumberConfig';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import BigNumberConfigTabs from './BigNumberConfigTabs';
 
 const BigNumberConfig: React.FC = () => {
-    const {
-        bigNumberConfig: { selectedField },
-    } = useVisualizationContext();
-    const disabled = !selectedField;
+    const { visualizationConfig } = useVisualizationContext();
+
+    if (!isBigNumberVisualizationConfig(visualizationConfig)) return null;
+
+    const disabled = !visualizationConfig.chartConfig.selectedField;
 
     return (
         <Popover {...COLLAPSABLE_CARD_POPOVER_PROPS} disabled={disabled}>

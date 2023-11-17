@@ -8,7 +8,7 @@ import {
     getSeriesId,
     Series,
 } from '@lightdash/common';
-import { getPivotedData } from '../plottedData/usePlottedData';
+import { getPivotedData } from '../plottedData/getPlottedData';
 
 export type GetExpectedSeriesMapArgs = {
     defaultSmooth?: boolean;

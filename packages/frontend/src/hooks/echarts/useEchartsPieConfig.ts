@@ -1,6 +1,7 @@
 import { formatItemValue, ResultRow, ResultValue } from '@lightdash/common';
 import { EChartsOption, PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
+import { isPieVisualizationConfig } from '../../components/LightdashVisualization/VisualizationConfigPie';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 
 export type PieSeriesDataPoint = NonNullable<
@@ -13,29 +14,31 @@ export type PieSeriesDataPoint = NonNullable<
 };
 
 const useEchartsPieConfig = (isInDashboard: boolean) => {
-    const context = useVisualizationContext();
-    const {
-        pieChartConfig: {
+    const { visualizationConfig, explore } = useVisualizationContext();
+
+    const chartConfig = useMemo(() => {
+        if (!isPieVisualizationConfig(visualizationConfig)) return;
+        return visualizationConfig.chartConfig;
+    }, [visualizationConfig]);
+
+    const seriesData = useMemo(() => {
+        if (!chartConfig) return;
+
+        const {
             groupColorDefaults,
             selectedMetric,
             data,
             sortedGroupLabels,
-            validPieChartConfig: {
-                isDonut,
+            validConfig: {
                 valueLabel: valueLabelDefault,
                 showValue: showValueDefault,
                 showPercentage: showPercentageDefault,
                 groupLabelOverrides,
                 groupColorOverrides,
                 groupValueOptionOverrides,
-                showLegend,
-                legendPosition,
             },
-        },
-        explore,
-    } = context;
+        } = chartConfig;
 
-    const seriesData = useMemo(() => {
         if (!selectedMetric) return;
 
         return data
@@ -86,20 +89,23 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
 
                 return config;
             });
-    }, [
-        data,
-        sortedGroupLabels,
-        groupColorDefaults,
-        groupColorOverrides,
-        groupLabelOverrides,
-        groupValueOptionOverrides,
-        selectedMetric,
-        showPercentageDefault,
-        showValueDefault,
-        valueLabelDefault,
-    ]);
+    }, [chartConfig]);
 
-    const pieSeriesOption: PieSeriesOption = useMemo(() => {
+    const pieSeriesOption: PieSeriesOption | undefined = useMemo(() => {
+        if (!chartConfig) return;
+
+        const {
+            validConfig: {
+                isDonut,
+                valueLabel: valueLabelDefault,
+                showValue: showValueDefault,
+                showPercentage: showPercentageDefault,
+                showLegend,
+                legendPosition,
+            },
+            selectedMetric,
+        } = chartConfig;
+
         return {
             type: 'pie',
             data: seriesData,
@@ -126,18 +132,15 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
                 },
             },
         };
-    }, [
-        seriesData,
-        isDonut,
-        showLegend,
-        valueLabelDefault,
-        showValueDefault,
-        showPercentageDefault,
-        selectedMetric,
-        legendPosition,
-    ]);
+    }, [chartConfig, seriesData]);
 
-    const eChartsOption: EChartsOption = useMemo(() => {
+    const eChartsOption: EChartsOption | undefined = useMemo(() => {
+        if (!chartConfig || !pieSeriesOption) return;
+
+        const {
+            validConfig: { showLegend, legendPosition },
+        } = chartConfig;
+
         return {
             legend: {
                 show: showLegend,
@@ -161,11 +164,10 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
             series: [pieSeriesOption],
             animation: !isInDashboard,
         };
-    }, [showLegend, pieSeriesOption, legendPosition, isInDashboard]);
+    }, [chartConfig, isInDashboard, pieSeriesOption]);
 
-    if (!explore || !data || data.length === 0) {
-        return undefined;
-    }
+    if (!explore) return;
+    if (!eChartsOption || !pieSeriesOption) return;
 
     return { eChartsOption, pieSeriesOption };
 };

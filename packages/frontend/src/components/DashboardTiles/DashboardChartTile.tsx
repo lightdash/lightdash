@@ -39,7 +39,7 @@ import { downloadCsv } from '../../api/csv';
 import { ExportToGoogleSheet } from '../../features/export';
 import useDashboardChart from '../../hooks/dashboard/useDashboardChart';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
-import { EChartSeries } from '../../hooks/echarts/useEcharts';
+import { EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import useToaster from '../../hooks/toaster/useToaster';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
@@ -182,8 +182,7 @@ const ValidDashboardChartTile: FC<{
 
     return (
         <VisualizationProvider
-            chartType={chart.chartConfig.type}
-            initialChartConfig={chart.chartConfig}
+            chartConfig={chart.chartConfig}
             initialPivotDimensions={chart.pivotConfig?.columns}
             resultsData={resultData}
             explore={explore}
@@ -225,8 +224,7 @@ const ValidDashboardChartTileMinimal: FC<{
     return (
         <VisualizationProvider
             minimal
-            chartType={chart.chartConfig.type}
-            initialChartConfig={chart.chartConfig}
+            chartConfig={chart.chartConfig}
             initialPivotDimensions={chart.pivotConfig?.columns}
             resultsData={resultData}
             isLoading={false}

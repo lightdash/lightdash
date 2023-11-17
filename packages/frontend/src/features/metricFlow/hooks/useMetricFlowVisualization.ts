@@ -1,26 +1,35 @@
 import { ApiQueryResults, ChartConfig, ChartType } from '@lightdash/common';
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { getValidChartConfig } from '../../../providers/ExplorerProvider';
 
 const useMetricFlowVisualization = (
     resultsData: ApiQueryResults | undefined,
 ) => {
-    const [chartType, setChartType] = useState<ChartType>(ChartType.CARTESIAN);
-    const [chartConfig, setChartConfig] = useState<ChartConfig['config']>();
+    const [chartConfig, setChartConfig] = useState<ChartConfig>(
+        getValidChartConfig(ChartType.CARTESIAN, undefined),
+    );
     const [_pivotFields, setPivotFields] = useState<string[] | undefined>();
 
-    const columnOrder = resultsData
-        ? [
-              ...resultsData.metricQuery.dimensions,
-              ...resultsData.metricQuery.metrics,
-          ]
-        : [];
+    const columnOrder = useMemo(() => {
+        return resultsData
+            ? [
+                  ...resultsData.metricQuery.dimensions,
+                  ...resultsData.metricQuery.metrics,
+              ]
+            : [];
+    }, [resultsData]);
+
+    const handleChartTypeChange = useCallback(
+        (chartType: ChartType) => {
+            setChartConfig(getValidChartConfig(chartType, chartConfig));
+        },
+        [chartConfig],
+    );
 
     return {
-        chartType,
         columnOrder,
-        chartConfig: getValidChartConfig(chartType, chartConfig),
-        setChartType,
+        chartConfig,
+        setChartType: handleChartTypeChange,
         setChartConfig,
         setPivotFields,
     };

@@ -23,6 +23,7 @@ import { FC, useCallback, useMemo } from 'react';
 import { EMPTY_X_AXIS } from '../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
+import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { MAX_PIVOTS } from '../TableConfigPanel/GeneralSettings';
 
@@ -31,24 +32,15 @@ type Props = {
 };
 
 const FieldLayoutOptions: FC<Props> = ({ items }) => {
-    const {
-        cartesianConfig: {
-            dirtyLayout,
-            setXField,
-            addSingleSeries,
-            removeSingleSeries,
-            updateYField,
-            validCartesianConfig,
-            setStacking,
-            isStacked,
-            setFlipAxis,
-        },
-        pivotDimensions,
-        cartesianConfig,
-        setPivotDimensions,
-    } = useVisualizationContext();
+    const { visualizationConfig, pivotDimensions, setPivotDimensions } =
+        useVisualizationContext();
 
-    const cartesianType = cartesianConfig.dirtyChartType;
+    const isCartesianChart =
+        isCartesianVisualizationConfig(visualizationConfig);
+
+    const cartesianType = isCartesianChart
+        ? visualizationConfig.chartConfig.dirtyChartType
+        : undefined;
 
     const canBeStacked =
         cartesianType !== CartesianSeriesType.LINE &&
@@ -56,9 +48,12 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         cartesianType !== CartesianSeriesType.AREA;
 
     // X axis logic
-    const xAxisField = items.find(
-        (item) => getItemId(item) === dirtyLayout?.xField,
-    );
+    const xAxisField = useMemo(() => {
+        if (!isCartesianChart) return undefined;
+        const { dirtyLayout } = visualizationConfig.chartConfig;
+
+        return items.find((item) => getItemId(item) === dirtyLayout?.xField);
+    }, [items, isCartesianChart, visualizationConfig]);
 
     const isXAxisFieldNumeric = useMemo(
         () => isNumericItem(xAxisField),
@@ -66,7 +61,12 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     );
 
     // Y axis logic
-    const yFields = dirtyLayout?.yField || [];
+    const yFields = useMemo(() => {
+        if (!isCartesianChart) return [];
+        const { dirtyLayout } = visualizationConfig.chartConfig;
+
+        return dirtyLayout?.yField || [];
+    }, [isCartesianChart, visualizationConfig]);
 
     const yActiveField = useCallback(
         (field: string) => {
@@ -76,10 +76,14 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     );
 
     const availableYFields = useMemo(() => {
+        if (!isCartesianChart) return [];
+
+        const { dirtyLayout } = visualizationConfig.chartConfig;
+
         return items.filter(
             (item) => !dirtyLayout?.yField?.includes(getItemId(item)),
         );
-    }, [dirtyLayout, items]);
+    }, [isCartesianChart, items, visualizationConfig]);
 
     // Group series logic
     const availableDimensions = useMemo(() => {
@@ -89,18 +93,18 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     }, [items]);
 
     const chartHasMetricOrTableCalc = useMemo(() => {
-        if (!validCartesianConfig) return false;
+        if (!isCartesianChart) return false;
 
-        const {
-            layout: { yField },
-        } = validCartesianConfig;
+        const { validConfig } = visualizationConfig.chartConfig;
+
+        const yField = validConfig?.layout.yField;
 
         if (!yField) return false;
 
         return items.some(
             (item) => !isDimension(item) && yField.includes(getItemId(item)),
         );
-    }, [validCartesianConfig, items]);
+    }, [isCartesianChart, items, visualizationConfig]);
 
     const availableGroupByDimensions = useMemo(
         () =>
@@ -124,6 +128,10 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
 
     const handleOnChangeOfXAxisField = useCallback(
         (newValue: Field | TableCalculation | CustomDimension | undefined) => {
+            if (!isCartesianChart) return;
+            const { setXField, setStacking, isStacked } =
+                visualizationConfig.chartConfig;
+
             const fieldId = newValue ? getItemId(newValue) : undefined;
             setXField(fieldId ?? undefined);
 
@@ -131,17 +139,29 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                 setStacking(false);
             }
         },
-        [isStacked, setStacking, setXField],
+        [isCartesianChart, visualizationConfig],
     );
+
+    if (!isCartesianChart) return null;
+
+    const {
+        validConfig,
+        dirtyLayout,
+        setXField,
+        setFlipAxis,
+        setStacking,
+        isStacked,
+        updateYField,
+        removeSingleSeries,
+        addSingleSeries,
+    } = visualizationConfig.chartConfig;
 
     return (
         <>
             <Stack spacing="xs" mb="lg">
                 <Group position="apart">
                     <Text fw={500} sx={{ alignSelf: 'end' }}>
-                        {`${
-                            validCartesianConfig?.layout.flipAxes ? 'Y' : 'X'
-                        }-axis`}
+                        {`${validConfig?.layout.flipAxes ? 'Y' : 'X'}-axis`}
                     </Text>
                     <Button
                         variant="subtle"
@@ -182,9 +202,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             </Stack>
             <Stack spacing="xs" mb="md">
                 <Text fw={500}>
-                    {`${
-                        validCartesianConfig?.layout.flipAxes ? 'X' : 'Y'
-                    }-axis`}
+                    {`${validConfig?.layout.flipAxes ? 'X' : 'Y'}-axis`}
                 </Text>
 
                 {yFields.map((field, index) => {
