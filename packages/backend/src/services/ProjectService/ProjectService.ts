@@ -2691,6 +2691,7 @@ export class ProjectService {
     ) {
         const totalQuery: MetricQuery = {
             ...metricQuery,
+            limit: 1,
             tableCalculations: [],
             sorts: [],
             dimensions: [],
