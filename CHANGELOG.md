@@ -1,3 +1,31 @@
+# [0.864.0](https://github.com/lightdash/lightdash/compare/0.863.18...0.864.0) (2023-11-17)
+
+
+### Features
+
+* sort dashboard table ([#7957](https://github.com/lightdash/lightdash/issues/7957)) ([372b880](https://github.com/lightdash/lightdash/commit/372b880b5fd8aa2b3d283bbb115a193fbeb52c6c))
+
+## [0.863.18](https://github.com/lightdash/lightdash/compare/0.863.17...0.863.18) (2023-11-17)
+
+
+### Bug Fixes
+
+* delay on tooltips in dashboard filter results ([#7938](https://github.com/lightdash/lightdash/issues/7938)) ([53ee0a0](https://github.com/lightdash/lightdash/commit/53ee0a06a87af0f43af0a4d27a9166de1d8c743b))
+
+## [0.863.17](https://github.com/lightdash/lightdash/compare/0.863.16...0.863.17) (2023-11-16)
+
+
+### Bug Fixes
+
+* charts dashboards saved to the wrong place ([#8000](https://github.com/lightdash/lightdash/issues/8000)) ([592d3f0](https://github.com/lightdash/lightdash/commit/592d3f0bc6a0d87a7c0a587eb3c6c91ed32ac17d))
+
+## [0.863.16](https://github.com/lightdash/lightdash/compare/0.863.15...0.863.16) (2023-11-16)
+
+
+### Bug Fixes
+
+* improve ui for expired otp on VerifyEmailForm.tsx ([#7995](https://github.com/lightdash/lightdash/issues/7995)) ([2dc2742](https://github.com/lightdash/lightdash/commit/2dc274283fcf63c7b39bde2c009c8457d2e5a77a))
+
 ## [0.863.15](https://github.com/lightdash/lightdash/compare/0.863.14...0.863.15) (2023-11-15)
 
 

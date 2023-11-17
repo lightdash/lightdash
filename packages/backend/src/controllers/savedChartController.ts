@@ -5,6 +5,7 @@ import {
     ApiGetChartVersionResponse,
     ApiSuccessEmpty,
     DashboardFilters,
+    SortField,
 } from '@lightdash/common';
 import {
     Body,
@@ -50,6 +51,7 @@ export class SavedChartController extends Controller {
         body: {
             dashboardFilters?: any; // DashboardFilters; temp disable validation
             invalidateCache?: boolean;
+            dashboardSorts?: SortField[];
         },
         @Path() chartUuid: string,
         @Request() req: express.Request,
@@ -63,6 +65,7 @@ export class SavedChartController extends Controller {
                 dashboardFilters: body.dashboardFilters,
                 versionUuid: undefined,
                 invalidateCache: body.invalidateCache,
+                dashboardSorts: body.dashboardSorts,
             }),
         };
     }

@@ -5,7 +5,14 @@ import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 const useDashboardChart = (tileUuid: string, savedChartUuid: string | null) => {
     const invalidateCache = useDashboardContext((c) => c.invalidateCache);
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
-    return useChartResults(savedChartUuid, dashboardFilters, invalidateCache);
+    const chartSort = useDashboardContext((c) => c.chartSort);
+    const tileSort = chartSort[tileUuid] || [];
+    return useChartResults(
+        savedChartUuid,
+        dashboardFilters,
+        tileSort,
+        invalidateCache,
+    );
 };
 
 export default useDashboardChart;

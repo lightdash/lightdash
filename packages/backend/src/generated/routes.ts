@@ -6657,6 +6657,10 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        dashboardSorts: {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'SortField' },
+                        },
                         invalidateCache: { dataType: 'boolean' },
                         dashboardFilters: { dataType: 'any' },
                     },

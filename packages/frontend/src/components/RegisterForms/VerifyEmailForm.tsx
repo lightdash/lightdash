@@ -1,5 +1,14 @@
-import { Anchor, Button, PinInput, Stack, Text, Title } from '@mantine/core';
+import {
+    Alert,
+    Anchor,
+    Button,
+    PinInput,
+    Stack,
+    Text,
+    Title,
+} from '@mantine/core';
 import { isNotEmpty, useForm } from '@mantine/form';
+import { IconAlertCircle } from '@tabler/icons-react';
 import { FC, useEffect } from 'react';
 import Countdown, { zeroPad } from 'react-countdown';
 import {
@@ -9,6 +18,7 @@ import {
 } from '../../hooks/useEmailVerification';
 import { useApp } from '../../providers/AppProvider';
 import LoadingState from '../common/LoadingState';
+import MantineIcon from '../common/MantineIcon';
 
 const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
     const { health, user } = useApp();
@@ -85,7 +95,24 @@ const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
                     key={expirationTime?.toString()}
                     date={expirationTime}
                     renderer={({ minutes, seconds, completed }) => {
-                        if (completed || data?.otp?.isMaxAttempts) {
+                        if (completed) {
+                            return (
+                                <Alert
+                                    icon={
+                                        <MantineIcon icon={IconAlertCircle} />
+                                    }
+                                    color="orange.8"
+                                    radius="xs"
+                                >
+                                    Your verification code has expired. Hit{' '}
+                                    <Text span fw={500}>
+                                        Resend verification email
+                                    </Text>{' '}
+                                    to receive a new code.
+                                </Alert>
+                            );
+                        }
+                        if (data?.otp?.isMaxAttempts) {
                             return <></>;
                         }
                         return (
@@ -117,7 +144,7 @@ const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
                     sendVerificationEmail();
                 }}
             >
-                Resend email
+                Resend verification email
             </Anchor>
         </Stack>
     );
