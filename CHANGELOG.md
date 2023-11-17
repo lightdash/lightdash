@@ -1,3 +1,10 @@
+# [0.865.0](https://github.com/lightdash/lightdash/compare/0.864.1...0.865.0) (2023-11-17)
+
+
+### Features
+
+* add user error on chart parse failure ([#8003](https://github.com/lightdash/lightdash/issues/8003)) ([a96caaf](https://github.com/lightdash/lightdash/commit/a96caaf664816e93ccf0561e6e8f1c0843941923))
+
 ## [0.864.1](https://github.com/lightdash/lightdash/compare/0.864.0...0.864.1) (2023-11-17)
 
 
