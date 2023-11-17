@@ -6,7 +6,8 @@ import {
     DashboardTileTypes,
     isDashboardChartTileType,
 } from '@lightdash/common';
-import { useProfiler } from '@sentry/react';
+import { captureException, useProfiler } from '@sentry/react';
+
 import React, {
     FC,
     memo,
@@ -229,6 +230,9 @@ const Dashboard: FC = () => {
                     console.error(
                         'Error parsing chart in dashboard. Attempted to parse: ',
                         unsavedDashboardTilesRaw,
+                    );
+                    captureException(
+                        `Error parsing chart in dashboard. Attempted to parse: ${unsavedDashboardTilesRaw} `,
                     );
                 }
             }
