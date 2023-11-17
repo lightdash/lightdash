@@ -930,7 +930,10 @@ export class ProjectService {
 
         const metricWithOverrideSorting: MetricQuery = {
             ...metricQuery,
-            sorts: dashboardSorts || metricQuery.sorts,
+            sorts:
+                dashboardSorts && dashboardSorts.length > 0
+                    ? dashboardSorts
+                    : metricQuery.sorts,
         };
 
         const { cacheMetadata, rows } = await this.runQueryAndFormatRows({
