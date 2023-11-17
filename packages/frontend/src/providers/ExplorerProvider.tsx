@@ -1142,7 +1142,13 @@ export const ExplorerProvider: FC<{
 
     const cachedChartConfig = useRef<Partial<ConfigCacheMap>>({});
 
+    const resetCachedChartConfig = () => {
+        cachedChartConfig.current = {};
+    };
+
     const reset = useCallback(() => {
+        resetCachedChartConfig();
+
         dispatch({
             type: ActionType.RESET,
             payload: initialState || defaultState,
@@ -1535,12 +1541,15 @@ export const ExplorerProvider: FC<{
     }, [mutateAsync, state.shouldFetchResults]);
 
     const clearExplore = useCallback(async () => {
+        resetCachedChartConfig();
+
         dispatch({
             type: ActionType.RESET,
             payload: defaultState,
         });
         resetQueryResults();
     }, [resetQueryResults]);
+
     const history = useHistory();
     const clearQuery = useCallback(async () => {
         dispatch({
