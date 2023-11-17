@@ -1,3 +1,10 @@
+## [0.864.1](https://github.com/lightdash/lightdash/compare/0.864.0...0.864.1) (2023-11-17)
+
+
+### Bug Fixes
+
+* dashboard sorting line charts ([#8005](https://github.com/lightdash/lightdash/issues/8005)) ([24f55c7](https://github.com/lightdash/lightdash/commit/24f55c7d1d8009f5ad3703e95a8f23124fe30812))
+
 # [0.864.0](https://github.com/lightdash/lightdash/compare/0.863.18...0.864.0) (2023-11-17)
 
 
