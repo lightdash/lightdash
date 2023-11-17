@@ -691,7 +691,7 @@ export const buildQuery = ({
             sqlSelect,
             sqlFrom,
             sqlJoins,
-            customDimensionSql
+            customDimensionSql && customDimensionSql.joins.length > 0
                 ? `CROSS JOIN ${customDimensionSql.joins.join(',\n')}`
                 : undefined,
             sqlWhere,
