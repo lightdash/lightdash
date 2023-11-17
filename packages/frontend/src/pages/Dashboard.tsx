@@ -6,7 +6,8 @@ import {
     DashboardTileTypes,
     isDashboardChartTileType,
 } from '@lightdash/common';
-import { useProfiler } from '@sentry/react';
+import { captureException, useProfiler } from '@sentry/react';
+
 import React, {
     FC,
     memo,
@@ -41,6 +42,7 @@ import {
 } from '../hooks/dashboard/useDashboard';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useOrganization } from '../hooks/organization/useOrganization';
+import useToaster from '../hooks/toaster/useToaster';
 import { deleteSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import {
@@ -165,6 +167,8 @@ const Dashboard: FC = () => {
     );
     const oldestCacheTime = useDashboardContext((c) => c.oldestCacheTime);
 
+    const { showToastError } = useToaster();
+
     const { data: organization } = useOrganization();
     const hasTemporaryFilters = useMemo(
         () =>
@@ -219,7 +223,17 @@ const Dashboard: FC = () => {
                         unsavedDashboardTilesRaw,
                     );
                 } catch {
-                    // do nothing
+                    showToastError({
+                        title: 'Error parsing chart',
+                        subtitle: 'Unable to save chart in dashboard',
+                    });
+                    console.error(
+                        'Error parsing chart in dashboard. Attempted to parse: ',
+                        unsavedDashboardTilesRaw,
+                    );
+                    captureException(
+                        `Error parsing chart in dashboard. Attempted to parse: ${unsavedDashboardTilesRaw} `,
+                    );
                 }
             }
 
@@ -231,6 +245,7 @@ const Dashboard: FC = () => {
         setDashboardTiles,
         savedTiles,
         clearIsEditingDashboardChart,
+        showToastError,
     ]);
 
     useEffect(() => {
