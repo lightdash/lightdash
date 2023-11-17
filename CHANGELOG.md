@@ -1,3 +1,10 @@
+# [0.864.0](https://github.com/lightdash/lightdash/compare/0.863.18...0.864.0) (2023-11-17)
+
+
+### Features
+
+* sort dashboard table ([#7957](https://github.com/lightdash/lightdash/issues/7957)) ([372b880](https://github.com/lightdash/lightdash/commit/372b880b5fd8aa2b3d283bbb115a193fbeb52c6c))
+
 ## [0.863.18](https://github.com/lightdash/lightdash/compare/0.863.17...0.863.18) (2023-11-17)
 
 
