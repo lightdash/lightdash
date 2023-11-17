@@ -1,3 +1,10 @@
+## [0.863.18](https://github.com/lightdash/lightdash/compare/0.863.17...0.863.18) (2023-11-17)
+
+
+### Bug Fixes
+
+* delay on tooltips in dashboard filter results ([#7938](https://github.com/lightdash/lightdash/issues/7938)) ([53ee0a0](https://github.com/lightdash/lightdash/commit/53ee0a06a87af0f43af0a4d27a9166de1d8c743b))
+
 ## [0.863.17](https://github.com/lightdash/lightdash/compare/0.863.16...0.863.17) (2023-11-16)
 
 
