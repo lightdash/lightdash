@@ -39,6 +39,7 @@ import {
     ProjectMemberRole,
 } from './types/projectMemberProfile';
 import {
+    ApiCalculateTotalResponse,
     ChartHistory,
     ChartVersion,
     SavedChart,
@@ -555,7 +556,8 @@ type ApiResults =
     | ApiJobStatusResponse['results']
     | ApiJobScheduledResponse['results']
     | ApiSshKeyPairResponse['results']
-    | MostPopularAndRecentlyUpdated;
+    | MostPopularAndRecentlyUpdated
+    | ApiCalculateTotalResponse['results'];
 
 export type ApiResponse = {
     status: 'ok';

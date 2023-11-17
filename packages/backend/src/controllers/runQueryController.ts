@@ -6,6 +6,7 @@ import {
     CustomDimension,
     FieldId,
     MetricQuery,
+    MetricQueryRequest,
     MetricQueryResponse,
     SortField,
     TableCalculation,
@@ -36,22 +37,6 @@ export type ApiRunQueryResponse = {
     };
 };
 
-type RunQueryRequest = {
-    // tsoa doesn't support complex types like MetricQuery
-    dimensions: FieldId[]; // Dimensions to group by in the explore
-    metrics: FieldId[]; // Metrics to compute in the explore
-    filters: {
-        dimensions?: any;
-        metrics?: any;
-    };
-    sorts: SortField[]; // Sorts for the data
-    limit: number; // Max number of rows to return from query
-    tableCalculations: TableCalculation[]; // calculations to append to results
-    additionalMetrics?: AdditionalMetric[]; // existing metric type
-    csvLimit?: number;
-    customDimensions?: CustomDimension[];
-};
-
 @Route('/api/v1/projects/{projectUuid}')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Exploring')
@@ -68,7 +53,7 @@ export class RunViewChartQueryController extends Controller {
     @Post('/explores/{exploreId}/runUnderlyingDataQuery')
     @OperationId('postRunUnderlyingDataQuery')
     async postUnderlyingData(
-        @Body() body: RunQueryRequest,
+        @Body() body: MetricQueryRequest,
         @Path() projectUuid: string,
         @Path() exploreId: string,
         @Request() req: express.Request,
@@ -110,7 +95,7 @@ export class RunViewChartQueryController extends Controller {
     @Post('/explores/{exploreId}/runQuery')
     @OperationId('RunMetricQuery')
     async runMetricQuery(
-        @Body() body: RunQueryRequest,
+        @Body() body: MetricQueryRequest,
         @Path() projectUuid: string,
         @Path() exploreId: string,
 

@@ -191,6 +191,7 @@ const ValidDashboardChartTile: FC<{
             onSeriesContextMenu={onSeriesContextMenu}
             columnOrder={chart.tableConfig.columnOrder}
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
+            savedChartUuid={chart.uuid}
         >
             <LightdashVisualization
                 isDashboard
@@ -233,6 +234,7 @@ const ValidDashboardChartTileMinimal: FC<{
             explore={explore}
             columnOrder={chart.tableConfig.columnOrder}
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
+            savedChartUuid={chart.uuid}
         >
             <LightdashVisualization
                 tileUuid={tileUuid}

@@ -56,6 +56,7 @@ const MinimalExplorer: FC = () => {
             isLoading={isLoadingQueryResults}
             columnOrder={savedChart.tableConfig.columnOrder}
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
+            savedChartUuid={savedChart.uuid}
         >
             <MantineProvider inherit theme={themeOverride}>
                 <StyledLightdashVisualization

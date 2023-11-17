@@ -86,6 +86,7 @@ type Props = {
     explore: Explore | undefined;
     isSqlRunner?: boolean;
     pivotTableMaxColumnLimit: number;
+    savedChartUuid?: string;
 };
 
 const VisualizationProvider: FC<Props> = ({
@@ -104,6 +105,7 @@ const VisualizationProvider: FC<Props> = ({
     isSqlRunner,
     pivotTableMaxColumnLimit,
     children,
+    savedChartUuid,
 }) => {
     const chartRef = useRef<EChartsReact>(null);
 
@@ -224,6 +226,7 @@ const VisualizationProvider: FC<Props> = ({
         (columnOrder = defaultColumnOrder),
         validPivotDimensions,
         pivotTableMaxColumnLimit,
+        savedChartUuid,
     );
 
     const { validBigNumberConfig } = bigNumberConfig;

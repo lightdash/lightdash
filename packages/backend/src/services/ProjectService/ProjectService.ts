@@ -8,6 +8,7 @@ import {
     ApiQueryResults,
     ApiSqlQueryResults,
     CacheMetadata,
+    CalculateTotalFromQuery,
     ChartSummary,
     CompiledDimension,
     countCustomDimensionsInMetricQuery,
@@ -46,6 +47,7 @@ import {
     JobStatusType,
     JobStepType,
     JobType,
+    Metric,
     MetricQuery,
     MetricType,
     MissingWarehouseCredentialsError,
@@ -2628,5 +2630,92 @@ export class ProjectService {
                 );
             },
         );
+    }
+
+    async calculateTotalFromSavedChart(user: SessionUser, chartUuid: string) {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        const savedChart = await this.savedChartModel.get(
+            chartUuid,
+            undefined, // VersionUuid
+        );
+        const { organizationUuid, projectUuid, tableName, metricQuery } =
+            savedChart;
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', { organizationUuid, projectUuid }),
+            ) ||
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return this._calculateTotal(user, projectUuid, tableName, metricQuery);
+    }
+
+    async calculateTotalFromQuery(
+        user: SessionUser,
+
+        projectUuid: string,
+        data: CalculateTotalFromQuery,
+    ) {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return this._calculateTotal(
+            user,
+            projectUuid,
+            data.explore,
+            data.metricQuery,
+        );
+    }
+
+    async _calculateTotal(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+        metricQuery: MetricQuery,
+    ) {
+        const totalQuery: MetricQuery = {
+            ...metricQuery,
+            limit: 1,
+            tableCalculations: [],
+            sorts: [],
+            dimensions: [],
+            metrics: metricQuery.metrics,
+            additionalMetrics: metricQuery.additionalMetrics,
+        };
+
+        const results = await this.runMetricQuery({
+            user,
+            projectUuid,
+            metricQuery: totalQuery,
+            exploreName,
+            csvLimit: undefined,
+            context: QueryExecutionContext.CALCULATE_TOTAL,
+        });
+        return results.rows[0];
     }
 }

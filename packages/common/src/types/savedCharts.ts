@@ -2,7 +2,7 @@ import assertUnreachable from '../utils/assertUnreachable';
 import { ViewStatistics } from './analytics';
 import { ConditionalFormattingConfig } from './conditionalFormatting';
 import { CompactOrAlias } from './field';
-import { MetricQuery } from './metricQuery';
+import { MetricQuery, MetricQueryRequest } from './metricQuery';
 import { LightdashUser, UpdatedByUser } from './user';
 import { ValidationSummary } from './validation';
 
@@ -582,4 +582,14 @@ export const getHiddenTableFields = (config: ChartConfig) => {
     }
 
     return [];
+};
+
+export type CalculateTotalFromQuery = {
+    metricQuery: MetricQueryRequest;
+    explore: string;
+};
+
+export type ApiCalculateTotalResponse = {
+    status: 'ok';
+    results: Record<string, number>;
 };
