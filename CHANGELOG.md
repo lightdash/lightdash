@@ -1,3 +1,10 @@
+## [0.865.2](https://github.com/lightdash/lightdash/compare/0.865.1...0.865.2) (2023-11-17)
+
+
+### Bug Fixes
+
+* fix custom dimension with width bin and table calculation ([#8010](https://github.com/lightdash/lightdash/issues/8010)) ([701ff88](https://github.com/lightdash/lightdash/commit/701ff888382ca38dc0f906fbd1c54fc83426b801))
+
 ## [0.865.1](https://github.com/lightdash/lightdash/compare/0.865.0...0.865.1) (2023-11-17)
 
 
