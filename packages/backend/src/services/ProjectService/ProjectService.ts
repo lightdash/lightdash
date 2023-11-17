@@ -62,6 +62,7 @@ import {
     ResultRow,
     SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
+    SortField,
     SpaceQuery,
     SpaceSummary,
     SummaryExplore,
@@ -851,12 +852,14 @@ export class ProjectService {
         dashboardFilters,
         versionUuid,
         invalidateCache,
+        dashboardSorts,
     }: {
         user: SessionUser;
         chartUuid: string;
         dashboardFilters?: DashboardFilters;
         versionUuid?: string;
         invalidateCache?: boolean;
+        dashboardSorts?: SortField[];
     }): Promise<ApiChartAndResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -925,9 +928,14 @@ export class ProjectService {
             chart_uuid: chartUuid,
         };
 
+        const metricWithOverrideSorting: MetricQuery = {
+            ...metricQuery,
+            sorts: dashboardSorts || metricQuery.sorts,
+        };
+
         const { cacheMetadata, rows } = await this.runQueryAndFormatRows({
             user,
-            metricQuery,
+            metricQuery: metricWithOverrideSorting,
             projectUuid,
             exploreName: savedChart.tableName,
             csvLimit: undefined,

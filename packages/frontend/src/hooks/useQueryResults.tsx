@@ -5,6 +5,7 @@ import {
     DashboardFilters,
     getCustomDimensionId,
     MetricQuery,
+    SortField,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useMutation, useQuery } from 'react-query';
@@ -30,16 +31,19 @@ const getChartResults = async ({
     chartUuid,
     dashboardFilters,
     invalidateCache,
+    dashboardSorts,
 }: {
     chartUuid?: string;
     dashboardFilters?: DashboardFilters;
     invalidateCache?: boolean;
+    dashboardSorts?: SortField[];
 }) => {
     return lightdashApi<ApiChartAndResults>({
         url: `/saved/${chartUuid}/results`,
         method: 'POST',
         body: JSON.stringify({
             dashboardFilters,
+            dashboardSorts,
             ...(invalidateCache && { invalidateCache: true }),
         }),
     });
@@ -175,13 +179,19 @@ export const useUnderlyingDataResults = (
 export const useChartResults = (
     chartUuid: string | null,
     dashboardFilters?: DashboardFilters,
+    dashboardSorts?: SortField[],
     invalidateCache?: boolean,
 ) => {
+    const sortKey =
+        dashboardSorts
+            ?.map((ds) => `${ds.fieldId}.${ds.descending}`)
+            ?.join(',') || '';
     const queryKey = [
         'savedChartResults',
         chartUuid,
         dashboardFilters,
         invalidateCache,
+        sortKey,
     ];
     const timezoneFixFilters =
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);
@@ -193,6 +203,7 @@ export const useChartResults = (
                 chartUuid: chartUuid!,
                 dashboardFilters: timezoneFixFilters,
                 invalidateCache,
+                dashboardSorts,
             }),
         enabled: !!chartUuid,
         retry: false,
