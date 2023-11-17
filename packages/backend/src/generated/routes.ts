@@ -2213,46 +2213,28 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CacheMetadata: {
+    'Record_string.number_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                cacheHit: { dataType: 'boolean', required: true },
-                cacheUpdatedTime: { dataType: 'datetime' },
-            },
+            nestedProperties: {},
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiRunQueryResponse: {
+    ApiCalculateTotalResponse: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                results: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        rows: {
-                            dataType: 'array',
-                            array: { dataType: 'any' },
-                            required: true,
-                        },
-                        cacheMetadata: { ref: 'CacheMetadata', required: true },
-                        metricQuery: {
-                            ref: 'MetricQueryResponse',
-                            required: true,
-                        },
-                    },
-                    required: true,
-                },
+                results: { ref: 'Record_string.number_', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    RunQueryRequest: {
+    MetricQueryRequest: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -2295,6 +2277,57 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'refAlias', ref: 'FieldId' },
                     required: true,
                 },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CalculateTotalFromQuery: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                explore: { dataType: 'string', required: true },
+                metricQuery: { ref: 'MetricQueryRequest', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CacheMetadata: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                cacheHit: { dataType: 'boolean', required: true },
+                cacheUpdatedTime: { dataType: 'datetime' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiRunQueryResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        rows: {
+                            dataType: 'array',
+                            array: { dataType: 'any' },
+                            required: true,
+                        },
+                        cacheMetadata: { ref: 'CacheMetadata', required: true },
+                        metricQuery: {
+                            ref: 'MetricQueryResponse',
+                            required: true,
+                        },
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
         },
@@ -6460,7 +6493,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    dataType: 'any',
+                    ref: 'CalculateTotalFromQuery',
                 },
                 req: {
                     in: 'request',
@@ -6506,7 +6539,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'RunQueryRequest',
+                    ref: 'MetricQueryRequest',
                 },
                 projectUuid: {
                     in: 'path',
@@ -6564,7 +6597,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'RunQueryRequest',
+                    ref: 'MetricQueryRequest',
                 },
                 projectUuid: {
                     in: 'path',

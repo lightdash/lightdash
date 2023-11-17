@@ -194,12 +194,18 @@ const useTableConfig = (
         columnProperties,
     ]);
 
-    const { data: totalCalculations } = useCalculateTotal({
-        metricQuery: resultsData?.metricQuery,
-        explore: explore?.baseTable,
-        fields: metricsWithTotals,
-        savedChartUuid,
-    });
+    const { data: totalCalculations } = useCalculateTotal(
+        savedChartUuid
+            ? {
+                  savedChartUuid,
+                  fields: metricsWithTotals,
+              }
+            : {
+                  metricQuery: resultsData?.metricQuery,
+                  explore: explore?.baseTable,
+                  fields: metricsWithTotals,
+              },
+    );
     const { rows, columns, error } = useMemo<{
         rows: ResultRow[];
         columns: Array<TableColumn | TableHeader>;
@@ -228,7 +234,7 @@ const useTableConfig = (
             getFieldLabelOverride,
             isColumnFrozen,
             columnOrder,
-            totalCalculations,
+            totalsFromWarehouse: totalCalculations,
         });
     }, [
         columnOrder,

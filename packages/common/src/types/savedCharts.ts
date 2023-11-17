@@ -586,7 +586,6 @@ export const getHiddenTableFields = (config: ChartConfig) => {
 
 export type CalculateTotalFromQuery = {
     metricQuery: MetricQueryRequest;
-    fields: string[];
     explore: string;
 };
 

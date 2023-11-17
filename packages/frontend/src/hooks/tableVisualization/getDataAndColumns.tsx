@@ -28,7 +28,7 @@ type Args = {
     showTableNames: boolean;
     getFieldLabelOverride: (key: string) => string | undefined;
     columnOrder: string[];
-    totalCalculations: any;
+    totalsFromWarehouse: any;
 };
 
 const getDataAndColumns = ({
@@ -40,20 +40,20 @@ const getDataAndColumns = ({
     showTableNames,
     getFieldLabelOverride,
     columnOrder,
-    totalCalculations,
+    totalsFromWarehouse,
 }: Args): {
     rows: ResultRow[];
     columns: Array<TableHeader | TableColumn>;
     error?: string;
 } => {
-    const totalsFromResults = getResultColumnTotalsFromItemsMap(
+    const totalsFromResultsTable = getResultColumnTotalsFromItemsMap(
         resultsData.rows,
         itemsMap,
     );
 
-    const totals = totalCalculations
-        ? { ...totalsFromResults, ...totalCalculations }
-        : totalsFromResults;
+    const totals = totalsFromWarehouse
+        ? { ...totalsFromResultsTable, ...totalsFromWarehouse }
+        : totalsFromResultsTable;
 
     const columns = selectedItemIds.reduce<Array<TableHeader | TableColumn>>(
         (acc, itemId) => {

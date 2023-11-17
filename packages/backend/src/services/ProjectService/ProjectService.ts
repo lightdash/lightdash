@@ -8,6 +8,7 @@ import {
     ApiQueryResults,
     ApiSqlQueryResults,
     CacheMetadata,
+    CalculateTotalFromQuery,
     ChartSummary,
     CompiledDimension,
     countCustomDimensionsInMetricQuery,
@@ -2658,7 +2659,7 @@ export class ProjectService {
         user: SessionUser,
 
         projectUuid: string,
-        data: any,
+        data: CalculateTotalFromQuery,
     ) {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -2705,7 +2706,7 @@ export class ProjectService {
             metricQuery: totalQuery,
             exploreName,
             csvLimit: undefined,
-            context: QueryExecutionContext.CALCULATE_TOTALS,
+            context: QueryExecutionContext.CALCULATE_TOTAL,
         });
         return results.rows[0];
     }

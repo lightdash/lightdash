@@ -168,7 +168,7 @@ export class SavedChartController extends Controller {
     }
 
     /**
-     * Get all metric totals from a saved chart
+     * Calculate metric totals from a saved chart
      * @param chartUuid chartUuid for the chart to run
      * @param req express request
      */
