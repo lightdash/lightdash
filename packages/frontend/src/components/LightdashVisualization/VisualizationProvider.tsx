@@ -61,7 +61,6 @@ type VisualizationContext = {
     chartRef: RefObject<EChartsReact>;
     pivotDimensions: string[] | undefined;
     explore: Explore | undefined;
-    originalData: ApiQueryResults['rows'];
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     columnOrder: string[];
@@ -269,7 +268,6 @@ const VisualizationProvider: FC<Props> = ({
         minimal,
         pivotDimensions: validPivotDimensions,
         chartRef,
-        originalData: lastValidResultsData?.rows || [],
         resultsData: lastValidResultsData,
         isLoading,
         explore,

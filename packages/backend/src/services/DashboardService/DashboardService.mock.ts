@@ -116,7 +116,6 @@ export const chart: SavedChart = {
     },
     chartConfig: {
         type: ChartType.TABLE,
-        config: {},
     },
     tableConfig: {
         columnOrder: [],
