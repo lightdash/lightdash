@@ -1,3 +1,10 @@
+## [0.865.3](https://github.com/lightdash/lightdash/compare/0.865.2...0.865.3) (2023-11-17)
+
+
+### Bug Fixes
+
+* clicking enter adds incomplete filter value ([#7966](https://github.com/lightdash/lightdash/issues/7966)) ([e57c23a](https://github.com/lightdash/lightdash/commit/e57c23aed1293768a05d4cbc6cfd09b10e5012ec))
+
 ## [0.865.2](https://github.com/lightdash/lightdash/compare/0.865.1...0.865.2) (2023-11-17)
 
 
