@@ -14,7 +14,7 @@ import {
     RESULTS_FOR_PIVOT_ON_ITSELF,
     RESULTS_FOR_PIVOT_WITH_MULTIPLE_DIMENSIONS,
     RESULTS_FOR_SIMPLE_PIVOT,
-} from './usePlottedData.mock';
+} from './getPlottedData.mock';
 
 describe('usePlottedData', () => {
     it('should pivot data with 1 dimension and 1 metric', () => {
