@@ -13,6 +13,7 @@ import {
     FieldId,
     fieldId as getFieldId,
     getCustomDimensionId,
+    getItemId,
     MetricQuery,
     MetricType,
     PieChartConfig,
@@ -981,9 +982,13 @@ function reducer(
                         tableCalculations:
                             state.unsavedChartVersion.metricQuery.tableCalculations.map(
                                 (tableCalculation) =>
-                                    tableCalculation.name ===
+                                    getItemId(tableCalculation) ===
                                     action.payload.oldName
-                                        ? action.payload.tableCalculation
+                                        ? {
+                                              ...action.payload
+                                                  .tableCalculation,
+                                              ...tableCalculation,
+                                          }
                                         : tableCalculation,
                             ),
                         sorts: state.unsavedChartVersion.metricQuery.sorts.map(
