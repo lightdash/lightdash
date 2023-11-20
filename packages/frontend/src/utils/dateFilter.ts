@@ -52,5 +52,6 @@ export const convertDateDashboardFilters = (
     return {
         dimensions: filters.dimensions.map(convertFilterRule),
         metrics: filters.metrics.map(convertFilterRule),
+        tableCalculations: filters.tableCalculations.map(convertFilterRule),
     };
 };

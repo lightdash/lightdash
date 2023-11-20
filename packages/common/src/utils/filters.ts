@@ -70,6 +70,7 @@ export const hasNestedGroups = (filters: Filters): boolean => {
         return items.some(isFilterGroup);
     };
     return (
+        (!!filters.dimensions && hasGroups(filters.dimensions)) ||
         (!!filters.metrics && hasGroups(filters.metrics)) ||
         (!!filters.tableCalculations && hasGroups(filters.tableCalculations))
     );
@@ -467,10 +468,10 @@ export const getDashboardFiltersForTileAndTables = (
         tables,
         dashboardFilters.metrics,
     ),
-    tableCalculations: getDashboardFilterRulesForTile(
+    tableCalculations: getDashboardFilterRulesForTileAndTables(
         tileUuid,
         tables,
-        dashboardFilters.metrics,
+        dashboardFilters.tableCalculations,
     ),
 });
 
@@ -520,6 +521,10 @@ export const addDashboardFiltersToMetricQuery = (
         metrics: combineFilterGroupWithFilterRules(
             metricQuery.filters?.metrics,
             dashboardFilters.metrics,
+        ),
+        tableCalculations: combineFilterGroupWithFilterRules(
+            metricQuery.filters?.tableCalculations,
+            dashboardFilters.tableCalculations,
         ),
     },
 });

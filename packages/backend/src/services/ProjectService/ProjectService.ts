@@ -912,6 +912,10 @@ export class ProjectService {
                       tables,
                       dashboardFilters.metrics,
                   ),
+                  tableCalculations: getDashboardFilterRulesForTables(
+                      tables,
+                      dashboardFilters.metrics,
+                  ),
               }
             : undefined;
         const metricQuery: MetricQuery = appliedDashboardFilters

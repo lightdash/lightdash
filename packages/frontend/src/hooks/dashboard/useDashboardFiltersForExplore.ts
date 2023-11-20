@@ -34,7 +34,7 @@ const useDashboardFiltersForExplore = (
                 ...dashboardFilters.metrics,
                 ...(dashboardTemporaryFilters?.metrics ?? []),
             ]),
-            tableCalculations: getDashboardFilterRulesForTile(
+            tableCalculations: getDashboardFilterRulesForTileAndTables(
                 tileUuid,
                 tables,
                 [
