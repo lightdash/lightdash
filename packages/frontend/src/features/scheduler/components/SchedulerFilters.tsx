@@ -201,24 +201,27 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
         >
             {dashboard && dashboard.filters.dimensions.length > 0 ? (
                 <Stack>
-                    {dashboard?.filters?.dimensions.map((filter) => (
-                        <FilterItem
-                            key={filter.id}
-                            dashboardFilter={filter}
-                            schedulerFilter={
-                                schedulerFilters && schedulerFilters.length
-                                    ? schedulerFilters.find(
-                                          (f) =>
-                                              f.target.fieldId ===
-                                                  filter.target.fieldId &&
-                                              f.target.tableName ===
-                                                  filter.target.tableName,
-                                      )
-                                    : undefined
-                            }
-                            onChange={handleUpdateSchedulerFilter}
-                        />
-                    ))}
+                    {dashboard?.filters?.dimensions.map((filter) => {
+                        const schedulerFilter =
+                            schedulerFiltersData && schedulerFiltersData.length
+                                ? schedulerFiltersData.find(
+                                      (f) =>
+                                          f.target.fieldId ===
+                                              filter.target.fieldId &&
+                                          f.target.tableName ===
+                                              filter.target.tableName,
+                                  )
+                                : undefined;
+
+                        return (
+                            <FilterItem
+                                key={filter.id}
+                                dashboardFilter={filter}
+                                schedulerFilter={schedulerFilter}
+                                onChange={handleUpdateSchedulerFilter}
+                            />
+                        );
+                    })}
                 </Stack>
             ) : (
                 <Center component={Stack} h={100}>
