@@ -4,6 +4,7 @@ import {
     DashboardFilterRule,
     FilterType,
     getFilterTypeFromItem,
+    SchedulerFilterRule,
 } from '@lightdash/common';
 import {
     Center,
@@ -28,10 +29,6 @@ import {
 import { isFilterConfigRevertButtonEnabled as hasSavedFilterValueChanged } from '../../../components/DashboardFilter/FilterConfiguration/utils';
 import { useProject } from '../../../hooks/useProject';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
-
-type SchedulerFilterRule = Omit<DashboardFilterRule, 'tileTargets'> & {
-    tileTargets: undefined;
-};
 
 type SchedulerFilterItemProps = {
     dashboardFilter: DashboardFilterRule;
@@ -98,10 +95,49 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
     );
 };
 
+const isFilterReverted = (
+    originalFilter: DashboardFilterRule,
+    schedulerFilter: SchedulerFilterRule,
+) => !hasSavedFilterValueChanged(originalFilter, schedulerFilter);
+
+const hasFilterChanged = (
+    filterToCompareAgainst: DashboardFilterRule | SchedulerFilterRule,
+    schedulerFilter: SchedulerFilterRule,
+) => hasSavedFilterValueChanged(filterToCompareAgainst, schedulerFilter);
+
+const updateFilters = (
+    schedulerFilter: SchedulerFilterRule,
+    originalFilter: DashboardFilterRule,
+    schedulerFilters: SchedulerFilterRule[],
+): SchedulerFilterRule[] | undefined => {
+    if (isFilterReverted(originalFilter, schedulerFilter)) {
+        return schedulerFilters.filter((f) => f.id !== schedulerFilter.id);
+    }
+
+    const filterIndex = schedulerFilters.findIndex(
+        (f) => f.id === schedulerFilter.id,
+    );
+    const isExistingFilter = filterIndex !== -1;
+
+    const filterToCompareAgainst = isExistingFilter
+        ? schedulerFilters[filterIndex]
+        : originalFilter;
+
+    if (hasFilterChanged(filterToCompareAgainst, schedulerFilter)) {
+        if (isExistingFilter) {
+            return schedulerFilters.map((f) =>
+                f.id === schedulerFilter.id ? schedulerFilter : f,
+            );
+        }
+
+        return [...schedulerFilters, schedulerFilter];
+    }
+};
+
 type SchedulerFiltersProps = {
     dashboard?: Dashboard;
     onChange: (schedulerFilters: SchedulerFilterRule[]) => void;
-    schedulerFilters: DashboardFilterRule[] | undefined;
+    schedulerFilters: SchedulerFilterRule[] | undefined;
 };
 
 const SchedulerFilters: FC<SchedulerFiltersProps> = ({
@@ -120,7 +156,7 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
     const originalDashboardFilters = dashboard?.filters;
 
     const [schedulerFiltersData, setSchedulerFiltersData] = useState<
-        DashboardFilterRule[] | undefined
+        SchedulerFilterRule[] | undefined
     >(schedulerFilters);
 
     const handleUpdateSchedulerFilter = useCallback(
@@ -133,52 +169,19 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
 
             if (!originalFilter) return;
 
-            let updatedFilters = schedulerFiltersData
-                ? [...schedulerFiltersData]
-                : [];
-
-            const filterIndex = updatedFilters.findIndex(
-                (f) => f.id === schedulerFilter.id,
-            );
-            const isExistingFilter = filterIndex !== -1;
-
-            const filterToCompareAgainst = isExistingFilter
-                ? updatedFilters[filterIndex]
-                : originalFilter;
-
-            const { tileTargets, ...schedulerFilterWithoutTileTargets } =
-                schedulerFilter;
-
-            const hasChanged = hasSavedFilterValueChanged(
-                filterToCompareAgainst,
-                schedulerFilterWithoutTileTargets,
-            );
-
-            const isReverted = !hasSavedFilterValueChanged(
+            const updatedFilters = updateFilters(
+                schedulerFilter,
                 originalFilter,
-                schedulerFilterWithoutTileTargets,
+                schedulerFiltersData ?? [],
             );
 
-            if (hasChanged) {
-                if (isExistingFilter) {
-                    updatedFilters[filterIndex] = schedulerFilter;
-                } else {
-                    updatedFilters.push(schedulerFilter);
-                }
-            }
-            if (isReverted) {
-                updatedFilters.splice(filterIndex, 1);
-            }
-
-            if (hasChanged || isReverted) {
-                setSchedulerFiltersData(updatedFilters);
-                onChange(
-                    updatedFilters.map((f) => ({
-                        ...f,
-                        tileTargets: undefined,
-                    })),
-                );
-            }
+            setSchedulerFiltersData(updatedFilters);
+            onChange(
+                updatedFilters?.map((f) => ({
+                    ...f,
+                    tileTargets: undefined,
+                })) ?? [],
+            );
         },
         [onChange, originalDashboardFilters, schedulerFiltersData],
     );
