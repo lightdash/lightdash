@@ -108,29 +108,29 @@ const hasFilterChanged = (
 const updateFilters = (
     schedulerFilter: SchedulerFilterRule,
     originalFilter: DashboardFilterRule,
-    schedulerFilters: SchedulerFilterRule[],
+    schedulerFilters: SchedulerFilterRule[] | undefined,
 ): SchedulerFilterRule[] | undefined => {
-    if (isFilterReverted(originalFilter, schedulerFilter)) {
+    if (isFilterReverted(originalFilter, schedulerFilter) && schedulerFilters) {
         return schedulerFilters.filter((f) => f.id !== schedulerFilter.id);
     }
 
-    const filterIndex = schedulerFilters.findIndex(
-        (f) => f.id === schedulerFilter.id,
-    );
+    const filterIndex =
+        schedulerFilters?.findIndex((f) => f.id === schedulerFilter.id) ?? -1;
     const isExistingFilter = filterIndex !== -1;
 
-    const filterToCompareAgainst = isExistingFilter
-        ? schedulerFilters[filterIndex]
-        : originalFilter;
+    const filterToCompareAgainst =
+        schedulerFilters && isExistingFilter
+            ? schedulerFilters[filterIndex]
+            : originalFilter;
 
     if (hasFilterChanged(filterToCompareAgainst, schedulerFilter)) {
-        if (isExistingFilter) {
+        if (isExistingFilter && schedulerFilters) {
             return schedulerFilters.map((f) =>
                 f.id === schedulerFilter.id ? schedulerFilter : f,
             );
         }
 
-        return [...schedulerFilters, schedulerFilter];
+        return [...(schedulerFilters ?? []), schedulerFilter];
     }
 };
 
@@ -154,10 +154,15 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
         (c) => c.fieldsWithSuggestions,
     );
     const originalDashboardFilters = dashboard?.filters;
+    const dashboardFilterIds = useMemo(
+        () => new Set(dashboard?.filters.dimensions.map((f) => f.id)),
+        [dashboard?.filters.dimensions],
+    );
 
     const [schedulerFiltersData, setSchedulerFiltersData] = useState<
         SchedulerFilterRule[] | undefined
-    >(schedulerFilters);
+        // NOTE: Filter out any filters that are not in the dashboard anymore
+    >(schedulerFilters?.filter((sf) => dashboardFilterIds.has(sf.id)));
 
     const handleUpdateSchedulerFilter = useCallback(
         (schedulerFilter: SchedulerFilterRule) => {
@@ -172,7 +177,7 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
             const updatedFilters = updateFilters(
                 schedulerFilter,
                 originalFilter,
-                schedulerFiltersData ?? [],
+                schedulerFiltersData,
             );
 
             setSchedulerFiltersData(updatedFilters);
