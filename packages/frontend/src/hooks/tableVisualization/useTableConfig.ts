@@ -2,6 +2,7 @@ import {
     ApiQueryResults,
     ColumnProperties,
     ConditionalFormattingConfig,
+    DashboardFilters,
     Explore,
     fieldId as getFieldId,
     getItemLabel,
@@ -36,7 +37,8 @@ const useTableConfig = (
     pivotDimensions: string[] | undefined,
     pivotTableMaxColumnLimit: number,
     savedChartUuid?: string,
-    dashboardTileUuid?: string,
+    dashboardFilters?: DashboardFilters,
+    invalidateCache?: boolean,
 ) => {
     const [showColumnCalculation, setShowColumnCalculation] = useState<boolean>(
         !!tableChartConfig?.showColumnCalculation,
@@ -197,16 +199,13 @@ const useTableConfig = (
         columnProperties,
     ]);
 
-    //const dashboardFilters = useDashboardFiltersForTile(dashboardTileUuid);
-
-    console.debug('dashboardTileUuid', dashboardTileUuid);
     const { data: totalCalculations } = useCalculateTotal(
         savedChartUuid
             ? {
                   savedChartUuid,
                   fields: metricsWithTotals,
-                  dashboardFilters: { dimensions: [], metrics: [] },
-                  invalidateCache: false,
+                  dashboardFilters: dashboardFilters,
+                  invalidateCache,
               }
             : {
                   metricQuery: resultsData?.metricQuery,

@@ -6,6 +6,7 @@ import {
     ChartType,
     convertAdditionalMetric,
     CustomDimension,
+    DashboardFilters,
     Dimension,
     Explore,
     fieldId,
@@ -87,7 +88,8 @@ type Props = {
     isSqlRunner?: boolean;
     pivotTableMaxColumnLimit: number;
     savedChartUuid?: string;
-    dashboardTileUuid?: string;
+    dashboardFilters?: DashboardFilters;
+    invalidateCache?: boolean;
 };
 
 const VisualizationProvider: FC<Props> = ({
@@ -107,7 +109,8 @@ const VisualizationProvider: FC<Props> = ({
     pivotTableMaxColumnLimit,
     children,
     savedChartUuid,
-    dashboardTileUuid,
+    dashboardFilters,
+    invalidateCache,
 }) => {
     const chartRef = useRef<EChartsReact>(null);
 
@@ -229,7 +232,8 @@ const VisualizationProvider: FC<Props> = ({
         validPivotDimensions,
         pivotTableMaxColumnLimit,
         savedChartUuid,
-        dashboardTileUuid,
+        dashboardFilters,
+        invalidateCache,
     );
 
     const { validBigNumberConfig } = bigNumberConfig;

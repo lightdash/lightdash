@@ -38,6 +38,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { downloadCsv } from '../../api/csv';
 import { ExportToGoogleSheet } from '../../features/export';
 import useDashboardChart from '../../hooks/dashboard/useDashboardChart';
+import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
@@ -161,6 +162,9 @@ const ValidDashboardChartTile: FC<{
         (c) => c.addResultsCacheTime,
     );
 
+    const dashboardFilters = useDashboardFiltersForTile(tileUuid);
+    const invalidateCache = useDashboardContext((c) => c.invalidateCache);
+
     const { health } = useApp();
 
     useEffect(() => {
@@ -192,6 +196,8 @@ const ValidDashboardChartTile: FC<{
             columnOrder={chart.tableConfig.columnOrder}
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
             savedChartUuid={chart.uuid}
+            dashboardFilters={dashboardFilters}
+            invalidateCache={invalidateCache}
         >
             <LightdashVisualization
                 isDashboard

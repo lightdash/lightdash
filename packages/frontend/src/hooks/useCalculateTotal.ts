@@ -76,7 +76,7 @@ export const useCalculateTotal = ({
 
     // only add relevant fields to the key (filters, metrics)
     const queryKey = savedChartUuid
-        ? savedChartUuid
+        ? JSON.stringify({ savedChartUuid, dashboardFilters, invalidateCache })
         : JSON.stringify({
               filters: metricQuery?.filters,
               metrics: metricQuery?.metrics,
