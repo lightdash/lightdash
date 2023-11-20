@@ -28,16 +28,21 @@ const MinimalDashboard: FC = () => {
 
     const {
         data: dashboard,
-        isError,
-        error,
+        isError: isDashboardError,
+        error: dashboardError,
     } = useDashboardQuery(dashboardUuid);
 
-    const { data: scheduler } = useScheduler(schedulerUuid!, {
+    const {
+        data: scheduler,
+        isError: isSchedulerError,
+        error: schedulerError,
+    } = useScheduler(schedulerUuid!, {
         enabled: !!schedulerUuid,
     });
 
-    if (isError) {
-        return <>{error.error.message}</>;
+    if (isDashboardError || isSchedulerError) {
+        if (dashboardError) return <>{dashboardError.error.message}</>;
+        if (schedulerError) return <>{schedulerError.error.message}</>;
     }
 
     if (!dashboard) {
