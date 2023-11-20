@@ -2149,6 +2149,9 @@ export class ProjectService {
                 await this.savedChartModel.getInfoForAvailableFilters(
                     savedQueryUuids,
                 );
+            const uniqueSpaceUuids = [
+                ...new Set(savedCharts.map((chart) => chart.spaceUuid)),
+            ];
             const exploreCacheKeys: Record<string, boolean> = {};
             const exploreCache: Record<string, Explore> = {};
 
@@ -2167,7 +2170,10 @@ export class ProjectService {
                 return acc;
             }, []);
 
-            const resolvedExplores = await Promise.all(explorePromises);
+            const [spaceAccessMap, resolvedExplores] = await Promise.all([
+                this.spaceModel.getSpacesForAccessCheck(uniqueSpaceUuids),
+                Promise.all(explorePromises),
+            ]);
 
             resolvedExplores.forEach(({ key, explore }) => {
                 exploreCache[key] = explore;
@@ -2183,10 +2189,8 @@ export class ProjectService {
                     return { uuid: savedChart.uuid, filters: [] };
                 }
 
-                const space = await this.spaceModel.getSpaceSummary(
-                    savedChart.spaceUuid,
-                );
-                if (!hasSpaceAccess(user, space)) {
+                const spaceAccess = spaceAccessMap.get(savedChart.spaceUuid);
+                if (!spaceAccess || !hasSpaceAccess(user, spaceAccess)) {
                     return { uuid: savedChart.uuid, filters: [] };
                 }
 
