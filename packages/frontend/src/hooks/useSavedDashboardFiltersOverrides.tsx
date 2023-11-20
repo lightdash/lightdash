@@ -21,6 +21,7 @@ export const applyDimensionOverrides = (
                 (overrideDimension) => overrideDimension.id === dimension.id,
             );
             if (override && keepTileTargets) {
+                if (override.disabled) delete override.disabled;
                 return {
                     ...override,
                     tileTargets: dimension.tileTargets,
