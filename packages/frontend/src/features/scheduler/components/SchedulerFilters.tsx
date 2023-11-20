@@ -111,7 +111,7 @@ const updateFilters = (
     originalFilter: DashboardFilterRule,
     schedulerFilters: SchedulerFilterRule[] | undefined,
 ): SchedulerFilterRule[] | undefined => {
-    if (isFilterReverted(originalFilter, schedulerFilter) && schedulerFilters) {
+    if (schedulerFilters && isFilterReverted(originalFilter, schedulerFilter)) {
         return schedulerFilters.filter((f) => f.id !== schedulerFilter.id);
     }
 
@@ -125,7 +125,7 @@ const updateFilters = (
             : originalFilter;
 
     if (hasFilterChanged(filterToCompareAgainst, schedulerFilter)) {
-        if (isExistingFilter && schedulerFilters) {
+        if (schedulerFilters && isExistingFilter) {
             return schedulerFilters.map((f) =>
                 f.id === schedulerFilter.id ? schedulerFilter : f,
             );
