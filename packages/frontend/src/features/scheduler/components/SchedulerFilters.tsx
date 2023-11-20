@@ -79,6 +79,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                             tileTargets: undefined,
                         });
                     }}
+                    withinPortal
                 />
 
                 <FilterInputComponent
