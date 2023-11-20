@@ -808,7 +808,17 @@ const DashboardChartTile: FC<DashboardChartTileProps> = ({
                 isEditMode={isEditMode}
                 tile={tile}
                 extraMenuItems={
-                    <EditChartMenuItem tile={tile} isEditMode={isEditMode} />
+                    <Tooltip
+                        disabled={!isEditMode}
+                        label="Finish editing dashboard to edit this chart"
+                    >
+                        <Box>
+                            <EditChartMenuItem
+                                tile={tile}
+                                isEditMode={isEditMode}
+                            />
+                        </Box>
+                    </Tooltip>
                 }
                 {...rest}
             >
