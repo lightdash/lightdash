@@ -304,10 +304,18 @@ const renderBooleanFilterSql = (
 export const renderTableCalculationFilterRuleSql = (
     filterRule: FilterRule<FilterOperator, unknown>,
     field: CompiledTableCalculation | undefined,
+    stringQuoteChar: string,
+    escapeStringQuoteChar: string,
 ): string => {
     if (!field) return '1=1';
     switch (field.format?.type) {
         case TableCalculationFormatType.DEFAULT:
+            return renderStringFilterSql(
+                field.name,
+                filterRule,
+                stringQuoteChar,
+                escapeStringQuoteChar,
+            );
         case TableCalculationFormatType.PERCENT:
         case TableCalculationFormatType.CURRENCY:
         case TableCalculationFormatType.NUMBER: {

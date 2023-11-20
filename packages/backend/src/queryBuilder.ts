@@ -610,7 +610,12 @@ export const buildQuery = ({
                 (tc) =>
                     `table_calculation_${tc.name}` === filter.target.fieldId,
             );
-            return renderTableCalculationFilterRuleSql(filter, field);
+            return renderTableCalculationFilterRuleSql(
+                filter,
+                field,
+                stringQuoteChar,
+                escapeStringQuoteChar,
+            );
         }
 
         const field =
