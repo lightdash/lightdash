@@ -239,13 +239,15 @@ export const DashboardProvider: React.FC<{
             dashboard?.filters &&
             hasSavedFiltersOverrides(overridesForSavedDashboardFilters)
         ) {
-            setDashboardFilters({
-                ...dashboard.filters,
-                dimensions: applyDimensionOverrides(
-                    dashboard.filters,
-                    overridesForSavedDashboardFilters,
-                ),
-            });
+            setDashboardFilters((prevFilters) => ({
+                ...prevFilters,
+                dimensions: [
+                    ...applyDimensionOverrides(
+                        prevFilters,
+                        overridesForSavedDashboardFilters,
+                    ),
+                ],
+            }));
         }
     }, [dashboard?.filters, overridesForSavedDashboardFilters]);
 
@@ -368,6 +370,10 @@ export const DashboardProvider: React.FC<{
                 ? setDashboardTemporaryFilters
                 : setDashboardFilters;
 
+            const fitlerIsSaved = dashboard?.filters.dimensions.some((id) => {
+                return id.id === item.id;
+            });
+
             setFunction((previousFilters) => {
                 if (!isTemporary) {
                     const hasChanged = hasSavedFilterValueChanged(
@@ -382,7 +388,7 @@ export const DashboardProvider: React.FC<{
                             item,
                         );
 
-                    if (hasChanged) {
+                    if (hasChanged && fitlerIsSaved) {
                         addSavedFilterOverride(item);
                     }
 
@@ -390,7 +396,6 @@ export const DashboardProvider: React.FC<{
                         removeSavedFilterOverride(item);
                     }
                 }
-
                 return {
                     dimensions: [
                         ...previousFilters.dimensions.slice(0, index),
@@ -404,6 +409,7 @@ export const DashboardProvider: React.FC<{
         },
         [
             addSavedFilterOverride,
+            dashboard?.filters.dimensions,
             originalDashboardFilters.dimensions,
             removeSavedFilterOverride,
         ],
