@@ -1,3 +1,10 @@
+## [0.865.5](https://github.com/lightdash/lightdash/compare/0.865.4...0.865.5) (2023-11-20)
+
+
+### Bug Fixes
+
+* changing chart data requires dashboard refresh ([#7984](https://github.com/lightdash/lightdash/issues/7984)) ([eb44cb1](https://github.com/lightdash/lightdash/commit/eb44cb1ab27b9a1cfcebbe1aa8dddf5a92e42f49))
+
 ## [0.865.4](https://github.com/lightdash/lightdash/compare/0.865.3...0.865.4) (2023-11-20)
 
 
