@@ -181,12 +181,19 @@ export class SavedChartController extends Controller {
     @OperationId('CalculateTotalFromSavedChart')
     async calculateTotalFromSavedChart(
         @Path() chartUuid: string,
+        @Body()
+        body: {
+            dashboardFilters?: any; // DashboardFilters; temp disable validation
+            invalidateCache?: boolean;
+        },
         @Request() req: express.Request,
     ): Promise<ApiCalculateTotalResponse> {
         this.setStatus(200);
         const totalResult = await projectService.calculateTotalFromSavedChart(
             req.user!,
             chartUuid,
+            body.dashboardFilters,
+            body.invalidateCache,
         );
         return {
             status: 'ok',

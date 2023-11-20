@@ -17,6 +17,7 @@ import {
     TableChart,
 } from '@lightdash/common';
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
+import posthog from 'posthog-js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TableColumn, TableHeader } from '../../components/common/Table/types';
 import { useCalculateTotal } from '../useCalculateTotal';
@@ -35,6 +36,7 @@ const useTableConfig = (
     pivotDimensions: string[] | undefined,
     pivotTableMaxColumnLimit: number,
     savedChartUuid?: string,
+    dashboardTileUuid?: string,
 ) => {
     const [showColumnCalculation, setShowColumnCalculation] = useState<boolean>(
         !!tableChartConfig?.showColumnCalculation,
@@ -162,6 +164,7 @@ const useTableConfig = (
         pivotDimensions.length > 0;
 
     const metricsWithTotals = useMemo(() => {
+        if (!posthog.isFeatureEnabled('calculate-totals')) return [];
         //This method will return the metric ids that need to be calculated in the backend
         // We exclude metrics we already calculate and hidden fields
         if (tableChartConfig?.showColumnCalculation === false) return [];
@@ -194,11 +197,16 @@ const useTableConfig = (
         columnProperties,
     ]);
 
+    //const dashboardFilters = useDashboardFiltersForTile(dashboardTileUuid);
+
+    console.debug('dashboardTileUuid', dashboardTileUuid);
     const { data: totalCalculations } = useCalculateTotal(
         savedChartUuid
             ? {
                   savedChartUuid,
                   fields: metricsWithTotals,
+                  dashboardFilters: { dimensions: [], metrics: [] },
+                  invalidateCache: false,
               }
             : {
                   metricQuery: resultsData?.metricQuery,

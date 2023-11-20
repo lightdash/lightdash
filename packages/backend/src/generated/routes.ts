@@ -6919,6 +6919,16 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'string',
                 },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        invalidateCache: { dataType: 'boolean' },
+                        dashboardFilters: { dataType: 'any' },
+                    },
+                },
                 req: {
                     in: 'request',
                     name: 'req',

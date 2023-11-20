@@ -2632,7 +2632,132 @@ export class ProjectService {
         );
     }
 
-    async calculateTotalFromSavedChart(user: SessionUser, chartUuid: string) {
+    async _calculateTotal(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+        metricQuery: MetricQuery,
+    ) {
+        const totalQuery: MetricQuery = {
+            ...metricQuery,
+            limit: 1,
+            tableCalculations: [],
+            sorts: [],
+            dimensions: [],
+            metrics: metricQuery.metrics,
+            additionalMetrics: metricQuery.additionalMetrics,
+        };
+
+        const results = await this.runMetricQuery({
+            user,
+            projectUuid,
+            metricQuery: totalQuery,
+            exploreName,
+            csvLimit: undefined,
+            context: QueryExecutionContext.CALCULATE_TOTAL,
+        });
+        return results.rows[0];
+    }
+
+    async _calculateTotalFromCacheOrWarehouse(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+        metricQuery: MetricQuery,
+        invalidateCache: boolean,
+    ) {
+        return wrapOtelSpan(
+            'ProjectService._calculateTotalFromCacheOrWarehouse',
+            {},
+            async (span) => {
+                // TODO: put this hash function in a util somewhere
+                const queryHash = crypto
+                    .createHash('sha256')
+                    .update(`${projectUuid}.${JSON.stringify(metricQuery)}`)
+                    .digest('hex');
+
+                span.setAttribute('queryHash', queryHash);
+                span.setAttribute('cacheHit', false);
+
+                if (lightdashConfig.resultsCache?.enabled && !invalidateCache) {
+                    const cacheEntryMetadata = await this.s3CacheClient
+                        .getResultsMetadata(queryHash)
+                        .catch((e) => undefined); // ignore since error is tracked in s3Client
+
+                    if (
+                        cacheEntryMetadata?.LastModified &&
+                        new Date().getTime() -
+                            cacheEntryMetadata.LastModified.getTime() <
+                            lightdashConfig.resultsCache.cacheStateTimeSeconds *
+                                1000
+                    ) {
+                        Logger.debug(
+                            `Getting total data from cache, key: ${queryHash}`,
+                        );
+                        const cacheEntry = await this.s3CacheClient.getResults(
+                            queryHash,
+                        );
+                        const stringResults =
+                            await cacheEntry.Body?.transformToString();
+                        if (stringResults) {
+                            try {
+                                span.setAttribute('cacheHit', true);
+                                return {
+                                    rows: JSON.parse(stringResults),
+                                    cacheMetadata: {
+                                        cacheHit: true,
+                                        cacheUpdatedTime:
+                                            cacheEntryMetadata?.LastModified,
+                                    },
+                                };
+                            } catch (e) {
+                                Logger.error('Error parsing cache results:', e);
+                            }
+                        }
+                    }
+                }
+                Logger.debug(`Run total query against warehouse warehouse`);
+                const warehouseResults = await wrapOtelSpan(
+                    '_calculateTotal',
+                    {
+                        projectUuid,
+                    },
+                    async () =>
+                        this._calculateTotal(
+                            user,
+                            projectUuid,
+                            exploreName,
+                            metricQuery,
+                        ),
+                );
+
+                if (lightdashConfig.resultsCache?.enabled) {
+                    Logger.debug(
+                        `Writing total data to cache with key ${queryHash}`,
+                    );
+                    const buffer = Buffer.from(
+                        JSON.stringify(warehouseResults),
+                    );
+                    // fire and forget
+                    this.s3CacheClient
+                        .uploadResults(queryHash, buffer, {})
+                        .catch((e) => undefined); // ignore since error is tracked in s3Client
+                }
+
+                return {
+                    rows: warehouseResults,
+                    cacheMetadata: { cacheHit: false },
+                };
+            },
+        );
+    }
+
+    async calculateTotalFromSavedChart(
+        user: SessionUser,
+        chartUuid: string,
+        dashboardFilters: DashboardFilters,
+        invalidateCache: boolean = false,
+    ) {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -2641,8 +2766,34 @@ export class ProjectService {
             chartUuid,
             undefined, // VersionUuid
         );
-        const { organizationUuid, projectUuid, tableName, metricQuery } =
-            savedChart;
+        const { organizationUuid, projectUuid, tableName } = savedChart;
+
+        const explore = await this.getExplore(
+            user,
+            projectUuid,
+            savedChart.tableName,
+            organizationUuid,
+        );
+        const tables = Object.keys(explore.tables);
+
+        const appliedDashboardFilters = dashboardFilters
+            ? {
+                  dimensions: getDashboardFilterRulesForTables(
+                      tables,
+                      dashboardFilters.dimensions,
+                  ),
+                  metrics: getDashboardFilterRulesForTables(
+                      tables,
+                      dashboardFilters.metrics,
+                  ),
+              }
+            : undefined;
+        const metricQuery: MetricQuery = appliedDashboardFilters
+            ? addDashboardFiltersToMetricQuery(
+                  savedChart.metricQuery,
+                  appliedDashboardFilters,
+              )
+            : savedChart.metricQuery;
 
         if (
             user.ability.cannot(
@@ -2660,7 +2811,14 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
-        return this._calculateTotal(user, projectUuid, tableName, metricQuery);
+        const results = await this._calculateTotalFromCacheOrWarehouse(
+            user,
+            projectUuid,
+            tableName,
+            metricQuery,
+            invalidateCache,
+        );
+        return results.rows;
     }
 
     async calculateTotalFromQuery(
@@ -2690,32 +2848,5 @@ export class ProjectService {
             data.explore,
             data.metricQuery,
         );
-    }
-
-    async _calculateTotal(
-        user: SessionUser,
-        projectUuid: string,
-        exploreName: string,
-        metricQuery: MetricQuery,
-    ) {
-        const totalQuery: MetricQuery = {
-            ...metricQuery,
-            limit: 1,
-            tableCalculations: [],
-            sorts: [],
-            dimensions: [],
-            metrics: metricQuery.metrics,
-            additionalMetrics: metricQuery.additionalMetrics,
-        };
-
-        const results = await this.runMetricQuery({
-            user,
-            projectUuid,
-            metricQuery: totalQuery,
-            exploreName,
-            csvLimit: undefined,
-            context: QueryExecutionContext.CALCULATE_TOTAL,
-        });
-        return results.rows[0];
     }
 }

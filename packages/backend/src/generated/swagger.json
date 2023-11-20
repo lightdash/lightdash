@@ -5377,7 +5377,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.863.15",
+        "version": "0.864.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -7510,7 +7510,23 @@
                             "type": "string"
                         }
                     }
-                ]
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "invalidateCache": {
+                                        "type": "boolean"
+                                    },
+                                    "dashboardFilters": {}
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/schedulers/{projectUuid}/logs": {

@@ -87,6 +87,7 @@ type Props = {
     isSqlRunner?: boolean;
     pivotTableMaxColumnLimit: number;
     savedChartUuid?: string;
+    dashboardTileUuid?: string;
 };
 
 const VisualizationProvider: FC<Props> = ({
@@ -106,6 +107,7 @@ const VisualizationProvider: FC<Props> = ({
     pivotTableMaxColumnLimit,
     children,
     savedChartUuid,
+    dashboardTileUuid,
 }) => {
     const chartRef = useRef<EChartsReact>(null);
 
@@ -227,6 +229,7 @@ const VisualizationProvider: FC<Props> = ({
         validPivotDimensions,
         pivotTableMaxColumnLimit,
         savedChartUuid,
+        dashboardTileUuid,
     );
 
     const { validBigNumberConfig } = bigNumberConfig;

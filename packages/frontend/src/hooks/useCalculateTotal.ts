@@ -2,13 +2,17 @@ import {
     ApiCalculateTotalResponse,
     ApiError,
     CalculateTotalFromQuery,
+    DashboardFilters,
     MetricQuery,
     MetricQueryRequest,
 } from '@lightdash/common';
 import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { convertDateFilters } from '../utils/dateFilter';
+import {
+    convertDateDashboardFilters,
+    convertDateFilters,
+} from '../utils/dateFilter';
 
 const calculateTotalFromQuery = async (
     projectUuid: string,
@@ -37,11 +41,19 @@ const calculateTotalFromQuery = async (
 
 const calculateTotalFromSavedChart = async (
     savedChartUuid: string,
+    dashboardFilters?: DashboardFilters,
+    invalidateCache?: boolean,
 ): Promise<ApiCalculateTotalResponse['results']> => {
+    const timezoneFixFilters =
+        dashboardFilters && convertDateDashboardFilters(dashboardFilters);
+
     return lightdashApi<ApiCalculateTotalResponse['results']>({
         url: `/saved/${savedChartUuid}/calculate-total`,
         method: 'POST',
-        body: '',
+        body: JSON.stringify({
+            dashboardFilters: timezoneFixFilters,
+            invalidateCache,
+        }),
     });
 };
 
@@ -50,10 +62,14 @@ export const useCalculateTotal = ({
     explore,
     savedChartUuid,
     fields,
+    dashboardFilters,
+    invalidateCache,
 }: {
     metricQuery?: MetricQueryRequest;
     explore?: string;
     savedChartUuid?: string;
+    dashboardFilters?: DashboardFilters;
+    invalidateCache?: boolean;
     fields?: string[];
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -71,7 +87,11 @@ export const useCalculateTotal = ({
         queryKey: ['calculate_total', projectUuid, queryKey],
         queryFn: () =>
             savedChartUuid
-                ? calculateTotalFromSavedChart(savedChartUuid)
+                ? calculateTotalFromSavedChart(
+                      savedChartUuid,
+                      dashboardFilters,
+                      invalidateCache,
+                  )
                 : calculateTotalFromQuery(projectUuid, metricQuery, explore),
         retry: false,
         enabled:
