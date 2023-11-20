@@ -206,11 +206,7 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
                         const schedulerFilter =
                             schedulerFiltersData && schedulerFiltersData.length
                                 ? schedulerFiltersData.find(
-                                      (f) =>
-                                          f.target.fieldId ===
-                                              filter.target.fieldId &&
-                                          f.target.tableName ===
-                                              filter.target.tableName,
+                                      (f) => f.id === filter.id,
                                   )
                                 : undefined;
 
