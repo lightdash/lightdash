@@ -1,3 +1,10 @@
+## [0.865.4](https://github.com/lightdash/lightdash/compare/0.865.3...0.865.4) (2023-11-20)
+
+
+### Bug Fixes
+
+* get space access in batches along with explores on availableFilters ([#7986](https://github.com/lightdash/lightdash/issues/7986)) ([e27235e](https://github.com/lightdash/lightdash/commit/e27235eb77abb04ed91acadf2117c55b3d1d98b6))
+
 ## [0.865.3](https://github.com/lightdash/lightdash/compare/0.865.2...0.865.3) (2023-11-17)
 
 
