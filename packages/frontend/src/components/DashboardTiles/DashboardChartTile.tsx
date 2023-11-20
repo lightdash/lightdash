@@ -38,7 +38,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { downloadCsv } from '../../api/csv';
 import { ExportToGoogleSheet } from '../../features/export';
 import useDashboardChart from '../../hooks/dashboard/useDashboardChart';
-import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -63,6 +62,7 @@ import MetricQueryDataProvider, {
 } from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import { EchartSeriesClickEvent } from '../SimpleChart';
+import EditChartMenuItem from './EditChartMenuItem';
 import TileBase from './TileBase/index';
 import {
     FilterLabel,
@@ -279,13 +279,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     );
 
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const filtersFromContext = useDashboardContext((c) => c.dashboardFilters);
-    const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
-    const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
-    const dashboard = useDashboardContext((c) => c.dashboard);
-
-    const { storeDashboard } = useDashboardStorage();
 
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
@@ -497,23 +490,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         >
                             <Box>
                                 {userCanManageChart && (
-                                    <LinkMenuItem
-                                        icon="document-open"
-                                        text="Edit chart"
-                                        disabled={isEditMode}
-                                        onClick={() => {
-                                            if (belongsToDashboard) {
-                                                storeDashboard(
-                                                    dashboardTiles,
-                                                    filtersFromContext,
-                                                    haveTilesChanged,
-                                                    haveFiltersChanged,
-                                                    dashboard?.uuid,
-                                                    dashboard?.name,
-                                                );
-                                            }
-                                        }}
-                                        href={`/projects/${projectUuid}/saved/${savedChartUuid}/edit?fromDashboard=${dashboardUuid}`}
+                                    <EditChartMenuItem
+                                        tile={props.tile}
+                                        isEditMode={isEditMode}
                                     />
                                 )}
 
@@ -803,17 +782,36 @@ type DashboardChartTileProps = Omit<
 
 const DashboardChartTile: FC<DashboardChartTileProps> = ({
     minimal = false,
+    tile,
+    isEditMode,
     ...rest
 }) => {
     const { isLoading, data, error } = useDashboardChart(
-        rest.tile.uuid,
-        rest.tile.properties?.savedChartUuid ?? null,
+        tile.uuid,
+        tile.properties?.savedChartUuid ?? null,
     );
-    if (isLoading) return <TileBase isLoading={true} title={''} {...rest} />;
 
+    if (isLoading)
+        return (
+            <TileBase
+                isEditMode={isEditMode}
+                tile={tile}
+                isLoading={true}
+                title={''}
+                {...rest}
+            />
+        );
     if (error !== null || !data)
         return (
-            <TileBase title={''} {...rest}>
+            <TileBase
+                title={''}
+                isEditMode={isEditMode}
+                tile={tile}
+                extraMenuItems={
+                    <EditChartMenuItem tile={tile} isEditMode={isEditMode} />
+                }
+                {...rest}
+            >
                 <NonIdealState
                     icon="error"
                     title={error?.error?.message || 'No data available'}
@@ -827,9 +825,19 @@ const DashboardChartTile: FC<DashboardChartTileProps> = ({
             tableName={data?.chart.tableName || ''}
         >
             {minimal ? (
-                <DashboardChartTileMinimal {...rest} chartAndResults={data} />
+                <DashboardChartTileMinimal
+                    {...rest}
+                    tile={tile}
+                    isEditMode={isEditMode}
+                    chartAndResults={data}
+                />
             ) : (
-                <DashboardChartTileMain {...rest} chartAndResults={data} />
+                <DashboardChartTileMain
+                    {...rest}
+                    tile={tile}
+                    isEditMode={isEditMode}
+                    chartAndResults={data}
+                />
             )}
             <UnderlyingDataModal />
             <DrillDownModal />
