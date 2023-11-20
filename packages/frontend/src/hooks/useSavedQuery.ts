@@ -457,7 +457,7 @@ export const useAddVersionMutation = () => {
             );
 
             queryClient.setQueryData(['saved_query', data.uuid], data);
-            queryClient.resetQueries(['savedChartResults', data.uuid]);
+            await queryClient.resetQueries(['savedChartResults', data.uuid]);
 
             if (dashboardUuid)
                 showToastSuccess({
