@@ -89,6 +89,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                             tileTargets: undefined,
                         });
                     }}
+                    popoverProps={{ withinPortal: true }}
                 />
             </Flex>
         </Stack>
