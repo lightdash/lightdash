@@ -123,7 +123,7 @@ export type TableCalculation = {
     format?: TableCalculationFormat;
 };
 
-export interface TableCalculationFilter extends Field {
+export interface TableCalculationField extends Field {
     fieldType: FieldType.TABLE_CALCULATION;
     type: TableCalculationFormatType;
     index?: number;
@@ -235,9 +235,9 @@ export interface Dimension extends Field {
     timeInterval?: TimeFrames;
 }
 
-export const isTableCalculationFilter = (
+export const isTableCalculationField = (
     field: any,
-): field is TableCalculationFilter =>
+): field is TableCalculationField =>
     isField(field) && field.fieldType === FieldType.TABLE_CALCULATION;
 
 export interface CompiledDimension extends Dimension {
@@ -277,23 +277,18 @@ export const isFilterableDimension = (
 export type FilterableField =
     | FilterableDimension
     | Metric
-    | TableCalculationFilter;
+    | TableCalculationField;
 export const isFilterableField = (
-    field: Field | Dimension | Metric | TableCalculationFilter,
+    field: Field | Dimension | Metric | TableCalculationField,
 ): field is FilterableField =>
     isDimension(field) ? isFilterableDimension(field) : true;
 
 export type FilterableItem =
     | FilterableField
-    | TableCalculationFilter
+    | TableCalculationField
     | TableCalculation;
 export const isFilterableItem = (
-    item:
-        | Field
-        | Dimension
-        | Metric
-        | TableCalculationFilter
-        | TableCalculation,
+    item: Field | Dimension | Metric | TableCalculationField | TableCalculation,
 ): item is FilterableItem =>
     isDimension(item) ? isFilterableDimension(item) : true;
 

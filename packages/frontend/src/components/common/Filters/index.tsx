@@ -10,7 +10,7 @@ import {
     isField,
     isFilterableField,
     isMetric,
-    isTableCalculationFilter,
+    isTableCalculationField,
     Metric,
 } from '@lightdash/common';
 import {
@@ -54,7 +54,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
             allFields,
             allFields.filter(isDimension),
             allFields.filter(isMetric),
-            allFields.filter(isTableCalculationFilter),
+            allFields.filter(isTableCalculationField),
         ];
     }, [fieldsMap]);
 

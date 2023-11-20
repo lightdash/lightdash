@@ -11,7 +11,7 @@ import {
     isFilterableField,
     Metric,
     TableCalculation,
-    TableCalculationFilter,
+    TableCalculationField,
     TableCalculationFormatType,
 } from '@lightdash/common';
 import { useEffect, useState } from 'react';
@@ -51,10 +51,12 @@ export const useFieldsWithSuggestions = ({
                     return acc;
                 }, []);
 
+                // converts table calculation to filterable table calculation
+                // which is a sub-type of Field.
                 const cals = (tableCalculations || []).reduce<
-                    TableCalculationFilter[]
+                    TableCalculationField[]
                 >((acc, cal) => {
-                    const tableCalculationFilters: TableCalculationFilter = {
+                    const tableCalculationFilters: TableCalculationField = {
                         fieldType: FieldType.TABLE_CALCULATION,
                         type: cal.format?.type
                             ? cal.format.type

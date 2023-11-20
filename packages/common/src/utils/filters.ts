@@ -11,7 +11,7 @@ import {
     isDimension,
     isFilterableDimension,
     isTableCalculation,
-    isTableCalculationFilter,
+    isTableCalculationField,
     MetricType,
     TableCalculationFormatType,
 } from '../types/field';
@@ -339,7 +339,7 @@ export const addFilterRule = ({
         if (isDimension(f)) {
             return 'dimensions';
         }
-        if (isTableCalculationFilter(f)) {
+        if (isTableCalculationField(f)) {
             return 'tableCalculations';
         }
         return 'metrics';
@@ -382,7 +382,7 @@ export const getFilterRulesByFieldType = (
                         dimensions: [...sum.dimensions, filterRule],
                     };
                 }
-                if (isTableCalculationFilter(fieldInRule)) {
+                if (isTableCalculationField(fieldInRule)) {
                     return {
                         ...sum,
                         tableCalculations: [
