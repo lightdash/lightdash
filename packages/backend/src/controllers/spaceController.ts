@@ -6,7 +6,6 @@ import {
     CreateSpace,
     UpdateSpace,
 } from '@lightdash/common';
-import express from 'express';
 import {
     Body,
     Controller,
@@ -22,7 +21,8 @@ import {
     Route,
     SuccessResponse,
     Tags,
-} from 'tsoa';
+} from '@tsoa/runtime';
+import express from 'express';
 import { spaceService } from '../services/services';
 import {
     allowApiKeyAuthentication,

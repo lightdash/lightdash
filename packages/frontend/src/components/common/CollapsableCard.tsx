@@ -36,20 +36,20 @@ interface CollapsableCardProps {
     onToggle?: (isOpen: boolean) => void;
     isOpen?: boolean;
     disabled?: boolean;
-    shouldExpand?: boolean;
     minHeight?: number;
     toggleTooltip?: string;
     title: string;
     headerElement?: JSX.Element;
     rightHeaderElement?: React.ReactNode;
+    isVisualizationCard?: boolean;
 }
 
 const CollapsableCard: FC<CollapsableCardProps> = ({
+    isVisualizationCard = false,
     children,
     onToggle,
     isOpen = false,
     toggleTooltip,
-    shouldExpand = false,
     disabled = false,
     title,
     headerElement,
@@ -62,7 +62,7 @@ const CollapsableCard: FC<CollapsableCardProps> = ({
     );
 
     return (
-        <StyledCard elevation={1} $shouldExpand={isOpen && shouldExpand}>
+        <StyledCard elevation={1} $shouldExpand={isOpen && isVisualizationCard}>
             <Flex gap="xxs" align="center" mr="xs" h="xxl">
                 <Tooltip
                     position="top-start"
@@ -117,10 +117,10 @@ const CollapsableCard: FC<CollapsableCardProps> = ({
 
             {isOpen && (
                 <StyledCollapse
-                    $shouldExpand={isOpen && shouldExpand}
+                    $shouldExpand={isOpen && isVisualizationCard}
                     $minHeight={minHeight}
                 >
-                    {shouldExpand ? (
+                    {isVisualizationCard ? (
                         <div
                             style={{
                                 position: 'relative',
@@ -138,6 +138,7 @@ const CollapsableCard: FC<CollapsableCardProps> = ({
                                     overflow: 'hidden',
                                     display: 'flex',
                                     flexDirection: 'column',
+                                    paddingTop: 8,
                                 }}
                             >
                                 {children}

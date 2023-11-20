@@ -6,7 +6,6 @@ import {
 import { Flex } from '@mantine/core';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
-import { useExplores } from '../../hooks/useExplores';
 import { useProject } from '../../hooks/useProject';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
@@ -24,15 +23,15 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const project = useProject(projectUuid);
-    const {
-        allFilters,
-        fieldsWithSuggestions,
-        addDimensionDashboardFilter,
-        hasChartTiles,
-    } = useDashboardContext();
 
-    // Load data on filter mount
-    useExplores(projectUuid);
+    const allFilters = useDashboardContext((c) => c.allFilters);
+    const fieldsWithSuggestions = useDashboardContext(
+        (c) => c.fieldsWithSuggestions,
+    );
+    const addDimensionDashboardFilter = useDashboardContext(
+        (c) => c.addDimensionDashboardFilter,
+    );
+    const hasChartTiles = useDashboardContext((c) => c.hasChartTiles);
 
     const handleSaveNew = (
         value: DashboardFilterRule<

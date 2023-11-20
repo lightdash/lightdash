@@ -10,7 +10,6 @@ import {
     CreateProjectMember,
     UpdateProjectMember,
 } from '@lightdash/common';
-import express from 'express';
 import {
     Body,
     Controller,
@@ -26,7 +25,8 @@ import {
     Route,
     SuccessResponse,
     Tags,
-} from 'tsoa';
+} from '@tsoa/runtime';
+import express from 'express';
 import { projectService } from '../services/services';
 import {
     allowApiKeyAuthentication,

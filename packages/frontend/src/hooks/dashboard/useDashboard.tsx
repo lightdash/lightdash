@@ -5,6 +5,7 @@ import {
     Dashboard,
     DashboardAvailableFilters,
     DashboardTile,
+    SavedChartsInfoForDashboardAvailableFilters,
     UpdateDashboard,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
@@ -52,11 +53,13 @@ const deleteDashboard = async (id: string) =>
         body: undefined,
     });
 
-const postDashboardsAvailableFilters = async (savedQueryUuids: string[]) =>
+const postDashboardsAvailableFilters = async (
+    savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
+) =>
     lightdashApi<DashboardAvailableFilters>({
         url: `/dashboards/availableFilters`,
         method: 'POST',
-        body: JSON.stringify(savedQueryUuids),
+        body: JSON.stringify(savedChartUuidsAndTileUuids),
     });
 
 const exportDashboard = async (id: string, queryFilters: string) =>
@@ -66,11 +69,13 @@ const exportDashboard = async (id: string, queryFilters: string) =>
         body: JSON.stringify({ queryFilters }),
     });
 
-export const useDashboardsAvailableFilters = (savedQueryUuids: string[]) =>
+export const useDashboardsAvailableFilters = (
+    savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
+) =>
     useQuery<DashboardAvailableFilters, ApiError>(
-        ['dashboards', 'availableFilters', ...savedQueryUuids],
-        () => postDashboardsAvailableFilters(savedQueryUuids),
-        { enabled: savedQueryUuids.length > 0 },
+        ['dashboards', 'availableFilters', ...savedChartUuidsAndTileUuids],
+        () => postDashboardsAvailableFilters(savedChartUuidsAndTileUuids),
+        { enabled: savedChartUuidsAndTileUuids.length > 0 },
     );
 
 export const useDashboardQuery = (
@@ -350,7 +355,7 @@ export const useDashboardDeleteMutation = () => {
 };
 
 export const appendNewTilesToBottom = <T extends Pick<DashboardTile, 'y'>>(
-    existingTiles: T[] | [],
+    existingTiles: T[] | undefined,
     newTiles: T[],
 ): T[] => {
     const tilesY =
@@ -365,5 +370,5 @@ export const appendNewTilesToBottom = <T extends Pick<DashboardTile, 'y'>>(
         y: maxY + 1,
     })); //add to the bottom
 
-    return [...existingTiles, ...reorderedTiles];
+    return [...(existingTiles ?? []), ...reorderedTiles];
 };

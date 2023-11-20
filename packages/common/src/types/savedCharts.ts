@@ -16,6 +16,7 @@ export enum ChartKind {
     PIE = 'pie',
     TABLE = 'table',
     BIG_NUMBER = 'big_number',
+    CUSTOM = 'custom',
 }
 
 export enum ChartType {
@@ -23,6 +24,7 @@ export enum ChartType {
     TABLE = 'table',
     BIG_NUMBER = 'big_number',
     PIE = 'pie',
+    CUSTOM = 'custom',
 }
 
 export enum ComparisonFormatTypes {
@@ -261,11 +263,14 @@ export type CartesianChartConfig = {
     config: CartesianChart;
 };
 
+export type CustomVisConfig = { config: {}; type: ChartType.CUSTOM };
+
 export type ChartConfig =
     | PieChartConfig
     | BigNumberConfig
     | TableChartConfig
-    | CartesianChartConfig;
+    | CartesianChartConfig
+    | CustomVisConfig;
 
 export type SavedChartType = ChartType;
 
@@ -472,6 +477,8 @@ export const getChartKind = (
             return ChartKind.BIG_NUMBER;
         case ChartType.TABLE:
             return ChartKind.TABLE;
+        case ChartType.CUSTOM:
+            return ChartKind.CUSTOM;
         case ChartType.CARTESIAN:
             if (isCartesianChartConfig(value)) {
                 const { series } = value.eChartsConfig;
@@ -559,4 +566,20 @@ export type ApiGetChartHistoryResponse = {
 export type ApiGetChartVersionResponse = {
     status: 'ok';
     results: ChartVersion;
+};
+
+export const getHiddenTableFields = (config: ChartConfig) => {
+    // get hidden fields from chart config
+
+    if (config.type === 'table' && config.config?.columns) {
+        return Object.entries(config.config?.columns).reduce<string[]>(
+            (acc, [col, props]) => {
+                if (props.visible === false) return [...acc, col];
+                return acc;
+            },
+            [],
+        );
+    }
+
+    return [];
 };

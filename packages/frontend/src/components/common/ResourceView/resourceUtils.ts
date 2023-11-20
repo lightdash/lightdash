@@ -33,6 +33,8 @@ export const getResourceTypeName = (item: ResourceViewItem) => {
                     return 'Table';
                 case ChartKind.BIG_NUMBER:
                     return 'Big number';
+                case ChartKind.CUSTOM:
+                    return 'Custom visualization';
                 default:
                     return assertUnreachable(
                         item.data.chartType,

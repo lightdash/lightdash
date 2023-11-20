@@ -1,17 +1,18 @@
 import { ApiErrorPayload } from '@lightdash/common';
-import { Body, Post } from '@tsoa/runtime';
-import express from 'express';
 import {
+    Body,
     Controller,
     Middlewares,
     OperationId,
     Path,
+    Post,
     Request,
     Response,
     Route,
     SuccessResponse,
     Tags,
-} from 'tsoa';
+} from '@tsoa/runtime';
+import express from 'express';
 import { analytics } from '../analytics/client';
 import { dbtCloudGraphqlClient } from '../clients/clients';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';

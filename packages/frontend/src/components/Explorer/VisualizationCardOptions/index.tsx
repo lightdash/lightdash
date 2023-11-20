@@ -13,10 +13,13 @@ import {
     IconChartLine,
     IconChartPie,
     IconChevronDown,
+    IconCode,
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, memo, useMemo } from 'react';
+import { useApp } from '../../../providers/AppProvider';
 import {
     COLLAPSABLE_CARD_BUTTON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
@@ -25,6 +28,13 @@ import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const VisualizationCardOptions: FC = memo(() => {
+    const { health } = useApp();
+
+    // FEATURE FLAG: custom-visualizations-enabled
+    const customVizEnabled = useFeatureFlagEnabled(
+        'custom-visualizations-enabled',
+    );
+
     const {
         chartType,
         setChartType,
@@ -140,6 +150,11 @@ const VisualizationCardOptions: FC = memo(() => {
                 return {
                     text: 'Pie chart',
                     icon: <MantineIcon icon={IconChartPie} color="gray" />,
+                };
+            case ChartType.CUSTOM:
+                return {
+                    text: 'Custom',
+                    icon: <MantineIcon icon={IconCode} color="gray" />,
                 };
             default: {
                 return assertUnreachable(
@@ -332,6 +347,23 @@ const VisualizationCardOptions: FC = memo(() => {
                 >
                     Big value
                 </Menu.Item>
+
+                {(health.data?.customVisualizationsEnabled ||
+                    customVizEnabled) && (
+                    <Menu.Item
+                        disabled={disabled}
+                        color={
+                            chartType === ChartType.CUSTOM ? 'blue' : undefined
+                        }
+                        icon={<MantineIcon icon={IconCode} />}
+                        onClick={() => {
+                            setChartType(ChartType.CUSTOM);
+                            setPivotDimensions(undefined);
+                        }}
+                    >
+                        Custom
+                    </Menu.Item>
+                )}
             </Menu.Dropdown>
         </Menu>
     );

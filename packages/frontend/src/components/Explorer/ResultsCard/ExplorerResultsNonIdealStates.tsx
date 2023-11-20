@@ -51,15 +51,15 @@ const useAnimatedTextStyles = createStyles((theme) => ({
             left: 0,
         },
 
-        '& span:nth-child(2)': {
+        '& span:nth-of-type(2)': {
             animationDelay: '4s',
         },
 
-        '& span:nth-child(3)': {
+        '& span:nth-of-type(3)': {
             animationDelay: '8s',
         },
 
-        '& span:nth-child(4)': {
+        '& span:nth-of-type(4)': {
             animationDelay: '12s',
         },
     },

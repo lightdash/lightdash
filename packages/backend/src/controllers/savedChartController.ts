@@ -3,21 +3,24 @@ import {
     ApiGetChartHistoryResponse,
     ApiGetChartVersionResponse,
     ApiSuccessEmpty,
-    FiltersResponse,
+    DashboardFilters,
+    SortField,
 } from '@lightdash/common';
-import { Body, Get, Post } from '@tsoa/runtime';
-import express from 'express';
 import {
+    Body,
     Controller,
+    Get,
     Middlewares,
     OperationId,
     Path,
+    Post,
     Request,
     Response,
     Route,
     SuccessResponse,
     Tags,
-} from 'tsoa';
+} from '@tsoa/runtime';
+import express from 'express';
 import { projectService, savedChartsService } from '../services/services';
 import {
     allowApiKeyAuthentication,
@@ -33,7 +36,9 @@ export class SavedChartController extends Controller {
     /**
      * Run a query for a chart
      * @param chartUuid chartUuid for the chart to run
-     * @param filters dashboard filters
+     * @param body
+     * @param body.dashboardFilters dashboard filters
+     * @param body.invalidateCache invalidate cache
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -41,7 +46,12 @@ export class SavedChartController extends Controller {
     @Post('/results')
     @OperationId('postChartResults')
     async postDashboardTile(
-        @Body() body: { filters?: FiltersResponse; invalidateCache?: boolean },
+        @Body()
+        body: {
+            dashboardFilters?: any; // DashboardFilters; temp disable validation
+            invalidateCache?: boolean;
+            dashboardSorts?: SortField[];
+        },
         @Path() chartUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {
@@ -51,9 +61,10 @@ export class SavedChartController extends Controller {
             results: await projectService.runViewChartQuery({
                 user: req.user!,
                 chartUuid,
-                filters: body.filters,
+                dashboardFilters: body.dashboardFilters,
                 versionUuid: undefined,
                 invalidateCache: body.invalidateCache,
+                dashboardSorts: body.dashboardSorts,
             }),
         };
     }
@@ -125,7 +136,7 @@ export class SavedChartController extends Controller {
             results: await projectService.runViewChartQuery({
                 user: req.user!,
                 chartUuid,
-                filters: undefined,
+                dashboardFilters: undefined,
                 versionUuid,
             }),
         };

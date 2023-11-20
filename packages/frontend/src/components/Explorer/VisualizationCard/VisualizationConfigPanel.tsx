@@ -2,6 +2,7 @@ import { assertUnreachable, ChartType } from '@lightdash/common';
 import { FC, memo } from 'react';
 import BigNumberConfigPanel from '../../VisualizationConfigs/BigNumberConfig';
 import ChartConfigPanel from '../../VisualizationConfigs/ChartConfigPanel';
+import CustomVisualizationConfigPanel from '../../VisualizationConfigs/ChartConfigPanel/CustomVisConfigTabs';
 import PieConfigPanel from '../../VisualizationConfigs/PieChartConfig';
 import TableConfigPanel from '../../VisualizationConfigs/TableConfigPanel';
 
@@ -16,6 +17,8 @@ const VisualizationConfigPanel: FC<{ chartType: ChartType }> = memo(
                 return <ChartConfigPanel />;
             case ChartType.PIE:
                 return <PieConfigPanel />;
+            case ChartType.CUSTOM:
+                return <CustomVisualizationConfigPanel />;
             default:
                 return assertUnreachable(
                     chartType,

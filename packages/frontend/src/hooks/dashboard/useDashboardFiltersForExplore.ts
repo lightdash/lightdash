@@ -1,7 +1,7 @@
 import {
     DashboardFilters,
     Explore,
-    getDashboardFilterRulesForTile,
+    getDashboardFilterRulesForTileAndTables,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { useDashboardContext } from '../../providers/DashboardProvider';
@@ -10,8 +10,10 @@ const useDashboardFiltersForExplore = (
     tileUuid: string,
     explore: Explore | undefined,
 ): DashboardFilters => {
-    const { dashboardFilters, dashboardTemporaryFilters } =
-        useDashboardContext();
+    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const dashboardTemporaryFilters = useDashboardContext(
+        (c) => c.dashboardTemporaryFilters,
+    );
 
     const tables = useMemo(
         () => (explore ? Object.keys(explore.tables) : []),
@@ -20,11 +22,15 @@ const useDashboardFiltersForExplore = (
 
     return useMemo(
         () => ({
-            dimensions: getDashboardFilterRulesForTile(tileUuid, tables, [
-                ...dashboardFilters.dimensions,
-                ...(dashboardTemporaryFilters?.dimensions ?? []),
-            ]),
-            metrics: getDashboardFilterRulesForTile(tileUuid, tables, [
+            dimensions: getDashboardFilterRulesForTileAndTables(
+                tileUuid,
+                tables,
+                [
+                    ...dashboardFilters.dimensions,
+                    ...(dashboardTemporaryFilters?.dimensions ?? []),
+                ],
+            ),
+            metrics: getDashboardFilterRulesForTileAndTables(tileUuid, tables, [
                 ...dashboardFilters.metrics,
                 ...(dashboardTemporaryFilters?.metrics ?? []),
             ]),

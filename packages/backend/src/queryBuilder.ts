@@ -358,6 +358,30 @@ export const getCustomDimensionSql = ({
                         END
                         AS ${customDimensionName}`;
 
+                    if (isSorted) {
+                        const sortedWhens = customDimension.customRange.map(
+                            (range, i) => {
+                                if (range.from === undefined) {
+                                    return `WHEN ${dimension.compiledSql} < ${range.to} THEN ${i}`;
+                                }
+                                if (range.to === undefined) {
+                                    return `ELSE ${i}`;
+                                }
+
+                                return `WHEN ${dimension.compiledSql} >= ${range.from} AND ${dimension.compiledSql} < ${range.to} THEN ${i}`;
+                            },
+                        );
+
+                        return [
+                            ...acc,
+                            customRangeSql,
+                            `CASE  
+                        ${sortedWhens.join('\n')}
+                        END
+                        AS ${customDimensionOrder}`,
+                        ];
+                    }
+
                     return [...acc, customRangeSql];
 
                 default:
@@ -682,7 +706,7 @@ export const buildQuery = ({
             sqlSelect,
             sqlFrom,
             sqlJoins,
-            customDimensionSql
+            customDimensionSql && customDimensionSql.joins.length > 0
                 ? `CROSS JOIN ${customDimensionSql.joins.join(',\n')}`
                 : undefined,
             sqlWhere,

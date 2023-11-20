@@ -9,21 +9,23 @@ import {
     RegisterOrActivateUser,
     validatePassword,
 } from '@lightdash/common';
-import { Controller, Delete, Query } from '@tsoa/runtime';
-import express from 'express';
 import {
     Body,
+    Controller,
+    Delete,
     Get,
     Middlewares,
     OperationId,
     Path,
     Post,
     Put,
+    Query,
     Request,
     Response,
     Route,
     Tags,
-} from 'tsoa';
+} from '@tsoa/runtime';
+import express from 'express';
 import { userModel } from '../models/models';
 import { UserModel } from '../models/UserModel';
 import { userService } from '../services/services';

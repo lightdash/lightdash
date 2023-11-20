@@ -63,6 +63,13 @@ const ExploreTree: FC<ExploreTreeProps> = ({
             .filter((table) => !(isSearching && !searchHasResults(table)));
     }, [explore, searchHasResults, isSearching]);
 
+    const missingCustomMetrics = useMemo(() => {
+        const allTables = Object.keys(explore.tables);
+        return additionalMetrics.filter(
+            (metric) => !allTables.includes(metric.table),
+        );
+    }, [explore, additionalMetrics]);
+
     return (
         <>
             <TextInput
@@ -93,6 +100,11 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                             selectedItems={selectedNodes}
                             onSelectedNodeChange={onSelectedFieldChange}
                             customDimensions={customDimensions}
+                            missingCustomMetrics={
+                                table.name === explore.baseTable
+                                    ? missingCustomMetrics
+                                    : []
+                            }
                         />
                     ))
                 ) : (

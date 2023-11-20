@@ -17,6 +17,7 @@ export const downloadCsv = async ({
     showTableNames,
     columnOrder,
     customLabels,
+    hiddenFields,
 }: {
     projectUuid: string;
     tableId: string;
@@ -26,6 +27,7 @@ export const downloadCsv = async ({
     showTableNames: boolean;
     columnOrder: string[];
     customLabels?: Record<string, string>;
+    hiddenFields?: string[];
 }) => {
     const timezoneFixQuery = {
         ...query,
@@ -41,6 +43,7 @@ export const downloadCsv = async ({
             showTableNames,
             customLabels,
             columnOrder,
+            hiddenFields,
         }),
     });
 };

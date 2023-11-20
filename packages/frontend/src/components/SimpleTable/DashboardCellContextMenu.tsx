@@ -41,7 +41,11 @@ const DashboardCellContextMenu: FC<
     const { showToastSuccess } = useToaster();
     const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
-    const { addDimensionDashboardFilter } = useDashboardContext();
+
+    const addDimensionDashboardFilter = useDashboardContext(
+        (c) => c.addDimensionDashboardFilter,
+    );
+
     const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
         tileUuid,
         explore,

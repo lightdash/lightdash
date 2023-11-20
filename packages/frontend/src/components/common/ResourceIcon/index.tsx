@@ -20,6 +20,7 @@ import {
     IconChartDots,
     IconChartLine,
     IconChartPie,
+    IconCode,
     IconFolder,
     IconLayoutDashboard,
     IconSquareNumber1,
@@ -86,6 +87,8 @@ export const getChartIcon = (chartType: ChartKind | undefined) => {
             return IconTable;
         case ChartKind.BIG_NUMBER:
             return IconSquareNumber1;
+        case ChartKind.CUSTOM:
+            return IconCode;
         default:
             return assertUnreachable(
                 chartType,

@@ -229,7 +229,7 @@ describe('Lightdash API tests for member user with admin project permissions', (
                     url: `${apiUrl}${endpoint}`,
                     headers: { 'Content-type': 'application/json' },
                     method: 'POST',
-                    body: { filters: {} },
+                    body: { dashboardFilters: { metrics: [], dimensions: [] } },
                 }).then((resp) => {
                     expect(resp.status).to.eq(200);
                     expect(resp.body).to.have.property('status', 'ok');
@@ -887,7 +887,7 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
                     url: `${apiUrl}${endpoint}`,
                     headers: { 'Content-type': 'application/json' },
                     method: 'POST',
-                    body: { filters: {} },
+                    body: { dashboardFilters: { metrics: [], dimensions: [] } },
                 }).then((resp) => {
                     expect(resp.status).to.eq(200);
                     expect(resp.body).to.have.property('status', 'ok');
@@ -1131,7 +1131,7 @@ describe('Lightdash API tests for member user with viewer project permissions', 
                     url: `${apiUrl}${endpoint}`,
                     headers: { 'Content-type': 'application/json' },
                     method: 'POST',
-                    body: { filters: {} },
+                    body: { dashboardFilters: { metrics: [], dimensions: [] } },
                 }).then((resp) => {
                     expect(resp.status).to.eq(200);
                     expect(resp.body).to.have.property('status', 'ok');

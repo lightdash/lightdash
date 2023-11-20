@@ -51,6 +51,7 @@ import { SlackSettings } from './types/slackSettings';
 import { Email } from './types/api/email';
 import { EmailStatusExpiring } from './types/email';
 import { FieldValueSearchResult } from './types/fieldMatch';
+import { DashboardFilters } from './types/filter';
 import {
     DeleteOpenIdentity,
     OpenIdIdentitySummary,
@@ -328,6 +329,15 @@ export type CacheMetadata = {
 };
 
 export type ApiQueryResults = {
+    metricQuery: MetricQuery;
+    cacheMetadata: CacheMetadata;
+    rows: ResultRow[];
+};
+
+export type ApiChartAndResults = {
+    chart: SavedChart;
+    explore: Explore;
+    appliedDashboardFilters: DashboardFilters | undefined;
     metricQuery: MetricQuery;
     cacheMetadata: CacheMetadata;
     rows: ResultRow[];
@@ -640,6 +650,7 @@ export type HealthState = {
     pivotTable: {
         maxColumnLimit: number;
     };
+    customVisualizationsEnabled: boolean;
     hasSlack: boolean;
     hasHeadlessBrowser: boolean;
 };

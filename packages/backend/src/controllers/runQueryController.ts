@@ -10,19 +10,20 @@ import {
     SortField,
     TableCalculation,
 } from '@lightdash/common';
-import { Body, Post } from '@tsoa/runtime';
-import express from 'express';
 import {
+    Body,
     Controller,
     Middlewares,
     OperationId,
     Path,
+    Post,
     Request,
     Response,
     Route,
     SuccessResponse,
     Tags,
-} from 'tsoa';
+} from '@tsoa/runtime';
+import express from 'express';
 import { projectService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 

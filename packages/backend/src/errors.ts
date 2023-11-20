@@ -1,5 +1,5 @@
 import { LightdashError, UnexpectedServerError } from '@lightdash/common';
-import { ValidateError } from 'tsoa';
+import { ValidateError } from '@tsoa/runtime';
 
 export const errorHandler = (error: Error): LightdashError => {
     if (error instanceof ValidateError) {

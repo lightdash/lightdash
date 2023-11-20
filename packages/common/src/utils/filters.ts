@@ -407,7 +407,6 @@ export const getFilterRulesByFieldType = (
 
 export const getDashboardFilterRulesForTile = (
     tileUuid: string,
-    tables: string[],
     rules: DashboardFilterRule[],
 ): DashboardFilterRule[] =>
     rules
@@ -435,20 +434,35 @@ export const getDashboardFilterRulesForTile = (
                 },
             };
         })
-        .filter((f): f is DashboardFilterRule => f !== null)
-        .filter((f) => tables.includes(f.target.tableName));
+        .filter((f): f is DashboardFilterRule => f !== null);
 
-export const getDashboardFiltersForTile = (
+export const getDashboardFilterRulesForTables = (
+    tables: string[],
+    rules: DashboardFilterRule[],
+): DashboardFilterRule[] =>
+    rules.filter((f) => tables.includes(f.target.tableName));
+
+export const getDashboardFilterRulesForTileAndTables = (
+    tileUuid: string,
+    tables: string[],
+    rules: DashboardFilterRule[],
+): DashboardFilterRule[] =>
+    getDashboardFilterRulesForTables(
+        tables,
+        getDashboardFilterRulesForTile(tileUuid, rules),
+    );
+
+export const getDashboardFiltersForTileAndTables = (
     tileUuid: string,
     tables: string[],
     dashboardFilters: DashboardFilters,
 ): DashboardFilters => ({
-    dimensions: getDashboardFilterRulesForTile(
+    dimensions: getDashboardFilterRulesForTileAndTables(
         tileUuid,
         tables,
         dashboardFilters.dimensions,
     ),
-    metrics: getDashboardFilterRulesForTile(
+    metrics: getDashboardFilterRulesForTileAndTables(
         tileUuid,
         tables,
         dashboardFilters.metrics,

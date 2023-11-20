@@ -1,7 +1,6 @@
 import { Button, Menu, Text, Tooltip } from '@mantine/core';
 import { useInterval } from '@mantine/hooks';
 import { IconChevronDown, IconRefresh } from '@tabler/icons-react';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useCallback, useEffect, useState } from 'react';
 import { useDashboardRefresh } from '../../../hooks/dashboard/useDashboardRefresh';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -39,7 +38,7 @@ const REFRESH_INTERVAL_OPTIONS = [
     },
 ];
 
-const DashboardRefreshButtonWithAutoRefresh = () => {
+export const DashboardRefreshButton = () => {
     const { showToastSuccess } = useToaster();
     const [isOpen, setIsOpen] = useState(false);
     const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
@@ -49,7 +48,7 @@ const DashboardRefreshButtonWithAutoRefresh = () => {
 
     const { isFetching, invalidateDashboardRelatedQueries } =
         useDashboardRefresh();
-    const { clearCacheAndFetch } = useDashboardContext();
+    const clearCacheAndFetch = useDashboardContext((c) => c.clearCacheAndFetch);
 
     const isOneAtLeastFetching = isFetching > 0;
 
@@ -189,38 +188,4 @@ const DashboardRefreshButtonWithAutoRefresh = () => {
             </Menu>
         </Button.Group>
     );
-};
-
-const DashboardRefreshButtonWithoutAutoRefresh = () => {
-    const { isFetching, invalidateDashboardRelatedQueries } =
-        useDashboardRefresh();
-    const { clearCacheAndFetch } = useDashboardContext();
-
-    const isOneAtLeastFetching = isFetching > 0;
-
-    return (
-        <Button
-            size="xs"
-            loading={isOneAtLeastFetching}
-            leftIcon={<MantineIcon icon={IconRefresh} />}
-            onClick={() => {
-                clearCacheAndFetch();
-                invalidateDashboardRelatedQueries();
-            }}
-        >
-            Refresh
-        </Button>
-    );
-};
-
-export const DashboardRefreshButton = () => {
-    const isAutoRefreshFeatureEnabled = useFeatureFlagEnabled(
-        'dashboard-auto-refresh',
-    );
-
-    if (isAutoRefreshFeatureEnabled) {
-        return <DashboardRefreshButtonWithAutoRefresh />;
-    }
-
-    return <DashboardRefreshButtonWithoutAutoRefresh />;
 };

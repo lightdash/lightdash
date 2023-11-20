@@ -178,6 +178,7 @@ module.exports = {
                     id: 'references/joins',
                     label: 'Joins',
                 },
+                'references/the-sql-runner',
                 'references/syncing_your_dbt_changes',
                 'references/personal_tokens',
                 'references/ip_addresses',

@@ -6,7 +6,7 @@ import {
 import { Button, CloseButton, Popover, Text, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconFilter } from '@tabler/icons-react';
-import { FC, useCallback } from 'react';
+import { FC, useCallback, useMemo } from 'react';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import {
     getConditionalRuleLabel,
@@ -36,42 +36,56 @@ const Filter: FC<Props> = ({
     onUpdate,
     onRemove,
 }) => {
-    const {
-        dashboard,
-        dashboardTiles,
-        allFilterableFields,
-        filterableFieldsByTileUuid,
-        isLoadingDashboardFilters,
-        isFetchingDashboardFilters,
-    } = useDashboardContext();
+    const dashboard = useDashboardContext((c) => c.dashboard);
+    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const allFilterableFields = useDashboardContext(
+        (c) => c.allFilterableFields,
+    );
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
+    const isLoadingDashboardFilters = useDashboardContext(
+        (c) => c.isLoadingDashboardFilters,
+    );
+    const isFetchingDashboardFilters = useDashboardContext(
+        (c) => c.isFetchingDashboardFilters,
+    );
 
     const [isPopoverOpen, { close: closePopover, toggle: togglePopover }] =
         useDisclosure();
     const [isSubPopoverOpen, { close: closeSubPopover, open: openSubPopover }] =
         useDisclosure();
 
-    const defaultFilterRule =
-        filterableFieldsByTileUuid && filterRule && field
-            ? applyDefaultTileTargets(
-                  filterRule,
-                  field,
-                  filterableFieldsByTileUuid,
-              )
-            : undefined;
+    const defaultFilterRule = useMemo(() => {
+        if (!filterableFieldsByTileUuid || !field || !filterRule) return;
+
+        return applyDefaultTileTargets(
+            filterRule,
+            field,
+            filterableFieldsByTileUuid,
+        );
+    }, [filterableFieldsByTileUuid, field, filterRule]);
 
     // Only used by active filters
-    const originalFilterRule = dashboard?.filters?.dimensions.find(
-        (item) => filterRule && item.id === filterRule.id,
-    );
+    const originalFilterRule = useMemo(() => {
+        if (!dashboard || !filterRule) return;
 
-    const filterRuleLabels =
-        filterRule && field
-            ? getConditionalRuleLabel(filterRule, field)
-            : undefined;
-    const filterRuleTables =
-        filterRule && field && allFilterableFields
-            ? getFilterRuleTables(filterRule, field, allFilterableFields)
-            : undefined;
+        return dashboard.filters.dimensions.find(
+            (item) => item.id === filterRule.id,
+        );
+    }, [dashboard, filterRule]);
+
+    const filterRuleLabels = useMemo(() => {
+        if (!filterRule || !field) return;
+
+        return getConditionalRuleLabel(filterRule, field);
+    }, [filterRule, field]);
+
+    const filterRuleTables = useMemo(() => {
+        if (!filterRule || !field || !allFilterableFields) return;
+
+        return getFilterRuleTables(filterRule, field, allFilterableFields);
+    }, [filterRule, field, allFilterableFields]);
 
     const handleClose = useCallback(() => {
         closeSubPopover();
@@ -217,7 +231,7 @@ const Filter: FC<Props> = ({
             </Popover.Target>
 
             <Popover.Dropdown ml={5}>
-                {filterableFieldsByTileUuid && (
+                {filterableFieldsByTileUuid && dashboardTiles && (
                     <FilterConfiguration
                         isCreatingNew={isCreatingNew}
                         isEditMode={isEditMode}
