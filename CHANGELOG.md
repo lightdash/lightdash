@@ -1,3 +1,10 @@
+# [0.869.0](https://github.com/lightdash/lightdash/compare/0.868.2...0.869.0) (2023-11-21)
+
+
+### Features
+
+* total metrics ([#7981](https://github.com/lightdash/lightdash/issues/7981)) ([4e6abb9](https://github.com/lightdash/lightdash/commit/4e6abb9b10feed9ab935076142aa095bf563e11a))
+
 ## [0.868.2](https://github.com/lightdash/lightdash/compare/0.868.1...0.868.2) (2023-11-21)
 
 
