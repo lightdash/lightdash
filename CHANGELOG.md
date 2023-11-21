@@ -1,3 +1,10 @@
+## [0.870.1](https://github.com/lightdash/lightdash/compare/0.870.0...0.870.1) (2023-11-21)
+
+
+### Bug Fixes
+
+* enable editing charts with errors ([#8022](https://github.com/lightdash/lightdash/issues/8022)) ([cc89758](https://github.com/lightdash/lightdash/commit/cc8975815156e0e37ad17ddecc7c364aeb43678f))
+
 # [0.870.0](https://github.com/lightdash/lightdash/compare/0.869.0...0.870.0) (2023-11-21)
 
 
