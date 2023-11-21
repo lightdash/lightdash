@@ -2639,45 +2639,14 @@ export class ProjectService {
         );
     }
 
-    async _calculateTotal(
+    async _getCalculateTotalQuery(
         user: SessionUser,
         projectUuid: string,
         exploreName: string,
         metricQuery: MetricQuery,
-    ) {
-        const totalQuery: MetricQuery = {
-            ...metricQuery,
-            limit: 1,
-            tableCalculations: [],
-            sorts: [],
-            dimensions: [],
-            metrics: metricQuery.metrics,
-            additionalMetrics: metricQuery.additionalMetrics,
-        };
-
-        const results = await this.runMetricQuery({
-            user,
-            projectUuid,
-            metricQuery: totalQuery,
-            exploreName,
-            csvLimit: undefined,
-            context: QueryExecutionContext.CALCULATE_TOTAL,
-        });
-        return results.rows[0];
-    }
-
-    async _calculateTotalFromCacheOrWarehouse(
-        user: SessionUser,
-        projectUuid: string,
-        exploreName: string,
-        metricQuery: MetricQuery,
-        invalidateCache: boolean,
         organizationUuid: string,
+        warehouseClient: WarehouseClient,
     ) {
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-        );
-
         const explore = await this.getExplore(user, projectUuid, exploreName);
         const userAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
@@ -2702,6 +2671,54 @@ export class ProjectService {
             userAttributes,
         );
 
+        return { query, totalQuery };
+    }
+
+    async _calculateTotal(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+        metricQuery: MetricQuery,
+        organizationUuid: string,
+    ) {
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+        );
+
+        const { query } = await this._getCalculateTotalQuery(
+            user,
+            projectUuid,
+            exploreName,
+            metricQuery,
+            organizationUuid,
+            warehouseClient,
+        );
+
+        const { rows } = await warehouseClient.runQuery(query, {});
+        await sshTunnel.disconnect();
+        return { row: rows[0] };
+    }
+
+    async _calculateTotalFromCacheOrWarehouse(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+        metricQuery: MetricQuery,
+        invalidateCache: boolean,
+        organizationUuid: string,
+    ) {
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+        );
+
+        const { query, totalQuery } = await this._getCalculateTotalQuery(
+            user,
+            projectUuid,
+            exploreName,
+            metricQuery,
+            organizationUuid,
+            warehouseClient,
+        );
         const { rows, cacheMetadata } =
             await this.getResultsFromCacheOrWarehouse({
                 projectUuid,
@@ -2713,7 +2730,7 @@ export class ProjectService {
                 invalidateCache,
             });
         await sshTunnel.disconnect();
-        return { rows, cacheMetadata };
+        return { row: rows[0], cacheMetadata };
     }
 
     async calculateTotalFromSavedChart(
@@ -2783,7 +2800,7 @@ export class ProjectService {
             invalidateCache,
             savedChart.organizationUuid,
         );
-        return results.rows;
+        return results.row;
     }
 
     async calculateTotalFromQuery(
@@ -2807,11 +2824,13 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
-        return this._calculateTotal(
+        const results = await this._calculateTotal(
             user,
             projectUuid,
             data.explore,
             data.metricQuery,
+            organizationUuid,
         );
+        return results.row;
     }
 }

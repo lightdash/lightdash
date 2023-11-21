@@ -219,6 +219,8 @@ const ValidDashboardChartTileMinimal: FC<{
 }) => {
     const { health } = useApp();
 
+    const dashboardFilters = useDashboardFiltersForTile(tileUuid);
+
     const resultData = useMemo(
         () => ({ rows, metricQuery, cacheMetadata }),
         [rows, metricQuery, cacheMetadata],
@@ -239,6 +241,7 @@ const ValidDashboardChartTileMinimal: FC<{
             columnOrder={chart.tableConfig.columnOrder}
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
             savedChartUuid={chart.uuid}
+            dashboardFilters={dashboardFilters}
         >
             <LightdashVisualization
                 tileUuid={tileUuid}
