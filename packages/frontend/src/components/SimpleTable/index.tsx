@@ -4,6 +4,7 @@ import { FC } from 'react';
 import PivotTable from '../common/PivotTable';
 import Table from '../common/Table';
 import { ResultCount } from '../common/Table/TablePagination';
+import { isTableVisualizationConfig } from '../LightdashVisualization/VisualizationConfigTable';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
 import CellContextMenu from './CellContextMenu';
@@ -29,21 +30,26 @@ const SimpleTable: FC<SimpleTableProps> = ({
     const {
         isLoading,
         columnOrder,
-        tableConfig: {
-            rows,
-            error,
-            columns,
-            showColumnCalculation,
-            conditionalFormattings,
-            hideRowNumbers,
-            pivotTableData,
-            getFieldLabel,
-            getField,
-            showResultsTotal,
-        },
         isSqlRunner,
         explore,
+        visualizationConfig,
     } = useVisualizationContext();
+
+    if (!isTableVisualizationConfig(visualizationConfig)) return null;
+
+    const {
+        rows,
+        error,
+        columns,
+        showColumnCalculation,
+        conditionalFormattings,
+        hideRowNumbers,
+        pivotTableData,
+        getFieldLabel,
+        getField,
+        showResultsTotal,
+    } = visualizationConfig.chartConfig;
+
     if (isLoading) return <LoadingChart />;
 
     if (error) {

@@ -46,11 +46,12 @@ import groupBy from 'lodash-es/groupBy';
 import toNumber from 'lodash-es/toNumber';
 import moment from 'moment';
 import { useMemo } from 'react';
+import { isCartesianVisualizationConfig } from '../../components/LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 import { defaultGrid } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import { useOrganization } from '../organization/useOrganization';
-import usePlottedData from '../plottedData/usePlottedData';
+import getPlottedData from '../plottedData/getPlottedData';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
 type TooltipFormatterParams = DefaultLabelFormatterCallbackParams & {
@@ -778,6 +779,7 @@ const calculateWidthText = (text: string | undefined): number => {
     span.remove();
     return width;
 };
+
 const getEchartAxis = ({
     items,
     validCartesianConfig,
@@ -1242,18 +1244,17 @@ const getStackTotalSeries = (
     );
 };
 
-const useEcharts = (
+const useEchartsCartesianConfig = (
     validCartesianConfigLegend?: LegendValues,
     isInDashboard?: boolean,
 ) => {
-    const context = useVisualizationContext();
+    const { visualizationConfig, explore, pivotDimensions, resultsData } =
+        useVisualizationContext();
 
-    const {
-        cartesianConfig: { validCartesianConfig },
-        explore,
-        pivotDimensions,
-        resultsData,
-    } = context;
+    const validCartesianConfig = useMemo(() => {
+        if (!isCartesianVisualizationConfig(visualizationConfig)) return;
+        return visualizationConfig.chartConfig.validConfig;
+    }, [visualizationConfig]);
 
     const { data: organizationData } = useOrganization();
 
@@ -1280,12 +1281,14 @@ const useEcharts = (
         return [];
     }, [validCartesianConfig, resultsData]);
 
-    const { rows } = usePlottedData(
-        resultsData?.rows,
-        pivotDimensions,
-        pivotedKeys,
-        nonPivotedKeys,
-    );
+    const { rows } = useMemo(() => {
+        return getPlottedData(
+            resultsData?.rows,
+            pivotDimensions,
+            pivotedKeys,
+            nonPivotedKeys,
+        );
+    }, [resultsData?.rows, pivotDimensions, pivotedKeys, nonPivotedKeys]);
 
     const formats = useMemo(
         () =>
@@ -1473,9 +1476,9 @@ const useEcharts = (
         }
     }, [
         rows,
-        validCartesianConfig?.layout?.xField,
         resultsData?.metricQuery.sorts,
         explore,
+        validCartesianConfig?.layout?.xField,
         validCartesianConfig?.eChartsConfig?.series,
         resultsData?.metricQuery.customDimensions,
     ]);
@@ -1623,4 +1626,4 @@ const useEcharts = (
     return eChartsOptions;
 };
 
-export default useEcharts;
+export default useEchartsCartesianConfig;

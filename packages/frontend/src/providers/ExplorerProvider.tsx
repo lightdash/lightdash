@@ -1,32 +1,34 @@
 import {
     AdditionalMetric,
     assertUnreachable,
+    BigNumberConfig,
+    CartesianChartConfig,
     ChartConfig,
     ChartType,
     CreateSavedChartVersion,
     CustomDimension,
+    CustomVisConfig,
     deepEqual,
     Dimension,
     FieldId,
     fieldId as getFieldId,
     getCustomDimensionId,
-    isBigNumberConfig,
-    isCartesianChartConfig,
-    isPieChartConfig,
-    isTableChartConfig,
     MetricQuery,
     MetricType,
+    PieChartConfig,
     removeEmptyProperties,
     SavedChart,
     SortField,
     TableCalculation,
+    TableChartConfig,
     toggleArrayValue,
 } from '@lightdash/common';
 import produce from 'immer';
 import cloneDeep from 'lodash-es/cloneDeep';
-import { FC, useCallback, useEffect, useMemo, useReducer } from 'react';
+import { FC, useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import { useHistory } from 'react-router-dom';
 import { createContext, useContextSelector } from 'use-context-selector';
+import { EMPTY_CARTESIAN_CHART_CONFIG } from '../hooks/cartesianChartConfig/useCartesianChartConfig';
 import useDefaultSortField from '../hooks/useDefaultSortField';
 import {
     useChartVersionResultsMutation,
@@ -164,11 +166,17 @@ type Action =
       }
     | {
           type: ActionType.SET_CHART_TYPE;
-          payload: ChartType;
+          payload: {
+              chartType: ChartType;
+              cachedConfigs: Partial<ConfigCacheMap>;
+          };
       }
     | {
           type: ActionType.SET_CHART_CONFIG;
-          payload: ChartConfig['config'] | undefined;
+          payload: {
+              chartConfig: ChartConfig;
+              cachedConfigs: Partial<ConfigCacheMap>;
+          };
       }
     | {
           type: ActionType.ADD_CUSTOM_DIMENSION;
@@ -267,9 +275,7 @@ export interface ExplorerContext {
         deleteTableCalculation: (name: string) => void;
         setPivotFields: (fields: FieldId[] | undefined) => void;
         setChartType: (chartType: ChartType) => void;
-        setChartConfig: (
-            chartConfig: ChartConfig['config'] | undefined,
-        ) => void;
+        setChartConfig: (chartConfig: ChartConfig) => void;
         fetchResults: () => void;
         toggleExpandedSection: (section: ExplorerSection) => void;
         addCustomDimension: (customDimension: CustomDimension) => void;
@@ -310,7 +316,7 @@ const defaultState: ExplorerReduceState = {
         },
         chartConfig: {
             type: ChartType.CARTESIAN,
-            config: { layout: {}, eChartsConfig: {} },
+            config: EMPTY_CARTESIAN_CHART_CONFIG,
         },
     },
     modals: {
@@ -324,41 +330,81 @@ const defaultState: ExplorerReduceState = {
 };
 
 export const getValidChartConfig = (
-    type: ChartType,
-    config: ChartConfig['config'],
+    chartType: ChartType,
+    chartConfig: ChartConfig | undefined,
+    cachedConfigs?: Partial<ConfigCacheMap>,
 ): ChartConfig => {
-    switch (type) {
+    switch (chartType) {
         case ChartType.CARTESIAN: {
+            const cachedConfig = cachedConfigs?.[chartType];
+
             return {
-                type,
-                config: isCartesianChartConfig(config)
-                    ? config
-                    : { layout: {}, eChartsConfig: {} },
+                type: chartType,
+                config:
+                    chartConfig && chartConfig.type === ChartType.CARTESIAN
+                        ? chartConfig.config
+                        : cachedConfig
+                        ? cachedConfig
+                        : EMPTY_CARTESIAN_CHART_CONFIG,
             };
         }
         case ChartType.BIG_NUMBER: {
+            const cachedConfig = cachedConfigs?.[chartType];
+
             return {
-                type,
-                config: isBigNumberConfig(config) ? config : {},
+                type: chartType,
+                config:
+                    chartConfig && chartConfig.type === ChartType.BIG_NUMBER
+                        ? chartConfig.config
+                        : cachedConfig
+                        ? cachedConfig
+                        : {},
             };
         }
         case ChartType.TABLE: {
+            const cachedConfig = cachedConfigs?.[chartType];
+
             return {
-                type,
-                config: isTableChartConfig(config) ? config : {},
+                type: chartType,
+                config:
+                    chartConfig && chartConfig.type === ChartType.TABLE
+                        ? chartConfig.config
+                        : cachedConfig
+                        ? cachedConfig
+                        : {},
             };
         }
         case ChartType.PIE: {
+            const cachedConfig = cachedConfigs?.[chartType];
+
             return {
-                type,
-                config: isPieChartConfig(config) ? config : {},
+                type: chartType,
+                config:
+                    chartConfig && chartConfig.type === ChartType.PIE
+                        ? chartConfig.config
+                        : cachedConfig
+                        ? cachedConfig
+                        : {},
             };
         }
         case ChartType.CUSTOM: {
-            return { type, config: {} };
+            const cachedConfig = cachedConfigs?.[chartType];
+
+            return {
+                type: chartType,
+                config:
+                    chartConfig && chartConfig.type === ChartType.CUSTOM
+                        ? chartConfig.config
+                        : cachedConfig
+                        ? cachedConfig
+                        : {},
+            };
         }
         default:
-            return assertUnreachable(type, 'Invalid chart type');
+            return assertUnreachable(
+                chartType,
+                `Invalid chart type ${chartType}`,
+            );
     }
 };
 
@@ -1021,8 +1067,9 @@ function reducer(
                 unsavedChartVersion: {
                     ...state.unsavedChartVersion,
                     chartConfig: getValidChartConfig(
-                        action.payload,
-                        state.unsavedChartVersion.chartConfig.config,
+                        action.payload.chartType,
+                        state.unsavedChartVersion.chartConfig,
+                        action.payload.cachedConfigs,
                     ),
                 },
             };
@@ -1033,8 +1080,9 @@ function reducer(
                 unsavedChartVersion: {
                     ...state.unsavedChartVersion,
                     chartConfig: getValidChartConfig(
-                        state.unsavedChartVersion.chartConfig.type,
-                        action.payload,
+                        action.payload.chartConfig.type,
+                        action.payload.chartConfig,
+                        action.payload.cachedConfigs,
                     ),
                 },
             };
@@ -1047,6 +1095,14 @@ function reducer(
         }
     }
 }
+
+type ConfigCacheMap = {
+    [ChartType.PIE]: PieChartConfig['config'];
+    [ChartType.BIG_NUMBER]: BigNumberConfig['config'];
+    [ChartType.TABLE]: TableChartConfig['config'];
+    [ChartType.CARTESIAN]: CartesianChartConfig['config'];
+    [ChartType.CUSTOM]: CustomVisConfig['config'];
+};
 
 export const ExplorerProvider: FC<{
     isEditMode?: boolean;
@@ -1084,7 +1140,15 @@ export const ExplorerProvider: FC<{
         return [fields, fields.size > 0];
     }, [unsavedChartVersion]);
 
+    const cachedChartConfig = useRef<Partial<ConfigCacheMap>>({});
+
+    const resetCachedChartConfig = () => {
+        cachedChartConfig.current = {};
+    };
+
     const reset = useCallback(() => {
+        resetCachedChartConfig();
+
         dispatch({
             type: ActionType.RESET,
             payload: initialState || defaultState,
@@ -1216,19 +1280,29 @@ export const ExplorerProvider: FC<{
     const setChartType = useCallback((chartType: ChartType) => {
         dispatch({
             type: ActionType.SET_CHART_TYPE,
-            payload: chartType,
+            payload: {
+                chartType,
+                cachedConfigs: cachedChartConfig.current,
+            },
         });
     }, []);
 
-    const setChartConfig = useCallback(
-        (chartConfig: ChartConfig['config'] | undefined) => {
-            dispatch({
-                type: ActionType.SET_CHART_CONFIG,
-                payload: chartConfig,
-            });
-        },
-        [],
-    );
+    const setChartConfig = useCallback((chartConfig: ChartConfig) => {
+        if (chartConfig) {
+            cachedChartConfig.current = {
+                ...cachedChartConfig.current,
+                [chartConfig.type]: chartConfig.config,
+            };
+        }
+
+        dispatch({
+            type: ActionType.SET_CHART_CONFIG,
+            payload: {
+                chartConfig,
+                cachedConfigs: cachedChartConfig.current,
+            },
+        });
+    }, []);
 
     const addAdditionalMetric = useCallback(
         (additionalMetric: AdditionalMetric) => {
@@ -1467,12 +1541,15 @@ export const ExplorerProvider: FC<{
     }, [mutateAsync, state.shouldFetchResults]);
 
     const clearExplore = useCallback(async () => {
+        resetCachedChartConfig();
+
         dispatch({
             type: ActionType.RESET,
             payload: defaultState,
         });
         resetQueryResults();
     }, [resetQueryResults]);
+
     const history = useHistory();
     const clearQuery = useCallback(async () => {
         dispatch({

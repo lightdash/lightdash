@@ -18,7 +18,7 @@ import React, { memo, RefObject, useCallback, useState } from 'react';
 
 import { Button, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
-import useEcharts from '../hooks/echarts/useEcharts';
+import useEchartsCartesianConfig from '../hooks/echarts/useEchartsCartesianConfig';
 import { useApp } from '../providers/AppProvider';
 import { Can } from './common/Authorization';
 import {
@@ -27,6 +27,9 @@ import {
 } from './common/CollapsableCard';
 import MantineIcon from './common/MantineIcon';
 import ExportSelector from './ExportSelector';
+import { isBigNumberVisualizationConfig } from './LightdashVisualization/VisualizationBigNumberConfig';
+import { isCartesianVisualizationConfig } from './LightdashVisualization/VisualizationConfigCartesian';
+import { isTableVisualizationConfig } from './LightdashVisualization/VisualizationConfigTable';
 import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
 
 const FILE_NAME = 'lightdash_chart';
@@ -231,24 +234,23 @@ interface ChartDownloadMenuProps {
 
 export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
     ({ getCsvLink, getGsheetLink, projectUuid }) => {
-        const {
-            chartRef,
-            chartType,
-            tableConfig: { showTableNames, columnProperties, columnOrder },
-            resultsData,
-        } = useVisualizationContext();
-        const eChartsOptions = useEcharts();
+        const { chartRef, visualizationConfig, resultsData } =
+            useVisualizationContext();
+
+        const eChartsOptions = useEchartsCartesianConfig();
+
         const disabled =
-            (chartType === ChartType.TABLE &&
+            (isTableVisualizationConfig(visualizationConfig) &&
                 resultsData?.rows &&
                 resultsData.rows.length <= 0) ||
             !resultsData?.metricQuery ||
-            chartType === ChartType.BIG_NUMBER ||
-            (chartType === ChartType.CARTESIAN && !eChartsOptions);
+            isBigNumberVisualizationConfig(visualizationConfig) ||
+            (isCartesianVisualizationConfig(visualizationConfig) &&
+                !eChartsOptions);
 
         const { user } = useApp();
 
-        return chartType === ChartType.TABLE && getCsvLink ? (
+        return isTableVisualizationConfig(visualizationConfig) && getCsvLink ? (
             <Can
                 I="manage"
                 this={subject('ExportCsv', {
@@ -282,10 +284,12 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                                 getCsvLink(
                                     limit,
                                     onlyRaw,
-                                    showTableNames,
-                                    columnOrder,
+                                    visualizationConfig.chartConfig
+                                        .showTableNames,
+                                    visualizationConfig.chartConfig.columnOrder,
                                     getCustomLabelsFromColumnProperties(
-                                        columnProperties,
+                                        visualizationConfig.chartConfig
+                                            .columnProperties,
                                     ),
                                 )
                             }
@@ -294,10 +298,14 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                                     ? undefined
                                     : () =>
                                           getGsheetLink(
-                                              columnOrder,
-                                              showTableNames,
+                                              visualizationConfig.chartConfig
+                                                  .columnOrder,
+                                              visualizationConfig.chartConfig
+                                                  .showTableNames,
                                               getCustomLabelsFromColumnProperties(
-                                                  columnProperties,
+                                                  visualizationConfig
+                                                      .chartConfig
+                                                      .columnProperties,
                                               ),
                                           )
                             }
@@ -305,7 +313,8 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                     </Popover.Dropdown>
                 </Popover>
             </Can>
-        ) : chartType === ChartType.TABLE && !getCsvLink ? null : (
+        ) : isTableVisualizationConfig(visualizationConfig) &&
+          !getCsvLink ? null : (
             <Popover
                 {...COLLAPSABLE_CARD_POPOVER_PROPS}
                 disabled={disabled}
@@ -323,10 +332,12 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                 </Popover.Target>
 
                 <Popover.Dropdown>
-                    <ChartDownloadOptions
-                        chartRef={chartRef}
-                        chartType={chartType}
-                    />
+                    {visualizationConfig?.chartType ? (
+                        <ChartDownloadOptions
+                            chartRef={chartRef}
+                            chartType={visualizationConfig.chartType}
+                        />
+                    ) : null}
                 </Popover.Dropdown>
             </Popover>
         );
