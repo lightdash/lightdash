@@ -1,3 +1,10 @@
+## [0.868.2](https://github.com/lightdash/lightdash/compare/0.868.1...0.868.2) (2023-11-21)
+
+
+### Bug Fixes
+
+* changing an unsaved filter won't delete it ([#8021](https://github.com/lightdash/lightdash/issues/8021)) ([012f367](https://github.com/lightdash/lightdash/commit/012f3675c78b2bafb52dbbb7fbd3e98b767b644e))
+
 ## [0.868.1](https://github.com/lightdash/lightdash/compare/0.868.0...0.868.1) (2023-11-21)
 
 
