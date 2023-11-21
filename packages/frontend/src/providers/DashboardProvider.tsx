@@ -368,9 +368,9 @@ export const DashboardProvider: React.FC<{
                 ? setDashboardTemporaryFilters
                 : setDashboardFilters;
 
-            const fitlerIsSaved = dashboard?.filters.dimensions.some((id) => {
-                return id.id === item.id;
-            });
+            const isFilterSaved = dashboard?.filters.dimensions.some(
+                ({ id }) => id === item.id,
+            );
 
             setFunction((previousFilters) => {
                 if (!isTemporary) {
@@ -386,7 +386,7 @@ export const DashboardProvider: React.FC<{
                             item,
                         );
 
-                    if (hasChanged && fitlerIsSaved) {
+                    if (hasChanged && isFilterSaved) {
                         addSavedFilterOverride(item);
                     }
 
