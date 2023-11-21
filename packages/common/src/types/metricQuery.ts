@@ -123,3 +123,19 @@ export const countCustomDimensionsInMetricQuery = (
 
 export const hasCustomDimension = (metricQuery: MetricQuery | undefined) =>
     metricQuery?.customDimensions && metricQuery.customDimensions.length > 0;
+
+export type MetricQueryRequest = {
+    // tsoa doesn't support complex types like MetricQuery, so we simplified it
+    dimensions: FieldId[]; // Dimensions to group by in the explore
+    metrics: FieldId[]; // Metrics to compute in the explore
+    filters: {
+        dimensions?: any;
+        metrics?: any;
+    };
+    sorts: SortField[]; // Sorts for the data
+    limit: number; // Max number of rows to return from query
+    tableCalculations: TableCalculation[]; // calculations to append to results
+    additionalMetrics?: AdditionalMetric[]; // existing metric type
+    csvLimit?: number;
+    customDimensions?: CustomDimension[];
+};

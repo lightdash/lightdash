@@ -8,6 +8,7 @@ import {
     ApiQueryResults,
     ApiSqlQueryResults,
     CacheMetadata,
+    CalculateTotalFromQuery,
     ChartSummary,
     CompiledDimension,
     countCustomDimensionsInMetricQuery,
@@ -46,6 +47,7 @@ import {
     JobStatusType,
     JobStepType,
     JobType,
+    Metric,
     MetricQuery,
     MetricType,
     MissingWarehouseCredentialsError,
@@ -2635,5 +2637,203 @@ export class ProjectService {
                 );
             },
         );
+    }
+
+    async _getCalculateTotalQuery(
+        user: SessionUser,
+        explore: Explore,
+        metricQuery: MetricQuery,
+        organizationUuid: string,
+        warehouseClient: WarehouseClient,
+    ) {
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        const totalQuery: MetricQuery = {
+            ...metricQuery,
+            limit: 1,
+            tableCalculations: [],
+            sorts: [],
+            dimensions: [],
+            metrics: metricQuery.metrics,
+            additionalMetrics: metricQuery.additionalMetrics,
+        };
+
+        const { query } = await ProjectService._compileQuery(
+            totalQuery,
+            explore,
+            warehouseClient,
+            userAttributes,
+        );
+
+        return { query, totalQuery };
+    }
+
+    async _calculateTotal(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+        metricQuery: MetricQuery,
+        organizationUuid: string,
+    ) {
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+        );
+
+        const explore = await this.getExplore(
+            user,
+            projectUuid,
+            exploreName,
+            organizationUuid,
+        );
+
+        const { query } = await this._getCalculateTotalQuery(
+            user,
+            explore,
+            metricQuery,
+            organizationUuid,
+            warehouseClient,
+        );
+
+        const { rows } = await warehouseClient.runQuery(query, {});
+        await sshTunnel.disconnect();
+        return { row: rows[0] };
+    }
+
+    async _calculateTotalFromCacheOrWarehouse(
+        user: SessionUser,
+        projectUuid: string,
+        explore: Explore,
+        metricQuery: MetricQuery,
+        invalidateCache: boolean,
+        organizationUuid: string,
+    ) {
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+        );
+
+        const { query, totalQuery } = await this._getCalculateTotalQuery(
+            user,
+            explore,
+            metricQuery,
+            organizationUuid,
+            warehouseClient,
+        );
+        const { rows, cacheMetadata } =
+            await this.getResultsFromCacheOrWarehouse({
+                projectUuid,
+                context: QueryExecutionContext.CALCULATE_TOTAL,
+                warehouseClient,
+                metricQuery: totalQuery,
+                query,
+                queryTags: {},
+                invalidateCache,
+            });
+        await sshTunnel.disconnect();
+        return { row: rows[0], cacheMetadata };
+    }
+
+    async calculateTotalFromSavedChart(
+        user: SessionUser,
+        chartUuid: string,
+        dashboardFilters: DashboardFilters,
+        invalidateCache: boolean = false,
+    ) {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        const savedChart = await this.savedChartModel.get(
+            chartUuid,
+            undefined, // VersionUuid
+        );
+        const { organizationUuid, projectUuid } = savedChart;
+
+        const explore = await this.getExplore(
+            user,
+            projectUuid,
+            savedChart.tableName,
+            organizationUuid,
+        );
+        const tables = Object.keys(explore.tables);
+
+        const appliedDashboardFilters = dashboardFilters
+            ? {
+                  dimensions: getDashboardFilterRulesForTables(
+                      tables,
+                      dashboardFilters.dimensions,
+                  ),
+                  metrics: getDashboardFilterRulesForTables(
+                      tables,
+                      dashboardFilters.metrics,
+                  ),
+              }
+            : undefined;
+        const metricQuery: MetricQuery = appliedDashboardFilters
+            ? addDashboardFiltersToMetricQuery(
+                  savedChart.metricQuery,
+                  appliedDashboardFilters,
+              )
+            : savedChart.metricQuery;
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', { organizationUuid, projectUuid }),
+            ) ||
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const results = await this._calculateTotalFromCacheOrWarehouse(
+            user,
+            projectUuid,
+            explore,
+            metricQuery,
+            invalidateCache,
+            savedChart.organizationUuid,
+        );
+        return results.row;
+    }
+
+    async calculateTotalFromQuery(
+        user: SessionUser,
+
+        projectUuid: string,
+        data: CalculateTotalFromQuery,
+    ) {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const results = await this._calculateTotal(
+            user,
+            projectUuid,
+            data.explore,
+            data.metricQuery,
+            organizationUuid,
+        );
+        return results.row;
     }
 }

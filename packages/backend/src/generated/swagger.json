@@ -2535,36 +2535,15 @@
                 "required": ["rows", "fields"],
                 "type": "object"
             },
-            "CacheMetadata": {
-                "properties": {
-                    "cacheHit": {
-                        "type": "boolean"
-                    },
-                    "cacheUpdatedTime": {
-                        "type": "string",
-                        "format": "date-time"
-                    }
-                },
-                "required": ["cacheHit"],
-                "type": "object"
+            "Record_string.number_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
             },
-            "ApiRunQueryResponse": {
+            "ApiCalculateTotalResponse": {
                 "properties": {
                     "results": {
-                        "properties": {
-                            "rows": {
-                                "items": {},
-                                "type": "array"
-                            },
-                            "cacheMetadata": {
-                                "$ref": "#/components/schemas/CacheMetadata"
-                            },
-                            "metricQuery": {
-                                "$ref": "#/components/schemas/MetricQueryResponse"
-                            }
-                        },
-                        "required": ["rows", "cacheMetadata", "metricQuery"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/Record_string.number_"
                     },
                     "status": {
                         "type": "string",
@@ -2575,7 +2554,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "RunQueryRequest": {
+            "MetricQueryRequest": {
                 "properties": {
                     "customDimensions": {
                         "items": {
@@ -2637,6 +2616,58 @@
                     "metrics",
                     "dimensions"
                 ],
+                "type": "object"
+            },
+            "CalculateTotalFromQuery": {
+                "properties": {
+                    "explore": {
+                        "type": "string"
+                    },
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQueryRequest"
+                    }
+                },
+                "required": ["explore", "metricQuery"],
+                "type": "object"
+            },
+            "CacheMetadata": {
+                "properties": {
+                    "cacheHit": {
+                        "type": "boolean"
+                    },
+                    "cacheUpdatedTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": ["cacheHit"],
+                "type": "object"
+            },
+            "ApiRunQueryResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "rows": {
+                                "items": {},
+                                "type": "array"
+                            },
+                            "cacheMetadata": {
+                                "$ref": "#/components/schemas/CacheMetadata"
+                            },
+                            "metricQuery": {
+                                "$ref": "#/components/schemas/MetricQueryResponse"
+                            }
+                        },
+                        "required": ["rows", "cacheMetadata", "metricQuery"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "Pick_LightdashUser.userUuid-or-firstName-or-lastName_": {
@@ -5346,7 +5377,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.863.12",
+        "version": "0.864.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -7010,6 +7041,59 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/calculate-total": {
+            "post": {
+                "operationId": "CalculateTotalFromQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCalculateTotalResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Calculate all metric totals from a metricQuery",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the project to get charts for",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "The metric query to calculate totals for",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CalculateTotalFromQuery",
+                                "description": "The metric query to calculate totals for"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/explores/{exploreId}/runUnderlyingDataQuery": {
             "post": {
                 "operationId": "postRunUnderlyingDataQuery",
@@ -7064,7 +7148,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/RunQueryRequest",
+                                "$ref": "#/components/schemas/MetricQueryRequest",
                                 "description": "metricQuery for the chart to run"
                             }
                         }
@@ -7126,7 +7210,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/RunQueryRequest",
+                                "$ref": "#/components/schemas/MetricQueryRequest",
                                 "description": "metricQuery for the chart to run"
                             }
                         }
@@ -7386,6 +7470,63 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/saved/{chartUuid}/calculate-total": {
+            "post": {
+                "operationId": "CalculateTotalFromSavedChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCalculateTotalResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Calculate metric totals from a saved chart",
+                "tags": ["Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "chartUuid for the chart to run",
+                        "in": "path",
+                        "name": "chartUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "invalidateCache": {
+                                        "type": "boolean"
+                                    },
+                                    "dashboardFilters": {}
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/schedulers/{projectUuid}/logs": {
