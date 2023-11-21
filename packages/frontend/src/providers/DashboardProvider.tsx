@@ -146,8 +146,6 @@ export const DashboardProvider: React.FC<{
         removeSavedFilterOverride,
     } = useSavedDashboardFiltersOverrides();
 
-    console.log({ overridesForSavedDashboardFilters, dashboardFilters });
-
     const savedChartUuidsAndTileUuids = useMemo(
         () =>
             dashboardTiles
