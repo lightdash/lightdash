@@ -1,3 +1,4 @@
+import { validateEmail } from '@lightdash/common';
 import {
     Anchor,
     Button,
@@ -21,6 +22,10 @@ export const PasswordRecoveryForm: FC = () => {
     const form = useForm<RecoverPasswordForm>({
         initialValues: {
             email: '',
+        },
+        validate: {
+            email: (value: string) =>
+                validateEmail(value) ? null : 'Your email address is not valid',
         },
     });
 

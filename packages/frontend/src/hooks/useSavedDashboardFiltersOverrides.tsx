@@ -10,17 +10,6 @@ export const hasSavedFiltersOverrides = (
         (overrides.dimensions?.length > 0 || overrides.metrics?.length > 0)
     );
 
-export const applyDimensionOverrides = (
-    dashboardFilters: DashboardFilters,
-    savedFiltersOverrides: DashboardFilters,
-) =>
-    dashboardFilters.dimensions.map((dimension) => {
-        const override = savedFiltersOverrides.dimensions.find(
-            (overrideDimension) => overrideDimension.id === dimension.id,
-        );
-        return override || dimension;
-    });
-
 const ADD_SAVED_FILTER_OVERRIDE = 'ADD_SAVED_FILTER_OVERRIDE';
 const REMOVE_SAVED_FILTER_OVERRIDE = 'REMOVE_SAVED_FILTER_OVERRIDE';
 

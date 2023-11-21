@@ -4,8 +4,10 @@ import {
     DashboardFilterRule,
     FilterType,
     getFilterTypeFromItem,
+    SchedulerFilterRule,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Center,
     Flex,
     Group,
@@ -13,8 +15,9 @@ import {
     Select,
     Stack,
     Text,
+    Tooltip,
 } from '@mantine/core';
-import produce from 'immer';
+import { IconRotate2 } from '@tabler/icons-react';
 import { FC, useCallback, useMemo, useState } from 'react';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
@@ -26,12 +29,10 @@ import {
     FiltersProvider,
     useFiltersContext,
 } from '../../../components/common/Filters/FiltersProvider';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { isFilterConfigRevertButtonEnabled as hasSavedFilterValueChanged } from '../../../components/DashboardFilter/FilterConfiguration/utils';
 import { useProject } from '../../../hooks/useProject';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
-
-type SchedulerFilterRule = DashboardFilterRule & {
-    tileTargets: undefined;
-};
 
 type SchedulerFilterItemProps = {
     dashboardFilter: DashboardFilterRule;
@@ -79,6 +80,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                             tileTargets: undefined,
                         });
                     }}
+                    withinPortal
                 />
 
                 <FilterInputComponent
@@ -91,60 +93,107 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                             tileTargets: undefined,
                         });
                     }}
+                    popoverProps={{ withinPortal: true }}
                 />
             </Flex>
         </Stack>
     );
 };
 
+const isFilterReverted = (
+    originalFilter: DashboardFilterRule,
+    schedulerFilter: SchedulerFilterRule,
+) => !hasSavedFilterValueChanged(originalFilter, schedulerFilter);
+
+const hasFilterChanged = (
+    filterToCompareAgainst: DashboardFilterRule | SchedulerFilterRule,
+    schedulerFilter: SchedulerFilterRule,
+) => hasSavedFilterValueChanged(filterToCompareAgainst, schedulerFilter);
+
+const updateFilters = (
+    schedulerFilter: SchedulerFilterRule,
+    originalFilter: DashboardFilterRule,
+    schedulerFilters: SchedulerFilterRule[] | undefined,
+): SchedulerFilterRule[] | undefined => {
+    if (schedulerFilters && isFilterReverted(originalFilter, schedulerFilter)) {
+        return schedulerFilters.filter((f) => f.id !== schedulerFilter.id);
+    }
+
+    const filterIndex =
+        schedulerFilters?.findIndex((f) => f.id === schedulerFilter.id) ?? -1;
+    const isExistingFilter = filterIndex !== -1;
+
+    const filterToCompareAgainst =
+        schedulerFilters && isExistingFilter
+            ? schedulerFilters[filterIndex]
+            : originalFilter;
+
+    if (hasFilterChanged(filterToCompareAgainst, schedulerFilter)) {
+        if (schedulerFilters && isExistingFilter) {
+            return schedulerFilters.map((f) =>
+                f.id === schedulerFilter.id ? schedulerFilter : f,
+            );
+        }
+
+        return [...(schedulerFilters ?? []), schedulerFilter];
+    }
+};
+
 type SchedulerFiltersProps = {
     dashboard?: Dashboard;
     onChange: (schedulerFilters: SchedulerFilterRule[]) => void;
+    schedulerFilters: SchedulerFilterRule[] | undefined;
 };
 
 const SchedulerFilters: FC<SchedulerFiltersProps> = ({
     dashboard,
-    // onChange,
+    schedulerFilters,
+    onChange,
 }) => {
     const { data: project, isLoading } = useProject(dashboard?.projectUuid);
-    // TODO: should read initial state from the BE
-    const [schedulerFilters, setSchedulerFilters] = useState<
-        DashboardFilterRule[]
-    >([]);
-
-    const handleUpdateSchedulerFilter = useCallback(
-        (schedulerFilter: SchedulerFilterRule) => {
-            // TODO: this should diff if the filter is actually
-            // different from the dashboard filter
-
-            const newState = produce(schedulerFilters, (draft) => {
-                const filterIndex = draft.findIndex(
-                    (f) =>
-                        f.target.fieldId === schedulerFilter.target.fieldId &&
-                        f.target.tableName === schedulerFilter.target.tableName,
-                );
-
-                if (draft[filterIndex]) {
-                    draft[filterIndex] = schedulerFilter;
-                } else {
-                    draft.push(schedulerFilter);
-                }
-            });
-
-            setSchedulerFilters(newState);
-
-            // TODO: sync with upper component
-            // call onChange - this can be debounced
-        },
-        [schedulerFilters],
-    );
-
     const isLoadingDashboardFilters = useDashboardContext(
         (c) => c.isLoadingDashboardFilters,
     );
     const allFilters = useDashboardContext((c) => c.allFilters);
     const fieldsWithSuggestions = useDashboardContext(
         (c) => c.fieldsWithSuggestions,
+    );
+    const originalDashboardFilters = dashboard?.filters;
+    const dashboardFilterIds = useMemo(
+        () => new Set(dashboard?.filters.dimensions.map((f) => f.id)),
+        [dashboard?.filters.dimensions],
+    );
+
+    const [schedulerFiltersData, setSchedulerFiltersData] = useState<
+        SchedulerFilterRule[] | undefined
+        // NOTE: Filter out any filters that are not in the dashboard anymore
+    >(schedulerFilters?.filter((sf) => dashboardFilterIds.has(sf.id)));
+
+    const handleUpdateSchedulerFilter = useCallback(
+        (schedulerFilter: SchedulerFilterRule) => {
+            if (!originalDashboardFilters) return;
+
+            const originalFilter = originalDashboardFilters.dimensions.find(
+                (d) => d.id === schedulerFilter.id,
+            );
+
+            if (!originalFilter) return;
+
+            const updatedFilters = updateFilters(
+                schedulerFilter,
+                originalFilter,
+                schedulerFiltersData,
+            );
+
+            setSchedulerFiltersData(updatedFilters);
+            onChange(
+                updatedFilters?.map((f) => ({
+                    ...f,
+                    tileTargets: undefined,
+                })) ?? [],
+            );
+        },
+        [onChange, originalDashboardFilters, schedulerFiltersData],
     );
 
     if (isLoading || isLoadingDashboardFilters || !project) {
@@ -156,6 +205,19 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
         );
     }
 
+    const revertFilter = (originalFilterId: string) => {
+        const updatedFilters = schedulerFiltersData?.filter(
+            (f) => f.id !== originalFilterId,
+        );
+        setSchedulerFiltersData(updatedFilters);
+        onChange(
+            updatedFilters?.map((f) => ({
+                ...f,
+                tileTargets: undefined,
+            })) ?? [],
+        );
+    };
+
     return (
         <FiltersProvider
             popoverProps={{ withinPortal: true }}
@@ -166,20 +228,46 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
         >
             {dashboard && dashboard.filters.dimensions.length > 0 ? (
                 <Stack>
-                    {dashboard?.filters?.dimensions.map((filter) => (
-                        <FilterItem
-                            key={filter.id}
-                            dashboardFilter={filter}
-                            schedulerFilter={schedulerFilters.find(
-                                (f) =>
-                                    f.target.fieldId ===
-                                        filter.target.fieldId &&
-                                    f.target.tableName ===
-                                        filter.target.tableName,
-                            )}
-                            onChange={handleUpdateSchedulerFilter}
-                        />
-                    ))}
+                    {dashboard?.filters?.dimensions.map((filter) => {
+                        const schedulerFilter = schedulerFiltersData?.find(
+                            (sf) => sf.id === filter.id,
+                        );
+
+                        const hasChanged = schedulerFilter
+                            ? hasSavedFilterValueChanged(
+                                  filter,
+                                  schedulerFilter,
+                              )
+                            : false;
+
+                        return (
+                            <Group
+                                spacing="xs"
+                                align="flex-start"
+                                key={filter.id}
+                                w="100%"
+                            >
+                                <Tooltip
+                                    label="Reset filter back to original"
+                                    fz="xs"
+                                    disabled={!hasChanged}
+                                >
+                                    <ActionIcon
+                                        size="xs"
+                                        disabled={!hasChanged}
+                                        onClick={() => revertFilter(filter.id)}
+                                    >
+                                        <MantineIcon icon={IconRotate2} />
+                                    </ActionIcon>
+                                </Tooltip>
+                                <FilterItem
+                                    dashboardFilter={filter}
+                                    schedulerFilter={schedulerFilter}
+                                    onChange={handleUpdateSchedulerFilter}
+                                />
+                            </Group>
+                        );
+                    })}
                 </Stack>
             ) : (
                 <Center component={Stack} h={100}>

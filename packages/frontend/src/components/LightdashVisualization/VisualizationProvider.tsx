@@ -6,6 +6,7 @@ import {
     ChartType,
     convertAdditionalMetric,
     CustomDimension,
+    DashboardFilters,
     Dimension,
     Explore,
     fieldId,
@@ -125,6 +126,9 @@ type Props = {
     explore: Explore | undefined;
     isSqlRunner?: boolean;
     pivotTableMaxColumnLimit: number;
+    savedChartUuid?: string;
+    dashboardFilters?: DashboardFilters;
+    invalidateCache?: boolean;
 };
 
 const VisualizationProvider: FC<Props> = ({
@@ -142,6 +146,9 @@ const VisualizationProvider: FC<Props> = ({
     onChartTypeChange,
     onPivotDimensionsChange,
     children,
+    savedChartUuid,
+    dashboardFilters,
+    invalidateCache,
 }) => {
     const chartRef = useRef<EChartsReact>(null);
 
@@ -357,6 +364,9 @@ const VisualizationProvider: FC<Props> = ({
                     pivotTableMaxColumnLimit={pivotTableMaxColumnLimit}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
+                    savedChartUuid={savedChartUuid}
+                    dashboardFilters={dashboardFilters}
+                    invalidateCache={invalidateCache}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider

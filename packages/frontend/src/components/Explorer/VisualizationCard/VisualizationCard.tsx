@@ -162,6 +162,7 @@ const VisualizationCard: FC<{
             columnOrder={unsavedChartVersion.tableConfig.columnOrder}
             onSeriesContextMenu={onSeriesContextMenu}
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
+            savedChartUuid={isEditMode ? undefined : savedChart?.uuid}
             onChartConfigChange={setChartConfig}
             onChartTypeChange={setChartType}
             onPivotDimensionsChange={setPivotFields}
