@@ -914,7 +914,7 @@ export class ProjectService {
                   ),
                   tableCalculations: getDashboardFilterRulesForTables(
                       tables,
-                      dashboardFilters.metrics,
+                      dashboardFilters.tableCalculations,
                   ),
               }
             : undefined;
