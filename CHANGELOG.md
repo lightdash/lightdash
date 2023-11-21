@@ -1,3 +1,10 @@
+# [0.866.0](https://github.com/lightdash/lightdash/compare/0.865.5...0.866.0) (2023-11-21)
+
+
+### Features
+
+* dashboard filters with image format ([#7985](https://github.com/lightdash/lightdash/issues/7985)) ([ee92d16](https://github.com/lightdash/lightdash/commit/ee92d16ded1a3460585d21552d11b62474c14ac8))
+
 ## [0.865.5](https://github.com/lightdash/lightdash/compare/0.865.4...0.865.5) (2023-11-20)
 
 
