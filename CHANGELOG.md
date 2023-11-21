@@ -1,3 +1,10 @@
+## [0.868.1](https://github.com/lightdash/lightdash/compare/0.868.0...0.868.1) (2023-11-21)
+
+
+### Bug Fixes
+
+* validate email in recover password form ([#8027](https://github.com/lightdash/lightdash/issues/8027)) ([36113e8](https://github.com/lightdash/lightdash/commit/36113e8d1855b43fe135a2993722c4061ff40d3c))
+
 # [0.868.0](https://github.com/lightdash/lightdash/compare/0.867.0...0.868.0) (2023-11-21)
 
 
