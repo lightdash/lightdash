@@ -16,7 +16,6 @@ import {
     TableChart,
 } from '@lightdash/common';
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
-import posthog from 'posthog-js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TableColumn, TableHeader } from '../../components/common/Table/types';
 import {
@@ -167,8 +166,7 @@ const useTableConfig = (
         pivotDimensions.length > 0;
 
     const metricsWithTotals = useMemo(() => {
-        if (!posthog.isFeatureEnabled('calculate-totals') || !selectedItemIds)
-            return [];
+        if (!selectedItemIds) return [];
         if (tableChartConfig?.showColumnCalculation === false) return [];
         return getCalculationColumnFields(selectedItemIds, itemsMap);
     }, [itemsMap, selectedItemIds, tableChartConfig?.showColumnCalculation]);
