@@ -63,6 +63,7 @@ type DashboardContext = {
         filter: DashboardFilterRule,
         index: number,
         isTemporary: boolean,
+        isEditMode: boolean,
     ) => void;
     removeDimensionDashboardFilter: (
         index: number,
@@ -144,6 +145,8 @@ export const DashboardProvider: React.FC<{
         addSavedFilterOverride,
         removeSavedFilterOverride,
     } = useSavedDashboardFiltersOverrides();
+
+    console.log({ overridesForSavedDashboardFilters, dashboardFilters });
 
     const savedChartUuidsAndTileUuids = useMemo(
         () =>
@@ -363,7 +366,12 @@ export const DashboardProvider: React.FC<{
     );
 
     const updateDimensionDashboardFilter = useCallback(
-        (item: DashboardFilterRule, index: number, isTemporary: boolean) => {
+        (
+            item: DashboardFilterRule,
+            index: number,
+            isTemporary: boolean,
+            isEditMode: boolean,
+        ) => {
             const setFunction = isTemporary
                 ? setDashboardTemporaryFilters
                 : setDashboardFilters;
@@ -374,24 +382,27 @@ export const DashboardProvider: React.FC<{
 
             setFunction((previousFilters) => {
                 if (!isTemporary) {
-                    const hasChanged = hasSavedFilterValueChanged(
-                        previousFilters.dimensions[index],
-                        item,
-                    );
-
-                    const isReverted =
-                        originalDashboardFilters.dimensions[index] &&
-                        !hasSavedFilterValueChanged(
-                            originalDashboardFilters.dimensions[index],
-                            item,
-                        );
-
-                    if (hasChanged && isFilterSaved) {
-                        addSavedFilterOverride(item);
-                    }
-
-                    if (isReverted) {
+                    if (isEditMode) {
                         removeSavedFilterOverride(item);
+                    } else {
+                        const isReverted =
+                            originalDashboardFilters.dimensions[index] &&
+                            !hasSavedFilterValueChanged(
+                                originalDashboardFilters.dimensions[index],
+                                item,
+                            );
+                        if (isReverted) {
+                            removeSavedFilterOverride(item);
+                        } else {
+                            const hasChanged = hasSavedFilterValueChanged(
+                                previousFilters.dimensions[index],
+                                item,
+                            );
+
+                            if (hasChanged && isFilterSaved) {
+                                addSavedFilterOverride(item);
+                            }
+                        }
                     }
                 }
                 return {
