@@ -56,7 +56,12 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
                             removeDimensionDashboardFilter(index, false)
                         }
                         onUpdate={(value) =>
-                            updateDimensionDashboardFilter(value, index, false)
+                            updateDimensionDashboardFilter(
+                                value,
+                                index,
+                                false,
+                                isEditMode,
+                            )
                         }
                     />
                 ))}
@@ -74,7 +79,12 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
                             removeDimensionDashboardFilter(index, true)
                         }
                         onUpdate={(value) =>
-                            updateDimensionDashboardFilter(value, index, true)
+                            updateDimensionDashboardFilter(
+                                value,
+                                index,
+                                true,
+                                isEditMode,
+                            )
                         }
                     />
                 ))}

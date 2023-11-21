@@ -1,3 +1,59 @@
+# [0.869.0](https://github.com/lightdash/lightdash/compare/0.868.2...0.869.0) (2023-11-21)
+
+
+### Features
+
+* total metrics ([#7981](https://github.com/lightdash/lightdash/issues/7981)) ([4e6abb9](https://github.com/lightdash/lightdash/commit/4e6abb9b10feed9ab935076142aa095bf563e11a))
+
+## [0.868.2](https://github.com/lightdash/lightdash/compare/0.868.1...0.868.2) (2023-11-21)
+
+
+### Bug Fixes
+
+* changing an unsaved filter won't delete it ([#8021](https://github.com/lightdash/lightdash/issues/8021)) ([012f367](https://github.com/lightdash/lightdash/commit/012f3675c78b2bafb52dbbb7fbd3e98b767b644e))
+
+## [0.868.1](https://github.com/lightdash/lightdash/compare/0.868.0...0.868.1) (2023-11-21)
+
+
+### Bug Fixes
+
+* validate email in recover password form ([#8027](https://github.com/lightdash/lightdash/issues/8027)) ([36113e8](https://github.com/lightdash/lightdash/commit/36113e8d1855b43fe135a2993722c4061ff40d3c))
+
+# [0.868.0](https://github.com/lightdash/lightdash/compare/0.867.0...0.868.0) (2023-11-21)
+
+
+### Features
+
+* can revert filters on dashboard scheduled delivery ([#8024](https://github.com/lightdash/lightdash/issues/8024)) ([f708d50](https://github.com/lightdash/lightdash/commit/f708d50ea099bbe437bfafa391327af105c56cf1))
+
+# [0.867.0](https://github.com/lightdash/lightdash/compare/0.866.0...0.867.0) (2023-11-21)
+
+
+### Features
+
+* enable dashboard scheduled delivery filters for csv export ([#7997](https://github.com/lightdash/lightdash/issues/7997)) ([fd73576](https://github.com/lightdash/lightdash/commit/fd73576734f5ae7311547d8707a5fbe387e16441))
+
+# [0.866.0](https://github.com/lightdash/lightdash/compare/0.865.5...0.866.0) (2023-11-21)
+
+
+### Features
+
+* dashboard filters with image format ([#7985](https://github.com/lightdash/lightdash/issues/7985)) ([ee92d16](https://github.com/lightdash/lightdash/commit/ee92d16ded1a3460585d21552d11b62474c14ac8))
+
+## [0.865.5](https://github.com/lightdash/lightdash/compare/0.865.4...0.865.5) (2023-11-20)
+
+
+### Bug Fixes
+
+* changing chart data requires dashboard refresh ([#7984](https://github.com/lightdash/lightdash/issues/7984)) ([eb44cb1](https://github.com/lightdash/lightdash/commit/eb44cb1ab27b9a1cfcebbe1aa8dddf5a92e42f49))
+
+## [0.865.4](https://github.com/lightdash/lightdash/compare/0.865.3...0.865.4) (2023-11-20)
+
+
+### Bug Fixes
+
+* get space access in batches along with explores on availableFilters ([#7986](https://github.com/lightdash/lightdash/issues/7986)) ([e27235e](https://github.com/lightdash/lightdash/commit/e27235eb77abb04ed91acadf2117c55b3d1d98b6))
+
 ## [0.865.3](https://github.com/lightdash/lightdash/compare/0.865.2...0.865.3) (2023-11-17)
 
 

@@ -161,6 +161,30 @@ export const getFilterRules = (filters: Filters): FilterRule[] => {
     return rules;
 };
 
+export const applyDimensionOverrides = (
+    dashboardFilters: DashboardFilters,
+    overrides: DashboardFilters | DashboardFilterRule[],
+    keepTileTargets = false,
+) =>
+    dashboardFilters.dimensions.map((dimension) => {
+        if (overrides instanceof Array) {
+            const override = overrides.find(
+                (overrideDimension) => overrideDimension.id === dimension.id,
+            );
+            if (override && keepTileTargets) {
+                return {
+                    ...override,
+                    tileTargets: dimension.tileTargets,
+                };
+            }
+            return dimension;
+        }
+        const override = overrides.dimensions.find(
+            (overrideDimension) => overrideDimension.id === dimension.id,
+        );
+        return override || dimension;
+    });
+
 export const isDashboardFilterRule = (
     value: ConditionalRule,
 ): value is DashboardFilterRule =>

@@ -6,6 +6,7 @@ import {
     CustomDimension,
     FieldId,
     MetricQuery,
+    MetricQueryRequest,
     MetricQueryResponse,
     SortField,
     TableCalculation,
@@ -69,7 +70,7 @@ export class RunViewChartQueryController extends Controller {
     @Post('/explores/{exploreId}/runUnderlyingDataQuery')
     @OperationId('postRunUnderlyingDataQuery')
     async postUnderlyingData(
-        @Body() body: RunQueryRequest,
+        @Body() body: MetricQueryRequest,
         @Path() projectUuid: string,
         @Path() exploreId: string,
         @Request() req: express.Request,
@@ -111,7 +112,7 @@ export class RunViewChartQueryController extends Controller {
     @Post('/explores/{exploreId}/runQuery')
     @OperationId('RunMetricQuery')
     async runMetricQuery(
-        @Body() body: RunQueryRequest,
+        @Body() body: MetricQueryRequest,
         @Path() projectUuid: string,
         @Path() exploreId: string,
 
