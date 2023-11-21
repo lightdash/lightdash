@@ -12,13 +12,28 @@ export const hasSavedFiltersOverrides = (
 
 export const applyDimensionOverrides = (
     dashboardFilters: DashboardFilters,
-    savedFiltersOverrides: DashboardFilters,
+    overrides: DashboardFilters | DashboardFilterRule[],
+    keepTileTargets = false,
 ) =>
     dashboardFilters.dimensions.map((dimension) => {
-        const override = savedFiltersOverrides.dimensions.find(
-            (overrideDimension) => overrideDimension.id === dimension.id,
-        );
-        return override || dimension;
+        if (overrides instanceof Array) {
+            const override = overrides.find(
+                (overrideDimension) => overrideDimension.id === dimension.id,
+            );
+            if (override && keepTileTargets) {
+                if (override.disabled) delete override.disabled;
+                return {
+                    ...override,
+                    tileTargets: dimension.tileTargets,
+                };
+            }
+            return dimension;
+        } else {
+            const override = overrides.dimensions.find(
+                (overrideDimension) => overrideDimension.id === dimension.id,
+            );
+            return override || dimension;
+        }
     });
 
 const ADD_SAVED_FILTER_OVERRIDE = 'ADD_SAVED_FILTER_OVERRIDE';

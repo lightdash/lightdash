@@ -88,7 +88,9 @@ type DashboardContext = {
 
 const Context = createContext<DashboardContext | undefined>(undefined);
 
-export const DashboardProvider: React.FC = ({ children }) => {
+export const DashboardProvider: React.FC<{
+    schedulerFilters?: DashboardFilterRule[] | undefined;
+}> = ({ schedulerFilters, children }) => {
     const { search, pathname } = useLocation();
     const history = useHistory();
 
@@ -96,8 +98,30 @@ export const DashboardProvider: React.FC = ({ children }) => {
         dashboardUuid: string;
     }>();
 
-    const { data: dashboard, error: dashboardError } =
-        useDashboardQuery(dashboardUuid);
+    const { data: dashboard, error: dashboardError } = useDashboardQuery(
+        dashboardUuid,
+        {
+            select: (d) => {
+                if (schedulerFilters) {
+                    const overriddenDimensions = applyDimensionOverrides(
+                        d.filters,
+                        schedulerFilters,
+                        true,
+                    );
+
+                    return {
+                        ...d,
+                        filters: {
+                            ...d.filters,
+                            dimensions: overriddenDimensions,
+                        },
+                    };
+                }
+                return d;
+            },
+        },
+    );
+
     const [dashboardTiles, setDashboardTiles] = useState<Dashboard['tiles']>();
 
     const [haveTilesChanged, setHaveTilesChanged] = useState<boolean>(false);
