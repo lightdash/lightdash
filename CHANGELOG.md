@@ -1,3 +1,11 @@
+# [0.870.0](https://github.com/lightdash/lightdash/compare/0.869.0...0.870.0) (2023-11-21)
+
+
+### Features
+
+* add send now scheduler filters to URL ([#8032](https://github.com/lightdash/lightdash/issues/8032)) ([794d5a3](https://github.com/lightdash/lightdash/commit/794d5a3a7055ae88fbf72cc1b53ccd0ae3e6e951))
+* show total column on results table ([#8030](https://github.com/lightdash/lightdash/issues/8030)) ([cb061be](https://github.com/lightdash/lightdash/commit/cb061be1e66aa2e65dc29e9b42d3d673c07a88f1))
+
 # [0.869.0](https://github.com/lightdash/lightdash/compare/0.868.2...0.869.0) (2023-11-21)
 
 
