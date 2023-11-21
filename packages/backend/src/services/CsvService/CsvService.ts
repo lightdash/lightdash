@@ -480,7 +480,6 @@ export class CsvService {
             dashboardFilters.dimensions = applyDimensionOverrides(
                 dashboard.filters,
                 schedulerFilters,
-                true,
             );
         }
 
