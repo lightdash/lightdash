@@ -64,6 +64,7 @@ type DashboardContext = {
         filter: DashboardFilterRule,
         index: number,
         isTemporary: boolean,
+        isEditMode: boolean,
     ) => void;
     removeDimensionDashboardFilter: (
         index: number,
@@ -240,13 +241,13 @@ export const DashboardProvider: React.FC<{
             dashboard?.filters &&
             hasSavedFiltersOverrides(overridesForSavedDashboardFilters)
         ) {
-            setDashboardFilters({
-                ...dashboard.filters,
+            setDashboardFilters((prevFilters) => ({
+                ...prevFilters,
                 dimensions: applyDimensionOverrides(
-                    dashboard.filters,
+                    prevFilters,
                     overridesForSavedDashboardFilters,
                 ),
-            });
+            }));
         }
     }, [dashboard?.filters, overridesForSavedDashboardFilters]);
 
@@ -364,34 +365,45 @@ export const DashboardProvider: React.FC<{
     );
 
     const updateDimensionDashboardFilter = useCallback(
-        (item: DashboardFilterRule, index: number, isTemporary: boolean) => {
+        (
+            item: DashboardFilterRule,
+            index: number,
+            isTemporary: boolean,
+            isEditMode: boolean,
+        ) => {
             const setFunction = isTemporary
                 ? setDashboardTemporaryFilters
                 : setDashboardFilters;
 
+            const isFilterSaved = dashboard?.filters.dimensions.some(
+                ({ id }) => id === item.id,
+            );
+
             setFunction((previousFilters) => {
                 if (!isTemporary) {
-                    const hasChanged = hasSavedFilterValueChanged(
-                        previousFilters.dimensions[index],
-                        item,
-                    );
-
-                    const isReverted =
-                        originalDashboardFilters.dimensions[index] &&
-                        !hasSavedFilterValueChanged(
-                            originalDashboardFilters.dimensions[index],
-                            item,
-                        );
-
-                    if (hasChanged) {
-                        addSavedFilterOverride(item);
-                    }
-
-                    if (isReverted) {
+                    if (isEditMode) {
                         removeSavedFilterOverride(item);
+                    } else {
+                        const isReverted =
+                            originalDashboardFilters.dimensions[index] &&
+                            !hasSavedFilterValueChanged(
+                                originalDashboardFilters.dimensions[index],
+                                item,
+                            );
+                        if (isReverted) {
+                            removeSavedFilterOverride(item);
+                        } else {
+                            const hasChanged = hasSavedFilterValueChanged(
+                                previousFilters.dimensions[index],
+                                item,
+                            );
+
+                            if (hasChanged && isFilterSaved) {
+                                addSavedFilterOverride(item);
+                            }
+                        }
                     }
                 }
-
                 return {
                     dimensions: [
                         ...previousFilters.dimensions.slice(0, index),
@@ -405,6 +417,7 @@ export const DashboardProvider: React.FC<{
         },
         [
             addSavedFilterOverride,
+            dashboard?.filters.dimensions,
             originalDashboardFilters.dimensions,
             removeSavedFilterOverride,
         ],
