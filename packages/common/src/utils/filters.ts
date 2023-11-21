@@ -498,6 +498,10 @@ export const addFiltersToMetricQuery = (
             metricQuery.filters?.metrics,
             filters.metrics,
         ),
+        tableCalculations: combineFilterGroups(
+            metricQuery.filters?.tableCalculations,
+            filters.tableCalculations,
+        ),
     },
 });
 

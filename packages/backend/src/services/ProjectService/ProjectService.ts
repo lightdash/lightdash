@@ -2774,6 +2774,10 @@ export class ProjectService {
                       tables,
                       dashboardFilters.metrics,
                   ),
+                  tableCalculations: getDashboardFilterRulesForTables(
+                      tables,
+                      dashboardFilters.tableCalculations,
+                  ),
               }
             : undefined;
         const metricQuery: MetricQuery = appliedDashboardFilters
