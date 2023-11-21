@@ -622,7 +622,6 @@ export class ProjectModel {
                     })
                     .select()
                     .whereRaw('? = ANY(table_names)', tableName)
-                    .orWhereRaw("explore->>'base_table' = ?", tableName)
                     .andWhere('project_uuid', projectUuid)
                     .orderBy('baseMatch', 'desc')
                     .first();
