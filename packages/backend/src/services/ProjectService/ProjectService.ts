@@ -2641,13 +2641,11 @@ export class ProjectService {
 
     async _getCalculateTotalQuery(
         user: SessionUser,
-        projectUuid: string,
-        exploreName: string,
+        explore: Explore,
         metricQuery: MetricQuery,
         organizationUuid: string,
         warehouseClient: WarehouseClient,
     ) {
-        const explore = await this.getExplore(user, projectUuid, exploreName);
         const userAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
                 organizationUuid,
@@ -2685,10 +2683,16 @@ export class ProjectService {
             projectUuid,
         );
 
-        const { query } = await this._getCalculateTotalQuery(
+        const explore = await this.getExplore(
             user,
             projectUuid,
             exploreName,
+            organizationUuid,
+        );
+
+        const { query } = await this._getCalculateTotalQuery(
+            user,
+            explore,
             metricQuery,
             organizationUuid,
             warehouseClient,
@@ -2702,7 +2706,7 @@ export class ProjectService {
     async _calculateTotalFromCacheOrWarehouse(
         user: SessionUser,
         projectUuid: string,
-        exploreName: string,
+        explore: Explore,
         metricQuery: MetricQuery,
         invalidateCache: boolean,
         organizationUuid: string,
@@ -2713,8 +2717,7 @@ export class ProjectService {
 
         const { query, totalQuery } = await this._getCalculateTotalQuery(
             user,
-            projectUuid,
-            exploreName,
+            explore,
             metricQuery,
             organizationUuid,
             warehouseClient,
@@ -2747,7 +2750,7 @@ export class ProjectService {
             chartUuid,
             undefined, // VersionUuid
         );
-        const { organizationUuid, projectUuid, tableName } = savedChart;
+        const { organizationUuid, projectUuid } = savedChart;
 
         const explore = await this.getExplore(
             user,
@@ -2795,7 +2798,7 @@ export class ProjectService {
         const results = await this._calculateTotalFromCacheOrWarehouse(
             user,
             projectUuid,
-            tableName,
+            explore,
             metricQuery,
             invalidateCache,
             savedChart.organizationUuid,
