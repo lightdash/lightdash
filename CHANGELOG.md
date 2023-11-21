@@ -1,3 +1,10 @@
+# [0.867.0](https://github.com/lightdash/lightdash/compare/0.866.0...0.867.0) (2023-11-21)
+
+
+### Features
+
+* enable dashboard scheduled delivery filters for csv export ([#7997](https://github.com/lightdash/lightdash/issues/7997)) ([fd73576](https://github.com/lightdash/lightdash/commit/fd73576734f5ae7311547d8707a5fbe387e16441))
+
 # [0.866.0](https://github.com/lightdash/lightdash/compare/0.865.5...0.866.0) (2023-11-21)
 
 
