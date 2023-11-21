@@ -241,12 +241,10 @@ export const DashboardProvider: React.FC<{
         ) {
             setDashboardFilters((prevFilters) => ({
                 ...prevFilters,
-                dimensions: [
-                    ...applyDimensionOverrides(
-                        prevFilters,
-                        overridesForSavedDashboardFilters,
-                    ),
-                ],
+                dimensions: applyDimensionOverrides(
+                    prevFilters,
+                    overridesForSavedDashboardFilters,
+                ),
             }));
         }
     }, [dashboard?.filters, overridesForSavedDashboardFilters]);
