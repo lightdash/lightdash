@@ -27,6 +27,7 @@ import {
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
     SchedulerAndTargets,
+    SchedulerFilterRule,
     SchedulerFormat,
     SchedulerJobStatus,
     SchedulerLog,
@@ -57,8 +58,6 @@ import {
 } from '../clients/Slack/SlackMessageBlocks';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
-import { metricQuery } from '../services/CsvService/CsvService.mock';
-import { SavedChartService } from '../services/SavedChartsService/SavedChartService';
 import {
     csvService,
     dashboardService,
@@ -73,6 +72,7 @@ const getChartOrDashboard = async (
     chartUuid: string | null,
     dashboardUuid: string | null,
     schedulerUuid: string | undefined,
+    sendNowSchedulerFilters: SchedulerFilterRule[] | undefined,
 ) => {
     if (chartUuid) {
         const chart = await schedulerService.savedChartModel.getSummary(
@@ -102,6 +102,12 @@ const getChartOrDashboard = async (
                 dashboard.projectUuid
             }/dashboards/${dashboardUuid}${
                 schedulerUuid ? `?schedulerUuid=${schedulerUuid}` : ''
+            }${
+                sendNowSchedulerFilters
+                    ? `?sendNowchedulerFilters=${encodeURI(
+                          JSON.stringify(sendNowSchedulerFilters),
+                      )}`
+                    : ''
             }`,
             details: {
                 name: dashboard.name,
@@ -139,6 +145,11 @@ export const getNotificationPageData = async (
             ? scheduler.schedulerUuid
             : undefined;
 
+    const sendNowSchedulerFilters =
+        !schedulerUuid && isDashboardScheduler(scheduler)
+            ? scheduler.filters
+            : undefined;
+
     const {
         url,
         minimalUrl,
@@ -146,7 +157,12 @@ export const getNotificationPageData = async (
         details,
         organizationUuid,
         projectUuid,
-    } = await getChartOrDashboard(savedChartUuid, dashboardUuid, schedulerUuid);
+    } = await getChartOrDashboard(
+        savedChartUuid,
+        dashboardUuid,
+        schedulerUuid,
+        sendNowSchedulerFilters,
+    );
 
     switch (format) {
         case SchedulerFormat.IMAGE:

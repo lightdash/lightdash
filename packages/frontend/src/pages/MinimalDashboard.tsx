@@ -3,7 +3,7 @@ import {
     DashboardTileTypes,
     isDashboardScheduler,
 } from '@lightdash/common';
-import { FC } from 'react';
+import { FC, useMemo } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useParams } from 'react-router-dom';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
@@ -25,6 +25,7 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 const MinimalDashboard: FC = () => {
     const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
     const schedulerUuid = useSearchParams('schedulerUuid');
+    const sendNowchedulerFilters = useSearchParams('sendNowchedulerFilters');
 
     const {
         data: dashboard,
@@ -37,8 +38,18 @@ const MinimalDashboard: FC = () => {
         isError: isSchedulerError,
         error: schedulerError,
     } = useScheduler(schedulerUuid!, {
-        enabled: !!schedulerUuid,
+        enabled: !!schedulerUuid && !sendNowchedulerFilters,
     });
+
+    const schedulerFilters = useMemo(() => {
+        if (schedulerUuid && scheduler && isDashboardScheduler(scheduler)) {
+            return scheduler.filters;
+        }
+        if (sendNowchedulerFilters) {
+            return JSON.parse(sendNowchedulerFilters);
+        }
+        return undefined;
+    }, [scheduler, schedulerUuid, sendNowchedulerFilters]);
 
     if (isDashboardError || isSchedulerError) {
         if (dashboardError) return <>{dashboardError.error.message}</>;
@@ -64,13 +75,7 @@ const MinimalDashboard: FC = () => {
     };
 
     return (
-        <DashboardProvider
-            schedulerFilters={
-                schedulerUuid && scheduler && isDashboardScheduler(scheduler)
-                    ? scheduler?.filters
-                    : undefined
-            }
-        >
+        <DashboardProvider schedulerFilters={schedulerFilters}>
             <ResponsiveGridLayout
                 {...getResponsiveGridLayoutProps(false)}
                 layouts={layouts}
