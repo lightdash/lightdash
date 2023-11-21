@@ -60,7 +60,13 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
         <Stack key={dashboardFilter.id} spacing="xs">
             <Group spacing="xs">
                 <FieldIcon item={field} />
-                <FieldLabel item={field} hideTableName />
+                <FieldLabel
+                    item={{
+                        ...field,
+                        label: dashboardFilter.label ?? field.label,
+                    }}
+                    hideTableName
+                />
             </Group>
 
             <Flex gap="xs">
