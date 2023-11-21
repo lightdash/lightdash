@@ -1,5 +1,6 @@
 import {
     ApiError,
+    applyDimensionOverrides,
     CacheMetadata,
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
@@ -31,7 +32,6 @@ import {
     useDashboardsAvailableFilters,
 } from '../hooks/dashboard/useDashboard';
 import {
-    applyDimensionOverrides,
     hasSavedFiltersOverrides,
     useSavedDashboardFiltersOverrides,
 } from '../hooks/useSavedDashboardFiltersOverrides';

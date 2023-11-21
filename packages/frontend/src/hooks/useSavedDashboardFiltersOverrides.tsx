@@ -10,32 +10,6 @@ export const hasSavedFiltersOverrides = (
         (overrides.dimensions?.length > 0 || overrides.metrics?.length > 0)
     );
 
-export const applyDimensionOverrides = (
-    dashboardFilters: DashboardFilters,
-    overrides: DashboardFilters | DashboardFilterRule[],
-    keepTileTargets = false,
-) =>
-    dashboardFilters.dimensions.map((dimension) => {
-        if (overrides instanceof Array) {
-            const override = overrides.find(
-                (overrideDimension) => overrideDimension.id === dimension.id,
-            );
-            if (override && keepTileTargets) {
-                if (override.disabled) delete override.disabled;
-                return {
-                    ...override,
-                    tileTargets: dimension.tileTargets,
-                };
-            }
-            return dimension;
-        } else {
-            const override = overrides.dimensions.find(
-                (overrideDimension) => overrideDimension.id === dimension.id,
-            );
-            return override || dimension;
-        }
-    });
-
 const ADD_SAVED_FILTER_OVERRIDE = 'ADD_SAVED_FILTER_OVERRIDE';
 const REMOVE_SAVED_FILTER_OVERRIDE = 'REMOVE_SAVED_FILTER_OVERRIDE';
 
