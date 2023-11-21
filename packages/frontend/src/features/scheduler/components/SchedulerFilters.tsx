@@ -7,6 +7,7 @@ import {
     SchedulerFilterRule,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Center,
     Flex,
     Group,
@@ -14,7 +15,9 @@ import {
     Select,
     Stack,
     Text,
+    Tooltip,
 } from '@mantine/core';
+import { IconRotate2 } from '@tabler/icons-react';
 import { FC, useCallback, useMemo, useState } from 'react';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
@@ -26,6 +29,7 @@ import {
     FiltersProvider,
     useFiltersContext,
 } from '../../../components/common/Filters/FiltersProvider';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { isFilterConfigRevertButtonEnabled as hasSavedFilterValueChanged } from '../../../components/DashboardFilter/FilterConfiguration/utils';
 import { useProject } from '../../../hooks/useProject';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
@@ -201,6 +205,19 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
         );
     }
 
+    const revertFilter = (originalFilterId: string) => {
+        const updatedFilters = schedulerFiltersData?.filter(
+            (f) => f.id !== originalFilterId,
+        );
+        setSchedulerFiltersData(updatedFilters);
+        onChange(
+            updatedFilters?.map((f) => ({
+                ...f,
+                tileTargets: undefined,
+            })) ?? [],
+        );
+    };
+
     return (
         <FiltersProvider
             popoverProps={{ withinPortal: true }}
@@ -212,20 +229,43 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
             {dashboard && dashboard.filters.dimensions.length > 0 ? (
                 <Stack>
                     {dashboard?.filters?.dimensions.map((filter) => {
-                        const schedulerFilter =
-                            schedulerFiltersData && schedulerFiltersData.length
-                                ? schedulerFiltersData.find(
-                                      (f) => f.id === filter.id,
-                                  )
-                                : undefined;
+                        const schedulerFilter = schedulerFiltersData?.find(
+                            (sf) => sf.id === filter.id,
+                        );
+
+                        const hasChanged = schedulerFilter
+                            ? hasSavedFilterValueChanged(
+                                  filter,
+                                  schedulerFilter,
+                              )
+                            : false;
 
                         return (
-                            <FilterItem
+                            <Group
+                                spacing="xs"
+                                align="flex-start"
                                 key={filter.id}
-                                dashboardFilter={filter}
-                                schedulerFilter={schedulerFilter}
-                                onChange={handleUpdateSchedulerFilter}
-                            />
+                                w="100%"
+                            >
+                                <Tooltip
+                                    label="Reset filter back to original"
+                                    fz="xs"
+                                    disabled={!hasChanged}
+                                >
+                                    <ActionIcon
+                                        size="xs"
+                                        disabled={!hasChanged}
+                                        onClick={() => revertFilter(filter.id)}
+                                    >
+                                        <MantineIcon icon={IconRotate2} />
+                                    </ActionIcon>
+                                </Tooltip>
+                                <FilterItem
+                                    dashboardFilter={filter}
+                                    schedulerFilter={schedulerFilter}
+                                    onChange={handleUpdateSchedulerFilter}
+                                />
+                            </Group>
                         );
                     })}
                 </Stack>

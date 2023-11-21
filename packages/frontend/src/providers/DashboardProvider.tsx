@@ -11,6 +11,7 @@ import {
     FilterableField,
     isDashboardChartTileType,
     SavedChartsInfoForDashboardAvailableFilters,
+    SchedulerFilterRule,
     SortField,
 } from '@lightdash/common';
 import { min } from 'lodash-es';
@@ -89,7 +90,7 @@ type DashboardContext = {
 const Context = createContext<DashboardContext | undefined>(undefined);
 
 export const DashboardProvider: React.FC<{
-    schedulerFilters?: DashboardFilterRule[] | undefined;
+    schedulerFilters?: SchedulerFilterRule[] | undefined;
 }> = ({ schedulerFilters, children }) => {
     const { search, pathname } = useLocation();
     const history = useHistory();
