@@ -322,7 +322,9 @@ export const renderTableCalculationFilterRuleSql = (
             return renderNumberFilterSql(field.name, filterRule);
         }
         default: {
-            return '1=1';
+            throw Error(
+                `No function implemented to render filter sql for table calculation type ${field.format?.type}`,
+            );
         }
     }
 };
