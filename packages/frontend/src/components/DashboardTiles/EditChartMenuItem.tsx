@@ -24,9 +24,9 @@ function EditChartMenuItem(props: {
         dashboardUuid: string;
     }>();
 
-    const userCanMangeExplore = user.data?.ability?.can('manage', 'Explore');
+    const userCanManageExplore = user.data?.ability?.can('manage', 'Explore');
 
-    if (!tile.properties.savedChartUuid || !userCanMangeExplore) return null;
+    if (!tile.properties.savedChartUuid || !userCanManageExplore) return null;
 
     return (
         <LinkMenuItem
