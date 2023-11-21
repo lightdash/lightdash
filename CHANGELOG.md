@@ -1,3 +1,10 @@
+# [0.868.0](https://github.com/lightdash/lightdash/compare/0.867.0...0.868.0) (2023-11-21)
+
+
+### Features
+
+* can revert filters on dashboard scheduled delivery ([#8024](https://github.com/lightdash/lightdash/issues/8024)) ([f708d50](https://github.com/lightdash/lightdash/commit/f708d50ea099bbe437bfafa391327af105c56cf1))
+
 # [0.867.0](https://github.com/lightdash/lightdash/compare/0.866.0...0.867.0) (2023-11-21)
 
 
