@@ -3,7 +3,9 @@ import { PivotReference } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import { EChartsReactProps, Opts } from 'echarts-for-react/lib/types';
 import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
-import useEcharts, { isLineSeriesOption } from '../../hooks/echarts/useEcharts';
+import useEchartsCartesianConfig, {
+    isLineSeriesOption,
+} from '../../hooks/echarts/useEchartsCartesianConfig';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
 type EchartBaseClickEvent = {
@@ -85,7 +87,6 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
         useVisualizationContext();
 
     const [selectedLegends, setSelectedLegends] = useState({});
-
     const [selectedLegendsUpdated, setSelectedLegendsUpdated] = useState({});
 
     const onLegendChange = useCallback((params: LegendClickEvent) => {
@@ -96,7 +97,7 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
         setSelectedLegendsUpdated(selectedLegends);
     }, [selectedLegends]);
 
-    const eChartsOptions = useEcharts(
+    const eChartsOptions = useEchartsCartesianConfig(
         selectedLegendsUpdated,
         props.isInDashboard,
     );

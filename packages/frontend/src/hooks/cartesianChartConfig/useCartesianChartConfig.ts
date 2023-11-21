@@ -2,7 +2,6 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
-    ChartType,
     CompleteCartesianChartLayout,
     EchartsGrid,
     EchartsLegend,
@@ -27,8 +26,13 @@ import {
 
 export const EMPTY_X_AXIS = 'empty_x_axis';
 
+export type CartesianTypeOptions = {
+    type: CartesianSeriesType;
+    flipAxes: boolean;
+    hasAreaStyle: boolean;
+};
+
 type Args = {
-    chartType: ChartType;
     initialChartConfig: CartesianChart | undefined;
     pivotKeys: string[] | undefined;
     resultsData: ApiQueryResults | undefined;
@@ -37,6 +41,8 @@ type Args = {
     >;
     columnOrder: string[];
     explore: Explore | undefined;
+    stacking: boolean | undefined;
+    cartesianType: CartesianTypeOptions | undefined;
 };
 
 const applyReferenceLines = (
@@ -97,15 +103,22 @@ const applyReferenceLines = (
     });
 };
 
+export const EMPTY_CARTESIAN_CHART_CONFIG: CartesianChart = {
+    layout: {},
+    eChartsConfig: {},
+};
+
 const useCartesianChartConfig = ({
-    chartType,
     initialChartConfig,
     pivotKeys,
     resultsData,
     setPivotDimensions,
     columnOrder,
     explore,
+    stacking,
+    cartesianType,
 }: Args) => {
+    // FIXME: this might not be necessary
     const hasInitialValue =
         !!initialChartConfig &&
         isCompleteLayout(initialChartConfig.layout) &&
@@ -283,6 +296,16 @@ const useCartesianChartConfig = ({
         [],
     );
 
+    useEffect(() => {
+        if (cartesianType !== undefined) {
+            setType(
+                cartesianType.type,
+                cartesianType.flipAxes,
+                cartesianType.hasAreaStyle,
+            );
+        }
+    }, [cartesianType, setType]);
+
     const setFlipAxis = useCallback((flipAxes: boolean) => {
         setDirtyLayout((prev) => ({
             ...prev,
@@ -352,6 +375,12 @@ const useCartesianChartConfig = ({
         [dirtyLayout?.yField, updateAllGroupedSeries, pivotKeys],
     );
 
+    useEffect(() => {
+        if (stacking !== undefined) {
+            setStacking(stacking);
+        }
+    }, [stacking, setStacking]);
+
     const sortedDimensions = useMemo(() => {
         return sortDimensions(
             resultsData?.metricQuery.dimensions || [],
@@ -393,7 +422,7 @@ const useCartesianChartConfig = ({
     // Set fallout layout values
     // https://www.notion.so/lightdash/Default-chart-configurations-5d3001af990d4b6fa990dba4564540f6
     useEffect(() => {
-        if (availableFields.length > 0 && chartType === ChartType.CARTESIAN) {
+        if (availableFields.length > 0) {
             setDirtyLayout((prev) => {
                 const isCurrentXFieldValid: boolean =
                     prev?.xField === EMPTY_X_AXIS ||
@@ -523,7 +552,6 @@ const useCartesianChartConfig = ({
             });
         }
     }, [
-        chartType,
         availableFields,
         availableDimensions,
         availableMetrics,
@@ -627,17 +655,12 @@ const useCartesianChartConfig = ({
         referenceLines,
     ]);
 
-    const validCartesianConfig: CartesianChart | undefined = useMemo(
-        () =>
-            isCompleteLayout(dirtyLayout) &&
+    const validConfig: CartesianChart = useMemo(() => {
+        return isCompleteLayout(dirtyLayout) &&
             isCompleteEchartsConfig(dirtyEchartsConfig)
-                ? {
-                      layout: dirtyLayout,
-                      eChartsConfig: dirtyEchartsConfig,
-                  }
-                : undefined,
-        [dirtyLayout, dirtyEchartsConfig],
-    );
+            ? { layout: dirtyLayout, eChartsConfig: dirtyEchartsConfig }
+            : EMPTY_CARTESIAN_CHART_CONFIG;
+    }, [dirtyLayout, dirtyEchartsConfig]);
 
     const { dirtyChartType } = useMemo(() => {
         const firstSeriesType =
@@ -653,7 +676,7 @@ const useCartesianChartConfig = ({
     }, [dirtyEchartsConfig]);
 
     return {
-        validCartesianConfig,
+        validConfig,
         dirtyChartType,
         dirtyLayout,
         dirtyEchartsConfig,

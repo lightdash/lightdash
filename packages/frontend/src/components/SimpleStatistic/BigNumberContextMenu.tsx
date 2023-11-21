@@ -17,6 +17,7 @@ import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';
 import MantineIcon from '../common/MantineIcon';
+import { isBigNumberVisualizationConfig } from '../LightdashVisualization/VisualizationBigNumberConfig';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
@@ -30,7 +31,7 @@ const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
 }) => {
     const clipboard = useClipboard({ timeout: 200 });
     const { showToastSuccess } = useToaster();
-    const { resultsData, bigNumberConfig } = useVisualizationContext();
+    const { resultsData, visualizationConfig } = useVisualizationContext();
     const {
         openUnderlyingDataModal,
         openDrillDownModal,
@@ -43,20 +44,29 @@ const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
+    const isBigNumber = isBigNumberVisualizationConfig(visualizationConfig);
+
     const fieldValues: Record<string, ResultValue> = useMemo(() => {
         return mapValues(resultsData?.rows?.[0], (col) => col.value) ?? {};
     }, [resultsData]);
 
-    const item = useMemo(
-        () => bigNumberConfig.getField(bigNumberConfig.selectedField),
-        [bigNumberConfig],
-    );
+    const item = useMemo(() => {
+        if (!isBigNumber) return;
+
+        const { chartConfig } = visualizationConfig;
+
+        return chartConfig.getField(chartConfig.selectedField);
+    }, [visualizationConfig, isBigNumber]);
 
     const value = useMemo(() => {
-        if (bigNumberConfig.selectedField) {
-            return fieldValues[bigNumberConfig.selectedField];
+        if (!isBigNumber) return;
+
+        const { chartConfig } = visualizationConfig;
+
+        if (chartConfig.selectedField) {
+            return fieldValues[chartConfig.selectedField];
         }
-    }, [fieldValues, bigNumberConfig]);
+    }, [fieldValues, visualizationConfig, isBigNumber]);
 
     const handleCopy = () => {
         if (value) {
@@ -68,9 +78,13 @@ const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
     };
 
     const handleViewUnderlyingData = useCallback(() => {
+        if (!isBigNumber) return;
+
+        const { chartConfig } = visualizationConfig;
+
         if (
             explore === undefined ||
-            bigNumberConfig.selectedField === undefined ||
+            chartConfig.selectedField === undefined ||
             !value
         ) {
             return;
@@ -92,11 +106,12 @@ const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
         item,
         fieldValues,
         dashboardFilters,
-        bigNumberConfig,
         track,
         openUnderlyingDataModal,
         user?.data?.organizationUuid,
         user?.data?.userUuid,
+        isBigNumber,
+        visualizationConfig,
     ]);
 
     const handleOpenDrillIntoModal = useCallback(() => {

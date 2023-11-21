@@ -76,12 +76,12 @@ export const useCalculateTotal = ({
 
     // only add relevant fields to the key (filters, metrics)
     const queryKey = savedChartUuid
-        ? JSON.stringify({ savedChartUuid, dashboardFilters, invalidateCache })
-        : JSON.stringify({
+        ? { savedChartUuid, dashboardFilters, invalidateCache }
+        : {
               filters: metricQuery?.filters,
               metrics: metricQuery?.metrics,
               additionalMetrics: metricQuery?.additionalMetrics,
-          });
+          };
 
     return useQuery<ApiCalculateTotalResponse['results'], ApiError>({
         queryKey: ['calculate_total', projectUuid, queryKey],

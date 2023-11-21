@@ -932,7 +932,10 @@ export class ProjectService {
 
         const metricWithOverrideSorting: MetricQuery = {
             ...metricQuery,
-            sorts: dashboardSorts || metricQuery.sorts,
+            sorts:
+                dashboardSorts && dashboardSorts.length > 0
+                    ? dashboardSorts
+                    : metricQuery.sorts,
         };
 
         const { cacheMetadata, rows } = await this.runQueryAndFormatRows({
@@ -2148,6 +2151,9 @@ export class ProjectService {
                 await this.savedChartModel.getInfoForAvailableFilters(
                     savedQueryUuids,
                 );
+            const uniqueSpaceUuids = [
+                ...new Set(savedCharts.map((chart) => chart.spaceUuid)),
+            ];
             const exploreCacheKeys: Record<string, boolean> = {};
             const exploreCache: Record<string, Explore> = {};
 
@@ -2166,7 +2172,10 @@ export class ProjectService {
                 return acc;
             }, []);
 
-            const resolvedExplores = await Promise.all(explorePromises);
+            const [spaceAccessMap, resolvedExplores] = await Promise.all([
+                this.spaceModel.getSpacesForAccessCheck(uniqueSpaceUuids),
+                Promise.all(explorePromises),
+            ]);
 
             resolvedExplores.forEach(({ key, explore }) => {
                 exploreCache[key] = explore;
@@ -2182,10 +2191,8 @@ export class ProjectService {
                     return { uuid: savedChart.uuid, filters: [] };
                 }
 
-                const space = await this.spaceModel.getSpaceSummary(
-                    savedChart.spaceUuid,
-                );
-                if (!hasSpaceAccess(user, space)) {
+                const spaceAccess = spaceAccessMap.get(savedChart.spaceUuid);
+                if (!spaceAccess || !hasSpaceAccess(user, spaceAccess)) {
                     return { uuid: savedChart.uuid, filters: [] };
                 }
 
@@ -2665,91 +2672,48 @@ export class ProjectService {
         exploreName: string,
         metricQuery: MetricQuery,
         invalidateCache: boolean,
+        organizationUuid: string,
     ) {
-        return wrapOtelSpan(
-            'ProjectService._calculateTotalFromCacheOrWarehouse',
-            {},
-            async (span) => {
-                // TODO: put this hash function in a util somewhere
-                const queryHash = crypto
-                    .createHash('sha256')
-                    .update(`${projectUuid}.${JSON.stringify(metricQuery)}`)
-                    .digest('hex');
-
-                span.setAttribute('queryHash', queryHash);
-                span.setAttribute('cacheHit', false);
-
-                if (lightdashConfig.resultsCache?.enabled && !invalidateCache) {
-                    const cacheEntryMetadata = await this.s3CacheClient
-                        .getResultsMetadata(queryHash)
-                        .catch((e) => undefined); // ignore since error is tracked in s3Client
-
-                    if (
-                        cacheEntryMetadata?.LastModified &&
-                        new Date().getTime() -
-                            cacheEntryMetadata.LastModified.getTime() <
-                            lightdashConfig.resultsCache.cacheStateTimeSeconds *
-                                1000
-                    ) {
-                        Logger.debug(
-                            `Getting total data from cache, key: ${queryHash}`,
-                        );
-                        const cacheEntry = await this.s3CacheClient.getResults(
-                            queryHash,
-                        );
-                        const stringResults =
-                            await cacheEntry.Body?.transformToString();
-                        if (stringResults) {
-                            try {
-                                span.setAttribute('cacheHit', true);
-                                return {
-                                    rows: JSON.parse(stringResults),
-                                    cacheMetadata: {
-                                        cacheHit: true,
-                                        cacheUpdatedTime:
-                                            cacheEntryMetadata?.LastModified,
-                                    },
-                                };
-                            } catch (e) {
-                                Logger.error('Error parsing cache results:', e);
-                            }
-                        }
-                    }
-                }
-                Logger.debug(`Run total query against warehouse warehouse`);
-                const warehouseResults = await wrapOtelSpan(
-                    '_calculateTotal',
-                    {
-                        projectUuid,
-                    },
-                    async () =>
-                        this._calculateTotal(
-                            user,
-                            projectUuid,
-                            exploreName,
-                            metricQuery,
-                        ),
-                );
-
-                if (lightdashConfig.resultsCache?.enabled) {
-                    Logger.debug(
-                        `Writing total data to cache with key ${queryHash}`,
-                    );
-                    const buffer = Buffer.from(
-                        JSON.stringify(warehouseResults),
-                    );
-                    // fire and forget
-                    this.s3CacheClient
-                        .uploadResults(queryHash, buffer, {})
-                        .catch((e) => undefined); // ignore since error is tracked in s3Client
-                }
-
-                return {
-                    rows: warehouseResults,
-                    cacheMetadata: { cacheHit: false },
-                };
-            },
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
         );
+
+        const explore = await this.getExplore(user, projectUuid, exploreName);
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        const totalQuery: MetricQuery = {
+            ...metricQuery,
+            limit: 1,
+            tableCalculations: [],
+            sorts: [],
+            dimensions: [],
+            metrics: metricQuery.metrics,
+            additionalMetrics: metricQuery.additionalMetrics,
+        };
+
+        const { query } = await ProjectService._compileQuery(
+            totalQuery,
+            explore,
+            warehouseClient,
+            userAttributes,
+        );
+
+        const { rows, cacheMetadata } =
+            await this.getResultsFromCacheOrWarehouse({
+                projectUuid,
+                context: QueryExecutionContext.CALCULATE_TOTAL,
+                warehouseClient,
+                metricQuery: totalQuery,
+                query,
+                queryTags: {},
+                invalidateCache,
+            });
+        await sshTunnel.disconnect();
+        return { rows, cacheMetadata };
     }
 
     async calculateTotalFromSavedChart(
@@ -2817,6 +2781,7 @@ export class ProjectService {
             tableName,
             metricQuery,
             invalidateCache,
+            savedChart.organizationUuid,
         );
         return results.rows;
     }

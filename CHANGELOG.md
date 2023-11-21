@@ -1,3 +1,52 @@
+## [0.865.5](https://github.com/lightdash/lightdash/compare/0.865.4...0.865.5) (2023-11-20)
+
+
+### Bug Fixes
+
+* changing chart data requires dashboard refresh ([#7984](https://github.com/lightdash/lightdash/issues/7984)) ([eb44cb1](https://github.com/lightdash/lightdash/commit/eb44cb1ab27b9a1cfcebbe1aa8dddf5a92e42f49))
+
+## [0.865.4](https://github.com/lightdash/lightdash/compare/0.865.3...0.865.4) (2023-11-20)
+
+
+### Bug Fixes
+
+* get space access in batches along with explores on availableFilters ([#7986](https://github.com/lightdash/lightdash/issues/7986)) ([e27235e](https://github.com/lightdash/lightdash/commit/e27235eb77abb04ed91acadf2117c55b3d1d98b6))
+
+## [0.865.3](https://github.com/lightdash/lightdash/compare/0.865.2...0.865.3) (2023-11-17)
+
+
+### Bug Fixes
+
+* clicking enter adds incomplete filter value ([#7966](https://github.com/lightdash/lightdash/issues/7966)) ([e57c23a](https://github.com/lightdash/lightdash/commit/e57c23aed1293768a05d4cbc6cfd09b10e5012ec))
+
+## [0.865.2](https://github.com/lightdash/lightdash/compare/0.865.1...0.865.2) (2023-11-17)
+
+
+### Bug Fixes
+
+* fix custom dimension with width bin and table calculation ([#8010](https://github.com/lightdash/lightdash/issues/8010)) ([701ff88](https://github.com/lightdash/lightdash/commit/701ff888382ca38dc0f906fbd1c54fc83426b801))
+
+## [0.865.1](https://github.com/lightdash/lightdash/compare/0.865.0...0.865.1) (2023-11-17)
+
+
+### Bug Fixes
+
+* charts sometimes don' save to dashboards ([#8007](https://github.com/lightdash/lightdash/issues/8007)) ([4298b2d](https://github.com/lightdash/lightdash/commit/4298b2deeec14049bfa350b29c02bae1bde5a143))
+
+# [0.865.0](https://github.com/lightdash/lightdash/compare/0.864.1...0.865.0) (2023-11-17)
+
+
+### Features
+
+* add user error on chart parse failure ([#8003](https://github.com/lightdash/lightdash/issues/8003)) ([a96caaf](https://github.com/lightdash/lightdash/commit/a96caaf664816e93ccf0561e6e8f1c0843941923))
+
+## [0.864.1](https://github.com/lightdash/lightdash/compare/0.864.0...0.864.1) (2023-11-17)
+
+
+### Bug Fixes
+
+* dashboard sorting line charts ([#8005](https://github.com/lightdash/lightdash/issues/8005)) ([24f55c7](https://github.com/lightdash/lightdash/commit/24f55c7d1d8009f5ad3703e95a8f23124fe30812))
+
 # [0.864.0](https://github.com/lightdash/lightdash/compare/0.863.18...0.864.0) (2023-11-17)
 
 

@@ -48,8 +48,7 @@ const MinimalExplorer: FC = () => {
     return (
         <VisualizationProvider
             minimal
-            initialChartConfig={savedChart.chartConfig}
-            chartType={savedChart.chartConfig.type}
+            chartConfig={savedChart.chartConfig}
             initialPivotDimensions={savedChart.pivotConfig?.columns}
             explore={explore}
             resultsData={queryResults}

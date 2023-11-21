@@ -79,14 +79,13 @@ const SqlRunnerPage = () => {
 
     const { isLoading, mutate } = sqlQueryMutation;
     const {
-        initialChartConfig,
         initialPivotDimensions,
         explore,
-        chartType,
         resultsData,
         columnOrder,
         createSavedChart,
         fieldsMap,
+        chartConfig,
         setChartType,
         setChartConfig,
         setPivotFields,
@@ -250,11 +249,10 @@ const SqlRunnerPage = () => {
 
             <Stack mt="lg" spacing="sm" sx={{ flexGrow: 1 }}>
                 <VisualizationProvider
-                    initialChartConfig={initialChartConfig}
-                    chartType={chartType}
                     initialPivotDimensions={initialPivotDimensions}
                     resultsData={resultsData}
                     isLoading={isLoading}
+                    chartConfig={chartConfig}
                     onChartConfigChange={setChartConfig}
                     onChartTypeChange={setChartType}
                     onPivotDimensionsChange={setPivotFields}
@@ -272,9 +270,9 @@ const SqlRunnerPage = () => {
                                 <>
                                     <VisualizationCardOptions />
                                     <VisualizationConfigPanel
-                                        chartType={chartType}
+                                        chartType={chartConfig.type}
                                     />
-                                    {chartType === ChartType.TABLE && (
+                                    {chartConfig.type === ChartType.TABLE && (
                                         <DownloadSqlCsvButton
                                             getCsvLink={getCsvLink}
                                             disabled={!sql}

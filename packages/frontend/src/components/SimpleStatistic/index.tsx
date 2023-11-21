@@ -7,6 +7,7 @@ import { FC, HTMLAttributes, useMemo } from 'react';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import MantineIcon from '../common/MantineIcon';
 import { TILE_HEADER_HEIGHT } from '../DashboardTiles/TileBase/TileBase.styles';
+import { isBigNumberVisualizationConfig } from '../LightdashVisualization/VisualizationBigNumberConfig';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { EmptyChart, LoadingChart } from '../SimpleChart';
 import BigNumberContextMenu from './BigNumberContextMenu';
@@ -69,23 +70,10 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     tileUuid,
     ...wrapperProps
 }) => {
-    const {
-        resultsData,
-        isLoading,
-        bigNumberConfig: {
-            bigNumber,
-            bigNumberLabel,
-            defaultLabel,
-            comparisonValue,
-            showComparison,
-            showBigNumberLabel,
-            comparisonDiff,
-            flipColors,
-            comparisonTooltip,
-            comparisonLabel,
-        },
-        isSqlRunner,
-    } = useVisualizationContext();
+    const { resultsData, isLoading, visualizationConfig, isSqlRunner } =
+        useVisualizationContext();
+
+    const isBigNumber = isBigNumberVisualizationConfig(visualizationConfig);
 
     const [setRef, observerElementSize] = useResizeObserver();
 
@@ -131,6 +119,10 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     }, [observerElementSize]);
 
     const comparisonValueColor = useMemo(() => {
+        if (!isBigNumber) return undefined;
+
+        const { comparisonDiff, flipColors } = visualizationConfig.chartConfig;
+
         switch (comparisonDiff) {
             case ComparisonDiffTypes.NAN:
             case ComparisonDiffTypes.UNDEFINED:
@@ -142,7 +134,21 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             case ComparisonDiffTypes.NONE:
                 return 'inherit';
         }
-    }, [comparisonDiff, flipColors]);
+    }, [isBigNumber, visualizationConfig]);
+
+    if (!isBigNumber) return null;
+
+    const {
+        bigNumber,
+        showBigNumberLabel,
+        bigNumberLabel,
+        defaultLabel,
+        showComparison,
+        comparisonTooltip,
+        comparisonLabel,
+        comparisonValue,
+        comparisonDiff,
+    } = visualizationConfig.chartConfig;
 
     const validData = bigNumber && resultsData?.rows.length;
 

@@ -16,6 +16,7 @@ import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
+import { isPieVisualizationConfig } from '../LightdashVisualization/VisualizationConfigPie';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
@@ -41,7 +42,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
     const { data: project } = useProject(projectUuid);
-    const { pieChartConfig } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationContext();
 
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
@@ -54,6 +55,10 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
 
     const { openUnderlyingDataModal, metricQuery } = metricQueryData;
     const { track } = tracking;
+
+    if (!isPieVisualizationConfig(visualizationConfig)) return null;
+
+    const { chartConfig } = visualizationConfig;
 
     const canViewUnderlyingData = user.data?.ability?.can(
         'view',
@@ -84,9 +89,9 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     };
 
     const handleOpenUnderlyingDataModal = () => {
-        if (!pieChartConfig.selectedMetric) return;
+        if (!chartConfig.selectedMetric) return;
 
-        const fieldValues = pieChartConfig.groupFieldIds.reduce<
+        const fieldValues = chartConfig.groupFieldIds.reduce<
             Record<string, ResultValue>
         >((acc, fieldId) => {
             if (!fieldId) return acc;
@@ -98,7 +103,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
         }, {});
 
         openUnderlyingDataModal({
-            item: pieChartConfig.selectedMetric,
+            item: chartConfig.selectedMetric,
             value,
             fieldValues,
             dashboardFilters,

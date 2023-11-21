@@ -6,7 +6,6 @@ import {
     ResultRow,
     ResultValue,
 } from '@lightdash/common';
-import { useMemo } from 'react';
 
 export type PivotValueMap = {
     [pivotKey: string]: Record<string, ResultValue>;
@@ -72,7 +71,7 @@ export const getPivotedData = (
     };
 };
 
-const usePlottedData = (
+const getPlottedData = (
     rows: ApiQueryResults['rows'] | undefined,
     pivotDimensions: string[] | undefined,
     pivotedKeys: string[] | undefined,
@@ -82,25 +81,23 @@ const usePlottedData = (
     rowKeyMap: Record<string, FieldId | PivotReference>;
     rows: ApiQueryResults['rows'];
 } => {
-    return useMemo(() => {
-        if (!rows) {
-            return { pivotValuesMap: {}, rowKeyMap: {}, rows: [] };
-        }
-        if (
-            pivotDimensions &&
-            pivotDimensions.length > 0 &&
-            pivotedKeys &&
-            nonPivotedKeys
-        ) {
-            return getPivotedData(
-                rows,
-                pivotDimensions,
-                pivotedKeys,
-                nonPivotedKeys,
-            );
-        }
-        return { pivotValuesMap: {}, rowKeyMap: {}, rows };
-    }, [rows, pivotDimensions, pivotedKeys, nonPivotedKeys]);
+    if (!rows) {
+        return { pivotValuesMap: {}, rowKeyMap: {}, rows: [] };
+    }
+    if (
+        pivotDimensions &&
+        pivotDimensions.length > 0 &&
+        pivotedKeys &&
+        nonPivotedKeys
+    ) {
+        return getPivotedData(
+            rows,
+            pivotDimensions,
+            pivotedKeys,
+            nonPivotedKeys,
+        );
+    }
+    return { pivotValuesMap: {}, rowKeyMap: {}, rows };
 };
 
-export default usePlottedData;
+export default getPlottedData;

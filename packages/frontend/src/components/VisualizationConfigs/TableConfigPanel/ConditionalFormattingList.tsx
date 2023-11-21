@@ -13,6 +13,7 @@ import produce from 'immer';
 import { useCallback, useMemo, useState } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import MantineIcon from '../../common/MantineIcon';
+import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import ConditionalFormatting from './ConditionalFormatting';
 
@@ -20,11 +21,13 @@ const ConditionalFormattingList = ({}) => {
     const { data: org } = useOrganization();
 
     const [isAddingNew, setIsAddingNew] = useState(false);
-    const {
-        explore,
-        resultsData,
-        tableConfig: { conditionalFormattings, onSetConditionalFormattings },
-    } = useVisualizationContext();
+    const { explore, resultsData, visualizationConfig } =
+        useVisualizationContext();
+
+    const chartConfig = useMemo(() => {
+        if (!isTableVisualizationConfig(visualizationConfig)) return undefined;
+        return visualizationConfig.chartConfig;
+    }, [visualizationConfig]);
 
     const defaultColors = useMemo(
         () => org?.chartColors ?? ECHARTS_DEFAULT_COLORS,
@@ -57,16 +60,24 @@ const ConditionalFormattingList = ({}) => {
     }, [explore, resultsData, activeFields]);
 
     const activeConfigs = useMemo(() => {
-        return conditionalFormattings.filter((config) =>
-            config.target
+        if (!chartConfig) return [];
+
+        const { conditionalFormattings } = chartConfig;
+
+        return conditionalFormattings.filter((config) => {
+            return config.target
                 ? visibleActiveNumericFields.find(
                       (field) => getItemId(field) === config.target?.fieldId,
                   )
-                : true,
-        );
-    }, [conditionalFormattings, visibleActiveNumericFields]);
+                : true;
+        });
+    }, [chartConfig, visibleActiveNumericFields]);
 
     const handleAdd = useCallback(() => {
+        if (!chartConfig) return;
+
+        const { onSetConditionalFormattings } = chartConfig;
+
         setIsAddingNew(true);
         onSetConditionalFormattings(
             produce(activeConfigs, (draft) => {
@@ -77,26 +88,36 @@ const ConditionalFormattingList = ({}) => {
                 );
             }),
         );
-    }, [onSetConditionalFormattings, activeConfigs, defaultColors]);
+    }, [chartConfig, activeConfigs, defaultColors]);
 
     const handleRemove = useCallback(
-        (index) =>
+        (index) => {
+            if (!chartConfig) return;
+
+            const { onSetConditionalFormattings } = chartConfig;
+
             onSetConditionalFormattings(
                 produce(activeConfigs, (draft) => {
                     draft.splice(index, 1);
                 }),
-            ),
-        [onSetConditionalFormattings, activeConfigs],
+            );
+        },
+        [chartConfig, activeConfigs],
     );
 
     const handleChange = useCallback(
-        (index, newConfig) =>
+        (index, newConfig) => {
+            if (!chartConfig) return;
+
+            const { onSetConditionalFormattings } = chartConfig;
+
             onSetConditionalFormattings(
                 produce(activeConfigs, (draft) => {
                     draft[index] = newConfig;
                 }),
-            ),
-        [onSetConditionalFormattings, activeConfigs],
+            );
+        },
+        [chartConfig, activeConfigs],
     );
 
     return (
