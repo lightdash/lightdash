@@ -4,7 +4,6 @@ import {
     ConditionalFormattingConfig,
     DashboardFilters,
     Explore,
-    fieldId as getFieldId,
     getItemLabel,
     getItemMap,
     isDimension,
@@ -12,16 +11,17 @@ import {
     isMetric,
     isTableCalculation,
     itemsInMetricQuery,
-    MetricType,
     PivotData,
     ResultRow,
     TableChart,
 } from '@lightdash/common';
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
-import posthog from 'posthog-js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TableColumn, TableHeader } from '../../components/common/Table/types';
-import { useCalculateTotal } from '../useCalculateTotal';
+import {
+    getCalculationColumnFields,
+    useCalculateTotal,
+} from '../useCalculateTotal';
 import { isSummable } from '../useColumnTotals';
 import getDataAndColumns from './getDataAndColumns';
 
@@ -166,38 +166,10 @@ const useTableConfig = (
         pivotDimensions.length > 0;
 
     const metricsWithTotals = useMemo(() => {
-        if (!posthog.isFeatureEnabled('calculate-totals')) return [];
-        //This method will return the metric ids that need to be calculated in the backend
-        // We exclude metrics we already calculate and hidden fields
+        if (!selectedItemIds) return [];
         if (tableChartConfig?.showColumnCalculation === false) return [];
-        const numericTypes: string[] = [
-            MetricType.NUMBER,
-            MetricType.COUNT,
-            MetricType.SUM,
-        ]; // We calculate these types already in the frontend
-
-        const items = selectedItemIds
-            ?.map((item) => {
-                return itemsMap[item];
-            })
-            .filter(
-                (item) =>
-                    isField(item) &&
-                    isMetric(item) &&
-                    !numericTypes.includes(item.type.toString()) &&
-                    (columnProperties[getFieldId(item)]?.visible ?? true),
-            );
-
-        return items?.reduce<string[]>((acc, item) => {
-            if (isField(item)) return [...acc, getFieldId(item)];
-            return acc;
-        }, []);
-    }, [
-        itemsMap,
-        selectedItemIds,
-        tableChartConfig?.showColumnCalculation,
-        columnProperties,
-    ]);
+        return getCalculationColumnFields(selectedItemIds, itemsMap);
+    }, [itemsMap, selectedItemIds, tableChartConfig?.showColumnCalculation]);
 
     const { data: totalCalculations } = useCalculateTotal(
         savedChartUuid

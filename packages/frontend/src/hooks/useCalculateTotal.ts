@@ -3,9 +3,16 @@ import {
     ApiError,
     CalculateTotalFromQuery,
     DashboardFilters,
+    Field,
+    fieldId as getFieldId,
+    isField,
+    isMetric,
     MetricQuery,
     MetricQueryRequest,
+    MetricType,
+    TableCalculation,
 } from '@lightdash/common';
+import posthog from 'posthog-js';
 import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
@@ -95,6 +102,7 @@ export const useCalculateTotal = ({
                 : calculateTotalFromQuery(projectUuid, metricQuery, explore),
         retry: false,
         enabled:
+            posthog.isFeatureEnabled('calculate-totals') &&
             (fields || []).length > 0 &&
             (metricQuery || savedChartUuid) !== undefined,
         onError: (result) =>
@@ -104,4 +112,33 @@ export const useCalculateTotal = ({
                 }`,
             ),
     });
+};
+
+export const getCalculationColumnFields = (
+    selectedItemIds: string[],
+    itemsMap: Record<string, Field | TableCalculation>,
+) => {
+    //This method will return the metric ids that need to be calculated in the backend
+    // We exclude metrics we already calculate
+    const numericTypes: string[] = [
+        MetricType.NUMBER,
+        MetricType.COUNT,
+        MetricType.SUM,
+    ]; // We calculate these types already in the frontend
+
+    const items = selectedItemIds
+        ?.map((item) => {
+            return itemsMap[item];
+        })
+        .filter(
+            (item) =>
+                isField(item) &&
+                isMetric(item) &&
+                !numericTypes.includes(item.type.toString()),
+        );
+
+    return items?.reduce<string[]>((acc, item) => {
+        if (isField(item)) return [...acc, getFieldId(item)];
+        return acc;
+    }, []);
 };
