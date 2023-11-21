@@ -3,7 +3,6 @@ import {
     addDashboardFiltersToMetricQuery,
     ApiSqlQueryResults,
     applyDimensionOverrides,
-    DashboardFilterRule,
     DashboardFilters,
     DimensionType,
     DownloadCsvPayload,
@@ -25,6 +24,7 @@ import {
     isTableChartConfig,
     MetricQuery,
     SchedulerCsvOptions,
+    SchedulerFilterRule,
     SchedulerFormat,
     SessionUser,
     TableCalculation,
@@ -470,7 +470,7 @@ export class CsvService {
         user: SessionUser,
         dashboardUuid: string,
         options: SchedulerCsvOptions | undefined,
-        schedulerFilters?: DashboardFilterRule[],
+        schedulerFilters?: SchedulerFilterRule[],
     ) {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
