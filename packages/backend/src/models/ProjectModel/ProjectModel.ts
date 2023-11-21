@@ -613,9 +613,18 @@ export class ProjectModel {
             async (span) => {
                 // check individually cached explore
                 let exploreCache = await this.database(CachedExploreTableName)
-                    .select('explore')
+                    .columns({
+                        explore: 'explore',
+                        baseMatch: this.database.raw(
+                            "? = explore->>'base_table'",
+                            [tableName],
+                        ),
+                    })
+                    .select()
                     .whereRaw('? = ANY(table_names)', tableName)
+                    .orWhereRaw("explore->>'base_table' = ?", tableName)
                     .andWhere('project_uuid', projectUuid)
+                    .orderBy('baseMatch', 'desc')
                     .first();
 
                 span.setAttribute(
