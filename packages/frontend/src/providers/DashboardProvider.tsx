@@ -108,7 +108,6 @@ export const DashboardProvider: React.FC<{
                     const overriddenDimensions = applyDimensionOverrides(
                         d.filters,
                         schedulerFilters,
-                        true,
                     );
 
                     return {
