@@ -176,8 +176,11 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             target: {
                 fieldId: pivot.field,
             },
-            operator: FilterOperator.EQUALS,
-            values: [pivot.value],
+            operator:
+                pivot.value === null
+                    ? FilterOperator.NULL
+                    : FilterOperator.EQUALS,
+            values: pivot.value === null ? undefined : [pivot.value],
         }));
 
         const metric: Metric | undefined =

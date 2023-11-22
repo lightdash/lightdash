@@ -46,7 +46,7 @@ describe('SQL Runner', () => {
             'Shawn', // customer_id = 2
         ];
         find.forEach((text) => cy.findAllByText(text));
-        cy.contains('Page 1 of 10');
+        cy.contains('Page 1 of 11');
     });
 
     it('Should see results from orders by clicking', () => {
