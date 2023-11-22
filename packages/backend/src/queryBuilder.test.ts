@@ -397,9 +397,9 @@ describe('with custom dimensions', () => {
     it('getCustomDimensionSql with empty custom dimension', () => {
         expect(
             getCustomDimensionSql({
+                warehouseClient: bigqueryClientMock,
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY,
-                fieldQuoteChar: '"',
                 userAttributes: {},
                 sorts: [],
             }),
@@ -409,9 +409,10 @@ describe('with custom dimensions', () => {
     it('getCustomDimensionSql with custom dimension', () => {
         expect(
             getCustomDimensionSql({
+                warehouseClient: bigqueryClientMock,
+
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                fieldQuoteChar: '"',
                 userAttributes: {},
                 sorts: [],
             }),
@@ -422,7 +423,7 @@ describe('with custom dimensions', () => {
                         MIN("table1".dim1) AS min_id,
                         MAX("table1".dim1) AS max_id,
                         CAST(MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) AS INT) as ratio
-                    FROM "db"."schema"."table1" AS "table1"
+                    FROM "db"."schema"."table1" AS \`table1\`
                 )`,
             ],
             joins: ['age_range_cte'],
@@ -432,7 +433,7 @@ describe('with custom dimensions', () => {
 WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_cte.ratio * 2 / 3 THEN CONCAT(age_range_cte.ratio * 1 / 3, '-', age_range_cte.ratio * 2 / 3)
 ELSE CONCAT(age_range_cte.ratio * 2 / 3, '-', age_range_cte.max_id)
                         END
-                        AS "age_range"
+                        AS \`age_range\`
                     `,
             ],
             tables: ['table1'],
@@ -442,6 +443,8 @@ ELSE CONCAT(age_range_cte.ratio * 2 / 3, '-', age_range_cte.max_id)
     it('getCustomDimensionSql with only 1 bin', () => {
         expect(
             getCustomDimensionSql({
+                warehouseClient: bigqueryClientMock,
+
                 explore: EXPLORE,
                 compiledMetricQuery: {
                     ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
@@ -456,7 +459,6 @@ ELSE CONCAT(age_range_cte.ratio * 2 / 3, '-', age_range_cte.max_id)
                         },
                     ],
                 },
-                fieldQuoteChar: '"',
                 userAttributes: {},
                 sorts: [],
             }),
@@ -467,12 +469,12 @@ ELSE CONCAT(age_range_cte.ratio * 2 / 3, '-', age_range_cte.max_id)
                         MIN("table1".dim1) AS min_id,
                         MAX("table1".dim1) AS max_id,
                         CAST(MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) AS INT) as ratio
-                    FROM "db"."schema"."table1" AS "table1"
+                    FROM "db"."schema"."table1" AS \`table1\`
                 )`,
             ],
             joins: ['age_range_cte'],
             selects: [
-                `CONCAT(age_range_cte.min_id, '-', age_range_cte.max_id) AS "age_range"`,
+                `CONCAT(age_range_cte.min_id, '-', age_range_cte.max_id) AS \`age_range\``,
             ],
             tables: ['table1'],
         });
@@ -483,7 +485,7 @@ ELSE CONCAT(age_range_cte.ratio * 2 / 3, '-', age_range_cte.max_id)
             buildQuery({
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                warehouseClient: warehouseClientMock,
+                warehouseClient: bigqueryClientMock,
                 userAttributes: {},
             }).query,
         ).toStrictEqual(`WITH  age_range_cte AS (
@@ -491,24 +493,24 @@ ELSE CONCAT(age_range_cte.ratio * 2 / 3, '-', age_range_cte.max_id)
                         MIN("table1".dim1) AS min_id,
                         MAX("table1".dim1) AS max_id,
                         CAST(MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) AS INT) as ratio
-                    FROM "db"."schema"."table1" AS "table1"
+                    FROM "db"."schema"."table1" AS \`table1\`
                 )
 SELECT
-  "table1".dim1 AS "table1_dim1",
+  "table1".dim1 AS \`table1_dim1\`,
 CASE
                         WHEN "table1".dim1 >= age_range_cte.ratio * 0 / 3 AND "table1".dim1 < age_range_cte.ratio * 1 / 3 THEN CONCAT(age_range_cte.ratio * 0 / 3, '-', age_range_cte.ratio * 1 / 3)
 WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_cte.ratio * 2 / 3 THEN CONCAT(age_range_cte.ratio * 1 / 3, '-', age_range_cte.ratio * 2 / 3)
 ELSE CONCAT(age_range_cte.ratio * 2 / 3, '-', age_range_cte.max_id)
                         END
-                        AS "age_range"
+                        AS \`age_range\`
                     ,
-  MAX("table1".number_column) AS "table1_metric1"
-FROM "db"."schema"."table1" AS "table1"
+  MAX("table1".number_column) AS \`table1_metric1\`
+FROM "db"."schema"."table1" AS \`table1\`
 
 CROSS JOIN age_range_cte
 
 GROUP BY 1,2
-ORDER BY "table1_metric1" DESC
+ORDER BY \`table1_metric1\` DESC
 LIMIT 10`);
     });
 
@@ -529,18 +531,18 @@ LIMIT 10`);
                         },
                     ],
                 },
-                warehouseClient: warehouseClientMock,
+                warehouseClient: bigqueryClientMock,
                 userAttributes: {},
             }).query,
         ).toStrictEqual(`SELECT
-  "table1".dim1 AS "table1_dim1",
-    CONCAT(FLOOR("table1".dim1 / 10) * 10, '-', (FLOOR("table1".dim1 / 10) + 1) * 10 - 1) AS "age_range",
-  MAX("table1".number_column) AS "table1_metric1"
-FROM "db"."schema"."table1" AS "table1"
+  "table1".dim1 AS \`table1_dim1\`,
+CONCAT(FLOOR("table1".dim1 / 10) * 10, '-', (FLOOR("table1".dim1 / 10) + 1) * 10 - 1) AS \`age_range\`,
+  MAX("table1".number_column) AS \`table1_metric1\`
+FROM "db"."schema"."table1" AS \`table1\`
 
 
 GROUP BY 1,2
-ORDER BY "table1_metric1" DESC
+ORDER BY \`table1_metric1\` DESC
 LIMIT 10`);
     });
 
@@ -567,7 +569,7 @@ LIMIT 10`);
                     ],
                 },
 
-                warehouseClient: warehouseClientMock,
+                warehouseClient: bigqueryClientMock,
                 userAttributes: {},
             }).query,
         ).toStrictEqual(`WITH  age_range_cte AS (
@@ -575,20 +577,20 @@ LIMIT 10`);
                         MIN("table1".dim1) AS min_id,
                         MAX("table1".dim1) AS max_id,
                         CAST(MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) AS INT) as ratio
-                    FROM "db"."schema"."table1" AS "table1"
+                    FROM "db"."schema"."table1" AS \`table1\`
                 ),
 metrics AS (
 SELECT
-  "table1".dim1 AS "table1_dim1",
+  "table1".dim1 AS \`table1_dim1\`,
 CASE
                         WHEN "table1".dim1 >= age_range_cte.ratio * 0 / 3 AND "table1".dim1 < age_range_cte.ratio * 1 / 3 THEN CONCAT(age_range_cte.ratio * 0 / 3, '-', age_range_cte.ratio * 1 / 3)
 WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_cte.ratio * 2 / 3 THEN CONCAT(age_range_cte.ratio * 1 / 3, '-', age_range_cte.ratio * 2 / 3)
 ELSE CONCAT(age_range_cte.ratio * 2 / 3, '-', age_range_cte.max_id)
                         END
-                        AS "age_range"
+                        AS \`age_range\`
                     ,
-  MAX("table1".number_column) AS "table1_metric1"
-FROM "db"."schema"."table1" AS "table1"
+  MAX("table1".number_column) AS \`table1_metric1\`
+FROM "db"."schema"."table1" AS \`table1\`
 
 CROSS JOIN age_range_cte
 
@@ -596,19 +598,20 @@ GROUP BY 1,2
 )
 SELECT
   *,
-  table1_dim1 + 1 AS "calc3"
+  table1_dim1 + 1 AS \`calc3\`
 FROM metrics
 
-ORDER BY "table1_metric1" DESC
+ORDER BY \`table1_metric1\` DESC
 LIMIT 10`);
     });
 
     it('getCustomDimensionSql with sorted custom dimension ', () => {
         expect(
             getCustomDimensionSql({
+                warehouseClient: bigqueryClientMock,
+
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                fieldQuoteChar: '"',
                 userAttributes: {},
                 sorts: [{ fieldId: 'age_range', descending: true }],
             }),
@@ -619,7 +622,7 @@ LIMIT 10`);
                         MIN("table1".dim1) AS min_id,
                         MAX("table1".dim1) AS max_id,
                         CAST(MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) AS INT) as ratio
-                    FROM "db"."schema"."table1" AS "table1"
+                    FROM "db"."schema"."table1" AS \`table1\`
                 )`,
             ],
             joins: ['age_range_cte'],
@@ -629,13 +632,13 @@ LIMIT 10`);
 WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_cte.ratio * 2 / 3 THEN CONCAT(age_range_cte.ratio * 1 / 3, '-', age_range_cte.ratio * 2 / 3)
 ELSE CONCAT(age_range_cte.ratio * 2 / 3, '-', age_range_cte.max_id)
                             END
-                            AS "age_range"`,
+                            AS \`age_range\``,
                 `CASE
                             WHEN "table1".dim1 >= age_range_cte.ratio * 0 / 3 AND "table1".dim1 < age_range_cte.ratio * 1 / 3 THEN 0
 WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_cte.ratio * 2 / 3 THEN 1
 ELSE 2
                             END
-                            AS "age_range_order"`,
+                            AS \`age_range_order\``,
             ],
             tables: ['table1'],
         });
@@ -650,7 +653,7 @@ ELSE 2
                     sorts: [{ fieldId: 'age_range', descending: true }],
                 },
 
-                warehouseClient: warehouseClientMock,
+                warehouseClient: bigqueryClientMock,
                 userAttributes: {},
             }).query,
         ).toStrictEqual(`WITH  age_range_cte AS (
@@ -658,29 +661,62 @@ ELSE 2
                         MIN("table1".dim1) AS min_id,
                         MAX("table1".dim1) AS max_id,
                         CAST(MIN("table1".dim1) + (MAX("table1".dim1) - MIN("table1".dim1) ) AS INT) as ratio
-                    FROM "db"."schema"."table1" AS "table1"
+                    FROM "db"."schema"."table1" AS \`table1\`
                 )
 SELECT
-  "table1".dim1 AS "table1_dim1",
+  "table1".dim1 AS \`table1_dim1\`,
 CASE
                             WHEN "table1".dim1 >= age_range_cte.ratio * 0 / 3 AND "table1".dim1 < age_range_cte.ratio * 1 / 3 THEN CONCAT(age_range_cte.ratio * 0 / 3, '-', age_range_cte.ratio * 1 / 3)
 WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_cte.ratio * 2 / 3 THEN CONCAT(age_range_cte.ratio * 1 / 3, '-', age_range_cte.ratio * 2 / 3)
 ELSE CONCAT(age_range_cte.ratio * 2 / 3, '-', age_range_cte.max_id)
                             END
-                            AS "age_range",
+                            AS \`age_range\`,
 CASE
                             WHEN "table1".dim1 >= age_range_cte.ratio * 0 / 3 AND "table1".dim1 < age_range_cte.ratio * 1 / 3 THEN 0
 WHEN "table1".dim1 >= age_range_cte.ratio * 1 / 3 AND "table1".dim1 < age_range_cte.ratio * 2 / 3 THEN 1
 ELSE 2
                             END
-                            AS "age_range_order",
-  MAX("table1".number_column) AS "table1_metric1"
-FROM "db"."schema"."table1" AS "table1"
+                            AS \`age_range_order\`,
+  MAX("table1".number_column) AS \`table1_metric1\`
+FROM "db"."schema"."table1" AS \`table1\`
 
 CROSS JOIN age_range_cte
 
 GROUP BY 1,2,3
-ORDER BY "age_range_order" DESC
+ORDER BY \`age_range_order\` DESC
+LIMIT 10`);
+    });
+
+    it('buildQuery with custom dimension bin width on postgres', () => {
+        // Concat function is different in postgres/redshift
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+                    customDimensions: [
+                        {
+                            id: 'age_range',
+                            name: 'Age range',
+                            dimensionId: 'table1_dim1',
+                            table: 'table1',
+                            binType: BinType.FIXED_WIDTH,
+                            binWidth: 10,
+                        },
+                    ],
+                },
+                warehouseClient: warehouseClientMock,
+                userAttributes: {},
+            }).query,
+        ).toStrictEqual(`SELECT
+  "table1".dim1 AS "table1_dim1",
+(FLOOR("table1".dim1 / 10) * 10 || '-' || (FLOOR("table1".dim1 / 10) + 1) * 10 - 1) AS "age_range",
+  MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
+
+GROUP BY 1,2
+ORDER BY "table1_metric1" DESC
 LIMIT 10`);
     });
 });

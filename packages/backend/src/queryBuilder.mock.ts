@@ -46,6 +46,7 @@ export const warehouseClientMock: WarehouseClient = {
         }
     },
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
+    concatString: (...args) => `(${args.join(' || ')})`,
 };
 
 export const bigqueryClientMock: WarehouseClient = {
@@ -71,6 +72,7 @@ export const bigqueryClientMock: WarehouseClient = {
     getEscapeStringQuoteChar: () => '\\',
     getMetricSql: () => '',
     getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
+    concatString: (...args) => `CONCAT(${args.join(', ')})`,
 };
 
 export const emptyTable = (name: string): CompiledTable => ({
