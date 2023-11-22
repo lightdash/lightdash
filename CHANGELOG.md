@@ -1,3 +1,10 @@
+## [0.871.1](https://github.com/lightdash/lightdash/compare/0.871.0...0.871.1) (2023-11-22)
+
+
+### Bug Fixes
+
+* explore search by fieldId to prioritise base table match over joined tables ([#8031](https://github.com/lightdash/lightdash/issues/8031)) ([8392b5e](https://github.com/lightdash/lightdash/commit/8392b5ee8a41a2d9523859691ead99fd74770bf4))
+
 # [0.871.0](https://github.com/lightdash/lightdash/compare/0.870.1...0.871.0) (2023-11-22)
 
 
