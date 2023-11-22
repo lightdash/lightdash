@@ -1,3 +1,10 @@
+# [0.872.0](https://github.com/lightdash/lightdash/compare/0.871.2...0.872.0) (2023-11-22)
+
+
+### Features
+
+* improve sort ui ([#8044](https://github.com/lightdash/lightdash/issues/8044)) ([3dd2602](https://github.com/lightdash/lightdash/commit/3dd260237298348753a8fa25454b5a2927daf3c4))
+
 ## [0.871.2](https://github.com/lightdash/lightdash/compare/0.871.1...0.871.2) (2023-11-22)
 
 
