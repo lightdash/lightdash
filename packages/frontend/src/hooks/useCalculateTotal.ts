@@ -12,7 +12,6 @@ import {
     MetricType,
     TableCalculation,
 } from '@lightdash/common';
-import posthog from 'posthog-js';
 import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
@@ -102,7 +101,6 @@ export const useCalculateTotal = ({
                 : calculateTotalFromQuery(projectUuid, metricQuery, explore),
         retry: false,
         enabled:
-            posthog.isFeatureEnabled('calculate-totals') &&
             (fields || []).length > 0 &&
             (metricQuery || savedChartUuid) !== undefined,
         onError: (result) =>
