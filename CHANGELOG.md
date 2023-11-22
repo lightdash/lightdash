@@ -1,3 +1,10 @@
+# [0.871.0](https://github.com/lightdash/lightdash/compare/0.870.1...0.871.0) (2023-11-22)
+
+
+### Features
+
+* Add filters for table calculations ([#7846](https://github.com/lightdash/lightdash/issues/7846)) ([b4af616](https://github.com/lightdash/lightdash/commit/b4af6162dd73aaf648f548dfde424dc55e98e550))
+
 ## [0.870.1](https://github.com/lightdash/lightdash/compare/0.870.0...0.870.1) (2023-11-21)
 
 
