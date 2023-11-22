@@ -1,3 +1,10 @@
+## [0.872.3](https://github.com/lightdash/lightdash/compare/0.872.2...0.872.3) (2023-11-22)
+
+
+### Bug Fixes
+
+* change custom metric sorting with custom metric name ([#8002](https://github.com/lightdash/lightdash/issues/8002)) ([ab6762f](https://github.com/lightdash/lightdash/commit/ab6762f3fc071feafde706e05afc08852705085d))
+
 ## [0.872.2](https://github.com/lightdash/lightdash/compare/0.872.1...0.872.2) (2023-11-22)
 
 
