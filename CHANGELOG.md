@@ -1,3 +1,10 @@
+## [0.872.2](https://github.com/lightdash/lightdash/compare/0.872.1...0.872.2) (2023-11-22)
+
+
+### Bug Fixes
+
+* remove calculate total feature flag ([#8053](https://github.com/lightdash/lightdash/issues/8053)) ([bcf42f2](https://github.com/lightdash/lightdash/commit/bcf42f22bb318e3112fce6a073bd3a5e8bae86c7))
+
 ## [0.872.1](https://github.com/lightdash/lightdash/compare/0.872.0...0.872.1) (2023-11-22)
 
 
