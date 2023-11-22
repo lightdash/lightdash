@@ -1,3 +1,10 @@
+## [0.872.1](https://github.com/lightdash/lightdash/compare/0.872.0...0.872.1) (2023-11-22)
+
+
+### Bug Fixes
+
+* dont save tileTargets in overrides and sync with state ([#8042](https://github.com/lightdash/lightdash/issues/8042)) ([0a73432](https://github.com/lightdash/lightdash/commit/0a7343245258a3e24d711265144c8ea868ae2ee7))
+
 # [0.872.0](https://github.com/lightdash/lightdash/compare/0.871.2...0.872.0) (2023-11-22)
 
 
