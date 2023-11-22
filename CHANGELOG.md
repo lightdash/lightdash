@@ -1,3 +1,10 @@
+## [0.871.2](https://github.com/lightdash/lightdash/compare/0.871.1...0.871.2) (2023-11-22)
+
+
+### Bug Fixes
+
+* view underlying data with null pivot value ([#8028](https://github.com/lightdash/lightdash/issues/8028)) ([9eea34c](https://github.com/lightdash/lightdash/commit/9eea34c6e272691c634841d806e672921c4bc13e))
+
 ## [0.871.1](https://github.com/lightdash/lightdash/compare/0.871.0...0.871.1) (2023-11-22)
 
 
