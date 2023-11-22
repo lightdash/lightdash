@@ -213,7 +213,7 @@ const useTableConfig = (
             getFieldLabelOverride,
             isColumnFrozen,
             columnOrder,
-            totalsFromWarehouse: totalCalculations,
+            totals: totalCalculations,
         });
     }, [
         columnOrder,

@@ -58,7 +58,7 @@ const getResultColumnTotals = (
     return {};
 };
 
-export const getResultColumnTotalsFromItemsMap = (
+const getResultColumnTotalsFromItemsMap = (
     rows: ResultRow[],
     itemsMap: Record<FieldId, Field | TableCalculation>,
 ): Record<FieldId, number | undefined> => {

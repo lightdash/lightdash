@@ -17,7 +17,6 @@ import {
     TableColumn,
     TableHeader,
 } from '../../components/common/Table/types';
-import { getResultColumnTotalsFromItemsMap } from '../useColumnTotals';
 
 type Args = {
     itemsMap: Record<string, Field | TableCalculation>;
@@ -28,7 +27,7 @@ type Args = {
     showTableNames: boolean;
     getFieldLabelOverride: (key: string) => string | undefined;
     columnOrder: string[];
-    totalsFromWarehouse: any;
+    totals?: Record<string, number>;
 };
 
 const getDataAndColumns = ({
@@ -40,21 +39,12 @@ const getDataAndColumns = ({
     showTableNames,
     getFieldLabelOverride,
     columnOrder,
-    totalsFromWarehouse,
+    totals,
 }: Args): {
     rows: ResultRow[];
     columns: Array<TableHeader | TableColumn>;
     error?: string;
 } => {
-    const totalsFromResultsTable = getResultColumnTotalsFromItemsMap(
-        resultsData.rows,
-        itemsMap,
-    );
-
-    const totals = totalsFromWarehouse
-        ? { ...totalsFromResultsTable, ...totalsFromWarehouse }
-        : totalsFromResultsTable;
-
     const columns = selectedItemIds.reduce<Array<TableHeader | TableColumn>>(
         (acc, itemId) => {
             const item = itemsMap[itemId] as
@@ -102,7 +92,7 @@ const getDataAndColumns = ({
                         info.getValue()?.value.formatted || '-',
 
                     footer: () =>
-                        totals[itemId]
+                        totals?.[itemId]
                             ? formatItemValue(item, totals[itemId])
                             : null,
                     meta: {

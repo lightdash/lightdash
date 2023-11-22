@@ -27,7 +27,6 @@ import {
     getCalculationColumnFields,
     useCalculateTotal,
 } from './useCalculateTotal';
-import useColumnTotals from './useColumnTotals';
 import { useExplore } from './useExplore';
 
 export const getItemBgColor = (
@@ -116,11 +115,6 @@ export const useColumns = (): TableColumn[] => {
         customDimensions,
     ]);
 
-    const totalsFromResultsTable = useColumnTotals({
-        resultsData,
-        itemsMap: activeItemsMap,
-    });
-
     const metricsWithTotals = useMemo(() => {
         const selectedItemIds = resultsData
             ? itemsInMetricQuery(resultsData.metricQuery)
@@ -129,19 +123,11 @@ export const useColumns = (): TableColumn[] => {
         return getCalculationColumnFields(selectedItemIds, activeItemsMap);
     }, [activeItemsMap, resultsData]);
 
-    const { data: totalsFromWarehouse } = useCalculateTotal({
+    const { data: totals } = useCalculateTotal({
         metricQuery: resultsData?.metricQuery,
         explore: exploreData?.baseTable,
         fields: metricsWithTotals,
     });
-    const totals = useMemo(() => {
-        return totalsFromWarehouse
-            ? {
-                  ...totalsFromResultsTable,
-                  ...totalsFromWarehouse,
-              }
-            : totalsFromResultsTable;
-    }, [totalsFromResultsTable, totalsFromWarehouse]);
 
     return useMemo(() => {
         const validColumns = Object.entries(activeItemsMap).reduce<
@@ -179,7 +165,7 @@ export const useColumns = (): TableColumn[] => {
                     ),
                     cell: (info) => info.getValue()?.value.formatted || '-',
                     footer: () =>
-                        totals[fieldId]
+                        totals?.[fieldId]
                             ? formatItemValue(item, totals[fieldId])
                             : null,
                     meta: {
