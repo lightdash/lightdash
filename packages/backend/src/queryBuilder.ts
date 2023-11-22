@@ -23,6 +23,7 @@ import {
     isFilterGroup,
     parseAllReferences,
     renderFilterRuleSql,
+    renderTableCalculationFilterRuleSql,
     SortField,
     SupportedDbtAdapter,
     UserAttributeValueMap,
@@ -604,6 +605,19 @@ export const buildQuery = ({
     const sqlOrderBy =
         fieldOrders.length > 0 ? `ORDER BY ${fieldOrders.join(', ')}` : '';
     const sqlFilterRule = (filter: FilterRule, fieldType: FieldType) => {
+        if (fieldType === FieldType.TABLE_CALCULATION) {
+            const field = compiledMetricQuery.compiledTableCalculations?.find(
+                (tc) =>
+                    `table_calculation_${tc.name}` === filter.target.fieldId,
+            );
+            return renderTableCalculationFilterRuleSql(
+                filter,
+                field,
+                stringQuoteChar,
+                escapeStringQuoteChar,
+            );
+        }
+
         const field =
             fieldType === FieldType.DIMENSION
                 ? getDimensions(explore).find(
@@ -681,6 +695,12 @@ export const buildQuery = ({
         filters.metrics,
         FieldType.METRIC,
     );
+
+    const tableCalculationFilters = getNestedFilterSQLFromGroup(
+        filters.tableCalculations,
+        FieldType.TABLE_CALCULATION,
+    );
+
     const sqlLimit = `LIMIT ${limit}`;
 
     if (
@@ -720,9 +740,12 @@ export const buildQuery = ({
             ? `WHERE ${whereMetricFilters}`
             : '';
         const secondQuery = [finalSelect, finalFrom, finalSqlWhere].join('\n');
+        const finalQuery = tableCalculationFilters
+            ? `SELECT * FROM (${secondQuery}) query_result WHERE ${tableCalculationFilters}`
+            : secondQuery;
 
         return {
-            query: [cte, secondQuery, sqlOrderBy, sqlLimit].join('\n'),
+            query: [cte, finalQuery, sqlOrderBy, sqlLimit].join('\n'),
             hasExampleMetric,
         };
     }

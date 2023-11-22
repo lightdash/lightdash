@@ -37,6 +37,23 @@ export type ApiRunQueryResponse = {
     };
 };
 
+type RunQueryRequest = {
+    // tsoa doesn't support complex types like MetricQuery
+    dimensions: FieldId[]; // Dimensions to group by in the explore
+    metrics: FieldId[]; // Metrics to compute in the explore
+    filters: {
+        dimensions?: any;
+        metrics?: any;
+        tableCalculations?: any;
+    };
+    sorts: SortField[]; // Sorts for the data
+    limit: number; // Max number of rows to return from query
+    tableCalculations: TableCalculation[]; // calculations to append to results
+    additionalMetrics?: AdditionalMetric[]; // existing metric type
+    csvLimit?: number;
+    customDimensions?: CustomDimension[];
+};
+
 @Route('/api/v1/projects/{projectUuid}')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Exploring')

@@ -34,6 +34,14 @@ const useDashboardFiltersForExplore = (
                 ...dashboardFilters.metrics,
                 ...(dashboardTemporaryFilters?.metrics ?? []),
             ]),
+            tableCalculations: getDashboardFilterRulesForTileAndTables(
+                tileUuid,
+                tables,
+                [
+                    ...dashboardFilters.tableCalculations,
+                    ...(dashboardTemporaryFilters?.tableCalculations ?? []),
+                ],
+            ),
         }),
         [tileUuid, tables, dashboardFilters, dashboardTemporaryFilters],
     );

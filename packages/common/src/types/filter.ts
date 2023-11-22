@@ -95,11 +95,13 @@ export type Filters = {
     // Note: dimensions need to be in a separate filter group from metrics & table calculations
     dimensions?: FilterGroup;
     metrics?: FilterGroup;
+    tableCalculations?: FilterGroup;
 };
 
 export type DashboardFilters = {
     dimensions: DashboardFilterRule[];
     metrics: DashboardFilterRule[];
+    tableCalculations: DashboardFilterRule[];
 };
 
 export type DashboardFiltersFromSearchParam = {
@@ -107,6 +109,9 @@ export type DashboardFiltersFromSearchParam = {
         tileTargets?: (string | Record<string, DashboardTileTarget>)[];
     })[];
     metrics: (Omit<DashboardFilterRule, 'tileTargets'> & {
+        tileTargets?: (string | Record<string, DashboardTileTarget>)[];
+    })[];
+    tableCalculations: (Omit<DashboardFilterRule, 'tileTargets'> & {
         tileTargets?: (string | Record<string, DashboardTileTarget>)[];
     })[];
 };
@@ -150,6 +155,9 @@ export const getFilterRules = (filters: Filters): FilterRule[] => {
     if (filters.metrics) {
         rules.push(...flattenFilterGroup(filters.metrics));
     }
+    if (filters.tableCalculations) {
+        rules.push(...flattenFilterGroup(filters.tableCalculations));
+    }
     return rules;
 };
 
@@ -187,6 +195,32 @@ export enum FilterGroupOperator {
     or = 'or',
 }
 
+export const convertDashboardFiltersToFilters = (
+    dashboardFilters: DashboardFilters,
+): Filters => {
+    const { dimensions, metrics, tableCalculations } = dashboardFilters;
+    const filters: Filters = {};
+    if (dimensions.length > 0) {
+        filters.dimensions = {
+            id: 'dashboard_dimension_filters',
+            and: dimensions.map((dimension) => dimension),
+        };
+    }
+    if (metrics.length > 0) {
+        filters.metrics = {
+            id: 'dashboard_dimension_metrics',
+            and: metrics.map((metric) => metric),
+        };
+    }
+    if (tableCalculations.length > 0) {
+        filters.tableCalculations = {
+            id: 'dashboard_tablecalculation_filters',
+            and: tableCalculations.map((tableCalculation) => tableCalculation),
+        };
+    }
+    return filters;
+};
+
 const isDashboardTileTargetFilterOverride = (
     filter: string | Record<string, DashboardTileTarget>,
 ): filter is Record<string, DashboardTileTarget> =>
@@ -217,7 +251,7 @@ export const convertDashboardFiltersParamToDashboardFilters = (
                 }),
             })),
         }),
-        { dimensions: [], metrics: [] },
+        { dimensions: [], metrics: [], tableCalculations: [] },
     );
 
 export const compressDashboardFiltersToParam = (
@@ -259,7 +293,7 @@ export const compressDashboardFiltersToParam = (
                 }),
             })),
         }),
-        { dimensions: [], metrics: [] },
+        { dimensions: [], metrics: [], tableCalculations: [] },
     );
 
 export { ConditionalOperator as FilterOperator };

@@ -21,6 +21,10 @@ const useDashboardFiltersForTile = (tileUuid: string): DashboardFilters => {
                 ...dashboardFilters.metrics,
                 ...(dashboardTemporaryFilters?.metrics ?? []),
             ]),
+            tableCalculations: getDashboardFilterRulesForTile(tileUuid, [
+                ...dashboardFilters.tableCalculations,
+                ...(dashboardTemporaryFilters?.tableCalculations ?? []),
+            ]),
         }),
         [tileUuid, dashboardFilters, dashboardTemporaryFilters],
     );

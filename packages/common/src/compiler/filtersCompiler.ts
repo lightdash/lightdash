@@ -2,10 +2,12 @@ import moment from 'moment/moment';
 import { SupportedDbtAdapter } from '../types/dbt';
 import {
     CompiledField,
+    CompiledTableCalculation,
     DimensionType,
     fieldId,
     isMetric,
     MetricType,
+    TableCalculationFormatType,
 } from '../types/field';
 import {
     DateFilterRule,
@@ -296,6 +298,34 @@ const renderBooleanFilterSql = (
             throw Error(
                 `No function implemented to render sql for filter type ${operator} on dimension of boolean type`,
             );
+    }
+};
+
+export const renderTableCalculationFilterRuleSql = (
+    filterRule: FilterRule<FilterOperator, unknown>,
+    field: CompiledTableCalculation | undefined,
+    stringQuoteChar: string,
+    escapeStringQuoteChar: string,
+): string => {
+    if (!field) return '1=1';
+    switch (field.format?.type) {
+        case TableCalculationFormatType.DEFAULT:
+            return renderStringFilterSql(
+                field.name,
+                filterRule,
+                stringQuoteChar,
+                escapeStringQuoteChar,
+            );
+        case TableCalculationFormatType.PERCENT:
+        case TableCalculationFormatType.CURRENCY:
+        case TableCalculationFormatType.NUMBER: {
+            return renderNumberFilterSql(field.name, filterRule);
+        }
+        default: {
+            throw Error(
+                `No function implemented to render filter sql for table calculation type ${field.format?.type}`,
+            );
+        }
     }
 };
 
