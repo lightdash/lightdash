@@ -5,12 +5,7 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { ActionIcon, Flex, Menu } from '@mantine/core';
-import {
-    IconArrowDown,
-    IconArrowUp,
-    IconCheck,
-    IconChevronDown,
-} from '@tabler/icons-react';
+import { IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { FC, useMemo } from 'react';
 import MantineIcon from '../common/MantineIcon';
 import { HeaderProps, TableColumn } from '../common/Table/types';
@@ -18,6 +13,7 @@ import { HeaderProps, TableColumn } from '../common/Table/types';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import {
     getSortDirectionOrder,
+    getSortIcon,
     getSortLabel,
     SortDirection,
 } from '../../utils/sortUtils';
@@ -72,19 +68,24 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, tileUuid }) => {
                         </BolderLabel>
                     </Menu.Item>
                 ))}
-
-            <Menu.Divider />
-            <Menu.Item
-                color={'red'}
-                onClick={() => {
-                    setChartSort({
-                        ...chartSort,
-                        [tileUuid]: [],
-                    });
-                }}
-            >
-                Remove sort
-            </Menu.Item>
+            {chartSort[tileUuid]?.some(
+                (sorts) => sorts.fieldId === itemFieldId,
+            ) && (
+                <>
+                    <Menu.Divider />
+                    <Menu.Item
+                        color={'red'}
+                        onClick={() => {
+                            setChartSort({
+                                ...chartSort,
+                                [tileUuid]: [],
+                            });
+                        }}
+                    >
+                        Remove sort
+                    </Menu.Item>
+                </>
+            )}
         </>
     );
 };
@@ -104,7 +105,7 @@ const DashboardHeaderContextMenu: FC<HeaderProps & { tileUuid: string }> = ({
             (s) => s.fieldId === getItemId(item),
         );
         if (sort) {
-            return sort.descending ? IconArrowDown : IconArrowUp;
+            return getSortIcon(item, sort.descending);
         } else {
             return undefined;
         }
