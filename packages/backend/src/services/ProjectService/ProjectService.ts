@@ -24,6 +24,7 @@ import {
     DbtProjectType,
     deepEqual,
     DefaultSupportedDbtVersion,
+    DimensionType,
     Explore,
     ExploreError,
     fieldId as getFieldId,
@@ -71,6 +72,7 @@ import {
     TableCalculationFormatType,
     TablesConfiguration,
     TableSelectionType,
+    TimeFrames,
     UpdateProject,
     UpdateProjectMember,
     UserAttributeValueMap,
@@ -848,6 +850,28 @@ export class ProjectService {
         });
     }
 
+    static updateMetricQueryGranularity(
+        metricQuery: MetricQuery,
+        explore: Explore,
+        granularity?: TimeFrames,
+    ): MetricQuery {
+        if (granularity) {
+            const dimensions = getDimensions(explore);
+            const timeDimension = metricQuery.dimensions.find((dimension) => {
+                const dim = dimensions.find((d) => d.name === dimension)?.type;
+                return (
+                    dim === DimensionType.TIMESTAMP ||
+                    dim === DimensionType.DATE
+                );
+            });
+
+            if (timeDimension) {
+                console.debug('timedimension', timeDimension);
+            }
+        }
+        return metricQuery;
+    }
+
     async runViewChartQuery({
         user,
         chartUuid,
@@ -855,6 +879,7 @@ export class ProjectService {
         versionUuid,
         invalidateCache,
         dashboardSorts,
+        granularity,
     }: {
         user: SessionUser;
         chartUuid: string;
@@ -862,6 +887,7 @@ export class ProjectService {
         versionUuid?: string;
         invalidateCache?: boolean;
         dashboardSorts?: SortField[];
+        granularity?: TimeFrames;
     }): Promise<ApiChartAndResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -942,9 +968,15 @@ export class ProjectService {
                     : metricQuery.sorts,
         };
 
+        const metricWithOverrideGranularity: MetricQuery =
+            ProjectService.updateMetricQueryGranularity(
+                metricWithOverrideSorting,
+                granularity,
+            );
+
         const { cacheMetadata, rows } = await this.runQueryAndFormatRows({
             user,
-            metricQuery: metricWithOverrideSorting,
+            metricQuery: metricWithOverrideGranularity,
             projectUuid,
             exploreName: savedChart.tableName,
             csvLimit: undefined,
