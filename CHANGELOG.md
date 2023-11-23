@@ -1,3 +1,10 @@
+## [0.872.4](https://github.com/lightdash/lightdash/compare/0.872.3...0.872.4) (2023-11-23)
+
+
+### Bug Fixes
+
+* sync override type with the dashboard filter one ([#8062](https://github.com/lightdash/lightdash/issues/8062)) ([1c471b6](https://github.com/lightdash/lightdash/commit/1c471b6e189f4eebc98dc0167bd99f8cbc3761d0))
+
 ## [0.872.3](https://github.com/lightdash/lightdash/compare/0.872.2...0.872.3) (2023-11-22)
 
 
