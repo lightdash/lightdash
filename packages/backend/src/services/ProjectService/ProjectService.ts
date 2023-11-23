@@ -873,8 +873,8 @@ export class ProjectService {
                     '',
                 );
                 const newTimeDimension = `${baseDateField}_${granularity}`;
-                // TODO replace  filters ?
 
+                // TODO replace sorts / filters ?
                 return {
                     ...metricQuery,
                     dimensions: metricQuery.dimensions.map((dimension) =>
@@ -882,11 +882,11 @@ export class ProjectService {
                             ? newTimeDimension
                             : dimension,
                     ),
-                    sorts: metricQuery.sorts.map((sort) =>
+                    /* sorts: metricQuery.sorts.map((sort) =>
                         sort.fieldId === timeDimension
                             ? { ...sort, fieldId: newTimeDimension }
                             : sort,
-                    ),
+                    ), */
                 };
             }
         }
