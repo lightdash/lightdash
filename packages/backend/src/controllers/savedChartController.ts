@@ -52,6 +52,8 @@ export class SavedChartController extends Controller {
         @Body()
         body: {
             invalidateCache?: boolean;
+            dashboardSorts?: SortField[];
+            granularity?: string;
         },
         @Path() chartUuid: string,
         @Request() req: express.Request,
