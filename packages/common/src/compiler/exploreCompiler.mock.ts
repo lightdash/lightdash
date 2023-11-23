@@ -40,6 +40,7 @@ export const warehouseClientMock: WarehouseClient = {
                 return sql;
         }
     },
+    concatString: (...args) => `CONCAT(${args.join(', ')})`,
 };
 
 const sourceMock: Source = {
