@@ -30,10 +30,7 @@ interface RemoveSavedFilterOverrideAction {
 type Action = AddSavedFilterOverrideAction | RemoveSavedFilterOverrideAction;
 
 const reducer = (
-    state: {
-        dimensions: DashboardFilterRuleOverride[];
-        metrics: DashboardFilterRuleOverride[];
-    },
+    state: Record<keyof DashboardFilters, DashboardFilterRuleOverride[]>,
     action: Action,
 ) => {
     let newDimensions = [...state.dimensions];
