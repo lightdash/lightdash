@@ -1,3 +1,10 @@
+## [0.873.1](https://github.com/lightdash/lightdash/compare/0.873.0...0.873.1) (2023-11-23)
+
+
+### Bug Fixes
+
+* concat redshift table calculation ([#8046](https://github.com/lightdash/lightdash/issues/8046)) ([2c4d525](https://github.com/lightdash/lightdash/commit/2c4d525f38a37ba2461063c6813896ff1a816f53))
+
 # [0.873.0](https://github.com/lightdash/lightdash/compare/0.872.4...0.873.0) (2023-11-23)
 
 
