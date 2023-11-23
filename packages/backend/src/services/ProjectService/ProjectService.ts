@@ -858,7 +858,9 @@ export class ProjectService {
         if (granularity) {
             const dimensions = getDimensions(explore);
             const timeDimension = metricQuery.dimensions.find((dimension) => {
-                const dim = dimensions.find((d) => d.name === dimension)?.type;
+                const dim = dimensions.find(
+                    (d) => getFieldId(d) === dimension,
+                )?.type;
                 return (
                     dim === DimensionType.TIMESTAMP ||
                     dim === DimensionType.DATE
@@ -866,7 +868,26 @@ export class ProjectService {
             });
 
             if (timeDimension) {
-                console.debug('timedimension', timeDimension);
+                const baseDateField = timeDimension.replace(
+                    /_(day|week|month|quarter|year)$/,
+                    '',
+                );
+                const newTimeDimension = `${baseDateField}_${granularity}`;
+                // TODO replace  filters ?
+
+                return {
+                    ...metricQuery,
+                    dimensions: metricQuery.dimensions.map((dimension) =>
+                        dimension === timeDimension
+                            ? newTimeDimension
+                            : dimension,
+                    ),
+                    sorts: metricQuery.sorts.map((sort) =>
+                        sort.fieldId === timeDimension
+                            ? { ...sort, fieldId: newTimeDimension }
+                            : sort,
+                    ),
+                };
             }
         }
         return metricQuery;
@@ -971,6 +992,7 @@ export class ProjectService {
         const metricWithOverrideGranularity: MetricQuery =
             ProjectService.updateMetricQueryGranularity(
                 metricWithOverrideSorting,
+                explore,
                 granularity,
             );
 
