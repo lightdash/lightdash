@@ -7,6 +7,10 @@ export const DATE_ZOOM_OPTIONS = [
         label: 'Day',
     },
     {
+        value: TimeFrames.WEEK,
+        label: 'Week',
+    },
+    {
         value: TimeFrames.MONTH,
         label: 'Month',
     },
