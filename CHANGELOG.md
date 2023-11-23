@@ -1,3 +1,10 @@
+# [0.873.0](https://github.com/lightdash/lightdash/compare/0.872.4...0.873.0) (2023-11-23)
+
+
+### Features
+
+* add date zoom component ([#8063](https://github.com/lightdash/lightdash/issues/8063)) ([c696da0](https://github.com/lightdash/lightdash/commit/c696da064f872502d75e7ee0e010e73e903491ba))
+
 ## [0.872.4](https://github.com/lightdash/lightdash/compare/0.872.3...0.872.4) (2023-11-23)
 
 
