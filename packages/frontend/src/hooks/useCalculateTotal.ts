@@ -6,6 +6,7 @@ import {
     Field,
     fieldId as getFieldId,
     isField,
+    isMetric,
     MetricQuery,
     MetricQueryRequest,
     TableCalculation,
@@ -122,7 +123,7 @@ export const getCalculationColumnFields = (
         ?.map((item) => {
             return itemsMap[item];
         })
-        .filter((item) => isField(item));
+        .filter((item) => isField(item) && isMetric(item));
 
     return items?.reduce<string[]>((acc, item) => {
         if (isField(item)) return [...acc, getFieldId(item)];
