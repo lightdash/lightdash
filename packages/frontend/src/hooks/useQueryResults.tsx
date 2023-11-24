@@ -32,11 +32,13 @@ const getChartResults = async ({
     dashboardFilters,
     invalidateCache,
     dashboardSorts,
+    granularity,
 }: {
     chartUuid?: string;
     dashboardFilters?: DashboardFilters;
     invalidateCache?: boolean;
     dashboardSorts?: SortField[];
+    granularity?: string;
 }) => {
     return lightdashApi<ApiChartAndResults>({
         url: `/saved/${chartUuid}/results`,
@@ -44,6 +46,7 @@ const getChartResults = async ({
         body: JSON.stringify({
             dashboardFilters,
             dashboardSorts,
+            granularity,
             ...(invalidateCache && { invalidateCache: true }),
         }),
     });
@@ -181,6 +184,7 @@ export const useChartResults = (
     dashboardFilters?: DashboardFilters,
     dashboardSorts?: SortField[],
     invalidateCache?: boolean,
+    granularity?: string,
 ) => {
     const sortKey =
         dashboardSorts
@@ -192,6 +196,7 @@ export const useChartResults = (
         dashboardFilters,
         invalidateCache,
         sortKey,
+        granularity,
     ];
     const timezoneFixFilters =
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);
@@ -204,6 +209,7 @@ export const useChartResults = (
                 dashboardFilters: timezoneFixFilters,
                 invalidateCache,
                 dashboardSorts,
+                granularity,
             }),
         enabled: !!chartUuid,
         retry: false,

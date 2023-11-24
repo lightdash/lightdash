@@ -7,11 +7,14 @@ const useDashboardChart = (tileUuid: string, savedChartUuid: string | null) => {
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
     const tileSort = chartSort[tileUuid] || [];
+    //TODO replace with dashboard context
+    const granularity = localStorage.getItem('granularity') || undefined;
     return useChartResults(
         savedChartUuid,
         dashboardFilters,
         tileSort,
         invalidateCache,
+        granularity,
     );
 };
 
