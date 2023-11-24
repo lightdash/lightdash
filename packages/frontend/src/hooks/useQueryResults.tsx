@@ -8,8 +8,9 @@ import {
     MetricQuery,
     SortField,
 } from '@lightdash/common';
-import { useCallback, useMemo } from 'react';
-import { useMutation, useQuery } from 'react-query';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import {
@@ -202,20 +203,52 @@ export const useChartAndResults = (
     invalidateCache?: boolean,
     granularity?: DateGranularity,
 ) => {
+    const isDateZoomFeatureEnabled = useFeatureFlagEnabled('date-zoom');
+    const queryClient = useQueryClient();
+
     const sortKey =
         dashboardSorts
             ?.map((ds) => `${ds.fieldId}.${ds.descending}`)
             ?.join(',') || '';
-    const queryKey = [
-        'savedChartResults',
-        chartUuid,
-        dashboardFilters,
-        invalidateCache,
-        sortKey,
-        granularity,
-    ];
+    const queryKey = useMemo(
+        () => [
+            'savedChartResults',
+            chartUuid,
+            dashboardFilters,
+            invalidateCache,
+            sortKey,
+        ],
+        [chartUuid, dashboardFilters, invalidateCache, sortKey],
+    );
+    const apiChartAndResults = queryClient.getQueryData<
+        ApiChartAndResults & { fetched: boolean }
+    >(queryKey);
+
     const timezoneFixFilters =
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);
+
+    const prevDateZoomGranularityRef = useRef<string>();
+
+    useEffect(() => {
+        if (!isDateZoomFeatureEnabled) return;
+        // Check if dateZoomGranularity has changed and if date dimensions are present
+        const hasDateZoomChanged =
+            granularity !== prevDateZoomGranularityRef.current;
+        const hasDateDimensions =
+            apiChartAndResults?.metricQuery?.metadata?.hasADateDimension;
+
+        if (hasDateZoomChanged && hasDateDimensions) {
+            queryClient.invalidateQueries(queryKey);
+            // Update ref to current dateZoomGranularity
+            prevDateZoomGranularityRef.current = granularity;
+        }
+    }, [
+        granularity,
+        apiChartAndResults?.metricQuery,
+        queryClient,
+        queryKey,
+        isDateZoomFeatureEnabled,
+    ]);
 
     return useQuery<ApiChartAndResults, ApiError>({
         queryKey,
