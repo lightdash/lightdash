@@ -850,6 +850,9 @@ function reducer(
         }
 
         case ActionType.EDIT_ADDITIONAL_METRIC: {
+            const additionalMetricFieldId = getFieldId(
+                action.payload.additionalMetric,
+            );
             return {
                 ...state,
                 unsavedChartVersion: {
@@ -857,10 +860,12 @@ function reducer(
                     metricQuery: {
                         ...state.unsavedChartVersion.metricQuery,
                         metrics:
-                            state.unsavedChartVersion.metricQuery.metrics.filter(
+                            state.unsavedChartVersion.metricQuery.metrics.map(
                                 (metric) =>
-                                    metric !==
-                                    action.payload.previousAdditionalMetricName,
+                                    metric ===
+                                    action.payload.previousAdditionalMetricName
+                                        ? additionalMetricFieldId
+                                        : metric,
                             ),
                         additionalMetrics:
                             state.unsavedChartVersion.metricQuery.additionalMetrics?.map(
@@ -869,6 +874,27 @@ function reducer(
                                     action.payload.additionalMetric.uuid
                                         ? action.payload.additionalMetric
                                         : metric,
+                            ),
+                        sorts: state.unsavedChartVersion.metricQuery.sorts.map(
+                            (sortField) =>
+                                sortField.fieldId ===
+                                action.payload.previousAdditionalMetricName
+                                    ? {
+                                          ...sortField,
+                                          fieldId: additionalMetricFieldId,
+                                      }
+                                    : sortField,
+                        ),
+                    },
+                    tableConfig: {
+                        ...state.unsavedChartVersion.tableConfig,
+                        columnOrder:
+                            state.unsavedChartVersion.tableConfig.columnOrder.map(
+                                (fieldId) =>
+                                    fieldId ===
+                                    action.payload.previousAdditionalMetricName
+                                        ? additionalMetricFieldId
+                                        : fieldId,
                             ),
                     },
                 },
@@ -1326,10 +1352,6 @@ export const ExplorerProvider: FC<{
             dispatch({
                 type: ActionType.EDIT_ADDITIONAL_METRIC,
                 payload: { additionalMetric, previousAdditionalMetricName },
-            });
-            dispatch({
-                type: ActionType.TOGGLE_METRIC,
-                payload: getFieldId(additionalMetric),
             });
         },
         [],

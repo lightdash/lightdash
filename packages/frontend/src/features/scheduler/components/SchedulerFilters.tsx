@@ -57,10 +57,16 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
     }, [filterType]);
 
     return (
-        <Stack key={dashboardFilter.id} spacing="xs">
+        <Stack key={dashboardFilter.id} spacing="xs" w="100%">
             <Group spacing="xs">
                 <FieldIcon item={field} />
-                <FieldLabel item={field} hideTableName />
+                <FieldLabel
+                    item={{
+                        ...field,
+                        label: dashboardFilter.label ?? field.label,
+                    }}
+                    hideTableName
+                />
             </Group>
 
             <Flex gap="xs">
@@ -245,7 +251,7 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
                                 spacing="xs"
                                 align="flex-start"
                                 key={filter.id}
-                                w="100%"
+                                noWrap
                             >
                                 <Tooltip
                                     label="Reset filter back to original"

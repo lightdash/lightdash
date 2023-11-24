@@ -135,15 +135,15 @@ const getJoinType = (type: DbtModelJoinType = 'left') => {
 };
 
 export const getCustomDimensionSql = ({
+    warehouseClient,
     explore,
     compiledMetricQuery,
-    fieldQuoteChar,
     userAttributes = {},
     sorts = [],
 }: {
+    warehouseClient: WarehouseClient;
     explore: Explore;
     compiledMetricQuery: CompiledMetricQuery;
-    fieldQuoteChar: string;
     userAttributes: UserAttributeValueMap | undefined;
     sorts: SortField[] | undefined;
 }):
@@ -151,6 +151,7 @@ export const getCustomDimensionSql = ({
     | undefined => {
     const { customDimensions } = compiledMetricQuery;
 
+    const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
     if (customDimensions === undefined || customDimensions.length === 0)
         return undefined;
 
@@ -243,6 +244,8 @@ export const getCustomDimensionSql = ({
                         getCustomDimensionId(customDimension) ===
                         sortField.fieldId,
                 );
+            const quoteChar = warehouseClient.getStringQuoteChar();
+            const dash = `${quoteChar}-${quoteChar}`;
             switch (customDimension.binType) {
                 case BinType.FIXED_WIDTH:
                     if (!customDimension.binWidth) {
@@ -252,7 +255,11 @@ export const getCustomDimensionSql = ({
                     }
 
                     const width = customDimension.binWidth;
-                    const widthSql = `    CONCAT(FLOOR(${dimension.compiledSql} / ${width}) * ${width}, '-', (FLOOR(${dimension.compiledSql} / ${width}) + 1) * ${width} - 1) AS ${customDimensionName}`;
+                    const widthSql = `${warehouseClient.concatString(
+                        `FLOOR(${dimension.compiledSql} / ${width}) * ${width}`,
+                        dash,
+                        `(FLOOR(${dimension.compiledSql} / ${width}) + 1) * ${width} - 1`,
+                    )} AS ${customDimensionName}`;
 
                     if (isSorted) {
                         return [
@@ -275,7 +282,11 @@ export const getCustomDimensionSql = ({
                         // Edge case, bin number with only one bucket does not need a CASE statement
                         return [
                             ...acc,
-                            `CONCAT(${cte}.min_id, '-', ${cte}.max_id) AS ${customDimensionName}`,
+                            `${warehouseClient.concatString(
+                                `${cte}.min_id`,
+                                dash,
+                                `${cte}.max_id`,
+                            )} AS ${customDimensionName}`,
                         ];
                     }
 
@@ -291,9 +302,17 @@ export const getCustomDimensionSql = ({
                                 i,
                             )} AND ${dimension.compiledSql} < ${to(
                                 i,
-                            )} THEN CONCAT(${from(i)}, '-', ${to(i)})`;
+                            )} THEN ${warehouseClient.concatString(
+                                from(i),
+                                dash,
+                                to(i),
+                            )}`;
                         }
-                        return `ELSE CONCAT(${from(i)}, '-', ${cte}.max_id)`;
+                        return `ELSE ${warehouseClient.concatString(
+                            from(i),
+                            dash,
+                            `${cte}.max_id`,
+                        )}`;
                     });
 
                     if (isSorted) {
@@ -342,14 +361,30 @@ export const getCustomDimensionSql = ({
                         (range) => {
                             if (range.from === undefined) {
                                 // First range
-                                return `WHEN ${dimension.compiledSql} < ${range.to} THEN CONCAT('<' ,  ${range.to})`;
+                                return `WHEN ${dimension.compiledSql} < ${
+                                    range.to
+                                } THEN ${warehouseClient.concatString(
+                                    `${quoteChar}<${quoteChar}`,
+                                    `${range.to}`,
+                                )}`;
                             }
                             if (range.to === undefined) {
                                 // Last range
-                                return `ELSE CONCAT('≥' ,  ${range.from})`;
+                                return `ELSE ${warehouseClient.concatString(
+                                    `${quoteChar}≥${quoteChar}`,
+                                    `${range.from}`,
+                                )}`;
                             }
 
-                            return `WHEN ${dimension.compiledSql} >= ${range.from} AND ${dimension.compiledSql} < ${range.to} THEN CONCAT(${range.from}, '-', ${range.to})`;
+                            return `WHEN ${dimension.compiledSql} >= ${
+                                range.from
+                            } AND ${dimension.compiledSql} < ${
+                                range.to
+                            } THEN ${warehouseClient.concatString(
+                                `${range.from}`,
+                                "'-'",
+                                `${range.to}`,
+                            )}`;
                         },
                     );
 
@@ -434,9 +469,9 @@ export const buildQuery = ({
     });
 
     const customDimensionSql = getCustomDimensionSql({
+        warehouseClient,
         explore,
         compiledMetricQuery,
-        fieldQuoteChar,
         userAttributes,
         sorts,
     });

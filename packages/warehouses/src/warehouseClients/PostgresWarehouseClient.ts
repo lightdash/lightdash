@@ -362,6 +362,10 @@ export class PostgresClient<
                 return super.getMetricSql(sql, metric);
         }
     }
+
+    concatString(...args: string[]) {
+        return `(${args.join(' || ')})`;
+    }
 }
 
 // Mimics behaviour in https://github.com/brianc/node-postgres/blob/master/packages/pg-connection-string/index.js

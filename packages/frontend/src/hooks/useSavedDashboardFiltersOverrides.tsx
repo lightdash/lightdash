@@ -1,4 +1,8 @@
-import { DashboardFilterRule, DashboardFilters } from '@lightdash/common';
+import {
+    DashboardFilterRule,
+    DashboardFilterRuleOverride,
+    DashboardFilters,
+} from '@lightdash/common';
 import { useReducer } from 'react';
 import { useLocation } from 'react-router-dom';
 
@@ -15,17 +19,20 @@ const REMOVE_SAVED_FILTER_OVERRIDE = 'REMOVE_SAVED_FILTER_OVERRIDE';
 
 interface AddSavedFilterOverrideAction {
     type: typeof ADD_SAVED_FILTER_OVERRIDE;
-    payload: DashboardFilterRule;
+    payload: DashboardFilterRuleOverride;
 }
 
 interface RemoveSavedFilterOverrideAction {
     type: typeof REMOVE_SAVED_FILTER_OVERRIDE;
-    payload: DashboardFilterRule;
+    payload: DashboardFilterRuleOverride;
 }
 
 type Action = AddSavedFilterOverrideAction | RemoveSavedFilterOverrideAction;
 
-const reducer = (state: DashboardFilters, action: Action) => {
+const reducer = (
+    state: Record<keyof DashboardFilters, DashboardFilterRuleOverride[]>,
+    action: Action,
+) => {
     let newDimensions = [...state.dimensions];
     const { type, payload } = action;
 
@@ -63,11 +70,17 @@ export const useSavedDashboardFiltersOverrides = () => {
             : { dimensions: [], metrics: [] },
     );
 
-    const addSavedFilterOverride = (item: DashboardFilterRule) => {
+    const addSavedFilterOverride = ({
+        tileTargets,
+        ...item
+    }: DashboardFilterRule) => {
         dispatch({ type: ADD_SAVED_FILTER_OVERRIDE, payload: item });
     };
 
-    const removeSavedFilterOverride = (item: DashboardFilterRule) => {
+    const removeSavedFilterOverride = ({
+        tileTargets,
+        ...item
+    }: DashboardFilterRule) => {
         dispatch({ type: REMOVE_SAVED_FILTER_OVERRIDE, payload: item });
     };
 

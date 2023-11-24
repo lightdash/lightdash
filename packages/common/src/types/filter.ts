@@ -1,4 +1,5 @@
 import { ConditionalOperator, ConditionalRule } from './conditionalRule';
+import type { SchedulerFilterRule } from './scheduler';
 
 export enum FilterType {
     STRING = 'string',
@@ -66,6 +67,11 @@ export type DashboardFilterRule<
     tileTargets?: Record<string, DashboardTileTarget>;
     label: undefined | string;
 };
+
+export type DashboardFilterRuleOverride = Omit<
+    DashboardFilterRule,
+    'tileTargets'
+>;
 
 export type DateFilterRule = FilterRule<
     ConditionalOperator,
@@ -163,26 +169,26 @@ export const getFilterRules = (filters: Filters): FilterRule[] => {
 
 export const applyDimensionOverrides = (
     dashboardFilters: DashboardFilters,
-    overrides: DashboardFilters | DashboardFilterRule[],
-    keepTileTargets = false,
+    overrides: DashboardFilters | SchedulerFilterRule[],
 ) =>
     dashboardFilters.dimensions.map((dimension) => {
-        if (overrides instanceof Array) {
-            const override = overrides.find(
-                (overrideDimension) => overrideDimension.id === dimension.id,
-            );
-            if (override && keepTileTargets) {
-                return {
-                    ...override,
-                    tileTargets: dimension.tileTargets,
-                };
-            }
-            return dimension;
+        const override =
+            overrides instanceof Array
+                ? overrides.find(
+                      (overrideDimension) =>
+                          overrideDimension.id === dimension.id,
+                  )
+                : overrides.dimensions.find(
+                      (overrideDimension) =>
+                          overrideDimension.id === dimension.id,
+                  );
+        if (override) {
+            return {
+                ...override,
+                tileTargets: dimension.tileTargets,
+            };
         }
-        const override = overrides.dimensions.find(
-            (overrideDimension) => overrideDimension.id === dimension.id,
-        );
-        return override || dimension;
+        return dimension;
     });
 
 export const isDashboardFilterRule = (

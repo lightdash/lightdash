@@ -61,4 +61,8 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
     async test(): Promise<void> {
         await this.runQuery('SELECT 1');
     }
+
+    concatString(...args: string[]): string {
+        return `CONCAT(${args.join(', ')})`;
+    }
 }

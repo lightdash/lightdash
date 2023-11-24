@@ -1,3 +1,45 @@
+## [0.873.1](https://github.com/lightdash/lightdash/compare/0.873.0...0.873.1) (2023-11-23)
+
+
+### Bug Fixes
+
+* concat redshift table calculation ([#8046](https://github.com/lightdash/lightdash/issues/8046)) ([2c4d525](https://github.com/lightdash/lightdash/commit/2c4d525f38a37ba2461063c6813896ff1a816f53))
+
+# [0.873.0](https://github.com/lightdash/lightdash/compare/0.872.4...0.873.0) (2023-11-23)
+
+
+### Features
+
+* add date zoom component ([#8063](https://github.com/lightdash/lightdash/issues/8063)) ([c696da0](https://github.com/lightdash/lightdash/commit/c696da064f872502d75e7ee0e010e73e903491ba))
+
+## [0.872.4](https://github.com/lightdash/lightdash/compare/0.872.3...0.872.4) (2023-11-23)
+
+
+### Bug Fixes
+
+* sync override type with the dashboard filter one ([#8062](https://github.com/lightdash/lightdash/issues/8062)) ([1c471b6](https://github.com/lightdash/lightdash/commit/1c471b6e189f4eebc98dc0167bd99f8cbc3761d0))
+
+## [0.872.3](https://github.com/lightdash/lightdash/compare/0.872.2...0.872.3) (2023-11-22)
+
+
+### Bug Fixes
+
+* change custom metric sorting with custom metric name ([#8002](https://github.com/lightdash/lightdash/issues/8002)) ([ab6762f](https://github.com/lightdash/lightdash/commit/ab6762f3fc071feafde706e05afc08852705085d))
+
+## [0.872.2](https://github.com/lightdash/lightdash/compare/0.872.1...0.872.2) (2023-11-22)
+
+
+### Bug Fixes
+
+* remove calculate total feature flag ([#8053](https://github.com/lightdash/lightdash/issues/8053)) ([bcf42f2](https://github.com/lightdash/lightdash/commit/bcf42f22bb318e3112fce6a073bd3a5e8bae86c7))
+
+## [0.872.1](https://github.com/lightdash/lightdash/compare/0.872.0...0.872.1) (2023-11-22)
+
+
+### Bug Fixes
+
+* dont save tileTargets in overrides and sync with state ([#8042](https://github.com/lightdash/lightdash/issues/8042)) ([0a73432](https://github.com/lightdash/lightdash/commit/0a7343245258a3e24d711265144c8ea868ae2ee7))
+
 # [0.872.0](https://github.com/lightdash/lightdash/compare/0.871.2...0.872.0) (2023-11-22)
 
 
