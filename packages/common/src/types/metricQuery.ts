@@ -52,6 +52,9 @@ export type MetricQuery = {
     tableCalculations: TableCalculation[]; // calculations to append to results
     additionalMetrics?: AdditionalMetric[]; // existing metric type
     customDimensions?: CustomDimension[];
+    metadata?: {
+        hasADateDimension: string | CustomDimension;
+    };
 };
 export type CompiledMetricQuery = MetricQuery & {
     compiledTableCalculations: CompiledTableCalculation[];
