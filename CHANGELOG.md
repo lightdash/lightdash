@@ -1,3 +1,10 @@
+## [0.873.4](https://github.com/lightdash/lightdash/compare/0.873.3...0.873.4) (2023-11-24)
+
+
+### Bug Fixes
+
+* revert "fix: upgrade tsoa to 6.0.0-rc.5 ([#8072](https://github.com/lightdash/lightdash/issues/8072))" ([#8081](https://github.com/lightdash/lightdash/issues/8081)) ([d4f47a8](https://github.com/lightdash/lightdash/commit/d4f47a8b3a6162814fbea7e96f951838adfedbcf))
+
 ## [0.873.3](https://github.com/lightdash/lightdash/compare/0.873.2...0.873.3) (2023-11-24)
 
 
