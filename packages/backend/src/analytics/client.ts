@@ -32,11 +32,35 @@ export const identifyUser = (
                   is_marketing_opted_in: user.isMarketingOptedIn,
               },
     });
+
+    postHogClient.identify({
+        distinctId: user.userUuid,
+        properties: {
+            uuid: user.userUuid,
+            ...(user.isTrackingAnonymized
+                ? {}
+                : {
+                      email: user.email,
+                      first_name: user.firstName,
+                      last_name: user.lastName,
+                  }),
+        },
+    });
+
     if (user.organizationUuid) {
         analytics.group({
             userId: user.userUuid,
             groupId: user.organizationUuid,
             traits: {
+                name: user.organizationName,
+            },
+        });
+
+        postHogClient.groupIdentify({
+            groupType: 'organization',
+            groupKey: 'organization',
+            properties: {
+                uuid: user.organizationUuid,
                 name: user.organizationName,
             },
         });

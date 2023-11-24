@@ -281,30 +281,6 @@ passport.deserializeUser(async (id: string, done) => {
         const user = await wrapOtelSpan('Passport.deserializeUser', {}, () =>
             userModel.findSessionUserByUUID(id),
         );
-
-        postHogClient.identify({
-            distinctId: user.userUuid,
-            properties: {
-                uuid: user.userUuid,
-                ...(user.isTrackingAnonymized
-                    ? {}
-                    : {
-                          email: user.email,
-                          first_name: user.firstName,
-                          last_name: user.lastName,
-                      }),
-            },
-        });
-
-        postHogClient.groupIdentify({
-            groupType: 'organization',
-            groupKey: 'organization',
-            properties: {
-                uuid: user.organizationUuid,
-                name: user.organizationName,
-            },
-        });
-
         // Store that user on the request (`req`) object
         done(null, user);
     } catch (e) {
