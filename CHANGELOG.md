@@ -1,3 +1,10 @@
+## [0.875.2](https://github.com/lightdash/lightdash/compare/0.875.1...0.875.2) (2023-11-24)
+
+
+### Bug Fixes
+
+* add missing tableCalculations type property ([#8086](https://github.com/lightdash/lightdash/issues/8086)) ([549cb19](https://github.com/lightdash/lightdash/commit/549cb191fd7539284b3e17badd649e2ade065d84))
+
 ## [0.875.1](https://github.com/lightdash/lightdash/compare/0.875.0...0.875.1) (2023-11-24)
 
 
