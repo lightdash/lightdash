@@ -1,9 +1,10 @@
 {
     "name": "backend",
-    "version": "0.873.1",
+    "version": "0.873.3",
     "main": "dist/index",
     "license": "MIT",
     "devDependencies": {
+        "@tsoa/cli": "6.0.0-rc.5",
         "@types/bcrypt": "^5.0.0",
         "@types/connect-flash": "^0.0.37",
         "@types/cookie-parser": "^1.4.2",
@@ -23,8 +24,7 @@
         "@types/pg": "^8.10.7",
         "copyfiles": "^2.4.1",
         "jest-fetch-mock": "^3.0.3",
-        "knex-mock-client": "^1.11.0",
-        "@tsoa/cli": "^4.1.3"
+        "knex-mock-client": "^1.11.0"
     },
     "dependencies": {
         "@aws-sdk/client-s3": "^3.272.0",
@@ -32,8 +32,8 @@
         "@aws-sdk/s3-request-presigner": "^3.272.0",
         "@casl/ability": "^5.4.3",
         "@godaddy/terminus": "^4.12.0",
-        "@lightdash/common": "^0.873.1",
-        "@lightdash/warehouses": "^0.873.1",
+        "@lightdash/common": "^0.873.3",
+        "@lightdash/warehouses": "^0.873.3",
         "@opentelemetry/api": "^1.4.1",
         "@opentelemetry/auto-instrumentations-node": "^0.37.0",
         "@opentelemetry/exporter-metrics-otlp-http": "^0.39.1",
@@ -51,7 +51,7 @@
         "@sentry/types": "^7.37.2",
         "@slack/bolt": "^3.12.2",
         "@slack/web-api": "^6.8.1",
-        "@tsoa/runtime": "^4.1.3",
+        "@tsoa/runtime": "6.0.0-rc.5",
         "@types/async": "^3.2.16",
         "@types/sshpk": "^1.17.1",
         "ajv": "^8.3.0",
