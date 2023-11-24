@@ -1,3 +1,10 @@
+# [0.875.0](https://github.com/lightdash/lightdash/compare/0.874.1...0.875.0) (2023-11-24)
+
+
+### Features
+
+* collapse join tables by default ([#8074](https://github.com/lightdash/lightdash/issues/8074)) ([c1ce914](https://github.com/lightdash/lightdash/commit/c1ce9145ecf98e6ca2518cf191870c2a0d383271))
+
 ## [0.874.1](https://github.com/lightdash/lightdash/compare/0.874.0...0.874.1) (2023-11-24)
 
 
