@@ -1,4 +1,3 @@
-import { TimeFrames } from '@lightdash/common';
 import { Button, Menu, Text, useMantineTheme } from '@mantine/core';
 import {
     IconCalendarSearch,
@@ -7,26 +6,8 @@ import {
 } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-
-const DATE_ZOOM_OPTIONS = [
-    // TODO: add support for these times
-    {
-        value: TimeFrames.DAY,
-        label: 'Day',
-    },
-    {
-        value: TimeFrames.MONTH,
-        label: 'Month',
-    },
-    {
-        value: TimeFrames.QUARTER,
-        label: 'Quarter',
-    },
-    {
-        value: TimeFrames.YEAR,
-        label: 'Year',
-    },
-];
+import { useDashboardContext } from '../../../providers/DashboardProvider';
+import { DATE_ZOOM_OPTIONS } from '../constants';
 
 type Props = {
     isEditMode: boolean;
@@ -35,9 +16,12 @@ type Props = {
 export const DateZoom: FC<Props> = ({ isEditMode }) => {
     const theme = useMantineTheme();
     const [isOpen, setIsOpen] = useState(false);
-    const [dateGranularity, setDateGranularity] = useState<
-        typeof DATE_ZOOM_OPTIONS[0] | undefined
-    >(undefined);
+    const dateZoomGranularity = useDashboardContext(
+        (c) => c.dateZoomGranularity,
+    );
+    const setDateZoomGranularity = useDashboardContext(
+        (c) => c.setDateZoomGranularity,
+    );
 
     useEffect(() => {
         if (isEditMode) setDateGranularity(undefined);
@@ -64,7 +48,7 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                         setIsOpen((prev) => !prev);
                     }}
                     sx={{
-                        borderColor: dateGranularity
+                        borderColor: dateZoomGranularity
                             ? theme.colors.blue['6']
                             : 'default',
                     }}
@@ -77,10 +61,10 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                 >
                     <Text>
                         Date Zoom
-                        {dateGranularity ? `:` : null}{' '}
-                        {dateGranularity ? (
+                        {dateZoomGranularity ? `:` : null}{' '}
+                        {dateZoomGranularity ? (
                             <Text span fw={500}>
-                                {dateGranularity.label}
+                                {dateZoomGranularity.label}
                             </Text>
                         ) : null}
                     </Text>
@@ -91,19 +75,19 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                 <Menu.Item
                     fz="xs"
                     onClick={() => {
-                        setDateGranularity(undefined);
+                        setDateZoomGranularity(undefined);
                         setIsOpen(false);
                     }}
                     bg={
-                        dateGranularity === undefined
+                        dateZoomGranularity === undefined
                             ? theme.colors.blue['6']
                             : 'white'
                     }
-                    disabled={dateGranularity === undefined}
+                    disabled={dateZoomGranularity === undefined}
                     sx={{
                         '&[disabled]': {
                             color:
-                                dateGranularity === undefined
+                                dateZoomGranularity === undefined
                                     ? 'white'
                                     : 'black',
                         },
@@ -116,19 +100,19 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                         fz="xs"
                         key={value}
                         onClick={() => {
-                            setDateGranularity({ value, label });
+                            setDateZoomGranularity({ value, label });
                             setIsOpen(false);
                         }}
-                        disabled={dateGranularity?.value === value}
+                        disabled={dateZoomGranularity?.value === value}
                         bg={
-                            dateGranularity?.value === value
+                            dateZoomGranularity?.value === value
                                 ? theme.colors.blue['6']
                                 : 'white'
                         }
                         sx={{
                             '&[disabled]': {
                                 color:
-                                    dateGranularity?.value === value
+                                    dateZoomGranularity?.value === value
                                         ? 'white'
                                         : 'black',
                             },
