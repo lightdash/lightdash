@@ -1,5 +1,6 @@
 import { LightdashMode, LightdashUser } from '@lightdash/common';
 import { lightdashConfig } from '../config/lightdashConfig';
+import { postHogClient } from '../postHog';
 import { LightdashAnalytics } from './LightdashAnalytics';
 
 export const analytics: LightdashAnalytics = new LightdashAnalytics(
