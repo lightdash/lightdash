@@ -43,6 +43,7 @@ import {
     getItemMap,
     getMetrics,
     hasIntersection,
+    isDateItem,
     isExploreError,
     isFilterableDimension,
     isUserWithOrg,
@@ -1101,6 +1102,22 @@ export class ProjectService {
                       [oldDimension]: row[newDimension],
                   }))
                 : rows;
+        // TODO: only perform this action (setting metadata if metricQuery has a date dimension) if the feature date-zoom is enabled
+        const exploreDimensions = getDimensions(explore);
+        const metricQueryDimensions = [
+            ...metricWithOverrideSorting.dimensions,
+            ...(metricWithOverrideSorting.customDimensions ?? []),
+        ];
+        const hasADateDimension = exploreDimensions.find(
+            (c) =>
+                metricQueryDimensions.includes(getFieldId(c)) && isDateItem(c),
+        );
+
+        if (hasADateDimension) {
+            metricQuery.metadata = {
+                hasADateDimension: getFieldId(hasADateDimension),
+            };
+        }
 
         return {
             chart: savedChart,
