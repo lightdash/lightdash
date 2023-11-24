@@ -2830,6 +2830,9 @@
             },
             "Filters": {
                 "properties": {
+                    "tableCalculations": {
+                        "$ref": "#/components/schemas/FilterGroup"
+                    },
                     "metrics": {
                         "$ref": "#/components/schemas/FilterGroup"
                     },
@@ -2895,89 +2898,6 @@
                 ],
                 "type": "object"
             },
-            "ChartType.PIE": {
-                "enum": ["pie"],
-                "type": "string"
-            },
-            "PieChartValueLabel": {
-                "type": "string",
-                "enum": ["hidden", "inside", "outside"],
-                "nullable": false
-            },
-            "Record_string.string_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "Record_string.Partial_PieChartValueOptions__": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "PieChartLegendPosition": {
-                "type": "string",
-                "enum": ["horizontal", "vertical"],
-                "nullable": false
-            },
-            "PieChart": {
-                "properties": {
-                    "legendPosition": {
-                        "$ref": "#/components/schemas/PieChartLegendPosition"
-                    },
-                    "showLegend": {
-                        "type": "boolean"
-                    },
-                    "groupSortOverrides": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "groupValueOptionOverrides": {
-                        "$ref": "#/components/schemas/Record_string.Partial_PieChartValueOptions__"
-                    },
-                    "groupColorOverrides": {
-                        "$ref": "#/components/schemas/Record_string.string_"
-                    },
-                    "groupLabelOverrides": {
-                        "$ref": "#/components/schemas/Record_string.string_"
-                    },
-                    "showPercentage": {
-                        "type": "boolean"
-                    },
-                    "showValue": {
-                        "type": "boolean"
-                    },
-                    "valueLabel": {
-                        "$ref": "#/components/schemas/PieChartValueLabel"
-                    },
-                    "isDonut": {
-                        "type": "boolean"
-                    },
-                    "metricId": {
-                        "type": "string"
-                    },
-                    "groupFieldIds": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    }
-                },
-                "type": "object"
-            },
-            "PieChartConfig": {
-                "properties": {
-                    "config": {
-                        "$ref": "#/components/schemas/PieChart"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/ChartType.PIE"
-                    }
-                },
-                "required": ["type"],
-                "type": "object"
-            },
             "ChartType.BIG_NUMBER": {
                 "enum": ["big_number"],
                 "type": "string"
@@ -3022,179 +2942,6 @@
                     },
                     "type": {
                         "$ref": "#/components/schemas/ChartType.BIG_NUMBER"
-                    }
-                },
-                "required": ["type"],
-                "type": "object"
-            },
-            "ChartType.TABLE": {
-                "enum": ["table"],
-                "type": "string"
-            },
-            "Record_string.ColumnProperties_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "ConditionalRule_ConditionalOperator.number_": {
-                "properties": {
-                    "values": {
-                        "items": {
-                            "type": "number",
-                            "format": "double"
-                        },
-                        "type": "array"
-                    },
-                    "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
-                    },
-                    "id": {
-                        "type": "string"
-                    }
-                },
-                "required": ["operator", "id"],
-                "type": "object"
-            },
-            "ConditionalFormattingWithConditionalOperator": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/ConditionalRule_ConditionalOperator.number_"
-                    },
-                    {
-                        "properties": {
-                            "values": {
-                                "items": {
-                                    "type": "number",
-                                    "format": "double"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["values"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "ConditionalFormattingConfigWithSingleColor": {
-                "properties": {
-                    "rules": {
-                        "items": {
-                            "$ref": "#/components/schemas/ConditionalFormattingWithConditionalOperator"
-                        },
-                        "type": "array"
-                    },
-                    "color": {
-                        "type": "string"
-                    },
-                    "target": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/FieldTarget"
-                            }
-                        ],
-                        "nullable": true
-                    }
-                },
-                "required": ["rules", "color", "target"],
-                "type": "object"
-            },
-            "ConditionalFormattingWithRange": {
-                "properties": {
-                    "max": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "min": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["max", "min"],
-                "type": "object"
-            },
-            "ConditionalFormattingConfigWithColorRange": {
-                "properties": {
-                    "rule": {
-                        "$ref": "#/components/schemas/ConditionalFormattingWithRange"
-                    },
-                    "color": {
-                        "properties": {
-                            "steps": {
-                                "type": "number",
-                                "enum": [5],
-                                "nullable": false
-                            },
-                            "end": {
-                                "type": "string"
-                            },
-                            "start": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["steps", "end", "start"],
-                        "type": "object"
-                    },
-                    "target": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/FieldTarget"
-                            }
-                        ],
-                        "nullable": true
-                    }
-                },
-                "required": ["rule", "color", "target"],
-                "type": "object"
-            },
-            "ConditionalFormattingConfig": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/ConditionalFormattingConfigWithSingleColor"
-                    },
-                    {
-                        "$ref": "#/components/schemas/ConditionalFormattingConfigWithColorRange"
-                    }
-                ]
-            },
-            "TableChart": {
-                "properties": {
-                    "metricsAsRows": {
-                        "type": "boolean"
-                    },
-                    "conditionalFormattings": {
-                        "items": {
-                            "$ref": "#/components/schemas/ConditionalFormattingConfig"
-                        },
-                        "type": "array"
-                    },
-                    "columns": {
-                        "$ref": "#/components/schemas/Record_string.ColumnProperties_"
-                    },
-                    "showResultsTotal": {
-                        "type": "boolean"
-                    },
-                    "hideRowNumbers": {
-                        "type": "boolean"
-                    },
-                    "showTableNames": {
-                        "type": "boolean"
-                    },
-                    "showRowCalculation": {
-                        "type": "boolean"
-                    },
-                    "showColumnCalculation": {
-                        "type": "boolean"
-                    }
-                },
-                "type": "object"
-            },
-            "TableChartConfig": {
-                "properties": {
-                    "config": {
-                        "$ref": "#/components/schemas/TableChart"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/ChartType.TABLE"
                     }
                 },
                 "required": ["type"],
@@ -3564,42 +3311,305 @@
                         "$ref": "#/components/schemas/ChartType.CARTESIAN"
                     }
                 },
-                "required": ["config", "type"],
+                "required": ["type"],
                 "type": "object"
             },
             "ChartType.CUSTOM": {
                 "enum": ["custom"],
                 "type": "string"
             },
-            "CustomVisConfig": {
+            "CustomVis": {
                 "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/ChartType.CUSTOM"
-                    },
-                    "config": {
-                        "properties": {},
-                        "type": "object"
+                    "code": {
+                        "type": "string"
                     }
                 },
-                "required": ["type", "config"],
+                "type": "object"
+            },
+            "CustomVisConfig": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/CustomVis"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.CUSTOM"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
+            "ChartType.PIE": {
+                "enum": ["pie"],
+                "type": "string"
+            },
+            "PieChartValueLabel": {
+                "type": "string",
+                "enum": ["hidden", "inside", "outside"],
+                "nullable": false
+            },
+            "Record_string.string_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "Record_string.Partial_PieChartValueOptions__": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "PieChartLegendPosition": {
+                "type": "string",
+                "enum": ["horizontal", "vertical"],
+                "nullable": false
+            },
+            "PieChart": {
+                "properties": {
+                    "legendPosition": {
+                        "$ref": "#/components/schemas/PieChartLegendPosition"
+                    },
+                    "showLegend": {
+                        "type": "boolean"
+                    },
+                    "groupSortOverrides": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "groupValueOptionOverrides": {
+                        "$ref": "#/components/schemas/Record_string.Partial_PieChartValueOptions__"
+                    },
+                    "groupColorOverrides": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "groupLabelOverrides": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "showPercentage": {
+                        "type": "boolean"
+                    },
+                    "showValue": {
+                        "type": "boolean"
+                    },
+                    "valueLabel": {
+                        "$ref": "#/components/schemas/PieChartValueLabel"
+                    },
+                    "isDonut": {
+                        "type": "boolean"
+                    },
+                    "metricId": {
+                        "type": "string"
+                    },
+                    "groupFieldIds": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object"
+            },
+            "PieChartConfig": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/PieChart"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.PIE"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
+            "ChartType.TABLE": {
+                "enum": ["table"],
+                "type": "string"
+            },
+            "Record_string.ColumnProperties_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ConditionalRule_ConditionalOperator.number_": {
+                "properties": {
+                    "values": {
+                        "items": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "type": "array"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/ConditionalOperator"
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["operator", "id"],
+                "type": "object"
+            },
+            "ConditionalFormattingWithConditionalOperator": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ConditionalRule_ConditionalOperator.number_"
+                    },
+                    {
+                        "properties": {
+                            "values": {
+                                "items": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["values"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ConditionalFormattingConfigWithSingleColor": {
+                "properties": {
+                    "rules": {
+                        "items": {
+                            "$ref": "#/components/schemas/ConditionalFormattingWithConditionalOperator"
+                        },
+                        "type": "array"
+                    },
+                    "color": {
+                        "type": "string"
+                    },
+                    "target": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FieldTarget"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["rules", "color", "target"],
+                "type": "object"
+            },
+            "ConditionalFormattingWithRange": {
+                "properties": {
+                    "max": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "min": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["max", "min"],
+                "type": "object"
+            },
+            "ConditionalFormattingConfigWithColorRange": {
+                "properties": {
+                    "rule": {
+                        "$ref": "#/components/schemas/ConditionalFormattingWithRange"
+                    },
+                    "color": {
+                        "properties": {
+                            "steps": {
+                                "type": "number",
+                                "enum": [5],
+                                "nullable": false
+                            },
+                            "end": {
+                                "type": "string"
+                            },
+                            "start": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["steps", "end", "start"],
+                        "type": "object"
+                    },
+                    "target": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FieldTarget"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["rule", "color", "target"],
+                "type": "object"
+            },
+            "ConditionalFormattingConfig": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ConditionalFormattingConfigWithSingleColor"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ConditionalFormattingConfigWithColorRange"
+                    }
+                ]
+            },
+            "TableChart": {
+                "properties": {
+                    "metricsAsRows": {
+                        "type": "boolean"
+                    },
+                    "conditionalFormattings": {
+                        "items": {
+                            "$ref": "#/components/schemas/ConditionalFormattingConfig"
+                        },
+                        "type": "array"
+                    },
+                    "columns": {
+                        "$ref": "#/components/schemas/Record_string.ColumnProperties_"
+                    },
+                    "showResultsTotal": {
+                        "type": "boolean"
+                    },
+                    "hideRowNumbers": {
+                        "type": "boolean"
+                    },
+                    "showTableNames": {
+                        "type": "boolean"
+                    },
+                    "showRowCalculation": {
+                        "type": "boolean"
+                    },
+                    "showColumnCalculation": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "TableChartConfig": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/TableChart"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.TABLE"
+                    }
+                },
+                "required": ["type"],
                 "type": "object"
             },
             "ChartConfig": {
                 "anyOf": [
                     {
-                        "$ref": "#/components/schemas/PieChartConfig"
-                    },
-                    {
                         "$ref": "#/components/schemas/BigNumberConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/TableChartConfig"
                     },
                     {
                         "$ref": "#/components/schemas/CartesianChartConfig"
                     },
                     {
                         "$ref": "#/components/schemas/CustomVisConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PieChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/TableChartConfig"
                     }
                 ]
             },
@@ -3953,6 +3963,19 @@
                     }
                 ]
             },
+            "SchedulerFilterRule": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardFilterRule"
+                    },
+                    {
+                        "properties": {
+                            "tileTargets": {}
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
             "DashboardScheduler": {
                 "allOf": [
                     {
@@ -3962,7 +3985,7 @@
                         "properties": {
                             "filters": {
                                 "items": {
-                                    "$ref": "#/components/schemas/DashboardFilterRule"
+                                    "$ref": "#/components/schemas/SchedulerFilterRule"
                                 },
                                 "type": "array"
                             },
@@ -5377,7 +5400,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.864.0",
+        "version": "0.873.4",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
