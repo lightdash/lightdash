@@ -2264,7 +2264,6 @@ const models: TsoaRoute.Models = {
                     nestedProperties: {
                         metrics: { dataType: 'any' },
                         dimensions: { dataType: 'any' },
-                        tableCalculations: { dataType: 'any' },
                     },
                     required: true,
                 },
@@ -2484,6 +2483,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                tableCalculations: { ref: 'FilterGroup' },
                 metrics: { ref: 'FilterGroup' },
                 dimensions: { ref: 'FilterGroup' },
             },
@@ -2531,89 +2531,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ChartType.PIE': {
-        dataType: 'refEnum',
-        enums: ['pie'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PieChartValueLabel: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'enum',
-            enums: ['hidden', 'inside', 'outside'],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.string_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.Partial_PieChartValueOptions__': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PieChartLegendPosition: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'enum',
-            enums: ['horizontal', 'vertical'],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PieChart: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                legendPosition: { ref: 'PieChartLegendPosition' },
-                showLegend: { dataType: 'boolean' },
-                groupSortOverrides: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                },
-                groupValueOptionOverrides: {
-                    ref: 'Record_string.Partial_PieChartValueOptions__',
-                },
-                groupColorOverrides: { ref: 'Record_string.string_' },
-                groupLabelOverrides: { ref: 'Record_string.string_' },
-                showPercentage: { dataType: 'boolean' },
-                showValue: { dataType: 'boolean' },
-                valueLabel: { ref: 'PieChartValueLabel' },
-                isDonut: { dataType: 'boolean' },
-                metricId: { dataType: 'string' },
-                groupFieldIds: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PieChartConfig: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                config: { ref: 'PieChart' },
-                type: { ref: 'ChartType.PIE', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'ChartType.BIG_NUMBER': {
         dataType: 'refEnum',
         enums: ['big_number'],
@@ -2649,169 +2566,6 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 config: { ref: 'BigNumber' },
                 type: { ref: 'ChartType.BIG_NUMBER', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ChartType.TABLE': {
-        dataType: 'refEnum',
-        enums: ['table'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.ColumnProperties_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ConditionalRule_ConditionalOperator.number_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                values: { dataType: 'array', array: { dataType: 'double' } },
-                operator: { ref: 'ConditionalOperator', required: true },
-                id: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ConditionalFormattingWithConditionalOperator: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'ConditionalRule_ConditionalOperator.number_' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        values: {
-                            dataType: 'array',
-                            array: { dataType: 'double' },
-                            required: true,
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ConditionalFormattingConfigWithSingleColor: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                rules: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'ConditionalFormattingWithConditionalOperator',
-                    },
-                    required: true,
-                },
-                color: { dataType: 'string', required: true },
-                target: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'FieldTarget' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ConditionalFormattingWithRange: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                max: { dataType: 'double', required: true },
-                min: { dataType: 'double', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ConditionalFormattingConfigWithColorRange: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                rule: { ref: 'ConditionalFormattingWithRange', required: true },
-                color: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        steps: { dataType: 'enum', enums: [5], required: true },
-                        end: { dataType: 'string', required: true },
-                        start: { dataType: 'string', required: true },
-                    },
-                    required: true,
-                },
-                target: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'FieldTarget' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ConditionalFormattingConfig: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { ref: 'ConditionalFormattingConfigWithSingleColor' },
-                { ref: 'ConditionalFormattingConfigWithColorRange' },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    TableChart: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                metricsAsRows: { dataType: 'boolean' },
-                conditionalFormattings: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'ConditionalFormattingConfig',
-                    },
-                },
-                columns: { ref: 'Record_string.ColumnProperties_' },
-                showResultsTotal: { dataType: 'boolean' },
-                hideRowNumbers: { dataType: 'boolean' },
-                showTableNames: { dataType: 'boolean' },
-                showRowCalculation: { dataType: 'boolean' },
-                showColumnCalculation: { dataType: 'boolean' },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    TableChartConfig: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                config: { ref: 'TableChart' },
-                type: { ref: 'ChartType.TABLE', required: true },
             },
             validators: {},
         },
@@ -3138,7 +2892,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                config: { ref: 'CartesianChart', required: true },
+                config: { ref: 'CartesianChart' },
                 type: { ref: 'ChartType.CARTESIAN', required: true },
             },
             validators: {},
@@ -3150,17 +2904,268 @@ const models: TsoaRoute.Models = {
         enums: ['custom'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CustomVis: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: { code: { dataType: 'string' } },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CustomVisConfig: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                config: { ref: 'CustomVis' },
                 type: { ref: 'ChartType.CUSTOM', required: true },
-                config: {
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ChartType.PIE': {
+        dataType: 'refEnum',
+        enums: ['pie'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PieChartValueLabel: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'enum',
+            enums: ['hidden', 'inside', 'outside'],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.string_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.Partial_PieChartValueOptions__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PieChartLegendPosition: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'enum',
+            enums: ['horizontal', 'vertical'],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PieChart: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                legendPosition: { ref: 'PieChartLegendPosition' },
+                showLegend: { dataType: 'boolean' },
+                groupSortOverrides: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                groupValueOptionOverrides: {
+                    ref: 'Record_string.Partial_PieChartValueOptions__',
+                },
+                groupColorOverrides: { ref: 'Record_string.string_' },
+                groupLabelOverrides: { ref: 'Record_string.string_' },
+                showPercentage: { dataType: 'boolean' },
+                showValue: { dataType: 'boolean' },
+                valueLabel: { ref: 'PieChartValueLabel' },
+                isDonut: { dataType: 'boolean' },
+                metricId: { dataType: 'string' },
+                groupFieldIds: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PieChartConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                config: { ref: 'PieChart' },
+                type: { ref: 'ChartType.PIE', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ChartType.TABLE': {
+        dataType: 'refEnum',
+        enums: ['table'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.ColumnProperties_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ConditionalRule_ConditionalOperator.number_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                values: { dataType: 'array', array: { dataType: 'double' } },
+                operator: { ref: 'ConditionalOperator', required: true },
+                id: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ConditionalFormattingWithConditionalOperator: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ConditionalRule_ConditionalOperator.number_' },
+                {
                     dataType: 'nestedObjectLiteral',
-                    nestedProperties: {},
+                    nestedProperties: {
+                        values: {
+                            dataType: 'array',
+                            array: { dataType: 'double' },
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ConditionalFormattingConfigWithSingleColor: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                rules: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'ConditionalFormattingWithConditionalOperator',
+                    },
                     required: true,
                 },
+                color: { dataType: 'string', required: true },
+                target: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'FieldTarget' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ConditionalFormattingWithRange: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                max: { dataType: 'double', required: true },
+                min: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ConditionalFormattingConfigWithColorRange: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                rule: { ref: 'ConditionalFormattingWithRange', required: true },
+                color: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        steps: { dataType: 'enum', enums: [5], required: true },
+                        end: { dataType: 'string', required: true },
+                        start: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                target: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'FieldTarget' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ConditionalFormattingConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'ConditionalFormattingConfigWithSingleColor' },
+                { ref: 'ConditionalFormattingConfigWithColorRange' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TableChart: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                metricsAsRows: { dataType: 'boolean' },
+                conditionalFormattings: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'ConditionalFormattingConfig',
+                    },
+                },
+                columns: { ref: 'Record_string.ColumnProperties_' },
+                showResultsTotal: { dataType: 'boolean' },
+                hideRowNumbers: { dataType: 'boolean' },
+                showTableNames: { dataType: 'boolean' },
+                showRowCalculation: { dataType: 'boolean' },
+                showColumnCalculation: { dataType: 'boolean' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TableChartConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                config: { ref: 'TableChart' },
+                type: { ref: 'ChartType.TABLE', required: true },
             },
             validators: {},
         },
@@ -3171,11 +3176,11 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'union',
             subSchemas: [
-                { ref: 'PieChartConfig' },
                 { ref: 'BigNumberConfig' },
-                { ref: 'TableChartConfig' },
                 { ref: 'CartesianChartConfig' },
                 { ref: 'CustomVisConfig' },
+                { ref: 'PieChartConfig' },
+                { ref: 'TableChartConfig' },
             ],
             validators: {},
         },
@@ -3471,6 +3476,23 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SchedulerFilterRule: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'DashboardFilterRule' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        tileTargets: { dataType: 'undefined', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardScheduler: {
         dataType: 'refAlias',
         type: {
@@ -3484,7 +3506,7 @@ const models: TsoaRoute.Models = {
                             dataType: 'array',
                             array: {
                                 dataType: 'refAlias',
-                                ref: 'DashboardFilterRule',
+                                ref: 'SchedulerFilterRule',
                             },
                         },
                         dashboardUuid: { dataType: 'string', required: true },
