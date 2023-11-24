@@ -17,7 +17,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconRotate2 } from '@tabler/icons-react';
+import { IconPencil, IconRotate2 } from '@tabler/icons-react';
 import { FC, useCallback, useMemo, useState } from 'react';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
@@ -38,15 +38,21 @@ type SchedulerFilterItemProps = {
     dashboardFilter: DashboardFilterRule;
     schedulerFilter?: DashboardFilterRule;
     onChange: (schedulerFilter: SchedulerFilterRule) => void;
+    onRevert: () => void;
+    hasChanged: boolean;
 };
 
 const FilterItem: FC<SchedulerFilterItemProps> = ({
     dashboardFilter,
     schedulerFilter,
     onChange,
+    onRevert,
+    hasChanged,
 }) => {
     const { fieldsMap } = useFiltersContext();
     const field = fieldsMap[dashboardFilter.target.fieldId];
+    const [isEditingDisabledFilter, setIsEditingDisabledFilter] =
+        useState(false);
 
     const filterType = useMemo(() => {
         return field ? getFilterTypeFromItem(field) : FilterType.STRING;
@@ -67,57 +73,88 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
     }, [filterType]);
 
     return (
-        <Stack key={dashboardFilter.id} spacing="xs" w="100%">
-            <Group spacing="xs">
-                <FieldIcon item={field} />
-                <FieldLabel
-                    item={{
-                        ...field,
-                        label: dashboardFilter.label ?? field.label,
-                    }}
-                    hideTableName
-                />
-                {isDisabled && (
-                    <Text color="dimmed" fz="xs">
-                        is any value
-                    </Text>
-                )}
-            </Group>
-
-            <Flex gap="xs">
-                <Select
-                    style={{
-                        flex: '0 0 180px',
-                    }}
+        <Group spacing="xs" align="flex-start" noWrap>
+            <Tooltip
+                label="Reset filter back to original"
+                fz="xs"
+                disabled={!hasChanged}
+            >
+                <ActionIcon
                     size="xs"
-                    value={
-                        schedulerFilter?.operator ?? dashboardFilter.operator
-                    }
-                    data={filterOperatorOptions}
-                    onChange={(operator: ConditionalOperator) => {
-                        onChange({
-                            ...dashboardFilter,
-                            operator,
-                            tileTargets: undefined,
-                        });
+                    disabled={isEditingDisabledFilter ? false : !hasChanged}
+                    onClick={() => {
+                        if (isEditingDisabledFilter) {
+                            setIsEditingDisabledFilter(false);
+                        }
+                        onRevert();
                     }}
-                    withinPortal
-                />
+                >
+                    <MantineIcon icon={IconRotate2} />
+                </ActionIcon>
+            </Tooltip>
 
-                <FilterInputComponent
-                    filterType={filterType}
-                    field={field}
-                    rule={schedulerFilter ?? dashboardFilter}
-                    onChange={(newFilter) => {
-                        onChange({
-                            ...newFilter,
-                            tileTargets: undefined,
-                        });
-                    }}
-                    popoverProps={{ withinPortal: true }}
-                />
-            </Flex>
-        </Stack>
+            <Stack key={dashboardFilter.id} spacing="xs" w="100%">
+                <Group spacing="xs">
+                    <FieldIcon item={field} />
+                    <FieldLabel
+                        item={{
+                            ...field,
+                            label: dashboardFilter.label ?? field.label,
+                        }}
+                        hideTableName
+                    />
+                    {isDisabled && !isEditingDisabledFilter && (
+                        <>
+                            <Text fz="xs">is any value</Text>
+                            <ActionIcon
+                                size="xs"
+                                onClick={() => {
+                                    setIsEditingDisabledFilter(true);
+                                }}
+                            >
+                                <MantineIcon icon={IconPencil} />
+                            </ActionIcon>
+                        </>
+                    )}
+                </Group>
+                {!isDisabled || isEditingDisabledFilter ? (
+                    <Flex gap="xs">
+                        <Select
+                            style={{
+                                flex: '0 0 180px',
+                            }}
+                            size="xs"
+                            value={
+                                schedulerFilter?.operator ??
+                                dashboardFilter.operator
+                            }
+                            data={filterOperatorOptions}
+                            onChange={(operator: ConditionalOperator) => {
+                                onChange({
+                                    ...dashboardFilter,
+                                    operator,
+                                    tileTargets: undefined,
+                                });
+                            }}
+                            withinPortal
+                        />
+
+                        <FilterInputComponent
+                            filterType={filterType}
+                            field={field}
+                            rule={schedulerFilter ?? dashboardFilter}
+                            onChange={(newFilter) => {
+                                onChange({
+                                    ...newFilter,
+                                    tileTargets: undefined,
+                                });
+                            }}
+                            popoverProps={{ withinPortal: true }}
+                        />
+                    </Flex>
+                ) : null}
+            </Stack>
+        </Group>
     );
 };
 
@@ -270,39 +307,22 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
                             (sf) => sf.id === filter.id,
                         );
 
-                        const hasChanged = schedulerFilter
-                            ? hasSavedFilterValueChanged(
-                                  filter,
-                                  schedulerFilter,
-                              )
-                            : false;
-
                         return (
-                            <Group
-                                spacing="xs"
-                                align="flex-start"
+                            <FilterItem
                                 key={filter.id}
-                                noWrap
-                            >
-                                <Tooltip
-                                    label="Reset filter back to original"
-                                    fz="xs"
-                                    disabled={!hasChanged}
-                                >
-                                    <ActionIcon
-                                        size="xs"
-                                        disabled={!hasChanged}
-                                        onClick={() => revertFilter(filter.id)}
-                                    >
-                                        <MantineIcon icon={IconRotate2} />
-                                    </ActionIcon>
-                                </Tooltip>
-                                <FilterItem
-                                    dashboardFilter={filter}
-                                    schedulerFilter={schedulerFilter}
-                                    onChange={handleUpdateSchedulerFilter}
-                                />
-                            </Group>
+                                dashboardFilter={filter}
+                                schedulerFilter={schedulerFilter}
+                                onChange={handleUpdateSchedulerFilter}
+                                onRevert={() => revertFilter(filter.id)}
+                                hasChanged={
+                                    schedulerFilter
+                                        ? hasSavedFilterValueChanged(
+                                              filter,
+                                              schedulerFilter,
+                                          )
+                                        : false
+                                }
+                            />
                         );
                     })}
                 </Stack>
