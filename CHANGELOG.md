@@ -1,3 +1,10 @@
+## [0.873.3](https://github.com/lightdash/lightdash/compare/0.873.2...0.873.3) (2023-11-24)
+
+
+### Bug Fixes
+
+* remove calculate total from frontend on chart edit and view ([#8058](https://github.com/lightdash/lightdash/issues/8058)) ([725694b](https://github.com/lightdash/lightdash/commit/725694bfe150f3183f56252408ec2a7342c62c44))
+
 ## [0.873.2](https://github.com/lightdash/lightdash/compare/0.873.1...0.873.2) (2023-11-24)
 
 
