@@ -2590,6 +2590,7 @@
                     },
                     "filters": {
                         "properties": {
+                            "tableCalculations": {},
                             "metrics": {},
                             "dimensions": {}
                         },
@@ -5400,7 +5401,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.873.4",
+        "version": "0.875.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
