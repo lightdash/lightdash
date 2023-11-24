@@ -1,3 +1,10 @@
+# [0.874.0](https://github.com/lightdash/lightdash/compare/0.873.5...0.874.0) (2023-11-24)
+
+
+### Features
+
+* disable and clear date zoom on edit mode ([#8069](https://github.com/lightdash/lightdash/issues/8069)) ([33df9a8](https://github.com/lightdash/lightdash/commit/33df9a8c73269d777b57585f3e6600ed166d06d9))
+
 ## [0.873.5](https://github.com/lightdash/lightdash/compare/0.873.4...0.873.5) (2023-11-24)
 
 
