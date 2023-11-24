@@ -23,11 +23,7 @@ import {
 } from '../components/common/Table/Table.styles';
 import { columnHelper, TableColumn } from '../components/common/Table/types';
 import { useExplorerContext } from '../providers/ExplorerProvider';
-import {
-    getCalculationColumnFields,
-    useCalculateTotal,
-} from './useCalculateTotal';
-import useColumnTotals from './useColumnTotals';
+import { useCalculateTotal } from './useCalculateTotal';
 import { useExplore } from './useExplore';
 
 export const getItemBgColor = (
@@ -116,32 +112,14 @@ export const useColumns = (): TableColumn[] => {
         customDimensions,
     ]);
 
-    const totalsFromResultsTable = useColumnTotals({
-        resultsData,
-        itemsMap: activeItemsMap,
-    });
-
-    const metricsWithTotals = useMemo(() => {
-        const selectedItemIds = resultsData
-            ? itemsInMetricQuery(resultsData.metricQuery)
-            : undefined;
-        if (!selectedItemIds || !activeItemsMap) return [];
-        return getCalculationColumnFields(selectedItemIds, activeItemsMap);
-    }, [activeItemsMap, resultsData]);
-
-    const { data: totalsFromWarehouse } = useCalculateTotal({
+    const { data: totals } = useCalculateTotal({
         metricQuery: resultsData?.metricQuery,
         explore: exploreData?.baseTable,
-        fields: metricsWithTotals,
+        fieldIds: resultsData
+            ? itemsInMetricQuery(resultsData.metricQuery)
+            : undefined,
+        itemsMap: activeItemsMap,
     });
-    const totals = useMemo(() => {
-        return totalsFromWarehouse
-            ? {
-                  ...totalsFromResultsTable,
-                  ...totalsFromWarehouse,
-              }
-            : totalsFromResultsTable;
-    }, [totalsFromResultsTable, totalsFromWarehouse]);
 
     return useMemo(() => {
         const validColumns = Object.entries(activeItemsMap).reduce<
@@ -179,7 +157,7 @@ export const useColumns = (): TableColumn[] => {
                     ),
                     cell: (info) => info.getValue()?.value.formatted || '-',
                     footer: () =>
-                        totals[fieldId]
+                        totals?.[fieldId]
                             ? formatItemValue(item, totals[fieldId])
                             : null,
                     meta: {

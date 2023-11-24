@@ -18,10 +18,7 @@ import {
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TableColumn, TableHeader } from '../../components/common/Table/types';
-import {
-    getCalculationColumnFields,
-    useCalculateTotal,
-} from '../useCalculateTotal';
+import { useCalculateTotal } from '../useCalculateTotal';
 import { isSummable } from '../useColumnTotals';
 import getDataAndColumns from './getDataAndColumns';
 
@@ -165,24 +162,24 @@ const useTableConfig = (
         pivotDimensions &&
         pivotDimensions.length > 0;
 
-    const metricsWithTotals = useMemo(() => {
-        if (!selectedItemIds) return [];
-        if (tableChartConfig?.showColumnCalculation === false) return [];
-        return getCalculationColumnFields(selectedItemIds, itemsMap);
-    }, [itemsMap, selectedItemIds, tableChartConfig?.showColumnCalculation]);
-
     const { data: totalCalculations } = useCalculateTotal(
         savedChartUuid
             ? {
                   savedChartUuid,
-                  fields: metricsWithTotals,
+                  fieldIds: selectedItemIds,
                   dashboardFilters: dashboardFilters,
                   invalidateCache,
+                  itemsMap,
+                  showColumnCalculation:
+                      tableChartConfig?.showColumnCalculation,
               }
             : {
                   metricQuery: resultsData?.metricQuery,
                   explore: explore?.baseTable,
-                  fields: metricsWithTotals,
+                  fieldIds: selectedItemIds,
+                  itemsMap,
+                  showColumnCalculation:
+                      tableChartConfig?.showColumnCalculation,
               },
     );
     const { rows, columns, error } = useMemo<{
@@ -213,7 +210,7 @@ const useTableConfig = (
             getFieldLabelOverride,
             isColumnFrozen,
             columnOrder,
-            totalsFromWarehouse: totalCalculations,
+            totals: totalCalculations,
         });
     }, [
         columnOrder,
