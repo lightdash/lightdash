@@ -2262,6 +2262,7 @@ const models: TsoaRoute.Models = {
                 filters: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        tableCalculations: { dataType: 'any' },
                         metrics: { dataType: 'any' },
                         dimensions: { dataType: 'any' },
                     },

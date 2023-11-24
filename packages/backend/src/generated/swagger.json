@@ -2590,6 +2590,7 @@
                     },
                     "filters": {
                         "properties": {
+                            "tableCalculations": {},
                             "metrics": {},
                             "dimensions": {}
                         },
