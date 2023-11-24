@@ -1,3 +1,10 @@
+## [0.874.1](https://github.com/lightdash/lightdash/compare/0.874.0...0.874.1) (2023-11-24)
+
+
+### Bug Fixes
+
+* handle disabled scheduled filters overrides ([#8059](https://github.com/lightdash/lightdash/issues/8059)) ([30f3a84](https://github.com/lightdash/lightdash/commit/30f3a84d6979ec3f50af99353d18f432bb57519b))
+
 # [0.874.0](https://github.com/lightdash/lightdash/compare/0.873.5...0.874.0) (2023-11-24)
 
 
