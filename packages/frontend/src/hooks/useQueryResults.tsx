@@ -57,8 +57,8 @@ const getChartAndResults = async ({
     invalidateCache?: boolean;
     dashboardSorts?: SortField[];
     granularity?: DateGranularity;
-}) => {
-    return lightdashApi<ApiChartAndResults>({
+}) =>
+    lightdashApi<ApiChartAndResults>({
         url: `/saved/${chartUuid}/chart-and-results`,
         method: 'POST',
         body: JSON.stringify({
@@ -68,7 +68,6 @@ const getChartAndResults = async ({
             ...(invalidateCache && { invalidateCache: true }),
         }),
     });
-};
 
 const getQueryResults = async ({
     projectUuid,
@@ -204,6 +203,7 @@ export const useChartAndResults = (
     granularity?: DateGranularity,
 ) => {
     const isDateZoomFeatureEnabled = useFeatureFlagEnabled('date-zoom');
+    const prevDateZoomGranularityRef = useRef<DateGranularity>();
     const queryClient = useQueryClient();
 
     const sortKey =
@@ -217,8 +217,9 @@ export const useChartAndResults = (
             dashboardFilters,
             invalidateCache,
             sortKey,
+            granularity,
         ],
-        [chartUuid, dashboardFilters, invalidateCache, sortKey],
+        [chartUuid, dashboardFilters, invalidateCache, sortKey, granularity],
     );
     const apiChartAndResults = queryClient.getQueryData<
         ApiChartAndResults & { fetched: boolean }
@@ -227,20 +228,22 @@ export const useChartAndResults = (
     const timezoneFixFilters =
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);
 
-    const prevDateZoomGranularityRef = useRef<string>();
-
     useEffect(() => {
         if (!isDateZoomFeatureEnabled) return;
+
         // Check if dateZoomGranularity has changed and if date dimensions are present
         const hasDateZoomChanged =
             granularity !== prevDateZoomGranularityRef.current;
+
+        if (hasDateZoomChanged) {
+            prevDateZoomGranularityRef.current = granularity;
+        }
+
         const hasDateDimensions =
             apiChartAndResults?.metricQuery?.metadata?.hasADateDimension;
 
-        if (hasDateZoomChanged && hasDateDimensions) {
-            queryClient.invalidateQueries(queryKey);
-            // Update ref to current dateZoomGranularity
-            prevDateZoomGranularityRef.current = granularity;
+        if (hasDateDimensions && hasDateZoomChanged) {
+            queryClient.invalidateQueries(queryKey, { refetchInactive: true });
         }
     }, [
         granularity,
