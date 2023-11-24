@@ -54,9 +54,11 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
 
     const isDisabled = useMemo(
         () =>
-            schedulerFilter
-                ? schedulerFilter.disabled
-                : dashboardFilter.disabled,
+            Boolean(
+                schedulerFilter
+                    ? schedulerFilter.disabled
+                    : dashboardFilter.disabled,
+            ),
         [schedulerFilter, dashboardFilter],
     );
 
