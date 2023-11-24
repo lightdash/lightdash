@@ -2,6 +2,7 @@ import { CompileError } from '../types/errors';
 import { friendlyName } from '../types/field';
 import { ExploreCompiler, parseAllReferences } from './exploreCompiler';
 import {
+    compiledExploreWithHiddenJoin,
     compiledJoinedExploreOverridingAliasAndLabel,
     compiledJoinedExploreOverridingJoinAlias,
     compiledJoinedExploreOverridingJoinLabel,
@@ -26,6 +27,7 @@ import {
     exploreTableSelfReferenceCompiled,
     exploreTableSelfReferenceCompiledSqlWhere,
     exploreTableSelfReferenceSqlWhere,
+    exploreWithHiddenJoin,
     exploreWithMetricNumber,
     exploreWithMetricNumberCompiled,
     joinedExploreOverridingAliasAndLabel,
@@ -147,6 +149,11 @@ describe('Explores with a base table and joined table', () => {
             ),
         ).toStrictEqual(
             compiledJoinedExploreWithSubsetOfFieldsThatDontIncludeSqlFields,
+        );
+    });
+    test('should compile with a hidden join', () => {
+        expect(compiler.compileExplore(exploreWithHiddenJoin)).toStrictEqual(
+            compiledExploreWithHiddenJoin,
         );
     });
 });
