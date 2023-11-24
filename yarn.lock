@@ -5536,16 +5536,7 @@
     yamljs "^0.3.0"
     yargs "^17.7.1"
 
-"@tsoa/runtime@^4.1.3":
-  version "4.1.3"
-  resolved "https://registry.npmjs.org/@tsoa/runtime/-/runtime-4.1.3.tgz"
-  integrity sha512-XvHgrzdbpLI3RfWJ2xq6sNk74Lln5OpkHxGyWdUkZfcExizr+bt/QpSEDOZC6XgfhIgzFZqWah+TZ51zX88OCg==
-  dependencies:
-    promise.any "^2.0.2"
-    reflect-metadata "^0.1.13"
-    validator "^13.6.0"
-
-"@tsoa/runtime@^6.0.0-rc.5":
+"@tsoa/runtime@6.0.0-rc.5", "@tsoa/runtime@^6.0.0-rc.5":
   version "6.0.0-rc.5"
   resolved "https://registry.yarnpkg.com/@tsoa/runtime/-/runtime-6.0.0-rc.5.tgz#247764088fea4ba30ff222090a286f406b4fc295"
   integrity sha512-b2qDYw6bH/zufVeR9CJzIb6TjFRNyM2aYAkQYJ40YQ3+zi/r4jRZfDz+zAvSjZTz/Yn9ogLW537hN/bxDnDYdw==
@@ -9754,19 +9745,6 @@ es-abstract@^1.20.4:
     string.prototype.trimstart "^1.0.5"
     unbox-primitive "^1.0.2"
 
-es-aggregate-error@^1.0.9:
-  version "1.0.9"
-  resolved "https://registry.npmjs.org/es-aggregate-error/-/es-aggregate-error-1.0.9.tgz"
-  integrity sha512-fvnX40sb538wdU6r4s35cq4EY6Lr09Upj40BEVem4LEsuW8XgQep9yD5Q1U2KftokNp1rWODFJ2qwZSsAjFpbg==
-  dependencies:
-    define-properties "^1.1.4"
-    es-abstract "^1.20.4"
-    function-bind "^1.1.1"
-    functions-have-names "^1.2.3"
-    get-intrinsic "^1.1.3"
-    globalthis "^1.0.3"
-    has-property-descriptors "^1.0.0"
-
 es-array-method-boxes-properly@^1.0.0:
   version "1.0.0"
   resolved "https://registry.npmjs.org/es-array-method-boxes-properly/-/es-array-method-boxes-properly-1.0.0.tgz"
@@ -11373,13 +11351,6 @@ globals@^13.15.0:
   integrity sha512-1C+6nQRb1GwGMKm2dH/E7enFAMxGTmGI7/dEdhy/DNelv85w9B72t3uc5frtMNXIbzrarJJ/lTCjcaZwbLJmyw==
   dependencies:
     type-fest "^0.20.2"
-
-globalthis@^1.0.3:
-  version "1.0.3"
-  resolved "https://registry.npmjs.org/globalthis/-/globalthis-1.0.3.tgz"
-  integrity sha512-sFdI5LyBiNTHjRd7cGPWapiHWMOXKyuBNX/cWJ3NfzrZQVa8GI/8cofCl74AOVqq9W5kNmguTIzJ/1s2gyI9wA==
-  dependencies:
-    define-properties "^1.1.3"
 
 globby@^11.0.1:
   version "11.0.4"
@@ -16363,19 +16334,6 @@ promise.allsettled@^1.0.2:
     get-intrinsic "^1.1.3"
     iterate-value "^1.0.2"
 
-promise.any@^2.0.2:
-  version "2.0.5"
-  resolved "https://registry.npmjs.org/promise.any/-/promise.any-2.0.5.tgz"
-  integrity sha512-aM+D4cv0Sjkc90Qhg19XH8Mo5aw28YWqPTFWFkaOpE80MuPbjH/brgI7NI4YGWbcS3suOa0xjJrYznet7lSHhw==
-  dependencies:
-    array.prototype.map "^1.0.5"
-    call-bind "^1.0.2"
-    define-properties "^1.1.4"
-    es-abstract "^1.20.4"
-    es-aggregate-error "^1.0.9"
-    get-intrinsic "^1.1.3"
-    iterate-value "^1.0.2"
-
 promise@^7.1.1:
   version "7.3.1"
   resolved "https://registry.npmjs.org/promise/-/promise-7.3.1.tgz"
@@ -19640,11 +19598,6 @@ validator@^13.11.0:
   version "13.11.0"
   resolved "https://registry.yarnpkg.com/validator/-/validator-13.11.0.tgz#23ab3fd59290c61248364eabf4067f04955fbb1b"
   integrity sha512-Ii+sehpSfZy+At5nPdnyMhx78fEoPDkR2XW/zimHEL3MyGJQOCQ7WeP20jPYRz7ZCpcKLB21NxuXHF3bxjStBQ==
-
-validator@^13.6.0:
-  version "13.7.0"
-  resolved "https://registry.npmjs.org/validator/-/validator-13.7.0.tgz"
-  integrity sha512-nYXQLCBkpJ8X6ltALua9dRrZDHVYxjJ1wgskNt1lH9fzGjs3tgojGSCBjmEPwkWS1y29+DrizMTW19Pr9uB2nw==
 
 value-equal@^1.0.1:
   version "1.0.1"
