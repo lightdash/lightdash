@@ -41,7 +41,7 @@ import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { VERSION } from './version';
 import { registerNodeMetrics } from './nodeMetrics';
 import { wrapOtelSpan } from './utils';
-import { postHogClient } from './posthog';
+import { postHogClient } from './postHog';
 
 // @ts-ignore
 // eslint-disable-next-line no-extend-native, func-names
