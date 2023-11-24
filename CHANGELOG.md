@@ -1,3 +1,10 @@
+## [0.873.5](https://github.com/lightdash/lightdash/compare/0.873.4...0.873.5) (2023-11-24)
+
+
+### Bug Fixes
+
+* tsoa types generation with scheduler filter Omit ([#8082](https://github.com/lightdash/lightdash/issues/8082)) ([efbf9dd](https://github.com/lightdash/lightdash/commit/efbf9ddd8eb1ebdf39919a57ac6942122144c0a3))
+
 ## [0.873.4](https://github.com/lightdash/lightdash/compare/0.873.3...0.873.4) (2023-11-24)
 
 
