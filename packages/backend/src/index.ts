@@ -41,6 +41,7 @@ import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { VERSION } from './version';
 import { registerNodeMetrics } from './nodeMetrics';
 import { wrapOtelSpan } from './utils';
+import { postHogClient } from './posthog';
 
 // @ts-ignore
 // eslint-disable-next-line no-extend-native, func-names
@@ -280,6 +281,30 @@ passport.deserializeUser(async (id: string, done) => {
         const user = await wrapOtelSpan('Passport.deserializeUser', {}, () =>
             userModel.findSessionUserByUUID(id),
         );
+
+        postHogClient.identify({
+            distinctId: user.userUuid,
+            properties: {
+                uuid: user.userUuid,
+                ...(user.isTrackingAnonymized
+                    ? {}
+                    : {
+                          email: user.email,
+                          first_name: user.firstName,
+                          last_name: user.lastName,
+                      }),
+            },
+        });
+
+        postHogClient.groupIdentify({
+            groupType: 'organization',
+            groupKey: 'organization',
+            properties: {
+                uuid: user.organizationUuid,
+                name: user.organizationName,
+            },
+        });
+
         // Store that user on the request (`req`) object
         done(null, user);
     } catch (e) {
@@ -308,6 +333,14 @@ const onExit = () => {
                 Logger.info('Stopped scheduler worker');
             } catch (e) {
                 Logger.error('Error stopping scheduler worker', e);
+            }
+        }
+        if (postHogClient) {
+            try {
+                await postHogClient.shutdownAsync();
+                Logger.info('Stopped PostHog Client');
+            } catch (e) {
+                Logger.error('Error stopping PostHog Client', e);
             }
         }
         if (otelSdk) {
