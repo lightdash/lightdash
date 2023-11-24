@@ -129,6 +129,7 @@ export class ExploreCompiler {
                         ...tables[join.table],
                         name: joinTableName,
                         label: joinTableLabel,
+                        hidden: join.hidden,
                         dimensions: Object.keys(tableDimensions).reduce<
                             Record<string, Dimension>
                         >((acc, dimensionKey) => {
