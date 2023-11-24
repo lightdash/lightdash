@@ -4,7 +4,8 @@ models:
     meta:
       joins:
         - join: membership
-          sql_on: ${customer.id} = ${membership.customer_id}
+          hidden: true
+          sql_on: ${customers.customer_id} = ${membership.customer_id}
         - join: plan
           sql_on: ${membership.plan_id} = ${plan.id}
     description: >-

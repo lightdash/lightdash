@@ -14,13 +14,13 @@ export type ExploreJoin = {
     type?: DbtModelJoinType; // Optional join type
     alias?: string; // Optional alias for the joined tableName
     label?: string; // Optional UI label override for the underlying table
-
+    hidden?: boolean;
     fields?: string[]; // Optional list of fields to include from the joined table
 };
 
 export type CompiledExploreJoin = Pick<
     ExploreJoin,
-    'table' | 'sqlOn' | 'type'
+    'table' | 'sqlOn' | 'type' | 'hidden'
 > & {
     compiledSqlOn: string; // Sql on clause with template variables resolved
 };
