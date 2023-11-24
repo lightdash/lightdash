@@ -235,6 +235,7 @@ describe('Lightdash API tests for member user with admin project permissions', (
                             dimensions: [],
                             tableCalculations: [],
                         },
+                        dashboardSorts: [],
                     },
                 }).then((resp) => {
                     expect(resp.status).to.eq(200);
@@ -899,6 +900,7 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
                             dimensions: [],
                             tableCalculations: [],
                         },
+                        dashboardSorts: [],
                     },
                 }).then((resp) => {
                     expect(resp.status).to.eq(200);
@@ -1153,6 +1155,7 @@ describe('Lightdash API tests for member user with viewer project permissions', 
                             dimensions: [],
                             tableCalculations: [],
                         },
+                        dashboardSorts: [],
                     },
                 }).then((resp) => {
                     expect(resp.status).to.eq(200);
