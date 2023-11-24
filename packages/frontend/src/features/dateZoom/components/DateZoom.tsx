@@ -5,7 +5,7 @@ import {
     IconChevronDown,
     IconChevronUp,
 } from '@tabler/icons-react';
-import { useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 
 const DATE_ZOOM_OPTIONS = [
@@ -28,12 +28,20 @@ const DATE_ZOOM_OPTIONS = [
     },
 ];
 
-export const DateZoom = () => {
+type Props = {
+    isEditMode: boolean;
+};
+
+export const DateZoom: FC<Props> = ({ isEditMode }) => {
     const theme = useMantineTheme();
     const [isOpen, setIsOpen] = useState(false);
     const [dateGranularity, setDateGranularity] = useState<
         typeof DATE_ZOOM_OPTIONS[0] | undefined
     >(undefined);
+
+    useEffect(() => {
+        if (isEditMode) setDateGranularity(undefined);
+    }, [isEditMode]);
 
     return (
         <Menu
@@ -44,12 +52,14 @@ export const DateZoom = () => {
             opened={isOpen}
             offset={-1}
             position="bottom-end"
+            disabled={isEditMode}
         >
             <Menu.Target>
                 <Button
                     size="xs"
                     variant="default"
                     loaderPosition="center"
+                    disabled={isEditMode}
                     onClick={() => {
                         setIsOpen((prev) => !prev);
                     }}

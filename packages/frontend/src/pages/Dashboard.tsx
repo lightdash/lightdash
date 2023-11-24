@@ -574,7 +574,9 @@ const Dashboard: FC = () => {
                     {dashboardChartTiles && dashboardChartTiles.length > 0 && (
                         <DashboardFilter isEditMode={isEditMode} />
                     )}
-                    {isDateZoomFeatureFlagEnabled && <DateZoom />}
+                    {isDateZoomFeatureFlagEnabled && (
+                        <DateZoom isEditMode={isEditMode} />
+                    )}
                 </Group>
 
                 <ResponsiveGridLayout
