@@ -24,8 +24,8 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
     );
 
     useEffect(() => {
-        if (isEditMode) setDateGranularity(undefined);
-    }, [isEditMode]);
+        if (isEditMode) setDateZoomGranularity(undefined);
+    }, [isEditMode, setDateZoomGranularity]);
 
     return (
         <Menu
