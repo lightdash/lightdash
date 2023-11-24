@@ -854,7 +854,11 @@ export class ProjectService {
         metricQuery: MetricQuery,
         explore: Explore,
         granularity?: TimeFrames,
-    ): MetricQuery {
+    ): {
+        metricQuery: MetricQuery;
+        oldDimension?: string;
+        newDimension?: string;
+    } {
         if (granularity) {
             const dimensions = getDimensions(explore);
             const timeDimension = metricQuery.dimensions.find((dimension) => {
@@ -876,21 +880,25 @@ export class ProjectService {
 
                 // TODO replace sorts / filters ?
                 return {
-                    ...metricQuery,
-                    dimensions: metricQuery.dimensions.map((dimension) =>
-                        dimension === timeDimension
-                            ? newTimeDimension
-                            : dimension,
-                    ),
-                    /* sorts: metricQuery.sorts.map((sort) =>
-                        sort.fieldId === timeDimension
-                            ? { ...sort, fieldId: newTimeDimension }
-                            : sort,
-                    ), */
+                    metricQuery: {
+                        ...metricQuery,
+                        dimensions: metricQuery.dimensions.map((dimension) =>
+                            dimension === timeDimension
+                                ? newTimeDimension
+                                : dimension,
+                        ),
+                        sorts: metricQuery.sorts.map((sort) =>
+                            sort.fieldId === timeDimension
+                                ? { ...sort, fieldId: newTimeDimension }
+                                : sort,
+                        ),
+                    },
+                    oldDimension: timeDimension,
+                    newDimension: newTimeDimension,
                 };
             }
         }
-        return metricQuery;
+        return { metricQuery };
     }
 
     async runViewChartQuery({
@@ -989,12 +997,15 @@ export class ProjectService {
                     : metricQuery.sorts,
         };
 
-        const metricWithOverrideGranularity: MetricQuery =
-            ProjectService.updateMetricQueryGranularity(
-                metricWithOverrideSorting,
-                explore,
-                granularity,
-            );
+        const {
+            metricQuery: metricWithOverrideGranularity,
+            oldDimension,
+            newDimension,
+        } = ProjectService.updateMetricQueryGranularity(
+            metricWithOverrideSorting,
+            explore,
+            granularity,
+        );
 
         const { cacheMetadata, rows } = await this.runQueryAndFormatRows({
             user,
@@ -1010,12 +1021,23 @@ export class ProjectService {
             explore,
         });
 
+        // TODO quick hack to get the old results on the chart with new granularity
+        // We should investigate if we can make the changes in the frontend
+        // to get the right field instead.
+        const rowsWithGranularity =
+            oldDimension && newDimension
+                ? rows.map((row) => ({
+                      ...row,
+                      [oldDimension]: row[newDimension],
+                  }))
+                : rows;
+
         return {
             chart: savedChart,
             explore,
             metricQuery,
             cacheMetadata,
-            rows,
+            rows: rowsWithGranularity,
             appliedDashboardFilters,
         };
     }
