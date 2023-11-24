@@ -11,7 +11,7 @@ import {
     MetricQueryRequest,
     TableCalculation,
 } from '@lightdash/common';
-import posthog from 'posthog-js';
+import { useMemo } from 'react';
 import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
@@ -63,21 +63,49 @@ const calculateTotalFromSavedChart = async (
     });
 };
 
+const getCalculationColumnFields = (
+    selectedItemIds: string[],
+    itemsMap: Record<string, Field | TableCalculation>,
+) => {
+    //This method will return the metric ids that need to be calculated in the backend
+
+    const items = selectedItemIds
+        ?.map((item) => {
+            return itemsMap[item];
+        })
+        .filter((item) => isField(item) && isMetric(item));
+
+    return items?.reduce<string[]>((acc, item) => {
+        if (isField(item)) return [...acc, getFieldId(item)];
+        return acc;
+    }, []);
+};
+
 export const useCalculateTotal = ({
     metricQuery,
     explore,
     savedChartUuid,
-    fields,
+    fieldIds,
     dashboardFilters,
     invalidateCache,
+    itemsMap,
+    showColumnCalculation,
 }: {
     metricQuery?: MetricQueryRequest;
     explore?: string;
     savedChartUuid?: string;
     dashboardFilters?: DashboardFilters;
     invalidateCache?: boolean;
-    fields?: string[];
+    itemsMap: Record<string, TableCalculation | Field>;
+    fieldIds?: string[];
+    showColumnCalculation?: boolean;
 }) => {
+    const metricsWithTotals = useMemo(() => {
+        if (!fieldIds) return [];
+        if (showColumnCalculation === false) return [];
+        return getCalculationColumnFields(fieldIds, itemsMap);
+    }, [fieldIds, itemsMap, showColumnCalculation]);
+
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     // only add relevant fields to the key (filters, metrics)
@@ -101,8 +129,7 @@ export const useCalculateTotal = ({
                 : calculateTotalFromQuery(projectUuid, metricQuery, explore),
         retry: false,
         enabled:
-            posthog.isFeatureEnabled('calculate-totals') &&
-            (fields || []).length > 0 &&
+            metricsWithTotals.length > 0 &&
             (metricQuery || savedChartUuid) !== undefined,
         onError: (result) =>
             console.error(
@@ -111,22 +138,4 @@ export const useCalculateTotal = ({
                 }`,
             ),
     });
-};
-
-export const getCalculationColumnFields = (
-    selectedItemIds: string[],
-    itemsMap: Record<string, Field | TableCalculation>,
-) => {
-    //This method will return the metric ids that need to be calculated in the backend
-
-    const items = selectedItemIds
-        ?.map((item) => {
-            return itemsMap[item];
-        })
-        .filter((item) => isField(item) && isMetric(item));
-
-    return items?.reduce<string[]>((acc, item) => {
-        if (isField(item)) return [...acc, getFieldId(item)];
-        return acc;
-    }, []);
 };

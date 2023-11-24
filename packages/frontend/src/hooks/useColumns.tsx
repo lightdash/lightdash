@@ -23,10 +23,7 @@ import {
 } from '../components/common/Table/Table.styles';
 import { columnHelper, TableColumn } from '../components/common/Table/types';
 import { useExplorerContext } from '../providers/ExplorerProvider';
-import {
-    getCalculationColumnFields,
-    useCalculateTotal,
-} from './useCalculateTotal';
+import { useCalculateTotal } from './useCalculateTotal';
 import { useExplore } from './useExplore';
 
 export const getItemBgColor = (
@@ -115,18 +112,13 @@ export const useColumns = (): TableColumn[] => {
         customDimensions,
     ]);
 
-    const metricsWithTotals = useMemo(() => {
-        const selectedItemIds = resultsData
-            ? itemsInMetricQuery(resultsData.metricQuery)
-            : undefined;
-        if (!selectedItemIds || !activeItemsMap) return [];
-        return getCalculationColumnFields(selectedItemIds, activeItemsMap);
-    }, [activeItemsMap, resultsData]);
-
     const { data: totals } = useCalculateTotal({
         metricQuery: resultsData?.metricQuery,
         explore: exploreData?.baseTable,
-        fields: metricsWithTotals,
+        fieldIds: resultsData
+            ? itemsInMetricQuery(resultsData.metricQuery)
+            : undefined,
+        itemsMap: activeItemsMap,
     });
 
     return useMemo(() => {
