@@ -20,6 +20,7 @@ describe('Custom dimensions', () => {
         cy.findByText('Create').click();
 
         // Select metric
+        cy.findByText('Orders').click();
         cy.findByText('Total order amount').click();
         cy.get('button').contains('Run query').click();
 

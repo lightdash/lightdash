@@ -15,11 +15,17 @@ import MantineIcon from '../../../common/MantineIcon';
 import TableTreeSections from './TableTreeSections';
 
 type TableTreeWrapperProps = {
+    isOpen: boolean;
+    toggle: () => void;
     table: CompiledTable;
 };
 
-const TableTreeWrapper: FC<TableTreeWrapperProps> = ({ table, children }) => {
-    const [isOpen, toggle] = useToggle(true);
+const TableTreeWrapper: FC<TableTreeWrapperProps> = ({
+    isOpen,
+    toggle,
+    table,
+    children,
+}) => {
     return (
         <NavLink
             opened={isOpen}
@@ -55,6 +61,7 @@ const TableTreeWrapper: FC<TableTreeWrapperProps> = ({ table, children }) => {
 };
 
 type Props = {
+    isOpenByDefault: boolean;
     searchQuery?: string;
     showTableLabel: boolean;
     table: CompiledTable;
@@ -85,22 +92,29 @@ const themeOverride = getMantineThemeOverride({
 });
 
 const TableTree: FC<Props> = ({
+    isOpenByDefault,
     showTableLabel,
     table,
     additionalMetrics,
     customDimensions,
     missingCustomMetrics,
-
+    searchQuery,
     ...rest
 }) => {
     const Wrapper = showTableLabel ? TableTreeWrapper : EmptyWrapper;
-
+    const [isOpen, toggle] = useToggle(isOpenByDefault);
+    const isSearching = !!searchQuery && searchQuery !== '';
     return (
         <TrackSection name={SectionName.SIDEBAR}>
             <MantineProvider inherit theme={themeOverride}>
-                <Wrapper table={table}>
+                <Wrapper
+                    isOpen={isSearching || isOpen}
+                    toggle={toggle}
+                    table={table}
+                >
                     <TableTreeSections
                         table={table}
+                        searchQuery={searchQuery}
                         additionalMetrics={additionalMetrics}
                         customDimensions={customDimensions}
                         missingCustomMetrics={missingCustomMetrics}

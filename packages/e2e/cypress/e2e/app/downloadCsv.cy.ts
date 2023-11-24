@@ -145,6 +145,7 @@ describe('Download CSV on Explore', () => {
             }).as('apiDownloadCsv');
             // choose table and select fields
             cy.findByText('Orders').click();
+            cy.findByText('Customers').click();
             cy.findByText('First name').click();
             cy.findByText('Unique order count').click();
 
@@ -178,6 +179,7 @@ describe('Download CSV on Explore', () => {
             }).as('apiDownloadCsv');
             // choose table and select fields
             cy.findByText('Orders').click();
+            cy.findByText('Customers').click();
             cy.findByText('First name').click();
             cy.findByText('Unique order count').click();
 
