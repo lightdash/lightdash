@@ -52,6 +52,14 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
         return field ? getFilterTypeFromItem(field) : FilterType.STRING;
     }, [field]);
 
+    const isDisabled = useMemo(
+        () =>
+            schedulerFilter
+                ? schedulerFilter.disabled
+                : dashboardFilter.disabled,
+        [schedulerFilter, dashboardFilter],
+    );
+
     const filterOperatorOptions = useMemo(() => {
         return getFilterOperatorOptions(filterType);
     }, [filterType]);
@@ -67,6 +75,11 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                     }}
                     hideTableName
                 />
+                {isDisabled && (
+                    <Text color="dimmed" fz="xs">
+                        is any value
+                    </Text>
+                )}
             </Group>
 
             <Flex gap="xs">
