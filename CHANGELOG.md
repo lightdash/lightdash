@@ -1,3 +1,10 @@
+## [0.875.1](https://github.com/lightdash/lightdash/compare/0.875.0...0.875.1) (2023-11-24)
+
+
+### Bug Fixes
+
+* replace wrong function name call ([#8085](https://github.com/lightdash/lightdash/issues/8085)) ([7a2b010](https://github.com/lightdash/lightdash/commit/7a2b010a4a8891cd67b63d7f324a8cae722d8a2e))
+
 # [0.875.0](https://github.com/lightdash/lightdash/compare/0.874.1...0.875.0) (2023-11-24)
 
 
