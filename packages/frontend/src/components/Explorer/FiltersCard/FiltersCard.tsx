@@ -42,6 +42,10 @@ const FiltersCard: FC = memo(() => {
         (context) =>
             context.state.unsavedChartVersion.metricQuery.additionalMetrics,
     );
+    const tableCalculations = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.tableCalculations,
+    );
     const queryResults = useExplorerContext(
         (context) => context.queryResults.data,
     );
@@ -64,6 +68,7 @@ const FiltersCard: FC = memo(() => {
         exploreData: data,
         queryResults,
         additionalMetrics,
+        tableCalculations,
     });
     const allFilterRules = useMemo(
         () => getTotalFilterRules(filters),

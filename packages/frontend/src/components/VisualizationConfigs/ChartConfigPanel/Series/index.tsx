@@ -20,6 +20,7 @@ import {
 import { createPortal } from 'react-dom';
 import { getSeriesGroupedByField } from '../../../../hooks/cartesianChartConfig/utils';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
+import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
 import GroupedSeriesConfiguration from './GroupedSeriesConfiguration';
@@ -42,18 +43,22 @@ type Props = {
 };
 
 const SeriesTab: FC<Props> = ({ items }) => {
-    const {
-        cartesianConfig: {
-            dirtyLayout,
-            dirtyEchartsConfig,
-            updateSingleSeries,
-            updateAllGroupedSeries,
-            updateSeries,
-        },
-    } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationContext();
     const { data: orgData } = useOrganization({ refetchOnMount: false });
 
+    const isCartesianChart =
+        isCartesianVisualizationConfig(visualizationConfig);
+
+    const chartConfig = useMemo(() => {
+        if (!isCartesianChart) return;
+        return visualizationConfig.chartConfig;
+    }, [isCartesianChart, visualizationConfig]);
+
     const fallbackSeriesColours = useMemo(() => {
+        if (!chartConfig) return;
+
+        const dirtyEchartsConfig = chartConfig.dirtyEchartsConfig;
+
         return (dirtyEchartsConfig?.series || [])
             .filter(({ color }) => !color)
             .reduce<Record<string, string>>(
@@ -65,23 +70,29 @@ const SeriesTab: FC<Props> = ({ items }) => {
                 }),
                 {},
             );
-    }, [dirtyEchartsConfig, orgData]);
+    }, [chartConfig, orgData]);
 
     const getSeriesColor = useCallback(
         (seriesId: string) => {
-            return fallbackSeriesColours[seriesId];
+            return fallbackSeriesColours?.[seriesId];
         },
         [fallbackSeriesColours],
     );
 
-    const { series } = dirtyEchartsConfig || {};
-
     const seriesGroupedByField = useMemo(() => {
-        return getSeriesGroupedByField(series || []);
-    }, [series]);
+        if (!isCartesianChart) return;
+
+        const { dirtyEchartsConfig } = visualizationConfig.chartConfig;
+
+        return getSeriesGroupedByField(dirtyEchartsConfig?.series ?? []);
+    }, [isCartesianChart, visualizationConfig]);
 
     const onDragEnd = useCallback(
         (result: DropResult) => {
+            if (!chartConfig || !seriesGroupedByField) return;
+
+            const { updateSeries } = chartConfig;
+
             if (!result.destination) return;
             if (result.destination.index === result.source.index) return;
             const sourceIndex = result.source.index;
@@ -105,8 +116,18 @@ const SeriesTab: FC<Props> = ({ items }) => {
             );
             updateSeries(reorderedSeries);
         },
-        [getSeriesColor, seriesGroupedByField, updateSeries],
+        [seriesGroupedByField, chartConfig, getSeriesColor],
     );
+
+    if (!isCartesianChart) return null;
+
+    const {
+        dirtyEchartsConfig,
+        dirtyLayout,
+        updateSeries,
+        updateSingleSeries,
+        updateAllGroupedSeries,
+    } = visualizationConfig.chartConfig;
 
     return (
         <DragDropContext onDragEnd={onDragEnd}>
@@ -184,7 +205,10 @@ const SeriesTab: FC<Props> = ({ items }) => {
                                                         updateSeries={
                                                             updateSeries
                                                         }
-                                                        series={series || []}
+                                                        series={
+                                                            dirtyEchartsConfig?.series ||
+                                                            []
+                                                        }
                                                     />
                                                 ) : (
                                                     <BasicSeriesConfiguration

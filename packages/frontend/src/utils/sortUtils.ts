@@ -9,6 +9,12 @@ import {
     MetricType,
     TableCalculation,
 } from '@lightdash/common';
+import {
+    IconSortAscendingLetters,
+    IconSortAscendingNumbers,
+    IconSortDescendingLetters,
+    IconSortDescendingNumbers,
+} from '@tabler/icons-react';
 
 export enum SortDirection {
     ASC = 'ASC',
@@ -121,4 +127,33 @@ export const getSortLabel = (
     } else {
         throw new Error('Field is not a Dimension or Metric');
     }
+};
+
+export const getSortIcon = (
+    item: Field | TableCalculation | CustomDimension,
+    descending: boolean,
+) => {
+    if (!isField(item)) {
+        return descending
+            ? IconSortDescendingLetters
+            : IconSortAscendingLetters;
+    }
+
+    if (isDimension(item) || isMetric(item)) {
+        switch (item.type) {
+            case DimensionType.STRING:
+            case MetricType.STRING:
+            case DimensionType.BOOLEAN:
+            case MetricType.BOOLEAN:
+                return descending
+                    ? IconSortDescendingLetters
+                    : IconSortAscendingLetters;
+            default:
+                // Numbers, dates and times
+                return descending
+                    ? IconSortDescendingNumbers
+                    : IconSortAscendingNumbers;
+        }
+    }
+    return descending ? IconSortDescendingLetters : IconSortAscendingLetters;
 };

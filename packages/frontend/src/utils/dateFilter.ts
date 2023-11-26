@@ -39,6 +39,9 @@ export const convertDateFilters = (filters: Filters): Filters => {
         dimensions:
             filters.dimensions && convertFilterGroups(filters.dimensions),
         metrics: filters.metrics && convertFilterGroups(filters.metrics),
+        tableCalculations:
+            filters.tableCalculations &&
+            convertFilterGroups(filters.tableCalculations),
     };
 };
 
@@ -49,5 +52,6 @@ export const convertDateDashboardFilters = (
     return {
         dimensions: filters.dimensions.map(convertFilterRule),
         metrics: filters.metrics.map(convertFilterRule),
+        tableCalculations: filters.tableCalculations.map(convertFilterRule),
     };
 };

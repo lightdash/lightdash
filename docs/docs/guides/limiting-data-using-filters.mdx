@@ -229,11 +229,18 @@ To add saved filters to your dashboard, you must be an `editor` or an `admin` fo
 
 ### Some things worth mentioning about dashboard filters
 
-#### Users can remove and override _saved filters_ on a dashboard while they're viewing it
+#### Sharing your dashboard with overrides
 
-Users have the option to delete or edit a dashboard's saved filters while they're looking at it. But, unless they're making these changes in `edit` mode and saving them, the original saved filters will be applied for the next user that comes to look at the dashboard.
+You might want to share a dashboard with someone with custom filters applied. To do this, you have to be in *view mode*. Then, you can either/or: 
+1. Apply temporary filters to your dashboard and share the link with the filters applied.
+2. Apply changes(overrides) to your saved filters and share the link with the filters applied.
 
-<img src={EditRemoveFilters} width="455" height="351" style={{display: "block", margin: "0 auto 20px auto"}}/>
+Rules for sharing dashboards with filters applied:
+- In view mode and when adding a temporary filter, you can change the field, value, operator, and tiles this is applied to. But, you can't change the filter type (e.g. from `temporary filter` to `saved filter`).
+- In view mode and when overriding a saved filter, you can only change the value and operator, so the field and tile configuration will remain the same.
+- In edit mode, when changing a saved filter (with an override present), once you save the changes (click "Apply"), the override for that filter will be removed.
+
+The same behaviour applies when exporting dashboards. 
 
 #### You can easily see which dashboard tiles have which filters applied to them
 

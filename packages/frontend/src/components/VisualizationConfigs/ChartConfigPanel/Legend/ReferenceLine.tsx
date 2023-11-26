@@ -38,6 +38,7 @@ import FilterYearPicker from '../../../common/Filters/FilterInputs/FilterYearPic
 import { getFirstDayOfWeek } from '../../../common/Filters/utils/filterDateUtils';
 import MantineIcon from '../../../common/MantineIcon';
 import { ReferenceLineField } from '../../../common/ReferenceLine';
+import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 
 type Props = {
@@ -171,9 +172,7 @@ export const ReferenceLine: FC<Props> = ({
     updateReferenceLine,
     removeReferenceLine,
 }) => {
-    const {
-        cartesianConfig: { dirtyLayout },
-    } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationContext();
     const { data: org } = useOrganization();
 
     const defaultColors = useMemo(
@@ -181,7 +180,14 @@ export const ReferenceLine: FC<Props> = ({
         [org],
     );
 
+    const isCartesianChart =
+        isCartesianVisualizationConfig(visualizationConfig);
+
     const fieldsInAxes = useMemo(() => {
+        if (!isCartesianChart) return [];
+
+        const { dirtyLayout } = visualizationConfig.chartConfig;
+
         const fieldNames = [
             dirtyLayout?.xField,
             ...(dirtyLayout?.yField || []),
@@ -197,7 +203,7 @@ export const ReferenceLine: FC<Props> = ({
                 (isNumericItem(item) || isDateItem(item))
             );
         });
-    }, [items, dirtyLayout]);
+    }, [isCartesianChart, items, visualizationConfig]);
 
     const markLineKey = useMemo(() => {
         return referenceLine.data.xAxis !== undefined ? 'xAxis' : 'yAxis';

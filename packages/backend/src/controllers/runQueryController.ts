@@ -6,23 +6,25 @@ import {
     CustomDimension,
     FieldId,
     MetricQuery,
+    MetricQueryRequest,
     MetricQueryResponse,
     SortField,
     TableCalculation,
 } from '@lightdash/common';
-import { Body, Post } from '@tsoa/runtime';
-import express from 'express';
 import {
+    Body,
     Controller,
     Middlewares,
     OperationId,
     Path,
+    Post,
     Request,
     Response,
     Route,
     SuccessResponse,
     Tags,
-} from 'tsoa';
+} from '@tsoa/runtime';
+import express from 'express';
 import { projectService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
@@ -42,6 +44,7 @@ type RunQueryRequest = {
     filters: {
         dimensions?: any;
         metrics?: any;
+        tableCalculations?: any;
     };
     sorts: SortField[]; // Sorts for the data
     limit: number; // Max number of rows to return from query
@@ -67,7 +70,7 @@ export class RunViewChartQueryController extends Controller {
     @Post('/explores/{exploreId}/runUnderlyingDataQuery')
     @OperationId('postRunUnderlyingDataQuery')
     async postUnderlyingData(
-        @Body() body: RunQueryRequest,
+        @Body() body: MetricQueryRequest,
         @Path() projectUuid: string,
         @Path() exploreId: string,
         @Request() req: express.Request,
@@ -109,7 +112,7 @@ export class RunViewChartQueryController extends Controller {
     @Post('/explores/{exploreId}/runQuery')
     @OperationId('RunMetricQuery')
     async runMetricQuery(
-        @Body() body: RunQueryRequest,
+        @Body() body: MetricQueryRequest,
         @Path() projectUuid: string,
         @Path() exploreId: string,
 

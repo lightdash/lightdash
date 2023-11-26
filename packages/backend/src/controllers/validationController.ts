@@ -6,19 +6,23 @@ import {
     getRequestMethod,
     LightdashRequestMethodHeader,
 } from '@lightdash/common';
-import { Body, Delete, Get, Post, Query } from '@tsoa/runtime';
-import express from 'express';
 import {
+    Body,
     Controller,
+    Delete,
+    Get,
     Middlewares,
     OperationId,
     Path,
+    Post,
+    Query,
     Request,
     Response,
     Route,
     SuccessResponse,
     Tags,
-} from 'tsoa';
+} from '@tsoa/runtime';
+import express from 'express';
 import { validationService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 

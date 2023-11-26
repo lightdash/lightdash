@@ -12,7 +12,7 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { createContext, FC, useCallback, useContext, useState } from 'react';
-import { EChartSeries } from '../../hooks/echarts/useEcharts';
+import { EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
 import { useExplore } from '../../hooks/useExplore';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 

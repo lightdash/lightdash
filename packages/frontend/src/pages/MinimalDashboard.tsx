@@ -1,12 +1,17 @@
-import { assertUnreachable, DashboardTileTypes } from '@lightdash/common';
-import { FC } from 'react';
+import {
+    assertUnreachable,
+    DashboardTileTypes,
+    isDashboardScheduler,
+} from '@lightdash/common';
+import { FC, useMemo } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useParams } from 'react-router-dom';
-
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
+import { useScheduler } from '../features/scheduler/hooks/useScheduler';
 import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
+import useSearchParams from '../hooks/useSearchParams';
 import { DashboardProvider } from '../providers/DashboardProvider';
 import {
     getReactGridLayoutConfig,
@@ -19,17 +24,43 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const MinimalDashboard: FC = () => {
     const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
+    const schedulerUuid = useSearchParams('schedulerUuid');
+    const sendNowchedulerFilters = useSearchParams('sendNowchedulerFilters');
+
     const {
         data: dashboard,
-        isError,
-        error,
+        isError: isDashboardError,
+        error: dashboardError,
     } = useDashboardQuery(dashboardUuid);
 
-    if (isError) {
-        return <>{error.error.message}</>;
+    const {
+        data: scheduler,
+        isError: isSchedulerError,
+        error: schedulerError,
+    } = useScheduler(schedulerUuid!, {
+        enabled: !!schedulerUuid && !sendNowchedulerFilters,
+    });
+
+    const schedulerFilters = useMemo(() => {
+        if (schedulerUuid && scheduler && isDashboardScheduler(scheduler)) {
+            return scheduler.filters;
+        }
+        if (sendNowchedulerFilters) {
+            return JSON.parse(sendNowchedulerFilters);
+        }
+        return undefined;
+    }, [scheduler, schedulerUuid, sendNowchedulerFilters]);
+
+    if (isDashboardError || isSchedulerError) {
+        if (dashboardError) return <>{dashboardError.error.message}</>;
+        if (schedulerError) return <>{schedulerError.error.message}</>;
     }
 
     if (!dashboard) {
+        return <>Loading...</>;
+    }
+
+    if (schedulerUuid && !scheduler) {
         return <>Loading...</>;
     }
 
@@ -44,7 +75,7 @@ const MinimalDashboard: FC = () => {
     };
 
     return (
-        <DashboardProvider>
+        <DashboardProvider schedulerFilters={schedulerFilters}>
             <ResponsiveGridLayout
                 {...getResponsiveGridLayoutProps(false)}
                 layouts={layouts}

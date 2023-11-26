@@ -4,10 +4,12 @@ import { FC } from 'react';
 import PivotTable from '../common/PivotTable';
 import Table from '../common/Table';
 import { ResultCount } from '../common/Table/TablePagination';
+import { isTableVisualizationConfig } from '../LightdashVisualization/VisualizationConfigTable';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
 import CellContextMenu from './CellContextMenu';
 import DashboardCellContextMenu from './DashboardCellContextMenu';
+import DashboardHeaderContextMenu from './DashboardHeaderContextMenu';
 
 type SimpleTableProps = {
     isDashboard: boolean;
@@ -28,21 +30,26 @@ const SimpleTable: FC<SimpleTableProps> = ({
     const {
         isLoading,
         columnOrder,
-        tableConfig: {
-            rows,
-            error,
-            columns,
-            showColumnCalculation,
-            conditionalFormattings,
-            hideRowNumbers,
-            pivotTableData,
-            getFieldLabel,
-            getField,
-            showResultsTotal,
-        },
         isSqlRunner,
         explore,
+        visualizationConfig,
     } = useVisualizationContext();
+
+    if (!isTableVisualizationConfig(visualizationConfig)) return null;
+
+    const {
+        rows,
+        error,
+        columns,
+        showColumnCalculation,
+        conditionalFormattings,
+        hideRowNumbers,
+        pivotTableData,
+        getFieldLabel,
+        getField,
+        showResultsTotal,
+    } = visualizationConfig.chartConfig;
+
     if (isLoading) return <LoadingChart />;
 
     if (error) {
@@ -111,6 +118,16 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 conditionalFormattings={conditionalFormattings}
                 footer={{
                     show: showColumnCalculation,
+                }}
+                headerContextMenu={(props) => {
+                    if (isDashboard && tileUuid)
+                        return (
+                            <DashboardHeaderContextMenu
+                                {...props}
+                                tileUuid={tileUuid}
+                            />
+                        );
+                    return null;
                 }}
                 cellContextMenu={(props) => {
                     if (isSqlRunner) return <>{props.children}</>;

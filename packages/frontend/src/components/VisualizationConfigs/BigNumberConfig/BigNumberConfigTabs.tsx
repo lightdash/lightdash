@@ -17,6 +17,7 @@ import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { memo } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
+import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/VisualizationBigNumberConfig';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const StyleOptions = [
@@ -28,30 +29,32 @@ const StyleOptions = [
 ];
 
 const BigNumberConfigTabs = memo(() => {
+    const { visualizationConfig } = useVisualizationContext();
+
+    if (!isBigNumberVisualizationConfig(visualizationConfig)) return null;
+
     const {
-        bigNumberConfig: {
-            bigNumberLabel,
-            defaultLabel,
-            setBigNumberLabel,
-            bigNumberStyle,
-            setBigNumberStyle,
-            showStyle,
-            availableFields,
-            selectedField: selectedFieldId,
-            setSelectedField,
-            getField,
-            showBigNumberLabel,
-            setShowBigNumberLabel,
-            showComparison,
-            setShowComparison,
-            comparisonFormat,
-            setComparisonFormat,
-            flipColors,
-            setFlipColors,
-            comparisonLabel,
-            setComparisonLabel,
-        },
-    } = useVisualizationContext();
+        bigNumberLabel,
+        defaultLabel,
+        setBigNumberLabel,
+        bigNumberStyle,
+        setBigNumberStyle,
+        showStyle,
+        availableFields,
+        selectedField: selectedFieldId,
+        setSelectedField,
+        getField,
+        showBigNumberLabel,
+        setShowBigNumberLabel,
+        showComparison,
+        setShowComparison,
+        comparisonFormat,
+        setComparisonFormat,
+        flipColors,
+        setFlipColors,
+        comparisonLabel,
+        setComparisonLabel,
+    } = visualizationConfig.chartConfig;
 
     const selectedField = getField(selectedFieldId);
 

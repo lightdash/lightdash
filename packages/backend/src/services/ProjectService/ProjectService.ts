@@ -8,6 +8,7 @@ import {
     ApiQueryResults,
     ApiSqlQueryResults,
     CacheMetadata,
+    CalculateTotalFromQuery,
     ChartSummary,
     CompiledDimension,
     countCustomDimensionsInMetricQuery,
@@ -46,6 +47,7 @@ import {
     JobStatusType,
     JobStepType,
     JobType,
+    Metric,
     MetricQuery,
     MetricType,
     MissingWarehouseCredentialsError,
@@ -60,7 +62,9 @@ import {
     ProjectType,
     RequestMethod,
     ResultRow,
+    SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
+    SortField,
     SpaceQuery,
     SpaceSummary,
     SummaryExplore,
@@ -850,12 +854,14 @@ export class ProjectService {
         dashboardFilters,
         versionUuid,
         invalidateCache,
+        dashboardSorts,
     }: {
         user: SessionUser;
         chartUuid: string;
         dashboardFilters?: DashboardFilters;
         versionUuid?: string;
         invalidateCache?: boolean;
+        dashboardSorts?: SortField[];
     }): Promise<ApiChartAndResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -908,6 +914,10 @@ export class ProjectService {
                       tables,
                       dashboardFilters.metrics,
                   ),
+                  tableCalculations: getDashboardFilterRulesForTables(
+                      tables,
+                      dashboardFilters.tableCalculations,
+                  ),
               }
             : undefined;
         const metricQuery: MetricQuery = appliedDashboardFilters
@@ -924,9 +934,17 @@ export class ProjectService {
             chart_uuid: chartUuid,
         };
 
+        const metricWithOverrideSorting: MetricQuery = {
+            ...metricQuery,
+            sorts:
+                dashboardSorts && dashboardSorts.length > 0
+                    ? dashboardSorts
+                    : metricQuery.sorts,
+        };
+
         const { cacheMetadata, rows } = await this.runQueryAndFormatRows({
             user,
-            metricQuery,
+            metricQuery: metricWithOverrideSorting,
             projectUuid,
             exploreName: savedChart.tableName,
             csvLimit: undefined,
@@ -2113,7 +2131,7 @@ export class ProjectService {
 
     async getAvailableFiltersForSavedQueries(
         user: SessionUser,
-        savedQueryUuids: string[],
+        savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
     ): Promise<DashboardAvailableFilters> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
@@ -2128,11 +2146,44 @@ export class ProjectService {
             filters: CompiledDimension[];
         }[] = [];
 
+        const savedQueryUuids = savedChartUuidsAndTileUuids.map(
+            ({ savedChartUuid }) => savedChartUuid,
+        );
+
         try {
             const savedCharts =
                 await this.savedChartModel.getInfoForAvailableFilters(
                     savedQueryUuids,
                 );
+            const uniqueSpaceUuids = [
+                ...new Set(savedCharts.map((chart) => chart.spaceUuid)),
+            ];
+            const exploreCacheKeys: Record<string, boolean> = {};
+            const exploreCache: Record<string, Explore> = {};
+
+            const explorePromises = savedCharts.reduce<
+                Promise<{ key: string; explore: Explore }>[]
+            >((acc, chart) => {
+                const key = chart.tableName;
+                if (!exploreCacheKeys[key]) {
+                    acc.push(
+                        this.getExplore(user, chart.projectUuid, key).then(
+                            (explore) => ({ key, explore }),
+                        ),
+                    );
+                    exploreCacheKeys[key] = true;
+                }
+                return acc;
+            }, []);
+
+            const [spaceAccessMap, resolvedExplores] = await Promise.all([
+                this.spaceModel.getSpacesForAccessCheck(uniqueSpaceUuids),
+                Promise.all(explorePromises),
+            ]);
+
+            resolvedExplores.forEach(({ key, explore }) => {
+                exploreCache[key] = explore;
+            });
 
             const filterPromises = savedCharts.map(async (savedChart) => {
                 if (
@@ -2144,18 +2195,12 @@ export class ProjectService {
                     return { uuid: savedChart.uuid, filters: [] };
                 }
 
-                const space = await this.spaceModel.getSpaceSummary(
-                    savedChart.spaceUuid,
-                );
-                if (!hasSpaceAccess(user, space)) {
+                const spaceAccess = spaceAccessMap.get(savedChart.spaceUuid);
+                if (!spaceAccess || !hasSpaceAccess(user, spaceAccess)) {
                     return { uuid: savedChart.uuid, filters: [] };
                 }
 
-                const explore = await this.getExplore(
-                    user,
-                    savedChart.projectUuid,
-                    savedChart.tableName,
-                );
+                const explore = exploreCache[savedChart.tableName];
 
                 const filters = getDimensions(explore).filter(
                     (field) => isFilterableDimension(field) && !field.hidden,
@@ -2169,20 +2214,41 @@ export class ProjectService {
             span?.finish();
         }
 
-        return savedQueryUuids.reduce<DashboardAvailableFilters>(
-            (acc, savedQueryUuid) => {
-                const filterResult = allFilters.find(
-                    (result) => result.uuid === savedQueryUuid,
-                );
-                if (!filterResult || !filterResult.filters.length) return acc;
+        const allFilterableFields: FilterableField[] = [];
+        const filterIndexMap: Record<string, number> = {};
 
-                return {
-                    ...acc,
-                    [savedQueryUuid]: filterResult.filters,
-                };
-            },
-            {},
-        );
+        allFilters.forEach((filterSet) => {
+            filterSet.filters.forEach((filter) => {
+                const fieldId = getFieldId(filter);
+                if (!(fieldId in filterIndexMap)) {
+                    filterIndexMap[fieldId] = allFilterableFields.length;
+                    allFilterableFields.push(filter);
+                }
+            });
+        });
+
+        const savedQueryFilters = savedChartUuidsAndTileUuids.reduce<
+            DashboardAvailableFilters['savedQueryFilters']
+        >((acc, savedChartUuidAndTileUuid) => {
+            const filterResult = allFilters.find(
+                (result) =>
+                    result.uuid === savedChartUuidAndTileUuid.savedChartUuid,
+            );
+            if (!filterResult || !filterResult.filters.length) return acc;
+
+            const filterIndexes = filterResult.filters.map(
+                (filter) => filterIndexMap[getFieldId(filter)],
+            );
+            return {
+                ...acc,
+                [savedChartUuidAndTileUuid.tileUuid]: filterIndexes,
+            };
+        }, {});
+
+        return {
+            savedQueryFilters,
+            allFilterableFields,
+        };
     }
 
     async hasSavedCharts(
@@ -2575,5 +2641,207 @@ export class ProjectService {
                 );
             },
         );
+    }
+
+    async _getCalculateTotalQuery(
+        user: SessionUser,
+        explore: Explore,
+        metricQuery: MetricQuery,
+        organizationUuid: string,
+        warehouseClient: WarehouseClient,
+    ) {
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        const totalQuery: MetricQuery = {
+            ...metricQuery,
+            limit: 1,
+            tableCalculations: [],
+            sorts: [],
+            dimensions: [],
+            metrics: metricQuery.metrics,
+            additionalMetrics: metricQuery.additionalMetrics,
+        };
+
+        const { query } = await ProjectService._compileQuery(
+            totalQuery,
+            explore,
+            warehouseClient,
+            userAttributes,
+        );
+
+        return { query, totalQuery };
+    }
+
+    async _calculateTotal(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+        metricQuery: MetricQuery,
+        organizationUuid: string,
+    ) {
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+        );
+
+        const explore = await this.getExplore(
+            user,
+            projectUuid,
+            exploreName,
+            organizationUuid,
+        );
+
+        const { query } = await this._getCalculateTotalQuery(
+            user,
+            explore,
+            metricQuery,
+            organizationUuid,
+            warehouseClient,
+        );
+
+        const { rows } = await warehouseClient.runQuery(query, {});
+        await sshTunnel.disconnect();
+        return { row: rows[0] };
+    }
+
+    async _calculateTotalFromCacheOrWarehouse(
+        user: SessionUser,
+        projectUuid: string,
+        explore: Explore,
+        metricQuery: MetricQuery,
+        invalidateCache: boolean,
+        organizationUuid: string,
+    ) {
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+        );
+
+        const { query, totalQuery } = await this._getCalculateTotalQuery(
+            user,
+            explore,
+            metricQuery,
+            organizationUuid,
+            warehouseClient,
+        );
+        const { rows, cacheMetadata } =
+            await this.getResultsFromCacheOrWarehouse({
+                projectUuid,
+                context: QueryExecutionContext.CALCULATE_TOTAL,
+                warehouseClient,
+                metricQuery: totalQuery,
+                query,
+                queryTags: {},
+                invalidateCache,
+            });
+        await sshTunnel.disconnect();
+        return { row: rows[0], cacheMetadata };
+    }
+
+    async calculateTotalFromSavedChart(
+        user: SessionUser,
+        chartUuid: string,
+        dashboardFilters: DashboardFilters,
+        invalidateCache: boolean = false,
+    ) {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        const savedChart = await this.savedChartModel.get(
+            chartUuid,
+            undefined, // VersionUuid
+        );
+        const { organizationUuid, projectUuid } = savedChart;
+
+        const explore = await this.getExplore(
+            user,
+            projectUuid,
+            savedChart.tableName,
+            organizationUuid,
+        );
+        const tables = Object.keys(explore.tables);
+
+        const appliedDashboardFilters = dashboardFilters
+            ? {
+                  dimensions: getDashboardFilterRulesForTables(
+                      tables,
+                      dashboardFilters.dimensions,
+                  ),
+                  metrics: getDashboardFilterRulesForTables(
+                      tables,
+                      dashboardFilters.metrics,
+                  ),
+                  tableCalculations: getDashboardFilterRulesForTables(
+                      tables,
+                      dashboardFilters.tableCalculations,
+                  ),
+              }
+            : undefined;
+        const metricQuery: MetricQuery = appliedDashboardFilters
+            ? addDashboardFiltersToMetricQuery(
+                  savedChart.metricQuery,
+                  appliedDashboardFilters,
+              )
+            : savedChart.metricQuery;
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', { organizationUuid, projectUuid }),
+            ) ||
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const results = await this._calculateTotalFromCacheOrWarehouse(
+            user,
+            projectUuid,
+            explore,
+            metricQuery,
+            invalidateCache,
+            savedChart.organizationUuid,
+        );
+        return results.row;
+    }
+
+    async calculateTotalFromQuery(
+        user: SessionUser,
+
+        projectUuid: string,
+        data: CalculateTotalFromQuery,
+    ) {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const results = await this._calculateTotal(
+            user,
+            projectUuid,
+            data.explore,
+            data.metricQuery,
+            organizationUuid,
+        );
+        return results.row;
     }
 }

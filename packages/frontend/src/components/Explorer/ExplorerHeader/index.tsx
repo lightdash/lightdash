@@ -1,4 +1,4 @@
-import { Group } from '@mantine/core';
+import { Box, Group } from '@mantine/core';
 import { FC, memo, useEffect } from 'react';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
@@ -40,8 +40,9 @@ const ExplorerHeader: FC = memo(() => {
     if (isEditMode) {
         return (
             <Group position="apart">
-                <RefreshDbtButton />
-
+                <Box>
+                    <RefreshDbtButton />
+                </Box>
                 <Group spacing="xs">
                     <RefreshButton />
                     {!savedChart && (

@@ -1,9 +1,10 @@
 import { getHiddenTableFields, NotFoundError } from '@lightdash/common';
 import { FC, memo, useCallback, useMemo, useState } from 'react';
 
+import { useDisclosure } from '@mantine/hooks';
 import { downloadCsv } from '../../../api/csv';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
-import { EChartSeries } from '../../../hooks/echarts/useEcharts';
+import { EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useExplore } from '../../../hooks/useExplore';
 import { useApp } from '../../../providers/AppProvider';
@@ -35,9 +36,6 @@ const VisualizationCard: FC<{
         (context) => context.state.savedChart,
     );
 
-    const unsavedChartVersion = useExplorerContext(
-        (context) => context.state.unsavedChartVersion,
-    );
     const isLoadingQueryResults = useExplorerContext(
         (context) => context.queryResults.isLoading,
     );
@@ -62,9 +60,10 @@ const VisualizationCard: FC<{
     const toggleExpandedSection = useExplorerContext(
         (context) => context.actions.toggleExpandedSection,
     );
-    const chartType = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.chartConfig.type,
+    const unsavedChartVersion = useExplorerContext(
+        (context) => context.state.unsavedChartVersion,
     );
+
     const isOpen = useMemo(
         () => expandedSections.includes(ExplorerSection.VISUALIZATION),
         [expandedSections],
@@ -83,6 +82,9 @@ const VisualizationCard: FC<{
         useState<EchartsClickEvent>();
 
     const { getIsEditingDashboardChart } = useDashboardStorage();
+
+    const [isSidebarOpen, { open: openSidebar, close: closeSidebar }] =
+        useDisclosure();
 
     const onSeriesContextMenu = useCallback(
         (e: EchartSeriesClickEvent, series: EChartSeries[]) => {
@@ -152,18 +154,18 @@ const VisualizationCard: FC<{
 
     return (
         <VisualizationProvider
-            initialChartConfig={unsavedChartVersion.chartConfig}
-            chartType={unsavedChartVersion.chartConfig.type}
+            chartConfig={unsavedChartVersion.chartConfig}
             initialPivotDimensions={unsavedChartVersion.pivotConfig?.columns}
             explore={explore}
             resultsData={queryResults}
             isLoading={isLoadingQueryResults}
-            onChartConfigChange={setChartConfig}
-            onChartTypeChange={setChartType}
-            onPivotDimensionsChange={setPivotFields}
             columnOrder={unsavedChartVersion.tableConfig.columnOrder}
             onSeriesContextMenu={onSeriesContextMenu}
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
+            savedChartUuid={isEditMode ? undefined : savedChart?.uuid}
+            onChartConfigChange={setChartConfig}
+            onChartTypeChange={setChartType}
+            onPivotDimensionsChange={setPivotFields}
         >
             <CollapsableCard
                 title="Charts"
@@ -175,10 +177,15 @@ const VisualizationCard: FC<{
                         <>
                             {isEditMode ? (
                                 <VisualizationSidebar
-                                    chartType={chartType}
+                                    chartType={
+                                        unsavedChartVersion.chartConfig.type
+                                    }
                                     savedChart={savedChart}
                                     isEditingDashboardChart={getIsEditingDashboardChart()}
                                     isProjectPreview={isProjectPreview}
+                                    isOpen={isSidebarOpen}
+                                    onOpen={openSidebar}
+                                    onClose={closeSidebar}
                                 />
                             ) : null}
 

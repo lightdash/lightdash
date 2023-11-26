@@ -88,9 +88,10 @@ const ExploreTree: FC<ExploreTreeProps> = ({
 
             <Box style={{ flexGrow: 1, overflowY: 'auto' }}>
                 {tableTrees.length > 0 ? (
-                    tableTrees.map((table) => (
+                    tableTrees.map((table, index) => (
                         <TableTree
                             key={table.name}
+                            isOpenByDefault={index === 0}
                             searchQuery={search}
                             showTableLabel={
                                 Object.keys(explore.tables).length > 1

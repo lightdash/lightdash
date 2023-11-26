@@ -6,7 +6,7 @@ import { EChartsReactProps, Opts } from 'echarts-for-react/lib/types';
 import { FC, memo, useCallback, useEffect, useState } from 'react';
 import useEchartsPieConfig, {
     PieSeriesDataPoint,
-} from '../../hooks/echarts/useEchartsPieChart';
+} from '../../hooks/echarts/useEchartsPieConfig';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import PieChartContextMenu, {
     PieChartContextMenuProps,
@@ -45,7 +45,9 @@ const EchartOptions: Opts = { renderer: 'svg' };
 
 const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
     const { chartRef, isLoading } = useVisualizationContext();
+
     const pieChartOptions = useEchartsPieConfig(props.isInDashboard);
+
     const [isOpen, { open, close }] = useDisclosure();
     const [menuProps, setMenuProps] = useState<{
         position: PieChartContextMenuProps['menuPosition'];

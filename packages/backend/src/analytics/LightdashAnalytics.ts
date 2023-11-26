@@ -134,6 +134,7 @@ export enum QueryExecutionContext {
     VIEW_UNDERLYING_DATA = 'viewUnderlyingData',
     CSV = 'csvDownload',
     GSHEETS = 'gsheets',
+    CALCULATE_TOTAL = 'calculateTotal',
 }
 
 type QueryExecutionEvent = BaseTrack & {

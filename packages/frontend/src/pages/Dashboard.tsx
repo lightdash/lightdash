@@ -6,7 +6,8 @@ import {
     DashboardTileTypes,
     isDashboardChartTileType,
 } from '@lightdash/common';
-import { useProfiler } from '@sentry/react';
+import { captureException, useProfiler } from '@sentry/react';
+
 import React, {
     FC,
     memo,
@@ -19,7 +20,7 @@ import React, {
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 
-import { Box } from '@mantine/core';
+import { Box, Group } from '@mantine/core';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useIntersection } from 'react-use';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
@@ -32,6 +33,7 @@ import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import EmptyStateNoTiles from '../components/DashboardTiles/EmptyStateNoTiles';
 import TileBase from '../components/DashboardTiles/TileBase/index';
+import { DateZoom } from '../features/dateZoom';
 import {
     appendNewTilesToBottom,
     useDuplicateDashboardMutation,
@@ -41,6 +43,7 @@ import {
 } from '../hooks/dashboard/useDashboard';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useOrganization } from '../hooks/organization/useOrganization';
+import useToaster from '../hooks/toaster/useToaster';
 import { deleteSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import {
@@ -131,6 +134,7 @@ const Dashboard: FC = () => {
     );
     const isLazyLoadEnabled =
         !!isLazyLoadFeatureFlagEnabled && !(window as any).Cypress; // disable lazy load for e2e test
+    const isDateZoomFeatureFlagEnabled = useFeatureFlagEnabled('date-zoom');
     const history = useHistory();
     const { projectUuid, dashboardUuid, mode } = useParams<{
         projectUuid: string;
@@ -164,6 +168,8 @@ const Dashboard: FC = () => {
         (c) => c.setDashboardTemporaryFilters,
     );
     const oldestCacheTime = useDashboardContext((c) => c.oldestCacheTime);
+
+    const { showToastError } = useToaster();
 
     const { data: organization } = useOrganization();
     const hasTemporaryFilters = useMemo(
@@ -200,44 +206,61 @@ const Dashboard: FC = () => {
 
     const { tiles: savedTiles } = dashboard || {};
     useEffect(() => {
-        // TODO: The logic in this useEffect isn't right. It's checking if
-        // there are saved tiles, then checking for unsaved tiles,
-        // then replacing the saved tiles with the unsaved ones if they exist.
         if (savedTiles) {
-            // TODO: maybe this should move in the future, but it makes
-            // some sense here since this useEffect is essentially handling
-            // sessions storage
             clearIsEditingDashboardChart();
             const unsavedDashboardTilesRaw = sessionStorage.getItem(
                 'unsavedDashboardTiles',
             );
             sessionStorage.removeItem('unsavedDashboardTiles');
-            let unsavedDashboardTiles = undefined;
             if (unsavedDashboardTilesRaw) {
                 try {
-                    unsavedDashboardTiles = JSON.parse(
+                    const unsavedDashboardTiles = JSON.parse(
                         unsavedDashboardTilesRaw,
                     );
+                    // If there are unsaved tiles, add them to the dashboard
+                    setDashboardTiles((old = []) => {
+                        return [...old, ...unsavedDashboardTiles];
+                    });
+                    setHaveTilesChanged(!!unsavedDashboardTiles);
                 } catch {
-                    // do nothing
+                    showToastError({
+                        title: 'Error parsing chart',
+                        subtitle: 'Unable to save chart in dashboard',
+                    });
+                    console.error(
+                        'Error parsing chart in dashboard. Attempted to parse: ',
+                        unsavedDashboardTilesRaw,
+                    );
+                    captureException(
+                        `Error parsing chart in dashboard. Attempted to parse: ${unsavedDashboardTilesRaw} `,
+                    );
+                }
+            } else {
+                // If there are no dashboard tiles, set them to the saved ones
+                // This is the first time the dashboard is being loaded.
+                if (!dashboardTiles) {
+                    setDashboardTiles(savedTiles);
                 }
             }
-
-            setDashboardTiles(unsavedDashboardTiles || savedTiles);
-            setHaveTilesChanged(!!unsavedDashboardTiles);
         }
     }, [
         setHaveTilesChanged,
         setDashboardTiles,
+        dashboardTiles,
         savedTiles,
         clearIsEditingDashboardChart,
+        showToastError,
     ]);
 
     useEffect(() => {
         if (isSuccess) {
             setHaveTilesChanged(false);
             setHaveFiltersChanged(false);
-            setDashboardTemporaryFilters({ dimensions: [], metrics: [] });
+            setDashboardTemporaryFilters({
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            });
             reset();
             history.replace(
                 `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
@@ -531,6 +554,10 @@ const Dashboard: FC = () => {
                                         ...dashboardFilters.metrics,
                                         ...dashboardTemporaryFilters.metrics,
                                     ],
+                                    tableCalculations: [
+                                        ...dashboardFilters.tableCalculations,
+                                        ...dashboardTemporaryFilters.tableCalculations,
+                                    ],
                                 },
                                 name: dashboard.name,
                             })
@@ -543,9 +570,14 @@ const Dashboard: FC = () => {
                     />
                 }
             >
-                {dashboardChartTiles && dashboardChartTiles.length > 0 && (
-                    <DashboardFilter isEditMode={isEditMode} />
-                )}
+                <Group position="apart" align="flex-start" noWrap>
+                    {dashboardChartTiles && dashboardChartTiles.length > 0 && (
+                        <DashboardFilter isEditMode={isEditMode} />
+                    )}
+                    {isDateZoomFeatureFlagEnabled && (
+                        <DateZoom isEditMode={isEditMode} />
+                    )}
+                </Group>
 
                 <ResponsiveGridLayout
                     {...getResponsiveGridLayoutProps()}

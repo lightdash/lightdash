@@ -1,5 +1,4 @@
 import { ApiErrorPayload, ApiSshKeyPairResponse } from '@lightdash/common';
-import express from 'express';
 import {
     Controller,
     Middlewares,
@@ -10,7 +9,8 @@ import {
     Route,
     SuccessResponse,
     Tags,
-} from 'tsoa';
+} from '@tsoa/runtime';
+import express from 'express';
 import { sshKeyPairService } from '../services/services';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
 

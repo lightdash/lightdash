@@ -45,4 +45,6 @@ export interface WarehouseClient {
     getEscapeStringQuoteChar(): string;
 
     getMetricSql(sql: string, metric: Metric): string;
+
+    concatString(...args: string[]): string;
 }

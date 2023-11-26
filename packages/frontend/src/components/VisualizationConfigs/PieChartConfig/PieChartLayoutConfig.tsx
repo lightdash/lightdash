@@ -8,6 +8,7 @@ import { Box, Button, Stack, Switch, Tooltip } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
+import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const PieChartLayoutConfig: React.FC = () => {
@@ -15,21 +16,25 @@ const PieChartLayoutConfig: React.FC = () => {
         dimensions,
         allNumericMetrics,
         customDimensions,
-        pieChartConfig: {
-            groupFieldIds,
-            groupAdd,
-            groupChange,
-            groupRemove,
-
-            selectedMetric,
-            metricChange,
-
-            isDonut,
-            toggleDonut,
-        },
+        visualizationConfig,
     } = useVisualizationContext();
 
+    if (!isPieVisualizationConfig(visualizationConfig)) return null;
+
     const allDimensions = [...dimensions, ...customDimensions];
+
+    const {
+        groupFieldIds,
+        groupAdd,
+        groupChange,
+        groupRemove,
+
+        selectedMetric,
+        metricChange,
+
+        isDonut,
+        toggleDonut,
+    } = visualizationConfig.chartConfig;
 
     return (
         <Stack>

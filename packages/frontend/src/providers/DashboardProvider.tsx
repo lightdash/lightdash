@@ -1,18 +1,20 @@
 import {
     ApiError,
+    applyDimensionOverrides,
     CacheMetadata,
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
     Dashboard,
-    DashboardAvailableFilters,
     DashboardFilterRule,
     DashboardFilters,
     fieldId,
     FilterableField,
     isDashboardChartTileType,
+    SavedChartsInfoForDashboardAvailableFilters,
+    SchedulerFilterRule,
+    SortField,
 } from '@lightdash/common';
 import { min } from 'lodash-es';
-import uniqBy from 'lodash-es/uniqBy';
 import React, {
     Dispatch,
     SetStateAction,
@@ -26,12 +28,12 @@ import { useMount } from 'react-use';
 import { createContext, useContextSelector } from 'use-context-selector';
 import { FieldsWithSuggestions } from '../components/common/Filters/FiltersProvider';
 import { isFilterConfigRevertButtonEnabled as hasSavedFilterValueChanged } from '../components/DashboardFilter/FilterConfiguration/utils';
+import { DATE_ZOOM_OPTIONS } from '../features/dateZoom';
 import {
     useDashboardQuery,
     useDashboardsAvailableFilters,
 } from '../hooks/dashboard/useDashboard';
 import {
-    applyDimensionOverrides,
     hasSavedFiltersOverrides,
     useSavedDashboardFiltersOverrides,
 } from '../hooks/useSavedDashboardFiltersOverrides';
@@ -39,12 +41,12 @@ import {
 const emptyFilters: DashboardFilters = {
     dimensions: [],
     metrics: [],
+    tableCalculations: [],
 };
 
 type DashboardContext = {
     dashboard: Dashboard | undefined;
     dashboardError: ApiError | null;
-    fieldsWithSuggestions: FieldsWithSuggestions;
     dashboardTiles: Dashboard['tiles'] | undefined;
     setDashboardTiles: Dispatch<SetStateAction<Dashboard['tiles'] | undefined>>;
     haveTilesChanged: boolean;
@@ -64,6 +66,7 @@ type DashboardContext = {
         filter: DashboardFilterRule,
         index: number,
         isTemporary: boolean,
+        isEditMode: boolean,
     ) => void;
     removeDimensionDashboardFilter: (
         index: number,
@@ -75,20 +78,27 @@ type DashboardContext = {
     ) => void;
     haveFiltersChanged: boolean;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
-    addSuggestions: (newSuggestionsMap: Record<string, string[]>) => void;
     addResultsCacheTime: (cacheMetadata: CacheMetadata) => void;
     oldestCacheTime: Date | undefined;
     invalidateCache: boolean | undefined;
     clearCacheAndFetch: () => void;
+    fieldsWithSuggestions: FieldsWithSuggestions;
     allFilterableFields: FilterableField[] | undefined;
-    filterableFieldsBySavedQueryUuid: DashboardAvailableFilters | undefined;
-    filterableFieldsByTileUuid: DashboardAvailableFilters | undefined;
+    filterableFieldsByTileUuid: Record<string, FilterableField[]> | undefined;
     hasChartTiles: boolean;
+    chartSort: Record<string, SortField[]>;
+    setChartSort: (sort: Record<string, SortField[]>) => void;
+    dateZoomGranularity: typeof DATE_ZOOM_OPTIONS[0] | undefined;
+    setDateZoomGranularity: Dispatch<
+        SetStateAction<typeof DATE_ZOOM_OPTIONS[0] | undefined>
+    >;
 };
 
 const Context = createContext<DashboardContext | undefined>(undefined);
 
-export const DashboardProvider: React.FC = ({ children }) => {
+export const DashboardProvider: React.FC<{
+    schedulerFilters?: SchedulerFilterRule[] | undefined;
+}> = ({ schedulerFilters, children }) => {
     const { search, pathname } = useLocation();
     const history = useHistory();
 
@@ -96,13 +106,32 @@ export const DashboardProvider: React.FC = ({ children }) => {
         dashboardUuid: string;
     }>();
 
-    const { data: dashboard, error: dashboardError } =
-        useDashboardQuery(dashboardUuid);
+    const { data: dashboard, error: dashboardError } = useDashboardQuery(
+        dashboardUuid,
+        {
+            select: (d) => {
+                if (schedulerFilters) {
+                    const overriddenDimensions = applyDimensionOverrides(
+                        d.filters,
+                        schedulerFilters,
+                    );
+
+                    return {
+                        ...d,
+                        filters: {
+                            ...d.filters,
+                            dimensions: overriddenDimensions,
+                        },
+                    };
+                }
+                return d;
+            },
+        },
+    );
+
     const [dashboardTiles, setDashboardTiles] = useState<Dashboard['tiles']>();
 
     const [haveTilesChanged, setHaveTilesChanged] = useState<boolean>(false);
-    const [fieldsWithSuggestions, setFieldsWithSuggestions] =
-        useState<FieldsWithSuggestions>({});
     const [dashboardTemporaryFilters, setDashboardTemporaryFilters] =
         useState<DashboardFilters>(emptyFilters);
     const [dashboardFilters, setDashboardFilters] =
@@ -115,19 +144,34 @@ export const DashboardProvider: React.FC = ({ children }) => {
 
     const [invalidateCache, setInvalidateCache] = useState<boolean>(false);
 
+    const [chartSort, setChartSort] = useState<Record<string, SortField[]>>({});
+
+    const [dateZoomGranularity, setDateZoomGranularity] = useState<
+        typeof DATE_ZOOM_OPTIONS[0] | undefined
+    >(undefined);
+
     const {
         overridesForSavedDashboardFilters,
         addSavedFilterOverride,
-
         removeSavedFilterOverride,
     } = useSavedDashboardFiltersOverrides();
 
-    const tileSavedChartUuids = useMemo(
+    const savedChartUuidsAndTileUuids = useMemo(
         () =>
             dashboardTiles
                 ?.filter(isDashboardChartTileType)
-                .map((tile) => tile.properties.savedChartUuid)
-                .filter((uuid): uuid is string => !!uuid),
+                .reduce<SavedChartsInfoForDashboardAvailableFilters>(
+                    (acc, tile) => {
+                        if (tile.properties.savedChartUuid) {
+                            acc.push({
+                                tileUuid: tile.uuid,
+                                savedChartUuid: tile.properties.savedChartUuid,
+                            });
+                        }
+                        return acc;
+                    },
+                    [],
+                ),
         [dashboardTiles],
     );
 
@@ -206,13 +250,13 @@ export const DashboardProvider: React.FC = ({ children }) => {
             dashboard?.filters &&
             hasSavedFiltersOverrides(overridesForSavedDashboardFilters)
         ) {
-            setDashboardFilters({
-                ...dashboard.filters,
+            setDashboardFilters((prevFilters) => ({
+                ...prevFilters,
                 dimensions: applyDimensionOverrides(
-                    dashboard.filters,
+                    prevFilters,
                     overridesForSavedDashboardFilters,
                 ),
-            });
+            }));
         }
     }, [dashboard?.filters, overridesForSavedDashboardFilters]);
 
@@ -246,38 +290,52 @@ export const DashboardProvider: React.FC = ({ children }) => {
     const {
         isLoading: isLoadingDashboardFilters,
         isFetching: isFetchingDashboardFilters,
-        data: filterableFieldsBySavedQueryUuid,
-    } = useDashboardsAvailableFilters(tileSavedChartUuids ?? []);
+        data: dashboardAvailableFiltersData,
+    } = useDashboardsAvailableFilters(savedChartUuidsAndTileUuids ?? []);
 
     const filterableFieldsByTileUuid = useMemo(() => {
-        if (!dashboard || !dashboardTiles || !filterableFieldsBySavedQueryUuid)
+        if (!dashboard || !dashboardTiles || !dashboardAvailableFiltersData)
             return;
 
-        return dashboardTiles
-            .filter(isDashboardChartTileType)
-            .reduce<DashboardAvailableFilters>((acc, tile) => {
-                const savedChartUuid = tile.properties.savedChartUuid;
-                if (!savedChartUuid) return acc;
+        const filterFieldsMapping = savedChartUuidsAndTileUuids?.reduce<
+            Record<string, FilterableField[]>
+        >((acc, { tileUuid }) => {
+            const filterFields =
+                dashboardAvailableFiltersData.savedQueryFilters[tileUuid]?.map(
+                    (index) =>
+                        dashboardAvailableFiltersData.allFilterableFields[
+                            index
+                        ],
+                );
 
-                return {
-                    ...acc,
-                    [tile.uuid]:
-                        filterableFieldsBySavedQueryUuid[savedChartUuid],
-                };
-            }, {});
-    }, [dashboard, dashboardTiles, filterableFieldsBySavedQueryUuid]);
+            if (filterFields) {
+                acc[tileUuid] = filterFields;
+            }
 
-    const allFilterableFields = useMemo(() => {
-        if (isLoadingDashboardFilters || !filterableFieldsBySavedQueryUuid)
-            return;
+            return acc;
+        }, {});
 
-        const allFilters = Object.values(
-            filterableFieldsBySavedQueryUuid,
-        ).flat();
-        if (allFilters.length === 0) return;
+        return filterFieldsMapping;
+    }, [
+        dashboard,
+        dashboardTiles,
+        dashboardAvailableFiltersData,
+        savedChartUuidsAndTileUuids,
+    ]);
 
-        return uniqBy(allFilters, (f) => fieldId(f));
-    }, [isLoadingDashboardFilters, filterableFieldsBySavedQueryUuid]);
+    const fieldsWithSuggestions = useMemo(() => {
+        return dashboardAvailableFiltersData &&
+            dashboardAvailableFiltersData.allFilterableFields &&
+            dashboardAvailableFiltersData.allFilterableFields.length > 0
+            ? dashboardAvailableFiltersData.allFilterableFields.reduce<FieldsWithSuggestions>(
+                  (sum, field) => ({
+                      ...sum,
+                      [fieldId(field)]: field,
+                  }),
+                  {},
+              )
+            : {};
+    }, [dashboardAvailableFiltersData]);
 
     const allFilters = useMemo(() => {
         return {
@@ -288,6 +346,10 @@ export const DashboardProvider: React.FC = ({ children }) => {
             metrics: [
                 ...dashboardFilters.metrics,
                 ...dashboardTemporaryFilters?.metrics,
+            ],
+            tableCalculations: [
+                ...dashboardFilters.tableCalculations,
+                ...dashboardTemporaryFilters?.tableCalculations,
             ],
         };
     }, [dashboardFilters, dashboardTemporaryFilters]);
@@ -301,24 +363,6 @@ export const DashboardProvider: React.FC = ({ children }) => {
         [dashboardTiles],
     );
 
-    useEffect(() => {
-        if (allFilterableFields && allFilterableFields.length > 0) {
-            setFieldsWithSuggestions((prev) => {
-                return allFilterableFields.reduce<FieldsWithSuggestions>(
-                    (sum, field) => ({
-                        ...sum,
-                        [fieldId(field)]: {
-                            ...field,
-                            suggestions:
-                                prev[fieldId(field)]?.suggestions || [],
-                        },
-                    }),
-                    {},
-                );
-            });
-        }
-    }, [allFilterableFields]);
-
     const addDimensionDashboardFilter = useCallback(
         (filter: DashboardFilterRule, isTemporary: boolean) => {
             const setFunction = isTemporary
@@ -327,6 +371,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
             setFunction((previousFilters) => ({
                 dimensions: [...previousFilters.dimensions, filter],
                 metrics: previousFilters.metrics,
+                tableCalculations: previousFilters.tableCalculations,
             }));
             setHaveFiltersChanged(true);
         },
@@ -334,34 +379,45 @@ export const DashboardProvider: React.FC = ({ children }) => {
     );
 
     const updateDimensionDashboardFilter = useCallback(
-        (item: DashboardFilterRule, index: number, isTemporary: boolean) => {
+        (
+            item: DashboardFilterRule,
+            index: number,
+            isTemporary: boolean,
+            isEditMode: boolean,
+        ) => {
             const setFunction = isTemporary
                 ? setDashboardTemporaryFilters
                 : setDashboardFilters;
 
+            const isFilterSaved = dashboard?.filters.dimensions.some(
+                ({ id }) => id === item.id,
+            );
+
             setFunction((previousFilters) => {
                 if (!isTemporary) {
-                    const hasChanged = hasSavedFilterValueChanged(
-                        previousFilters.dimensions[index],
-                        item,
-                    );
-
-                    const isReverted =
-                        originalDashboardFilters.dimensions[index] &&
-                        !hasSavedFilterValueChanged(
-                            originalDashboardFilters.dimensions[index],
-                            item,
-                        );
-
-                    if (hasChanged) {
-                        addSavedFilterOverride(item);
-                    }
-
-                    if (isReverted) {
+                    if (isEditMode) {
                         removeSavedFilterOverride(item);
+                    } else {
+                        const isReverted =
+                            originalDashboardFilters.dimensions[index] &&
+                            !hasSavedFilterValueChanged(
+                                originalDashboardFilters.dimensions[index],
+                                item,
+                            );
+                        if (isReverted) {
+                            removeSavedFilterOverride(item);
+                        } else {
+                            const hasChanged = hasSavedFilterValueChanged(
+                                previousFilters.dimensions[index],
+                                item,
+                            );
+
+                            if (hasChanged && isFilterSaved) {
+                                addSavedFilterOverride(item);
+                            }
+                        }
                     }
                 }
-
                 return {
                     dimensions: [
                         ...previousFilters.dimensions.slice(0, index),
@@ -369,12 +425,14 @@ export const DashboardProvider: React.FC = ({ children }) => {
                         ...previousFilters.dimensions.slice(index + 1),
                     ],
                     metrics: previousFilters.metrics,
+                    tableCalculations: previousFilters.tableCalculations,
                 };
             });
             setHaveFiltersChanged(true);
         },
         [
             addSavedFilterOverride,
+            dashboard?.filters.dimensions,
             originalDashboardFilters.dimensions,
             removeSavedFilterOverride,
         ],
@@ -388,6 +446,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
             setFunction((previousFilters) => ({
                 dimensions: previousFilters.dimensions,
                 metrics: [...previousFilters.metrics, filter],
+                tableCalculations: previousFilters.tableCalculations,
             }));
             setHaveFiltersChanged(true);
         },
@@ -411,29 +470,12 @@ export const DashboardProvider: React.FC = ({ children }) => {
                         ...previousFilters.dimensions.slice(index + 1),
                     ],
                     metrics: previousFilters.metrics,
+                    tableCalculations: previousFilters.tableCalculations,
                 };
             });
             setHaveFiltersChanged(true);
         },
         [removeSavedFilterOverride],
-    );
-    const addSuggestions = useCallback(
-        (newSuggestionsMap: Record<string, string[]>) => {
-            setFieldsWithSuggestions((prev) => {
-                return Object.entries(prev).reduce<FieldsWithSuggestions>(
-                    (sum, [key, field]) => {
-                        const currentSuggestions = field?.suggestions || [];
-                        const newSuggestions = newSuggestionsMap[key] || [];
-                        const suggestions = Array.from(
-                            new Set([...currentSuggestions, ...newSuggestions]),
-                        ).sort((a, b) => a.localeCompare(b));
-                        return { ...sum, [key]: { ...field, suggestions } };
-                    },
-                    {},
-                );
-            });
-        },
-        [],
     );
 
     const addResultsCacheTime = useCallback((cacheMetadata: CacheMetadata) => {
@@ -461,7 +503,6 @@ export const DashboardProvider: React.FC = ({ children }) => {
     const value = {
         dashboard,
         dashboardError,
-        fieldsWithSuggestions,
         dashboardTiles,
         setDashboardTiles,
         haveTilesChanged,
@@ -476,18 +517,21 @@ export const DashboardProvider: React.FC = ({ children }) => {
         setDashboardFilters,
         haveFiltersChanged,
         setHaveFiltersChanged,
-        addSuggestions,
         addResultsCacheTime,
         oldestCacheTime,
         invalidateCache,
         clearCacheAndFetch,
-        allFilterableFields,
-        filterableFieldsBySavedQueryUuid,
+        fieldsWithSuggestions,
+        allFilterableFields: dashboardAvailableFiltersData?.allFilterableFields,
         isLoadingDashboardFilters,
         isFetchingDashboardFilters,
         filterableFieldsByTileUuid,
         allFilters,
         hasChartTiles,
+        chartSort,
+        setChartSort,
+        dateZoomGranularity,
+        setDateZoomGranularity,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };

@@ -12,6 +12,7 @@ import {
     isDimension,
     isField,
     isNumericItem,
+    itemsInMetricQuery,
     TableCalculation,
 } from '@lightdash/common';
 import { useMemo } from 'react';
@@ -22,7 +23,7 @@ import {
 } from '../components/common/Table/Table.styles';
 import { columnHelper, TableColumn } from '../components/common/Table/types';
 import { useExplorerContext } from '../providers/ExplorerProvider';
-import useColumnTotals from './useColumnTotals';
+import { useCalculateTotal } from './useCalculateTotal';
 import { useExplore } from './useExplore';
 
 export const getItemBgColor = (
@@ -111,9 +112,12 @@ export const useColumns = (): TableColumn[] => {
         customDimensions,
     ]);
 
-    // TODO add totals for custom dimensions ?
-    const totals = useColumnTotals({
-        resultsData,
+    const { data: totals } = useCalculateTotal({
+        metricQuery: resultsData?.metricQuery,
+        explore: exploreData?.baseTable,
+        fieldIds: resultsData
+            ? itemsInMetricQuery(resultsData.metricQuery)
+            : undefined,
         itemsMap: activeItemsMap,
     });
 
@@ -153,7 +157,7 @@ export const useColumns = (): TableColumn[] => {
                     ),
                     cell: (info) => info.getValue()?.value.formatted || '-',
                     footer: () =>
-                        totals[fieldId]
+                        totals?.[fieldId]
                             ? formatItemValue(item, totals[fieldId])
                             : null,
                     meta: {

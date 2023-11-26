@@ -100,6 +100,16 @@ const FilterStringAutoComplete: FC<Props> = ({
         [handleAddMultiple, handleResetSearch],
     );
 
+    const handleKeyDown = useCallback(
+        (event: React.KeyboardEvent<HTMLInputElement>) => {
+            if (event.key === 'Enter' && search !== '') {
+                handleAdd(search);
+                handleResetSearch();
+            }
+        },
+        [handleAdd, handleResetSearch, search],
+    );
+
     const data = useMemo(() => {
         // Mantine does not show value tag if value is not found in data
         // so we need to add it manually here
@@ -189,6 +199,7 @@ const FilterStringAutoComplete: FC<Props> = ({
             onDropdownClose={handleResetSearch}
             onChange={handleChange}
             onCreate={handleAdd}
+            onKeyDown={handleKeyDown}
         />
     );
 };

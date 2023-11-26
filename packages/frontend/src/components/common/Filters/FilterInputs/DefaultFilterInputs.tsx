@@ -4,12 +4,14 @@ import {
     FilterOperator,
     FilterType,
     isFilterRule,
+    isTableCalculationField,
 } from '@lightdash/common';
 import isString from 'lodash-es/isString';
 import { FilterInputsProps } from '.';
 import { TagInput } from '../../TagInput/TagInput';
 import { useFiltersContext } from '../FiltersProvider';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
+import FilterMultiStringInput from './FilterMultiStringInput';
 import FilterNumberInput from './FilterNumberInput';
 import FilterStringAutoComplete from './FilterStringAutoComplete';
 
@@ -46,7 +48,23 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
         case FilterOperator.NOT_EQUALS: {
             switch (filterType) {
                 case FilterType.STRING:
-                    return (
+                    return isTableCalculationField(field) ? (
+                        <FilterMultiStringInput
+                            disabled={disabled}
+                            field={field}
+                            placeholder={placeholder}
+                            withinPortal={popoverProps?.withinPortal}
+                            onDropdownOpen={popoverProps?.onOpen}
+                            onDropdownClose={popoverProps?.onClose}
+                            values={(rule.values || []).filter(isString)}
+                            onChange={(values) =>
+                                onChange({
+                                    ...rule,
+                                    values,
+                                })
+                            }
+                        />
+                    ) : (
                         <FilterStringAutoComplete
                             filterId={rule.id}
                             disabled={disabled}

@@ -38,8 +38,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { downloadCsv } from '../../api/csv';
 import { ExportToGoogleSheet } from '../../features/export';
 import useDashboardChart from '../../hooks/dashboard/useDashboardChart';
-import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
-import { EChartSeries } from '../../hooks/echarts/useEcharts';
+import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
+import { EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import useToaster from '../../hooks/toaster/useToaster';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
@@ -63,6 +63,7 @@ import MetricQueryDataProvider, {
 } from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import { EchartSeriesClickEvent } from '../SimpleChart';
+import EditChartMenuItem from './EditChartMenuItem';
 import TileBase from './TileBase/index';
 import {
     FilterLabel,
@@ -157,29 +158,18 @@ const ValidDashboardChartTile: FC<{
     chartAndResults: { chart, explore, metricQuery, rows, cacheMetadata },
     onSeriesContextMenu,
 }) => {
-    const addSuggestions = useDashboardContext((c) => c.addSuggestions);
     const addResultsCacheTime = useDashboardContext(
         (c) => c.addResultsCacheTime,
     );
 
+    const dashboardFilters = useDashboardFiltersForTile(tileUuid);
+    const invalidateCache = useDashboardContext((c) => c.invalidateCache);
+
     const { health } = useApp();
 
     useEffect(() => {
-        addSuggestions(
-            metricQuery.dimensions.reduce((sum, dimensionId) => {
-                const newSuggestions: string[] =
-                    rows.reduce<string[]>((acc, row) => {
-                        const value = row[dimensionId]?.value.raw;
-                        if (typeof value === 'string') {
-                            return [...acc, value];
-                        }
-                        return acc;
-                    }, []) || [];
-                return { ...sum, [dimensionId]: newSuggestions };
-            }, {}),
-        );
         addResultsCacheTime(cacheMetadata);
-    }, [addSuggestions, addResultsCacheTime, metricQuery, cacheMetadata, rows]);
+    }, [cacheMetadata, addResultsCacheTime]);
 
     const resultData = useMemo(
         () => ({
@@ -196,8 +186,7 @@ const ValidDashboardChartTile: FC<{
 
     return (
         <VisualizationProvider
-            chartType={chart.chartConfig.type}
-            initialChartConfig={chart.chartConfig}
+            chartConfig={chart.chartConfig}
             initialPivotDimensions={chart.pivotConfig?.columns}
             resultsData={resultData}
             explore={explore}
@@ -205,6 +194,9 @@ const ValidDashboardChartTile: FC<{
             onSeriesContextMenu={onSeriesContextMenu}
             columnOrder={chart.tableConfig.columnOrder}
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
+            savedChartUuid={chart.uuid}
+            dashboardFilters={dashboardFilters}
+            invalidateCache={invalidateCache}
         >
             <LightdashVisualization
                 isDashboard
@@ -227,6 +219,8 @@ const ValidDashboardChartTileMinimal: FC<{
 }) => {
     const { health } = useApp();
 
+    const dashboardFilters = useDashboardFiltersForTile(tileUuid);
+
     const resultData = useMemo(
         () => ({ rows, metricQuery, cacheMetadata }),
         [rows, metricQuery, cacheMetadata],
@@ -239,14 +233,15 @@ const ValidDashboardChartTileMinimal: FC<{
     return (
         <VisualizationProvider
             minimal
-            chartType={chart.chartConfig.type}
-            initialChartConfig={chart.chartConfig}
+            chartConfig={chart.chartConfig}
             initialPivotDimensions={chart.pivotConfig?.columns}
             resultsData={resultData}
             isLoading={false}
             explore={explore}
             columnOrder={chart.tableConfig.columnOrder}
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
+            savedChartUuid={chart.uuid}
+            dashboardFilters={dashboardFilters}
         >
             <LightdashVisualization
                 tileUuid={tileUuid}
@@ -295,13 +290,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     );
 
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const filtersFromContext = useDashboardContext((c) => c.dashboardFilters);
-    const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
-    const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
-    const dashboard = useDashboardContext((c) => c.dashboard);
-
-    const { storeDashboard } = useDashboardStorage();
 
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
@@ -513,23 +501,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         >
                             <Box>
                                 {userCanManageChart && (
-                                    <LinkMenuItem
-                                        icon="document-open"
-                                        text="Edit chart"
-                                        disabled={isEditMode}
-                                        onClick={() => {
-                                            if (belongsToDashboard) {
-                                                storeDashboard(
-                                                    dashboardTiles,
-                                                    filtersFromContext,
-                                                    haveTilesChanged,
-                                                    haveFiltersChanged,
-                                                    dashboard?.uuid,
-                                                    dashboard?.name,
-                                                );
-                                            }
-                                        }}
-                                        href={`/projects/${projectUuid}/saved/${savedChartUuid}/edit?fromDashboard=${dashboardUuid}`}
+                                    <EditChartMenuItem
+                                        tile={props.tile}
+                                        isEditMode={isEditMode}
                                     />
                                 )}
 
@@ -819,17 +793,48 @@ type DashboardChartTileProps = Omit<
 
 const DashboardChartTile: FC<DashboardChartTileProps> = ({
     minimal = false,
+    tile,
+    isEditMode,
     ...rest
 }) => {
     const { isLoading, data, error } = useDashboardChart(
-        rest.tile.uuid,
-        rest.tile.properties?.savedChartUuid ?? null,
+        tile.uuid,
+        tile.properties?.savedChartUuid ?? null,
     );
-    if (isLoading) return <TileBase isLoading={true} title={''} {...rest} />;
 
+    if (isLoading)
+        return (
+            <TileBase
+                isEditMode={isEditMode}
+                tile={tile}
+                isLoading={true}
+                title={''}
+                {...rest}
+            />
+        );
     if (error !== null || !data)
         return (
-            <TileBase title={''} {...rest}>
+            <TileBase
+                title={''}
+                isEditMode={isEditMode}
+                tile={tile}
+                extraMenuItems={
+                    tile.properties.savedChartUuid && (
+                        <Tooltip
+                            disabled={!isEditMode}
+                            label="Finish editing dashboard to edit this chart"
+                        >
+                            <Box>
+                                <EditChartMenuItem
+                                    tile={tile}
+                                    isEditMode={isEditMode}
+                                />
+                            </Box>
+                        </Tooltip>
+                    )
+                }
+                {...rest}
+            >
                 <NonIdealState
                     icon="error"
                     title={error?.error?.message || 'No data available'}
@@ -843,9 +848,19 @@ const DashboardChartTile: FC<DashboardChartTileProps> = ({
             tableName={data?.chart.tableName || ''}
         >
             {minimal ? (
-                <DashboardChartTileMinimal {...rest} chartAndResults={data} />
+                <DashboardChartTileMinimal
+                    {...rest}
+                    tile={tile}
+                    isEditMode={isEditMode}
+                    chartAndResults={data}
+                />
             ) : (
-                <DashboardChartTileMain {...rest} chartAndResults={data} />
+                <DashboardChartTileMain
+                    {...rest}
+                    tile={tile}
+                    isEditMode={isEditMode}
+                    chartAndResults={data}
+                />
             )}
             <UnderlyingDataModal />
             <DrillDownModal />

@@ -1,23 +1,27 @@
 import {
+    ApiCalculateTotalResponse,
     ApiErrorPayload,
     ApiGetChartHistoryResponse,
     ApiGetChartVersionResponse,
     ApiSuccessEmpty,
     DashboardFilters,
+    SortField,
 } from '@lightdash/common';
-import { Body, Get, Post } from '@tsoa/runtime';
-import express from 'express';
 import {
+    Body,
     Controller,
+    Get,
     Middlewares,
     OperationId,
     Path,
+    Post,
     Request,
     Response,
     Route,
     SuccessResponse,
     Tags,
-} from 'tsoa';
+} from '@tsoa/runtime';
+import express from 'express';
 import { projectService, savedChartsService } from '../services/services';
 import {
     allowApiKeyAuthentication,
@@ -47,6 +51,7 @@ export class SavedChartController extends Controller {
         body: {
             dashboardFilters?: any; // DashboardFilters; temp disable validation
             invalidateCache?: boolean;
+            dashboardSorts?: SortField[];
         },
         @Path() chartUuid: string,
         @Request() req: express.Request,
@@ -60,6 +65,7 @@ export class SavedChartController extends Controller {
                 dashboardFilters: body.dashboardFilters,
                 versionUuid: undefined,
                 invalidateCache: body.invalidateCache,
+                dashboardSorts: body.dashboardSorts,
             }),
         };
     }
@@ -161,6 +167,37 @@ export class SavedChartController extends Controller {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Calculate metric totals from a saved chart
+     * @param chartUuid chartUuid for the chart to run
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/calculate-total')
+    @OperationId('CalculateTotalFromSavedChart')
+    async calculateTotalFromSavedChart(
+        @Path() chartUuid: string,
+        @Body()
+        body: {
+            dashboardFilters?: any; // DashboardFilters; temp disable validation
+            invalidateCache?: boolean;
+        },
+        @Request() req: express.Request,
+    ): Promise<ApiCalculateTotalResponse> {
+        this.setStatus(200);
+        const totalResult = await projectService.calculateTotalFromSavedChart(
+            req.user!,
+            chartUuid,
+            body.dashboardFilters,
+            body.invalidateCache,
+        );
+        return {
+            status: 'ok',
+            results: totalResult,
         };
     }
 }

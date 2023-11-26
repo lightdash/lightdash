@@ -10,6 +10,7 @@ import {
     isField,
     isFilterableField,
     isMetric,
+    isTableCalculationField,
     Metric,
 } from '@lightdash/common';
 import {
@@ -40,14 +41,20 @@ type Props = {
 const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
     const { fieldsMap } = useFiltersContext();
     const [isOpen, toggleFieldInput] = useToggle(false);
-    const [fields, dimensions, metrics] = useMemo<
-        [FieldWithSuggestions[], FilterableDimension[], Metric[]]
+    const [fields, dimensions, metrics, tableCalculations] = useMemo<
+        [
+            FieldWithSuggestions[],
+            FilterableDimension[],
+            Metric[],
+            FieldWithSuggestions[],
+        ]
     >(() => {
         const allFields = Object.values(fieldsMap);
         return [
             allFields,
             allFields.filter(isDimension),
             allFields.filter(isMetric),
+            allFields.filter(isTableCalculationField),
         ];
     }, [fieldsMap]);
 
@@ -95,6 +102,14 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                                   id: uuidv4(),
                                   ...filters.metrics,
                                   and: result.metrics,
+                              }
+                            : undefined,
+                    tableCalculations:
+                        result.tableCalculations.length > 0
+                            ? {
+                                  id: uuidv4(),
+                                  ...filters.tableCalculations,
+                                  and: result.tableCalculations,
                               }
                             : undefined,
                 },
@@ -193,6 +208,37 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                                             {
                                                 ...filters,
                                                 metrics: undefined,
+                                            },
+                                            true,
+                                        )
+                                    }
+                                />
+                            )}
+                        {filters.tableCalculations &&
+                            filterRulesPerFieldType.tableCalculations.length >=
+                                1 && (
+                                <FilterGroupForm
+                                    allowConvertToGroup
+                                    hideLine
+                                    hideButtons
+                                    conditionLabel="table calculation"
+                                    filterGroup={filters.tableCalculations}
+                                    fields={tableCalculations}
+                                    isEditMode={isEditMode}
+                                    onChange={(value) =>
+                                        setFilters(
+                                            {
+                                                ...filters,
+                                                tableCalculations: value,
+                                            },
+                                            false,
+                                        )
+                                    }
+                                    onDelete={() =>
+                                        setFilters(
+                                            {
+                                                ...filters,
+                                                tableCalculations: undefined,
                                             },
                                             true,
                                         )

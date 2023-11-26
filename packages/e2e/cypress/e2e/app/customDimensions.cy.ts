@@ -20,6 +20,7 @@ describe('Custom dimensions', () => {
         cy.findByText('Create').click();
 
         // Select metric
+        cy.findByText('Orders').click();
         cy.findByText('Total order amount').click();
         cy.get('button').contains('Run query').click();
 
@@ -37,7 +38,7 @@ describe('Custom dimensions', () => {
             `WITH  amount_amount_range_cte AS (`,
             `CAST(MIN("payments".amount) + (MAX("payments".amount) - MIN("payments".amount) ) AS INT) as ratio`,
             `WHEN "payments".amount >= amount_amount_range_cte.ratio * 0 / 5`,
-            `ELSE CONCAT(amount_amount_range_cte.ratio * 4 / 5, '-', amount_amount_range_cte.max_id)`,
+            `ELSE (amount_amount_range_cte.ratio * 4 / 5 || '-' || amount_amount_range_cte.max_id)`,
             `CROSS JOIN amount_amount_range_cte`,
             `GROUP BY 1`,
         ];

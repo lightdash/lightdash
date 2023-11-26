@@ -14,7 +14,7 @@ import {
     MetricType,
     SupportedDbtAdapter,
 } from '@lightdash/common';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { getValidChartConfig } from '../providers/ExplorerProvider';
 import { useSqlQueryMutation } from './useSqlQuery';
 import { SqlRunnerState } from './useSqlRunnerRoute';
@@ -149,14 +149,20 @@ const useSqlQueryVisualization = ({
         [fields],
     );
 
-    const [chartType, setChartType] = useState<ChartType>(
-        initialState?.chartConfig?.type || ChartType.CARTESIAN,
+    const [chartConfig, setChartConfig] = useState<ChartConfig>(
+        initialState?.chartConfig ||
+            getValidChartConfig(ChartType.CARTESIAN, undefined),
     );
-    const [chartConfig, setChartConfig] = useState<ChartConfig['config']>(
-        initialState?.chartConfig?.config,
-    );
+
     const [pivotFields, setPivotFields] = useState<string[] | undefined>(
         initialState?.pivotConfig?.columns,
+    );
+
+    const handleChartTypeChange = useCallback(
+        (chartType: ChartType) => {
+            setChartConfig(getValidChartConfig(chartType, chartConfig));
+        },
+        [chartConfig],
     );
 
     const createSavedChart: CreateSavedChartVersion | undefined = useMemo(
@@ -170,7 +176,7 @@ const useSqlQueryVisualization = ({
                                 columns: pivotFields,
                             }
                           : undefined,
-                      chartConfig: getValidChartConfig(chartType, chartConfig),
+                      chartConfig,
                       tableConfig: {
                           columnOrder: [...dimensionKeys, ...metricKeys],
                       },
@@ -178,7 +184,6 @@ const useSqlQueryVisualization = ({
                 : undefined,
         [
             chartConfig,
-            chartType,
             dimensionKeys,
             metricKeys,
             explore.name,
@@ -188,15 +193,14 @@ const useSqlQueryVisualization = ({
     );
 
     return {
-        initialChartConfig: initialState?.chartConfig,
         initialPivotDimensions: initialState?.pivotConfig?.columns,
         explore,
         fieldsMap: { ...fields.sqlQueryDimensions, ...fields.sqlQueryMetrics },
         resultsData,
-        chartType,
         columnOrder: [...dimensionKeys, ...metricKeys],
         createSavedChart,
-        setChartType,
+        chartConfig,
+        setChartType: handleChartTypeChange,
         setChartConfig,
         setPivotFields,
     };
