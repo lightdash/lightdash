@@ -7291,15 +7291,6 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
-                                    "granularity": {
-                                        "$ref": "#/components/schemas/DateGranularity"
-                                    },
-                                    "dashboardSorts": {
-                                        "items": {
-                                            "$ref": "#/components/schemas/SortField"
-                                        },
-                                        "type": "array"
-                                    },
                                     "invalidateCache": {
                                         "type": "boolean"
                                     }
@@ -7354,6 +7345,9 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "granularity": {
+                                        "$ref": "#/components/schemas/DateGranularity"
+                                    },
                                     "dashboardSorts": {
                                         "items": {
                                             "$ref": "#/components/schemas/SortField"
