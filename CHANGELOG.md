@@ -1,3 +1,10 @@
+## [0.875.4](https://github.com/lightdash/lightdash/compare/0.875.3...0.875.4) (2023-11-27)
+
+
+### Bug Fixes
+
+* ignore client_session_keep_alive ([#8099](https://github.com/lightdash/lightdash/issues/8099)) ([e6270d1](https://github.com/lightdash/lightdash/commit/e6270d1138781118be321aace603e5aa5bad87e0))
+
 ## [0.875.3](https://github.com/lightdash/lightdash/compare/0.875.2...0.875.3) (2023-11-27)
 
 
