@@ -6666,6 +6666,61 @@ export function RegisterRoutes(app: express.Router) {
         '/api/v1/saved/:chartUuid/results',
         ...fetchMiddlewares<RequestHandler>(SavedChartController),
         ...fetchMiddlewares<RequestHandler>(
+            SavedChartController.prototype.postChartResults,
+        ),
+
+        function SavedChartController_postChartResults(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        invalidateCache: { dataType: 'boolean' },
+                    },
+                },
+                chartUuid: {
+                    in: 'path',
+                    name: 'chartUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new SavedChartController();
+
+                const promise = controller.postChartResults.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.post(
+        '/api/v1/saved/:chartUuid/chart-and-results',
+        ...fetchMiddlewares<RequestHandler>(SavedChartController),
+        ...fetchMiddlewares<RequestHandler>(
             SavedChartController.prototype.postDashboardTile,
         ),
 
@@ -6684,9 +6739,10 @@ export function RegisterRoutes(app: express.Router) {
                         dashboardSorts: {
                             dataType: 'array',
                             array: { dataType: 'refAlias', ref: 'SortField' },
+                            required: true,
                         },
                         invalidateCache: { dataType: 'boolean' },
-                        dashboardFilters: { dataType: 'any' },
+                        dashboardFilters: { dataType: 'any', required: true },
                     },
                 },
                 chartUuid: {

@@ -41,7 +41,7 @@ Controllers are responsible for handling the request and response from the API. 
 be as thin as possible, delegating the business logic to services.
 
 When making changes to a controller or the types used in a controller, you should also generate the
-corresponding HOA files. You can do it by running `yarn workspace backend generate-api`.
+corresponding HOA files. You can do it by running `yarn generate-api`.
 
 Guidelines:
 

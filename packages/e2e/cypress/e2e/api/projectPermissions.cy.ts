@@ -215,7 +215,7 @@ describe('Lightdash API tests for member user with admin project permissions', (
         );
     });
 
-    it('Should get success response (200) from POST chart results with filters', () => {
+    it('Should get success response (200) from POST chart-and-results with filters', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         // Fetch a chart from spaces
@@ -224,7 +224,7 @@ describe('Lightdash API tests for member user with admin project permissions', (
                 const savedChartUuid = spacesResponse.body.results.find(
                     (space) => space.queries.length > 0,
                 ).queries[0].uuid;
-                const endpoint = `/saved/${savedChartUuid}/results`;
+                const endpoint = `/saved/${savedChartUuid}/chart-and-results`;
                 cy.request({
                     url: `${apiUrl}${endpoint}`,
                     headers: { 'Content-type': 'application/json' },
@@ -235,6 +235,7 @@ describe('Lightdash API tests for member user with admin project permissions', (
                             dimensions: [],
                             tableCalculations: [],
                         },
+                        dashboardSorts: [],
                     },
                 }).then((resp) => {
                     expect(resp.status).to.eq(200);
@@ -879,7 +880,7 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
         );
     });
 
-    it('Should get success response (200) from POST chart results with filters', () => {
+    it('Should get success response (200) from POST chart-and-results with filters', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         // Fetch a chart from spaces
@@ -888,7 +889,7 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
                 const savedChartUuid = spacesResponse.body.results.find(
                     (space) => space.queries.length > 0,
                 ).queries[0].uuid;
-                const endpoint = `/saved/${savedChartUuid}/results`;
+                const endpoint = `/saved/${savedChartUuid}/chart-and-results`;
                 cy.request({
                     url: `${apiUrl}${endpoint}`,
                     headers: { 'Content-type': 'application/json' },
@@ -899,6 +900,7 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
                             dimensions: [],
                             tableCalculations: [],
                         },
+                        dashboardSorts: [],
                     },
                 }).then((resp) => {
                     expect(resp.status).to.eq(200);
@@ -1133,7 +1135,7 @@ describe('Lightdash API tests for member user with viewer project permissions', 
         );
     });
 
-    it('Should get success response (200) from POST chart results with filters', () => {
+    it('Should get success response (200) from POST chart-and-results with filters', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         // Fetch a chart from spaces
@@ -1142,7 +1144,7 @@ describe('Lightdash API tests for member user with viewer project permissions', 
                 const savedChartUuid = spacesResponse.body.results.find(
                     (space) => space.queries.length > 0,
                 ).queries[0].uuid;
-                const endpoint = `/saved/${savedChartUuid}/results`;
+                const endpoint = `/saved/${savedChartUuid}/chart-and-results`;
                 cy.request({
                     url: `${apiUrl}${endpoint}`,
                     headers: { 'Content-type': 'application/json' },
@@ -1153,6 +1155,7 @@ describe('Lightdash API tests for member user with viewer project permissions', 
                             dimensions: [],
                             tableCalculations: [],
                         },
+                        dashboardSorts: [],
                     },
                 }).then((resp) => {
                     expect(resp.status).to.eq(200);

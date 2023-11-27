@@ -5401,7 +5401,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.875.0",
+        "version": "0.875.2",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -7287,6 +7287,60 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "invalidateCache": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/saved/{chartUuid}/chart-and-results": {
+            "post": {
+                "operationId": "postChartResults",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRunQueryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "chartUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
                                     "dashboardSorts": {
                                         "items": {
                                             "$ref": "#/components/schemas/SortField"
@@ -7298,6 +7352,10 @@
                                     },
                                     "dashboardFilters": {}
                                 },
+                                "required": [
+                                    "dashboardSorts",
+                                    "dashboardFilters"
+                                ],
                                 "type": "object"
                             }
                         }

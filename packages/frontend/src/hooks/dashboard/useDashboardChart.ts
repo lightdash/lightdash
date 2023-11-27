@@ -1,5 +1,5 @@
 import { useDashboardContext } from '../../providers/DashboardProvider';
-import { useChartResults } from '../useQueryResults';
+import { useChartAndResults } from '../useQueryResults';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 
 const useDashboardChart = (tileUuid: string, savedChartUuid: string | null) => {
@@ -7,7 +7,7 @@ const useDashboardChart = (tileUuid: string, savedChartUuid: string | null) => {
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
     const tileSort = chartSort[tileUuid] || [];
-    return useChartResults(
+    return useChartAndResults(
         savedChartUuid,
         dashboardFilters,
         tileSort,
