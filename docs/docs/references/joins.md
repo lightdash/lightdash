@@ -228,3 +228,19 @@ models:
 ```
 
 Check out our [dimensions](/references/dimensions) and [metrics](/references/metrics) reference docs to see all of the other configurations you can use with your joined fields.
+
+## Hide join tables
+
+Sometimes, you need to use an intermediate model to join two models together and don't want to show it in the UI.
+You can add a `hidden: true` tag to joins, like this:
+```
+models:
+- name: A
+  meta:
+  joins:
+   - join: B
+     sql_on: B.a_id = A.a_id
+     hidden: true
+   - join: C
+     sql_on: C.b_id = B.b_id
+```

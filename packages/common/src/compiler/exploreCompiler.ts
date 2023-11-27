@@ -129,6 +129,7 @@ export class ExploreCompiler {
                         ...tables[join.table],
                         name: joinTableName,
                         label: joinTableLabel,
+                        hidden: join.hidden,
                         dimensions: Object.keys(tableDimensions).reduce<
                             Record<string, Dimension>
                         >((acc, dimensionKey) => {
@@ -146,7 +147,10 @@ export class ExploreCompiler {
                             if (isRequired || isVisible) {
                                 acc[dimensionKey] = {
                                     ...dimension,
-                                    hidden: dimension.hidden || !isVisible,
+                                    hidden:
+                                        join.hidden ||
+                                        dimension.hidden ||
+                                        !isVisible,
                                     table: joinTableName,
                                     tableLabel: joinTableLabel,
                                 };
@@ -160,16 +164,20 @@ export class ExploreCompiler {
                                     join.fields.includes(d),
                             )
                             .reduce<Record<string, Metric>>(
-                                (prevMetrics, metricKey) => ({
-                                    ...prevMetrics,
-                                    [metricKey]: {
-                                        ...tables[join.table].metrics[
-                                            metricKey
-                                        ],
-                                        table: joinTableName,
-                                        tableLabel: joinTableLabel,
-                                    },
-                                }),
+                                (prevMetrics, metricKey) => {
+                                    const metric =
+                                        tables[join.table].metrics[metricKey];
+                                    return {
+                                        ...prevMetrics,
+                                        [metricKey]: {
+                                            ...metric,
+                                            hidden:
+                                                !!join.hidden || metric.hidden,
+                                            table: joinTableName,
+                                            tableLabel: joinTableLabel,
+                                        },
+                                    };
+                                },
                                 {},
                             ),
                     },
@@ -514,6 +522,7 @@ export class ExploreCompiler {
                 },
                 tables,
             ),
+            hidden: join.hidden,
         };
     }
 }

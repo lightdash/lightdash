@@ -60,7 +60,10 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                 // Sorting explores by label
                 return tableA.label.localeCompare(tableB.label);
             })
-            .filter((table) => !(isSearching && !searchHasResults(table)));
+            .filter(
+                (table) =>
+                    !(isSearching && !searchHasResults(table)) && !table.hidden,
+            );
     }, [explore, searchHasResults, isSearching]);
 
     const missingCustomMetrics = useMemo(() => {

@@ -156,7 +156,7 @@ const testCompile = (): Cypress.Chainable<string> => {
     cy.contains('Step 2/3', { timeout: 60000 });
     cy.contains('Successfully synced dbt project!', { timeout: 60000 });
 
-    cy.contains('selected 10 models');
+    cy.contains('selected 12 models');
     // Configure
     cy.findByText('Save changes')
         .parent('button')
