@@ -904,20 +904,14 @@ export class ProjectService {
     async runViewChartQuery({
         user,
         chartUuid,
-        dashboardFilters,
         versionUuid,
         invalidateCache,
-        dashboardSorts,
-        granularity,
     }: {
         user: SessionUser;
         chartUuid: string;
-        dashboardFilters?: DashboardFilters;
         versionUuid?: string;
         invalidateCache?: boolean;
-        dashboardSorts?: SortField[];
-        granularity?: DateGranularity;
-    }): Promise<ApiChartAndResults> {
+    }): Promise<ApiQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -958,29 +952,7 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
-        const tables = Object.keys(explore.tables);
-        const appliedDashboardFilters = dashboardFilters
-            ? {
-                  dimensions: getDashboardFilterRulesForTables(
-                      tables,
-                      dashboardFilters.dimensions,
-                  ),
-                  metrics: getDashboardFilterRulesForTables(
-                      tables,
-                      dashboardFilters.metrics,
-                  ),
-                  tableCalculations: getDashboardFilterRulesForTables(
-                      tables,
-                      dashboardFilters.tableCalculations,
-                  ),
-              }
-            : undefined;
-        const metricQuery: MetricQuery = appliedDashboardFilters
-            ? addDashboardFiltersToMetricQuery(
-                  savedChart.metricQuery,
-                  appliedDashboardFilters,
-              )
-            : savedChart.metricQuery;
+        const { metricQuery } = savedChart;
 
         const queryTags: RunQueryTags = {
             organization_uuid: organizationUuid,
@@ -989,12 +961,108 @@ export class ProjectService {
             chart_uuid: chartUuid,
         };
 
-        const metricWithOverrideSorting: MetricQuery = {
-            ...metricQuery,
+        const { cacheMetadata, rows } = await this.runQueryAndFormatRows({
+            user,
+            metricQuery: savedChart.metricQuery,
+            projectUuid,
+            exploreName: savedChart.tableName,
+            csvLimit: undefined,
+            context: QueryExecutionContext.CHART,
+            queryTags,
+            invalidateCache,
+            explore,
+        });
+
+        return {
+            metricQuery,
+            cacheMetadata,
+            rows,
+        };
+    }
+
+    async getChartAndResults({
+        user,
+        chartUuid,
+        dashboardFilters,
+        invalidateCache,
+        dashboardSorts,
+        granularity,
+    }: {
+        user: SessionUser;
+        chartUuid: string;
+        dashboardFilters: DashboardFilters;
+        invalidateCache?: boolean;
+        dashboardSorts: SortField[];
+        granularity?: DateGranularity;
+    }): Promise<ApiChartAndResults> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        const savedChart = await this.savedChartModel.get(chartUuid);
+        const { organizationUuid, projectUuid } = savedChart;
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', { organizationUuid, projectUuid }),
+            ) ||
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const [space, explore] = await Promise.all([
+            this.spaceModel.getSpaceSummary(savedChart.spaceUuid),
+            this.getExplore(
+                user,
+                projectUuid,
+                savedChart.tableName,
+                organizationUuid,
+            ),
+        ]);
+
+        if (!hasSpaceAccess(user, space)) {
+            throw new ForbiddenError();
+        }
+
+        const tables = Object.keys(explore.tables);
+        const appliedDashboardFilters = {
+            dimensions: getDashboardFilterRulesForTables(
+                tables,
+                dashboardFilters.dimensions,
+            ),
+            metrics: getDashboardFilterRulesForTables(
+                tables,
+                dashboardFilters.metrics,
+            ),
+            tableCalculations: getDashboardFilterRulesForTables(
+                tables,
+                dashboardFilters.tableCalculations,
+            ),
+        };
+        const metricQueryWithDashboardOverrides: MetricQuery = {
+            ...addDashboardFiltersToMetricQuery(
+                savedChart.metricQuery,
+                appliedDashboardFilters,
+            ),
             sorts:
                 dashboardSorts && dashboardSorts.length > 0
                     ? dashboardSorts
-                    : metricQuery.sorts,
+                    : savedChart.metricQuery.sorts,
+        };
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+            chart_uuid: chartUuid,
         };
 
         const {
@@ -1002,7 +1070,7 @@ export class ProjectService {
             oldDimension,
             newDimension,
         } = ProjectService.updateMetricQueryGranularity(
-            metricWithOverrideSorting,
+            metricQueryWithDashboardOverrides,
             explore,
             granularity,
         );
@@ -1013,9 +1081,7 @@ export class ProjectService {
             projectUuid,
             exploreName: savedChart.tableName,
             csvLimit: undefined,
-            context: dashboardFilters
-                ? QueryExecutionContext.DASHBOARD
-                : QueryExecutionContext.CHART,
+            context: QueryExecutionContext.DASHBOARD,
             queryTags,
             invalidateCache,
             explore,
@@ -1035,7 +1101,7 @@ export class ProjectService {
         return {
             chart: savedChart,
             explore,
-            metricQuery,
+            metricQuery: metricQueryWithDashboardOverrides,
             cacheMetadata,
             rows: rowsWithGranularity,
             appliedDashboardFilters,

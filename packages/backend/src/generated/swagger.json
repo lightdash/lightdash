@@ -7302,9 +7302,73 @@
                                     },
                                     "invalidateCache": {
                                         "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/saved/{chartUuid}/chart-and-results": {
+            "post": {
+                "operationId": "postChartResults",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRunQueryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "chartUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "dashboardSorts": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/SortField"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "invalidateCache": {
+                                        "type": "boolean"
                                     },
                                     "dashboardFilters": {}
                                 },
+                                "required": [
+                                    "dashboardSorts",
+                                    "dashboardFilters"
+                                ],
                                 "type": "object"
                             }
                         }

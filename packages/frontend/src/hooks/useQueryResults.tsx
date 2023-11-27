@@ -27,8 +27,24 @@ type QueryResultsProps = {
     chartUuid?: string;
 };
 
-// This API call will be used for getting charts in view mode and dashboard tiles
 const getChartResults = async ({
+    chartUuid,
+    invalidateCache,
+}: {
+    chartUuid?: string;
+    invalidateCache?: boolean;
+    dashboardSorts?: SortField[];
+}) => {
+    return lightdashApi<ApiQueryResults>({
+        url: `/saved/${chartUuid}/results`,
+        method: 'POST',
+        body: JSON.stringify({
+            ...(invalidateCache && { invalidateCache: true }),
+        }),
+    });
+};
+
+const getChartAndResults = async ({
     chartUuid,
     dashboardFilters,
     invalidateCache,
@@ -42,7 +58,7 @@ const getChartResults = async ({
     granularity?: DateGranularity;
 }) => {
     return lightdashApi<ApiChartAndResults>({
-        url: `/saved/${chartUuid}/results`,
+        url: `/saved/${chartUuid}/chart-and-results`,
         method: 'POST',
         body: JSON.stringify({
             dashboardFilters,
@@ -179,8 +195,7 @@ export const useUnderlyingDataResults = (
     });
 };
 
-// This hook will be used for getting charts in view mode and dashboard tiles
-export const useChartResults = (
+export const useChartAndResults = (
     chartUuid: string | null,
     dashboardFilters?: DashboardFilters,
     dashboardSorts?: SortField[],
@@ -205,7 +220,7 @@ export const useChartResults = (
     return useQuery<ApiChartAndResults, ApiError>({
         queryKey,
         queryFn: () =>
-            getChartResults({
+            getChartAndResults({
                 chartUuid: chartUuid!,
                 dashboardFilters: timezoneFixFilters,
                 invalidateCache,
