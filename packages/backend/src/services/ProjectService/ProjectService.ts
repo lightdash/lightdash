@@ -983,6 +983,11 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
+        await this.analyticsModel.addChartViewEvent(
+            savedChart.uuid,
+            user.userUuid,
+        );
+
         const tables = Object.keys(explore.tables);
         const appliedDashboardFilters = {
             dimensions: getDashboardFilterRulesForTables(
@@ -1027,11 +1032,6 @@ export class ProjectService {
             invalidateCache,
             explore,
         });
-
-        await this.analyticsModel.addChartViewEvent(
-            savedChart.uuid,
-            user.userUuid,
-        );
 
         return {
             chart: savedChart,
