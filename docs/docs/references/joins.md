@@ -229,7 +229,7 @@ models:
 
 Check out our [dimensions](/references/dimensions) and [metrics](/references/metrics) reference docs to see all of the other configurations you can use with your joined fields.
 
-## Hidde join tables
+## Hide join tables
 
 Sometimes, you need to use an intermediate model to join two models together and don't want to show it in the UI.
 You can add a `hidden: true` tag to joins, like this:
