@@ -9,6 +9,7 @@ import {
     hasChartsInDashboard,
     isChartScheduler,
     isChartTile,
+    isDashboardScheduler,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     isUserWithOrg,
@@ -23,7 +24,10 @@ import * as Sentry from '@sentry/node';
 import cronstrue from 'cronstrue';
 import { v4 as uuidv4 } from 'uuid';
 import { analytics } from '../../analytics/client';
-import { CreateDashboardOrVersionEvent } from '../../analytics/LightdashAnalytics';
+import {
+    CreateDashboardOrVersionEvent,
+    SchedulerDashboardUpsertEvent,
+} from '../../analytics/LightdashAnalytics';
 import { schedulerClient, slackClient } from '../../clients/clients';
 import database from '../../database/database';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
@@ -614,7 +618,7 @@ export class DashboardService {
             dashboardUuid,
             savedChartUuid: null,
         });
-        analytics.track({
+        const createSchedulerData: SchedulerDashboardUpsertEvent = {
             userId: user.userUuid,
             event: 'scheduler.created',
             properties: {
@@ -637,8 +641,13 @@ export class DashboardService {
                     scheduler.format === SchedulerFormat.GSHEETS
                         ? []
                         : scheduler.targets.map(getSchedulerTargetType),
+                filtersUpdatedNum:
+                    isDashboardScheduler(scheduler) && scheduler.filters
+                        ? scheduler.filters.length
+                        : 0,
             },
-        });
+        };
+        analytics.track(createSchedulerData);
 
         await slackClient.joinChannels(
             user.organizationUuid,

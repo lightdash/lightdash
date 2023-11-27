@@ -7,6 +7,7 @@ import {
     ForbiddenError,
     isChartScheduler,
     isCreateSchedulerSlackTarget,
+    isDashboardScheduler,
     isUserWithOrg,
     ParameterError,
     ScheduledJobs,
@@ -18,6 +19,10 @@ import {
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import { analytics } from '../../analytics/client';
+import {
+    SchedulerDashboardUpsertEvent,
+    SchedulerUpsertEvent,
+} from '../../analytics/LightdashAnalytics';
 import { schedulerClient, slackClient } from '../../clients/clients';
 import { LightdashConfig } from '../../config/parseConfig';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
@@ -164,7 +169,9 @@ export class SchedulerService {
             ...updatedScheduler,
             schedulerUuid,
         });
-        analytics.track({
+        const updateSchedulerEventData:
+            | SchedulerUpsertEvent
+            | SchedulerDashboardUpsertEvent = {
             userId: user.userUuid,
             event: 'scheduler.updated',
             properties: {
@@ -187,8 +194,14 @@ export class SchedulerService {
                     scheduler.format === SchedulerFormat.GSHEETS
                         ? []
                         : scheduler.targets.map(getSchedulerTargetType),
+                ...(isDashboardScheduler(scheduler) && {
+                    filtersUpdatedNum: scheduler.filters
+                        ? scheduler.filters.length
+                        : 0,
+                }),
             },
-        });
+        };
+        analytics.track(updateSchedulerEventData);
         await slackClient.joinChannels(
             user.organizationUuid,
             SchedulerModel.getSlackChannels(scheduler.targets),
