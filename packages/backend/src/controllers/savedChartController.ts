@@ -54,7 +54,7 @@ export class SavedChartController extends Controller {
             dashboardFilters?: any; // DashboardFilters; temp disable validation
             invalidateCache?: boolean;
             dashboardSorts?: SortField[];
-            granularity?: string;
+            granularity?: DateGranularity;
         },
         @Path() chartUuid: string,
         @Request() req: express.Request,
@@ -69,9 +69,7 @@ export class SavedChartController extends Controller {
                 versionUuid: undefined,
                 invalidateCache: body.invalidateCache,
                 dashboardSorts: body.dashboardSorts,
-                granularity: body.granularity
-                    ? (body.granularity as DateGranularity)
-                    : undefined,
+                granularity: body.granularity,
             }),
         };
     }

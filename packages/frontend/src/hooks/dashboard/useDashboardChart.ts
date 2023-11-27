@@ -7,7 +7,7 @@ const useDashboardChart = (tileUuid: string, savedChartUuid: string | null) => {
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
     const tileSort = chartSort[tileUuid] || [];
-    const granularity = useDashboardContext((c) => c.dateGranularity);
+    const granularity = useDashboardContext((c) => c.dateZoomGranularity);
     return useChartResults(
         savedChartUuid,
         dashboardFilters,

@@ -2334,6 +2334,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DateGranularity: {
+        dataType: 'refEnum',
+        enums: ['Day', 'Week', 'Month', 'Quarter', 'Year'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_LightdashUser.userUuid-or-firstName-or-lastName_': {
         dataType: 'refAlias',
         type: {
@@ -6681,7 +6686,7 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        granularity: { dataType: 'string' },
+                        granularity: { ref: 'DateGranularity' },
                         dashboardSorts: {
                             dataType: 'array',
                             array: { dataType: 'refAlias', ref: 'SortField' },
