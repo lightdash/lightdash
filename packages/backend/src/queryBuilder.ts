@@ -26,18 +26,48 @@ import {
     renderTableCalculationFilterRuleSql,
     SortField,
     SupportedDbtAdapter,
+    TimeFrames,
     UserAttributeValueMap,
+    validateTimeFrames,
     WarehouseClient,
 } from '@lightdash/common';
 import { hasUserAttribute } from './services/UserAttributesService/UserAttributeUtils';
 
-const getDimensionFromId = (dimId: FieldId, explore: Explore) => {
+const getDimensionFromId = (
+    dimId: FieldId,
+    explore: Explore,
+): CompiledDimension => {
     const dimensions = getDimensions(explore);
     const dimension = dimensions.find((d) => fieldId(d) === dimId);
-    if (dimension === undefined)
+
+    if (dimension === undefined) {
+        // There are the only time frames we support on Date zoom
+        const timeFrames = ['day', 'week', 'month', 'quarter', 'year'];
+        const isDate = timeFrames.some((timeFrame) =>
+            dimId.endsWith(timeFrame),
+        );
+        if (isDate) {
+            const baseDateField = dimId.replace(
+                /_(day|week|month|quarter|year)$/,
+                '',
+            );
+            const baseField = getDimensionFromId(baseDateField, explore);
+
+            const timeString = dimId.replace(`${baseDateField}_`, '');
+            const [timeFrame] = validateTimeFrames([timeString]);
+
+            if (baseField && timeFrame)
+                return {
+                    ...baseField,
+                    compiledSql: `DATE_TRUNC('${timeFrame}', ${baseField.compiledSql})`,
+                    timeInterval: timeFrame,
+                };
+        }
+
         throw new FieldReferenceError(
             `Tried to reference dimension with unknown field id: ${dimId}`,
         );
+    }
     return dimension;
 };
 
