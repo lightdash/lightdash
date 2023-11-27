@@ -220,9 +220,8 @@ export const useChartAndResults = (
         ],
         [chartUuid, dashboardFilters, invalidateCache, sortKey],
     );
-    const apiChartAndResults = queryClient.getQueryData<
-        ApiChartAndResults & { fetched: boolean }
-    >(queryKey);
+    const apiChartAndResults =
+        queryClient.getQueryData<ApiChartAndResults>(queryKey);
 
     const timezoneFixFilters =
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);
