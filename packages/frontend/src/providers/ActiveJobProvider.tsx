@@ -1,5 +1,5 @@
-import { SpinnerSize } from '@blueprintjs/core';
 import { ApiError, Job, JobStatusType, JobType } from '@lightdash/common';
+import { Loader } from '@mantine/core';
 import React, {
     createContext,
     Dispatch,
@@ -12,7 +12,6 @@ import React, {
 } from 'react';
 import { useQueryClient } from 'react-query';
 import { AppToaster } from '../components/AppToaster';
-import { ToastSpinner } from '../components/ToastSpinner';
 import useToaster from '../hooks/toaster/useToaster';
 import {
     jobStatusLabel,
@@ -64,7 +63,7 @@ export const ActiveJobProvider: FC = ({ children }) => {
                                 ? runningStepsInfo(job?.steps)
                                       .runningStepMessage
                                 : '',
-                            icon: <ToastSpinner size={SpinnerSize.SMALL} />,
+                            icon: <Loader size="sm" mt="xs" ml="xs" />,
                             timeout: 0,
                             action: {
                                 text: 'View log',
