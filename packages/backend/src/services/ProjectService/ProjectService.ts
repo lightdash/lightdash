@@ -855,7 +855,7 @@ export class ProjectService {
 
     static updateMetricQueryGranularity(
         metricQuery: MetricQuery,
-        explore: Explore,
+        exploreDimensions: CompiledDimension[],
         granularity?: DateGranularity,
     ): {
         metricQuery: MetricQuery;
@@ -863,9 +863,8 @@ export class ProjectService {
         newDimension?: string;
     } {
         if (granularity) {
-            const dimensions = getDimensions(explore);
             const timeDimension = metricQuery.dimensions.find((dimension) => {
-                const dim = dimensions.find(
+                const dim = exploreDimensions.find(
                     (d) => getFieldId(d) === dimension,
                 )?.type;
                 return (
@@ -1070,13 +1069,15 @@ export class ProjectService {
             chart_uuid: chartUuid,
         };
 
+        const exploreDimensions = getDimensions(explore);
+
         const {
             metricQuery: metricWithOverrideGranularity,
             oldDimension,
             newDimension,
         } = ProjectService.updateMetricQueryGranularity(
             metricQueryWithDashboardOverrides,
-            explore,
+            exploreDimensions,
             granularity,
         );
 
@@ -1102,10 +1103,9 @@ export class ProjectService {
                       [oldDimension]: row[newDimension],
                   }))
                 : rows;
-        const exploreDimensions = getDimensions(explore);
         const metricQueryDimensions = [
-            ...metricWithOverrideSorting.dimensions,
-            ...(metricWithOverrideSorting.customDimensions ?? []),
+            ...metricQueryWithDashboardOverrides.dimensions,
+            ...(metricQueryWithDashboardOverrides.customDimensions ?? []),
         ];
         const hasADateDimension = exploreDimensions.find(
             (c) =>
@@ -1113,7 +1113,7 @@ export class ProjectService {
         );
 
         if (hasADateDimension) {
-            metricQuery.metadata = {
+            metricQueryWithDashboardOverrides.metadata = {
                 hasADateDimension: getFieldId(hasADateDimension),
             };
         }
