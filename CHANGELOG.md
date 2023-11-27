@@ -1,3 +1,10 @@
+# [0.876.0](https://github.com/lightdash/lightdash/compare/0.875.4...0.876.0) (2023-11-27)
+
+
+### Features
+
+* hide joined tables ([#8088](https://github.com/lightdash/lightdash/issues/8088)) ([1ab6724](https://github.com/lightdash/lightdash/commit/1ab6724bb7c20dad4db6a3af25e51c9fc2fbde6c))
+
 ## [0.875.4](https://github.com/lightdash/lightdash/compare/0.875.3...0.875.4) (2023-11-27)
 
 
