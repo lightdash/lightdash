@@ -216,9 +216,8 @@ export const useChartAndResults = (
             dashboardFilters,
             invalidateCache,
             sortKey,
-            granularity,
         ],
-        [chartUuid, dashboardFilters, invalidateCache, sortKey, granularity],
+        [chartUuid, dashboardFilters, invalidateCache, sortKey],
     );
     const apiChartAndResults = queryClient.getQueryData<
         ApiChartAndResults & { fetched: boolean }
@@ -228,20 +227,20 @@ export const useChartAndResults = (
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);
 
     useEffect(() => {
-        if (!isDateZoomFeatureEnabled) return;
+        if (!isDateZoomFeatureEnabled || !granularity) return;
 
-        const hasDateDimensions =
-            apiChartAndResults?.metricQuery?.metadata?.hasADateDimension;
+        const hasADateDimension =
+            !!apiChartAndResults?.metricQuery?.metadata?.hasADateDimension;
 
-        if (hasDateDimensions) {
-            queryClient.invalidateQueries(queryKey, { refetchInactive: true });
+        if (hasADateDimension) {
+            queryClient.invalidateQueries(queryKey);
         }
     }, [
+        apiChartAndResults?.metricQuery?.metadata?.hasADateDimension,
         granularity,
-        apiChartAndResults?.metricQuery,
+        isDateZoomFeatureEnabled,
         queryClient,
         queryKey,
-        isDateZoomFeatureEnabled,
     ]);
 
     return useQuery<ApiChartAndResults, ApiError>({
