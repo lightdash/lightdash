@@ -86,6 +86,7 @@ export const projectService = new ProjectService({
     sshKeyPairModel,
     userAttributesModel,
     s3CacheClient,
+    analyticsModel,
 });
 
 export const shareService = new ShareService({

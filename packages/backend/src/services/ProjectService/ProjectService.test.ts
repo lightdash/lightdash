@@ -9,6 +9,7 @@ import { analytics } from '../../analytics/client';
 import { s3CacheClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import {
+    analyticsModel,
     jobModel,
     onboardingModel,
     projectModel,
@@ -78,6 +79,7 @@ jest.mock('../../models/models', () => ({
     },
     sshKeyPairModel: {},
     userAttributesModel: {},
+    analyticsModel: {},
 }));
 
 describe('ProjectService', () => {
@@ -94,6 +96,7 @@ describe('ProjectService', () => {
         sshKeyPairModel,
         userAttributesModel,
         s3CacheClient,
+        analyticsModel,
     });
     afterEach(() => {
         jest.clearAllMocks();

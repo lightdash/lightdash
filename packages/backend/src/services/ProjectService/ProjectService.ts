@@ -96,6 +96,7 @@ import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
+import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -135,6 +136,7 @@ type ProjectServiceDependencies = {
     sshKeyPairModel: SshKeyPairModel;
     userAttributesModel: UserAttributesModel;
     s3CacheClient: S3CacheClient;
+    analyticsModel: AnalyticsModel;
 };
 
 export class ProjectService {
@@ -158,6 +160,8 @@ export class ProjectService {
 
     s3CacheClient: S3CacheClient;
 
+    analyticsModel: AnalyticsModel;
+
     constructor({
         projectModel,
         onboardingModel,
@@ -168,6 +172,7 @@ export class ProjectService {
         sshKeyPairModel,
         userAttributesModel,
         s3CacheClient,
+        analyticsModel,
     }: ProjectServiceDependencies) {
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
@@ -179,6 +184,7 @@ export class ProjectService {
         this.sshKeyPairModel = sshKeyPairModel;
         this.userAttributesModel = userAttributesModel;
         this.s3CacheClient = s3CacheClient;
+        this.analyticsModel = analyticsModel;
     }
 
     private async _resolveWarehouseClientSshKeys<
@@ -1031,6 +1037,11 @@ export class ProjectService {
         if (!hasSpaceAccess(user, space)) {
             throw new ForbiddenError();
         }
+
+        await this.analyticsModel.addChartViewEvent(
+            savedChart.uuid,
+            user.userUuid,
+        );
 
         const tables = Object.keys(explore.tables);
         const appliedDashboardFilters = {
