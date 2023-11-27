@@ -9,7 +9,7 @@ import {
     SortField,
 } from '@lightdash/common';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
@@ -202,6 +202,7 @@ export const useChartAndResults = (
     invalidateCache?: boolean,
     granularity?: DateGranularity,
 ) => {
+    const previousDateZoomGranularity = useRef<DateGranularity | undefined>();
     const isDateZoomFeatureEnabled = useFeatureFlagEnabled('date-zoom');
     const queryClient = useQueryClient();
 
@@ -225,27 +226,11 @@ export const useChartAndResults = (
 
     const timezoneFixFilters =
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);
+    const hasADateDimension =
+        !!apiChartAndResults?.metricQuery?.metadata?.hasADateDimension;
 
-    useEffect(() => {
-        if (!isDateZoomFeatureEnabled || !granularity) return;
-
-        const hasADateDimension =
-            !!apiChartAndResults?.metricQuery?.metadata?.hasADateDimension;
-
-        if (hasADateDimension) {
-            queryClient.invalidateQueries(queryKey);
-        }
-    }, [
-        apiChartAndResults?.metricQuery?.metadata?.hasADateDimension,
-        granularity,
-        isDateZoomFeatureEnabled,
-        queryClient,
-        queryKey,
-    ]);
-
-    return useQuery<ApiChartAndResults, ApiError>({
-        queryKey,
-        queryFn: () =>
+    const fetchChartAndResults = useCallback(
+        () =>
             getChartAndResults({
                 chartUuid: chartUuid!,
                 dashboardFilters: timezoneFixFilters,
@@ -253,10 +238,36 @@ export const useChartAndResults = (
                 dashboardSorts,
                 granularity,
             }),
+        [
+            chartUuid,
+            timezoneFixFilters,
+            invalidateCache,
+            dashboardSorts,
+            granularity,
+        ],
+    );
+
+    const chartAndResultsQuery = useQuery<ApiChartAndResults, ApiError>({
+        queryKey,
+        queryFn: fetchChartAndResults,
         enabled: !!chartUuid,
         retry: false,
         refetchOnMount: false,
     });
+
+    const { refetch } = chartAndResultsQuery;
+
+    useEffect(() => {
+        if (isDateZoomFeatureEnabled && hasADateDimension) {
+            // Refetch if granularity has changed or was reset
+            if (previousDateZoomGranularity.current !== granularity) {
+                previousDateZoomGranularity.current = granularity;
+                refetch();
+            }
+        }
+    }, [hasADateDimension, granularity, isDateZoomFeatureEnabled, refetch]);
+
+    return chartAndResultsQuery;
 };
 
 const getChartVersionResults = async (
