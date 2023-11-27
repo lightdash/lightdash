@@ -7,6 +7,7 @@ import {
     Dashboard,
     DashboardFilterRule,
     DashboardFilters,
+    DateGranularity,
     fieldId,
     FilterableField,
     isDashboardChartTileType,
@@ -87,6 +88,8 @@ type DashboardContext = {
     hasChartTiles: boolean;
     chartSort: Record<string, SortField[]>;
     setChartSort: (sort: Record<string, SortField[]>) => void;
+    dateGranularity: DateGranularity | undefined;
+    setDateGranularity: (DateGranularity: DateGranularity | undefined) => void;
 };
 
 const Context = createContext<DashboardContext | undefined>(undefined);
@@ -140,6 +143,9 @@ export const DashboardProvider: React.FC<{
     const [invalidateCache, setInvalidateCache] = useState<boolean>(false);
 
     const [chartSort, setChartSort] = useState<Record<string, SortField[]>>({});
+    const [dateGranularity, setDateGranularity] = useState<
+        DateGranularity | undefined
+    >();
 
     const {
         overridesForSavedDashboardFilters,
@@ -521,6 +527,8 @@ export const DashboardProvider: React.FC<{
         hasChartTiles,
         chartSort,
         setChartSort,
+        dateGranularity,
+        setDateGranularity,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };

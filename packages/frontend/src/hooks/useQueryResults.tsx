@@ -3,6 +3,7 @@ import {
     ApiError,
     ApiQueryResults,
     DashboardFilters,
+    DateGranularity,
     getCustomDimensionId,
     MetricQuery,
     SortField,
@@ -38,7 +39,7 @@ const getChartResults = async ({
     dashboardFilters?: DashboardFilters;
     invalidateCache?: boolean;
     dashboardSorts?: SortField[];
-    granularity?: string;
+    granularity?: DateGranularity;
 }) => {
     return lightdashApi<ApiChartAndResults>({
         url: `/saved/${chartUuid}/results`,
@@ -184,7 +185,7 @@ export const useChartResults = (
     dashboardFilters?: DashboardFilters,
     dashboardSorts?: SortField[],
     invalidateCache?: boolean,
-    granularity?: string,
+    granularity?: DateGranularity,
 ) => {
     const sortKey =
         dashboardSorts

@@ -22,3 +22,10 @@ export enum TimeFrames {
     MONTH_NAME = 'MONTH_NAME',
     QUARTER_NAME = 'QUARTER_NAME',
 }
+
+export enum DateGranularity {
+    DAY = 'Day',
+    MONTH = 'Month',
+    QUARTER = 'Quarter',
+    YEAR = 'Year',
+}

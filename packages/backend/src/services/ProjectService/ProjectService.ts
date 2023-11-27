@@ -21,6 +21,7 @@ import {
     DashboardAvailableFilters,
     DashboardBasicDetails,
     DashboardFilters,
+    DateGranularity,
     DbtProjectType,
     deepEqual,
     DefaultSupportedDbtVersion,
@@ -853,7 +854,7 @@ export class ProjectService {
     static updateMetricQueryGranularity(
         metricQuery: MetricQuery,
         explore: Explore,
-        granularity?: TimeFrames,
+        granularity?: DateGranularity,
     ): {
         metricQuery: MetricQuery;
         oldDimension?: string;
@@ -876,7 +877,7 @@ export class ProjectService {
                     /_(day|week|month|quarter|year)$/,
                     '',
                 );
-                const newTimeDimension = `${baseDateField}_${granularity}`;
+                const newTimeDimension = `${baseDateField}_${granularity.toLowerCase()}`;
 
                 // TODO replace sorts / filters ?
                 return {
@@ -916,7 +917,7 @@ export class ProjectService {
         versionUuid?: string;
         invalidateCache?: boolean;
         dashboardSorts?: SortField[];
-        granularity?: TimeFrames;
+        granularity?: DateGranularity;
     }): Promise<ApiChartAndResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');

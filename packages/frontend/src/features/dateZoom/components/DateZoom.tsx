@@ -1,4 +1,4 @@
-import { TimeFrames } from '@lightdash/common';
+import { DateGranularity } from '@lightdash/common';
 import { Button, Menu, Text, useMantineTheme } from '@mantine/core';
 import {
     IconCalendarSearch,
@@ -7,33 +7,13 @@ import {
 } from '@tabler/icons-react';
 import { useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-
-const DATE_ZOOM_OPTIONS = [
-    // TODO: add support for these times
-    {
-        value: TimeFrames.DAY,
-        label: 'Day',
-    },
-    {
-        value: TimeFrames.MONTH,
-        label: 'Month',
-    },
-    {
-        value: TimeFrames.QUARTER,
-        label: 'Quarter',
-    },
-    {
-        value: TimeFrames.YEAR,
-        label: 'Year',
-    },
-];
+import { useDashboardContext } from '../../../providers/DashboardProvider';
 
 export const DateZoom = () => {
     const theme = useMantineTheme();
     const [isOpen, setIsOpen] = useState(false);
-    const [dateGranularity, setDateGranularity] = useState<
-        typeof DATE_ZOOM_OPTIONS[0] | undefined
-    >(undefined);
+    const dateGranularity = useDashboardContext((c) => c.dateGranularity);
+    const setDateGranularity = useDashboardContext((c) => c.setDateGranularity);
 
     return (
         <Menu
@@ -70,7 +50,7 @@ export const DateZoom = () => {
                         {dateGranularity ? `:` : null}{' '}
                         {dateGranularity ? (
                             <Text span fw={500}>
-                                {dateGranularity.label}
+                                {dateGranularity}
                             </Text>
                         ) : null}
                     </Text>
@@ -101,30 +81,30 @@ export const DateZoom = () => {
                 >
                     Default
                 </Menu.Item>
-                {DATE_ZOOM_OPTIONS.map(({ value, label }) => (
+                {Object.values(DateGranularity).map((granularity) => (
                     <Menu.Item
                         fz="xs"
-                        key={value}
+                        key={granularity}
                         onClick={() => {
-                            setDateGranularity({ value, label });
+                            setDateGranularity(granularity);
                             setIsOpen(false);
                         }}
-                        disabled={dateGranularity?.value === value}
+                        disabled={dateGranularity === granularity}
                         bg={
-                            dateGranularity?.value === value
+                            dateGranularity === granularity
                                 ? theme.colors.blue['6']
                                 : 'white'
                         }
                         sx={{
                             '&[disabled]': {
                                 color:
-                                    dateGranularity?.value === value
+                                    dateGranularity === granularity
                                         ? 'white'
                                         : 'black',
                             },
                         }}
                     >
-                        {label}
+                        {granularity}
                     </Menu.Item>
                 ))}
             </Menu.Dropdown>
