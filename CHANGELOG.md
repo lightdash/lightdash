@@ -1,3 +1,10 @@
+## [0.875.3](https://github.com/lightdash/lightdash/compare/0.875.2...0.875.3) (2023-11-27)
+
+
+### Bug Fixes
+
+* add undefined value to posthog if no key ([#8101](https://github.com/lightdash/lightdash/issues/8101)) ([6f8e4b5](https://github.com/lightdash/lightdash/commit/6f8e4b5f33e76dbb38f31eaeefd1f19be80e7033))
+
 ## [0.875.2](https://github.com/lightdash/lightdash/compare/0.875.1...0.875.2) (2023-11-24)
 
 
