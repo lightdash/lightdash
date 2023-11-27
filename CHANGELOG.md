@@ -1,3 +1,10 @@
+# [0.877.0](https://github.com/lightdash/lightdash/compare/0.876.0...0.877.0) (2023-11-27)
+
+
+### Features
+
+* date zoom ([#8078](https://github.com/lightdash/lightdash/issues/8078)) ([82d0ff9](https://github.com/lightdash/lightdash/commit/82d0ff903d0f4865e74286d1aca45d6bf411b7d5))
+
 # [0.876.0](https://github.com/lightdash/lightdash/compare/0.875.4...0.876.0) (2023-11-27)
 
 
