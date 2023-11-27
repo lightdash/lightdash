@@ -23,6 +23,7 @@ import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import {
     FilterInputComponent,
+    getConditionalRuleLabel,
     getFilterOperatorOptions,
 } from '../../../components/common/Filters/FilterInputs';
 import {
@@ -33,6 +34,33 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { isFilterConfigRevertButtonEnabled as hasSavedFilterValueChanged } from '../../../components/DashboardFilter/FilterConfiguration/utils';
 import { useProject } from '../../../hooks/useProject';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
+
+const FilterSummaryLabel: FC<
+    { filterSummary: ReturnType<typeof getConditionalRuleLabel> } & Record<
+        'isDisabled',
+        boolean
+    >
+> = ({ filterSummary, isDisabled }) => {
+    if (isDisabled) {
+        return (
+            <Text fw={400} span>
+                <Text span color="gray.6">
+                    is any value
+                </Text>
+            </Text>
+        );
+    }
+    return (
+        <Text fw={400} span>
+            <Text span color="gray.7">
+                {filterSummary?.operator}{' '}
+            </Text>
+            <Text fw={700} span>
+                {filterSummary?.value}
+            </Text>
+        </Text>
+    );
+};
 
 type SchedulerFilterItemProps = {
     dashboardFilter: DashboardFilterRule;
@@ -51,20 +79,19 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
 }) => {
     const { fieldsMap } = useFiltersContext();
     const field = fieldsMap[dashboardFilter.target.fieldId];
-    const [isEditingDisabledFilter, setIsEditingDisabledFilter] =
-        useState(false);
+    const [isEditing, setIsEditing] = useState(false);
 
     const filterType = useMemo(() => {
         return field ? getFilterTypeFromItem(field) : FilterType.STRING;
     }, [field]);
 
+    const filterSummary = getConditionalRuleLabel(
+        schedulerFilter ?? dashboardFilter,
+        field,
+    );
+
     const isDisabled = useMemo(
-        () =>
-            Boolean(
-                schedulerFilter
-                    ? schedulerFilter.disabled
-                    : dashboardFilter.disabled,
-            ),
+        () => Boolean((schedulerFilter ?? dashboardFilter).disabled),
         [schedulerFilter, dashboardFilter],
     );
 
@@ -81,10 +108,10 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
             >
                 <ActionIcon
                     size="xs"
-                    disabled={isEditingDisabledFilter ? false : !hasChanged}
+                    disabled={!hasChanged}
                     onClick={() => {
-                        if (isEditingDisabledFilter) {
-                            setIsEditingDisabledFilter(false);
+                        if (isEditing) {
+                            setIsEditing(false);
                         }
                         onRevert();
                     }}
@@ -103,21 +130,28 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                         }}
                         hideTableName
                     />
-                    {isDisabled && !isEditingDisabledFilter && (
-                        <>
-                            <Text fz="xs">is any value</Text>
-                            <ActionIcon
-                                size="xs"
-                                onClick={() => {
-                                    setIsEditingDisabledFilter(true);
-                                }}
-                            >
-                                <MantineIcon icon={IconPencil} />
-                            </ActionIcon>
-                        </>
-                    )}
+
+                    <>
+                        {isEditing || hasChanged ? null : (
+                            <FilterSummaryLabel
+                                filterSummary={filterSummary}
+                                isDisabled={isDisabled}
+                            />
+                        )}
+
+                        <ActionIcon
+                            size="xs"
+                            disabled={isEditing || hasChanged}
+                            onClick={() => {
+                                setIsEditing(true);
+                            }}
+                        >
+                            <MantineIcon icon={IconPencil} />
+                        </ActionIcon>
+                    </>
                 </Group>
-                {!isDisabled || isEditingDisabledFilter ? (
+
+                {(isEditing || hasChanged) && (
                     <Flex gap="xs">
                         <Select
                             style={{
@@ -152,7 +186,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                             popoverProps={{ withinPortal: true }}
                         />
                     </Flex>
-                ) : null}
+                )}
             </Stack>
         </Group>
     );
