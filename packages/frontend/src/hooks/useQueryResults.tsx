@@ -9,7 +9,7 @@ import {
     SortField,
 } from '@lightdash/common';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
@@ -203,7 +203,6 @@ export const useChartAndResults = (
     granularity?: DateGranularity,
 ) => {
     const isDateZoomFeatureEnabled = useFeatureFlagEnabled('date-zoom');
-    const prevDateZoomGranularityRef = useRef<DateGranularity>();
     const queryClient = useQueryClient();
 
     const sortKey =
@@ -231,18 +230,10 @@ export const useChartAndResults = (
     useEffect(() => {
         if (!isDateZoomFeatureEnabled) return;
 
-        // Check if dateZoomGranularity has changed and if date dimensions are present
-        const hasDateZoomChanged =
-            granularity !== prevDateZoomGranularityRef.current;
-
-        if (hasDateZoomChanged) {
-            prevDateZoomGranularityRef.current = granularity;
-        }
-
         const hasDateDimensions =
             apiChartAndResults?.metricQuery?.metadata?.hasADateDimension;
 
-        if (hasDateDimensions && hasDateZoomChanged) {
+        if (hasDateDimensions) {
             queryClient.invalidateQueries(queryKey, { refetchInactive: true });
         }
     }, [
