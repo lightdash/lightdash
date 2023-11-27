@@ -497,6 +497,8 @@ const Dashboard: FC = () => {
         }
     });
 
+    const hasDashboardTiles = dashboardTiles && dashboardTiles.length > 0;
+
     return (
         <>
             <Alert
@@ -574,7 +576,7 @@ const Dashboard: FC = () => {
                     {dashboardChartTiles && dashboardChartTiles.length > 0 && (
                         <DashboardFilter isEditMode={isEditMode} />
                     )}
-                    {isDateZoomFeatureFlagEnabled && (
+                    {hasDashboardTiles && isDateZoomFeatureFlagEnabled && (
                         <DateZoom isEditMode={isEditMode} />
                     )}
                 </Group>
@@ -605,7 +607,7 @@ const Dashboard: FC = () => {
                     })}
                 </ResponsiveGridLayout>
 
-                {dashboardTiles && dashboardTiles.length === 0 && (
+                {!hasDashboardTiles && (
                     <EmptyStateNoTiles
                         onAddTiles={handleAddTiles}
                         isEditMode={isEditMode}
