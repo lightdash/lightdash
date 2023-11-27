@@ -16,6 +16,7 @@ type Props = {
 export const DateZoom: FC<Props> = ({ isEditMode }) => {
     const theme = useMantineTheme();
     const [isOpen, setIsOpen] = useState(false);
+
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
