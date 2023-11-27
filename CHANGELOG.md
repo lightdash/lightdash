@@ -1,3 +1,10 @@
+## [0.877.1](https://github.com/lightdash/lightdash/compare/0.877.0...0.877.1) (2023-11-27)
+
+
+### Bug Fixes
+
+* hide date zoom if no dashboard tiles ([#8092](https://github.com/lightdash/lightdash/issues/8092)) ([c0d4eb1](https://github.com/lightdash/lightdash/commit/c0d4eb17f722aab204ade9aa2f31845cfe0896c0))
+
 # [0.877.0](https://github.com/lightdash/lightdash/compare/0.876.0...0.877.0) (2023-11-27)
 
 
