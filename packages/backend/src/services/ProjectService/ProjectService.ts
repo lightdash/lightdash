@@ -1102,7 +1102,6 @@ export class ProjectService {
                       [oldDimension]: row[newDimension],
                   }))
                 : rows;
-        // TODO: only perform this action (setting metadata if metricQuery has a date dimension) if the feature date-zoom is enabled
         const exploreDimensions = getDimensions(explore);
         const metricQueryDimensions = [
             ...metricWithOverrideSorting.dimensions,
