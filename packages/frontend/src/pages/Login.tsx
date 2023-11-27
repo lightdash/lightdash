@@ -14,6 +14,7 @@ import {
     Image,
     PasswordInput,
     Stack,
+    Text,
     TextInput,
     Title,
 } from '@mantine/core';
@@ -160,6 +161,10 @@ const LoginContent: FC = () => {
                         Forgot your password?
                     </Anchor>
                 )}
+                <Text mx="auto">
+                    Don't have an account?{' '}
+                    <Anchor href="/register">Sign up</Anchor>
+                </Text>
             </Stack>
         </form>
     );

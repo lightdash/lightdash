@@ -3,7 +3,15 @@ import {
     getEmailSchema,
     getPasswordSchema,
 } from '@lightdash/common';
-import { Button, Flex, PasswordInput, Stack, TextInput } from '@mantine/core';
+import {
+    Anchor,
+    Button,
+    Flex,
+    PasswordInput,
+    Stack,
+    Text,
+    TextInput,
+} from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { FC } from 'react';
 import { z } from 'zod';
@@ -82,6 +90,9 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                 >
                     Sign up
                 </Button>
+                <Text mx="auto">
+                    Already Registered? <Anchor href="/signin">Sign in</Anchor>
+                </Text>
             </Stack>
         </form>
     );
