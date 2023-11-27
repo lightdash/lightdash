@@ -4,10 +4,8 @@ import {
     ApiGetChartHistoryResponse,
     ApiGetChartVersionResponse,
     ApiSuccessEmpty,
-    DashboardFilters,
     DateGranularity,
     SortField,
-    TimeFrames,
 } from '@lightdash/common';
 import {
     Body,
@@ -52,8 +50,6 @@ export class SavedChartController extends Controller {
         @Body()
         body: {
             invalidateCache?: boolean;
-            dashboardSorts?: SortField[];
-            granularity?: DateGranularity;
         },
         @Path() chartUuid: string,
         @Request() req: express.Request,

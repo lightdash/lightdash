@@ -906,16 +906,12 @@ export class ProjectService {
         chartUuid,
         versionUuid,
         invalidateCache,
-        dashboardSorts,
-        granularity,
     }: {
         user: SessionUser;
         chartUuid: string;
         versionUuid?: string;
         invalidateCache?: boolean;
-        dashboardSorts?: SortField[];
-        granularity?: DateGranularity;
-    }): Promise<ApiChartAndResults> {
+    }): Promise<ApiQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }

@@ -145,9 +145,6 @@ export const DashboardProvider: React.FC<{
     const [invalidateCache, setInvalidateCache] = useState<boolean>(false);
 
     const [chartSort, setChartSort] = useState<Record<string, SortField[]>>({});
-    const [dateGranularity, setDateGranularity] = useState<
-        DateGranularity | undefined
-    >();
 
     const [dateZoomGranularity, setDateZoomGranularity] = useState<
         DateGranularity | undefined
