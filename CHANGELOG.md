@@ -1,3 +1,10 @@
+## [0.877.2](https://github.com/lightdash/lightdash/compare/0.877.1...0.877.2) (2023-11-27)
+
+
+### Bug Fixes
+
+* count chart views in dashboard page ([#8102](https://github.com/lightdash/lightdash/issues/8102)) ([f7be28d](https://github.com/lightdash/lightdash/commit/f7be28db2b4292d319fa1482ab0951b579a02c22))
+
 ## [0.877.1](https://github.com/lightdash/lightdash/compare/0.877.0...0.877.1) (2023-11-27)
 
 
