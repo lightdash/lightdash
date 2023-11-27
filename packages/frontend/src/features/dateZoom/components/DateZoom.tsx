@@ -101,7 +101,7 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                         fz="xs"
                         key={granularity}
                         onClick={() => {
-                            setDateZoomGranularity(dateZoomGranularity);
+                            setDateZoomGranularity(granularity);
                             setIsOpen(false);
                         }}
                         disabled={dateZoomGranularity === granularity}
