@@ -5,15 +5,28 @@ import {
     IconChevronDown,
     IconChevronUp,
 } from '@tabler/icons-react';
-import { useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 
-export const DateZoom = () => {
+type Props = {
+    isEditMode: boolean;
+};
+
+export const DateZoom: FC<Props> = ({ isEditMode }) => {
     const theme = useMantineTheme();
     const [isOpen, setIsOpen] = useState(false);
-    const dateGranularity = useDashboardContext((c) => c.dateGranularity);
-    const setDateGranularity = useDashboardContext((c) => c.setDateGranularity);
+
+    const dateZoomGranularity = useDashboardContext(
+        (c) => c.dateZoomGranularity,
+    );
+    const setDateZoomGranularity = useDashboardContext(
+        (c) => c.setDateZoomGranularity,
+    );
+
+    useEffect(() => {
+        if (isEditMode) setDateZoomGranularity(undefined);
+    }, [isEditMode, setDateZoomGranularity]);
 
     return (
         <Menu
@@ -24,17 +37,19 @@ export const DateZoom = () => {
             opened={isOpen}
             offset={-1}
             position="bottom-end"
+            disabled={isEditMode}
         >
             <Menu.Target>
                 <Button
                     size="xs"
                     variant="default"
                     loaderPosition="center"
+                    disabled={isEditMode}
                     onClick={() => {
                         setIsOpen((prev) => !prev);
                     }}
                     sx={{
-                        borderColor: dateGranularity
+                        borderColor: dateZoomGranularity
                             ? theme.colors.blue['6']
                             : 'default',
                     }}
@@ -47,10 +62,10 @@ export const DateZoom = () => {
                 >
                     <Text>
                         Date Zoom
-                        {dateGranularity ? `:` : null}{' '}
-                        {dateGranularity ? (
+                        {dateZoomGranularity ? `:` : null}{' '}
+                        {dateZoomGranularity ? (
                             <Text span fw={500}>
-                                {dateGranularity}
+                                {dateZoomGranularity}
                             </Text>
                         ) : null}
                     </Text>
@@ -61,19 +76,19 @@ export const DateZoom = () => {
                 <Menu.Item
                     fz="xs"
                     onClick={() => {
-                        setDateGranularity(undefined);
+                        setDateZoomGranularity(undefined);
                         setIsOpen(false);
                     }}
                     bg={
-                        dateGranularity === undefined
+                        dateZoomGranularity === undefined
                             ? theme.colors.blue['6']
                             : 'white'
                     }
-                    disabled={dateGranularity === undefined}
+                    disabled={dateZoomGranularity === undefined}
                     sx={{
                         '&[disabled]': {
                             color:
-                                dateGranularity === undefined
+                                dateZoomGranularity === undefined
                                     ? 'white'
                                     : 'black',
                         },
@@ -86,19 +101,19 @@ export const DateZoom = () => {
                         fz="xs"
                         key={granularity}
                         onClick={() => {
-                            setDateGranularity(granularity);
+                            setDateZoomGranularity(dateZoomGranularity);
                             setIsOpen(false);
                         }}
-                        disabled={dateGranularity === granularity}
+                        disabled={dateZoomGranularity === granularity}
                         bg={
-                            dateGranularity === granularity
+                            dateZoomGranularity === granularity
                                 ? theme.colors.blue['6']
                                 : 'white'
                         }
                         sx={{
                             '&[disabled]': {
                                 color:
-                                    dateGranularity === granularity
+                                    dateZoomGranularity === granularity
                                         ? 'white'
                                         : 'black',
                             },

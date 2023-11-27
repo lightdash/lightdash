@@ -106,7 +106,7 @@ models:
         meta:
           dimension: 
             type: date
-            time_intervals: ['DAY', 'WEEK', 'MONTH', 'YEAR'] 
+            time_intervals: ['DAY', 'WEEK', 'MONTH', 'QUARTER', 'YEAR'] 
           metrics:
             date_of_first_order:
               type: min

@@ -88,8 +88,10 @@ type DashboardContext = {
     hasChartTiles: boolean;
     chartSort: Record<string, SortField[]>;
     setChartSort: (sort: Record<string, SortField[]>) => void;
-    dateGranularity: DateGranularity | undefined;
-    setDateGranularity: (DateGranularity: DateGranularity | undefined) => void;
+    dateZoomGranularity: DateGranularity | undefined;
+    setDateZoomGranularity: Dispatch<
+        SetStateAction<DateGranularity | undefined>
+    >;
 };
 
 const Context = createContext<DashboardContext | undefined>(undefined);
@@ -143,9 +145,10 @@ export const DashboardProvider: React.FC<{
     const [invalidateCache, setInvalidateCache] = useState<boolean>(false);
 
     const [chartSort, setChartSort] = useState<Record<string, SortField[]>>({});
-    const [dateGranularity, setDateGranularity] = useState<
+
+    const [dateZoomGranularity, setDateZoomGranularity] = useState<
         DateGranularity | undefined
-    >();
+    >(undefined);
 
     const {
         overridesForSavedDashboardFilters,
@@ -527,8 +530,8 @@ export const DashboardProvider: React.FC<{
         hasChartTiles,
         chartSort,
         setChartSort,
-        dateGranularity,
-        setDateGranularity,
+        dateZoomGranularity,
+        setDateZoomGranularity,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };

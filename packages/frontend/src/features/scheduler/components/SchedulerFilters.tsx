@@ -121,7 +121,14 @@ const updateFilters = (
     originalFilter: DashboardFilterRule,
     schedulerFilters: SchedulerFilterRule[] | undefined,
 ): SchedulerFilterRule[] | undefined => {
-    if (schedulerFilters && isFilterReverted(originalFilter, schedulerFilter)) {
+    if (
+        schedulerFilters &&
+        // Check if filters are the same, regardless of disabled state (accepts any value)
+        isFilterReverted(
+            { ...originalFilter, disabled: undefined },
+            { ...schedulerFilter, disabled: undefined },
+        )
+    ) {
         return schedulerFilters.filter((f) => f.id !== schedulerFilter.id);
     }
 
@@ -141,7 +148,16 @@ const updateFilters = (
             );
         }
 
-        return [...(schedulerFilters ?? []), schedulerFilter];
+        return [
+            ...(schedulerFilters ?? []),
+            {
+                ...schedulerFilter,
+                disabled: !(
+                    filterToCompareAgainst.disabled &&
+                    filterToCompareAgainst.disabled === true
+                ),
+            },
+        ];
     }
 };
 

@@ -82,7 +82,7 @@ export const isDashboardScheduler = (
     scheduler: Scheduler | CreateSchedulerAndTargets,
 ): scheduler is DashboardScheduler => scheduler.dashboardUuid !== undefined;
 
-export type SchedulerFilterRule = Omit<DashboardFilterRule, 'tileTargets'> & {
+export type SchedulerFilterRule = DashboardFilterRule & {
     tileTargets: undefined;
 };
 

@@ -1,3 +1,52 @@
+## [0.875.2](https://github.com/lightdash/lightdash/compare/0.875.1...0.875.2) (2023-11-24)
+
+
+### Bug Fixes
+
+* add missing tableCalculations type property ([#8086](https://github.com/lightdash/lightdash/issues/8086)) ([549cb19](https://github.com/lightdash/lightdash/commit/549cb191fd7539284b3e17badd649e2ade065d84))
+
+## [0.875.1](https://github.com/lightdash/lightdash/compare/0.875.0...0.875.1) (2023-11-24)
+
+
+### Bug Fixes
+
+* replace wrong function name call ([#8085](https://github.com/lightdash/lightdash/issues/8085)) ([7a2b010](https://github.com/lightdash/lightdash/commit/7a2b010a4a8891cd67b63d7f324a8cae722d8a2e))
+
+# [0.875.0](https://github.com/lightdash/lightdash/compare/0.874.1...0.875.0) (2023-11-24)
+
+
+### Features
+
+* collapse join tables by default ([#8074](https://github.com/lightdash/lightdash/issues/8074)) ([c1ce914](https://github.com/lightdash/lightdash/commit/c1ce9145ecf98e6ca2518cf191870c2a0d383271))
+
+## [0.874.1](https://github.com/lightdash/lightdash/compare/0.874.0...0.874.1) (2023-11-24)
+
+
+### Bug Fixes
+
+* handle disabled scheduled filters overrides ([#8059](https://github.com/lightdash/lightdash/issues/8059)) ([30f3a84](https://github.com/lightdash/lightdash/commit/30f3a84d6979ec3f50af99353d18f432bb57519b))
+
+# [0.874.0](https://github.com/lightdash/lightdash/compare/0.873.5...0.874.0) (2023-11-24)
+
+
+### Features
+
+* disable and clear date zoom on edit mode ([#8069](https://github.com/lightdash/lightdash/issues/8069)) ([33df9a8](https://github.com/lightdash/lightdash/commit/33df9a8c73269d777b57585f3e6600ed166d06d9))
+
+## [0.873.5](https://github.com/lightdash/lightdash/compare/0.873.4...0.873.5) (2023-11-24)
+
+
+### Bug Fixes
+
+* tsoa types generation with scheduler filter Omit ([#8082](https://github.com/lightdash/lightdash/issues/8082)) ([efbf9dd](https://github.com/lightdash/lightdash/commit/efbf9ddd8eb1ebdf39919a57ac6942122144c0a3))
+
+## [0.873.4](https://github.com/lightdash/lightdash/compare/0.873.3...0.873.4) (2023-11-24)
+
+
+### Bug Fixes
+
+* revert "fix: upgrade tsoa to 6.0.0-rc.5 ([#8072](https://github.com/lightdash/lightdash/issues/8072))" ([#8081](https://github.com/lightdash/lightdash/issues/8081)) ([d4f47a8](https://github.com/lightdash/lightdash/commit/d4f47a8b3a6162814fbea7e96f951838adfedbcf))
+
 ## [0.873.3](https://github.com/lightdash/lightdash/compare/0.873.2...0.873.3) (2023-11-24)
 
 

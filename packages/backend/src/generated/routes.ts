@@ -2262,6 +2262,7 @@ const models: TsoaRoute.Models = {
                 filters: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        tableCalculations: { dataType: 'any' },
                         metrics: { dataType: 'any' },
                         dimensions: { dataType: 'any' },
                     },
@@ -3415,7 +3416,32 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_DashboardScheduler.Exclude_keyofDashboardScheduler.filters__': {
+    DashboardFieldTarget: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                tableName: { dataType: 'string', required: true },
+                fieldId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'FilterRule_ConditionalOperator.T.V.any_': {
+        dataType: 'refObject',
+        properties: {
+            values: { dataType: 'array', array: { dataType: 'any' } },
+            operator: { ref: 'ConditionalOperator', required: true },
+            id: { dataType: 'string', required: true },
+            target: { ref: 'DashboardFieldTarget', required: true },
+            settings: { dataType: 'any' },
+            disabled: { dataType: 'boolean' },
+        },
+        additionalProperties: false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.DashboardTileTarget_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -3424,10 +3450,75 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_DashboardScheduler.filters_': {
+    DashboardFilterRule: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_DashboardScheduler.Exclude_keyofDashboardScheduler.filters__',
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'FilterRule_ConditionalOperator.T.V.any_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        label: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'undefined' },
+                                { dataType: 'string' },
+                            ],
+                            required: true,
+                        },
+                        tileTargets: {
+                            ref: 'Record_string.DashboardTileTarget_',
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SchedulerFilterRule: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'DashboardFilterRule' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        tileTargets: { dataType: 'undefined', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardScheduler: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'SchedulerBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        filters: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'SchedulerFilterRule',
+                            },
+                        },
+                        dashboardUuid: { dataType: 'string', required: true },
+                        savedChartUuid: {
+                            dataType: 'enum',
+                            enums: [null],
+                            required: true,
+                        },
+                    },
+                },
+            ],
             validators: {},
         },
     },
@@ -3438,21 +3529,7 @@ const models: TsoaRoute.Models = {
             dataType: 'union',
             subSchemas: [
                 { ref: 'ChartScheduler' },
-                {
-                    dataType: 'intersection',
-                    subSchemas: [
-                        { ref: 'Omit_DashboardScheduler.filters_' },
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                filters: {
-                                    dataType: 'array',
-                                    array: { dataType: 'any' },
-                                },
-                            },
-                        },
-                    ],
-                },
+                { ref: 'DashboardScheduler' },
             ],
             validators: {},
         },
