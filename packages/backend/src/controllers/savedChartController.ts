@@ -4,7 +4,6 @@ import {
     ApiGetChartHistoryResponse,
     ApiGetChartVersionResponse,
     ApiSuccessEmpty,
-    DashboardFilters,
     SortField,
 } from '@lightdash/common';
 import {
@@ -46,12 +45,10 @@ export class SavedChartController extends Controller {
     @SuccessResponse('200', 'Success')
     @Post('/results')
     @OperationId('postChartResults')
-    async postDashboardTile(
+    async postChartResults(
         @Body()
         body: {
-            dashboardFilters?: any; // DashboardFilters; temp disable validation
             invalidateCache?: boolean;
-            dashboardSorts?: SortField[];
         },
         @Path() chartUuid: string,
         @Request() req: express.Request,
@@ -62,8 +59,33 @@ export class SavedChartController extends Controller {
             results: await projectService.runViewChartQuery({
                 user: req.user!,
                 chartUuid,
-                dashboardFilters: body.dashboardFilters,
                 versionUuid: undefined,
+                invalidateCache: body.invalidateCache,
+            }),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/chart-and-results')
+    @OperationId('postChartResults')
+    async postDashboardTile(
+        @Body()
+        body: {
+            dashboardFilters: any; // DashboardFilters; temp disable validation
+            invalidateCache?: boolean;
+            dashboardSorts: SortField[];
+        },
+        @Path() chartUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiRunQueryResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await projectService.getChartAndResults({
+                user: req.user!,
+                chartUuid,
+                dashboardFilters: body.dashboardFilters,
                 invalidateCache: body.invalidateCache,
                 dashboardSorts: body.dashboardSorts,
             }),
@@ -137,7 +159,6 @@ export class SavedChartController extends Controller {
             results: await projectService.runViewChartQuery({
                 user: req.user!,
                 chartUuid,
-                dashboardFilters: undefined,
                 versionUuid,
             }),
         };
