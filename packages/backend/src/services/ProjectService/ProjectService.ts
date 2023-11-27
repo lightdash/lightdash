@@ -36,6 +36,7 @@ import {
     ForbiddenError,
     formatRows,
     getDashboardFilterRulesForTables,
+    getDateDimension,
     getDimensions,
     getFields,
     getItemId,
@@ -873,11 +874,9 @@ export class ProjectService {
             });
 
             if (timeDimension) {
-                const baseDateField = timeDimension.replace(
-                    /_(day|week|month|quarter|year)$/,
-                    '',
-                );
-                const newTimeDimension = `${baseDateField}_${granularity.toLowerCase()}`;
+                const { baseDimensionId } = getDateDimension(timeDimension);
+
+                const newTimeDimension = `${baseDimensionId}_${granularity.toLowerCase()}`;
 
                 // TODO replace sorts / filters ?
                 return {

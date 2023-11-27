@@ -25,6 +25,7 @@ export enum TimeFrames {
 
 export enum DateGranularity {
     DAY = 'Day',
+    WEEK = 'Week',
     MONTH = 'Month',
     QUARTER = 'Quarter',
     YEAR = 'Year',

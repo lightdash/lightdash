@@ -4,6 +4,7 @@ import {
     CompiledDimension,
     CompiledMetricQuery,
     CustomDimension,
+    DateGranularity,
     DbtModelJoinType,
     Explore,
     fieldId,
@@ -15,6 +16,7 @@ import {
     ForbiddenError,
     getCustomDimensionId,
     getCustomMetricDimensionId,
+    getDateDimension,
     getDimensions,
     getFilterRulesFromGroup,
     getMetrics,
@@ -41,26 +43,15 @@ const getDimensionFromId = (
     const dimension = dimensions.find((d) => fieldId(d) === dimId);
 
     if (dimension === undefined) {
-        // There are the only time frames we support on Date zoom
-        const timeFrames = ['day', 'week', 'month', 'quarter', 'year'];
-        const isDate = timeFrames.some((timeFrame) =>
-            dimId.endsWith(timeFrame),
-        );
-        if (isDate) {
-            const baseDateField = dimId.replace(
-                /_(day|week|month|quarter|year)$/,
-                '',
-            );
-            const baseField = getDimensionFromId(baseDateField, explore);
+        const { baseDimensionId, newTimeFrame } = getDateDimension(dimId);
 
-            const timeString = dimId.replace(`${baseDateField}_`, '');
-            const [timeFrame] = validateTimeFrames([timeString]);
-
-            if (baseField && timeFrame)
+        if (baseDimensionId) {
+            const baseField = getDimensionFromId(baseDimensionId, explore);
+            if (baseField && newTimeFrame)
                 return {
                     ...baseField,
-                    compiledSql: `DATE_TRUNC('${timeFrame}', ${baseField.compiledSql})`,
-                    timeInterval: timeFrame,
+                    compiledSql: `DATE_TRUNC('${newTimeFrame}', ${baseField.compiledSql})`,
+                    timeInterval: newTimeFrame,
                 };
         }
 
