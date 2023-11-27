@@ -914,7 +914,7 @@ export class ProjectService {
         versionUuid?: string;
         invalidateCache?: boolean;
         dashboardSorts?: SortField[];
-        granularity?: TimeFrames;
+        granularity?: DateGranularity;
     }): Promise<ApiChartAndResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
