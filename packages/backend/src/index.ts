@@ -41,6 +41,7 @@ import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { VERSION } from './version';
 import { registerNodeMetrics } from './nodeMetrics';
 import { wrapOtelSpan } from './utils';
+import { postHogClient } from './postHog';
 
 // @ts-ignore
 // eslint-disable-next-line no-extend-native, func-names
@@ -308,6 +309,14 @@ const onExit = () => {
                 Logger.info('Stopped scheduler worker');
             } catch (e) {
                 Logger.error('Error stopping scheduler worker', e);
+            }
+        }
+        if (postHogClient) {
+            try {
+                await postHogClient.shutdownAsync();
+                Logger.info('Stopped PostHog Client');
+            } catch (e) {
+                Logger.error('Error stopping PostHog Client', e);
             }
         }
         if (otelSdk) {
