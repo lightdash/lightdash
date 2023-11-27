@@ -1,9 +1,11 @@
-import { Button } from '@blueprintjs/core';
 import { ApiScheduledDownloadCsv } from '@lightdash/common';
+import { Button } from '@mantine/core';
+import { IconTableExport } from '@tabler/icons-react';
 import { FC, memo } from 'react';
 import { pollCsvFileUrl } from '../../api/csv';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
+import MantineIcon from '../common/MantineIcon';
 
 type Props = {
     disabled: boolean;
@@ -16,8 +18,9 @@ const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
 
     return (
         <Button
-            intent="primary"
-            icon="export"
+            compact
+            variant="subtle"
+            leftIcon={<MantineIcon icon={IconTableExport} />}
             disabled={disabled}
             onClick={() => {
                 getCsvLink()
