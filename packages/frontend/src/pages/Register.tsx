@@ -111,6 +111,11 @@ const Register: FC = () => {
                         Sign up
                     </Title>
                     {logins}
+                    <br />
+                    <Text ta="center">
+                        Already Registered?{' '}
+                        <Anchor href="/login">Sign in</Anchor>
+                    </Text>
                 </Card>
                 <Text color="gray.6" ta="center">
                     By creating an account, you agree to
