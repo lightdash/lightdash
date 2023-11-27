@@ -4,7 +4,10 @@ import {
     ApiGetChartHistoryResponse,
     ApiGetChartVersionResponse,
     ApiSuccessEmpty,
+    DashboardFilters,
+    DateGranularity,
     SortField,
+    TimeFrames,
 } from '@lightdash/common';
 import {
     Body,
@@ -75,6 +78,7 @@ export class SavedChartController extends Controller {
             dashboardFilters: any; // DashboardFilters; temp disable validation
             invalidateCache?: boolean;
             dashboardSorts: SortField[];
+            granularity?: DateGranularity;
         },
         @Path() chartUuid: string,
         @Request() req: express.Request,
@@ -88,6 +92,7 @@ export class SavedChartController extends Controller {
                 dashboardFilters: body.dashboardFilters,
                 invalidateCache: body.invalidateCache,
                 dashboardSorts: body.dashboardSorts,
+                granularity: body.granularity,
             }),
         };
     }

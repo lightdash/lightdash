@@ -2671,6 +2671,10 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "DateGranularity": {
+                "enum": ["Day", "Week", "Month", "Quarter", "Year"],
+                "type": "string"
+            },
             "Pick_LightdashUser.userUuid-or-firstName-or-lastName_": {
                 "properties": {
                     "userUuid": {
@@ -7341,6 +7345,9 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "granularity": {
+                                        "$ref": "#/components/schemas/DateGranularity"
+                                    },
                                     "dashboardSorts": {
                                         "items": {
                                             "$ref": "#/components/schemas/SortField"

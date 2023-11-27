@@ -21,9 +21,11 @@ import {
     DashboardAvailableFilters,
     DashboardBasicDetails,
     DashboardFilters,
+    DateGranularity,
     DbtProjectType,
     deepEqual,
     DefaultSupportedDbtVersion,
+    DimensionType,
     Explore,
     ExploreError,
     fieldId as getFieldId,
@@ -34,6 +36,7 @@ import {
     ForbiddenError,
     formatRows,
     getDashboardFilterRulesForTables,
+    getDateDimension,
     getDimensions,
     getFields,
     getItemId,
@@ -71,6 +74,7 @@ import {
     TableCalculationFormatType,
     TablesConfiguration,
     TableSelectionType,
+    TimeFrames,
     UpdateProject,
     UpdateProjectMember,
     UserAttributeValueMap,
@@ -848,6 +852,55 @@ export class ProjectService {
         });
     }
 
+    static updateMetricQueryGranularity(
+        metricQuery: MetricQuery,
+        explore: Explore,
+        granularity?: DateGranularity,
+    ): {
+        metricQuery: MetricQuery;
+        oldDimension?: string;
+        newDimension?: string;
+    } {
+        if (granularity) {
+            const dimensions = getDimensions(explore);
+            const timeDimension = metricQuery.dimensions.find((dimension) => {
+                const dim = dimensions.find(
+                    (d) => getFieldId(d) === dimension,
+                )?.type;
+                return (
+                    dim === DimensionType.TIMESTAMP ||
+                    dim === DimensionType.DATE
+                );
+            });
+
+            if (timeDimension) {
+                const { baseDimensionId } = getDateDimension(timeDimension);
+
+                const newTimeDimension = `${baseDimensionId}_${granularity.toLowerCase()}`;
+
+                // TODO replace sorts / filters ?
+                return {
+                    metricQuery: {
+                        ...metricQuery,
+                        dimensions: metricQuery.dimensions.map((dimension) =>
+                            dimension === timeDimension
+                                ? newTimeDimension
+                                : dimension,
+                        ),
+                        sorts: metricQuery.sorts.map((sort) =>
+                            sort.fieldId === timeDimension
+                                ? { ...sort, fieldId: newTimeDimension }
+                                : sort,
+                        ),
+                    },
+                    oldDimension: timeDimension,
+                    newDimension: newTimeDimension,
+                };
+            }
+        }
+        return { metricQuery };
+    }
+
     async runViewChartQuery({
         user,
         chartUuid,
@@ -933,12 +986,14 @@ export class ProjectService {
         dashboardFilters,
         invalidateCache,
         dashboardSorts,
+        granularity,
     }: {
         user: SessionUser;
         chartUuid: string;
         dashboardFilters: DashboardFilters;
         invalidateCache?: boolean;
         dashboardSorts: SortField[];
+        granularity?: DateGranularity;
     }): Promise<ApiChartAndResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1010,9 +1065,19 @@ export class ProjectService {
             chart_uuid: chartUuid,
         };
 
+        const {
+            metricQuery: metricWithOverrideGranularity,
+            oldDimension,
+            newDimension,
+        } = ProjectService.updateMetricQueryGranularity(
+            metricQueryWithDashboardOverrides,
+            explore,
+            granularity,
+        );
+
         const { cacheMetadata, rows } = await this.runQueryAndFormatRows({
             user,
-            metricQuery: metricQueryWithDashboardOverrides,
+            metricQuery: metricWithOverrideGranularity,
             projectUuid,
             exploreName: savedChart.tableName,
             csvLimit: undefined,
@@ -1022,12 +1087,23 @@ export class ProjectService {
             explore,
         });
 
+        // TODO quick hack to get the old results on the chart with new granularity
+        // We should investigate if we can make the changes in the frontend
+        // to get the right field instead.
+        const rowsWithGranularity =
+            oldDimension && newDimension
+                ? rows.map((row) => ({
+                      ...row,
+                      [oldDimension]: row[newDimension],
+                  }))
+                : rows;
+
         return {
             chart: savedChart,
             explore,
             metricQuery: metricQueryWithDashboardOverrides,
             cacheMetadata,
-            rows,
+            rows: rowsWithGranularity,
             appliedDashboardFilters,
         };
     }
