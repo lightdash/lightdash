@@ -5,6 +5,7 @@ import {
     ApiGetChartVersionResponse,
     ApiSuccessEmpty,
     DashboardFilters,
+    DateGranularity,
     SortField,
     TimeFrames,
 } from '@lightdash/common';
@@ -68,7 +69,9 @@ export class SavedChartController extends Controller {
                 versionUuid: undefined,
                 invalidateCache: body.invalidateCache,
                 dashboardSorts: body.dashboardSorts,
-                granularity: body.granularity as TimeFrames,
+                granularity: body.granularity
+                    ? (body.granularity as DateGranularity)
+                    : undefined,
             }),
         };
     }
