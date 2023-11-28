@@ -881,6 +881,7 @@ export class ProjectService {
 
             if (timeDimension) {
                 const { baseDimensionId } = getDateDimension(timeDimension);
+                if (!baseDimensionId) return { metricQuery };
 
                 const newTimeDimension = `${baseDimensionId}_${granularity.toLowerCase()}`;
 
@@ -907,6 +908,8 @@ export class ProjectService {
                                 if (!dim) return tc;
 
                                 const baseDim = getDateDimension(dim.name);
+                                if (!baseDim) return tc;
+
                                 const oldDimension = `${dim.table}.${dim.name}`;
                                 // Rebuild the newDimension instead of looking at dimensions,
                                 // so we can even filter missing time frames from explore
