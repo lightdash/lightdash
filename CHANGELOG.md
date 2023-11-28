@@ -1,3 +1,10 @@
+# [0.880.0](https://github.com/lightdash/lightdash/compare/0.879.0...0.880.0) (2023-11-28)
+
+
+### Features
+
+* add filter data to scheduler events ([#8112](https://github.com/lightdash/lightdash/issues/8112)) ([f4b6be5](https://github.com/lightdash/lightdash/commit/f4b6be53199cb739312c6683ae92b392e267af23))
+
 # [0.879.0](https://github.com/lightdash/lightdash/compare/0.878.1...0.879.0) (2023-11-28)
 
 
