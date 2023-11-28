@@ -660,6 +660,12 @@ export type SchedulerUpsertEvent = BaseTrack & {
     };
 };
 
+export type SchedulerDashboardUpsertEvent = SchedulerUpsertEvent & {
+    properties: SchedulerUpsertEvent['properties'] & {
+        filtersUpdatedNum: number;
+    };
+};
+
 export type SchedulerDeleteEvent = BaseTrack & {
     event: 'scheduler.deleted';
     userId: string;

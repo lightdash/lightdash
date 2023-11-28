@@ -29,6 +29,7 @@ import { analytics } from '../../analytics/client';
 import {
     ConditionalFormattingRuleSavedEvent,
     CreateSavedChartVersionEvent,
+    SchedulerUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
 import { schedulerClient, slackClient } from '../../clients/clients';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
@@ -640,7 +641,7 @@ export class SavedChartService {
             dashboardUuid: null,
             savedChartUuid: chartUuid,
         });
-        analytics.track({
+        const createSchedulerEventData: SchedulerUpsertEvent = {
             userId: user.userUuid,
             event: 'scheduler.created',
             properties: {
@@ -664,7 +665,8 @@ export class SavedChartService {
                         ? []
                         : scheduler.targets.map(getSchedulerTargetType),
             },
-        });
+        };
+        analytics.track(createSchedulerEventData);
 
         await slackClient.joinChannels(
             user.organizationUuid,
