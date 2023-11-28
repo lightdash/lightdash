@@ -1,8 +1,10 @@
-import { Button, Dialog, DialogProps } from '@blueprintjs/core';
+import { Button, Group, Modal, ModalProps, Text } from '@mantine/core';
+import { IconTableExport } from '@tabler/icons-react';
 import { FC } from 'react';
 import ExportCSV, { ExportCSVProps } from '.';
+import MantineIcon from '../common/MantineIcon';
 
-type ExportCSVModalProps = DialogProps &
+type ExportCSVModalProps = ModalProps &
     ExportCSVProps & {
         onConfirm?: () => void;
     };
@@ -14,14 +16,32 @@ const ExportCSVModal: FC<ExportCSVModalProps> = ({
     ...modalProps
 }) => {
     return (
-        <Dialog lazy title="Export CSV" icon="control" {...modalProps}>
+        <Modal
+            title={
+                <Group spacing="xs">
+                    <MantineIcon
+                        icon={IconTableExport}
+                        size="lg"
+                        color="gray.7"
+                    />
+                    <Text fw={600}>Export CSV</Text>
+                </Group>
+            }
+            styles={(theme) => ({
+                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
+                body: { padding: 0 },
+            })}
+            {...modalProps}
+        >
             <ExportCSV
                 rows={rows}
                 getCsvLink={getCsvLink}
                 isDialogBody
                 renderDialogActions={({ onExport, isExporting }) => (
-                    <>
-                        <Button onClick={modalProps.onClose}>Cancel</Button>
+                    <Group>
+                        <Button variant="outline" onClick={modalProps.onClose}>
+                            Cancel
+                        </Button>
 
                         <Button
                             loading={isExporting}
@@ -30,14 +50,13 @@ const ExportCSVModal: FC<ExportCSVModalProps> = ({
                                     onConfirm?.();
                                 });
                             }}
-                            intent="primary"
                         >
                             Export CSV
                         </Button>
-                    </>
+                    </Group>
                 )}
             />
-        </Dialog>
+        </Modal>
     );
 };
 

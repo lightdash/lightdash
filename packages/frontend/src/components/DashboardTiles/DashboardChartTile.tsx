@@ -105,7 +105,7 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
 
     return (
         <ExportCSVModal
-            isOpen
+            opened
             rows={rows}
             getCsvLink={getCsvLink}
             onClose={onClose}
