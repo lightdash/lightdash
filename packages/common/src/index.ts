@@ -655,6 +655,7 @@ export type HealthState = {
     customVisualizationsEnabled: boolean;
     hasSlack: boolean;
     hasHeadlessBrowser: boolean;
+    hasDbtSemanticLayer: boolean;
 };
 
 export enum DBFieldTypes {

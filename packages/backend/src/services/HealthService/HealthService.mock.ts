@@ -39,6 +39,7 @@ export const BaseResponse = {
     hasHeadlessBrowser: false,
     query: undefined,
     staticIp: undefined,
+    hasDbtSemanticLayer: false,
 };
 
 export const Config = {

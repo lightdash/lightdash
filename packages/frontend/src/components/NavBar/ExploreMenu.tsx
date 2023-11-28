@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import { Button, Menu } from '@mantine/core';
 import {
     IconFolder,
+    IconLayersIntersect,
     IconLayoutDashboard,
     IconSquareRoundedPlus,
     IconTable,
@@ -21,7 +22,7 @@ type Props = {
 };
 
 const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
-    const { user } = useApp();
+    const { user, health } = useApp();
     const history = useHistory();
     const [isOpen, setIsOpen] = useState<boolean>(false);
 
@@ -68,7 +69,15 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             to={`/projects/${projectUuid}/tables`}
                             icon={IconTable}
                         />
-
+                        {health.data?.hasDbtSemanticLayer && (
+                            <LargeMenuItem
+                                component={Link}
+                                title="Query using dbt Semantic Layer"
+                                description="Build queries with dbt Semantic Layer"
+                                to={`/projects/${projectUuid}/dbtsemanticlayer`}
+                                icon={IconLayersIntersect}
+                            />
+                        )}
                         <Can
                             I="manage"
                             this={subject('SqlRunner', {
