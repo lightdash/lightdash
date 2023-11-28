@@ -1,3 +1,10 @@
+# [0.881.0](https://github.com/lightdash/lightdash/compare/0.880.0...0.881.0) (2023-11-28)
+
+
+### Features
+
+* invalidate charts with dates when date zooming ([#8083](https://github.com/lightdash/lightdash/issues/8083)) ([cb7bbce](https://github.com/lightdash/lightdash/commit/cb7bbce3a21a43043be1dc991d40821b4f64d89e)), closes [#8071](https://github.com/lightdash/lightdash/issues/8071)
+
 # [0.880.0](https://github.com/lightdash/lightdash/compare/0.879.0...0.880.0) (2023-11-28)
 
 
