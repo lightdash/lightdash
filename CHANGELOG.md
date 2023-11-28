@@ -1,3 +1,10 @@
+# [0.879.0](https://github.com/lightdash/lightdash/compare/0.878.1...0.879.0) (2023-11-28)
+
+
+### Features
+
+* display filter summary if not overridden ([#8084](https://github.com/lightdash/lightdash/issues/8084)) ([9aee6c9](https://github.com/lightdash/lightdash/commit/9aee6c93788dd08939b0d575a42744f213f45402))
+
 ## [0.878.1](https://github.com/lightdash/lightdash/compare/0.878.0...0.878.1) (2023-11-28)
 
 
