@@ -1,3 +1,11 @@
+## [0.878.1](https://github.com/lightdash/lightdash/compare/0.878.0...0.878.1) (2023-11-28)
+
+
+### Bug Fixes
+
+* allow to edit seconds in time range picker ([#8106](https://github.com/lightdash/lightdash/issues/8106)) ([68d3b84](https://github.com/lightdash/lightdash/commit/68d3b842c3a4b89a1ac71823993d6e34111d6e18))
+* update refresh dbt button tooltip styles ([#8116](https://github.com/lightdash/lightdash/issues/8116)) ([596a60d](https://github.com/lightdash/lightdash/commit/596a60d18a7e39e5bc36867284395c809476c5cc))
+
 # [0.878.0](https://github.com/lightdash/lightdash/compare/0.877.2...0.878.0) (2023-11-28)
 
 
