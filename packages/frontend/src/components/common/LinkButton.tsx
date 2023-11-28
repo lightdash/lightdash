@@ -1,13 +1,16 @@
-import { AnchorButton, AnchorButtonProps } from '@blueprintjs/core';
+import { Button, ButtonProps } from '@mantine/core';
+import { IconTelescope } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import { EventData, useTracking } from '../../providers/TrackingProvider';
+import MantineIcon from './MantineIcon';
 
-export interface LinkButtonProps extends AnchorButtonProps {
+export interface LinkButtonProps extends ButtonProps {
     href: string;
     trackingEvent?: EventData;
     target?: React.HTMLAttributeAnchorTarget;
     forceRefresh?: boolean;
+    onClick?: (e: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => void;
 }
 
 const LinkButton: FC<LinkButtonProps> = ({
@@ -22,9 +25,13 @@ const LinkButton: FC<LinkButtonProps> = ({
     const { track } = useTracking();
 
     return (
-        <AnchorButton
+        <Button
             {...rest}
+            component="a"
+            compact
+            variant="subtle"
             href={href}
+            leftIcon={<MantineIcon icon={IconTelescope} />}
             target={target}
             onClick={(e) => {
                 if (

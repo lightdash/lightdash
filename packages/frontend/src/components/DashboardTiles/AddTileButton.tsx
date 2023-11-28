@@ -1,4 +1,3 @@
-import { PopoverPosition } from '@blueprintjs/core';
 import { Dashboard, DashboardTileTypes } from '@lightdash/common';
 import { Button, ButtonProps, Group, Menu, Text, Tooltip } from '@mantine/core';
 import {
@@ -18,7 +17,6 @@ import { TileAddModal } from './TileForms/TileAddModal';
 
 type Props = {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
-    popoverPosition?: PopoverPosition;
 } & Pick<ButtonProps, 'disabled'>;
 
 const AddTileButton: FC<Props> = ({ onAddTiles, disabled }) => {

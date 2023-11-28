@@ -346,12 +346,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                         projectUuid: projectUuid,
                     })}
                 >
-                    <LinkButton
-                        intent="primary"
-                        href={exploreFromHereUrl}
-                        icon="series-search"
-                        forceRefresh
-                    >
+                    <LinkButton href={exploreFromHereUrl} forceRefresh>
                         Explore from here
                     </LinkButton>
                 </Can>
