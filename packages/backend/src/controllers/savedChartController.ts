@@ -76,6 +76,7 @@ export class SavedChartController extends Controller {
             dashboardFilters: any; // DashboardFilters; temp disable validation
             invalidateCache?: boolean;
             dashboardSorts: SortField[];
+            dashboardUuid: string;
             granularity?: DateGranularity;
         },
         @Path() chartUuid: string,
@@ -91,6 +92,7 @@ export class SavedChartController extends Controller {
                 invalidateCache: body.invalidateCache,
                 dashboardSorts: body.dashboardSorts,
                 granularity: body.granularity,
+                dashboardUuid: body.dashboardUuid,
             }),
         };
     }

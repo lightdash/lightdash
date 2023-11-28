@@ -6755,6 +6755,7 @@ export function RegisterRoutes(app: express.Router) {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
                         granularity: { ref: 'DateGranularity' },
+                        dashboardUuid: { dataType: 'string', required: true },
                         dashboardSorts: {
                             dataType: 'array',
                             array: { dataType: 'refAlias', ref: 'SortField' },
