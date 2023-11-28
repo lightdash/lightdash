@@ -1,3 +1,10 @@
+# [0.883.0](https://github.com/lightdash/lightdash/compare/0.882.1...0.883.0) (2023-11-28)
+
+
+### Features
+
+* add dashboard uuid to query tags ([#8129](https://github.com/lightdash/lightdash/issues/8129)) ([4d97009](https://github.com/lightdash/lightdash/commit/4d97009d4d352bf9172125f37188cd2d6dacab62))
+
 ## [0.882.1](https://github.com/lightdash/lightdash/compare/0.882.0...0.882.1) (2023-11-28)
 
 
