@@ -1,3 +1,10 @@
+# [0.882.0](https://github.com/lightdash/lightdash/compare/0.881.1...0.882.0) (2023-11-28)
+
+
+### Features
+
+* add navigation to dbt semantic layer page ([#8127](https://github.com/lightdash/lightdash/issues/8127)) ([1c8eb15](https://github.com/lightdash/lightdash/commit/1c8eb15dc8b404007d447afdafe2cd89624a1a4e))
+
 ## [0.881.1](https://github.com/lightdash/lightdash/compare/0.881.0...0.881.1) (2023-11-28)
 
 
