@@ -1,3 +1,10 @@
+# [0.878.0](https://github.com/lightdash/lightdash/compare/0.877.2...0.878.0) (2023-11-28)
+
+
+### Features
+
+* add login and register links ([#8108](https://github.com/lightdash/lightdash/issues/8108)) ([4b6b9e9](https://github.com/lightdash/lightdash/commit/4b6b9e959874412834bcb8b8484be7fcf88b413a))
+
 ## [0.877.2](https://github.com/lightdash/lightdash/compare/0.877.1...0.877.2) (2023-11-27)
 
 
