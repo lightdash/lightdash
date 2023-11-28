@@ -898,6 +898,31 @@ export class ProjectService {
                                 ? { ...sort, fieldId: newTimeDimension }
                                 : sort,
                         ),
+                        tableCalculations: metricQuery.tableCalculations.map(
+                            (tc) => {
+                                const dim = dimensions.find(
+                                    (d) => getFieldId(d) === timeDimension,
+                                );
+
+                                if (!dim) return tc;
+
+                                const baseDim = getDateDimension(dim.name);
+                                const oldDimension = `${dim.table}.${dim.name}`;
+                                // Rebuild the newDimension instead of looking at dimensions,
+                                // so we can even filter missing time frames from explore
+                                const newDimension = `${dim.table}.${
+                                    baseDim.baseDimensionId
+                                }_${granularity.toLowerCase()}`;
+
+                                return {
+                                    ...tc,
+                                    sql: tc.sql.replaceAll(
+                                        oldDimension,
+                                        newDimension,
+                                    ),
+                                };
+                            },
+                        ),
                     },
                     oldDimension: timeDimension,
                     newDimension: newTimeDimension,
