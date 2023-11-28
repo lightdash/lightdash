@@ -47,21 +47,24 @@ const getChartResults = async ({
 
 const getChartAndResults = async ({
     chartUuid,
+    dashboardUuid,
     dashboardFilters,
     invalidateCache,
     dashboardSorts,
     granularity,
 }: {
     chartUuid?: string;
-    dashboardFilters?: DashboardFilters;
+    dashboardUuid: string;
+    dashboardFilters: DashboardFilters;
     invalidateCache?: boolean;
-    dashboardSorts?: SortField[];
+    dashboardSorts: SortField[];
     granularity?: DateGranularity;
 }) =>
     lightdashApi<ApiChartAndResults>({
         url: `/saved/${chartUuid}/chart-and-results`,
         method: 'POST',
         body: JSON.stringify({
+            dashboardUuid,
             dashboardFilters,
             dashboardSorts,
             granularity,
@@ -197,8 +200,9 @@ export const useUnderlyingDataResults = (
 
 export const useChartAndResults = (
     chartUuid: string | null,
-    dashboardFilters?: DashboardFilters,
-    dashboardSorts?: SortField[],
+    dashboardUuid: string | null,
+    dashboardFilters: DashboardFilters,
+    dashboardSorts: SortField[],
     invalidateCache?: boolean,
     granularity?: DateGranularity,
 ) => {
@@ -213,11 +217,12 @@ export const useChartAndResults = (
         () => [
             'savedChartResults',
             chartUuid,
+            dashboardUuid,
             dashboardFilters,
             invalidateCache,
             sortKey,
         ],
-        [chartUuid, dashboardFilters, invalidateCache, sortKey],
+        [chartUuid, dashboardUuid, dashboardFilters, invalidateCache, sortKey],
     );
     const apiChartAndResults =
         queryClient.getQueryData<ApiChartAndResults>(queryKey);
@@ -231,6 +236,7 @@ export const useChartAndResults = (
         () =>
             getChartAndResults({
                 chartUuid: chartUuid!,
+                dashboardUuid: dashboardUuid!,
                 dashboardFilters: timezoneFixFilters,
                 invalidateCache,
                 dashboardSorts,
@@ -251,7 +257,7 @@ export const useChartAndResults = (
                 ? queryKey.concat([granularity])
                 : queryKey,
         queryFn: fetchChartAndResults,
-        enabled: !!chartUuid,
+        enabled: !!chartUuid && !!dashboardUuid,
         retry: false,
         refetchOnMount: false,
     });

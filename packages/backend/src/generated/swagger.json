@@ -5421,7 +5421,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.877.0",
+        "version": "0.881.1",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -7364,6 +7364,9 @@
                                     "granularity": {
                                         "$ref": "#/components/schemas/DateGranularity"
                                     },
+                                    "dashboardUuid": {
+                                        "type": "string"
+                                    },
                                     "dashboardSorts": {
                                         "items": {
                                             "$ref": "#/components/schemas/SortField"
@@ -7376,6 +7379,7 @@
                                     "dashboardFilters": {}
                                 },
                                 "required": [
+                                    "dashboardUuid",
                                     "dashboardSorts",
                                     "dashboardFilters"
                                 ],

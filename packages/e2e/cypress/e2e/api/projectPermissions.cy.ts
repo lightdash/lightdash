@@ -230,6 +230,7 @@ describe('Lightdash API tests for member user with admin project permissions', (
                     headers: { 'Content-type': 'application/json' },
                     method: 'POST',
                     body: {
+                        dashboardUuid: 'example',
                         dashboardFilters: {
                             metrics: [],
                             dimensions: [],
@@ -895,6 +896,7 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
                     headers: { 'Content-type': 'application/json' },
                     method: 'POST',
                     body: {
+                        dashboardUuid: 'example',
                         dashboardFilters: {
                             metrics: [],
                             dimensions: [],
@@ -1150,6 +1152,7 @@ describe('Lightdash API tests for member user with viewer project permissions', 
                     headers: { 'Content-type': 'application/json' },
                     method: 'POST',
                     body: {
+                        dashboardUuid: 'example',
                         dashboardFilters: {
                             metrics: [],
                             dimensions: [],

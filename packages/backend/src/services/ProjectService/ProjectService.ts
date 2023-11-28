@@ -125,6 +125,7 @@ type RunQueryTags = {
     user_uuid?: string;
     organization_uuid?: string;
     chart_uuid?: string;
+    dashboard_uuid?: string;
 };
 
 type ProjectServiceDependencies = {
@@ -1021,9 +1022,11 @@ export class ProjectService {
         invalidateCache,
         dashboardSorts,
         granularity,
+        dashboardUuid,
     }: {
         user: SessionUser;
         chartUuid: string;
+        dashboardUuid: string;
         dashboardFilters: DashboardFilters;
         invalidateCache?: boolean;
         dashboardSorts: SortField[];
@@ -1102,6 +1105,7 @@ export class ProjectService {
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
             chart_uuid: chartUuid,
+            dashboard_uuid: dashboardUuid,
         };
 
         const exploreDimensions = getDimensions(explore);
