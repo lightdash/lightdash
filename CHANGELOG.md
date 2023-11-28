@@ -1,3 +1,10 @@
+## [0.882.1](https://github.com/lightdash/lightdash/compare/0.882.0...0.882.1) (2023-11-28)
+
+
+### Bug Fixes
+
+* table calculation dimension ([#8133](https://github.com/lightdash/lightdash/issues/8133)) ([af626a6](https://github.com/lightdash/lightdash/commit/af626a6eb75c03442051b29c5d5948fe138cb43d))
+
 # [0.882.0](https://github.com/lightdash/lightdash/compare/0.881.1...0.882.0) (2023-11-28)
 
 
