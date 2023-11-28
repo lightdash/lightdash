@@ -1,3 +1,10 @@
+## [0.881.1](https://github.com/lightdash/lightdash/compare/0.881.0...0.881.1) (2023-11-28)
+
+
+### Bug Fixes
+
+* date zoom on table calcs ([#8122](https://github.com/lightdash/lightdash/issues/8122)) ([16cf463](https://github.com/lightdash/lightdash/commit/16cf463e1693766d2afef52a23ff85ea985271f6))
+
 # [0.881.0](https://github.com/lightdash/lightdash/compare/0.880.0...0.881.0) (2023-11-28)
 
 
