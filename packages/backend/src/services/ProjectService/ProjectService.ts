@@ -901,7 +901,7 @@ export class ProjectService {
                         ),
                         tableCalculations: metricQuery.tableCalculations.map(
                             (tc) => {
-                                const dim = dimensions.find(
+                                const dim = exploreDimensions.find(
                                     (d) => getFieldId(d) === timeDimension,
                                 );
 
