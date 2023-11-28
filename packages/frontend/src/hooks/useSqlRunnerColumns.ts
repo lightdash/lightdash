@@ -32,9 +32,16 @@ const useSqlRunnerColumns = ({
                             ? columnHeader(dimension)
                             : dimension.label,
                     cell: (info) => {
-                        const {
-                            value: { raw },
-                        } = info.getValue();
+                        let raw;
+                        try {
+                            raw = info.getValue().value.raw;
+                        } catch {
+                            console.error(
+                                'Error getting cell data for field',
+                                fieldId,
+                            );
+                            return 'Error';
+                        }
                         if (raw === null) return '∅';
                         if (raw === undefined) return '-';
                         if (raw instanceof Date) return raw.toISOString();
