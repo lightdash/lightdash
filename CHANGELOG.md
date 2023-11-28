@@ -1,3 +1,10 @@
+## [0.883.1](https://github.com/lightdash/lightdash/compare/0.883.0...0.883.1) (2023-11-28)
+
+
+### Bug Fixes
+
+* dont crash when column name contains a dot ([#8114](https://github.com/lightdash/lightdash/issues/8114)) ([091f10a](https://github.com/lightdash/lightdash/commit/091f10a25e8a2c46df5a3558bd2d5afe79612d2d))
+
 # [0.883.0](https://github.com/lightdash/lightdash/compare/0.882.1...0.883.0) (2023-11-28)
 
 
