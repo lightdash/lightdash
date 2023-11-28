@@ -39,6 +39,7 @@ import MobileHome from './pages/MobileHome';
 import MobileSpace from './pages/MobileSpace';
 import MobileSpaces from './pages/MobileSpaces';
 import Projects from './pages/Projects';
+import Register from './pages/Register';
 import ShareRedirect from './pages/ShareRedirect';
 import { TrackPage } from './providers/TrackingProvider';
 import { ReactComponent as Logo } from './svgs/logo-icon.svg';
@@ -132,7 +133,6 @@ const MobileNavBar: FC = () => {
 };
 
 const routesNotSupportedInMobile = [
-    '/register',
     '/recover-password',
     '/reset-password/:code',
     '/invite/:inviteCode',
@@ -155,6 +155,11 @@ const MobileRoutes: FC = () => {
             <Route path="/login">
                 <TrackPage name={PageName.LOGIN}>
                     <Login minimal={true} />
+                </TrackPage>
+            </Route>
+            <Route path="/register">
+                <TrackPage name={PageName.REGISTER}>
+                    <Register minimal={true} />
                 </TrackPage>
             </Route>
             <Route path="/no-mobile-page">

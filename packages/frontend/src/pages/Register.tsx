@@ -26,7 +26,7 @@ const registerQuery = async (data: CreateUserArgs) =>
         body: JSON.stringify(data),
     });
 
-const Register: FC = () => {
+const Register: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
     const location = useLocation<{ from?: Location } | undefined>();
     const { health } = useApp();
     const { showToastError } = useToaster();
@@ -77,6 +77,7 @@ const Register: FC = () => {
     );
     const passwordLogin = allowPasswordAuthentication && (
         <CreateUserForm
+            minimal={minimal}
             isLoading={isLoading || isSuccess}
             onSubmit={(data: CreateUserArgs) => {
                 mutate(data);
@@ -96,40 +97,48 @@ const Register: FC = () => {
             {passwordLogin}
         </>
     );
-    return (
+    const stackContent = (
+        <>
+            <Image
+                src={LightdashLogo}
+                alt="lightdash logo"
+                width={130}
+                mx="auto"
+                my="lg"
+            />
+            <Card p="xl" radius="xs" withBorder shadow="xs">
+                <Title order={3} ta="center" mb="md">
+                    Sign up
+                </Title>
+                {logins}
+            </Card>
+            <Text color="gray.6" ta="center">
+                By creating an account, you agree to
+                <br />
+                our{' '}
+                <Anchor
+                    href="https://www.lightdash.com/privacy-policy"
+                    target="_blank"
+                >
+                    Privacy Policy
+                </Anchor>{' '}
+                and our{' '}
+                <Anchor
+                    href="https://www.lightdash.com/terms-of-service"
+                    target="_blank"
+                >
+                    Terms of Service.
+                </Anchor>
+            </Text>
+        </>
+    );
+
+    return minimal ? (
+        <Stack m="xl">{stackContent}</Stack>
+    ) : (
         <Page title="Register" withCenteredContent withNavbar={false}>
             <Stack w={400} mt="4xl">
-                <Image
-                    src={LightdashLogo}
-                    alt="lightdash logo"
-                    width={130}
-                    mx="auto"
-                    my="lg"
-                />
-                <Card p="xl" radius="xs" withBorder shadow="xs">
-                    <Title order={3} ta="center" mb="md">
-                        Sign up
-                    </Title>
-                    {logins}
-                </Card>
-                <Text color="gray.6" ta="center">
-                    By creating an account, you agree to
-                    <br />
-                    our{' '}
-                    <Anchor
-                        href="https://www.lightdash.com/privacy-policy"
-                        target="_blank"
-                    >
-                        Privacy Policy
-                    </Anchor>{' '}
-                    and our{' '}
-                    <Anchor
-                        href="https://www.lightdash.com/terms-of-service"
-                        target="_blank"
-                    >
-                        Terms of Service.
-                    </Anchor>
-                </Text>
+                {stackContent}
             </Stack>
         </Page>
     );

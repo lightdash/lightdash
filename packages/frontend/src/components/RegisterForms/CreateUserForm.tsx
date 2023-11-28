@@ -19,6 +19,7 @@ import PasswordTextInput from '../PasswordTextInput';
 
 type Props = {
     isLoading: boolean;
+    minimal: boolean;
     readOnlyEmail?: string;
     onSubmit: (data: CreateUserArgs) => void;
 };
@@ -28,7 +29,12 @@ const validationSchema = z.object({
     password: getPasswordSchema(),
 });
 
-const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
+const CreateUserForm: FC<Props> = ({
+    isLoading,
+    readOnlyEmail,
+    onSubmit,
+    minimal = false,
+}) => {
     const form = useForm<CreateUserArgs>({
         initialValues: {
             firstName: '',
@@ -42,7 +48,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
     return (
         <form name="register" onSubmit={form.onSubmit(onSubmit)}>
             <Stack spacing="md">
-                <Flex direction="row" gap="xs">
+                <Flex direction={minimal ? 'column' : 'row'} gap="xs">
                     <TextInput
                         label="First name"
                         name="firstName"
