@@ -1096,6 +1096,7 @@ export class ProjectService {
             queryTags,
             invalidateCache,
             explore,
+            granularity,
         });
 
         // TODO quick hack to get the old results on the chart with new granularity
@@ -1168,6 +1169,7 @@ export class ProjectService {
         queryTags,
         invalidateCache,
         explore,
+        granularity,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -1178,6 +1180,7 @@ export class ProjectService {
         queryTags?: RunQueryTags;
         invalidateCache?: boolean;
         explore?: Explore;
+        granularity?: DateGranularity;
     }): Promise<ApiQueryResults> {
         return wrapOtelSpan(
             'ProjectService.runQueryAndFormatRows',
@@ -1193,6 +1196,7 @@ export class ProjectService {
                     queryTags,
                     invalidateCache,
                     explore,
+                    granularity,
                 });
                 span.setAttribute('rows', rows.length);
 
@@ -1404,6 +1408,7 @@ export class ProjectService {
         queryTags,
         invalidateCache,
         explore,
+        granularity,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -1414,6 +1419,7 @@ export class ProjectService {
         queryTags?: RunQueryTags;
         invalidateCache?: boolean;
         explore?: Explore;
+        granularity?: DateGranularity;
     }): Promise<{ rows: Record<string, any>[]; cacheMetadata: CacheMetadata }> {
         const tracer = opentelemetry.trace.getTracer('default');
         return tracer.startActiveSpan(
@@ -1535,6 +1541,7 @@ export class ProjectService {
                             ).length,
                             context,
                             ...countCustomDimensionsInMetricQuery(metricQuery),
+                            dateZoomGranularity: granularity || null,
                         },
                     });
 

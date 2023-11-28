@@ -156,6 +156,7 @@ type QueryExecutionEvent = BaseTrack & {
         numFixedWidthBinCustomDimensions: number;
         numFixedBinsBinCustomDimensions: number;
         numCustomRangeBinCustomDimensions: number;
+        dateZoomGranularity: string | null;
     };
 };
 
