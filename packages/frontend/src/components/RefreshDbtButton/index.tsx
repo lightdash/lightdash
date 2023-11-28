@@ -146,6 +146,9 @@ const RefreshDbtButton = () => {
     return (
         <Tooltip
             withinPortal
+            multiline
+            w={320}
+            position="bottom"
             label="If you've updated your YAML files, you can sync your changes to Lightdash by clicking this button."
         >
             <Button
