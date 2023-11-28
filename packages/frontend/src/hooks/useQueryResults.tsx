@@ -9,7 +9,7 @@ import {
     SortField,
 } from '@lightdash/common';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
@@ -202,7 +202,6 @@ export const useChartAndResults = (
     invalidateCache?: boolean,
     granularity?: DateGranularity,
 ) => {
-    const previousDateZoomGranularity = useRef<DateGranularity | undefined>();
     const isDateZoomFeatureEnabled = useFeatureFlagEnabled('date-zoom');
     const queryClient = useQueryClient();
 
@@ -246,27 +245,16 @@ export const useChartAndResults = (
         ],
     );
 
-    const chartAndResultsQuery = useQuery<ApiChartAndResults, ApiError>({
-        queryKey,
+    return useQuery<ApiChartAndResults, ApiError>({
+        queryKey:
+            isDateZoomFeatureEnabled && hasADateDimension && granularity
+                ? queryKey.concat([granularity])
+                : queryKey,
         queryFn: fetchChartAndResults,
         enabled: !!chartUuid,
         retry: false,
         refetchOnMount: false,
     });
-
-    const { refetch } = chartAndResultsQuery;
-
-    useEffect(() => {
-        if (isDateZoomFeatureEnabled && hasADateDimension) {
-            // Refetch if granularity has changed or was reset
-            if (previousDateZoomGranularity.current !== granularity) {
-                previousDateZoomGranularity.current = granularity;
-                refetch();
-            }
-        }
-    }, [hasADateDimension, granularity, isDateZoomFeatureEnabled, refetch]);
-
-    return chartAndResultsQuery;
 };
 
 const getChartVersionResults = async (
