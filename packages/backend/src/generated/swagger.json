@@ -2849,6 +2849,22 @@
             },
             "MetricQuery": {
                 "properties": {
+                    "metadata": {
+                        "properties": {
+                            "hasADateDimension": {
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/CustomDimension"
+                                    }
+                                ]
+                            }
+                        },
+                        "required": ["hasADateDimension"],
+                        "type": "object"
+                    },
                     "customDimensions": {
                         "items": {
                             "$ref": "#/components/schemas/CustomDimension"
@@ -5405,7 +5421,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.875.2",
+        "version": "0.877.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

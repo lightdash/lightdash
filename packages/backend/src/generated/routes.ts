@@ -2502,6 +2502,19 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                metadata: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        hasADateDimension: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { ref: 'CustomDimension' },
+                            ],
+                            required: true,
+                        },
+                    },
+                },
                 customDimensions: {
                     dataType: 'array',
                     array: { dataType: 'refObject', ref: 'CustomDimension' },

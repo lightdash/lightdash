@@ -8,8 +8,9 @@ import {
     MetricQuery,
     SortField,
 } from '@lightdash/common';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useCallback, useMemo } from 'react';
-import { useMutation, useQuery } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import {
@@ -56,8 +57,8 @@ const getChartAndResults = async ({
     invalidateCache?: boolean;
     dashboardSorts?: SortField[];
     granularity?: DateGranularity;
-}) => {
-    return lightdashApi<ApiChartAndResults>({
+}) =>
+    lightdashApi<ApiChartAndResults>({
         url: `/saved/${chartUuid}/chart-and-results`,
         method: 'POST',
         body: JSON.stringify({
@@ -67,7 +68,6 @@ const getChartAndResults = async ({
             ...(invalidateCache && { invalidateCache: true }),
         }),
     });
-};
 
 const getQueryResults = async ({
     projectUuid,
@@ -202,24 +202,33 @@ export const useChartAndResults = (
     invalidateCache?: boolean,
     granularity?: DateGranularity,
 ) => {
+    const isDateZoomFeatureEnabled = useFeatureFlagEnabled('date-zoom');
+    const queryClient = useQueryClient();
+
     const sortKey =
         dashboardSorts
             ?.map((ds) => `${ds.fieldId}.${ds.descending}`)
             ?.join(',') || '';
-    const queryKey = [
-        'savedChartResults',
-        chartUuid,
-        dashboardFilters,
-        invalidateCache,
-        sortKey,
-        granularity,
-    ];
+    const queryKey = useMemo(
+        () => [
+            'savedChartResults',
+            chartUuid,
+            dashboardFilters,
+            invalidateCache,
+            sortKey,
+        ],
+        [chartUuid, dashboardFilters, invalidateCache, sortKey],
+    );
+    const apiChartAndResults =
+        queryClient.getQueryData<ApiChartAndResults>(queryKey);
+
     const timezoneFixFilters =
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);
+    const hasADateDimension =
+        !!apiChartAndResults?.metricQuery?.metadata?.hasADateDimension;
 
-    return useQuery<ApiChartAndResults, ApiError>({
-        queryKey,
-        queryFn: () =>
+    const fetchChartAndResults = useCallback(
+        () =>
             getChartAndResults({
                 chartUuid: chartUuid!,
                 dashboardFilters: timezoneFixFilters,
@@ -227,6 +236,21 @@ export const useChartAndResults = (
                 dashboardSorts,
                 granularity,
             }),
+        [
+            chartUuid,
+            timezoneFixFilters,
+            invalidateCache,
+            dashboardSorts,
+            granularity,
+        ],
+    );
+
+    return useQuery<ApiChartAndResults, ApiError>({
+        queryKey:
+            isDateZoomFeatureEnabled && hasADateDimension && granularity
+                ? queryKey.concat([granularity])
+                : queryKey,
+        queryFn: fetchChartAndResults,
         enabled: !!chartUuid,
         retry: false,
         refetchOnMount: false,

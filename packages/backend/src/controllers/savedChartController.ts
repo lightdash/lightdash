@@ -4,10 +4,8 @@ import {
     ApiGetChartHistoryResponse,
     ApiGetChartVersionResponse,
     ApiSuccessEmpty,
-    DashboardFilters,
     DateGranularity,
     SortField,
-    TimeFrames,
 } from '@lightdash/common';
 import {
     Body,
