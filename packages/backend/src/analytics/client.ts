@@ -34,7 +34,7 @@ export const identifyUser = (
               },
     });
 
-    postHogClient.identify({
+    postHogClient?.identify({
         distinctId: user.userUuid,
         properties: {
             uuid: user.userUuid,
@@ -57,7 +57,7 @@ export const identifyUser = (
             },
         });
 
-        postHogClient.groupIdentify({
+        postHogClient?.groupIdentify({
             groupType: 'organization',
             groupKey: 'organization',
             properties: {

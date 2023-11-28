@@ -3,6 +3,7 @@ import {
     ApiError,
     ApiQueryResults,
     DashboardFilters,
+    DateGranularity,
     getCustomDimensionId,
     MetricQuery,
     SortField,
@@ -48,11 +49,13 @@ const getChartAndResults = async ({
     dashboardFilters,
     invalidateCache,
     dashboardSorts,
+    granularity,
 }: {
     chartUuid?: string;
     dashboardFilters?: DashboardFilters;
     invalidateCache?: boolean;
     dashboardSorts?: SortField[];
+    granularity?: DateGranularity;
 }) => {
     return lightdashApi<ApiChartAndResults>({
         url: `/saved/${chartUuid}/chart-and-results`,
@@ -60,6 +63,7 @@ const getChartAndResults = async ({
         body: JSON.stringify({
             dashboardFilters,
             dashboardSorts,
+            granularity,
             ...(invalidateCache && { invalidateCache: true }),
         }),
     });
@@ -196,6 +200,7 @@ export const useChartAndResults = (
     dashboardFilters?: DashboardFilters,
     dashboardSorts?: SortField[],
     invalidateCache?: boolean,
+    granularity?: DateGranularity,
 ) => {
     const sortKey =
         dashboardSorts
@@ -207,6 +212,7 @@ export const useChartAndResults = (
         dashboardFilters,
         invalidateCache,
         sortKey,
+        granularity,
     ];
     const timezoneFixFilters =
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);
@@ -219,6 +225,7 @@ export const useChartAndResults = (
                 dashboardFilters: timezoneFixFilters,
                 invalidateCache,
                 dashboardSorts,
+                granularity,
             }),
         enabled: !!chartUuid,
         retry: false,

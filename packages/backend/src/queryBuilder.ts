@@ -4,6 +4,7 @@ import {
     CompiledDimension,
     CompiledMetricQuery,
     CustomDimension,
+    DateGranularity,
     DbtModelJoinType,
     Explore,
     fieldId,
@@ -15,6 +16,7 @@ import {
     ForbiddenError,
     getCustomDimensionId,
     getCustomMetricDimensionId,
+    getDateDimension,
     getDimensions,
     getFilterRulesFromGroup,
     getMetrics,
@@ -26,18 +28,37 @@ import {
     renderTableCalculationFilterRuleSql,
     SortField,
     SupportedDbtAdapter,
+    TimeFrames,
     UserAttributeValueMap,
+    validateTimeFrames,
     WarehouseClient,
 } from '@lightdash/common';
 import { hasUserAttribute } from './services/UserAttributesService/UserAttributeUtils';
 
-const getDimensionFromId = (dimId: FieldId, explore: Explore) => {
+const getDimensionFromId = (
+    dimId: FieldId,
+    explore: Explore,
+): CompiledDimension => {
     const dimensions = getDimensions(explore);
     const dimension = dimensions.find((d) => fieldId(d) === dimId);
-    if (dimension === undefined)
+
+    if (dimension === undefined) {
+        const { baseDimensionId, newTimeFrame } = getDateDimension(dimId);
+
+        if (baseDimensionId) {
+            const baseField = getDimensionFromId(baseDimensionId, explore);
+            if (baseField && newTimeFrame)
+                return {
+                    ...baseField,
+                    compiledSql: `DATE_TRUNC('${newTimeFrame}', ${baseField.compiledSql})`,
+                    timeInterval: newTimeFrame,
+                };
+        }
+
         throw new FieldReferenceError(
             `Tried to reference dimension with unknown field id: ${dimId}`,
         );
+    }
     return dimension;
 };
 

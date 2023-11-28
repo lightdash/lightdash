@@ -1,0 +1,6 @@
+version: 2
+models:
+  - name: plan
+    columns:
+      - name: id
+      - name: plan_name

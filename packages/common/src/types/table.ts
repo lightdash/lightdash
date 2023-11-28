@@ -13,4 +13,5 @@ export type TableBase = {
     orderFieldsBy?: OrderFieldsByStrategy;
     groupLabel?: string;
     sqlWhere?: string;
+    hidden?: boolean;
 };

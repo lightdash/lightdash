@@ -138,7 +138,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             schema: credentials.schema,
             warehouse: credentials.warehouse,
             role: credentials.role,
-            clientSessionKeepAlive: credentials.clientSessionKeepAlive,
             ...(credentials.accessUrl?.length
                 ? { accessUrl: credentials.accessUrl }
                 : {}),

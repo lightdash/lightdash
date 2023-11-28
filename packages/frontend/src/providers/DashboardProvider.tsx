@@ -7,6 +7,7 @@ import {
     Dashboard,
     DashboardFilterRule,
     DashboardFilters,
+    DateGranularity,
     fieldId,
     FilterableField,
     isDashboardChartTileType,
@@ -28,7 +29,6 @@ import { useMount } from 'react-use';
 import { createContext, useContextSelector } from 'use-context-selector';
 import { FieldsWithSuggestions } from '../components/common/Filters/FiltersProvider';
 import { isFilterConfigRevertButtonEnabled as hasSavedFilterValueChanged } from '../components/DashboardFilter/FilterConfiguration/utils';
-import { DATE_ZOOM_OPTIONS } from '../features/dateZoom';
 import {
     useDashboardQuery,
     useDashboardsAvailableFilters,
@@ -88,9 +88,9 @@ type DashboardContext = {
     hasChartTiles: boolean;
     chartSort: Record<string, SortField[]>;
     setChartSort: (sort: Record<string, SortField[]>) => void;
-    dateZoomGranularity: typeof DATE_ZOOM_OPTIONS[0] | undefined;
+    dateZoomGranularity: DateGranularity | undefined;
     setDateZoomGranularity: Dispatch<
-        SetStateAction<typeof DATE_ZOOM_OPTIONS[0] | undefined>
+        SetStateAction<DateGranularity | undefined>
     >;
 };
 
@@ -147,7 +147,7 @@ export const DashboardProvider: React.FC<{
     const [chartSort, setChartSort] = useState<Record<string, SortField[]>>({});
 
     const [dateZoomGranularity, setDateZoomGranularity] = useState<
-        typeof DATE_ZOOM_OPTIONS[0] | undefined
+        DateGranularity | undefined
     >(undefined);
 
     const {

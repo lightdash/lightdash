@@ -1,3 +1,45 @@
+## [0.877.2](https://github.com/lightdash/lightdash/compare/0.877.1...0.877.2) (2023-11-27)
+
+
+### Bug Fixes
+
+* count chart views in dashboard page ([#8102](https://github.com/lightdash/lightdash/issues/8102)) ([f7be28d](https://github.com/lightdash/lightdash/commit/f7be28db2b4292d319fa1482ab0951b579a02c22))
+
+## [0.877.1](https://github.com/lightdash/lightdash/compare/0.877.0...0.877.1) (2023-11-27)
+
+
+### Bug Fixes
+
+* hide date zoom if no dashboard tiles ([#8092](https://github.com/lightdash/lightdash/issues/8092)) ([c0d4eb1](https://github.com/lightdash/lightdash/commit/c0d4eb17f722aab204ade9aa2f31845cfe0896c0))
+
+# [0.877.0](https://github.com/lightdash/lightdash/compare/0.876.0...0.877.0) (2023-11-27)
+
+
+### Features
+
+* date zoom ([#8078](https://github.com/lightdash/lightdash/issues/8078)) ([82d0ff9](https://github.com/lightdash/lightdash/commit/82d0ff903d0f4865e74286d1aca45d6bf411b7d5))
+
+# [0.876.0](https://github.com/lightdash/lightdash/compare/0.875.4...0.876.0) (2023-11-27)
+
+
+### Features
+
+* hide joined tables ([#8088](https://github.com/lightdash/lightdash/issues/8088)) ([1ab6724](https://github.com/lightdash/lightdash/commit/1ab6724bb7c20dad4db6a3af25e51c9fc2fbde6c))
+
+## [0.875.4](https://github.com/lightdash/lightdash/compare/0.875.3...0.875.4) (2023-11-27)
+
+
+### Bug Fixes
+
+* ignore client_session_keep_alive ([#8099](https://github.com/lightdash/lightdash/issues/8099)) ([e6270d1](https://github.com/lightdash/lightdash/commit/e6270d1138781118be321aace603e5aa5bad87e0))
+
+## [0.875.3](https://github.com/lightdash/lightdash/compare/0.875.2...0.875.3) (2023-11-27)
+
+
+### Bug Fixes
+
+* add undefined value to posthog if no key ([#8101](https://github.com/lightdash/lightdash/issues/8101)) ([6f8e4b5](https://github.com/lightdash/lightdash/commit/6f8e4b5f33e76dbb38f31eaeefd1f19be80e7033))
+
 ## [0.875.2](https://github.com/lightdash/lightdash/compare/0.875.1...0.875.2) (2023-11-24)
 
 

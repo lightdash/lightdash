@@ -1,7 +1,7 @@
 import { SupportedDbtAdapter } from '../types/dbt';
 import { ParseError } from '../types/errors';
 import { DimensionType } from '../types/field';
-import { TimeFrames } from '../types/timeFrames';
+import { DateGranularity, TimeFrames } from '../types/timeFrames';
 
 export enum WeekDay {
     MONDAY,
@@ -504,3 +504,29 @@ const timeFrameOrder = [
 
 export const sortTimeFrames = (a: TimeFrames, b: TimeFrames) =>
     timeFrameOrder.indexOf(a) - timeFrameOrder.indexOf(b);
+
+export const getDateDimension = (dimensionId: string) => {
+    const timeFrames = Object.values(DateGranularity).map((tf) =>
+        tf.toLowerCase(),
+    );
+    const isDate = timeFrames.some((timeFrame) =>
+        dimensionId.endsWith(timeFrame),
+    );
+
+    if (isDate) {
+        const regex = new RegExp(`_(${timeFrames.join('|')})$`);
+
+        const baseDimensionId = dimensionId.replace(regex, '');
+
+        const timeString = dimensionId.replace(`${baseDimensionId}_`, '');
+        const [newTimeFrame] = validateTimeFrames([timeString]);
+
+        if (baseDimensionId && newTimeFrame)
+            return {
+                baseDimensionId,
+                newTimeFrame,
+            };
+    }
+
+    return {};
+};
