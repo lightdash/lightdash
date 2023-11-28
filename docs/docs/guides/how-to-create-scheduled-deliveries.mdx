@@ -1,11 +1,13 @@
 import ThreeDotMenu from './assets/scheduled-deliveries-three-dot-menu.png';
-import CreateNewModal from './assets/create-new-modal.png';
+import CreateNewModal from './assets/scheduled-deliveries-create-new-modal.png';
 import ConfigureNewDelivery from './assets/configure-scheduled-delivery.png';
 import EditDeleteDelivery from './assets/edit-delete-scheduled-delivery.png';
-import ScheduledDeliveriesOverview from './assets/scheduled-deliveries-overview.jpg';
+import ScheduledDeliveriesOverview from './assets/scheduled-deliveries-overview.png';
 import PrivateSlackChannel from './assets/private-slack-channel.png';
 import GsheetMetadata from './assets/gsheet-metadata.png';
 import GsheetDelivery from './assets/gsheet-delivery.png';
+import DashboardScheduledDeliveryFilters from './assets/scheduled-delivery-dashboard-filters.png';
+import ScheduledDeliveryCustomization from './assets/scheduled-delivery-customization.png';
 
 # Scheduled deliveries
 
@@ -13,7 +15,7 @@ Scheduled deliveries let you send a dashboard or saved chart, and their results 
 
 If your Lightdash organization has email or [Slack](/guides/sharing-in-slack.mdx#adding-slack-to-your-organization-lightdash-cloud) set up, you can create or select an existing saved chart or dashboard, add a scheduled delivery to it, and tell Lightdash when you’d like the send out your update. You can set up as many scheduled deliveries to a saved chart or dashboard as you like, and if you make any changes to the content, Lightdash will update the scheduled deliveries the next time they’re sent.
 
-If you are running Lightdash on self-host, make sure you have the [headless browser](https://docs.lightdash.com/self-host/customize-deployment/enable-headless-browser-for-lightdash) to generate images. 
+If you are running Lightdash on self-host, make sure you have the [headless browser](https://docs.lightdash.com/self-host/customize-deployment/enable-headless-browser-for-lightdash) to generate images.
 
 :::info
 For security reasons, the delivered files expire after 3 days. This means old emails or Slack shares will have broken images and there is not an option to retrieve them. If you want to keep the sent files, it's best to download them from the scheduled delivery.
@@ -21,7 +23,7 @@ For security reasons, the delivered files expire after 3 days. This means old em
 
 ## Enabling scheduled deliveries
 
-To use scheduled deliveries, an organization admin needs to have set up Slack or email for your Lightdash instance. 
+To use scheduled deliveries, an organization admin needs to have set up Slack or email for your Lightdash instance.
 
 To set up Slack, see [setting up Slack](/guides/sharing-in-slack.mdx#adding-slack-to-your-organization-lightdash-cloud). If you're not on a self-hosted instance (e.g. Cloud or Enterprise), then your instance comes with an email server already set up, so you don't need to do anything to enable email deliveries. If you're on a self-hosted instance, see [setting up email](https://docs.lightdash.com/references/environmentVariables#:~:text=postgres%20environment%20variables-,SMTP%20environment%20variables,-This%20is%20a) to configure a Lightdash email client.
 
@@ -29,47 +31,107 @@ To set up Slack, see [setting up Slack](/guides/sharing-in-slack.mdx#adding-slac
 
 Only users with [admin, developer or edit access](/references/roles.mdx) can create scheduled deliveries. To create a scheduled delivery, click on the three-dot menu in the top-right corner of your chart or dashboard, then click on `scheduled deliveries`.
 
-<img src={ThreeDotMenu} width="752" height="222" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+    src={ThreeDotMenu}
+    width="752"
+    height="222"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 You'll get a modal that pops up and shows you the list of existing scheduled deliveries for your saved chart or dashboard, and gives you the option to `create new`.
 
-<img src={CreateNewModal} width="942" height="605" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+    src={CreateNewModal}
+    width="500"
+    height="605"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
-If you click on `create new`, you'll be brought to a configuration screen for your new scheduled delivery.
+### Setup
 
-<img src={ConfigureNewDelivery} width="526" height="598" style={{display: "block", margin: "0 auto 20px auto"}}/>
+Once you click on `create new`, you'll be brought to a configuration screen for your new scheduled delivery.
 
-## Scheduled delivery options
+<img
+    src={ConfigureNewDelivery}
+    width="526"
+    height="598"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
-- **Name**: this is the name of your scheduled delivery. 
-- **Frequency**: this is how often your scheduled delivery will be sent. You can make this hourly, daily, weekly, monthly, or custom - each frequency has its own options. For example, with a monthly schedule, you set the day of the month and the time that you want your scheduled delivery to be sent. The custom frequency lets you write out your own custom Cron expression if you need something more specific than our standard options. All times for the scheduler are in UTC.
-- **Format**: either `Image` or `CSV`. `Image` sends an image of the content (chart or dashboard) to your chosen destination. `CSV` sends a downloadable .csv file of the results table from your chart, or if you're sending a dashboard, it sends a single message with multiple .csv files for the results tables from each of your charts.
-    - **For CSV formats**: you can set the `values` to either be `raw` (we remove the formatting applied dates, numbers, or other fields in Lightdash) or `formatted` (the way the values appear in your table in Lightdash is how they'll appear in the .csv). You can also adjust the `limit` and specify the number of rows that you want to be delivered in your .csv. `Results in table` will deliver the number of results that are currently in the results table for your charts. You can also set a custom number of rows to be delivered using `custom`, or set all results to be delivered so there's no maximum row limit for each chart using `all results`. 
-    - **Limit on CSV format**: We limit CSV downloads to 100,000 cells by default, so if you are trying to download more cells, your file will get truncated.
-- **Send to**: here, you can pick if you want to send your scheduled delivery to Slack, email, or both. You can add as many Slack channels and email addresses as you'd like to here. You can send a scheduled delivery to a person in Slack using `@persons-name` or to a channel using `#channel-name`.
+Here, you can configure your scheduled delivery.
+The options are:
 
-Once you've set up all of your delivery options, you can click `create new` to create your new scheduled delivery.
+-   **Delivery name**: this is the name of your scheduled delivery.
+-   **Delivery frequency**: this is how often your scheduled delivery will be sent. You can make this hourly, daily, weekly, monthly, or custom - each frequency has its own options. For example, with a monthly schedule, you set the day of the month and the time that you want your scheduled delivery to be sent. The custom frequency lets you write out your own custom Cron expression if you need something more specific than our standard options. All times for the scheduler are in UTC.
+-   **Format**: either `Image` or `CSV`.
+    -   `Image` sends an image of the content (chart or dashboard) to your chosen destination. You may also want to send the image as a PDF attachment if you choose to send it over email.
+    -   `CSV`: sends a downloadable .csv file of the results table from your chart, or if you're sending a dashboard, it sends a single message with multiple .csv files for the results tables from each of your charts. You can set the `values` to either be `raw` (we remove the formatting applied dates, numbers, or other fields in Lightdash) or `formatted` (the way the values appear in your table in Lightdash is how they'll appear in the .csv). You can also adjust the `limit` and specify the number of rows that you want to be delivered in your .csv. `Results in table` will deliver the number of results that are currently in the results table for your charts. You can also set a custom number of rows to be delivered using `custom`, or set all results to be delivered so there's no maximum row limit for each chart using `all results`.
+        -   **Limit on CSV format**: We limit CSV downloads to 100,000 cells by default, so if you are trying to download more cells, your file will get truncated.
+-   **Send to**: here, you can pick if you want to send your scheduled delivery to Slack, email, or both. You can add as many Slack channels and email addresses as you'd like to here. You can send a scheduled delivery to a person in Slack using `@persons-name` or to a channel using `#channel-name`.
+
+### Filters
+
+You can also customise the **saved** filters([more information on how to save filters in dashboards](/guides/limiting-data-using-filters#adding-saved-filters-to-your-dashboard)) applied to your dashboard on the `Filters` tab. This lets you send a different version of your dashboard to different people, without having to create multiple dashboards.
+
+<img
+    src={DashboardScheduledDeliveryFilters}
+    width="845"
+    height="515"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+:::info
+Filters are only available for Dashboard scheduled deliveries.
+:::
+
+Here, you'll be able to:
+
+1. Update the filter operator (e.g. from "is" to "is not")
+2. Update the filter value (e.g. from "USD" to "GBP")
+3. Revert the filter back to its original state (the default value of the filter applied to your dashboard)
+
+### Customization
+
+<img
+    src={ScheduledDeliveryCustomization}
+    width="400"
+    height="515"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Finally, you can customize the message that gets sent with your scheduled delivery on the `Customization` tab.
 
 ## Editing and deleting your scheduled deliveries
 
-To remove a scheduled delivery from a chart or dashboard, click on the three-dot-menu beside the scheduled delivery name. From there, you can choose to `edit` or `delete` the scheduled delivery.
+To edit a scheduled delivery, click on the pencil-icon next to the scheduled delivery you want to edit. This will bring you back to the configuration screen for your scheduled delivery, where you can make any changes you'd like.
+In case you want to delete a scheduled delivery, click on the trash-icon next to the scheduled delivery you want to delete.
 
-<img src={EditDeleteDelivery} width="845" height="515" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+    src={EditDeleteDelivery}
+    width="500"
+    height="515"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 ## Overview of your scheduled deliveries
 
-Users who have an admin role in your project can access an overview of your scheduled deliveries in the project settings. 
+Users who have an admin role in your project can access an overview of your scheduled deliveries in the project settings.
 
-In the scheduled deliveries overview page, you can see a list of all of your scheduled deliveries, their most recent delivery status, and a history of all of the previous scheduled deliveries in your project. 
+In the scheduled deliveries overview page, you can see a list of all of your scheduled deliveries, their most recent delivery status, and a history of all of the previous scheduled deliveries in your project.
 
-To access the overview page, just head to your project settings, then to the `scheduled deliveries` tab. 
+To access the overview page, just head to your project settings, then to the `Syncs & Scheduled Deliveries` tab.
 
-<img src={ScheduledDeliveriesOverview} width="1086" height="589" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+    src={ScheduledDeliveriesOverview}
+    width="1086"
+    height="589"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
-## Sending to private Slack channels 
+## Sending to private Slack channels
 
-You can also send scheduled deliveries to private Slack channels. To do this, simply type the name of the Slack channel exactly as it appears in Slack into the input text box. Then click on it to confirm and save the scheduled delivery. 
+You can also send scheduled deliveries to private Slack channels. To do this, simply type the name of the Slack channel exactly as it appears in Slack into the input text box. Then click on it to confirm and save the scheduled delivery.
 
 :::info
-You must add the Lightdash slack bot into the private Slack channel for it to be able to post scheduled delivery results. 
+You must add the Lightdash slack bot into the private Slack channel for it to be able to post scheduled delivery results.
 :::
