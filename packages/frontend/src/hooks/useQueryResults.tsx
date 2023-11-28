@@ -244,6 +244,7 @@ export const useChartAndResults = (
             }),
         [
             chartUuid,
+            dashboardUuid,
             timezoneFixFilters,
             invalidateCache,
             dashboardSorts,
