@@ -28,6 +28,7 @@ export const getSupportedDbtVersion = async () => {
     if (version.startsWith('1.4.')) return SupportedDbtVersions.V1_4;
     if (version.startsWith('1.5.')) return SupportedDbtVersions.V1_5;
     if (version.startsWith('1.6.')) return SupportedDbtVersions.V1_6;
+    if (version.startsWith('1.7.')) return SupportedDbtVersions.V1_7;
 
     console.error(
         styles.warning(
@@ -38,7 +39,7 @@ export const getSupportedDbtVersion = async () => {
 };
 
 export const isSupportedDbtVersion = (version: string) => {
-    const supportedVersions = ['1.3.', '1.4.', '1.5.', '1.6.'];
+    const supportedVersions = ['1.3.', '1.4.', '1.5.', '1.6.', '1.7'];
     return supportedVersions.some((supportedVersion) =>
         version.startsWith(supportedVersion),
     );
