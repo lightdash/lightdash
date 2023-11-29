@@ -248,8 +248,6 @@ export class ValidationService {
                 CreateChartValidation,
                 'error' | 'errorType' | 'fieldName'
             >) => {
-                console.log(fieldIds, fieldId);
-
                 if (!fieldIds?.includes(fieldId)) {
                     return [
                         ...acc,
