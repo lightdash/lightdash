@@ -607,6 +607,8 @@ export class ProjectModel {
         projectUuid: string,
         tableName: string,
     ): Promise<Explore | ExploreError | undefined> {
+        console.log(tableName);
+
         return wrapOtelSpan(
             'ProjectModel.findExploreByTableName',
             {},
@@ -616,7 +618,7 @@ export class ProjectModel {
                     .columns({
                         explore: 'explore',
                         baseMatch: this.database.raw(
-                            "? = explore->>'base_table'",
+                            "? = explore->>'baseTable'",
                             [tableName],
                         ),
                     })
@@ -625,6 +627,8 @@ export class ProjectModel {
                     .andWhere('project_uuid', projectUuid)
                     .orderBy('baseMatch', 'desc')
                     .first();
+
+                console.log(exploreCache);
 
                 span.setAttribute(
                     'foundIndividualExploreCache',
