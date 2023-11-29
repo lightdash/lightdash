@@ -3,17 +3,18 @@ import {
     Group,
     Kbd,
     MantineProvider,
+    MantineSize,
     Text,
     Tooltip,
 } from '@mantine/core';
 import { useHotkeys, useOs } from '@mantine/hooks';
-import { memo, useCallback } from 'react';
+import { FC, memo, useCallback } from 'react';
 import { useExplorerContext } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
 import LimitButton from './LimitButton';
 
-export const RefreshButton = memo(() => {
+export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     const os = useOs();
     const limit = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery.limit,
@@ -66,6 +67,7 @@ export const RefreshButton = memo(() => {
                 disabled={isLoading || !isValidQuery}
             >
                 <Button
+                    size={size}
                     disabled={!isValidQuery}
                     loading={isLoading}
                     onClick={onClick}
@@ -74,7 +76,12 @@ export const RefreshButton = memo(() => {
                     Run query ({limit})
                 </Button>
             </Tooltip>
-            <LimitButton limit={limit} onLimitChange={setRowLimit} />
+            <LimitButton
+                disabled={!isValidQuery}
+                size={size}
+                limit={limit}
+                onLimitChange={setRowLimit}
+            />
         </Button.Group>
     );
 });

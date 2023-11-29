@@ -168,7 +168,7 @@ export const EmptyStateNoTableData: FC<{ description: React.ReactNode }> = ({
                 </>
             }
         >
-            <RefreshButton />
+            <RefreshButton size={'xs'} />
         </EmptyState>
     </TrackSection>
 );
