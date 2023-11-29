@@ -36,6 +36,7 @@ import CopyToClipboard from 'react-copy-to-clipboard';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { downloadCsv } from '../../api/csv';
+import { DateZoomInfoOnTile } from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
 import useDashboardChart from '../../hooks/dashboard/useDashboardChart';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
@@ -486,6 +487,16 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             <MantineIcon icon={IconFilter} />
                         </Tooltip>
                     )
+                }
+                titleLeftIcon={
+                    metricQuery.metadata?.hasADateDimension ? (
+                        <DateZoomInfoOnTile
+                            chartUuid={savedChartUuid}
+                            dateDimension={
+                                metricQuery.metadata.hasADateDimension
+                            }
+                        />
+                    ) : null
                 }
                 title={title || chart.name || ''}
                 chartName={chart.name}

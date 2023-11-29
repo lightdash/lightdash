@@ -156,8 +156,6 @@ export const DashboardProvider: React.FC<{
     const [chartsWithDateZoomApplied, setChartsWithDateZoomApplied] =
         useState<Set<string>>();
 
-    console.log({ chartsWithDateZoomApplied });
-
     const {
         overridesForSavedDashboardFilters,
         addSavedFilterOverride,
