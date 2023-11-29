@@ -15,6 +15,7 @@ import {
     getMetrics,
     isNumericItem,
     Metric,
+    swapFieldId,
     TableCalculation,
 } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
@@ -232,6 +233,14 @@ const VisualizationProvider: FC<Props> = ({
     // so we initialize it with the fields from resultData
     const defaultColumnOrder = useMemo(() => {
         if (columnOrder.length > 0) {
+            if (resultsData?.metricQuery.metadata?.swappedFieldIds) {
+                return columnOrder.map((column) =>
+                    swapFieldId(
+                        resultsData?.metricQuery.metadata?.swappedFieldIds,
+                        column,
+                    ),
+                );
+            }
             return columnOrder;
         } else {
             const metricQuery = resultsData?.metricQuery;
@@ -278,7 +287,7 @@ const VisualizationProvider: FC<Props> = ({
         resultsData: lastValidResultsData,
         isLoading,
         explore,
-        columnOrder,
+        columnOrder: defaultColumnOrder,
         isSqlRunner: isSqlRunner || false,
         dimensions,
         metrics,

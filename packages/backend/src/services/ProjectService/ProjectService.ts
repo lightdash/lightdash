@@ -1149,8 +1149,8 @@ export class ProjectService {
                 ? [[oldDimension, newDimension]]
                 : undefined;
         const metricQueryDimensions = [
-            ...metricQueryWithDashboardOverrides.dimensions,
-            ...(metricQueryWithDashboardOverrides.customDimensions ?? []),
+            ...metricWithOverrideGranularity.dimensions,
+            ...(metricWithOverrideGranularity.customDimensions ?? []),
         ];
         const hasADateDimension = exploreDimensions.find(
             (c) =>
@@ -1158,7 +1158,7 @@ export class ProjectService {
         );
 
         if (hasADateDimension) {
-            metricQueryWithDashboardOverrides.metadata = {
+            metricWithOverrideGranularity.metadata = {
                 hasADateDimension: getFieldId(hasADateDimension),
                 swappedFieldIds,
             };
@@ -1167,7 +1167,7 @@ export class ProjectService {
         return {
             chart: savedChart,
             explore,
-            metricQuery: metricQueryWithDashboardOverrides,
+            metricQuery: metricWithOverrideGranularity,
             cacheMetadata,
             rows,
             appliedDashboardFilters,

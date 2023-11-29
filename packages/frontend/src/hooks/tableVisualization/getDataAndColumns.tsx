@@ -55,7 +55,6 @@ const getDataAndColumns = ({
                 return acc;
             }
             const headerOverride = getFieldLabelOverride(itemId);
-
             const column: TableHeader | TableColumn = columnHelper.accessor(
                 (row) => row[itemId],
                 {

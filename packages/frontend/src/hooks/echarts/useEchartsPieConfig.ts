@@ -1,4 +1,9 @@
-import { formatItemValue, ResultRow, ResultValue } from '@lightdash/common';
+import {
+    formatItemValue,
+    ResultRow,
+    ResultValue,
+    swapFieldId,
+} from '@lightdash/common';
 import { EChartsOption, PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { isPieVisualizationConfig } from '../../components/LightdashVisualization/VisualizationConfigPie';
@@ -14,12 +19,35 @@ export type PieSeriesDataPoint = NonNullable<
 };
 
 const useEchartsPieConfig = (isInDashboard: boolean) => {
-    const { visualizationConfig, explore } = useVisualizationContext();
+    const { visualizationConfig, explore, resultsData } =
+        useVisualizationContext();
 
     const chartConfig = useMemo(() => {
         if (!isPieVisualizationConfig(visualizationConfig)) return;
-        return visualizationConfig.chartConfig;
-    }, [visualizationConfig]);
+
+        const config = visualizationConfig.chartConfig;
+
+        if (!resultsData?.metricQuery.metadata?.swappedFieldIds) return config;
+
+        const groupFieldIds = config.groupFieldIds.map((fieldId) => {
+            if (!fieldId) return fieldId;
+            return swapFieldId(
+                resultsData.metricQuery.metadata?.swappedFieldIds,
+                fieldId,
+            );
+        });
+        return {
+            ...config,
+            groupFieldIds,
+            validConfig: {
+                ...config.validConfig,
+                groupFieldIds,
+            },
+        };
+    }, [
+        visualizationConfig,
+        resultsData?.metricQuery.metadata?.swappedFieldIds,
+    ]);
 
     const seriesData = useMemo(() => {
         if (!chartConfig) return;
@@ -38,7 +66,6 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
                 groupValueOptionOverrides,
             },
         } = chartConfig;
-
         if (!selectedMetric) return;
 
         return data

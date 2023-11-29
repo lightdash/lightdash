@@ -144,3 +144,13 @@ export type MetricQueryRequest = {
     csvLimit?: number;
     customDimensions?: CustomDimension[];
 };
+
+export const swapFieldId = (
+    swappedFieldIds: string[][] | undefined,
+    fieldId: string,
+) => {
+    const swappedFieldId = swappedFieldIds?.find(
+        (fields) => fields[0] === fieldId,
+    );
+    return swappedFieldId?.[1] || fieldId;
+};

@@ -33,6 +33,7 @@ import {
     PivotReference,
     ResultRow,
     Series,
+    swapFieldId,
     TableCalculation,
     timeFrameConfigs,
 } from '@lightdash/common';
@@ -780,15 +781,7 @@ const calculateWidthText = (text: string | undefined): number => {
     span.remove();
     return width;
 };
-const swapFieldId = (
-    swappedFieldIds: string[][] | undefined,
-    fieldId: string,
-) => {
-    const swappedFieldId = swappedFieldIds?.find(
-        (fields) => fields[0] === fieldId,
-    );
-    return swappedFieldId?.[1] || fieldId;
-};
+
 const getEchartAxis = ({
     items,
     validCartesianConfig,

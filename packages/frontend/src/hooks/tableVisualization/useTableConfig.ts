@@ -13,6 +13,7 @@ import {
     itemsInMetricQuery,
     PivotData,
     ResultRow,
+    swapFieldId,
     TableChart,
 } from '@lightdash/common';
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
@@ -119,8 +120,17 @@ const useTableConfig = (
     );
 
     const getField = useCallback(
-        (fieldId: string) => itemsMap[fieldId],
-        [itemsMap],
+        (fieldId: string) => {
+            if (!resultsData?.metricQuery?.metadata?.swappedFieldIds)
+                return itemsMap[fieldId];
+            return itemsMap[
+                swapFieldId(
+                    resultsData?.metricQuery?.metadata?.swappedFieldIds,
+                    fieldId,
+                )
+            ];
+        },
+        [itemsMap, resultsData?.metricQuery?.metadata?.swappedFieldIds],
     );
 
     const getFieldLabel = useCallback(
