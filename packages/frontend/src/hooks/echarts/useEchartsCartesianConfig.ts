@@ -13,6 +13,7 @@ import {
     formatValue,
     friendlyName,
     getAxisName,
+    getDateGroupLabel,
     getDefaultSeriesColor,
     getDimensions,
     getFields,
@@ -78,8 +79,9 @@ const getLabelFromField = (
     key: string | undefined,
 ) => {
     const item = findItem(fields, key);
+
     if (item) {
-        return getItemLabelWithoutTableName(item);
+        return getDateGroupLabel(item) || getItemLabelWithoutTableName(item);
     } else if (key) {
         return friendlyName(key);
     } else {
@@ -986,7 +988,8 @@ const getEchartAxis = ({
                       })
                     : xAxisConfiguration?.[0]?.name ||
                       (xAxisItem
-                          ? getItemLabelWithoutTableName(xAxisItem)
+                          ? getDateGroupLabel(xAxisItem) ||
+                            getItemLabelWithoutTableName(xAxisItem)
                           : undefined),
                 min: validCartesianConfig.layout.flipAxes
                     ? xAxisConfiguration?.[0]?.min ||
@@ -1048,7 +1051,8 @@ const getEchartAxis = ({
                 name: validCartesianConfig.layout.flipAxes
                     ? yAxisConfiguration?.[0]?.name ||
                       (yAxisItem
-                          ? getItemLabelWithoutTableName(yAxisItem)
+                          ? getDateGroupLabel(yAxisItem) ||
+                            getItemLabelWithoutTableName(yAxisItem)
                           : undefined)
                     : getAxisName({
                           isAxisTheSameForAllSeries,
