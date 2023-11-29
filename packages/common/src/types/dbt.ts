@@ -420,4 +420,5 @@ export enum DbtManifestVersion {
     V8 = 'v8',
     V9 = 'v9',
     V10 = 'v10',
+    V11 = 'v11',
 }
