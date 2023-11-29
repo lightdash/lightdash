@@ -366,8 +366,6 @@ export const stopPreviewHandler = async (
             },
         });
 
-        console.error(
-            `Could not find preview project with name ${projectName}`,
-        );
+        console.error(`You don't have access to this resource or action`);
     }
 };
