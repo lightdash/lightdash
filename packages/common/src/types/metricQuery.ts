@@ -54,6 +54,7 @@ export type MetricQuery = {
     customDimensions?: CustomDimension[];
     metadata?: {
         hasADateDimension: string | CustomDimension;
+        swappedFieldIds?: string[][]; // [oldFieldId, newFieldId]
     };
 };
 export type CompiledMetricQuery = MetricQuery & {

@@ -734,6 +734,7 @@ const getEchartsSeries = (
         .filter((s) => !s.hidden)
         .map<EChartSeries>((series) => {
             const { flipAxes } = cartesianChart.layout;
+
             const xFieldHash = hashFieldReference(series.encode.xRef);
             const yFieldHash = hashFieldReference(series.encode.yRef);
             if (pivotKeys && isPivotReferenceWithValues(series.encode.yRef)) {
@@ -779,7 +780,15 @@ const calculateWidthText = (text: string | undefined): number => {
     span.remove();
     return width;
 };
-
+const swapFieldId = (
+    swappedFieldIds: string[][] | undefined,
+    fieldId: string,
+) => {
+    const swappedFieldId = swappedFieldIds?.find(
+        (fields) => fields[0] === fieldId,
+    );
+    return swappedFieldId?.[1] || fieldId;
+};
 const getEchartAxis = ({
     items,
     validCartesianConfig,
@@ -1251,10 +1260,71 @@ const useEchartsCartesianConfig = (
     const { visualizationConfig, explore, pivotDimensions, resultsData } =
         useVisualizationContext();
 
+    const queryDimensions = useMemo(() => {
+        return resultsData?.metricQuery.dimensions.map((dimension) =>
+            swapFieldId(
+                resultsData?.metricQuery.metadata?.swappedFieldIds,
+                dimension,
+            ),
+        );
+    }, [
+        resultsData?.metricQuery.dimensions,
+        resultsData?.metricQuery.metadata?.swappedFieldIds,
+    ]);
+
     const validCartesianConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
-        return visualizationConfig.chartConfig.validConfig;
-    }, [visualizationConfig]);
+        const validConfig = visualizationConfig.chartConfig.validConfig;
+
+        if (!resultsData?.metricQuery.metadata?.swappedFieldIds)
+            return validConfig;
+        return {
+            ...validConfig,
+            eChartsConfig: {
+                ...validConfig.eChartsConfig,
+                series: validConfig.eChartsConfig.series?.map((serie) => ({
+                    ...serie,
+                    encode: {
+                        ...serie.encode,
+                        xRef: {
+                            ...serie.encode.xRef,
+                            field: swapFieldId(
+                                resultsData?.metricQuery.metadata
+                                    ?.swappedFieldIds,
+                                serie.encode.xRef.field,
+                            ),
+                        },
+                        yRef: {
+                            ...serie.encode.yRef,
+                            field: swapFieldId(
+                                resultsData?.metricQuery.metadata
+                                    ?.swappedFieldIds,
+                                serie.encode.yRef.field,
+                            ),
+                        },
+                    },
+                })),
+            },
+            layout: {
+                ...validConfig.layout,
+                xField: validConfig.layout.xField
+                    ? swapFieldId(
+                          resultsData?.metricQuery.metadata?.swappedFieldIds,
+                          validConfig.layout.xField,
+                      )
+                    : undefined,
+                yField: validConfig.layout.yField?.map((field) =>
+                    swapFieldId(
+                        resultsData?.metricQuery.metadata?.swappedFieldIds,
+                        field,
+                    ),
+                ),
+            },
+        };
+    }, [
+        visualizationConfig,
+        resultsData?.metricQuery.metadata?.swappedFieldIds,
+    ]);
 
     const { data: organizationData } = useOrganization();
 
@@ -1262,15 +1332,15 @@ const useEchartsCartesianConfig = (
         if (
             resultsData &&
             validCartesianConfig &&
+            queryDimensions &&
             isCompleteLayout(validCartesianConfig.layout)
         ) {
             const yFieldPivotedKeys = validCartesianConfig.layout.yField.filter(
-                (yField) =>
-                    !resultsData.metricQuery.dimensions.includes(yField),
+                (yField) => !queryDimensions.includes(yField),
             );
             const yFieldNonPivotedKeys =
                 validCartesianConfig.layout.yField.filter((yField) =>
-                    resultsData.metricQuery.dimensions.includes(yField),
+                    queryDimensions.includes(yField),
                 );
 
             return [
@@ -1279,7 +1349,7 @@ const useEchartsCartesianConfig = (
             ];
         }
         return [];
-    }, [validCartesianConfig, resultsData]);
+    }, [validCartesianConfig, resultsData, queryDimensions]);
 
     const { rows } = useMemo(() => {
         return getPlottedData(
@@ -1415,12 +1485,14 @@ const useEchartsCartesianConfig = (
                 resultsData?.metricQuery.customDimensions || [];
 
             const xFieldId = validCartesianConfig?.layout?.xField;
+
             if (xFieldId === undefined) return results;
 
             const alreadySorted =
                 resultsData?.metricQuery.sorts?.[0]?.fieldId === xFieldId;
             if (alreadySorted) return results;
 
+            //TODO implement missing time frame here
             const xField = [...dimensions, ...customDimensions].find(
                 (dimension) => getItemId(dimension) === xFieldId,
             );

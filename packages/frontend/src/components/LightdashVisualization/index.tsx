@@ -1,4 +1,8 @@
-import { assertUnreachable, ChartType } from '@lightdash/common';
+import {
+    assertUnreachable,
+    ChartType,
+    DateGranularity,
+} from '@lightdash/common';
 import { FC, memo } from 'react';
 import CustomVisualization from '../CustomVisualization';
 import SimpleChart from '../SimpleChart';
@@ -13,6 +17,7 @@ interface LightdashVisualizationProps {
     isTitleHidden?: boolean;
     className?: string;
     'data-testid'?: string;
+    dateGranularity?: DateGranularity;
 }
 
 const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
@@ -21,6 +26,7 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
         isTitleHidden = false,
         tileUuid,
         className,
+        dateGranularity,
         ...props
     }) => {
         const { visualizationConfig, minimal } = useVisualizationContext();

@@ -164,6 +164,7 @@ const ValidDashboardChartTile: FC<{
 
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const invalidateCache = useDashboardContext((c) => c.invalidateCache);
+    const dateGranularity = useDashboardContext((c) => c.dateZoomGranularity);
 
     const { health } = useApp();
 
@@ -202,6 +203,7 @@ const ValidDashboardChartTile: FC<{
                 isDashboard
                 tileUuid={tileUuid}
                 isTitleHidden={isTitleHidden}
+                dateGranularity={dateGranularity}
             />
         </VisualizationProvider>
     );
