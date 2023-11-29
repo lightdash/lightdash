@@ -92,6 +92,10 @@ type DashboardContext = {
     setDateZoomGranularity: Dispatch<
         SetStateAction<DateGranularity | undefined>
     >;
+    chartsWithDateZoomApplied: Set<string> | undefined;
+    setChartsWithDateZoomApplied: Dispatch<
+        SetStateAction<Set<string> | undefined>
+    >;
 };
 
 const Context = createContext<DashboardContext | undefined>(undefined);
@@ -149,6 +153,10 @@ export const DashboardProvider: React.FC<{
     const [dateZoomGranularity, setDateZoomGranularity] = useState<
         DateGranularity | undefined
     >(undefined);
+    const [chartsWithDateZoomApplied, setChartsWithDateZoomApplied] =
+        useState<Set<string>>();
+
+    console.log({ chartsWithDateZoomApplied });
 
     const {
         overridesForSavedDashboardFilters,
@@ -532,6 +540,8 @@ export const DashboardProvider: React.FC<{
         setChartSort,
         dateZoomGranularity,
         setDateZoomGranularity,
+        chartsWithDateZoomApplied,
+        setChartsWithDateZoomApplied,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };

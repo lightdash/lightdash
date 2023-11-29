@@ -13,6 +13,7 @@ import { useCallback, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
+import { useDashboardContext } from '../providers/DashboardProvider';
 import {
     convertDateDashboardFilters,
     convertDateFilters,
@@ -206,6 +207,9 @@ export const useChartAndResults = (
     invalidateCache?: boolean,
     granularity?: DateGranularity,
 ) => {
+    const setChartsWithDateZoomApplied = useDashboardContext(
+        (c) => c.setChartsWithDateZoomApplied,
+    );
     const isDateZoomFeatureEnabled = useFeatureFlagEnabled('date-zoom');
     const queryClient = useQueryClient();
 
@@ -251,6 +255,17 @@ export const useChartAndResults = (
             granularity,
         ],
     );
+
+    setChartsWithDateZoomApplied((prev) => {
+        if (isDateZoomFeatureEnabled && hasADateDimension) {
+            if (granularity) {
+                return (prev ?? new Set()).add(chartUuid!);
+            }
+            prev?.clear();
+            return prev;
+        }
+        return prev;
+    });
 
     return useQuery<ApiChartAndResults, ApiError>({
         queryKey:
