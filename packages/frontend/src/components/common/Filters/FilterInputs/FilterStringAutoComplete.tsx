@@ -5,6 +5,7 @@ import {
     Loader,
     MultiSelect,
     MultiSelectProps,
+    ScrollArea,
     Text,
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
@@ -120,6 +121,31 @@ const FilterStringAutoComplete: FC<Props> = ({
         }));
     }, [results, values]);
 
+    const searchedMaxResults = resultsSet.size >= MAX_AUTOCOMPLETE_RESULTS;
+    // memo override component so list doesn't scroll to the top on each click
+    const DropdownComponentOverride = useCallback(
+        ({ children, ...props }: { children: ReactNode }) => (
+            <ScrollArea {...props}>
+                {searchedMaxResults ? (
+                    <Text
+                        color="dimmed"
+                        size="xs"
+                        px="sm"
+                        pt="xs"
+                        pb="xxs"
+                        bg="white"
+                    >
+                        Showing first {MAX_AUTOCOMPLETE_RESULTS} results.{' '}
+                        {search ? 'Continue' : 'Start'} typing...
+                    </Text>
+                ) : null}
+
+                {children}
+            </ScrollArea>
+        ),
+        [searchedMaxResults, search],
+    );
+
     return (
         <MultiSelect
             size="xs"
@@ -151,7 +177,7 @@ const FilterStringAutoComplete: FC<Props> = ({
             }}
             disableSelectedItemFiltering
             searchable
-            clearSearchOnChange
+            clearSearchOnChange={false}
             {...rest}
             searchValue={search}
             onSearchChange={setSearch}
@@ -159,30 +185,7 @@ const FilterStringAutoComplete: FC<Props> = ({
             onPaste={handlePaste}
             nothingFound={isLoading ? 'Loading...' : 'No results found'}
             rightSection={isLoading ? <Loader size="xs" color="gray" /> : null}
-            dropdownComponent={({
-                children,
-                ...others
-            }: {
-                children: ReactNode;
-            }) => (
-                <div {...others}>
-                    {results.length === MAX_AUTOCOMPLETE_RESULTS ? (
-                        <Text
-                            color="dimmed"
-                            size="xs"
-                            px="sm"
-                            pt="xs"
-                            pb="xxs"
-                            bg="white"
-                        >
-                            Showing first {MAX_AUTOCOMPLETE_RESULTS} results.{' '}
-                            {search ? 'Continue' : 'Start'} typing...
-                        </Text>
-                    ) : null}
-
-                    {children}
-                </div>
-            )}
+            dropdownComponent={DropdownComponentOverride}
             itemComponent={({ label, ...others }) =>
                 others.disabled ? (
                     <Text color="dimmed" {...others}>
