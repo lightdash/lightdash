@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "0.635.1",
+    "version": "0.884.1",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -10,16 +10,17 @@
         ]
     },
     "dependencies": {
-        "npm-run-all": "^4.1.5"
+        "concurrently": "^8.2.0",
+        "npm-run-all2": "^6.0.6"
     },
     "devDependencies": {
-        "@types/jest": "^29.0.0",
-        "@types/node": "^18.7.16",
+        "@types/jest": "^29.5.5",
+        "@types/node": "^20.8.0",
         "@types/pegjs": "^0.10.3",
-        "@typescript-eslint/eslint-plugin": "^5.36.2",
-        "@typescript-eslint/parser": "^5.36.2",
+        "@typescript-eslint/eslint-plugin": "^5.45.0",
+        "@typescript-eslint/parser": "^5.45.0",
         "confusing-browser-globals": "^1.0.11",
-        "dotenv": "^16.1.4",
+        "dotenv": "^16.0.2",
         "dotenv-cli": "^6.0.0",
         "eslint": "^8.23.0",
         "eslint-config-airbnb": "^19.0.4",
@@ -28,20 +29,21 @@
         "eslint-config-prettier": "^8.5.0",
         "eslint-config-react": "^1.1.7",
         "eslint-plugin-import": "^2.26.0",
-        "eslint-plugin-jest": "^27.0.4",
+        "eslint-plugin-jest": "^27.4.2",
         "eslint-plugin-json": "^3.1.0",
         "eslint-plugin-jsx-a11y": "^6.6.1",
         "eslint-plugin-prettier": "^4.2.1",
         "eslint-plugin-react-hooks": "^4.6.0",
         "eslint-plugin-testing-library": "^5.6.3",
         "husky": "^7.0.0",
-        "jest": "^29.0.3",
+        "jest": "^29.7.0",
         "lint-staged": "^12.1.2",
         "prettier": "2.7.1",
         "prettier-plugin-organize-imports": "^3.1.1",
-        "ts-jest": "^29.0.0",
-        "ts-node-dev": "^2.0.0",
-        "typescript": "^4.8.3"
+        "ts-jest": "^29.1.1",
+        "tslib": "^2.6.0",
+        "tsx": "^3.12.8",
+        "typescript": "^4.9.5"
     },
     "scripts": {
         "common-dev": "yarn workspace @lightdash/common dev",
@@ -90,12 +92,13 @@
         "fix-lint": "run-s common-fix-lint backend-fix-lint frontend-fix-lint e2e-fix-lint cli-fix-lint",
         "fix-format": "run-s common-fix-format backend-fix-format frontend-fix-format e2e-fix-format cli-fix-format",
         "test": "run-s common-test warehouses-test cli-test backend-test frontend-test",
-        "dev": "npm-run-all --parallel common-dev warehouses-dev backend-dev frontend-dev",
+        "dev": "concurrently -n \"common,warehouses,backend,frontend\" --prefix-colors \"bgWhite.bold,bgGreenBright.bold,bgMagenta.bold,bgBlue.bold\" \"yarn:common-dev\" \"yarn:warehouses-dev\" \"yarn:backend-dev\" \"yarn:frontend-dev\"",
         "build": "run-s common-build warehouses-build frontend-build backend-build",
         "build-published-packages": "run-s common-build warehouses-build cli-build",
         "start": "run-p backend-start",
         "prepare": "husky install",
-        "load:env": "dotenv -c -e .env.development.local"
+        "load:env": "dotenv -c -e .env.development.local",
+        "generate-api": "yarn common-build && yarn workspace backend generate-api && yarn workspace backend formatter --write ./src/generated"
     },
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [
