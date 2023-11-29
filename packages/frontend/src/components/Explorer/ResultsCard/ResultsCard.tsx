@@ -18,7 +18,6 @@ import CollapsableCard, {
 } from '../../common/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import ExportSelector from '../../ExportSelector';
-import LimitButton from '../../LimitButton';
 import SortButton from '../../SortButton';
 import { ExplorerResults } from './ExplorerResults';
 
@@ -32,9 +31,6 @@ const ResultsCard: FC = memo(() => {
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
-    const limit = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.limit,
-    );
     const sorts = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery.sorts,
     );
@@ -43,9 +39,6 @@ const ResultsCard: FC = memo(() => {
     );
     const resultsData = useExplorerContext(
         (context) => context.queryResults.data,
-    );
-    const setRowLimit = useExplorerContext(
-        (context) => context.actions.setRowLimit,
     );
     const toggleExpandedSection = useExplorerContext(
         (context) => context.actions.toggleExpandedSection,
@@ -103,14 +96,6 @@ const ResultsCard: FC = memo(() => {
             disabled={!tableName}
             headerElement={
                 <>
-                    {tableName && (
-                        <LimitButton
-                            isEditMode={isEditMode}
-                            limit={limit}
-                            onLimitChange={setRowLimit}
-                        />
-                    )}
-
                     {tableName && sorts.length > 0 && (
                         <SortButton isEditMode={isEditMode} sorts={sorts} />
                     )}

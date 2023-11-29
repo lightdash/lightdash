@@ -1,9 +1,10 @@
-import { Skeleton, Stack } from '@mantine/core';
+import { Box, Skeleton, Stack } from '@mantine/core';
 import { FC, memo } from 'react';
 
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
+import { RefreshButton } from '../../RefreshButton';
 import ExploreTree from '../ExploreTree';
 
 const LoadingSkeleton = () => (
@@ -56,6 +57,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         return null;
     }
 
+    // @ts-ignore
     return (
         <>
             <PageBreadcrumbs
@@ -89,6 +91,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                 onSelectedFieldChange={toggleActiveField}
                 customDimensions={customDimensions}
             />
+            <Box py="md">
+                <RefreshButton />
+            </Box>
         </>
     );
 });
