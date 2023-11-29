@@ -1,3 +1,10 @@
+# [0.885.0](https://github.com/lightdash/lightdash/compare/0.884.1...0.885.0) (2023-11-29)
+
+
+### Features
+
+* add indicator when a chart tile has been date zoomed ([#8144](https://github.com/lightdash/lightdash/issues/8144)) ([e8ce66f](https://github.com/lightdash/lightdash/commit/e8ce66fc329e6cf32cb3e7ebe5b23a4ba9219b8d))
+
 ## [0.884.1](https://github.com/lightdash/lightdash/compare/0.884.0...0.884.1) (2023-11-29)
 
 
