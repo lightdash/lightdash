@@ -19,7 +19,6 @@ import {
     FilterableField,
     friendlyName,
     isDimension,
-    isField,
     Metric,
     TableCalculation,
 } from './types/field';

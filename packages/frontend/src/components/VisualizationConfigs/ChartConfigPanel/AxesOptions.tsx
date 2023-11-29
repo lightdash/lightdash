@@ -2,6 +2,7 @@ import {
     CustomDimension,
     Field,
     getAxisName,
+    getDateGroupLabel,
     getItemId,
     getItemLabelWithoutTableName,
     isNumericItem,
@@ -137,7 +138,9 @@ const AxesOptions: FC<Props> = ({ items }) => {
                 placeholder="Enter axis label"
                 defaultValue={
                     dirtyEchartsConfig?.xAxis?.[0]?.name ||
-                    (xAxisField && getItemLabelWithoutTableName(xAxisField))
+                    (xAxisField &&
+                        (getDateGroupLabel(xAxisField) ||
+                            getItemLabelWithoutTableName(xAxisField)))
                 }
                 onBlur={(e) => setXAxisName(e.currentTarget.value)}
             />
