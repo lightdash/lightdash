@@ -156,6 +156,21 @@ export const DashboardProvider: React.FC<{
     const [chartsWithDateZoomApplied, setChartsWithDateZoomApplied] =
         useState<Set<string>>();
 
+    // Update dashboard url date zoom change
+    useEffect(() => {
+        const newParams = new URLSearchParams(search);
+        if (dateZoomGranularity === undefined) {
+            newParams.delete('dateZoom');
+        } else {
+            newParams.set('dateZoom', dateZoomGranularity.toLowerCase());
+        }
+
+        history.replace({
+            pathname,
+            search: newParams.toString(),
+        });
+    }, [dateZoomGranularity, search, history, pathname]);
+
     const {
         overridesForSavedDashboardFilters,
         addSavedFilterOverride,
@@ -266,9 +281,21 @@ export const DashboardProvider: React.FC<{
         }
     }, [dashboard?.filters, overridesForSavedDashboardFilters]);
 
-    // Gets filters from URL and storage after redirect
+    // Gets filters and dateZoom from URL and storage after redirect
     useMount(() => {
         const searchParams = new URLSearchParams(search);
+
+        // Date zoom
+        const dateZoomParam = searchParams.get('dateZoom');
+        if (dateZoomParam) {
+            const dateZoom = Object.values(DateGranularity).find(
+                (granularity) =>
+                    granularity.toLowerCase() === dateZoomParam?.toLowerCase(),
+            );
+            if (dateZoom) setDateZoomGranularity(dateZoom);
+        }
+
+        // Temp filters
         const tempFilterSearchParam = searchParams.get('tempFilters');
         const unsavedDashboardFiltersRaw = sessionStorage.getItem(
             'unsavedDashboardFilters',
