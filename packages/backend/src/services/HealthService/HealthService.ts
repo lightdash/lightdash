@@ -94,6 +94,9 @@ export class HealthService {
             hasEmailClient: !!this.lightdashConfig.smtp,
             hasHeadlessBrowser:
                 this.lightdashConfig.headlessBrowser?.host !== undefined,
+            hasDbtSemanticLayer:
+                !!process.env.DBT_CLOUD_ENVIRONMENT_ID &&
+                !!process.env.DBT_CLOUD_BEARER_TOKEN,
         };
     }
 

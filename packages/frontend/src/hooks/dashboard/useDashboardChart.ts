@@ -3,6 +3,7 @@ import { useChartAndResults } from '../useQueryResults';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 
 const useDashboardChart = (tileUuid: string, savedChartUuid: string | null) => {
+    const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardContext((c) => c.invalidateCache);
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
@@ -11,6 +12,7 @@ const useDashboardChart = (tileUuid: string, savedChartUuid: string | null) => {
 
     return useChartAndResults(
         savedChartUuid,
+        dashboardUuid ?? null,
         dashboardFilters,
         tileSort,
         invalidateCache,

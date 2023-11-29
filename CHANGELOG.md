@@ -1,3 +1,74 @@
+## [0.883.1](https://github.com/lightdash/lightdash/compare/0.883.0...0.883.1) (2023-11-28)
+
+
+### Bug Fixes
+
+* dont crash when column name contains a dot ([#8114](https://github.com/lightdash/lightdash/issues/8114)) ([091f10a](https://github.com/lightdash/lightdash/commit/091f10a25e8a2c46df5a3558bd2d5afe79612d2d))
+
+# [0.883.0](https://github.com/lightdash/lightdash/compare/0.882.1...0.883.0) (2023-11-28)
+
+
+### Features
+
+* add dashboard uuid to query tags ([#8129](https://github.com/lightdash/lightdash/issues/8129)) ([4d97009](https://github.com/lightdash/lightdash/commit/4d97009d4d352bf9172125f37188cd2d6dacab62))
+
+## [0.882.1](https://github.com/lightdash/lightdash/compare/0.882.0...0.882.1) (2023-11-28)
+
+
+### Bug Fixes
+
+* table calculation dimension ([#8133](https://github.com/lightdash/lightdash/issues/8133)) ([af626a6](https://github.com/lightdash/lightdash/commit/af626a6eb75c03442051b29c5d5948fe138cb43d))
+
+# [0.882.0](https://github.com/lightdash/lightdash/compare/0.881.1...0.882.0) (2023-11-28)
+
+
+### Features
+
+* add navigation to dbt semantic layer page ([#8127](https://github.com/lightdash/lightdash/issues/8127)) ([1c8eb15](https://github.com/lightdash/lightdash/commit/1c8eb15dc8b404007d447afdafe2cd89624a1a4e))
+
+## [0.881.1](https://github.com/lightdash/lightdash/compare/0.881.0...0.881.1) (2023-11-28)
+
+
+### Bug Fixes
+
+* date zoom on table calcs ([#8122](https://github.com/lightdash/lightdash/issues/8122)) ([16cf463](https://github.com/lightdash/lightdash/commit/16cf463e1693766d2afef52a23ff85ea985271f6))
+
+# [0.881.0](https://github.com/lightdash/lightdash/compare/0.880.0...0.881.0) (2023-11-28)
+
+
+### Features
+
+* invalidate charts with dates when date zooming ([#8083](https://github.com/lightdash/lightdash/issues/8083)) ([cb7bbce](https://github.com/lightdash/lightdash/commit/cb7bbce3a21a43043be1dc991d40821b4f64d89e)), closes [#8071](https://github.com/lightdash/lightdash/issues/8071)
+
+# [0.880.0](https://github.com/lightdash/lightdash/compare/0.879.0...0.880.0) (2023-11-28)
+
+
+### Features
+
+* add filter data to scheduler events ([#8112](https://github.com/lightdash/lightdash/issues/8112)) ([f4b6be5](https://github.com/lightdash/lightdash/commit/f4b6be53199cb739312c6683ae92b392e267af23))
+
+# [0.879.0](https://github.com/lightdash/lightdash/compare/0.878.1...0.879.0) (2023-11-28)
+
+
+### Features
+
+* display filter summary if not overridden ([#8084](https://github.com/lightdash/lightdash/issues/8084)) ([9aee6c9](https://github.com/lightdash/lightdash/commit/9aee6c93788dd08939b0d575a42744f213f45402))
+
+## [0.878.1](https://github.com/lightdash/lightdash/compare/0.878.0...0.878.1) (2023-11-28)
+
+
+### Bug Fixes
+
+* allow to edit seconds in time range picker ([#8106](https://github.com/lightdash/lightdash/issues/8106)) ([68d3b84](https://github.com/lightdash/lightdash/commit/68d3b842c3a4b89a1ac71823993d6e34111d6e18))
+* update refresh dbt button tooltip styles ([#8116](https://github.com/lightdash/lightdash/issues/8116)) ([596a60d](https://github.com/lightdash/lightdash/commit/596a60d18a7e39e5bc36867284395c809476c5cc))
+
+# [0.878.0](https://github.com/lightdash/lightdash/compare/0.877.2...0.878.0) (2023-11-28)
+
+
+### Features
+
+* add login and register links ([#8108](https://github.com/lightdash/lightdash/issues/8108)) ([4b6b9e9](https://github.com/lightdash/lightdash/commit/4b6b9e959874412834bcb8b8484be7fcf88b413a))
+
 ## [0.877.2](https://github.com/lightdash/lightdash/compare/0.877.1...0.877.2) (2023-11-27)
 
 

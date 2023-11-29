@@ -8,8 +8,9 @@ import {
     MetricQuery,
     SortField,
 } from '@lightdash/common';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useCallback, useMemo } from 'react';
-import { useMutation, useQuery } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import {
@@ -46,28 +47,30 @@ const getChartResults = async ({
 
 const getChartAndResults = async ({
     chartUuid,
+    dashboardUuid,
     dashboardFilters,
     invalidateCache,
     dashboardSorts,
     granularity,
 }: {
     chartUuid?: string;
-    dashboardFilters?: DashboardFilters;
+    dashboardUuid: string;
+    dashboardFilters: DashboardFilters;
     invalidateCache?: boolean;
-    dashboardSorts?: SortField[];
+    dashboardSorts: SortField[];
     granularity?: DateGranularity;
-}) => {
-    return lightdashApi<ApiChartAndResults>({
+}) =>
+    lightdashApi<ApiChartAndResults>({
         url: `/saved/${chartUuid}/chart-and-results`,
         method: 'POST',
         body: JSON.stringify({
+            dashboardUuid,
             dashboardFilters,
             dashboardSorts,
             granularity,
             ...(invalidateCache && { invalidateCache: true }),
         }),
     });
-};
 
 const getQueryResults = async ({
     projectUuid,
@@ -197,37 +200,65 @@ export const useUnderlyingDataResults = (
 
 export const useChartAndResults = (
     chartUuid: string | null,
-    dashboardFilters?: DashboardFilters,
-    dashboardSorts?: SortField[],
+    dashboardUuid: string | null,
+    dashboardFilters: DashboardFilters,
+    dashboardSorts: SortField[],
     invalidateCache?: boolean,
     granularity?: DateGranularity,
 ) => {
+    const isDateZoomFeatureEnabled = useFeatureFlagEnabled('date-zoom');
+    const queryClient = useQueryClient();
+
     const sortKey =
         dashboardSorts
             ?.map((ds) => `${ds.fieldId}.${ds.descending}`)
             ?.join(',') || '';
-    const queryKey = [
-        'savedChartResults',
-        chartUuid,
-        dashboardFilters,
-        invalidateCache,
-        sortKey,
-        granularity,
-    ];
+    const queryKey = useMemo(
+        () => [
+            'savedChartResults',
+            chartUuid,
+            dashboardUuid,
+            dashboardFilters,
+            invalidateCache,
+            sortKey,
+        ],
+        [chartUuid, dashboardUuid, dashboardFilters, invalidateCache, sortKey],
+    );
+    const apiChartAndResults =
+        queryClient.getQueryData<ApiChartAndResults>(queryKey);
+
     const timezoneFixFilters =
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);
+    const hasADateDimension =
+        !!apiChartAndResults?.metricQuery?.metadata?.hasADateDimension;
 
-    return useQuery<ApiChartAndResults, ApiError>({
-        queryKey,
-        queryFn: () =>
+    const fetchChartAndResults = useCallback(
+        () =>
             getChartAndResults({
                 chartUuid: chartUuid!,
+                dashboardUuid: dashboardUuid!,
                 dashboardFilters: timezoneFixFilters,
                 invalidateCache,
                 dashboardSorts,
                 granularity,
             }),
-        enabled: !!chartUuid,
+        [
+            chartUuid,
+            dashboardUuid,
+            timezoneFixFilters,
+            invalidateCache,
+            dashboardSorts,
+            granularity,
+        ],
+    );
+
+    return useQuery<ApiChartAndResults, ApiError>({
+        queryKey:
+            isDateZoomFeatureEnabled && hasADateDimension && granularity
+                ? queryKey.concat([granularity])
+                : queryKey,
+        queryFn: fetchChartAndResults,
+        enabled: !!chartUuid && !!dashboardUuid,
         retry: false,
         refetchOnMount: false,
     });

@@ -43,6 +43,7 @@ import {
     getItemMap,
     getMetrics,
     hasIntersection,
+    isDateItem,
     isExploreError,
     isFilterableDimension,
     isUserWithOrg,
@@ -124,6 +125,7 @@ type RunQueryTags = {
     user_uuid?: string;
     organization_uuid?: string;
     chart_uuid?: string;
+    dashboard_uuid?: string;
 };
 
 type ProjectServiceDependencies = {
@@ -860,7 +862,7 @@ export class ProjectService {
 
     static updateMetricQueryGranularity(
         metricQuery: MetricQuery,
-        explore: Explore,
+        exploreDimensions: CompiledDimension[],
         granularity?: DateGranularity,
     ): {
         metricQuery: MetricQuery;
@@ -868,9 +870,8 @@ export class ProjectService {
         newDimension?: string;
     } {
         if (granularity) {
-            const dimensions = getDimensions(explore);
             const timeDimension = metricQuery.dimensions.find((dimension) => {
-                const dim = dimensions.find(
+                const dim = exploreDimensions.find(
                     (d) => getFieldId(d) === dimension,
                 )?.type;
                 return (
@@ -881,6 +882,7 @@ export class ProjectService {
 
             if (timeDimension) {
                 const { baseDimensionId } = getDateDimension(timeDimension);
+                if (!baseDimensionId) return { metricQuery };
 
                 const newTimeDimension = `${baseDimensionId}_${granularity.toLowerCase()}`;
 
@@ -897,6 +899,33 @@ export class ProjectService {
                             sort.fieldId === timeDimension
                                 ? { ...sort, fieldId: newTimeDimension }
                                 : sort,
+                        ),
+                        tableCalculations: metricQuery.tableCalculations.map(
+                            (tc) => {
+                                const dim = exploreDimensions.find(
+                                    (d) => getFieldId(d) === timeDimension,
+                                );
+
+                                if (!dim) return tc;
+
+                                const baseDim = getDateDimension(dim.name);
+                                if (!baseDim) return tc;
+
+                                const oldDimension = `${dim.table}.${dim.name}`;
+                                // Rebuild the newDimension instead of looking at dimensions,
+                                // so we can even filter missing time frames from explore
+                                const newDimension = `${dim.table}.${
+                                    baseDim.baseDimensionId
+                                }_${granularity.toLowerCase()}`;
+
+                                return {
+                                    ...tc,
+                                    sql: tc.sql.replaceAll(
+                                        oldDimension,
+                                        newDimension,
+                                    ),
+                                };
+                            },
                         ),
                     },
                     oldDimension: timeDimension,
@@ -993,9 +1022,11 @@ export class ProjectService {
         invalidateCache,
         dashboardSorts,
         granularity,
+        dashboardUuid,
     }: {
         user: SessionUser;
         chartUuid: string;
+        dashboardUuid: string;
         dashboardFilters: DashboardFilters;
         invalidateCache?: boolean;
         dashboardSorts: SortField[];
@@ -1074,7 +1105,10 @@ export class ProjectService {
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
             chart_uuid: chartUuid,
+            dashboard_uuid: dashboardUuid,
         };
+
+        const exploreDimensions = getDimensions(explore);
 
         const {
             metricQuery: metricWithOverrideGranularity,
@@ -1082,7 +1116,7 @@ export class ProjectService {
             newDimension,
         } = ProjectService.updateMetricQueryGranularity(
             metricQueryWithDashboardOverrides,
-            explore,
+            exploreDimensions,
             granularity,
         );
 
@@ -1096,6 +1130,7 @@ export class ProjectService {
             queryTags,
             invalidateCache,
             explore,
+            granularity,
         });
 
         // TODO quick hack to get the old results on the chart with new granularity
@@ -1108,6 +1143,20 @@ export class ProjectService {
                       [oldDimension]: row[newDimension],
                   }))
                 : rows;
+        const metricQueryDimensions = [
+            ...metricQueryWithDashboardOverrides.dimensions,
+            ...(metricQueryWithDashboardOverrides.customDimensions ?? []),
+        ];
+        const hasADateDimension = exploreDimensions.find(
+            (c) =>
+                metricQueryDimensions.includes(getFieldId(c)) && isDateItem(c),
+        );
+
+        if (hasADateDimension) {
+            metricQueryWithDashboardOverrides.metadata = {
+                hasADateDimension: getFieldId(hasADateDimension),
+            };
+        }
 
         return {
             chart: savedChart,
@@ -1168,6 +1217,7 @@ export class ProjectService {
         queryTags,
         invalidateCache,
         explore,
+        granularity,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -1178,6 +1228,7 @@ export class ProjectService {
         queryTags?: RunQueryTags;
         invalidateCache?: boolean;
         explore?: Explore;
+        granularity?: DateGranularity;
     }): Promise<ApiQueryResults> {
         return wrapOtelSpan(
             'ProjectService.runQueryAndFormatRows',
@@ -1193,6 +1244,7 @@ export class ProjectService {
                     queryTags,
                     invalidateCache,
                     explore,
+                    granularity,
                 });
                 span.setAttribute('rows', rows.length);
 
@@ -1404,6 +1456,7 @@ export class ProjectService {
         queryTags,
         invalidateCache,
         explore,
+        granularity,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -1414,6 +1467,7 @@ export class ProjectService {
         queryTags?: RunQueryTags;
         invalidateCache?: boolean;
         explore?: Explore;
+        granularity?: DateGranularity;
     }): Promise<{ rows: Record<string, any>[]; cacheMetadata: CacheMetadata }> {
         const tracer = opentelemetry.trace.getTracer('default');
         return tracer.startActiveSpan(
@@ -1535,6 +1589,7 @@ export class ProjectService {
                             ).length,
                             context,
                             ...countCustomDimensionsInMetricQuery(metricQuery),
+                            dateZoomGranularity: granularity || null,
                         },
                     });
 

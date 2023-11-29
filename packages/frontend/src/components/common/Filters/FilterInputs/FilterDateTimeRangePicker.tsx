@@ -28,6 +28,7 @@ const FilterDateTimeRangePicker: FC<Props> = ({
         <Flex align="center" w="100%" gap="xxs">
             <FilterDateTimePicker
                 size="xs"
+                withSeconds
                 disabled={disabled}
                 placeholder="Start date"
                 maxDate={
@@ -51,6 +52,7 @@ const FilterDateTimeRangePicker: FC<Props> = ({
 
             <FilterDateTimePicker
                 size="xs"
+                withSeconds
                 disabled={disabled}
                 placeholder="End date"
                 minDate={

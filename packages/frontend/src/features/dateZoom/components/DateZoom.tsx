@@ -8,6 +8,8 @@ import {
 import { FC, useEffect, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 
 type Props = {
     isEditMode: boolean;
@@ -23,6 +25,7 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
     const setDateZoomGranularity = useDashboardContext(
         (c) => c.setDateZoomGranularity,
     );
+    const { track } = useTracking();
 
     useEffect(() => {
         if (isEditMode) setDateZoomGranularity(undefined);
@@ -76,6 +79,13 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                 <Menu.Item
                     fz="xs"
                     onClick={() => {
+                        track({
+                            name: EventName.DATE_ZOOM_CLICKED,
+                            properties: {
+                                granularity: 'default',
+                            },
+                        });
+
                         setDateZoomGranularity(undefined);
                         setIsOpen(false);
                     }}
@@ -101,6 +111,12 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                         fz="xs"
                         key={granularity}
                         onClick={() => {
+                            track({
+                                name: EventName.DATE_ZOOM_CLICKED,
+                                properties: {
+                                    granularity,
+                                },
+                            });
                             setDateZoomGranularity(granularity);
                             setIsOpen(false);
                         }}

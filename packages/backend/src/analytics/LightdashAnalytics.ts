@@ -156,6 +156,7 @@ type QueryExecutionEvent = BaseTrack & {
         numFixedWidthBinCustomDimensions: number;
         numFixedBinsBinCustomDimensions: number;
         numCustomRangeBinCustomDimensions: number;
+        dateZoomGranularity: string | null;
     };
 };
 
@@ -656,6 +657,12 @@ export type SchedulerUpsertEvent = BaseTrack & {
             schedulerTargetId: string;
             type: 'slack' | 'email';
         }>;
+    };
+};
+
+export type SchedulerDashboardUpsertEvent = SchedulerUpsertEvent & {
+    properties: SchedulerUpsertEvent['properties'] & {
+        filtersUpdatedNum: number;
     };
 };
 
