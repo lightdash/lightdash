@@ -1154,7 +1154,10 @@ export class ProjectService {
 
         if (hasADateDimension) {
             metricQueryWithDashboardOverrides.metadata = {
-                hasADateDimension: getFieldId(hasADateDimension),
+                hasADateDimension: {
+                    name: hasADateDimension.name,
+                    label: hasADateDimension.label,
+                },
             };
         }
 
