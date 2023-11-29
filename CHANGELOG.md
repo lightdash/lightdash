@@ -1,3 +1,10 @@
+## [0.884.1](https://github.com/lightdash/lightdash/compare/0.884.0...0.884.1) (2023-11-29)
+
+
+### Bug Fixes
+
+* base table match when finding explore by table name ([#8140](https://github.com/lightdash/lightdash/issues/8140)) ([eb4d41b](https://github.com/lightdash/lightdash/commit/eb4d41b523fa85604e1856feb3d81dc6d1a41c6c))
+
 # [0.884.0](https://github.com/lightdash/lightdash/compare/0.883.1...0.884.0) (2023-11-29)
 
 
