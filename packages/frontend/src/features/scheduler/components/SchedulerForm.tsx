@@ -37,7 +37,6 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import MDEditor, { commands } from '@uiw/react-md-editor';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { FC, useCallback, useMemo, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
@@ -193,9 +192,6 @@ const SchedulerForm: FC<Props> = ({
     loading,
     confirmText,
 }) => {
-    const isSchedulerFiltersEnabled =
-        useFeatureFlagEnabled('scheduler-filters');
-
     const form = useForm({
         initialValues:
             savedSchedulerData !== undefined
@@ -281,7 +277,7 @@ const SchedulerForm: FC<Props> = ({
 
     const isDashboard = resource && resource.type === 'dashboard';
     const { data: dashboard } = useDashboardQuery(resource?.uuid, {
-        enabled: isDashboard && isSchedulerFiltersEnabled,
+        enabled: isDashboard,
     });
 
     const slackQuery = useGetSlack();
@@ -343,7 +339,7 @@ const SchedulerForm: FC<Props> = ({
                     <Tabs.Tab value="setup" ml="md">
                         Setup
                     </Tabs.Tab>
-                    {isSchedulerFiltersEnabled && isDashboard && dashboard ? (
+                    {isDashboard && dashboard ? (
                         <Tabs.Tab value="filters">Filters</Tabs.Tab>
                     ) : null}
                     <Tabs.Tab value="customization">Customization</Tabs.Tab>
@@ -687,7 +683,7 @@ const SchedulerForm: FC<Props> = ({
                     </Stack>
                 </Tabs.Panel>
 
-                {isSchedulerFiltersEnabled && isDashboard && dashboard ? (
+                {isDashboard && dashboard ? (
                     <Tabs.Panel value="filters" p="md">
                         <SchedulerFilters
                             dashboard={dashboard}
