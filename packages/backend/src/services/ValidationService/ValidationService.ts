@@ -211,16 +211,19 @@ export class ValidationService {
                 chart.metricQuery.additionalMetrics?.map(getItemId) || [];
             const chartTableCalculationIds =
                 chart.metricQuery.tableCalculations?.map(getItemId) || [];
-
             const availableDimensionIds =
                 exploreFields[tableName]?.dimensionIds || [];
+            const availableCustomDimensionIds =
+                chart.metricQuery.customDimensions?.map(getItemId) || [];
             const availableMetricIds =
                 exploreFields[tableName]?.metricIds || [];
+
             const allItemIdsAvailableInChart = [
                 ...availableDimensionIds,
                 ...availableMetricIds,
                 ...chartCustomMetricIds,
                 ...chartTableCalculationIds,
+                ...availableCustomDimensionIds,
             ];
 
             const commonValidation = {
@@ -245,6 +248,8 @@ export class ValidationService {
                 CreateChartValidation,
                 'error' | 'errorType' | 'fieldName'
             >) => {
+                console.log(fieldIds, fieldId);
+
                 if (!fieldIds?.includes(fieldId)) {
                     return [
                         ...acc,
