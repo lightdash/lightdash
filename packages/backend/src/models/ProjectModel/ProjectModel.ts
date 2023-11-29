@@ -616,7 +616,7 @@ export class ProjectModel {
                     .columns({
                         explore: 'explore',
                         baseMatch: this.database.raw(
-                            "? = explore->>'base_table'",
+                            "? = explore->>'baseTable'",
                             [tableName],
                         ),
                     })
