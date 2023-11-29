@@ -1,3 +1,10 @@
+# [0.884.0](https://github.com/lightdash/lightdash/compare/0.883.1...0.884.0) (2023-11-29)
+
+
+### Features
+
+* support dbt 1.7 ([#8134](https://github.com/lightdash/lightdash/issues/8134)) ([dc3aadc](https://github.com/lightdash/lightdash/commit/dc3aadc520b34a5089a401f4a23037a8d2e5aec2))
+
 ## [0.883.1](https://github.com/lightdash/lightdash/compare/0.883.0...0.883.1) (2023-11-28)
 
 
