@@ -1,3 +1,10 @@
+## [0.885.1](https://github.com/lightdash/lightdash/compare/0.885.0...0.885.1) (2023-11-29)
+
+
+### Bug Fixes
+
+* filter autocomplete scroll ([#8148](https://github.com/lightdash/lightdash/issues/8148)) ([58faa5a](https://github.com/lightdash/lightdash/commit/58faa5ae6bfd9ca29db38a33c264f9b1e2e7d7bc))
+
 # [0.885.0](https://github.com/lightdash/lightdash/compare/0.884.1...0.885.0) (2023-11-29)
 
 
