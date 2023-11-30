@@ -80,7 +80,6 @@ describe('Date zoom', () => {
                     body: {
                         name: 'zoom test',
                         description: '',
-                        // spaceUuid: "e742b4be-163f-4db0-b4f9-584a0db50dbb",
                         tiles: [],
                     },
                 }).then((r) => {
