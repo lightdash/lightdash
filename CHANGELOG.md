@@ -1,3 +1,10 @@
+# [0.886.0](https://github.com/lightdash/lightdash/compare/0.885.3...0.886.0) (2023-11-30)
+
+
+### Features
+
+* share date zoom url ([#8151](https://github.com/lightdash/lightdash/issues/8151)) ([e6abc3c](https://github.com/lightdash/lightdash/commit/e6abc3ce8cf01487a2569f0e922fc6fcdd07551d))
+
 ## [0.885.3](https://github.com/lightdash/lightdash/compare/0.885.2...0.885.3) (2023-11-30)
 
 
