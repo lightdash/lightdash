@@ -12,6 +12,7 @@ import {
     TableCalculation,
 } from './field';
 import { Filters, MetricFilterRule } from './filter';
+import { DateGranularity } from './timeFrames';
 
 export interface AdditionalMetric {
     label?: string;
@@ -143,4 +144,5 @@ export type MetricQueryRequest = {
     additionalMetrics?: AdditionalMetric[]; // existing metric type
     csvLimit?: number;
     customDimensions?: CustomDimension[];
+    dateZoomGranularity: DateGranularity;
 };

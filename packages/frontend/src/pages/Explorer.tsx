@@ -10,6 +10,7 @@ import ForbiddenPanel from '../components/ForbiddenPanel';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useExplore } from '../hooks/useExplore';
 import {
+    useDateZoomGranularitySearch,
     useExplorerRoute,
     useExplorerUrlState,
 } from '../hooks/useExplorerRoute';
@@ -53,7 +54,9 @@ const ExplorerPage = memo(() => {
     const explorerUrlState = useExplorerUrlState();
     const { user } = useApp();
 
-    const queryResults = useQueryResults();
+    const dateZoomGranularity = useDateZoomGranularitySearch();
+
+    const queryResults = useQueryResults({ dateZoomGranularity });
 
     const cannotViewProject = user.data?.ability?.cannot(
         'view',
