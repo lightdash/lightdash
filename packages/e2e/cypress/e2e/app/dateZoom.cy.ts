@@ -64,7 +64,6 @@ const createChart = async (fieldX: string, fieldY: string) =>
     });
 
 describe('Date zoom', () => {
-    let dashboardUuid: string;
     beforeEach(() => {
         cy.login();
     });
@@ -72,8 +71,6 @@ describe('Date zoom', () => {
     it('I can create a dashboard with date tiles', () => {
         createChart('orders_order_date_day', 'orders_total_order_amount').then(
             (chartUuid) => {
-                cy.log('chartUuid', chartUuid);
-
                 cy.request({
                     url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards`,
                     method: 'POST',
@@ -83,7 +80,7 @@ describe('Date zoom', () => {
                         tiles: [],
                     },
                 }).then((r) => {
-                    dashboardUuid = r.body.results.uuid;
+                    const dashboardUuid = r.body.results.uuid;
                     cy.request({
                         url: `${apiUrl}/dashboards/${dashboardUuid}`,
                         method: 'PATCH',
@@ -119,40 +116,51 @@ describe('Date zoom', () => {
     it('I can use date zoom', () => {
         // This barSelector will select all the blue bars in the chart
         const barSelector = 'path[fill="#5470c6"]';
-        cy.visit(
-            `/projects/${SEED_PROJECT.project_uuid}/dashboards/${dashboardUuid}`,
-        );
 
-        // Wait until the chart appears
-        cy.contains('zoom test'); // dashboard title
-        cy.contains('Chart orders_order_date_day x orders_total_order_amount'); // Chart title
-        cy.contains('Total order amount'); // axis label
+        cy.request(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces-and-content`,
+        ).then((projectResponse) => {
+            const dashboard = projectResponse.body.results
+                .find((s) => s.name === SEED_PROJECT.name)
+                .dashboards.find((s) => s.name === `zoom test`);
 
-        // Count how many bars appear in the chart
-        cy.get(barSelector).should('have.length', 69); // default chart time frame is day
+            cy.visit(
+                `/projects/${SEED_PROJECT.project_uuid}/dashboards/${dashboard.uuid}`,
+            );
 
-        cy.contains('Date Zoom').click();
-        cy.contains('Month').click();
-        cy.get(barSelector).should('have.length', 4);
+            // Wait until the chart appears
+            cy.contains('zoom test'); // dashboard title
+            cy.contains(
+                'Chart orders_order_date_day x orders_total_order_amount',
+            ); // Chart title
+            cy.contains('Total order amount'); // axis label
 
-        cy.contains('Date Zoom').click();
-        cy.contains('Day').click();
-        cy.get(barSelector).should('have.length', 69);
+            // Count how many bars appear in the chart
+            cy.get(barSelector).should('have.length', 69); // default chart time frame is day
 
-        cy.contains('Date Zoom').click();
-        cy.contains('Week').click();
-        cy.get(barSelector).should('have.length', 15);
+            cy.contains('Date Zoom').click();
+            cy.contains('Month').click();
+            cy.get(barSelector).should('have.length', 4);
 
-        cy.contains('Date Zoom').click();
-        cy.contains('Quarter').click();
-        cy.get(barSelector).should('have.length', 2);
+            cy.contains('Date Zoom').click();
+            cy.contains('Day').click();
+            cy.get(barSelector).should('have.length', 69);
 
-        cy.contains('Date Zoom').click();
-        cy.contains('Year').click();
-        cy.get(barSelector).should('have.length', 1);
+            cy.contains('Date Zoom').click();
+            cy.contains('Week').click();
+            cy.get(barSelector).should('have.length', 15);
 
-        cy.contains('Date Zoom').click();
-        cy.contains('Default').click();
-        cy.get(barSelector).should('have.length', 69); // back to default (day)
+            cy.contains('Date Zoom').click();
+            cy.contains('Quarter').click();
+            cy.get(barSelector).should('have.length', 2);
+
+            cy.contains('Date Zoom').click();
+            cy.contains('Year').click();
+            cy.get(barSelector).should('have.length', 1);
+
+            cy.contains('Date Zoom').click();
+            cy.contains('Default').click();
+            cy.get(barSelector).should('have.length', 69); // back to default (day)
+        });
     });
 });
