@@ -123,8 +123,11 @@ describe('Date zoom', () => {
             `/projects/${SEED_PROJECT.project_uuid}/dashboards/${dashboardUuid}`,
         );
 
-        cy.contains('Total order amount');
         // Wait until the chart appears
+        cy.contains('zoom test'); // dashboard title
+        cy.contains('Chart orders_order_date_day x orders_total_order_amount'); // Chart title
+        cy.contains('Total order amount'); // axis label
+
         // Count how many bars appear in the chart
         cy.get(barSelector).should('have.length', 69); // default chart time frame is day
 
