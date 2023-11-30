@@ -1264,7 +1264,6 @@ const useEchartsCartesianConfig = (
             return [];
         }
 
-        // TODO: do we need items and formats?
         return getEchartsSeries(
             itemsMap,
             validCartesianConfig,
@@ -1339,7 +1338,6 @@ const useEchartsCartesianConfig = (
         try {
             if (!itemsMap) return results;
 
-            // TODO: don't know if we need this. The type comes out nicely though
             const dimensionsAndCustomDimensionsMap =
                 getDimensionsInItemMap(itemsMap);
 
