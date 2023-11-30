@@ -7,7 +7,7 @@ import {
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { Dashboard, DashboardTileTypes, isChartTile } from '@lightdash/common';
-import { Group, Text, Tooltip } from '@mantine/core';
+import { Box, Group, Text, Tooltip } from '@mantine/core';
 import { useHover, useToggle } from '@mantine/hooks';
 import { ReactNode, useState } from 'react';
 import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/DeleteChartTileThatBelongsToDashboardModal';
@@ -91,7 +91,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         $isEmpty={isMarkdownTileTitleEmpty || hideTitle}
                     >
                         <Tooltip
-                            disabled={!description}
+                            disabled={!description || !!titleLeftIcon}
                             label={description}
                             multiline
                             position="top-start"
@@ -102,23 +102,36 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                 <Group spacing="xs">
                                     {titleLeftIcon}
 
-                                    {!hideTitle ? (
-                                        belongsToDashboard ? (
-                                            <Text fw={600} size="md">
-                                                {title}
-                                            </Text>
+                                    <Tooltip
+                                        disabled={
+                                            !description || !titleLeftIcon
+                                        }
+                                        label={description}
+                                        multiline
+                                        position="top-start"
+                                        withinPortal
+                                        maw={400}
+                                    >
+                                        {!hideTitle ? (
+                                            belongsToDashboard ? (
+                                                <Text fw={600} size="md">
+                                                    {title}
+                                                </Text>
+                                            ) : (
+                                                <TileTitleLink
+                                                    ref={titleRef}
+                                                    href={titleHref}
+                                                    $hovered={titleHovered}
+                                                    target="_blank"
+                                                    className="non-draggable"
+                                                >
+                                                    {title}
+                                                </TileTitleLink>
+                                            )
                                         ) : (
-                                            <TileTitleLink
-                                                ref={titleRef}
-                                                href={titleHref}
-                                                $hovered={titleHovered}
-                                                target="_blank"
-                                                className="non-draggable"
-                                            >
-                                                {title}
-                                            </TileTitleLink>
-                                        )
-                                    ) : null}
+                                            <Box />
+                                        )}
+                                    </Tooltip>
                                 </Group>
                             </TitleWrapper>
                         </Tooltip>
