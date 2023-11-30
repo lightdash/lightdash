@@ -32,6 +32,8 @@ Column descriptions in your YAML file are automatically pulled into Lightdash an
 
 To customize the dimension, you can do it in your dbt model's YAML file.
 
+If you want to declare multiple dimensions based on the same column, check [additional dimensions](#additional-dimensions) section.
+
 ```yaml
 version: 2
 
@@ -374,4 +376,60 @@ SELECT
   "orders".order_id AS "orders_order_id",
   "orders"."Status" AS "orders_status"
 FROM "postgres"."jaffle"."orders" AS "orders"
+```
+
+## Additional dimensions
+
+You can define multiple dimensions off a single column. This is useful when handling JSONB columns or have different
+formats options.
+
+All the [dimension configuration](#dimension_configuration), beside `time_intervals`, are available for additional
+dimensions.
+
+:::info
+
+Additional dimensions names need to be unique in the model.
+
+:::
+
+```yaml
+      - name: revenue
+        meta:
+          dimension:
+            type: number
+          additional_dimensions:
+            revenue_in_thousands:
+              type: number
+              compact: thousands
+            revenue_in_millions:
+              type: number
+              compact: million
+
+      - name: metadata # this is a jsonb column with metadata
+        meta:
+          dimension:
+            hidden: true
+          additional_dimensions:
+            version:
+              type: number
+              sql: JSON_VALUE(${metadata}, '$.version') # custom SQL applied to get the "version" value inside metadata
+```
+
+To define metrics based on a sub-dimension, you need to add them to the model's meta metrics, or use custom SQL in
+defining them under the column's meta.
+
+
+```yaml
+      - name: metadata
+        meta:
+          dimension:
+            hidden: true
+          additional_dimensions:
+            version:
+              type: number
+              sql: JSON_VALUE(${metadata}, '$.version')
+          metrics:
+            highest_version:
+              type: max
+              sql: ${version}
 ```
