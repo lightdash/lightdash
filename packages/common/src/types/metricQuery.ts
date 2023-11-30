@@ -143,4 +143,5 @@ export type MetricQueryRequest = {
     additionalMetrics?: AdditionalMetric[]; // existing metric type
     csvLimit?: number;
     customDimensions?: CustomDimension[];
+    metadata?: MetricQuery['metadata'];
 };
