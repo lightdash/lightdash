@@ -120,9 +120,12 @@ describe('Date zoom', () => {
         cy.request(
             `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces-and-content`,
         ).then((projectResponse) => {
+            // Get the latest created zoom test dashboard from the project
             const dashboard = projectResponse.body.results
                 .find((s) => s.name === SEED_PROJECT.name)
-                .dashboards.find((s) => s.name === `zoom test`);
+                .dashboards.sort((d) => d.updatedAt)
+                .reverse()
+                .find((s) => s.name === `zoom test`);
 
             cy.visit(
                 `/projects/${SEED_PROJECT.project_uuid}/dashboards/${dashboard.uuid}`,
