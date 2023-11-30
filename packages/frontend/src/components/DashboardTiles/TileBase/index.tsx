@@ -91,7 +91,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         $isEmpty={isMarkdownTileTitleEmpty || hideTitle}
                     >
                         <Tooltip
-                            disabled={!description || !!titleLeftIcon}
+                            disabled={!description}
                             label={description}
                             multiline
                             position="top-start"
@@ -101,34 +101,24 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             <TitleWrapper $hovered={titleHovered}>
                                 <Group spacing="xs">
                                     {titleLeftIcon}
-                                    <Tooltip
-                                        disabled={
-                                            !description || !titleLeftIcon
-                                        }
-                                        label={description}
-                                        multiline
-                                        position="top-start"
-                                        withinPortal
-                                        maw={400}
-                                    >
-                                        {!hideTitle ? (
-                                            belongsToDashboard ? (
-                                                <Text fw={600} size="md">
-                                                    {title}
-                                                </Text>
-                                            ) : (
-                                                <TileTitleLink
-                                                    ref={titleRef}
-                                                    href={titleHref}
-                                                    $hovered={titleHovered}
-                                                    target="_blank"
-                                                    className="non-draggable"
-                                                >
-                                                    {title}
-                                                </TileTitleLink>
-                                            )
-                                        ) : null}
-                                    </Tooltip>
+
+                                    {!hideTitle ? (
+                                        belongsToDashboard ? (
+                                            <Text fw={600} size="md">
+                                                {title}
+                                            </Text>
+                                        ) : (
+                                            <TileTitleLink
+                                                ref={titleRef}
+                                                href={titleHref}
+                                                $hovered={titleHovered}
+                                                target="_blank"
+                                                className="non-draggable"
+                                            >
+                                                {title}
+                                            </TileTitleLink>
+                                        )
+                                    ) : null}
                                 </Group>
                             </TitleWrapper>
                         </Tooltip>
