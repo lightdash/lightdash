@@ -12,6 +12,7 @@ import {
     CompiledField,
     CompiledMetric,
     CustomDimension,
+    Dimension,
     DimensionType,
     Field,
     FieldId,
@@ -26,6 +27,7 @@ import {
     AdditionalMetric,
     getCustomDimensionId,
     isAdditionalMetric,
+    isCustomDimension,
     MetricQuery,
 } from './types/metricQuery';
 import {
@@ -728,7 +730,7 @@ export const getAxisName = ({
     axisIndex,
     axisName,
     series,
-    items,
+    itemsMap,
 }: {
     isAxisTheSameForAllSeries: boolean;
     selectedAxisIndex: number;
@@ -736,12 +738,11 @@ export const getAxisName = ({
     axisIndex: number;
     axisName?: string;
     series?: Series[];
-    items: Array<Field | TableCalculation | CustomDimension>;
+    itemsMap: ItemsMap | undefined;
 }): string | undefined => {
-    const defaultItem = items.find(
-        (item) =>
-            getItemId(item) === (series || [])[0]?.encode[axisReference].field,
-    );
+    const defaultItem = itemsMap
+        ? itemsMap[(series || [])[0]?.encode[axisReference].field]
+        : undefined;
     const dateGroupName = defaultItem
         ? getDateGroupLabel(defaultItem)
         : undefined;
@@ -769,12 +770,17 @@ export function getFieldMap(
     );
 }
 
+export type ItemsMap = Record<
+    string,
+    Field | TableCalculation | CustomDimension | Metric
+>;
+
 export function getItemMap(
     explore: Explore,
     additionalMetrics: AdditionalMetric[] = [],
     tableCalculations: TableCalculation[] = [],
     customDimensions: CustomDimension[] = [],
-): Record<string, Field | TableCalculation> {
+): ItemsMap {
     const convertedAdditionalMetrics = (additionalMetrics || []).reduce<
         Metric[]
     >((acc, additionalMetric) => {
@@ -802,6 +808,20 @@ export function getItemMap(
     );
 }
 
+export function getDimensionsInItemMap(
+    itemsMap: ItemsMap,
+): Record<string, Dimension | CustomDimension> {
+    return Object.values(itemsMap).reduce((acc, item) => {
+        if (isDimension(item) || isCustomDimension(item)) {
+            return {
+                ...acc,
+                [fieldId(item)]: item,
+            };
+        }
+        return acc;
+    }, {});
+}
+
 export function itemsInMetricQuery(
     metricQuery: MetricQuery | undefined,
 ): string[] {
@@ -817,13 +837,13 @@ export function itemsInMetricQuery(
 
 export function formatRows(
     rows: { [col: string]: any }[],
-    itemMap: Record<string, Field | TableCalculation>,
+    itemsMap: ItemsMap,
 ): ResultRow[] {
     return rows.map((row) =>
         Object.keys(row).reduce<ResultRow>((acc, columnName) => {
             const col = row[columnName];
 
-            const item = itemMap[columnName];
+            const item = itemsMap[columnName];
             return {
                 ...acc,
                 [columnName]: {
