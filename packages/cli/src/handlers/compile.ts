@@ -33,7 +33,6 @@ export type CompileHandlerOptions = DbtCompileOptions & {
     vars: string | undefined;
     verbose: boolean;
     startOfWeek?: number;
-    skipDbtCompile?: boolean;
 };
 
 export const compile = async (options: CompileHandlerOptions) => {

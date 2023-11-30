@@ -29,7 +29,6 @@ type DeployHandlerOptions = DbtCompileOptions & {
     verbose: boolean;
     ignoreErrors: boolean;
     startOfWeek?: number;
-    skipDbtCompile?: boolean;
 };
 
 type DeployArgs = DeployHandlerOptions & {
