@@ -1,3 +1,17 @@
+## [0.885.3](https://github.com/lightdash/lightdash/compare/0.885.2...0.885.3) (2023-11-30)
+
+
+### Bug Fixes
+
+* metadata runquery ([#8156](https://github.com/lightdash/lightdash/issues/8156)) ([a67e0ff](https://github.com/lightdash/lightdash/commit/a67e0ff3f77037693a524213508ff02e316f4c06))
+
+## [0.885.2](https://github.com/lightdash/lightdash/compare/0.885.1...0.885.2) (2023-11-30)
+
+
+### Bug Fixes
+
+* custom dimension sort validation ([#8143](https://github.com/lightdash/lightdash/issues/8143)) ([38b5f72](https://github.com/lightdash/lightdash/commit/38b5f72eebde06a2a3d72c4418b4638107a5e604))
+
 ## [0.885.1](https://github.com/lightdash/lightdash/compare/0.885.0...0.885.1) (2023-11-29)
 
 
