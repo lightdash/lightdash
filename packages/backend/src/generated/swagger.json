@@ -2554,8 +2554,30 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "Pick_CompiledDimension.label-or-name_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "label"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "MetricQueryRequest": {
                 "properties": {
+                    "metadata": {
+                        "properties": {
+                            "hasADateDimension": {
+                                "$ref": "#/components/schemas/Pick_CompiledDimension.label-or-name_"
+                            }
+                        },
+                        "required": ["hasADateDimension"],
+                        "type": "object"
+                    },
                     "customDimensions": {
                         "items": {
                             "$ref": "#/components/schemas/CustomDimension"
@@ -2846,19 +2868,6 @@
                     }
                 },
                 "type": "object"
-            },
-            "Pick_CompiledDimension.label-or-name_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    }
-                },
-                "required": ["name", "label"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "MetricQuery": {
                 "properties": {
@@ -5427,7 +5436,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.884.1",
+        "version": "0.885.1",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
