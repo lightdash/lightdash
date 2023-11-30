@@ -39,7 +39,7 @@ const LimitForm = forwardRef<HTMLFormElement, LimitFormProps>(
                     onLimitChange(newLimit);
                 })}
             >
-                <Stack w={320}>
+                <Stack w={200}>
                     <NumberInput
                         autoFocus
                         step={100}
@@ -49,7 +49,11 @@ const LimitForm = forwardRef<HTMLFormElement, LimitFormProps>(
                         {...form.getInputProps('limit')}
                     />
 
-                    <Button type="submit" disabled={!form.isValid()}>
+                    <Button
+                        type="submit"
+                        disabled={!form.isValid()}
+                        sx={{ alignSelf: 'flex-end' }}
+                    >
                         Apply
                     </Button>
                 </Stack>

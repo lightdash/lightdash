@@ -3,19 +3,25 @@ import {
     Group,
     Kbd,
     MantineProvider,
+    MantineSize,
     Text,
     Tooltip,
 } from '@mantine/core';
 import { useHotkeys, useOs } from '@mantine/hooks';
-import { IconPlayerPlay } from '@tabler/icons-react';
-import { memo, useCallback } from 'react';
+import { FC, memo, useCallback } from 'react';
 import { useExplorerContext } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
-import MantineIcon from './common/MantineIcon';
+import LimitButton from './LimitButton';
 
-export const RefreshButton = memo(() => {
+export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     const os = useOs();
+    const limit = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery.limit,
+    );
+    const setRowLimit = useExplorerContext(
+        (context) => context.actions.setRowLimit,
+    );
     const isValidQuery = useExplorerContext(
         (context) => context.state.isValidQuery,
     );
@@ -40,34 +46,42 @@ export const RefreshButton = memo(() => {
     useHotkeys([['mod + enter', onClick, { preventDefault: true }]]);
 
     return (
-        <Tooltip
-            label={
-                <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
-                    <Group spacing="xxs">
-                        <Kbd fw={600}>
-                            {os === 'macos' || os === 'ios' ? '⌘' : 'ctrl'}
-                        </Kbd>
+        <Button.Group>
+            <Tooltip
+                label={
+                    <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
+                        <Group spacing="xxs">
+                            <Kbd fw={600}>
+                                {os === 'macos' || os === 'ios' ? '⌘' : 'ctrl'}
+                            </Kbd>
 
-                        <Text fw={600}>+</Text>
+                            <Text fw={600}>+</Text>
 
-                        <Kbd fw={600}>Enter</Kbd>
-                    </Group>
-                </MantineProvider>
-            }
-            position="bottom"
-            withArrow
-            withinPortal
-            disabled={isLoading || !isValidQuery}
-        >
-            <Button
-                size="xs"
-                leftIcon={<MantineIcon icon={IconPlayerPlay} />}
-                loading={isLoading}
-                onClick={onClick}
-                disabled={!isValidQuery}
+                            <Kbd fw={600}>Enter</Kbd>
+                        </Group>
+                    </MantineProvider>
+                }
+                position="bottom"
+                withArrow
+                withinPortal
+                disabled={isLoading || !isValidQuery}
             >
-                Run query
-            </Button>
-        </Tooltip>
+                <Button
+                    size={size}
+                    disabled={!isValidQuery}
+                    loading={isLoading}
+                    onClick={onClick}
+                    sx={{ flex: 1 }}
+                >
+                    Run query ({limit})
+                </Button>
+            </Tooltip>
+            <LimitButton
+                disabled={!isValidQuery}
+                size={size}
+                limit={limit}
+                onLimitChange={setRowLimit}
+            />
+        </Button.Group>
     );
 });

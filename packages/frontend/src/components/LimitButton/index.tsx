@@ -1,18 +1,19 @@
-import { Popover, Tooltip } from '@mantine/core';
+import { Button, MantineSize, Popover } from '@mantine/core';
 import { useClickOutside, useDisclosure } from '@mantine/hooks';
+import { IconChevronDown } from '@tabler/icons-react';
 import { FC, memo } from 'react';
-import LimitBadge from './LimitBadge';
+import MantineIcon from '../common/MantineIcon';
 import LimitForm from './LimitForm';
 
 export type Props = {
+    size?: MantineSize;
     disabled?: boolean;
     limit: number;
-    isEditMode: boolean;
     onLimitChange: (value: number) => void;
 };
 
 const LimitButton: FC<Props> = memo(
-    ({ disabled, isEditMode, limit, onLimitChange }) => {
+    ({ size, disabled, limit, onLimitChange }) => {
         const [opened, { open, close }] = useDisclosure(false);
         const ref = useClickOutside(
             () => setTimeout(() => close(), 0),
@@ -24,8 +25,9 @@ const LimitButton: FC<Props> = memo(
             close();
         };
 
-        return isEditMode ? (
+        return (
             <Popover
+                withinPortal
                 disabled={disabled}
                 opened={opened}
                 position="top"
@@ -35,11 +37,14 @@ const LimitButton: FC<Props> = memo(
                 offset={2}
             >
                 <Popover.Target>
-                    <LimitBadge
-                        limit={limit}
-                        onClick={opened ? undefined : open}
+                    <Button
+                        size={size}
+                        p="xs"
                         disabled={disabled}
-                    />
+                        onClick={opened ? undefined : open}
+                    >
+                        <MantineIcon icon={IconChevronDown} size="lg" />
+                    </Button>
                 </Popover.Target>
 
                 <Popover.Dropdown>
@@ -50,13 +55,6 @@ const LimitButton: FC<Props> = memo(
                     />
                 </Popover.Dropdown>
             </Popover>
-        ) : (
-            <Tooltip
-                label="You must be in 'edit' or 'explore' mode to update the limit"
-                position="top"
-            >
-                <LimitBadge limit={limit} disabled={!isEditMode || disabled} />
-            </Tooltip>
         );
     },
 );
