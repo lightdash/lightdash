@@ -144,5 +144,6 @@ export type MetricQueryRequest = {
     additionalMetrics?: AdditionalMetric[]; // existing metric type
     csvLimit?: number;
     customDimensions?: CustomDimension[];
-    dateZoomGranularity: DateGranularity;
+    granularity?: DateGranularity;
+    metadata?: MetricQuery['metadata'];
 };

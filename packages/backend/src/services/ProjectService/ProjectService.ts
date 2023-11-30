@@ -1177,6 +1177,7 @@ export class ProjectService {
         projectUuid: string,
         exploreName: string,
         csvLimit: number | null | undefined,
+        dateZoomGranularity?: DateGranularity,
     ): Promise<ApiQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1199,15 +1200,48 @@ export class ProjectService {
             user_uuid: user.userUuid,
         };
 
-        return this.runQueryAndFormatRows({
+        const explore = await this.getExplore(
             user,
-            metricQuery,
             projectUuid,
             exploreName,
+            organizationUuid,
+        );
+        const exploreDimensions = getDimensions(explore);
+
+        const {
+            metricQuery: metricWithOverrideGranularity,
+            oldDimension,
+            newDimension,
+        } = ProjectService.updateMetricQueryGranularity(
+            metricQuery,
+            exploreDimensions,
+            dateZoomGranularity,
+        );
+
+        const results = await this.runQueryAndFormatRows({
+            user,
+            metricQuery: metricWithOverrideGranularity,
+            projectUuid,
+            exploreName,
+            explore,
             csvLimit,
             context: QueryExecutionContext.EXPLORE,
             queryTags,
+            granularity: dateZoomGranularity,
         });
+
+        // TODO quick hack to get the old results on the chart with new granularity
+        // We should investigate if we can make the changes in the frontend
+        // to get the right field instead.
+        const rowsWithGranularity =
+            oldDimension && newDimension
+                ? results.rows.map((row) => ({
+                      ...row,
+                      [oldDimension]: row[newDimension],
+                  }))
+                : results.rows;
+
+        return { ...results, rows: rowsWithGranularity };
     }
 
     private async runQueryAndFormatRows({

@@ -91,7 +91,7 @@ const getQueryResults = async ({
         method: 'POST',
         body: JSON.stringify({
             ...timezoneFixQuery,
-            dateZoomGranularity,
+            granularity: dateZoomGranularity,
             csvLimit,
         }),
     });

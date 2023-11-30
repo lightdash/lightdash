@@ -59,6 +59,8 @@ export const useExplorerRoute = () => {
         projectUuid: string;
         tableId: string | undefined;
     }>();
+
+    const dateZoom = useDateZoomGranularitySearch();
     const unsavedChartVersion = useExplorerContext(
         (context) => context.state.unsavedChartVersion,
     );
@@ -82,6 +84,7 @@ export const useExplorerRoute = () => {
                         ...unsavedChartVersion,
                         metricQuery: queryResultsData.metricQuery,
                     },
+                    dateZoom,
                 ),
             );
         }
@@ -90,6 +93,7 @@ export const useExplorerRoute = () => {
         history,
         pathParams.projectUuid,
         unsavedChartVersion,
+        dateZoom,
     ]);
 
     useEffect(() => {
