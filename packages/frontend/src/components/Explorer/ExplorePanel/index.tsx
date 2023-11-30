@@ -63,7 +63,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         return null;
     }
 
-    // @ts-ignore
     return (
         <>
             <PageBreadcrumbs
