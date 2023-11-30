@@ -1,13 +1,22 @@
 import {
+    AdditionalMetric,
     ApiQueryResults,
     assertUnreachable,
     ChartConfig,
     ChartType,
+    convertAdditionalMetric,
+    CustomDimension,
     DashboardFilters,
+    Dimension,
     Explore,
+    fieldId,
     getCustomDimensionId,
+    getDimensions,
     getItemMap,
+    getMetrics,
+    isNumericItem,
     ItemsMap,
+    Metric,
     TableCalculation,
 } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
@@ -60,12 +69,12 @@ type VisualizationContext = {
     columnOrder: string[];
     isSqlRunner: boolean;
     itemsMap: ItemsMap | undefined;
-    // dimensions: Dimension[];
-    // customDimensions: CustomDimension[];
-    // metrics: Metric[];
-    // allMetrics: (Metric | TableCalculation)[];
-    // allNumericMetrics: (Metric | TableCalculation)[];
-    // customMetrics: AdditionalMetric[];
+    dimensions: Dimension[];
+    customDimensions: CustomDimension[];
+    metrics: Metric[];
+    allMetrics: (Metric | TableCalculation)[];
+    allNumericMetrics: (Metric | TableCalculation)[];
+    customMetrics: AdditionalMetric[];
     tableCalculations: TableCalculation[];
     visualizationConfig: VisualizationConfig;
     // cartesian config related
@@ -174,9 +183,63 @@ const VisualizationProvider: FC<Props> = ({
     const [cartesianType, setCartesianType] = useState<CartesianTypeOptions>();
     // --
 
+    const dimensions = useMemo(() => {
+        if (!explore) return [];
+        return getDimensions(explore).filter((field) =>
+            resultsData?.metricQuery.dimensions.includes(fieldId(field)),
+        );
+    }, [explore, resultsData?.metricQuery.dimensions]);
+
+    const metrics = useMemo(() => {
+        if (!explore) return [];
+        return getMetrics(explore).filter((field) =>
+            resultsData?.metricQuery.metrics.includes(fieldId(field)),
+        );
+    }, [explore, resultsData?.metricQuery.metrics]);
+
+    const customDimensions = useMemo(() => {
+        return resultsData?.metricQuery.customDimensions || [];
+    }, [resultsData?.metricQuery.customDimensions]);
+
+    const customMetrics = useMemo(() => {
+        if (!explore) return [];
+
+        return (resultsData?.metricQuery.additionalMetrics || []).reduce<
+            Metric[]
+        >((acc, additionalMetric) => {
+            const table = explore.tables[additionalMetric.table];
+            if (!table) return acc;
+
+            const metric = convertAdditionalMetric({
+                additionalMetric,
+                table,
+            });
+
+            if (!resultsData?.metricQuery.metrics.includes(fieldId(metric))) {
+                return acc;
+            }
+
+            return [...acc, metric];
+        }, []);
+    }, [
+        explore,
+        resultsData?.metricQuery.additionalMetrics,
+        resultsData?.metricQuery.metrics,
+    ]);
+
     const tableCalculations = useMemo(() => {
         return resultsData?.metricQuery.tableCalculations ?? [];
     }, [resultsData?.metricQuery.tableCalculations]);
+
+    const allMetrics = useMemo(
+        () => [...metrics, ...customMetrics, ...tableCalculations],
+        [metrics, customMetrics, tableCalculations],
+    );
+
+    const allNumericMetrics = useMemo(
+        () => allMetrics.filter((m) => isNumericItem(m)),
+        [allMetrics],
+    );
 
     // If we don't toggle any fields, (eg: when you `explore from here`) columnOrder on tableConfig might be empty
     // so we initialize it with the fields from resultData
@@ -231,13 +294,13 @@ const VisualizationProvider: FC<Props> = ({
         columnOrder,
         isSqlRunner: isSqlRunner ?? false,
         itemsMap,
-        // dimensions,
-        // metrics,
-        // customMetrics,
-        // customDimensions,
+        dimensions,
+        metrics,
+        customMetrics,
+        customDimensions,
         tableCalculations,
-        // allMetrics,
-        // allNumericMetrics,
+        allMetrics,
+        allNumericMetrics,
         setStacking,
         setCartesianType,
         onSeriesContextMenu,
@@ -273,9 +336,9 @@ const VisualizationProvider: FC<Props> = ({
                 <VisualizationPieConfig
                     explore={explore}
                     resultsData={lastValidResultsData}
-                    // dimensions={dimensions}
-                    // allNumericMetrics={allNumericMetrics}
-                    // customDimensions={customDimensions}
+                    dimensions={dimensions}
+                    allNumericMetrics={allNumericMetrics}
+                    customDimensions={customDimensions}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                 >
