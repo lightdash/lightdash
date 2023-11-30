@@ -1,3 +1,10 @@
+## [0.886.1](https://github.com/lightdash/lightdash/compare/0.886.0...0.886.1) (2023-11-30)
+
+
+### Bug Fixes
+
+* remove extra tooltip on dashboard title ([#8161](https://github.com/lightdash/lightdash/issues/8161)) ([3b955f5](https://github.com/lightdash/lightdash/commit/3b955f59110e7c265f0fc6ebb65b0559ea58d8c1))
+
 # [0.886.0](https://github.com/lightdash/lightdash/compare/0.885.3...0.886.0) (2023-11-30)
 
 
