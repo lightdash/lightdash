@@ -79,7 +79,9 @@ When the date granularity of a chart is changed, you can hover over the indicato
     height="351"
     style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
+Any chart with results that have at least one date dimension will be affected by Date Zoom (even if the date dimension is not explicitly shown on the chart).
 
+Also, you're only temporarily changing the dates in the tiles on your dashboard. So, if you refresh the dashboard, the tiles that you affected using Date Zoom will go back to how they looked before.
 ## Drill into a metric in a chart or your results table using `drill by`
 
 You can drill into a metric in your chart or results table to better understand a point in your chart. Selecting `drill by` lets you group your metric by a dimension, like the total revenue segmented by (or grouped by) product type. Note that `drill by` only works for metrics, not for dimensions or table calculations.
