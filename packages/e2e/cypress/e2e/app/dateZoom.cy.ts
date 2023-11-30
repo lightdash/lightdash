@@ -64,7 +64,7 @@ const createChart = async (fieldX: string, fieldY: string) =>
     });
 
 describe('Date zoom', () => {
-    let dashboardUuid: string = '3046d5cd-496f-4613-9e69-0eead91e3a8f';
+    let dashboardUuid: string;
     beforeEach(() => {
         cy.login();
     });
@@ -117,7 +117,7 @@ describe('Date zoom', () => {
         );
     });
 
-    it.only('I can use date zoom', () => {
+    it('I can use date zoom', () => {
         // This barSelector will select all the blue bars in the chart
         const barSelector = 'path[fill="#5470c6"]';
         cy.visit(
