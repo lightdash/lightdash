@@ -33,6 +33,7 @@ export type CompileHandlerOptions = DbtCompileOptions & {
     vars: string | undefined;
     verbose: boolean;
     startOfWeek?: number;
+    skipDbtCompile?: boolean;
 };
 
 export const compile = async (options: CompileHandlerOptions) => {
@@ -66,7 +67,11 @@ export const compile = async (options: CompileHandlerOptions) => {
             }
         }
     }
-    await dbtCompile(options);
+
+    // Skipping assumes manifest.json already exists.
+    if (!options.skipDbtCompile) {
+        await dbtCompile(options);
+    }
 
     const absoluteProjectPath = path.resolve(options.projectDir);
     const absoluteProfilesPath = path.resolve(options.profilesDir);

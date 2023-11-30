@@ -427,6 +427,11 @@ program
         'Specifies the first day of the week (used by week-related date functions). 0 (Monday) to 6 (Sunday)',
         parseStartOfWeekArgument,
     )
+    .option(
+        '--skip-dbt-compile',
+        'Skip `dbt compile` and deploy from the existing ./target/manifest.json',
+        false,
+    )
     .action(deployHandler);
 
 program
