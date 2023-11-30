@@ -87,7 +87,11 @@ const convertDimension = (
     source?: Source,
     timeInterval?: TimeFrames,
     startOfWeek?: WeekDay | null,
+    isAdditionalDimension?: boolean,
 ): Dimension => {
+    if (isAdditionalDimension) {
+        console.log('additional ', column.name);
+    }
     let type =
         column.meta.dimension?.type || column.data_type || DimensionType.STRING;
     if (!Object.values(DimensionType).includes(type)) {
@@ -144,6 +148,7 @@ const convertDimension = (
         ...(column.meta.dimension?.urls
             ? { urls: column.meta.dimension.urls }
             : {}),
+        ...(isAdditionalDimension ? { isAdditionalDimension } : {}),
     };
 };
 
@@ -333,6 +338,7 @@ export const convertTable = (
                         undefined,
                         undefined,
                         startOfWeek,
+                        true,
                     ),
                 }),
                 extraDimensions,

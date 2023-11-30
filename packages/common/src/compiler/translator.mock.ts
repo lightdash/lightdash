@@ -1136,6 +1136,7 @@ export const LIGHTDASH_TABLE_WITH_ADDITIONAL_DIMENSIONS: Omit<
             compact: undefined,
             groupLabel: undefined,
             index: 0,
+            isAdditionalDimension: true,
         },
         created_at: {
             fieldType: FieldType.DIMENSION,
@@ -1156,6 +1157,7 @@ export const LIGHTDASH_TABLE_WITH_ADDITIONAL_DIMENSIONS: Omit<
             compact: undefined,
             groupLabel: undefined,
             index: 0,
+            isAdditionalDimension: true,
         },
     },
 };
