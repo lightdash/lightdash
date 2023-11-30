@@ -30,7 +30,9 @@ export const isFilterConfigurationApplyButtonEnabled = (
         case FilterOperator.LESS_THAN:
         case FilterOperator.GREATER_THAN:
         case FilterOperator.ENDS_WITH:
+        case FilterOperator.NOT_ENDS_WITH:
         case FilterOperator.STARTS_WITH:
+        case FilterOperator.NOT_STARTS_WITH:
         case FilterOperator.INCLUDE:
         case FilterOperator.NOT_INCLUDE:
         case FilterOperator.LESS_THAN_OR_EQUAL:

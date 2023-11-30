@@ -28,7 +28,9 @@ export const ExpectedNumberFilterSQL: Record<FilterOperator, string | null> = {
     [FilterOperator.NOT_EQUALS]:
         '((customers.age) NOT IN (1) OR (customers.age) IS NULL)',
     [FilterOperator.STARTS_WITH]: null,
+    [FilterOperator.NOT_STARTS_WITH]: null,
     [FilterOperator.ENDS_WITH]: null,
+    [FilterOperator.NOT_ENDS_WITH]: null,
     [FilterOperator.INCLUDE]: null,
     [FilterOperator.NOT_INCLUDE]: null,
     [FilterOperator.LESS_THAN]: '(customers.age) < (1)',
@@ -427,6 +429,7 @@ export const stringFilterRuleMocks = {
         operator: FilterOperator.NOT_INCLUDE,
     },
     notIncludeFilterWithNoValSQL: 'true',
+
     startsWithFilterWithSingleVal: {
         ...stringSingleValueFilter,
         operator: FilterOperator.STARTS_WITH,
@@ -443,6 +446,22 @@ export const stringFilterRuleMocks = {
     },
     startsWithFilterWithNoValSQL: 'true',
 
+    notStartsWithFilterWithSingleVal: {
+        ...stringSingleValueFilter,
+        operator: FilterOperator.NOT_STARTS_WITH,
+    },
+    notStartsWithFilterWithSingleValSQL: `(${stringFilterDimension}) NOT LIKE 'Bob%'`,
+    notStartsWithFilterWithMultiVal: {
+        ...stringMultiValueFilter,
+        operator: FilterOperator.NOT_STARTS_WITH,
+    },
+    notStartsWithFilterWithMultiValSQL: `(${stringFilterDimension}) NOT LIKE 'Tom%'\n  AND\n  (${stringFilterDimension}) NOT LIKE 'Jerry%'`,
+    notStartsWithFilterWithNoVal: {
+        ...noValueFilter,
+        operator: FilterOperator.NOT_STARTS_WITH,
+    },
+    notStartsWithFilterWithNoValSQL: 'true',
+
     endsWithFilterWithSingleVal: {
         ...stringSingleValueFilter,
         operator: FilterOperator.ENDS_WITH,
@@ -458,6 +477,22 @@ export const stringFilterRuleMocks = {
         operator: FilterOperator.ENDS_WITH,
     },
     endsWithFilterWithNoValSQL: 'true',
+
+    notEndsWithFilterWithSingleVal: {
+        ...stringSingleValueFilter,
+        operator: FilterOperator.NOT_ENDS_WITH,
+    },
+    notEndsWithFilterWithSingleValSQL: `(${stringFilterDimension}) NOT LIKE '%Bob'`,
+    notEndsWithFilterWithMultiVal: {
+        ...stringMultiValueFilter,
+        operator: FilterOperator.NOT_ENDS_WITH,
+    },
+    notEndsWithFilterWithMultiValSQL: `(${stringFilterDimension}) NOT LIKE '%Tom'\n  AND\n  (${stringFilterDimension}) NOT LIKE '%Jerry'`,
+    notEndsWithFilterWithNoVal: {
+        ...noValueFilter,
+        operator: FilterOperator.NOT_ENDS_WITH,
+    },
+    notEndsWithFilterWithNoValSQL: 'true',
 
     equalsFilterWithSingleUnescapedValueSQL: `(${stringFilterDimension}) IN ('Bob''s')`,
     equalsFilterWithSingleUnescapedValue: {

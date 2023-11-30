@@ -80,12 +80,24 @@ export const renderStringFilterSql = (
                     `(${dimensionSql}) LIKE ${stringQuoteChar}${v}%${stringQuoteChar}`,
             );
             return startWithQuery?.join('\n  OR\n  ') || 'true';
+        case FilterOperator.NOT_STARTS_WITH:
+            const notStartWithQuery = escapedFilterValues?.map(
+                (v) =>
+                    `(${dimensionSql}) NOT LIKE ${stringQuoteChar}${v}%${stringQuoteChar}`,
+            );
+            return notStartWithQuery?.join('\n  AND\n  ') || 'true';
         case FilterOperator.ENDS_WITH:
             const endsWithQuery = escapedFilterValues?.map(
                 (v) =>
                     `(${dimensionSql}) LIKE ${stringQuoteChar}%${v}${stringQuoteChar}`,
             );
             return endsWithQuery?.join('\n  OR\n  ') || 'true';
+        case FilterOperator.NOT_ENDS_WITH:
+            const notEndWithQuery = escapedFilterValues?.map(
+                (v) =>
+                    `(${dimensionSql}) NOT LIKE ${stringQuoteChar}%${v}${stringQuoteChar}`,
+            );
+            return notEndWithQuery?.join('\n  AND\n  ') || 'true';
         default:
             throw Error(
                 `No function implemented to render sql for filter type ${filterType} on dimension of string type`,

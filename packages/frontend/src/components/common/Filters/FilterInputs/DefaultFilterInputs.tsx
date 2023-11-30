@@ -41,7 +41,9 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
         case FilterOperator.NOT_NULL:
             return <span style={{ width: '100%' }} />;
         case FilterOperator.STARTS_WITH:
+        case FilterOperator.NOT_STARTS_WITH:
         case FilterOperator.ENDS_WITH:
+        case FilterOperator.NOT_ENDS_WITH:
         case FilterOperator.INCLUDE:
         case FilterOperator.NOT_INCLUDE:
         case FilterOperator.EQUALS:

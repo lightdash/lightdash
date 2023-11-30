@@ -34,7 +34,9 @@ const filterOperatorLabel: Record<FilterOperator, string> = {
     [FilterOperator.EQUALS]: 'is',
     [FilterOperator.NOT_EQUALS]: 'is not',
     [FilterOperator.STARTS_WITH]: 'starts with',
+    [FilterOperator.NOT_STARTS_WITH]: 'does not start with',
     [FilterOperator.ENDS_WITH]: 'ends with',
+    [FilterOperator.NOT_ENDS_WITH]: 'does not end with',
     [FilterOperator.NOT_INCLUDE]: 'does not include',
     [FilterOperator.INCLUDE]: 'includes',
     [FilterOperator.LESS_THAN]: 'is less than',
@@ -97,7 +99,9 @@ export const getFilterOperatorOptions = (
                 FilterOperator.EQUALS,
                 FilterOperator.NOT_EQUALS,
                 FilterOperator.STARTS_WITH,
+                FilterOperator.NOT_STARTS_WITH,
                 FilterOperator.ENDS_WITH,
+                FilterOperator.NOT_ENDS_WITH,
                 FilterOperator.INCLUDE,
                 FilterOperator.NOT_INCLUDE,
             ]);
@@ -181,7 +185,9 @@ const getValueAsString = (
                 case FilterOperator.EQUALS:
                 case FilterOperator.NOT_EQUALS:
                 case FilterOperator.STARTS_WITH:
+                case FilterOperator.NOT_STARTS_WITH:
                 case FilterOperator.ENDS_WITH:
+                case FilterOperator.NOT_ENDS_WITH:
                 case FilterOperator.INCLUDE:
                 case FilterOperator.NOT_INCLUDE:
                 case FilterOperator.LESS_THAN:

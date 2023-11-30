@@ -679,6 +679,39 @@ describe('Filter SQL', () => {
         ).toBe(stringFilterRuleMocks.startsWithFilterWithNoValSQL);
     });
 
+    test('should return single value in doesNotStartWith filter sql', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.notStartsWithFilterWithSingleVal,
+                "'",
+                "'",
+            ),
+        ).toBe(stringFilterRuleMocks.notStartsWithFilterWithSingleValSQL);
+    });
+
+    test('should return multiple values joined by AND in doesNotStartWith filter sql', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.notStartsWithFilterWithMultiVal,
+                "'",
+                "'",
+            ),
+        ).toBe(stringFilterRuleMocks.notStartsWithFilterWithMultiValSQL);
+    });
+
+    test('should return true in doesNotStartWith filter sql for empty filter', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.notStartsWithFilterWithNoVal,
+                "'",
+                "'",
+            ),
+        ).toBe(stringFilterRuleMocks.notStartsWithFilterWithNoValSQL);
+    });
+
     test('should return single value in endsWith filter sql', () => {
         expect(
             renderStringFilterSql(
@@ -710,6 +743,39 @@ describe('Filter SQL', () => {
                 "'",
             ),
         ).toBe(stringFilterRuleMocks.endsWithFilterWithNoValSQL);
+    });
+
+    test('should return single value in doesNotEndWith filter sql', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.notEndsWithFilterWithSingleVal,
+                "'",
+                "'",
+            ),
+        ).toBe(stringFilterRuleMocks.notEndsWithFilterWithSingleValSQL);
+    });
+
+    test('should return multiple values joined by AND in doesNotEndWith filter sql', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.notEndsWithFilterWithMultiVal,
+                "'",
+                "'",
+            ),
+        ).toBe(stringFilterRuleMocks.notEndsWithFilterWithMultiValSQL);
+    });
+
+    test('should return true in doesNotEndWith filter sql for empty filter', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.notEndsWithFilterWithNoVal,
+                "'",
+                "'",
+            ),
+        ).toBe(stringFilterRuleMocks.notEndsWithFilterWithNoValSQL);
     });
 
     test('should return escaped query for unescaped single filter value', () => {
