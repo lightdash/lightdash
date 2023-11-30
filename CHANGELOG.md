@@ -1,3 +1,10 @@
+# [0.887.0](https://github.com/lightdash/lightdash/compare/0.886.1...0.887.0) (2023-11-30)
+
+
+### Features
+
+* move limit and run query button to sidebar and show limit warning ([#8152](https://github.com/lightdash/lightdash/issues/8152)) ([fb67450](https://github.com/lightdash/lightdash/commit/fb67450df005c76659811ec4e99afc2cd9adb99c))
+
 ## [0.886.1](https://github.com/lightdash/lightdash/compare/0.886.0...0.886.1) (2023-11-30)
 
 
