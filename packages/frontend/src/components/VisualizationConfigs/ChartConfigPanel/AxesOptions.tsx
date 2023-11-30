@@ -1,12 +1,9 @@
 import {
-    CustomDimension,
-    Field,
     getAxisName,
     getDateGroupLabel,
-    getItemId,
     getItemLabelWithoutTableName,
     isNumericItem,
-    TableCalculation,
+    ItemsMap,
 } from '@lightdash/common';
 import {
     Checkbox,
@@ -81,12 +78,11 @@ const AxisMinMax: FC<MinMaxProps> = ({ label, min, max, setMin, setMax }) => {
         </>
     );
 };
-
 type Props = {
-    items: (Field | TableCalculation | CustomDimension)[];
+    itemsMap: ItemsMap | undefined;
 };
 
-const AxesOptions: FC<Props> = ({ items }) => {
+const AxesOptions: FC<Props> = ({ itemsMap }) => {
     const { visualizationConfig } = useVisualizationContext();
 
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
@@ -103,9 +99,10 @@ const AxesOptions: FC<Props> = ({ items }) => {
         setInverseX,
     } = visualizationConfig.chartConfig;
 
-    const xAxisField = items.find(
-        (item) => getItemId(item) === dirtyLayout?.xField,
-    );
+    const xAxisField =
+        itemsMap && dirtyLayout?.xField
+            ? itemsMap[dirtyLayout?.xField]
+            : undefined;
 
     const selectedAxisInSeries = Array.from(
         new Set(
@@ -120,9 +117,8 @@ const AxesOptions: FC<Props> = ({ items }) => {
         dirtyEchartsConfig?.series || []
     ).reduce<[boolean, boolean]>(
         (acc, series) => {
-            const seriesField = items.find(
-                (item) => getItemId(item) === series.encode.yRef.field,
-            );
+            if (!itemsMap) return acc;
+            const seriesField = itemsMap[series.encode.yRef.field];
             if (isNumericItem(seriesField)) {
                 acc[series.yAxisIndex || 0] = true;
             }
@@ -183,7 +179,7 @@ const AxesOptions: FC<Props> = ({ items }) => {
                         axisReference: 'yRef',
                         axisIndex: 0,
                         series: dirtyEchartsConfig?.series,
-                        items,
+                        itemsMap,
                     })
                 }
                 onBlur={(e) => setYAxisName(0, e.currentTarget.value)}
@@ -216,7 +212,7 @@ const AxesOptions: FC<Props> = ({ items }) => {
                         axisReference: 'yRef',
                         axisIndex: 1,
                         series: dirtyEchartsConfig?.series,
-                        items,
+                        itemsMap,
                     })
                 }
                 onBlur={(e) => setYAxisName(1, e.currentTarget.value)}
