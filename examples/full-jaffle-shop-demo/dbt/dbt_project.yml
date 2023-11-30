@@ -27,3 +27,6 @@ seeds:
     raw_customers:
       +column_types:
         created: timestamp
+    raw_plan:
+      +column_types:
+        metadata: jsonb

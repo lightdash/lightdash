@@ -313,6 +313,31 @@ export const convertTable = (
                 );
             }
 
+            extraDimensions = Object.entries(
+                column.meta.additional_dimensions || {},
+            ).reduce(
+                (acc, [subDimensionName, subDimension]) => ({
+                    ...acc,
+                    [subDimensionName]: convertDimension(
+                        index,
+                        adapterType,
+                        model,
+                        tableLabel,
+                        {
+                            ...column,
+                            name: subDimensionName,
+                            meta: {
+                                dimension: subDimension,
+                            },
+                        },
+                        undefined,
+                        undefined,
+                        startOfWeek,
+                    ),
+                }),
+                extraDimensions,
+            );
+
             const columnMetrics = Object.fromEntries(
                 Object.entries(column.meta.metrics || {}).map(
                     ([name, metric]) => [

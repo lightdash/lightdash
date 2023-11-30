@@ -4,3 +4,21 @@ models:
     columns:
       - name: id
       - name: plan_name
+      - name: metadata
+        meta:
+          dimension:
+            hidden: true
+          additional_dimensions:
+            created_by:
+              type: string
+              sql: ${plan.metadata}->>'created_by'
+            created_by_first_name:
+              type: string
+              sql: SPLIT_PART(${created_by}, ' ', 1)
+            created_by_last_name:
+              type: string
+              sql: SPLIT_PART(${created_by}, ' ', 2)
+          metrics:
+            creator_count:
+              type: count
+              sql: ${created_by}
