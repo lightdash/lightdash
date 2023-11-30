@@ -202,7 +202,10 @@ export class SchedulerClient {
 
         const graphileClient = await this.graphileUtils;
 
-        const schedulerUuid = getSchedulerUuid(scheduler);
+        const schedulerUuid = hasSchedulerUuid(scheduler)
+            ? scheduler.schedulerUuid
+            : undefined;
+
         const getIdentifierAndPayload = (): {
             identifier: string;
             type: 'slack' | 'email';
