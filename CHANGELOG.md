@@ -1,3 +1,10 @@
+## [0.885.3](https://github.com/lightdash/lightdash/compare/0.885.2...0.885.3) (2023-11-30)
+
+
+### Bug Fixes
+
+* metadata runquery ([#8156](https://github.com/lightdash/lightdash/issues/8156)) ([a67e0ff](https://github.com/lightdash/lightdash/commit/a67e0ff3f77037693a524213508ff02e316f4c06))
+
 ## [0.885.2](https://github.com/lightdash/lightdash/compare/0.885.1...0.885.2) (2023-11-30)
 
 
