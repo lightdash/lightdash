@@ -1,4 +1,4 @@
-import { Card } from '@blueprintjs/core';
+import { Card, Intent } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
 import {
@@ -8,7 +8,7 @@ import {
     ProjectMemberRole,
     validateEmail,
 } from '@lightdash/common';
-import { Box, Button } from '@mantine/core';
+import { Button } from '@mantine/core';
 import { IconChevronLeft } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -22,8 +22,10 @@ import MantineIcon from '../../common/MantineIcon';
 import InviteSuccess from '../../UserSettings/UserManagementPanel/InviteSuccess';
 import {
     EmailForm,
+    Panel,
     ProjectAccessForm,
     RoleSelectButton,
+    SubmitButton,
 } from './ProjectAccessCreation';
 
 const renderItem: ItemRenderer<string> = (item, { modifiers, handleClick }) => {
@@ -133,13 +135,7 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
     };
 
     return (
-        <Box
-            sx={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-            }}
-        >
+        <Panel>
             <Button
                 variant="subtle"
                 size="sm"
@@ -216,6 +212,7 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
                             }}
                         />
                     </EmailForm>
+
                     <RoleSelectButton
                         name="role"
                         disabled={isLoading}
@@ -229,29 +226,17 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
                             required: 'Required field',
                         }}
                     />
-                    <Button
-                        variant="filled"
-                        px="xs"
+                    <SubmitButton
+                        intent={Intent.PRIMARY}
+                        text="Give access"
                         type="submit"
-                        radius="xs"
-                        sx={{
-                            marginTop: '20px',
-                            marginLeft: '7px',
-                            backgroundColor: '#2D72D2',
-                            height: '30px',
-                            width: '96px',
-                            fontFamily: 'sans-serif',
-                            fontWeight: 'lighter',
-                        }}
                         disabled={isLoading || isInvitationLoading}
-                    >
-                        Give access
-                    </Button>
+                    />
                 </ProjectAccessForm>
             </Card>
 
             {inviteLink && <InviteSuccess invite={inviteLink} hasMarginTop />}
-        </Box>
+        </Panel>
     );
 };
 

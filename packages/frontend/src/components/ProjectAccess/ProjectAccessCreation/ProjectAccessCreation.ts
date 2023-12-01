@@ -1,11 +1,22 @@
-import { FormGroup } from '@blueprintjs/core';
+import { Button, FormGroup } from '@blueprintjs/core';
 import styled from 'styled-components';
 import Form from '../../ReactHookForm/Form';
 import Select from '../../ReactHookForm/Select';
 
+export const Panel = styled.div`
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+`;
+
 export const ProjectAccessForm = styled(Form)`
     display: flex;
     align-items: flex-start;
+`;
+
+export const SubmitButton = styled(Button)`
+    margin-top: 20px;
+    margin-left: 7px;
 `;
 
 export const RoleSelectButton = styled(Select)`
