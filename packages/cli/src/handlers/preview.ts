@@ -365,7 +365,11 @@ export const stopPreviewHandler = async (
                 name: options.name,
             },
         });
-
-        console.error(`You don't have access to this resource or action`);
+        console.error(
+            styles.error(
+                `Could not find preview project with name ${projectName}`,
+            ),
+        );
+        process.exit(1);
     }
 };
