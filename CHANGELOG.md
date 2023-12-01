@@ -1,3 +1,10 @@
+## [0.888.1](https://github.com/lightdash/lightdash/compare/0.888.0...0.888.1) (2023-12-01)
+
+
+### Bug Fixes
+
+* table calculation filter field quotes ([#8176](https://github.com/lightdash/lightdash/issues/8176)) ([1076c3e](https://github.com/lightdash/lightdash/commit/1076c3ed435025e6df3ce817b97a24fba9a7f6c6))
+
 # [0.888.0](https://github.com/lightdash/lightdash/compare/0.887.0...0.888.0) (2023-12-01)
 
 
