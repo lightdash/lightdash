@@ -1,3 +1,10 @@
+# [0.890.0](https://github.com/lightdash/lightdash/compare/0.889.1...0.890.0) (2023-12-01)
+
+
+### Features
+
+* support multiple dimensions from same column ([#8166](https://github.com/lightdash/lightdash/issues/8166)) ([2622aa2](https://github.com/lightdash/lightdash/commit/2622aa2ceacbf7ca8144eb42e424b81f41c333b0))
+
 ## [0.889.1](https://github.com/lightdash/lightdash/compare/0.889.0...0.889.1) (2023-12-01)
 
 
