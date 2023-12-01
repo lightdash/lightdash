@@ -1,3 +1,10 @@
+# [0.889.0](https://github.com/lightdash/lightdash/compare/0.888.2...0.889.0) (2023-12-01)
+
+
+### Features
+
+* explore from here date zoom ([#8158](https://github.com/lightdash/lightdash/issues/8158)) ([526b273](https://github.com/lightdash/lightdash/commit/526b27385b3785a1c822e40734e29af3d2d8100e))
+
 ## [0.888.2](https://github.com/lightdash/lightdash/compare/0.888.1...0.888.2) (2023-12-01)
 
 
