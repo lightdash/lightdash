@@ -32,6 +32,8 @@ Column descriptions in your YAML file are automatically pulled into Lightdash an
 
 To customize the dimension, you can do it in your dbt model's YAML file.
 
+If you want to declare multiple dimensions based on the same column, check [additional dimensions](#additional-dimensions) section.
+
 ```yaml
 version: 2
 
@@ -67,6 +69,19 @@ models:
                 url: 'https://calendar.google.com/calendar/u/0/r/day/${ value.formatted |split: "-" |join: "/"}'
             required_attributes:
               is_admin: "true"
+      - name: date
+        meta:
+          dimension:
+            type: date
+          additional_dimensions:
+            dimension_name_one:
+              type: number
+              label: "Day of Week"
+              sql: "day_of_week(${date})"
+            dimension_name_two:
+              type: boolean
+              label: "Weekday or Weekend"
+              sql: "case when day_of_week(${date}) < 5 then 'weekday' else 'weekend' end"
 ```
 
 All the properties you can customize:
@@ -374,4 +389,70 @@ SELECT
   "orders".order_id AS "orders_order_id",
   "orders"."Status" AS "orders_status"
 FROM "postgres"."jaffle"."orders" AS "orders"
+```
+
+## Additional dimensions
+
+Additional dimensions let you define multiple dimensions off of a single column. This is useful when handling JSONB
+columns, adding different formatting options to a column, or creating persisted groups/buckets based off of a column.
+
+All the [dimension configuration](#dimension-configuration), beside `time_intervals`, are available for additional
+dimensions.
+
+:::info
+
+Additional dimensions names need to be unique in the model.
+
+:::
+
+```yaml
+    columns:
+      - name: revenue
+        meta:
+          dimension:
+            type: number
+          additional_dimensions:
+            revenue_in_thousands:
+              type: number
+              compact: thousands
+            revenue_in_millions:
+              type: number
+              compact: million
+
+      - name: metadata # this is a jsonb column with metadata
+        meta:
+          dimension:
+            hidden: true
+          additional_dimensions:
+            version:
+              type: number
+              sql: JSON_VALUE(${metadata}, '$.version') # custom SQL applied to get the "version" value inside metadata
+```
+
+To define metrics based on a sub-dimension, you need to add them to the model's meta metrics, or use custom SQL in
+defining them under the column's meta.
+
+
+```yaml
+version: 2
+models:
+  - name: users
+    meta:
+      metrics:
+        highest_version_model_metric_example:
+          type: max
+          sql: ${version}
+    columns:
+      - name: metadata
+        meta:
+          dimension:
+            hidden: true
+          additional_dimensions:
+            version:
+              type: number
+              sql: JSON_VALUE(${metadata}, '$.version')
+          metrics:
+            highest_version:
+              type: max
+              sql: ${version}
 ```
