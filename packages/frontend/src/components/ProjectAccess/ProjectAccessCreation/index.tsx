@@ -226,7 +226,6 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
                             required: 'Required field',
                         }}
                     />
-
                     <SubmitButton
                         intent={Intent.PRIMARY}
                         text="Give access"
