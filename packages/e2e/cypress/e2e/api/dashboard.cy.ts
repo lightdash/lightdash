@@ -10,7 +10,10 @@ import {
     UpdateDashboard,
 } from '@lightdash/common';
 import { isDashboardVersionedFields } from '@lightdash/common/src/types/dashboard';
-import { ChartType } from '@lightdash/common/src/types/savedCharts';
+import {
+    ApiChartSummaryListResponse,
+    ChartType,
+} from '@lightdash/common/src/types/savedCharts';
 
 const apiUrl = '/api/v1';
 
@@ -225,16 +228,36 @@ describe('Lightdash dashboard', () => {
             );
         });
     });
-    /* it('Should get chart summaries without charts that belongs to dashboard', () => {
-        cy.request<ApiChartSummaryListResponse>(
-            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
-        ).then((chartResponse) => {
-            expect(chartResponse.status).to.eq(200);
-            const projectChartsUuids = chartResponse.body.results.map(
-                ({ uuid }) => uuid,
+    it('Should get chart summaries without charts that belongs to dashboard', () => {
+        cy.request(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces-and-content`,
+        ).then((response) => {
+            // Get the latest dashboard created via API
+            const dashboard = response.body.results
+                .find((s) => s.name === SEED_PROJECT.name)
+                .dashboards.sort((d) => d.updatedAt)
+                .reverse()
+                .find((s) => s.name === dashboardName);
+
+            cy.request(`${apiUrl}/dashboards/${dashboard.uuid}`).then(
+                (dashboardResponse) => {
+                    const chartInDashboard =
+                        dashboardResponse.body.results.tiles[0].properties
+                            .savedChartUuid;
+
+                    cy.request<ApiChartSummaryListResponse>(
+                        `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
+                    ).then((chartResponse) => {
+                        expect(chartResponse.status).to.eq(200);
+                        const projectChartsUuids =
+                            chartResponse.body.results.map(({ uuid }) => uuid);
+                        expect(projectChartsUuids.length).to.not.eq(0);
+                        expect(projectChartsUuids).to.not.include(
+                            chartInDashboard,
+                        );
+                    });
+                },
             );
-            expect(projectChartsUuids.length).to.not.eq(0);
-            expect(projectChartsUuids).to.not.include(chartUuid);
         });
-    }); */
+    });
 });
