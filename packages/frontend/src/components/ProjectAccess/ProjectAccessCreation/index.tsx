@@ -1,6 +1,3 @@
-import { Card, Intent } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
-import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
 import {
     CreateProjectMember,
     InviteLink,
@@ -8,235 +5,174 @@ import {
     ProjectMemberRole,
     validateEmail,
 } from '@lightdash/common';
-import { Button } from '@mantine/core';
-import { IconChevronLeft } from '@tabler/icons-react';
-import { FC, useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import useToaster from '../../../hooks/toaster/useToaster';
+import { Button, Group, Modal, Select, Title } from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { IconUser } from '@tabler/icons-react';
+import React, { FC, useEffect, useState } from 'react';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useCreateProjectAccessMutation } from '../../../hooks/useProjectAccess';
-import { useTracking } from '../../../providers/TrackingProvider';
-import { EventName } from '../../../types/Events';
+import { TrackPage, useTracking } from '../../../providers/TrackingProvider';
+import {
+    CategoryName,
+    EventName,
+    PageName,
+    PageType,
+} from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import InviteSuccess from '../../UserSettings/UserManagementPanel/InviteSuccess';
-import {
-    EmailForm,
-    Panel,
-    ProjectAccessForm,
-    RoleSelectButton,
-    SubmitButton,
-} from './ProjectAccessCreation';
-
-const renderItem: ItemRenderer<string> = (item, { modifiers, handleClick }) => {
-    if (!modifiers.matchesPredicate) {
-        return null;
-    }
-    return (
-        <MenuItem2
-            active={modifiers.active}
-            key={item}
-            text={item}
-            onClick={handleClick}
-            shouldDismissPopover={false}
-        />
-    );
-};
 
 interface ProjectAccessCreationProps {
     projectUuid: string;
-    onBackClick: () => void;
+    isOpen: boolean;
+    onClose: () => void;
 }
 
 const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
-    onBackClick,
+    isOpen,
+    onClose,
     projectUuid,
 }) => {
     const { track } = useTracking();
-
-    const { showToastSuccess } = useToaster();
-    const {
-        mutate: createMutation,
-        isError,
-        isSuccess,
-        isLoading,
-    } = useCreateProjectAccessMutation(projectUuid);
+    const { data: organizationUsers } = useOrganizationUsers();
+    const { mutateAsync: createMutation, isLoading } =
+        useCreateProjectAccessMutation(projectUuid);
 
     const {
-        data: inviteData,
-        mutate: inviteMutation,
+        mutateAsync: inviteMutation,
         isLoading: isInvitationLoading,
-        isSuccess: isInvitationSuccess,
         reset,
     } = useCreateInviteLinkMutation();
 
-    const methods = useForm<CreateProjectMember>({
-        mode: 'onSubmit',
-        defaultValues: {
+    const form = useForm<Pick<CreateProjectMember, 'email' | 'role'>>({
+        initialValues: {
+            email: '',
             role: ProjectMemberRole.VIEWER,
         },
     });
-    const [emailSelected, setEmailSelected] = useState<string>('');
+
     const [addNewMember, setAddNewMember] = useState<boolean>(false);
     const [inviteLink, setInviteLink] = useState<InviteLink | undefined>();
-
-    const { data: organizationUsers } = useOrganizationUsers();
-    const orgUserEmails =
-        organizationUsers && organizationUsers.map((orgUser) => orgUser.email);
+    const [emailOptions, setEmailOptions] = useState<string[]>([]);
 
     useEffect(() => {
-        if (isError) {
-            methods.reset({ ...methods.getValues() }, { keepValues: true });
+        if (organizationUsers) {
+            setEmailOptions(organizationUsers.map(({ email }) => email));
         }
-        if (isSuccess) {
-            setEmailSelected('');
-            methods.setValue('role', ProjectMemberRole.VIEWER);
-        }
-    }, [isError, methods, isSuccess, showToastSuccess, setEmailSelected]);
+    }, [organizationUsers]);
 
-    useEffect(() => {
-        if (isInvitationSuccess) {
-            setInviteLink(inviteData);
-            reset();
-            createMutation({
-                role: methods.getValues('role'),
-                email: emailSelected,
-                sendEmail: false,
-            });
-            setAddNewMember(false);
-        }
-    }, [
-        isInvitationSuccess,
-        inviteData,
-        emailSelected,
-        addNewMember,
-        methods,
-        createMutation,
-        reset,
-    ]);
-
-    const handleSubmit = (formData: CreateProjectMember) => {
+    const handleSubmit = async (
+        formData: Pick<CreateProjectMember, 'email' | 'role'>,
+    ) => {
         track({
             name: EventName.CREATE_PROJECT_ACCESS_BUTTON_CLICKED,
         });
+        setInviteLink(undefined);
 
         if (addNewMember) {
-            inviteMutation({
-                email: emailSelected,
+            const data = await inviteMutation({
+                email: formData.email,
                 role: OrganizationMemberRole.MEMBER,
             });
-        } else {
-            createMutation({
+            await createMutation({
                 ...formData,
-                email: emailSelected,
+                sendEmail: false,
+            });
+            setAddNewMember(false);
+            setInviteLink(data);
+            reset();
+            form.reset();
+        } else {
+            await createMutation({
+                ...formData,
                 sendEmail: true,
             });
+            form.reset();
         }
     };
 
     return (
-        <Panel>
-            <Button
-                variant="subtle"
-                size="sm"
-                leftIcon={<MantineIcon icon={IconChevronLeft} />}
-                onClick={onBackClick}
+        <Modal
+            opened={isOpen}
+            onClose={onClose}
+            keepMounted={false}
+            title={
+                <Group spacing="xs">
+                    <MantineIcon size="lg" icon={IconUser} />
+                    <Title order={4}>Add user</Title>
+                </Group>
+            }
+            size="lg"
+        >
+            <TrackPage
+                name={PageName.PROJECT_ADD_USER}
+                type={PageType.MODAL}
+                category={CategoryName.SETTINGS}
             >
-                Back
-            </Button>
-
-            <Card>
-                <ProjectAccessForm
-                    name="add_saved_charts_to_dashboard"
-                    methods={methods}
-                    onSubmit={handleSubmit}
+                <form
+                    name="add_user_to_project"
+                    onSubmit={form.onSubmit(
+                        (values: Pick<CreateProjectMember, 'email' | 'role'>) =>
+                            handleSubmit(values),
+                    )}
                 >
-                    <EmailForm
-                        className={`input-wrapper`}
-                        label="Enter user email address *"
-                    >
-                        <Suggest2
-                            inputValueRenderer={(item: string) => {
-                                return item;
-                            }}
-                            itemRenderer={renderItem}
-                            items={orgUserEmails}
-                            onItemSelect={(select: string) => {
-                                setEmailSelected(select);
-                                setAddNewMember(false);
-                            }}
-                            popoverProps={{
-                                minimal: true,
-                                popoverClassName: 'autocomplete-max-height',
-                            }}
-                            query={emailSelected}
-                            onQueryChange={(query: string) => {
-                                setEmailSelected(query);
-                                setAddNewMember(false);
-                            }}
-                            inputProps={{
-                                placeholder: 'example@gmail.com',
-                            }}
-                            selectedItem={emailSelected}
-                            itemPredicate={(
-                                query: string,
-                                item: string,
-                                index?: undefined | number,
-                                exactMatch?: undefined | false | true,
-                            ) => {
-                                if (exactMatch) {
-                                    return (
-                                        query.toLowerCase() ===
-                                        item.toLowerCase()
-                                    );
-                                }
-                                return item
-                                    .toLowerCase()
-                                    .includes(query.toLowerCase());
-                            }}
-                            createNewItemFromQuery={(email: string) => email}
-                            createNewItemRenderer={(email: string) => {
-                                if (validateEmail(email)) {
-                                    return (
-                                        <MenuItem2
-                                            icon="add"
-                                            key={email}
-                                            text={`Invite ${email} as new member of this organization`}
-                                            onClick={() => {
-                                                setAddNewMember(true);
-                                            }}
-                                            shouldDismissPopover={true}
-                                        />
-                                    );
+                    <Group align="flex-end" spacing="xs">
+                        <Select
+                            name={'email'}
+                            withinPortal
+                            label="Enter user email address"
+                            placeholder="example@gmail.com"
+                            nothingFound="Nothing found"
+                            searchable
+                            creatable
+                            required
+                            disabled={isLoading}
+                            getCreateLabel={(query) =>
+                                validateEmail(query)
+                                    ? `Invite "${query}" as new member of this organization`
+                                    : null
+                            }
+                            onCreate={(query) => {
+                                if (validateEmail(query)) {
+                                    setAddNewMember(true);
+                                    setEmailOptions((prevState) => [
+                                        ...prevState,
+                                        query,
+                                    ]);
+                                    return query;
                                 }
                             }}
+                            data={emailOptions}
+                            {...form.getInputProps('email')}
+                            sx={{ flexGrow: 1 }}
                         />
-                    </EmailForm>
-
-                    <RoleSelectButton
-                        name="role"
-                        disabled={isLoading}
-                        options={Object.values(ProjectMemberRole).map(
-                            (orgMemberRole) => ({
-                                value: orgMemberRole,
-                                label: orgMemberRole.replace('_', ' '),
-                            }),
-                        )}
-                        rules={{
-                            required: 'Required field',
-                        }}
-                    />
-                    <SubmitButton
-                        intent={Intent.PRIMARY}
-                        text="Give access"
-                        type="submit"
-                        disabled={isLoading || isInvitationLoading}
-                    />
-                </ProjectAccessForm>
-            </Card>
-
-            {inviteLink && <InviteSuccess invite={inviteLink} hasMarginTop />}
-        </Panel>
+                        <Select
+                            data={Object.values(ProjectMemberRole).map(
+                                (orgMemberRole) => ({
+                                    value: orgMemberRole,
+                                    label: orgMemberRole.replace('_', ' '),
+                                }),
+                            )}
+                            disabled={isLoading}
+                            required
+                            placeholder="Select role"
+                            dropdownPosition="bottom"
+                            withinPortal
+                            {...form.getInputProps('role')}
+                        />
+                        <Button
+                            disabled={isLoading || isInvitationLoading}
+                            type="submit"
+                        >
+                            Give access
+                        </Button>
+                    </Group>
+                </form>
+                {inviteLink && (
+                    <InviteSuccess invite={inviteLink} hasMarginTop />
+                )}
+            </TrackPage>
+        </Modal>
     );
 };
 
