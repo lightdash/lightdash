@@ -73,6 +73,9 @@ type DbtModelJoin = {
 type DbtColumnMetadata = DbtColumnLightdashConfig & {};
 type DbtColumnLightdashConfig = {
     dimension?: DbtColumnLightdashDimension;
+    additional_dimensions?: {
+        [subDimensionName: string]: DbtColumnLightdashAdditionalDimension;
+    };
     metrics?: { [metricName: string]: DbtColumnLightdashMetric };
 };
 
@@ -91,6 +94,11 @@ type DbtColumnLightdashDimension = {
     urls?: FieldUrl[];
     required_attributes?: Record<string, string>;
 };
+
+type DbtColumnLightdashAdditionalDimension = Omit<
+    DbtColumnLightdashDimension,
+    'name' | 'time_intervals'
+>;
 
 export type DbtColumnLightdashMetric = {
     label?: string;

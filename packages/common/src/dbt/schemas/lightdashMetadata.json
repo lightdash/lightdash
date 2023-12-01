@@ -95,6 +95,47 @@
                 }
             }
         },
+        "LightdashAdditionalDimension": {
+            "type": "object",
+            "required": [],
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": ["string", "number", "boolean", "date", "timestamp"]
+                },
+                "description": {
+                    "type": "string"
+                },
+                "sql": {
+                    "type": "string"
+                },
+                "hidden": {
+                    "type": "boolean"
+                },
+                "round": {
+                    "type": "number"
+                },
+                "compact": {
+                    "$ref": "#/definitions/Compact"
+                },
+                "format": {
+                    "$ref": "#/definitions/Format"
+                },
+                "group_label": {
+                    "type": "string"
+                },
+                "urls": {
+                    "$ref": "#/definitions/Urls"
+                },
+                "required_attributes": {
+                    "type": "object",
+                    "properties": {}
+                }
+            }
+        },
         "LightdashMetric": {
             "type": "object",
             "required": ["type"],
@@ -166,6 +207,13 @@
             "properties": {
                 "dimension": {
                     "$ref": "#/definitions/LightdashDimension"
+                },
+                "additional_dimensions": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/LightdashAdditionalDimension"
+                    },
+                    "default": {}
                 },
                 "metrics": {
                     "type": "object",

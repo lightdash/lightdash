@@ -1063,3 +1063,101 @@ export const LIGHTDASH_TABLE_SQL_WHERE: Omit<Table, 'lineageGraph'> = {
     ...BASE_LIGHTDASH_TABLE,
     sqlWhere: '${payment_method} IS NOT NULL',
 };
+
+export const MODEL_WITH_ADDITIONAL_DIMENSIONS: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        metadata: {
+            name: 'metadata',
+            data_type: DimensionType.STRING,
+            meta: {
+                dimension: {
+                    hidden: true,
+                },
+                additional_dimensions: {
+                    version: {
+                        type: DimensionType.NUMBER,
+                        sql: "${metadata}-->'version'",
+                    },
+                    created_at: {
+                        type: DimensionType.TIMESTAMP,
+                        sql: "${metadata}-->'created_at'",
+                    },
+                },
+            },
+        },
+    },
+};
+
+export const LIGHTDASH_TABLE_WITH_ADDITIONAL_DIMENSIONS: Omit<
+    Table,
+    'lineageGraph'
+> = {
+    ...BASE_LIGHTDASH_TABLE,
+    dimensions: {
+        metadata: {
+            fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
+            description: undefined,
+            type: DimensionType.STRING,
+            sql: '${TABLE}.metadata',
+            name: 'metadata',
+            label: 'Metadata',
+            table: BASE_LIGHTDASH_TABLE.name,
+            tableLabel: 'My table',
+            source: undefined,
+            group: undefined,
+            timeInterval: undefined,
+            hidden: true,
+            format: undefined,
+            round: undefined,
+            compact: undefined,
+            groupLabel: undefined,
+            index: 0,
+        },
+        version: {
+            fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
+            description: undefined,
+            type: DimensionType.NUMBER,
+            sql: "${metadata}-->'version'",
+            name: 'version',
+            label: 'Version',
+            table: BASE_LIGHTDASH_TABLE.name,
+            tableLabel: 'My table',
+            source: undefined,
+            group: undefined,
+            timeInterval: undefined,
+            hidden: false,
+            format: undefined,
+            round: undefined,
+            compact: undefined,
+            groupLabel: undefined,
+            index: 0,
+            isAdditionalDimension: true,
+        },
+        created_at: {
+            fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
+            description: undefined,
+            type: DimensionType.TIMESTAMP,
+            sql: "${metadata}-->'created_at'",
+            name: 'created_at',
+            label: 'Created at',
+            table: BASE_LIGHTDASH_TABLE.name,
+            tableLabel: 'My table',
+            source: undefined,
+            group: undefined,
+            timeInterval: undefined,
+            hidden: false,
+            format: undefined,
+            round: undefined,
+            compact: undefined,
+            groupLabel: undefined,
+            index: 0,
+            isAdditionalDimension: true,
+        },
+    },
+};

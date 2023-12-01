@@ -87,6 +87,7 @@ const convertDimension = (
     source?: Source,
     timeInterval?: TimeFrames,
     startOfWeek?: WeekDay | null,
+    isAdditionalDimension?: boolean,
 ): Dimension => {
     let type =
         column.meta.dimension?.type || column.data_type || DimensionType.STRING;
@@ -144,6 +145,7 @@ const convertDimension = (
         ...(column.meta.dimension?.urls
             ? { urls: column.meta.dimension.urls }
             : {}),
+        ...(isAdditionalDimension ? { isAdditionalDimension } : {}),
     };
 };
 
@@ -312,6 +314,32 @@ export const convertTable = (
                     {},
                 );
             }
+
+            extraDimensions = Object.entries(
+                column.meta.additional_dimensions || {},
+            ).reduce(
+                (acc, [subDimensionName, subDimension]) => ({
+                    ...acc,
+                    [subDimensionName]: convertDimension(
+                        index,
+                        adapterType,
+                        model,
+                        tableLabel,
+                        {
+                            ...column,
+                            name: subDimensionName,
+                            meta: {
+                                dimension: subDimension,
+                            },
+                        },
+                        undefined,
+                        undefined,
+                        startOfWeek,
+                        true,
+                    ),
+                }),
+                extraDimensions,
+            );
 
             const columnMetrics = Object.fromEntries(
                 Object.entries(column.meta.metrics || {}).map(

@@ -1952,6 +1952,23 @@ export class ProjectService {
                         },
                         0,
                     ),
+                    additionalDimensionsCount: explores.reduce<number>(
+                        (acc, explore) => {
+                            if (!isExploreError(explore)) {
+                                return (
+                                    acc +
+                                    Object.values(
+                                        explore.tables[explore.baseTable]
+                                            .dimensions,
+                                    ).filter(
+                                        (field) => field.isAdditionalDimension,
+                                    ).length
+                                );
+                            }
+                            return acc;
+                        },
+                        0,
+                    ),
                 },
             });
             return explores;

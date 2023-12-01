@@ -403,6 +403,7 @@ type ProjectCompiledEvent = BaseTrack & {
         urlsCount?: number;
         modelsWithSqlFiltersCount: number;
         columnAccessFiltersCount: number;
+        additionalDimensionsCount: number;
     };
 };
 
