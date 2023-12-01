@@ -480,13 +480,14 @@ export const testAndCompileProject = async (
             details: {},
             status: SchedulerJobStatus.COMPLETED,
         });
-
-        schedulerClient.generateValidation({
-            userUuid: payload.createdByUserUuid,
-            projectUuid: payload.projectUuid,
-            context: 'test_and_compile',
-            organizationUuid: user.organizationUuid,
-        });
+        if (process.env.CI !== 'true') {
+            schedulerClient.generateValidation({
+                userUuid: payload.createdByUserUuid,
+                projectUuid: payload.projectUuid,
+                context: 'test_and_compile',
+                organizationUuid: user.organizationUuid,
+            });
+        }
     } catch (e) {
         await schedulerService.logSchedulerJob({
             ...baseLog,
@@ -529,13 +530,14 @@ export const compileProject = async (
             details: {},
             status: SchedulerJobStatus.COMPLETED,
         });
-
-        schedulerClient.generateValidation({
-            projectUuid: payload.projectUuid,
-            context: 'dbt_refresh',
-            userUuid: payload.createdByUserUuid,
-            organizationUuid: user.organizationUuid,
-        });
+        if (process.env.CI !== 'true') {
+            schedulerClient.generateValidation({
+                projectUuid: payload.projectUuid,
+                context: 'dbt_refresh',
+                userUuid: payload.createdByUserUuid,
+                organizationUuid: user.organizationUuid,
+            });
+        }
     } catch (e) {
         await schedulerService.logSchedulerJob({
             ...baseLog,
