@@ -1,3 +1,16 @@
+# [0.888.0](https://github.com/lightdash/lightdash/compare/0.887.0...0.888.0) (2023-12-01)
+
+
+### Bug Fixes
+
+* explore filter showing value with is null operator ([#8177](https://github.com/lightdash/lightdash/issues/8177)) ([fef60a9](https://github.com/lightdash/lightdash/commit/fef60a99227da67b57a2784d2b0ba362d5182316))
+* show an error and fail when you stop-preview an incorrect project ([#8147](https://github.com/lightdash/lightdash/issues/8147)) ([c832876](https://github.com/lightdash/lightdash/commit/c832876a53e28e98504986802a3677b799f0a2fe)), closes [#5966](https://github.com/lightdash/lightdash/issues/5966)
+
+
+### Features
+
+* add CLI option to skip dbt compile ([#8155](https://github.com/lightdash/lightdash/issues/8155)) ([d8a00c4](https://github.com/lightdash/lightdash/commit/d8a00c46950fc0e76e022b5eeefaccb4ba8e0b8d))
+
 # [0.887.0](https://github.com/lightdash/lightdash/compare/0.886.1...0.887.0) (2023-11-30)
 
 
