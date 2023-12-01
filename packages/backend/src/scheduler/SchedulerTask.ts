@@ -23,6 +23,7 @@ import {
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
     isTableChartConfig,
+    LightdashMode,
     LightdashPage,
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
@@ -480,7 +481,7 @@ export const testAndCompileProject = async (
             details: {},
             status: SchedulerJobStatus.COMPLETED,
         });
-        if (process.env.CI !== 'true') {
+        if (lightdashConfig.mode !== LightdashMode.PR) {
             schedulerClient.generateValidation({
                 userUuid: payload.createdByUserUuid,
                 projectUuid: payload.projectUuid,
@@ -530,7 +531,7 @@ export const compileProject = async (
             details: {},
             status: SchedulerJobStatus.COMPLETED,
         });
-        if (process.env.CI !== 'true') {
+        if (lightdashConfig.mode !== LightdashMode.PR) {
             schedulerClient.generateValidation({
                 projectUuid: payload.projectUuid,
                 context: 'dbt_refresh',
