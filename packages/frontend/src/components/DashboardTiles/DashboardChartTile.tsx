@@ -24,10 +24,10 @@ import {
     isChartTile,
     isFilterableField,
     isTableChartConfig,
+    ItemsMap,
     PivotReference,
     ResultValue,
     SavedChart,
-    TableCalculation,
 } from '@lightdash/common';
 import { Box, Portal, Text, Tooltip } from '@mantine/core';
 import { IconFilter, IconFolders } from '@tabler/icons-react';
@@ -324,7 +324,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         DashboardFilterRule[]
     >([]);
     const [viewUnderlyingDataOptions, setViewUnderlyingDataOptions] = useState<{
-        item: Field | TableCalculation | undefined;
+        item: ItemsMap[string] | undefined;
         value: ResultValue;
         fieldValues: Record<string, ResultValue>;
         dimensions: string[];

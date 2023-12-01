@@ -13,6 +13,7 @@ import {
     isField,
     isNumericItem,
     itemsInMetricQuery,
+    ItemsMap,
     TableCalculation,
 } from '@lightdash/common';
 import { useMemo } from 'react';
@@ -68,7 +69,7 @@ export const useColumns = (): TableColumn[] => {
     });
 
     const { activeItemsMap, invalidActiveItems } = useMemo<{
-        activeItemsMap: Record<string, Field | TableCalculation>;
+        activeItemsMap: ItemsMap;
         invalidActiveItems: string[];
     }>(() => {
         if (exploreData) {
@@ -80,7 +81,7 @@ export const useColumns = (): TableColumn[] => {
             );
 
             return Array.from(activeFields).reduce<{
-                activeItemsMap: Record<string, Field | TableCalculation>;
+                activeItemsMap: ItemsMap;
                 invalidActiveItems: string[];
             }>(
                 (acc, key) => {
@@ -149,7 +150,8 @@ export const useColumns = (): TableColumn[] => {
                                 </>
                             ) : (
                                 <TableHeaderBoldLabel>
-                                    {item.displayName ||
+                                    {('displayName' in item &&
+                                        item.displayName) ||
                                         friendlyName(item.name)}
                                 </TableHeaderBoldLabel>
                             )}

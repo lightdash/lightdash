@@ -1,3 +1,4 @@
+import type { ItemsMap } from '..';
 import { CompileError } from './errors';
 import { MetricFilterRule } from './filter';
 import { TimeFrames } from './timeFrames';
@@ -98,7 +99,7 @@ export interface CustomDimension {
     customRange?: BinRange[];
 }
 
-export type Item = Field | TableCalculation | CustomDimension;
+export type Item = ItemsMap[string];
 
 export enum TableCalculationFormatType {
     DEFAULT = 'default',
@@ -289,7 +290,7 @@ export type FilterableItem =
     | TableCalculationField
     | TableCalculation;
 export const isFilterableItem = (
-    item: Field | Dimension | Metric | TableCalculationField | TableCalculation,
+    item: ItemsMap[string] | TableCalculationField,
 ): item is FilterableItem =>
     isDimension(item) ? isFilterableDimension(item) : true;
 

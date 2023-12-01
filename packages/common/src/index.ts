@@ -710,9 +710,7 @@ export const getResultValueArray = (
         }, {}),
     );
 
-export const getDateGroupLabel = (
-    axisItem: Field | TableCalculation | CustomDimension,
-) => {
+export const getDateGroupLabel = (axisItem: ItemsMap[string]) => {
     if (
         isDimension(axisItem) &&
         [DimensionType.DATE, DimensionType.TIMESTAMP].includes(axisItem.type) &&

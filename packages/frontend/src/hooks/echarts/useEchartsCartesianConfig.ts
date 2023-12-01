@@ -2,10 +2,8 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
-    CustomDimension,
     DimensionType,
     ECHARTS_DEFAULT_COLORS,
-    Field,
     formatItemValue,
     formatTableCalculationValue,
     formatValue,
@@ -82,9 +80,7 @@ const getLabelFromField = (fields: ItemsMap, key: string | undefined) => {
     }
 };
 
-const getAxisTypeFromField = (
-    item?: Field | TableCalculation | CustomDimension,
-): string => {
+const getAxisTypeFromField = (item?: ItemsMap[string]): string => {
     if (item && isCustomDimension(item)) return 'category';
     if (item && isField(item)) {
         switch (item.type) {
@@ -116,7 +112,7 @@ const getAxisTypeFromField = (
 
 type GetAxisTypeArg = {
     validCartesianConfig: CartesianChart;
-    itemsMap: Record<string, Field | TableCalculation | CustomDimension>;
+    itemsMap: ItemsMap;
     topAxisXId?: string;
     bottomAxisXId?: string;
     rightAxisYId?: string;
@@ -810,9 +806,7 @@ const getEchartAxis = ({
         [true, true],
     );
 
-    const getAxisFormatter = (
-        axisItem: Field | TableCalculation | CustomDimension | undefined,
-    ) => {
+    const getAxisFormatter = (axisItem: ItemsMap[string] | undefined) => {
         const field =
             axisItem && getItemId(axisItem) && itemsMap[getItemId(axisItem)];
         const hasFormattingConfig =
