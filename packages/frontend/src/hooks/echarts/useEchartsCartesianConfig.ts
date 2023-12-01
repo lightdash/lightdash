@@ -1221,12 +1221,15 @@ const useEchartsCartesianConfig = (
             isCompleteLayout(validCartesianConfig.layout)
         ) {
             const yFieldPivotedKeys = validCartesianConfig.layout.yField.filter(
-                (yField) => itemsMap[yField] && !isDimension(itemsMap[yField]),
+                (yField) =>
+                    !itemsMap[yField] ||
+                    (itemsMap[yField] && !isDimension(itemsMap[yField])),
             );
             const yFieldNonPivotedKeys =
                 validCartesianConfig.layout.yField.filter(
                     (yField) =>
-                        itemsMap[yField] && isDimension(itemsMap[yField]),
+                        !itemsMap[yField] ||
+                        (itemsMap[yField] && isDimension(itemsMap[yField])),
                 );
 
             return [
