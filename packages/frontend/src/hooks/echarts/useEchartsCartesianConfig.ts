@@ -11,7 +11,6 @@ import {
     getAxisName,
     getDateGroupLabel,
     getDefaultSeriesColor,
-    getItemId,
     getItemLabelWithoutTableName,
     getResultValueArray,
     hashFieldReference,
@@ -806,40 +805,35 @@ const getEchartAxis = ({
     );
 
     const getAxisFormatter = (axisItem: ItemsMap[string] | undefined) => {
-        const field =
-            axisItem && getItemId(axisItem) && itemsMap[getItemId(axisItem)];
         const hasFormattingConfig =
-            isField(field) && (field.format || field.round || field.compact);
+            isField(axisItem) &&
+            (axisItem.format || axisItem.round || axisItem.compact);
         const axisMinInterval =
-            isDimension(field) &&
-            field.timeInterval &&
-            isTimeInterval(field.timeInterval) &&
-            timeFrameConfigs[field.timeInterval].getAxisMinInterval();
+            isDimension(axisItem) &&
+            axisItem.timeInterval &&
+            isTimeInterval(axisItem.timeInterval) &&
+            timeFrameConfigs[axisItem.timeInterval].getAxisMinInterval();
         const axisLabelFormatter =
-            isDimension(field) &&
-            field.timeInterval &&
-            isTimeInterval(field.timeInterval) &&
-            timeFrameConfigs[field.timeInterval].getAxisLabelFormatter();
+            isDimension(axisItem) &&
+            axisItem.timeInterval &&
+            isTimeInterval(axisItem.timeInterval) &&
+            timeFrameConfigs[axisItem.timeInterval].getAxisLabelFormatter();
         const axisConfig: Record<string, any> = {};
 
-        if (field && (hasFormattingConfig || axisMinInterval)) {
+        if (axisItem && (hasFormattingConfig || axisMinInterval)) {
             axisConfig.axisLabel = {
                 formatter: (value: any) => {
-                    return formatItemValue(field, value, true);
+                    return formatItemValue(axisItem, value, true);
                 },
             };
         } else if (axisLabelFormatter) {
             axisConfig.axisLabel = {
                 formatter: axisLabelFormatter,
             };
-        } else if (
-            field !== '' &&
-            field !== undefined &&
-            isTableCalculation(field)
-        ) {
+        } else if (axisItem !== undefined && isTableCalculation(axisItem)) {
             axisConfig.axisLabel = {
                 formatter: (value: any) => {
-                    return formatTableCalculationValue(field, value);
+                    return formatTableCalculationValue(axisItem, value);
                 },
             };
         }
