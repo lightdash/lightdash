@@ -52,14 +52,7 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
                                     onClick={() => {
                                         setShowProjectAccessCreate(true);
                                     }}
-                                    color="indigo"
-                                    radius="xs"
-                                    compact
-                                    sx={{
-                                        width: '76px',
-                                        height: '30px',
-                                        background: '#2D72D2',
-                                    }}
+                                    size={'xs'}
                                 >
                                     Add user
                                 </Button>
