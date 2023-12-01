@@ -1,4 +1,8 @@
-import { ChartType, CreateSavedChartVersion } from '@lightdash/common';
+import {
+    ChartType,
+    CreateSavedChartVersion,
+    DateGranularity,
+} from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import {
@@ -11,16 +15,30 @@ import useToaster from './toaster/useToaster';
 export const getExplorerUrlFromCreateSavedChartVersion = (
     projectUuid: string,
     createSavedChart: CreateSavedChartVersion,
+    dateZoomGranularity?: DateGranularity,
 ): { pathname: string; search: string } => {
     const newParams = new URLSearchParams();
     newParams.set(
         'create_saved_chart_version',
         JSON.stringify(createSavedChart),
     );
+    if (dateZoomGranularity) newParams.set('date_zoom', dateZoomGranularity);
     return {
         pathname: `/projects/${projectUuid}/tables/${createSavedChart.tableName}`,
         search: newParams.toString(),
     };
+};
+
+export const useDateZoomGranularitySearch = (): DateGranularity | undefined => {
+    const { search } = useLocation();
+
+    const searchParams = new URLSearchParams(search);
+    const dateZoomParam = searchParams.get('date_zoom');
+    const dateZoom = Object.values(DateGranularity).find(
+        (granularity) =>
+            granularity.toLowerCase() === dateZoomParam?.toLowerCase(),
+    );
+    return dateZoom;
 };
 
 export const parseExplorerSearchParams = (
@@ -41,6 +59,8 @@ export const useExplorerRoute = () => {
         projectUuid: string;
         tableId: string | undefined;
     }>();
+
+    const dateZoom = useDateZoomGranularitySearch();
     const unsavedChartVersion = useExplorerContext(
         (context) => context.state.unsavedChartVersion,
     );
@@ -64,6 +84,7 @@ export const useExplorerRoute = () => {
                         ...unsavedChartVersion,
                         metricQuery: queryResultsData.metricQuery,
                     },
+                    dateZoom,
                 ),
             );
         }
@@ -72,6 +93,7 @@ export const useExplorerRoute = () => {
         history,
         pathParams.projectUuid,
         unsavedChartVersion,
+        dateZoom,
     ]);
 
     useEffect(() => {
