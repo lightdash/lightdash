@@ -1,4 +1,4 @@
-import type { ItemsMap } from '..';
+import type { AdditionalMetric, ItemsMap } from '..';
 import { CompileError } from './errors';
 import { MetricFilterRule } from './filter';
 import { TimeFrames } from './timeFrames';
@@ -249,7 +249,9 @@ export interface CompiledDimension extends Dimension {
 
 export type CompiledField = CompiledDimension | CompiledMetric;
 
-export const isDimension = (field: any): field is Dimension =>
+export const isDimension = (
+    field: ItemsMap[string] | AdditionalMetric | undefined, // NOTE: `ItemsMap converts AdditionalMetric to Metric
+): field is Dimension =>
     isField(field) && field.fieldType === FieldType.DIMENSION;
 
 export interface CompiledMetric extends Metric {
