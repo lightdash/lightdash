@@ -4,8 +4,8 @@ import {
     CompiledDimension,
     CompiledMetricQuery,
     CustomDimension,
-    DateGranularity,
     DbtModelJoinType,
+    DimensionType,
     Explore,
     fieldId,
     FieldId,
@@ -20,24 +20,25 @@ import {
     getDimensions,
     getFilterRulesFromGroup,
     getMetrics,
+    getSqlForTruncatedDate,
     isAndFilterGroup,
-    isCustomDimension,
     isFilterGroup,
     parseAllReferences,
     renderFilterRuleSql,
     renderTableCalculationFilterRuleSql,
     SortField,
     SupportedDbtAdapter,
-    TimeFrames,
     UserAttributeValueMap,
-    validateTimeFrames,
     WarehouseClient,
+    WeekDay,
 } from '@lightdash/common';
 import { hasUserAttribute } from './services/UserAttributesService/UserAttributeUtils';
 
 const getDimensionFromId = (
     dimId: FieldId,
     explore: Explore,
+    adapterType: SupportedDbtAdapter,
+    startOfWeek: WeekDay | null | undefined,
 ): CompiledDimension => {
     const dimensions = getDimensions(explore);
     const dimension = dimensions.find((d) => fieldId(d) === dimId);
@@ -46,11 +47,22 @@ const getDimensionFromId = (
         const { baseDimensionId, newTimeFrame } = getDateDimension(dimId);
 
         if (baseDimensionId) {
-            const baseField = getDimensionFromId(baseDimensionId, explore);
+            const baseField = getDimensionFromId(
+                baseDimensionId,
+                explore,
+                adapterType,
+                startOfWeek,
+            );
             if (baseField && newTimeFrame)
                 return {
                     ...baseField,
-                    compiledSql: `DATE_TRUNC('${newTimeFrame}', ${baseField.compiledSql})`,
+                    compiledSql: getSqlForTruncatedDate(
+                        adapterType,
+                        newTimeFrame,
+                        baseField.compiledSql,
+                        DimensionType.DATE,
+                        startOfWeek,
+                    ),
                     timeInterval: newTimeFrame,
                 };
         }
@@ -171,6 +183,7 @@ export const getCustomDimensionSql = ({
     | { ctes: string[]; joins: string[]; tables: string[]; selects: string[] }
     | undefined => {
     const { customDimensions } = compiledMetricQuery;
+    const startOfWeek = warehouseClient.getStartOfWeek();
 
     const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
     if (customDimensions === undefined || customDimensions.length === 0)
@@ -179,6 +192,7 @@ export const getCustomDimensionSql = ({
     const getCteReference = (customDimension: CustomDimension) =>
         `${getCustomDimensionId(customDimension)}_cte`;
 
+    const adapterType: SupportedDbtAdapter = warehouseClient.getAdapterType();
     const ctes = customDimensions.reduce<string[]>((acc, customDimension) => {
         switch (customDimension.binType) {
             case BinType.FIXED_WIDTH:
@@ -189,6 +203,8 @@ export const getCustomDimensionSql = ({
                 const dimension = getDimensionFromId(
                     customDimension.dimensionId,
                     explore,
+                    adapterType,
+                    startOfWeek,
                 );
                 const baseTable =
                     explore.tables[customDimension.table].sqlTable;
@@ -240,6 +256,8 @@ export const getCustomDimensionSql = ({
             const dimension = getDimensionFromId(
                 customDimension.dimensionId,
                 explore,
+                adapterType,
+                startOfWeek,
             );
             // Check required attribute permission for parent dimension
             assertValidDimensionRequiredAttribute(
@@ -479,7 +497,12 @@ export const buildQuery = ({
 
     const dimensionSelects = dimensions.map((field) => {
         const alias = field;
-        const dimension = getDimensionFromId(field, explore);
+        const dimension = getDimensionFromId(
+            field,
+            explore,
+            adapterType,
+            startOfWeek,
+        );
 
         assertValidDimensionRequiredAttribute(
             dimension,
@@ -517,7 +540,12 @@ export const buildQuery = ({
                 return;
 
             const dimensionId = getCustomMetricDimensionId(metric);
-            const dimension = getDimensionFromId(dimensionId, explore);
+            const dimension = getDimensionFromId(
+                dimensionId,
+                explore,
+                adapterType,
+                startOfWeek,
+            );
 
             assertValidDimensionRequiredAttribute(
                 dimension,
@@ -531,7 +559,12 @@ export const buildQuery = ({
             return [...acc, ...(metric.tablesReferences || [metric.table])];
         }, []),
         ...dimensions.reduce<string[]>((acc, field) => {
-            const dim = getDimensionFromId(field, explore);
+            const dim = getDimensionFromId(
+                field,
+                explore,
+                adapterType,
+                startOfWeek,
+            );
             return [...acc, ...(dim.tablesReferences || [dim.table])];
         }, []),
         ...(customDimensionSql?.tables || []),
@@ -540,6 +573,8 @@ export const buildQuery = ({
                 const dim = getDimensionFromId(
                     filterRule.target.fieldId,
                     explore,
+                    adapterType,
+                    startOfWeek,
                 );
                 return [...acc, ...(dim.tablesReferences || [dim.table])];
             },
