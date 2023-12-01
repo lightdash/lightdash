@@ -1,3 +1,11 @@
+## [0.888.2](https://github.com/lightdash/lightdash/compare/0.888.1...0.888.2) (2023-12-01)
+
+
+### Bug Fixes
+
+* bignumber comparison negative percent values ([#8170](https://github.com/lightdash/lightdash/issues/8170)) ([a8e176c](https://github.com/lightdash/lightdash/commit/a8e176ccec4c91b52e9789e1dfd914c82e950fb3))
+* Disable validation dbt ci ([#8171](https://github.com/lightdash/lightdash/issues/8171)) ([8387f1c](https://github.com/lightdash/lightdash/commit/8387f1c356a449b6bdfde351a4476f67a8308f65))
+
 ## [0.888.1](https://github.com/lightdash/lightdash/compare/0.888.0...0.888.1) (2023-12-01)
 
 
