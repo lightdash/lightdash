@@ -18,6 +18,7 @@ import {
 } from '../types/filter';
 import assertUnreachable from '../utils/assertUnreachable';
 import { formatDate } from '../utils/formatting';
+import { getItemId } from '../utils/item';
 import { getMomentDateWithCustomStartOfWeek } from '../utils/time';
 import { WeekDay } from '../utils/timeFrames';
 
@@ -304,14 +305,18 @@ const renderBooleanFilterSql = (
 export const renderTableCalculationFilterRuleSql = (
     filterRule: FilterRule<FilterOperator, unknown>,
     field: CompiledTableCalculation | undefined,
+    fieldQuoteChar: string,
     stringQuoteChar: string,
     escapeStringQuoteChar: string,
 ): string => {
     if (!field) return '1=1';
+
+    const fieldSql = `${fieldQuoteChar}${getItemId(field)}${fieldQuoteChar}`;
+
     switch (field.format?.type) {
         case TableCalculationFormatType.DEFAULT:
             return renderStringFilterSql(
-                field.name,
+                fieldSql,
                 filterRule,
                 stringQuoteChar,
                 escapeStringQuoteChar,

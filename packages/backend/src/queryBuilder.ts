@@ -669,6 +669,7 @@ export const buildQuery = ({
             return renderTableCalculationFilterRuleSql(
                 filter,
                 field,
+                fieldQuoteChar,
                 stringQuoteChar,
                 escapeStringQuoteChar,
             );
