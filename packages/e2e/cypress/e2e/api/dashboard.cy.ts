@@ -112,7 +112,7 @@ const createChartAndUpdateDashboard = (
         });
 
 describe('Lightdash dashboard', () => {
-    const dashboardName = 'Dashboard with charts that belongs to dashboard';
+    const dashboardName = 'Dashboard with charts that belong to dashboard';
     before(() => {
         cy.login();
         // clean previous e2e dashboards and charts
@@ -138,9 +138,14 @@ describe('Lightdash dashboard', () => {
             }).then(({ chart: newChart, dashboard: updatedDashboard }) => {
                 expect(updatedDashboard.tiles.length).to.eq(1);
                 const tile = updatedDashboard.tiles[0] as DashboardChartTile;
-                // assert tile is correct
-                expect(tile.properties.savedChartUuid).to.eq(newChart.uuid);
-                expect(tile.properties.belongsToDashboard).to.eq(true);
+                expect(
+                    tile.properties.savedChartUuid,
+                    'Check if tile is correct',
+                ).to.eq(newChart.uuid);
+                expect(
+                    tile.properties.belongsToDashboard,
+                    'Check if chart belongs to a dashboard',
+                ).to.eq(true);
 
                 // update dashboard with second chart
                 createChartAndUpdateDashboard(
@@ -160,17 +165,19 @@ describe('Lightdash dashboard', () => {
                     const secondTile = updatedDashboard2
                         .tiles[1] as DashboardChartTile;
 
-                    // assert first chart didn't change
-                    expect(firstTile.properties.savedChartUuid).to.eq(
-                        newChart.uuid,
-                    );
+                    expect(
+                        firstTile.properties.savedChartUuid,
+                        "Check if first tile didn't change",
+                    ).to.eq(newChart.uuid);
                     // assert second tile is correct
-                    expect(secondTile.properties.savedChartUuid).to.eq(
-                        newChart2.uuid,
-                    );
-                    expect(secondTile.properties.belongsToDashboard).to.eq(
-                        true,
-                    );
+                    expect(
+                        secondTile.properties.savedChartUuid,
+                        'Check if second tile is correct',
+                    ).to.eq(newChart2.uuid);
+                    expect(
+                        secondTile.properties.belongsToDashboard,
+                        'Check if second tile belongs to a dashboard',
+                    ).to.eq(true);
                 });
             });
         });
