@@ -69,6 +69,19 @@ models:
                 url: 'https://calendar.google.com/calendar/u/0/r/day/${ value.formatted |split: "-" |join: "/"}'
             required_attributes:
               is_admin: "true"
+      - name: date
+        meta:
+          dimension:
+            type: date
+          additional_dimensions:
+            dimension_name_one:
+              type: number
+              label: "Day of Week"
+              sql: "day_of_week(${date})"
+            dimension_name_two:
+              type: boolean
+              label: "Weekday or Weekend"
+              sql: "case when day_of_week(${date}) < 5 then 'weekday' else 'weekend' end"
 ```
 
 All the properties you can customize:
@@ -380,8 +393,8 @@ FROM "postgres"."jaffle"."orders" AS "orders"
 
 ## Additional dimensions
 
-You can define multiple dimensions off a single column. This is useful when handling JSONB columns or have different
-formats options.
+Additional dimensions let you define multiple dimensions off of a single column. This is useful when handling JSONB
+columns, adding different formatting options to a column, or creating persisted groups/buckets based off of a column.
 
 All the [dimension configuration](#dimension-configuration), beside `time_intervals`, are available for additional
 dimensions.
@@ -393,6 +406,7 @@ Additional dimensions names need to be unique in the model.
 :::
 
 ```yaml
+    columns:
       - name: revenue
         meta:
           dimension:
@@ -420,6 +434,15 @@ defining them under the column's meta.
 
 
 ```yaml
+version: 2
+models:
+  - name: users
+    meta:
+      metrics:
+        highest_version_model_metric_example:
+          type: max
+          sql: ${version}
+    columns:
       - name: metadata
         meta:
           dimension:
