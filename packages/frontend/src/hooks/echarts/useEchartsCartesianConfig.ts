@@ -398,7 +398,6 @@ const getMinAndMaxReferenceLines = (
             if (serieFieldId.field !== fieldId) return [];
 
             if (!serie.markLine) return [];
-            // TODO: check if correct because findItem can check for name
             const field = items[serieFieldId.field];
 
             const fieldType = isField(field) ? field.type : undefined;
