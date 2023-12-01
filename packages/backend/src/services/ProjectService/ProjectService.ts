@@ -532,6 +532,7 @@ export class ProjectService {
                 projectUuid,
                 requestMethod: method,
                 jobUuid: job.jobUuid,
+                isPreview: savedProject.type === ProjectType.PREVIEW,
             });
         } else {
             // Nothing to test and compile, just update the job status
@@ -1968,7 +1969,7 @@ export class ProjectService {
         projectUuid: string,
         requestMethod: RequestMethod,
     ): Promise<{ jobUuid: string }> {
-        const { organizationUuid } = await this.projectModel.getSummary(
+        const { organizationUuid, type } = await this.projectModel.getSummary(
             projectUuid,
         );
         if (
@@ -2004,6 +2005,7 @@ export class ProjectService {
             projectUuid,
             requestMethod,
             jobUuid: job.jobUuid,
+            isPreview: type === ProjectType.PREVIEW,
         });
 
         return { jobUuid: job.jobUuid };

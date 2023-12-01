@@ -481,7 +481,7 @@ export const testAndCompileProject = async (
             details: {},
             status: SchedulerJobStatus.COMPLETED,
         });
-        if (process.env.IS_PULL_REQUEST !== 'true') {
+        if (process.env.IS_PULL_REQUEST !== 'true' && !payload.isPreview) {
             schedulerClient.generateValidation({
                 userUuid: payload.createdByUserUuid,
                 projectUuid: payload.projectUuid,
@@ -531,7 +531,7 @@ export const compileProject = async (
             details: {},
             status: SchedulerJobStatus.COMPLETED,
         });
-        if (process.env.IS_PULL_REQUEST !== 'true') {
+        if (process.env.IS_PULL_REQUEST !== 'true' && !payload.isPreview) {
             schedulerClient.generateValidation({
                 projectUuid: payload.projectUuid,
                 context: 'dbt_refresh',

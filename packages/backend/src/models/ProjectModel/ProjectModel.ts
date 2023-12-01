@@ -434,7 +434,7 @@ export class ProjectModel {
                 'organizations.organization_id',
             )
             .select<
-                Pick<DbProject, 'name' | 'project_uuid'> &
+                Pick<DbProject, 'name' | 'project_uuid' | 'project_type'> &
                     Pick<DbOrganization, 'organization_uuid'>
             >([
                 `${ProjectTableName}.name`,
@@ -452,6 +452,7 @@ export class ProjectModel {
             organizationUuid: project.organization_uuid,
             projectUuid: project.project_uuid,
             name: project.name,
+            type: project.project_type,
         };
     }
 
