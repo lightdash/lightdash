@@ -12,7 +12,6 @@ import {
     CompiledField,
     CompiledMetric,
     CustomDimension,
-    Dimension,
     DimensionType,
     Field,
     FieldId,
@@ -27,7 +26,6 @@ import {
     AdditionalMetric,
     getCustomDimensionId,
     isAdditionalMetric,
-    isCustomDimension,
     MetricQuery,
 } from './types/metricQuery';
 import {
@@ -804,20 +802,6 @@ export function getItemMap(
         }),
         {},
     );
-}
-
-export function getDimensionsInItemMap(
-    itemsMap: ItemsMap,
-): Record<string, Dimension | CustomDimension> {
-    return Object.values(itemsMap).reduce((acc, item) => {
-        if (isDimension(item) || isCustomDimension(item)) {
-            return {
-                ...acc,
-                [fieldId(item)]: item,
-            };
-        }
-        return acc;
-    }, {});
 }
 
 export function itemsInMetricQuery(

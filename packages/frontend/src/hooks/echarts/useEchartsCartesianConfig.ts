@@ -11,7 +11,6 @@ import {
     getAxisName,
     getDateGroupLabel,
     getDefaultSeriesColor,
-    getDimensionsInItemMap,
     getItemId,
     getItemLabelWithoutTableName,
     getResultValueArray,
@@ -1332,9 +1331,6 @@ const useEchartsCartesianConfig = (
         try {
             if (!itemsMap) return results;
 
-            const dimensionsAndCustomDimensionsMap =
-                getDimensionsInItemMap(itemsMap);
-
             const xFieldId = validCartesianConfig?.layout?.xField;
             if (xFieldId === undefined) return results;
 
@@ -1342,7 +1338,7 @@ const useEchartsCartesianConfig = (
                 resultsData?.metricQuery.sorts?.[0]?.fieldId === xFieldId;
             if (alreadySorted) return results;
 
-            const xField = dimensionsAndCustomDimensionsMap[xFieldId];
+            const xField = itemsMap[xFieldId];
             const hasTotal = validCartesianConfig?.eChartsConfig?.series?.some(
                 (s) => s.stackLabel?.show,
             );
@@ -1371,6 +1367,7 @@ const useEchartsCartesianConfig = (
             if (
                 xField !== undefined &&
                 results.length >= 0 &&
+                isDimension(xField) &&
                 [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
                     xField.type,
                 )
