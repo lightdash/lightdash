@@ -365,9 +365,11 @@ export const stopPreviewHandler = async (
                 name: options.name,
             },
         });
-
         console.error(
-            `Could not find preview project with name ${projectName}`,
+            styles.error(
+                `Could not find preview project with name ${projectName}`,
+            ),
         );
+        process.exit(1);
     }
 };
