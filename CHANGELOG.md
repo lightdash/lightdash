@@ -1,3 +1,10 @@
+## [0.889.1](https://github.com/lightdash/lightdash/compare/0.889.0...0.889.1) (2023-12-01)
+
+
+### Bug Fixes
+
+* return box if hidden title ([#8164](https://github.com/lightdash/lightdash/issues/8164)) ([d15663d](https://github.com/lightdash/lightdash/commit/d15663d172b9e49c30e3c4d125a20a33b05db5d6))
+
 # [0.889.0](https://github.com/lightdash/lightdash/compare/0.888.2...0.889.0) (2023-12-01)
 
 
