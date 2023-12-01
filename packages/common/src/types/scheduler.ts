@@ -343,6 +343,7 @@ export type CompileProjectPayload = {
     projectUuid: string;
     requestMethod: string;
     jobUuid: string;
+    isPreview: boolean;
 };
 
 export type ValidateProjectPayload = {
