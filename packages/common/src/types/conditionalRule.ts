@@ -16,6 +16,7 @@ export enum ConditionalOperator {
     IN_THE_NEXT = 'inTheNext',
     IN_THE_CURRENT = 'inTheCurrent',
     IN_BETWEEN = 'inBetween',
+    PRESENT = 'present',
 }
 
 export type ConditionalRule<O = ConditionalOperator, V = unknown> = {

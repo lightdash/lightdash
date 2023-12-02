@@ -40,6 +40,7 @@ export const ExpectedNumberFilterSQL: Record<FilterOperator, string | null> = {
     [FilterOperator.IN_THE_CURRENT]: null,
     [FilterOperator.IN_THE_NEXT]: null,
     [FilterOperator.IN_BETWEEN]: null,
+    [FilterOperator.PRESENT]: null,
 };
 
 export const InTheCurrentFilterBase = {

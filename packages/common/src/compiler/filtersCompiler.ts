@@ -276,6 +276,11 @@ export const renderDateFilterSql = (
                 startDate,
             )} AND (${dimensionSql}) <= ${castValue(endDate)})`;
         }
+        case FilterOperator.PRESENT: {
+            return `(${dimensionSql}) = ${castValue(
+                dateFormatter(new Date()),
+            )}`;
+        }
         default:
             throw Error(
                 `No function implemented to render sql for filter type ${filterType} on dimension of date type`,

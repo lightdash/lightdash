@@ -46,6 +46,7 @@ const filterOperatorLabel: Record<FilterOperator, string> = {
     [FilterOperator.IN_THE_NEXT]: 'in the next',
     [FilterOperator.IN_THE_CURRENT]: 'in the current',
     [FilterOperator.IN_BETWEEN]: 'is between',
+    [FilterOperator.PRESENT]: 'is the current',
 };
 
 const getFilterOptions = <T extends FilterOperator>(
@@ -56,10 +57,12 @@ const getFilterOptions = <T extends FilterOperator>(
         label: filterOperatorLabel[operator],
     }));
 
-const timeFilterOptions: Array<{
+const getTimeFilterOptions = (
+    timeInterval: string | undefined,
+): Array<{
     value: FilterOperator;
     label: string;
-}> = [
+}> => [
     ...getFilterOptions([
         FilterOperator.NULL,
         FilterOperator.NOT_NULL,
@@ -70,6 +73,17 @@ const timeFilterOptions: Array<{
         FilterOperator.IN_THE_NEXT,
         FilterOperator.IN_THE_CURRENT,
     ]),
+    ...(timeInterval
+        ? [
+              {
+                  value: FilterOperator.PRESENT,
+                  label:
+                      timeInterval === 'DAY'
+                          ? 'is today'
+                          : `is this ${timeInterval.toLowerCase()}`,
+              },
+          ]
+        : []),
     { value: FilterOperator.LESS_THAN, label: 'is before' },
     { value: FilterOperator.LESS_THAN_OR_EQUAL, label: 'is on or before' },
     { value: FilterOperator.GREATER_THAN, label: 'is after' },
@@ -88,6 +102,7 @@ export type FilterInputsProps<T extends ConditionalRule> = {
 
 export const getFilterOperatorOptions = (
     filterType: FilterType,
+    timeInterval?: string,
 ): Array<{ value: FilterOperator; label: string }> => {
     switch (filterType) {
         case FilterType.STRING:
@@ -111,7 +126,7 @@ export const getFilterOperatorOptions = (
                 FilterOperator.GREATER_THAN,
             ]);
         case FilterType.DATE:
-            return timeFilterOptions;
+            return getTimeFilterOptions(timeInterval);
         case FilterType.BOOLEAN:
             return getFilterOptions([
                 FilterOperator.NULL,
@@ -188,6 +203,7 @@ const getValueAsString = (
                 case FilterOperator.LESS_THAN_OR_EQUAL:
                 case FilterOperator.GREATER_THAN:
                 case FilterOperator.GREATER_THAN_OR_EQUAL:
+                case FilterOperator.PRESENT:
                     return values
                         ?.map((value) => {
                             if (

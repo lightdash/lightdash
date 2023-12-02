@@ -46,8 +46,13 @@ const FilterRuleForm: FC<Props> = ({
     }, [activeField]);
 
     const filterOperatorOptions = useMemo(() => {
+        if (activeField?.type === 'date')
+            return getFilterOperatorOptions(
+                filterType,
+                activeField.timeInterval || 'DAY',
+            );
         return getFilterOperatorOptions(filterType);
-    }, [filterType]);
+    }, [filterType, activeField]);
 
     const onFieldChange = useCallback(
         (fieldId: string) => {

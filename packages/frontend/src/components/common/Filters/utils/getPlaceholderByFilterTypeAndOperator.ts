@@ -38,6 +38,7 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.IN_THE_NEXT:
                 case FilterOperator.IN_THE_CURRENT:
                 case FilterOperator.IN_BETWEEN:
+                case FilterOperator.PRESENT:
                     throw new Error('Not implemented');
                 default:
                     return assertUnreachable(operator, 'unknown operator');
@@ -64,6 +65,7 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.IN_THE_NEXT:
                 case FilterOperator.IN_THE_CURRENT:
                 case FilterOperator.IN_BETWEEN:
+                case FilterOperator.PRESENT:
                     throw new Error('Not implemented');
                 default:
                     return assertUnreachable(operator, 'unknown operator');
@@ -88,6 +90,7 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.IN_THE_CURRENT:
                 case FilterOperator.NULL:
                 case FilterOperator.NOT_NULL:
+                case FilterOperator.PRESENT:
                     return '';
                 case FilterOperator.STARTS_WITH:
                 case FilterOperator.ENDS_WITH:
@@ -118,6 +121,7 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.IN_THE_NEXT:
                 case FilterOperator.IN_THE_CURRENT:
                 case FilterOperator.IN_BETWEEN:
+                case FilterOperator.PRESENT:
                     throw new Error('Not implemented');
                 default:
                     return assertUnreachable(operator, 'unknown operator');

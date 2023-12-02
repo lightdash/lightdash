@@ -24,6 +24,7 @@ export const isFilterConfigurationApplyButtonEnabled = (
     switch (filterRule.operator) {
         case FilterOperator.NULL:
         case FilterOperator.NOT_NULL:
+        case FilterOperator.PRESENT:
             return true;
         case FilterOperator.EQUALS:
         case FilterOperator.NOT_EQUALS:
