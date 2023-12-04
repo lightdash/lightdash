@@ -1256,6 +1256,16 @@
         "ideas",
         "code"
       ]
+    },
+    {
+      "login": "Shifan-Gu",
+      "name": "Shifan Gu",
+      "avatar_url": "https://avatars.githubusercontent.com/u/101873365?v=4",
+      "profile": "https://github.com/Shifan-Gu",
+      "contributions": [
+        "bug",
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
