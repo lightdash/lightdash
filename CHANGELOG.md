@@ -1,3 +1,10 @@
+## [0.890.1](https://github.com/lightdash/lightdash/compare/0.890.0...0.890.1) (2023-12-04)
+
+
+### Bug Fixes
+
+* stable create chart in dashboard e2e test ([#8178](https://github.com/lightdash/lightdash/issues/8178)) ([2ef9e44](https://github.com/lightdash/lightdash/commit/2ef9e441c654376c9507f02635d28499eeae850d))
+
 # [0.890.0](https://github.com/lightdash/lightdash/compare/0.889.1...0.890.0) (2023-12-01)
 
 
