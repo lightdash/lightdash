@@ -1,3 +1,10 @@
+## [0.890.2](https://github.com/lightdash/lightdash/compare/0.890.1...0.890.2) (2023-12-04)
+
+
+### Bug Fixes
+
+* binning negative numbers ([#8174](https://github.com/lightdash/lightdash/issues/8174)) ([993b230](https://github.com/lightdash/lightdash/commit/993b23004d01b9b6f2606db11b3508bfeca52007))
+
 ## [0.890.1](https://github.com/lightdash/lightdash/compare/0.890.0...0.890.1) (2023-12-04)
 
 
