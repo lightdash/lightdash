@@ -5404,15 +5404,15 @@
   resolved "https://registry.npmjs.org/@tanstack/virtual-core/-/virtual-core-3.0.0-beta.54.tgz"
   integrity sha512-jtkwqdP2rY2iCCDVAFuaNBH3fiEi29aTn2RhtIoky8DTTiCdc48plpHHreLwmv1PICJ4AJUUESaq3xa8fZH8+g==
 
-"@techteamer/ocsp@1.0.0":
-  version "1.0.0"
-  resolved "https://registry.npmjs.org/@techteamer/ocsp/-/ocsp-1.0.0.tgz"
-  integrity sha512-lNAOoFHaZN+4huo30ukeqVrUmfC+avoEBYQ11QAnAw1PFhnI5oBCg8O/TNiCoEWix7gNGBIEjrQwtPREqKMPog==
+"@techteamer/ocsp@1.0.1":
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/@techteamer/ocsp/-/ocsp-1.0.1.tgz#420f80c64ff0f74a70b65c88e4031c03a9da6ded"
+  integrity sha512-q4pW5wAC6Pc3JI8UePwE37CkLQ5gDGZMgjSX4MEEm4D4Di59auDQ8UNIDzC4gRnPNmmcwjpPxozq8p5pjiOmOw==
   dependencies:
     asn1.js "^5.4.1"
     asn1.js-rfc2560 "^5.0.1"
     asn1.js-rfc5280 "^3.0.0"
-    async "^3.2.1"
+    async "^3.2.4"
     simple-lru-cache "^0.0.2"
 
 "@testing-library/cypress@^9.0.0":
@@ -6466,10 +6466,10 @@
   resolved "https://registry.npmjs.org/@types/sizzle/-/sizzle-2.3.3.tgz"
   integrity sha512-JYM8x9EGF163bEyhdJBpR2QX1R5naCJHC8ucJylJ3w9/CVBaskdQ8WqBf8MmQrd1kRvp/a4TS8HJ+bxzR7ZJYQ==
 
-"@types/snowflake-sdk@^1.6.14":
-  version "1.6.14"
-  resolved "https://registry.yarnpkg.com/@types/snowflake-sdk/-/snowflake-sdk-1.6.14.tgz#66f9ed77a7c917733d38eaf8120d8f1b40bc76a6"
-  integrity sha512-mpSx3efwJAxQHgokJ1b8C5tw1lO/L7tVmjn2/Vx5btXumiShtfeK9jZ70+HT6KsRDhwonOtDnV6OAsLtu3Rp+A==
+"@types/snowflake-sdk@^1.6.18":
+  version "1.6.18"
+  resolved "https://registry.yarnpkg.com/@types/snowflake-sdk/-/snowflake-sdk-1.6.18.tgz#21b5c94dc51d22466b7b238cc0619db4c16c7ac2"
+  integrity sha512-zWJ61LED9nAZNU6PspkbG3sC4mHF47cQPyq+N7vgChkMgEhe6N72vW5ug2yrJGOziqdwpIIxLXnx8FbKE0YhDA==
   dependencies:
     "@types/node" "*"
     generic-pool "^3.9.0"
@@ -7299,15 +7299,15 @@ async@^3.1.0, async@^3.2.0:
   resolved "https://registry.npmjs.org/async/-/async-3.2.0.tgz"
   integrity sha512-TR2mEZFVOj2pLStYxLht7TyfuRzaydfpxr3k9RpHIzMgw7A64dzsdqCxH1WJyQdoe8T10nDXd9wnEigmiuHIZw==
 
-async@^3.2.1:
-  version "3.2.4"
-  resolved "https://registry.npmjs.org/async/-/async-3.2.4.tgz"
-  integrity sha512-iAB+JbDEGXhyIUavoDl9WP/Jj106Kz9DEn1DPgYw5ruDn0e3Wgi3sKFm55sASdGBNOQB8F59d9qQ7deqrHA8wQ==
-
 async@^3.2.3:
   version "3.2.3"
   resolved "https://registry.npmjs.org/async/-/async-3.2.3.tgz"
   integrity sha512-spZRyzKL5l5BZQrr/6m/SqFdBN0q3OCI0f9rjfBzCMBIP4p75P620rR3gTmaksNOhmzgdxcaxdNfMy6anrbM0g==
+
+async@^3.2.4:
+  version "3.2.5"
+  resolved "https://registry.yarnpkg.com/async/-/async-3.2.5.tgz#ebd52a8fdaf7a2289a24df399f8d8485c8a46b66"
+  integrity sha512-baNZyqaaLhyLVKm/DlvdW051MSgO6b8eVfIezl9E5PqWxFgzLm/wQntEW4zOytVburDEr0JlALEpdOFwvErLsg==
 
 asynckit@^0.4.0:
   version "0.4.0"
@@ -7373,15 +7373,6 @@ axios@^0.27.2:
   dependencies:
     follow-redirects "^1.14.9"
     form-data "^4.0.0"
-
-axios@^1.5.0:
-  version "1.5.1"
-  resolved "https://registry.yarnpkg.com/axios/-/axios-1.5.1.tgz#11fbaa11fc35f431193a9564109c88c1f27b585f"
-  integrity sha512-Q28iYCWzNHjAm+yEAot5QaAMxhMghWLFVf7rRdwhUI+c2jix2DUXjAHXVi+s1ibs3mjPO/cCgbA++3BjD0vP/A==
-  dependencies:
-    follow-redirects "^1.15.0"
-    form-data "^4.0.0"
-    proxy-from-env "^1.1.0"
 
 axios@^1.6.0:
   version "1.6.2"
@@ -7585,15 +7576,15 @@ big.js@^6.0.0:
   resolved "https://registry.npmjs.org/big.js/-/big.js-6.1.1.tgz"
   integrity sha512-1vObw81a8ylZO5ePrtMay0n018TcftpTA5HFKDaSuiUDBo8biRBtjIobw60OpwuvrGk+FsxKamqN4cnmj/eXdg==
 
-bignumber.js@^2.4.0:
-  version "2.4.0"
-  resolved "https://registry.npmjs.org/bignumber.js/-/bignumber.js-2.4.0.tgz"
-  integrity sha1-g4qZLan51zfg9LLbC+YrsJ3Qxeg=
-
 bignumber.js@^9.0.0:
   version "9.0.1"
   resolved "https://registry.npmjs.org/bignumber.js/-/bignumber.js-9.0.1.tgz"
   integrity sha512-IdZR9mh6ahOBv/hYGiXyVuyCetmGJhtYkqLBpTStdhEGjegpPlUawydyaF3pbIOFynJTpllEs+NP+CS9jKFLjA==
+
+bignumber.js@^9.1.2:
+  version "9.1.2"
+  resolved "https://registry.yarnpkg.com/bignumber.js/-/bignumber.js-9.1.2.tgz#b7c4242259c008903b13707983b5f4bbd31eda0c"
+  integrity sha512-2/mKyZH9K85bzOEfhXDBFZTGd1CTs+5IHpeFQo9luiBG7hghdC851Pj2WAhb6E3R6b9tZj/XKhbg4fum+Kepug==
 
 binary-extensions@^2.0.0:
   version "2.2.0"
@@ -10588,6 +10579,11 @@ fast-xml-parser@^4.2.5:
   integrity sha512-rmrXUXwbJedoXkStenj1kkljNF7ugn5ZjR9FJcwmCfcCbtOMDghPajbc+Tck6vE6F5XsDmx+Pr2le9fw8+pXBg==
   dependencies:
     strnum "^1.0.5"
+
+fastest-levenshtein@^1.0.16:
+  version "1.0.16"
+  resolved "https://registry.yarnpkg.com/fastest-levenshtein/-/fastest-levenshtein-1.0.16.tgz#210e61b6ff181de91ea9b3d1b84fdedd47e034e5"
+  integrity sha512-eRnCtTTtGZFpQCwhJiUOuxPQWRXVKYDn0b2PeHfXL6/Zi53SLAzAHfVhVWK2AryC/WH05kGfxhFIPvTF0SXQzg==
 
 fastest-stable-stringify@^2.0.2:
   version "2.0.2"
@@ -18062,21 +18058,21 @@ snapdragon@^0.8.1:
     source-map-resolve "^0.5.0"
     use "^3.1.0"
 
-snowflake-sdk@^1.9.0:
-  version "1.9.0"
-  resolved "https://registry.yarnpkg.com/snowflake-sdk/-/snowflake-sdk-1.9.0.tgz#3bd089427549efc8efa4829c2d08deeffe4aded3"
-  integrity sha512-RtFRV2KC+ebQk/kOUg8WV42LnAu9puoan2wMXykgrAj1u4sGP/GgQyQhsAfLGwXWzn+J9JAwij07h3+6HYBmFw==
+snowflake-sdk@^1.9.1:
+  version "1.9.1"
+  resolved "https://registry.yarnpkg.com/snowflake-sdk/-/snowflake-sdk-1.9.1.tgz#120df1d434df00f05218ffd84d4fe8a24f1cd3a8"
+  integrity sha512-gLtIDmGIA5I9F1skotS8vJ7rJXU7pQsFYx9d152mgvrDsAp88HsRFasybuDerFNmc+59ae0o+4lvgDNVz9GFIg==
   dependencies:
     "@aws-sdk/client-s3" "^3.388.0"
     "@azure/storage-blob" "^12.11.0"
     "@google-cloud/storage" "^6.9.3"
-    "@techteamer/ocsp" "1.0.0"
+    "@techteamer/ocsp" "1.0.1"
     agent-base "^6.0.2"
     asn1.js-rfc2560 "^5.0.0"
     asn1.js-rfc5280 "^3.0.0"
-    axios "^1.5.0"
+    axios "^1.6.0"
     big-integer "^1.6.43"
-    bignumber.js "^2.4.0"
+    bignumber.js "^9.1.2"
     binascii "0.0.2"
     bn.js "^5.2.1"
     browser-request "^0.3.3"
@@ -18084,6 +18080,7 @@ snowflake-sdk@^1.9.0:
     expand-tilde "^2.0.2"
     extend "^3.0.2"
     fast-xml-parser "^4.2.5"
+    fastest-levenshtein "^1.0.16"
     generic-pool "^3.8.2"
     glob "^7.1.6"
     https-proxy-agent "^5.0.1"
@@ -18095,7 +18092,6 @@ snowflake-sdk@^1.9.0:
     open "^7.3.1"
     python-struct "^1.1.3"
     simple-lru-cache "^0.0.2"
-    string-similarity "^4.0.4"
     tmp "^0.2.1"
     uuid "^8.3.2"
     winston "^3.1.0"
@@ -18390,11 +18386,6 @@ string-length@^4.0.1:
   dependencies:
     char-regex "^1.0.2"
     strip-ansi "^6.0.0"
-
-string-similarity@^4.0.4:
-  version "4.0.4"
-  resolved "https://registry.npmjs.org/string-similarity/-/string-similarity-4.0.4.tgz"
-  integrity sha512-/q/8Q4Bl4ZKAPjj8WerIBJWALKkaPRfrvhfF8k/B23i4nzrlRj2/go1m90In7nG/3XDSbOo0+pu6RvCTM9RGMQ==
 
 string-template@~0.2.1:
   version "0.2.1"
