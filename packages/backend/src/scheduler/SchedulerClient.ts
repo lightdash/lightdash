@@ -202,9 +202,7 @@ export class SchedulerClient {
 
         const graphileClient = await this.graphileUtils;
 
-        const schedulerUuid = hasSchedulerUuid(scheduler)
-            ? scheduler.schedulerUuid
-            : undefined;
+        const schedulerUuid = getSchedulerUuid(scheduler);
 
         const getIdentifierAndPayload = (): {
             identifier: string;

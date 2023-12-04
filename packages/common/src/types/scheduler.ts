@@ -261,7 +261,7 @@ export const hasSchedulerUuid = (
 export const getSchedulerUuid = (
     data: ScheduledDeliveryPayload,
 ): string | undefined =>
-    isCreateScheduler(data) ? undefined : data.schedulerUuid;
+    'schedulerUuid' in data ? data.schedulerUuid : undefined;
 
 export enum LightdashPage {
     DASHBOARD = 'dashboard',
