@@ -118,3 +118,17 @@ export const explore: Explore = {
         },
     },
 };
+
+export const emptyExplore: Explore = {
+    ...exploreBase,
+    tables: {},
+};
+
+export const emptyMetricQuery: MetricQuery = {
+    dimensions: [],
+    metrics: [],
+    filters: {},
+    sorts: [],
+    limit: 500,
+    tableCalculations: [],
+};

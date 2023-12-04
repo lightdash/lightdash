@@ -1,6 +1,11 @@
 import { isField } from '../types/field';
 import { getFieldsFromMetricQuery } from './fields';
-import { explore, metricQuery } from './fields.mock';
+import {
+    emptyExplore,
+    emptyMetricQuery,
+    explore,
+    metricQuery,
+} from './fields.mock';
 
 describe('getFieldsFromMetricQuery', () => {
     test('should return all valid fields', async () => {
@@ -14,7 +19,6 @@ describe('getFieldsFromMetricQuery', () => {
         ]);
 
         // Check a few types of items
-
         expect(isField(result.table1_metric1)).toEqual(true);
 
         expect(
@@ -23,5 +27,20 @@ describe('getFieldsFromMetricQuery', () => {
         expect(
             isField(result.table1_metric1) && result.table1_metric1.type,
         ).toEqual('average');
+    });
+
+    test('should test with empty explore', async () => {
+        // With an empty explore, we can't get dimensions or metrics, but we still return table calculations, additional metrics, and custom dimensions
+        const result = getFieldsFromMetricQuery(metricQuery, emptyExplore);
+        expect(Object.keys(result)).toEqual([
+            'calc2',
+            'custom_dimension_1',
+            'table1_additional_metric_1',
+        ]);
+    });
+
+    test('should test with empty metric query', async () => {
+        const result = getFieldsFromMetricQuery(emptyMetricQuery, explore);
+        expect(Object.keys(result)).toEqual([]);
     });
 });
