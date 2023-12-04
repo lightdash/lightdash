@@ -196,9 +196,9 @@ export const getCustomDimensionSql = ({
                     SELECT
                         MIN(${dimension.compiledSql}) AS min_id,
                         MAX(${dimension.compiledSql}) AS max_id,
-                        CAST(MIN(${dimension.compiledSql}) + (MAX(${
+                        ((MAX(${dimension.compiledSql}) - MIN(${
                     dimension.compiledSql
-                }) - MIN(${dimension.compiledSql}) ) AS INT) as ratio
+                })) / ${customDimension.binNumber}) AS bin_width
                     FROM ${baseTable} AS ${fieldQuoteChar}${
                     customDimension.table
                 }${fieldQuoteChar}
@@ -266,7 +266,7 @@ export const getCustomDimensionSql = ({
                         sortField.fieldId,
                 );
             const quoteChar = warehouseClient.getStringQuoteChar();
-            const dash = `${quoteChar}-${quoteChar}`;
+            const dash = `${quoteChar} - ${quoteChar}`;
             switch (customDimension.binType) {
                 case BinType.FIXED_WIDTH:
                     if (!customDimension.binWidth) {
@@ -297,8 +297,6 @@ export const getCustomDimensionSql = ({
                         );
                     }
 
-                    const ratio = `${cte}.ratio`;
-
                     if (customDimension.binNumber <= 1) {
                         // Edge case, bin number with only one bucket does not need a CASE statement
                         return [
@@ -311,10 +309,13 @@ export const getCustomDimensionSql = ({
                         ];
                     }
 
+                    const binWidth = `${cte}.bin_width`;
+
                     const from = (i: number) =>
-                        `${ratio} * ${i} / ${customDimension.binNumber}`;
+                        `${cte}.min_id + ${binWidth} * ${i}`;
                     const to = (i: number) =>
-                        `${ratio} * ${i + 1} / ${customDimension.binNumber}`;
+                        `${cte}.min_id + ${binWidth} * ${i + 1}`;
+
                     const whens = Array.from(
                         Array(customDimension.binNumber).keys(),
                     ).map((i) => {
@@ -409,7 +410,7 @@ export const getCustomDimensionSql = ({
                         },
                     );
 
-                    const customRangeSql = `CASE  
+                    const customRangeSql = `CASE
                         ${rangeWhens.join('\n')}
                         END
                         AS ${customDimensionName}`;
@@ -431,7 +432,7 @@ export const getCustomDimensionSql = ({
                         return [
                             ...acc,
                             customRangeSql,
-                            `CASE  
+                            `CASE
                         ${sortedWhens.join('\n')}
                         END
                         AS ${customDimensionOrder}`,
