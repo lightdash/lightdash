@@ -121,9 +121,13 @@ const useSqlQueryVisualization = ({
                               };
                           }, {}),
                       ),
+                      fields: {
+                          ...fields.sqlQueryDimensions,
+                          ...fields.sqlQueryMetrics,
+                      },
                   }
                 : undefined,
-        [data, dimensionKeys, metricKeys],
+        [data, dimensionKeys, metricKeys, fields],
     );
     const explore: Explore = useMemo(
         () => ({
