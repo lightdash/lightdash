@@ -60,7 +60,7 @@ const getDimensionFromId = (
                         adapterType,
                         newTimeFrame,
                         baseField.compiledSql,
-                        DimensionType.DATE,
+                        baseField.type,
                         startOfWeek,
                     ),
                     timeInterval: newTimeFrame,
