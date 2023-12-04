@@ -314,7 +314,7 @@ export const getCustomDimensionSql = ({
                     const from = (i: number) =>
                         `${cte}.min_id + ${binWidth} * ${i}`;
                     const to = (i: number) =>
-                        `${cte}.min_id + ${binWidth} * (${i} + 1)`;
+                        `${cte}.min_id + ${binWidth} * ${i + 1}`;
 
                     const whens = Array.from(
                         Array(customDimension.binNumber).keys(),
