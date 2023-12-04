@@ -100,6 +100,7 @@ type FilterGroupResponse =
 export type FiltersResponse = {
     dimensions?: FilterGroupResponse;
     metrics?: FilterGroupResponse;
+    tableCalculations?: FilterGroupResponse;
 };
 export type MetricQueryResponse = {
     dimensions: FieldId[]; // Dimensions to group by in the explore
@@ -110,6 +111,9 @@ export type MetricQueryResponse = {
     tableCalculations: TableCalculation[]; // calculations to append to results
     additionalMetrics?: AdditionalMetric[]; // existing metric type
     customDimensions?: CustomDimension[];
+    metadata?: {
+        hasADateDimension: Pick<CompiledDimension, 'label' | 'name'>;
+    };
 };
 
 export const countCustomDimensionsInMetricQuery = (
