@@ -145,6 +145,7 @@ export const EXPECTED_CONVERTED_SNOWFLAKE_DATA = {
                 },
             },
         ],
+        fields: {},
     },
     fieldsMap: {
         metricflow_metric_time__day:
