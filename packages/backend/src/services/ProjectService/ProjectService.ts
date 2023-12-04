@@ -39,7 +39,6 @@ import {
     getDateDimension,
     getDimensions,
     getFields,
-    getFieldsFromMetricQuery,
     getItemId,
     getItemMap,
     getMetrics,
@@ -106,7 +105,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
-import { buildQuery } from '../../queryBuilder';
+import { buildQuery, CompiledQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
 import { ProjectAdapter } from '../../types';
 import {
@@ -739,7 +738,7 @@ export class ProjectService {
         explore: Explore,
         warehouseClient: WarehouseClient,
         userAttributes: UserAttributeValueMap,
-    ): Promise<{ query: string; hasExampleMetric: boolean }> {
+    ): Promise<CompiledQuery> {
         const compiledMetricQuery = compileMetricQuery({
             explore,
             metricQuery,
@@ -997,23 +996,24 @@ export class ProjectService {
             chart_uuid: chartUuid,
         };
 
-        const { cacheMetadata, rows } = await this.runQueryAndFormatRows({
-            user,
-            metricQuery,
-            projectUuid,
-            exploreName: savedChart.tableName,
-            csvLimit: undefined,
-            context: QueryExecutionContext.CHART,
-            queryTags,
-            invalidateCache,
-            explore,
-        });
+        const { cacheMetadata, rows, fields } =
+            await this.runQueryAndFormatRows({
+                user,
+                metricQuery,
+                projectUuid,
+                exploreName: savedChart.tableName,
+                csvLimit: undefined,
+                context: QueryExecutionContext.CHART,
+                queryTags,
+                invalidateCache,
+                explore,
+            });
 
         return {
             metricQuery,
             cacheMetadata,
             rows,
-            fields: getFieldsFromMetricQuery(metricQuery, explore),
+            fields,
         };
     }
 
@@ -1122,18 +1122,19 @@ export class ProjectService {
             granularity,
         );
 
-        const { cacheMetadata, rows } = await this.runQueryAndFormatRows({
-            user,
-            metricQuery: metricWithOverrideGranularity,
-            projectUuid,
-            exploreName: savedChart.tableName,
-            csvLimit: undefined,
-            context: QueryExecutionContext.DASHBOARD,
-            queryTags,
-            invalidateCache,
-            explore,
-            granularity,
-        });
+        const { cacheMetadata, rows, fields } =
+            await this.runQueryAndFormatRows({
+                user,
+                metricQuery: metricWithOverrideGranularity,
+                projectUuid,
+                exploreName: savedChart.tableName,
+                csvLimit: undefined,
+                context: QueryExecutionContext.DASHBOARD,
+                queryTags,
+                invalidateCache,
+                explore,
+                granularity,
+            });
 
         // TODO quick hack to get the old results on the chart with new granularity
         // We should investigate if we can make the changes in the frontend
@@ -1170,10 +1171,7 @@ export class ProjectService {
             cacheMetadata,
             rows: rowsWithGranularity,
             appliedDashboardFilters,
-            fields: getFieldsFromMetricQuery(
-                metricQueryWithDashboardOverrides,
-                explore,
-            ),
+            fields,
         };
     }
 
@@ -1250,7 +1248,7 @@ export class ProjectService {
         return {
             ...results,
             rows: rowsWithGranularity,
-            fields: getFieldsFromMetricQuery(metricQuery, explore),
+            fields: results.fields,
         };
     }
 
@@ -1285,18 +1283,19 @@ export class ProjectService {
                     validExplore ??
                     (await this.getExplore(user, projectUuid, exploreName));
 
-                const { rows, cacheMetadata } = await this.runMetricQuery({
-                    user,
-                    metricQuery,
-                    projectUuid,
-                    exploreName,
-                    csvLimit,
-                    context,
-                    queryTags,
-                    invalidateCache,
-                    explore,
-                    granularity,
-                });
+                const { rows, cacheMetadata, fields } =
+                    await this.runMetricQuery({
+                        user,
+                        metricQuery,
+                        projectUuid,
+                        exploreName,
+                        csvLimit,
+                        context,
+                        queryTags,
+                        invalidateCache,
+                        explore,
+                        granularity,
+                    });
                 span.setAttribute('rows', rows.length);
 
                 const { warehouseConnection } =
@@ -1357,7 +1356,7 @@ export class ProjectService {
                     rows: formattedRows,
                     metricQuery,
                     cacheMetadata,
-                    fields: getFieldsFromMetricQuery(metricQuery, explore),
+                    fields,
                 };
             },
         );
@@ -1515,7 +1514,11 @@ export class ProjectService {
         invalidateCache?: boolean;
         explore?: Explore;
         granularity?: DateGranularity;
-    }): Promise<{ rows: Record<string, any>[]; cacheMetadata: CacheMetadata }> {
+    }): Promise<{
+        rows: Record<string, any>[];
+        cacheMetadata: CacheMetadata;
+        fields: Record<string, Item | AdditionalMetric>;
+    }> {
         const tracer = opentelemetry.trace.getTracer('default');
         return tracer.startActiveSpan(
             'ProjectService.runMetricQuery',
@@ -1559,7 +1562,7 @@ export class ProjectService {
                             },
                         );
 
-                    const { query, hasExampleMetric } =
+                    const { query, hasExampleMetric, fields } =
                         await ProjectService._compileQuery(
                             metricQueryWithLimit,
                             explore ??
@@ -1659,7 +1662,7 @@ export class ProjectService {
                             invalidateCache,
                         });
                     await sshTunnel.disconnect();
-                    return { rows, cacheMetadata };
+                    return { rows, cacheMetadata, fields };
                 } catch (e) {
                     span.setStatus({
                         code: SpanStatusCode.ERROR,

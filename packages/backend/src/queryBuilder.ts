@@ -1,10 +1,10 @@
 import {
+    AdditionalMetric,
     assertUnreachable,
     BinType,
     CompiledDimension,
     CompiledMetricQuery,
     CustomDimension,
-    DateGranularity,
     DbtModelJoinType,
     Explore,
     fieldId,
@@ -18,19 +18,18 @@ import {
     getCustomMetricDimensionId,
     getDateDimension,
     getDimensions,
+    getFieldsFromMetricQuery,
     getFilterRulesFromGroup,
     getMetrics,
     isAndFilterGroup,
-    isCustomDimension,
     isFilterGroup,
+    Item,
     parseAllReferences,
     renderFilterRuleSql,
     renderTableCalculationFilterRuleSql,
     SortField,
     SupportedDbtAdapter,
-    TimeFrames,
     UserAttributeValueMap,
-    validateTimeFrames,
     WarehouseClient,
 } from '@lightdash/common';
 import { hasUserAttribute } from './services/UserAttributesService/UserAttributeUtils';
@@ -171,7 +170,6 @@ export const getCustomDimensionSql = ({
     | { ctes: string[]; joins: string[]; tables: string[]; selects: string[] }
     | undefined => {
     const { customDimensions } = compiledMetricQuery;
-
     const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
     if (customDimensions === undefined || customDimensions.length === 0)
         return undefined;
@@ -454,13 +452,20 @@ export const getCustomDimensionSql = ({
     return { ctes, joins, tables: [...new Set(tables)], selects };
 };
 
+export type CompiledQuery = {
+    query: string;
+    hasExampleMetric: boolean;
+    fields: Record<string, Item | AdditionalMetric>;
+};
+
 export const buildQuery = ({
     explore,
     compiledMetricQuery,
     warehouseClient,
     userAttributes = {},
-}: BuildQueryProps): { query: string; hasExampleMetric: boolean } => {
+}: BuildQueryProps): CompiledQuery => {
     let hasExampleMetric: boolean = false;
+    const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
     const adapterType: SupportedDbtAdapter = warehouseClient.getAdapterType();
     const {
         dimensions,
@@ -804,6 +809,7 @@ export const buildQuery = ({
         return {
             query: [cte, finalQuery, sqlOrderBy, sqlLimit].join('\n'),
             hasExampleMetric,
+            fields,
         };
     }
 
@@ -828,5 +834,6 @@ export const buildQuery = ({
     return {
         query: metricQuerySql,
         hasExampleMetric,
+        fields,
     };
 };
