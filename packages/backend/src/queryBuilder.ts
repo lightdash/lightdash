@@ -6,6 +6,7 @@ import {
     CompiledMetricQuery,
     CustomDimension,
     DbtModelJoinType,
+    DimensionType,
     Explore,
     fieldId,
     FieldId,
@@ -21,6 +22,7 @@ import {
     getFieldsFromMetricQuery,
     getFilterRulesFromGroup,
     getMetrics,
+    getSqlForTruncatedDate,
     isAndFilterGroup,
     isFilterGroup,
     Item,
@@ -31,12 +33,15 @@ import {
     SupportedDbtAdapter,
     UserAttributeValueMap,
     WarehouseClient,
+    WeekDay,
 } from '@lightdash/common';
 import { hasUserAttribute } from './services/UserAttributesService/UserAttributeUtils';
 
 const getDimensionFromId = (
     dimId: FieldId,
     explore: Explore,
+    adapterType: SupportedDbtAdapter,
+    startOfWeek: WeekDay | null | undefined,
 ): CompiledDimension => {
     const dimensions = getDimensions(explore);
     const dimension = dimensions.find((d) => fieldId(d) === dimId);
@@ -45,11 +50,22 @@ const getDimensionFromId = (
         const { baseDimensionId, newTimeFrame } = getDateDimension(dimId);
 
         if (baseDimensionId) {
-            const baseField = getDimensionFromId(baseDimensionId, explore);
+            const baseField = getDimensionFromId(
+                baseDimensionId,
+                explore,
+                adapterType,
+                startOfWeek,
+            );
             if (baseField && newTimeFrame)
                 return {
                     ...baseField,
-                    compiledSql: `DATE_TRUNC('${newTimeFrame}', ${baseField.compiledSql})`,
+                    compiledSql: getSqlForTruncatedDate(
+                        adapterType,
+                        newTimeFrame,
+                        baseField.compiledSql,
+                        baseField.type,
+                        startOfWeek,
+                    ),
                     timeInterval: newTimeFrame,
                 };
         }
@@ -170,6 +186,8 @@ export const getCustomDimensionSql = ({
     | { ctes: string[]; joins: string[]; tables: string[]; selects: string[] }
     | undefined => {
     const { customDimensions } = compiledMetricQuery;
+    const startOfWeek = warehouseClient.getStartOfWeek();
+
     const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
     if (customDimensions === undefined || customDimensions.length === 0)
         return undefined;
@@ -177,6 +195,7 @@ export const getCustomDimensionSql = ({
     const getCteReference = (customDimension: CustomDimension) =>
         `${getCustomDimensionId(customDimension)}_cte`;
 
+    const adapterType: SupportedDbtAdapter = warehouseClient.getAdapterType();
     const ctes = customDimensions.reduce<string[]>((acc, customDimension) => {
         switch (customDimension.binType) {
             case BinType.FIXED_WIDTH:
@@ -187,6 +206,8 @@ export const getCustomDimensionSql = ({
                 const dimension = getDimensionFromId(
                     customDimension.dimensionId,
                     explore,
+                    adapterType,
+                    startOfWeek,
                 );
                 const baseTable =
                     explore.tables[customDimension.table].sqlTable;
@@ -194,9 +215,9 @@ export const getCustomDimensionSql = ({
                     SELECT
                         MIN(${dimension.compiledSql}) AS min_id,
                         MAX(${dimension.compiledSql}) AS max_id,
-                        CAST(MIN(${dimension.compiledSql}) + (MAX(${
+                        ((MAX(${dimension.compiledSql}) - MIN(${
                     dimension.compiledSql
-                }) - MIN(${dimension.compiledSql}) ) AS INT) as ratio
+                })) / ${customDimension.binNumber}) AS bin_width
                     FROM ${baseTable} AS ${fieldQuoteChar}${
                     customDimension.table
                 }${fieldQuoteChar}
@@ -238,6 +259,8 @@ export const getCustomDimensionSql = ({
             const dimension = getDimensionFromId(
                 customDimension.dimensionId,
                 explore,
+                adapterType,
+                startOfWeek,
             );
             // Check required attribute permission for parent dimension
             assertValidDimensionRequiredAttribute(
@@ -264,7 +287,7 @@ export const getCustomDimensionSql = ({
                         sortField.fieldId,
                 );
             const quoteChar = warehouseClient.getStringQuoteChar();
-            const dash = `${quoteChar}-${quoteChar}`;
+            const dash = `${quoteChar} - ${quoteChar}`;
             switch (customDimension.binType) {
                 case BinType.FIXED_WIDTH:
                     if (!customDimension.binWidth) {
@@ -295,8 +318,6 @@ export const getCustomDimensionSql = ({
                         );
                     }
 
-                    const ratio = `${cte}.ratio`;
-
                     if (customDimension.binNumber <= 1) {
                         // Edge case, bin number with only one bucket does not need a CASE statement
                         return [
@@ -309,10 +330,13 @@ export const getCustomDimensionSql = ({
                         ];
                     }
 
+                    const binWidth = `${cte}.bin_width`;
+
                     const from = (i: number) =>
-                        `${ratio} * ${i} / ${customDimension.binNumber}`;
+                        `${cte}.min_id + ${binWidth} * ${i}`;
                     const to = (i: number) =>
-                        `${ratio} * ${i + 1} / ${customDimension.binNumber}`;
+                        `${cte}.min_id + ${binWidth} * ${i + 1}`;
+
                     const whens = Array.from(
                         Array(customDimension.binNumber).keys(),
                     ).map((i) => {
@@ -407,7 +431,7 @@ export const getCustomDimensionSql = ({
                         },
                     );
 
-                    const customRangeSql = `CASE  
+                    const customRangeSql = `CASE
                         ${rangeWhens.join('\n')}
                         END
                         AS ${customDimensionName}`;
@@ -429,7 +453,7 @@ export const getCustomDimensionSql = ({
                         return [
                             ...acc,
                             customRangeSql,
-                            `CASE  
+                            `CASE
                         ${sortedWhens.join('\n')}
                         END
                         AS ${customDimensionOrder}`,
@@ -484,7 +508,12 @@ export const buildQuery = ({
 
     const dimensionSelects = dimensions.map((field) => {
         const alias = field;
-        const dimension = getDimensionFromId(field, explore);
+        const dimension = getDimensionFromId(
+            field,
+            explore,
+            adapterType,
+            startOfWeek,
+        );
 
         assertValidDimensionRequiredAttribute(
             dimension,
@@ -522,7 +551,12 @@ export const buildQuery = ({
                 return;
 
             const dimensionId = getCustomMetricDimensionId(metric);
-            const dimension = getDimensionFromId(dimensionId, explore);
+            const dimension = getDimensionFromId(
+                dimensionId,
+                explore,
+                adapterType,
+                startOfWeek,
+            );
 
             assertValidDimensionRequiredAttribute(
                 dimension,
@@ -536,7 +570,12 @@ export const buildQuery = ({
             return [...acc, ...(metric.tablesReferences || [metric.table])];
         }, []),
         ...dimensions.reduce<string[]>((acc, field) => {
-            const dim = getDimensionFromId(field, explore);
+            const dim = getDimensionFromId(
+                field,
+                explore,
+                adapterType,
+                startOfWeek,
+            );
             return [...acc, ...(dim.tablesReferences || [dim.table])];
         }, []),
         ...(customDimensionSql?.tables || []),
@@ -545,6 +584,8 @@ export const buildQuery = ({
                 const dim = getDimensionFromId(
                     filterRule.target.fieldId,
                     explore,
+                    adapterType,
+                    startOfWeek,
                 );
                 return [...acc, ...(dim.tablesReferences || [dim.table])];
             },

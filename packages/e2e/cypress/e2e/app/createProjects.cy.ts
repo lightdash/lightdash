@@ -396,8 +396,8 @@ const testCustomDimensions = (projectUuid) => {
     // This is also used in createProject.cy.ts to test custom dimensions against all warehouses
     cy.visit(`/projects/${projectUuid}/saved`);
     cy.contains('How do payment methods vary').click();
-    cy.contains('0-6');
-    cy.contains('6-12');
+    cy.contains('0 - 6');
+    cy.contains('6 - 12');
 };
 
 describe('Create projects', () => {

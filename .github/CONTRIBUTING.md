@@ -316,8 +316,8 @@ brew install nvm
 
 #3 install specified node version using NVM (https://github.com/nvm-sh/nvm)
 
-nvm install v18.18.0
-nvm alias default v18.18.0
+nvm install v20.8.0
+nvm alias default v20.8.0
 
 #4 install postgres (https://wiki.postgresql.org/wiki/Homebrew)
 brew install postgresql@14

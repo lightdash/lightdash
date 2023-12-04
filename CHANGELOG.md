@@ -1,3 +1,17 @@
+# [0.891.0](https://github.com/lightdash/lightdash/compare/0.890.2...0.891.0) (2023-12-04)
+
+
+### Features
+
+* upgrade node ([#8189](https://github.com/lightdash/lightdash/issues/8189)) ([7777169](https://github.com/lightdash/lightdash/commit/77771693749f23337e6be0f04b60378cd51aafe2))
+
+## [0.890.2](https://github.com/lightdash/lightdash/compare/0.890.1...0.890.2) (2023-12-04)
+
+
+### Bug Fixes
+
+* binning negative numbers ([#8174](https://github.com/lightdash/lightdash/issues/8174)) ([993b230](https://github.com/lightdash/lightdash/commit/993b23004d01b9b6f2606db11b3508bfeca52007))
+
 ## [0.890.1](https://github.com/lightdash/lightdash/compare/0.890.0...0.890.1) (2023-12-04)
 
 

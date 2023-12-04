@@ -272,7 +272,7 @@ const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
     [SupportedDbtAdapter.TRINO]: trinoConfig,
 };
 
-const getSqlForTruncatedDate: TimeFrameConfig['getSql'] = (
+export const getSqlForTruncatedDate: TimeFrameConfig['getSql'] = (
     adapterType,
     timeFrame,
     originalSql,
