@@ -23,7 +23,7 @@ process.env.AWS_SDK_JS_SUPPRESS_MAINTENANCE_MODE_MESSAGE = '1';
 
 const nodeVersion = require('parse-node-version')(process.version);
 
-const OPTIMIZED_NODE_VERSION = 18;
+const OPTIMIZED_NODE_VERSION = 20;
 
 const { version: VERSION } = require('../package.json');
 
