@@ -8,9 +8,7 @@ import {
 import { DbtCloudIntegration } from './types/dbtCloud';
 import { Explore, SummaryExplore } from './types/explore';
 import {
-    CompiledDimension,
     CompiledField,
-    CompiledMetric,
     CustomDimension,
     DimensionType,
     Field,

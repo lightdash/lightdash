@@ -1,15 +1,12 @@
 import {
     BinType,
-    Dimension,
     DimensionType,
     Explore,
     FieldType,
-    Metric,
     MetricQuery,
     MetricType,
     Source,
     SupportedDbtAdapter,
-    TableCalculation,
 } from '../index';
 
 export const metricQuery: MetricQuery = {
