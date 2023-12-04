@@ -1,9 +1,7 @@
-import { Alert, Box, Skeleton, Stack } from '@mantine/core';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { Skeleton, Stack, Text, Tooltip } from '@mantine/core';
 import { FC, memo } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
-import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import { RefreshButton } from '../../RefreshButton';
 import ExploreTree from '../ExploreTree';
@@ -44,11 +42,13 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const toggleActiveField = useExplorerContext(
         (context) => context.actions.toggleActiveField,
     );
-    const showLimitWarning = useExplorerContext(
+    const limit = useExplorerContext(
         (context) =>
             context.queryResults.data &&
-            context.queryResults.data.rows.length >=
-                context.state.unsavedChartVersion.metricQuery.limit,
+            context.state.unsavedChartVersion.metricQuery.limit,
+    );
+    const showLimitWarning = useExplorerContext(
+        (context) => limit && context.queryResults.data!.rows.length >= limit,
     );
     const { data, status } = useExplore(activeTableName);
 
@@ -96,20 +96,17 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                 onSelectedFieldChange={toggleActiveField}
                 customDimensions={customDimensions}
             />
-            <Box py="md">
+            <Stack py="md">
                 {showLimitWarning && (
-                    <Alert
-                        icon={<MantineIcon icon={IconAlertCircle} />}
-                        color="orange"
-                        title="Results may be incomplete"
-                        mb="md"
+                    <Tooltip
+                        label={`Query limit of ${limit} reached. There may be additional results that have not been displayed. To see more, increase the query limit or try narrowing filters.`}
+                        multiline
                     >
-                        The number of results returned is the same or more than
-                        the limit you've set
-                    </Alert>
+                        <Text>Results may be incomplete</Text>
+                    </Tooltip>
                 )}
                 <RefreshButton />
-            </Box>
+            </Stack>
         </>
     );
 });

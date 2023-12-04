@@ -19,6 +19,12 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     const limit = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery.limit,
     );
+    const showLimitWarning = useExplorerContext(
+        (context) =>
+            context.queryResults.data &&
+            limit &&
+            context.queryResults.data.rows.length >= limit,
+    );
     const setRowLimit = useExplorerContext(
         (context) => context.actions.setRowLimit,
     );
@@ -73,7 +79,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                     onClick={onClick}
                     sx={{ flex: 1 }}
                 >
-                    Run query ({limit})
+                    Run query ({limit}) {showLimitWarning ? '!' : ''}
                 </Button>
             </Tooltip>
             <LimitButton
