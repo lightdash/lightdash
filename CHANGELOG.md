@@ -1,3 +1,10 @@
+## [0.891.1](https://github.com/lightdash/lightdash/compare/0.891.0...0.891.1) (2023-12-04)
+
+
+### Bug Fixes
+
+* missing time frames bigquery ([#8186](https://github.com/lightdash/lightdash/issues/8186)) ([7d2d8b0](https://github.com/lightdash/lightdash/commit/7d2d8b02e400287bc923849794bddae24652db2d))
+
 # [0.891.0](https://github.com/lightdash/lightdash/compare/0.890.2...0.891.0) (2023-12-04)
 
 
