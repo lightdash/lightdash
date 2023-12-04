@@ -39,6 +39,7 @@ import {
     getDateDimension,
     getDimensions,
     getFields,
+    getFieldsFromMetricQuery,
     getItemId,
     getItemMap,
     getMetrics,
@@ -47,11 +48,11 @@ import {
     isExploreError,
     isFilterableDimension,
     isUserWithOrg,
+    Item,
     Job,
     JobStatusType,
     JobStepType,
     JobType,
-    Metric,
     MetricQuery,
     MetricType,
     MissingWarehouseCredentialsError,
@@ -75,7 +76,6 @@ import {
     TableCalculationFormatType,
     TablesConfiguration,
     TableSelectionType,
-    TimeFrames,
     UpdateProject,
     UpdateProjectMember,
     UserAttributeValueMap,
@@ -999,7 +999,7 @@ export class ProjectService {
 
         const { cacheMetadata, rows } = await this.runQueryAndFormatRows({
             user,
-            metricQuery: savedChart.metricQuery,
+            metricQuery,
             projectUuid,
             exploreName: savedChart.tableName,
             csvLimit: undefined,
@@ -1013,6 +1013,7 @@ export class ProjectService {
             metricQuery,
             cacheMetadata,
             rows,
+            fields: getFieldsFromMetricQuery(metricQuery, explore),
         };
     }
 
@@ -1169,6 +1170,10 @@ export class ProjectService {
             cacheMetadata,
             rows: rowsWithGranularity,
             appliedDashboardFilters,
+            fields: getFieldsFromMetricQuery(
+                metricQueryWithDashboardOverrides,
+                explore,
+            ),
         };
     }
 
@@ -1242,7 +1247,11 @@ export class ProjectService {
                   }))
                 : results.rows;
 
-        return { ...results, rows: rowsWithGranularity };
+        return {
+            ...results,
+            rows: rowsWithGranularity,
+            fields: getFieldsFromMetricQuery(metricQuery, explore),
+        };
     }
 
     private async runQueryAndFormatRows({
@@ -1254,7 +1263,7 @@ export class ProjectService {
         context,
         queryTags,
         invalidateCache,
-        explore,
+        explore: validExplore,
         granularity,
     }: {
         user: SessionUser;
@@ -1272,6 +1281,10 @@ export class ProjectService {
             'ProjectService.runQueryAndFormatRows',
             {},
             async (span) => {
+                const explore =
+                    validExplore ??
+                    (await this.getExplore(user, projectUuid, exploreName));
+
                 const { rows, cacheMetadata } = await this.runMetricQuery({
                     user,
                     metricQuery,
@@ -1297,12 +1310,7 @@ export class ProjectService {
                     {},
                     async () =>
                         getItemMap(
-                            explore ??
-                                (await this.getExplore(
-                                    user,
-                                    projectUuid,
-                                    exploreName,
-                                )),
+                            explore,
                             metricQuery.additionalMetrics,
                             metricQuery.tableCalculations,
                         ),
@@ -1349,6 +1357,7 @@ export class ProjectService {
                     rows: formattedRows,
                     metricQuery,
                     cacheMetadata,
+                    fields: getFieldsFromMetricQuery(metricQuery, explore),
                 };
             },
         );
