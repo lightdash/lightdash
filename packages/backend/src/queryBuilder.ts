@@ -196,11 +196,9 @@ export const getCustomDimensionSql = ({
                     SELECT
                         MIN(${dimension.compiledSql}) AS min_id,
                         MAX(${dimension.compiledSql}) AS max_id,
-                        MIN(${dimension.compiledSql}) + ((MAX(${
+                        ((MAX(${dimension.compiledSql}) - MIN(${
                     dimension.compiledSql
-                }) - MIN(${dimension.compiledSql})) / ${
-                    customDimension.binNumber
-                }) AS bin_width
+                })) / ${customDimension.binNumber}) AS bin_width
                     FROM ${baseTable} AS ${fieldQuoteChar}${
                     customDimension.table
                 }${fieldQuoteChar}
@@ -313,8 +311,10 @@ export const getCustomDimensionSql = ({
 
                     const binWidth = `${cte}.bin_width`;
 
-                    const from = (i: number) => `${binWidth} * ${i}`;
-                    const to = (i: number) => `${binWidth} * (${i} + 1)`;
+                    const from = (i: number) =>
+                        `${cte}.min_id + ${binWidth} * ${i}`;
+                    const to = (i: number) =>
+                        `${cte}.min_id + ${binWidth} * (${i} + 1)`;
 
                     const whens = Array.from(
                         Array(customDimension.binNumber).keys(),
