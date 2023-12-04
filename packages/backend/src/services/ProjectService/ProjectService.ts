@@ -1248,7 +1248,6 @@ export class ProjectService {
         return {
             ...results,
             rows: rowsWithGranularity,
-            fields: results.fields,
         };
     }
 
