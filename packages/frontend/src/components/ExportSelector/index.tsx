@@ -38,6 +38,7 @@ const ExportSelector: FC<
                 <Button
                     color="gray.6"
                     size="xs"
+                    mb="xs"
                     leftIcon={<IconArrowLeft size="16" />}
                     variant="subtle"
                     onClick={() => setExportType(undefined)}
