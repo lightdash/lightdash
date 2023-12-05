@@ -1,3 +1,10 @@
+# [0.893.0](https://github.com/lightdash/lightdash/compare/0.892.0...0.893.0) (2023-12-05)
+
+
+### Features
+
+* refactor project access form ([#8187](https://github.com/lightdash/lightdash/issues/8187)) ([a8ac961](https://github.com/lightdash/lightdash/commit/a8ac961ce37e1c487cba8f5af4f38c11c2d34f1b))
+
 # [0.892.0](https://github.com/lightdash/lightdash/compare/0.891.2...0.892.0) (2023-12-05)
 
 
