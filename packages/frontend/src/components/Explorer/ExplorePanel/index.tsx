@@ -1,11 +1,8 @@
-import { Alert, Box, Skeleton, Stack } from '@mantine/core';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { Skeleton, Stack } from '@mantine/core';
 import { FC, memo } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
-import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
-import { RefreshButton } from '../../RefreshButton';
 import ExploreTree from '../ExploreTree';
 
 const LoadingSkeleton = () => (
@@ -43,12 +40,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     );
     const toggleActiveField = useExplorerContext(
         (context) => context.actions.toggleActiveField,
-    );
-    const showLimitWarning = useExplorerContext(
-        (context) =>
-            context.queryResults.data &&
-            context.queryResults.data.rows.length >=
-                context.state.unsavedChartVersion.metricQuery.limit,
     );
     const { data, status } = useExplore(activeTableName);
 
@@ -96,20 +87,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                 onSelectedFieldChange={toggleActiveField}
                 customDimensions={customDimensions}
             />
-            <Box py="md">
-                {showLimitWarning && (
-                    <Alert
-                        icon={<MantineIcon icon={IconAlertCircle} />}
-                        color="orange"
-                        title="Results may be incomplete"
-                        mb="md"
-                    >
-                        The number of results returned is the same or more than
-                        the limit you've set
-                    </Alert>
-                )}
-                <RefreshButton />
-            </Box>
         </>
     );
 });
