@@ -942,7 +942,6 @@ const getEchartAxis = ({
         xAxis: [
             {
                 type: bottomAxisType,
-                fontSize: 40,
                 name: validCartesianConfig.layout.flipAxes
                     ? getAxisName({
                           isAxisTheSameForAllSeries,
