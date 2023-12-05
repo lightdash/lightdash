@@ -51,7 +51,7 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
 
             {showProjectAccessCreate && (
                 <ProjectAccessCreation
-                    isOpen={showProjectAccessCreate}
+                    opened={showProjectAccessCreate}
                     projectUuid={projectUuid}
                     onClose={() => {
                         setShowProjectAccessCreate(false);

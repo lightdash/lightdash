@@ -5,7 +5,7 @@ import {
     ProjectMemberRole,
     validateEmail,
 } from '@lightdash/common';
-import { Button, Group, Modal, Select, Title } from '@mantine/core';
+import { Button, Group, Modal, ModalProps, Select, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconUser } from '@tabler/icons-react';
 import React, { FC, useEffect, useState } from 'react';
@@ -22,14 +22,12 @@ import {
 import MantineIcon from '../../common/MantineIcon';
 import InviteSuccess from '../../UserSettings/UserManagementPanel/InviteSuccess';
 
-interface ProjectAccessCreationProps {
+interface ProjectAccessCreationProps extends ModalProps {
     projectUuid: string;
-    isOpen: boolean;
-    onClose: () => void;
 }
 
 const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
-    isOpen,
+    opened,
     onClose,
     projectUuid,
 }) => {
@@ -93,7 +91,7 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
 
     return (
         <Modal
-            opened={isOpen}
+            opened={opened}
             onClose={onClose}
             keepMounted={false}
             title={
