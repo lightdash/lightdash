@@ -5,15 +5,11 @@ import {
     ChartConfig,
     ChartType,
     convertAdditionalMetric,
-    CustomDimension,
     DashboardFilters,
-    Dimension,
     Explore,
     fieldId,
     getCustomDimensionId,
-    getDimensions,
     getMetrics,
-    isNumericItem,
     ItemsMap,
     Metric,
     TableCalculation,
@@ -68,11 +64,7 @@ type VisualizationContext = {
     columnOrder: string[];
     isSqlRunner: boolean;
     itemsMap: ItemsMap | undefined;
-    dimensions: Dimension[];
-    customDimensions: CustomDimension[];
     metrics: Metric[];
-    allMetrics: (Metric | TableCalculation)[];
-    allNumericMetrics: (Metric | TableCalculation)[];
     customMetrics: AdditionalMetric[];
     tableCalculations: TableCalculation[];
     visualizationConfig: VisualizationConfig;
@@ -176,23 +168,12 @@ const VisualizationProvider: FC<Props> = ({
     const [cartesianType, setCartesianType] = useState<CartesianTypeOptions>();
     // --
 
-    const dimensions = useMemo(() => {
-        if (!explore) return [];
-        return getDimensions(explore).filter((field) =>
-            resultsData?.metricQuery.dimensions.includes(fieldId(field)),
-        );
-    }, [explore, resultsData?.metricQuery.dimensions]);
-
     const metrics = useMemo(() => {
         if (!explore) return [];
         return getMetrics(explore).filter((field) =>
             resultsData?.metricQuery.metrics.includes(fieldId(field)),
         );
     }, [explore, resultsData?.metricQuery.metrics]);
-
-    const customDimensions = useMemo(() => {
-        return resultsData?.metricQuery.customDimensions || [];
-    }, [resultsData?.metricQuery.customDimensions]);
 
     const customMetrics = useMemo(() => {
         if (!explore) return [];
@@ -223,16 +204,6 @@ const VisualizationProvider: FC<Props> = ({
     const tableCalculations = useMemo(() => {
         return resultsData?.metricQuery.tableCalculations ?? [];
     }, [resultsData?.metricQuery.tableCalculations]);
-
-    const allMetrics = useMemo(
-        () => [...metrics, ...customMetrics, ...tableCalculations],
-        [metrics, customMetrics, tableCalculations],
-    );
-
-    const allNumericMetrics = useMemo(
-        () => allMetrics.filter((m) => isNumericItem(m)),
-        [allMetrics],
-    );
 
     // If we don't toggle any fields, (eg: when you `explore from here`) columnOrder on tableConfig might be empty
     // so we initialize it with the fields from resultData
@@ -287,13 +258,9 @@ const VisualizationProvider: FC<Props> = ({
         columnOrder,
         isSqlRunner: isSqlRunner ?? false,
         itemsMap,
-        dimensions,
         metrics,
         customMetrics,
-        customDimensions,
         tableCalculations,
-        allMetrics,
-        allNumericMetrics,
         setStacking,
         setCartesianType,
         onSeriesContextMenu,
@@ -328,10 +295,8 @@ const VisualizationProvider: FC<Props> = ({
             return (
                 <VisualizationPieConfig
                     explore={explore}
+                    itemsMap={itemsMap}
                     resultsData={lastValidResultsData}
-                    dimensions={dimensions}
-                    allNumericMetrics={allNumericMetrics}
-                    customDimensions={customDimensions}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                 >

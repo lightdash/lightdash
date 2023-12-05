@@ -1,10 +1,4 @@
-import {
-    ChartType,
-    CustomDimension,
-    Dimension,
-    Metric,
-    TableCalculation,
-} from '@lightdash/common';
+import { ChartType, ItemsMap } from '@lightdash/common';
 import { FC, useEffect } from 'react';
 import usePieChartConfig from '../../hooks/usePieChartConfig';
 import {
@@ -25,28 +19,23 @@ export const isPieVisualizationConfig = (
 
 type VisualizationConfigPieProps =
     VisualizationConfigCommon<VisualizationConfigPie> & {
-        dimensions: Dimension[];
-        allNumericMetrics: (Metric | TableCalculation)[];
-        customDimensions: CustomDimension[];
+        // TODO: shared prop once all visualizations are converted
+        itemsMap: ItemsMap | undefined;
     };
 
 const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
     explore,
     resultsData,
-    dimensions,
-    allNumericMetrics,
-    customDimensions,
     initialChartConfig,
     onChartConfigChange,
+    itemsMap,
     children,
 }) => {
     const pieChartConfig = usePieChartConfig(
         explore,
         resultsData,
         initialChartConfig,
-        dimensions,
-        allNumericMetrics,
-        customDimensions,
+        itemsMap,
     );
 
     useEffect(() => {
