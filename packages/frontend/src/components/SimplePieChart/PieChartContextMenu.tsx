@@ -1,10 +1,5 @@
 import { subject } from '@casl/ability';
-import {
-    DashboardFilters,
-    hasCustomDimension,
-    ResultRow,
-    ResultValue,
-} from '@lightdash/common';
+import { hasCustomDimension, ResultRow, ResultValue } from '@lightdash/common';
 import { Box, Menu, MenuProps, Portal } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
@@ -21,7 +16,6 @@ import { useVisualizationContext } from '../LightdashVisualization/Visualization
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
 export type PieChartContextMenuProps = {
-    dashboardFilters?: DashboardFilters;
     menuPosition?: {
         left: number;
         top: number;
@@ -32,7 +26,6 @@ export type PieChartContextMenuProps = {
 
 const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     menuPosition,
-    dashboardFilters,
     value,
     rows,
     opened,
@@ -106,7 +99,6 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
             item: chartConfig.selectedMetric,
             value,
             fieldValues,
-            dashboardFilters,
         });
 
         track({

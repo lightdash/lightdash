@@ -11,7 +11,6 @@ import { isBigNumberVisualizationConfig } from '../LightdashVisualization/Visual
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { EmptyChart, LoadingChart } from '../SimpleChart';
 import BigNumberContextMenu from './BigNumberContextMenu';
-import BigNumberDashboardContextMenu from './BigNumberDashboardContextMenu';
 import {
     BigNumber,
     BigNumberContainer,
@@ -23,7 +22,6 @@ interface SimpleStatisticsProps extends HTMLAttributes<HTMLDivElement> {
     minimal?: boolean;
     isTitleHidden?: boolean;
     isDashboard?: boolean;
-    tileUuid?: string;
 }
 
 const BOX_MIN_WIDTH = 150;
@@ -67,7 +65,6 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     minimal = false,
     isTitleHidden = false,
     isDashboard = false,
-    tileUuid,
     ...wrapperProps
 }) => {
     const { resultsData, isLoading, visualizationConfig, isSqlRunner } =
@@ -165,12 +162,6 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             <BigNumberHalf>
                 {minimal || isSqlRunner ? (
                     <BigNumber $fontSize={valueFontSize}>{bigNumber}</BigNumber>
-                ) : isDashboard && tileUuid ? (
-                    <BigNumberDashboardContextMenu tileUuid={tileUuid}>
-                        <BigNumber $interactive $fontSize={valueFontSize}>
-                            {bigNumber}
-                        </BigNumber>
-                    </BigNumberDashboardContextMenu>
                 ) : (
                     <BigNumberContextMenu>
                         <BigNumber $interactive $fontSize={valueFontSize}>

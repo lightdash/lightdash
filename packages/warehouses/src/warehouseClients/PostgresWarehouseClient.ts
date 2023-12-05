@@ -164,6 +164,7 @@ export class PostgresClient<
     }
 
     async runQuery(sql: string, tags?: Record<string, string>) {
+        console.log('sql', sql);
         let pool: pg.Pool | undefined;
         return new Promise<{
             fields: Record<string, { type: DimensionType }>;

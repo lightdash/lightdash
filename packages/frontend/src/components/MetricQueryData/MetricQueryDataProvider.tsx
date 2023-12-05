@@ -1,5 +1,4 @@
 import {
-    DashboardFilters,
     Explore,
     formatItemValue,
     getItemId,
@@ -21,14 +20,12 @@ export type UnderlyingDataConfig = {
     fieldValues: Record<string, ResultValue>;
     dimensions?: string[];
     pivotReference?: PivotReference;
-    dashboardFilters?: DashboardFilters;
 };
 
 export type DrillDownConfig = {
     item: ItemsMap[string];
     fieldValues: Record<string, ResultValue>;
     pivotReference?: PivotReference;
-    dashboardFilters?: DashboardFilters;
 };
 
 type MetricQueryDataContext = {
@@ -107,6 +104,7 @@ const MetricQueryDataProvider: FC<Props> = ({
     metricQuery,
     children,
 }) => {
+    console.log('MetricQueryDataProvider', metricQuery);
     const [underlyingDataConfig, setUnderlyingDataConfig] =
         useState<UnderlyingDataConfig>();
     const [drillDownConfig, setDrillDownConfig] = useState<DrillDownConfig>();

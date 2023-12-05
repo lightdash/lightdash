@@ -8,7 +8,6 @@ import SimpleTable from '../SimpleTable';
 import { useVisualizationContext } from './VisualizationProvider';
 
 interface LightdashVisualizationProps {
-    tileUuid?: string;
     isDashboard?: boolean;
     isTitleHidden?: boolean;
     className?: string;
@@ -16,13 +15,7 @@ interface LightdashVisualizationProps {
 }
 
 const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
-    ({
-        isDashboard = false,
-        isTitleHidden = false,
-        tileUuid,
-        className,
-        ...props
-    }) => {
+    ({ isDashboard = false, isTitleHidden = false, className, ...props }) => {
         const { visualizationConfig, minimal } = useVisualizationContext();
 
         if (!visualizationConfig) {
@@ -36,7 +29,6 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                         minimal={minimal}
                         isTitleHidden={isTitleHidden}
                         isDashboard={isDashboard}
-                        tileUuid={tileUuid}
                         className={className}
                         data-testid={props['data-testid']}
                         {...props}
@@ -46,7 +38,6 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                 return (
                     <SimpleTable
                         minimal={minimal}
-                        tileUuid={tileUuid}
                         isDashboard={!!isDashboard}
                         className={className}
                         $shouldExpand
@@ -68,7 +59,6 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                 return (
                     <SimplePieChart
                         className={className}
-                        tileUuid={tileUuid}
                         isInDashboard={!!isDashboard}
                         $shouldExpand
                         data-testid={props['data-testid']}
