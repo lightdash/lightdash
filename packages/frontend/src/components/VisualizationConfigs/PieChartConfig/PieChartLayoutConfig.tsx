@@ -3,8 +3,6 @@ import {
     Dimension,
     fieldId,
     getCustomDimensionId,
-    getDimensionsFromItemsMap,
-    getMetricsFromItemsMap,
     isCustomDimension,
     isDimension,
     isField,
@@ -12,7 +10,6 @@ import {
 } from '@lightdash/common';
 import { Box, Button, Stack, Switch, Tooltip } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import { useMemo } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
@@ -21,19 +18,9 @@ import { useVisualizationContext } from '../../LightdashVisualization/Visualizat
 const PieChartLayoutConfig: React.FC = () => {
     const { visualizationConfig, itemsMap } = useVisualizationContext();
 
-    const { dimensions, metrics } = useMemo(
-        () => ({
-            dimensions: itemsMap
-                ? Object.values(getDimensionsFromItemsMap(itemsMap))
-                : [],
-            metrics: itemsMap
-                ? Object.values(getMetricsFromItemsMap(itemsMap))
-                : [],
-        }),
-        [itemsMap],
-    );
-
     if (!isPieVisualizationConfig(visualizationConfig)) return null;
+
+    const { dimensions, metrics } = visualizationConfig;
 
     const {
         groupFieldIds,

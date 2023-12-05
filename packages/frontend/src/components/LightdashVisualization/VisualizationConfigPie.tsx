@@ -1,5 +1,13 @@
-import { ChartType, ItemsMap } from '@lightdash/common';
-import { FC, useEffect } from 'react';
+import {
+    ChartType,
+    CustomDimension,
+    Dimension,
+    getDimensionsFromItemsMap,
+    getMetricsFromItemsMap,
+    ItemsMap,
+    Metric,
+} from '@lightdash/common';
+import { FC, useEffect, useMemo } from 'react';
 import usePieChartConfig from '../../hooks/usePieChartConfig';
 import {
     VisualizationConfig,
@@ -9,6 +17,8 @@ import {
 export type VisualizationConfigPie = {
     chartType: ChartType.PIE;
     chartConfig: ReturnType<typeof usePieChartConfig>;
+    dimensions: (Dimension | CustomDimension)[];
+    metrics: Metric[];
 };
 
 export const isPieVisualizationConfig = (
@@ -31,11 +41,24 @@ const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
     itemsMap,
     children,
 }) => {
+    const { dimensions, metrics } = useMemo(
+        () => ({
+            dimensions: itemsMap
+                ? Object.values(getDimensionsFromItemsMap(itemsMap))
+                : [],
+            metrics: itemsMap
+                ? Object.values(getMetricsFromItemsMap(itemsMap))
+                : [],
+        }),
+        [itemsMap],
+    );
+
     const pieChartConfig = usePieChartConfig(
         explore,
         resultsData,
         initialChartConfig,
-        itemsMap,
+        dimensions,
+        metrics,
     );
 
     useEffect(() => {
@@ -51,6 +74,8 @@ const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
         visualizationConfig: {
             chartType: ChartType.PIE,
             chartConfig: pieChartConfig,
+            dimensions,
+            metrics,
         },
     });
 };

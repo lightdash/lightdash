@@ -1,21 +1,22 @@
 import {
     ApiQueryResults,
     CustomDimension,
+    Dimension,
     ECHARTS_DEFAULT_COLORS,
     Explore,
-    Field,
     fieldId,
     formatItemValue,
     getCustomDimensionId,
     isCustomDimension,
     isField,
+    isNumericItem,
+    Metric,
     PieChart,
     PieChartLegendPosition,
     PieChartLegendPositionDefault,
     PieChartValueOptions,
     ResultRow,
     ResultValue,
-    TableCalculation,
 } from '@lightdash/common';
 import { useDebouncedValue } from '@mantine/hooks';
 import isEmpty from 'lodash-es/isEmpty';
@@ -37,7 +38,7 @@ type PieChartConfig = {
     groupRemove: (dimensionId: string) => void;
 
     metricId: string | null;
-    selectedMetric: Field | TableCalculation | undefined;
+    selectedMetric: Metric | undefined;
     metricChange: (metricId: string | null) => void;
 
     isDonut: boolean;
@@ -85,13 +86,12 @@ type PieChartConfig = {
     }[];
 };
 
-type PieChartConfigFn = (
+export type PieChartConfigFn = (
     explore: Explore | undefined,
     resultsData: ApiQueryResults | undefined,
     pieChartConfig: PieChart | undefined,
-    dimensions: Field[],
-    allNumericMetrics: (Field | TableCalculation)[],
-    customDimensions: CustomDimension[],
+    dimensions: (Dimension | CustomDimension)[],
+    metrics: Metric[],
 ) => PieChartConfig;
 
 const usePieChartConfig: PieChartConfigFn = (
@@ -99,8 +99,7 @@ const usePieChartConfig: PieChartConfigFn = (
     resultsData,
     pieChartConfig,
     dimensions,
-    allNumericMetrics,
-    customDimensions,
+    metrics,
 ) => {
     const { data: org } = useOrganization();
 
@@ -165,24 +164,31 @@ const usePieChartConfig: PieChartConfigFn = (
 
     const dimensionIds = useMemo(
         () =>
-            [...dimensions, ...customDimensions].map((dimension) => {
+            dimensions.map((dimension) => {
                 if (isCustomDimension(dimension))
                     return getCustomDimensionId(dimension);
                 return fieldId(dimension);
             }),
-        [customDimensions, dimensions],
+        [dimensions],
+    );
+
+    const allNumericMetrics = useMemo(
+        () => metrics.filter(isNumericItem),
+        [metrics],
     );
 
     const allNumericMetricIds = useMemo(
-        () => allNumericMetrics.map((m) => (isField(m) ? fieldId(m) : m.name)),
+        () => allNumericMetrics.map((m) => fieldId(m)),
         [allNumericMetrics],
     );
 
-    const selectedMetric = useMemo(() => {
-        return allNumericMetrics.find((m) =>
-            isField(m) ? fieldId(m) === metricId : m.name === metricId,
-        );
-    }, [allNumericMetrics, metricId]);
+    const selectedMetric = useMemo(
+        () =>
+            allNumericMetrics.find(
+                (m) => isField(m) && fieldId(m) === metricId,
+            ),
+        [allNumericMetrics, metricId],
+    );
 
     const isLoading = !explore || !resultsData;
 
