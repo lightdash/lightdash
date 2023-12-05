@@ -6,7 +6,6 @@ import {
     ComparisonFormatTypes,
     convertAdditionalMetric,
     Explore,
-    Field,
     fieldId,
     Format,
     formatTableCalculationValue,
@@ -19,8 +18,8 @@ import {
     isField,
     isNumericItem,
     isTableCalculation,
+    ItemsMap,
     Metric,
-    TableCalculation,
     valueIsNaN,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -46,7 +45,7 @@ const UNDEFINED = 'undefined';
 const formatComparisonValue = (
     format: ComparisonFormatTypes | undefined,
     comparisonDiff: ComparisonDiffTypes | undefined,
-    item: Field | TableCalculation | undefined,
+    item: ItemsMap[string] | undefined,
     value: number | string,
     bigNumberStyle: CompactOrAlias | undefined,
 ) => {
@@ -87,7 +86,7 @@ const formatComparisonValue = (
     }
 };
 
-const isNumber = (i: Field | TableCalculation | undefined, value: any) =>
+const isNumber = (i: ItemsMap[string] | undefined, value: any) =>
     isNumericItem(i) && !(value instanceof Date) && !valueIsNaN(value);
 
 const useBigNumberConfig = (

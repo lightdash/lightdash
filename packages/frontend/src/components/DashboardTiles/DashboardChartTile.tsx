@@ -24,10 +24,10 @@ import {
     isChartTile,
     isFilterableField,
     isTableChartConfig,
+    ItemsMap,
     PivotReference,
     ResultValue,
     SavedChart,
-    TableCalculation,
 } from '@lightdash/common';
 import { Box, Portal, Text, Tooltip } from '@mantine/core';
 import { IconFilter, IconFolders } from '@tabler/icons-react';
@@ -156,7 +156,14 @@ const ValidDashboardChartTile: FC<{
 }> = ({
     tileUuid,
     isTitleHidden = false,
-    chartAndResults: { chart, explore, metricQuery, rows, cacheMetadata },
+    chartAndResults: {
+        chart,
+        explore,
+        metricQuery,
+        rows,
+        cacheMetadata,
+        fields,
+    },
     onSeriesContextMenu,
 }) => {
     const addResultsCacheTime = useDashboardContext(
@@ -177,8 +184,9 @@ const ValidDashboardChartTile: FC<{
             rows,
             metricQuery,
             cacheMetadata,
+            fields,
         }),
-        [rows, metricQuery, cacheMetadata],
+        [rows, metricQuery, cacheMetadata, fields],
     );
 
     if (health.isLoading || !health.data) {
@@ -215,7 +223,14 @@ const ValidDashboardChartTileMinimal: FC<{
     chartAndResults: ApiChartAndResults;
 }> = ({
     tileUuid,
-    chartAndResults: { chart, metricQuery, explore, rows, cacheMetadata },
+    chartAndResults: {
+        chart,
+        metricQuery,
+        explore,
+        rows,
+        cacheMetadata,
+        fields,
+    },
     isTitleHidden = false,
 }) => {
     const { health } = useApp();
@@ -223,8 +238,8 @@ const ValidDashboardChartTileMinimal: FC<{
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
 
     const resultData = useMemo(
-        () => ({ rows, metricQuery, cacheMetadata }),
-        [rows, metricQuery, cacheMetadata],
+        () => ({ rows, metricQuery, cacheMetadata, fields }),
+        [rows, metricQuery, cacheMetadata, fields],
     );
 
     if (health.isLoading || !health.data) {
@@ -324,7 +339,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         DashboardFilterRule[]
     >([]);
     const [viewUnderlyingDataOptions, setViewUnderlyingDataOptions] = useState<{
-        item: Field | TableCalculation | undefined;
+        item: ItemsMap[string] | undefined;
         value: ResultValue;
         fieldValues: Record<string, ResultValue>;
         dimensions: string[];

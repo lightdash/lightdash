@@ -1,8 +1,7 @@
 import {
-    Field,
     getItemLabel,
     getItemLabelWithoutTableName,
-    TableCalculation,
+    ItemsMap,
 } from '@lightdash/common';
 import { google, sheets_v4 } from 'googleapis';
 import { lightdashConfig } from '../../config/lightdashConfig';
@@ -199,7 +198,7 @@ export class GoogleDriveClient {
         refreshToken: string,
         fileId: string,
         csvContent: Record<string, string>[],
-        itemMap: Record<string, Field | TableCalculation>,
+        itemMap: ItemsMap,
         showTableNames: boolean,
 
         tabName?: string,

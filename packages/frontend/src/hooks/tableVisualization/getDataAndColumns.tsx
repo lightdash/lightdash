@@ -1,11 +1,10 @@
 import {
     ApiQueryResults,
-    Field,
     formatItemValue,
     friendlyName,
     isField,
+    ItemsMap,
     ResultRow,
-    TableCalculation,
 } from '@lightdash/common';
 import {
     TableHeaderBoldLabel,
@@ -19,7 +18,7 @@ import {
 } from '../../components/common/Table/types';
 
 type Args = {
-    itemsMap: Record<string, Field | TableCalculation>;
+    itemsMap: ItemsMap;
     selectedItemIds: string[];
     resultsData: ApiQueryResults;
     isColumnVisible: (key: string) => boolean;
@@ -82,8 +81,9 @@ const getDataAndColumns = ({
                                 <TableHeaderBoldLabel>
                                     {item === undefined
                                         ? 'Undefined'
-                                        : item.displayName ||
-                                          friendlyName(item.name)}
+                                        : 'displayName' in item
+                                        ? item.displayName
+                                        : friendlyName(item.name)}
                                 </TableHeaderBoldLabel>
                             )}
                         </TableHeaderLabelContainer>

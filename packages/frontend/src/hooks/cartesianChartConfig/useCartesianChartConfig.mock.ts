@@ -88,6 +88,7 @@ export const simpleSeriesMapArgs: GetExpectedSeriesMapArgs = {
                 my_second_metric: { value: { raw: 'a', formatted: 'a' } },
             },
         ],
+        fields: {},
     },
     pivotKeys: undefined,
     yFields: ['my_metric', 'my_second_metric'],
@@ -248,6 +249,7 @@ export const multiPivotSeriesMapArgs: GetExpectedSeriesMapArgs = {
                 my_metric: { value: { raw: 'a', formatted: 'a' } },
             },
         ],
+        fields: {},
     },
 };
 

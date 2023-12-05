@@ -1,4 +1,4 @@
-import { Field, PivotReference, TableCalculation } from '@lightdash/common';
+import { ItemsMap, PivotReference } from '@lightdash/common';
 import { MouseEventHandler } from 'react';
 import { Sort } from '../components/common/Table/types';
 
@@ -7,7 +7,7 @@ declare module '@tanstack/table-core' {
         isInvalidItem?: boolean;
         width?: number;
         draggable?: boolean;
-        item?: Field | TableCalculation;
+        item?: ItemsMap[string];
         pivotReference?: PivotReference;
         bgColor?: string;
         sort?: Sort;

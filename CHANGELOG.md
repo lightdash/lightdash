@@ -1,3 +1,38 @@
+## [0.893.2](https://github.com/lightdash/lightdash/compare/0.893.1...0.893.2) (2023-12-05)
+
+
+### Bug Fixes
+
+* props missing from gsheets api ([#8203](https://github.com/lightdash/lightdash/issues/8203)) ([1f8043b](https://github.com/lightdash/lightdash/commit/1f8043b8f8fba2b70eb628c7b3353f1628c87b61))
+
+## [0.893.1](https://github.com/lightdash/lightdash/compare/0.893.0...0.893.1) (2023-12-05)
+
+
+### Bug Fixes
+
+* binning width type casting ([#8206](https://github.com/lightdash/lightdash/issues/8206)) ([e3af14b](https://github.com/lightdash/lightdash/commit/e3af14bee14f16dfb9a4e2d62f185171817356b5))
+
+# [0.893.0](https://github.com/lightdash/lightdash/compare/0.892.0...0.893.0) (2023-12-05)
+
+
+### Features
+
+* refactor project access form ([#8187](https://github.com/lightdash/lightdash/issues/8187)) ([a8ac961](https://github.com/lightdash/lightdash/commit/a8ac961ce37e1c487cba8f5af4f38c11c2d34f1b))
+
+# [0.892.0](https://github.com/lightdash/lightdash/compare/0.891.2...0.892.0) (2023-12-05)
+
+
+### Features
+
+* minimal dashboard zoom ([#8205](https://github.com/lightdash/lightdash/issues/8205)) ([a743a22](https://github.com/lightdash/lightdash/commit/a743a22ca28a4e244e8d492b6cb45d75a5524a64))
+
+## [0.891.2](https://github.com/lightdash/lightdash/compare/0.891.1...0.891.2) (2023-12-05)
+
+
+### Bug Fixes
+
+* fix broken link in email for saved schedule delivery ([#8162](https://github.com/lightdash/lightdash/issues/8162)) ([68b27a6](https://github.com/lightdash/lightdash/commit/68b27a6c329ea8d38556bceb8abd5efad78a6afd))
+
 ## [0.891.1](https://github.com/lightdash/lightdash/compare/0.891.0...0.891.1) (2023-12-04)
 
 
