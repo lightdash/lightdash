@@ -1,27 +1,39 @@
 import {
+    CustomDimension,
+    Dimension,
     fieldId,
     getCustomDimensionId,
+    getDimensionsFromItemsMap,
+    getMetricsFromItemsMap,
     isCustomDimension,
+    isDimension,
     isField,
+    Metric,
 } from '@lightdash/common';
 import { Box, Button, Stack, Switch, Tooltip } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
+import { useMemo } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const PieChartLayoutConfig: React.FC = () => {
-    const {
-        dimensions,
-        allNumericMetrics,
-        customDimensions,
-        visualizationConfig,
-    } = useVisualizationContext();
+    const { visualizationConfig, itemsMap } = useVisualizationContext();
+
+    const { dimensions, metrics } = useMemo(
+        () => ({
+            dimensions: itemsMap
+                ? Object.values(getDimensionsFromItemsMap(itemsMap))
+                : [],
+            metrics: itemsMap
+                ? Object.values(getMetricsFromItemsMap(itemsMap))
+                : [],
+        }),
+        [itemsMap],
+    );
 
     if (!isPieVisualizationConfig(visualizationConfig)) return null;
-
-    const allDimensions = [...dimensions, ...customDimensions];
 
     const {
         groupFieldIds,
@@ -40,22 +52,23 @@ const PieChartLayoutConfig: React.FC = () => {
         <Stack>
             <Stack spacing="xs">
                 {groupFieldIds.map((dimensionId, index) => {
-                    const selectedDimension = allDimensions.find(
-                        (d) =>
-                            (isCustomDimension(d)
-                                ? getCustomDimensionId(d)
-                                : fieldId(d)) === dimensionId,
-                    );
+                    if (!itemsMap || !dimensionId) return null;
 
+                    const dimension = itemsMap[dimensionId];
+
+                    const selectedDimension =
+                        isDimension(dimension) || isCustomDimension(dimension)
+                            ? dimension
+                            : undefined;
                     return (
-                        <FieldSelect
+                        <FieldSelect<CustomDimension | Dimension>
                             key={index}
-                            disabled={allDimensions.length === 0}
+                            disabled={dimensions.length === 0}
                             clearable={index !== 0}
                             label={index === 0 ? 'Group' : undefined}
                             placeholder="Select dimension"
                             item={selectedDimension}
-                            items={allDimensions}
+                            items={dimensions}
                             inactiveItemIds={groupFieldIds
                                 .filter((id): id is string => !!id)
                                 .filter((id) => id !== dimensionId)}
@@ -82,14 +95,14 @@ const PieChartLayoutConfig: React.FC = () => {
                 <Tooltip
                     disabled={
                         !(
-                            allDimensions.length === 0 ||
-                            groupFieldIds.length === allDimensions.length
+                            dimensions.length === 0 ||
+                            groupFieldIds.length === dimensions.length
                         )
                     }
                     label={
-                        allDimensions.length === 0
+                        dimensions.length === 0
                             ? 'You must select at least one dimension to create a pie chart'
-                            : allDimensions.length === groupFieldIds.length
+                            : dimensions.length === groupFieldIds.length
                             ? 'To add more groups you need to add more dimensions to your query'
                             : undefined
                     }
@@ -103,8 +116,8 @@ const PieChartLayoutConfig: React.FC = () => {
                             variant="outline"
                             onClick={groupAdd}
                             disabled={
-                                allDimensions.length === 0 ||
-                                groupFieldIds.length === allDimensions.length
+                                dimensions.length === 0 ||
+                                groupFieldIds.length === dimensions.length
                             }
                         >
                             Add Group
@@ -114,16 +127,16 @@ const PieChartLayoutConfig: React.FC = () => {
             </Stack>
 
             <Tooltip
-                disabled={allNumericMetrics.length > 0}
+                disabled={metrics && metrics.length > 0}
                 label="You must select at least one numeric metric to create a pie chart"
             >
                 <Box>
-                    <FieldSelect
+                    <FieldSelect<Metric>
                         label="Metric"
                         placeholder="Select metric"
-                        disabled={allNumericMetrics.length === 0}
+                        disabled={metrics.length === 0}
                         item={selectedMetric}
-                        items={allNumericMetrics}
+                        items={metrics}
                         onChange={(newField) => {
                             metricChange(
                                 newField && isField(newField)
