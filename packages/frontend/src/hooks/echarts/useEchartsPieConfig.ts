@@ -14,7 +14,7 @@ export type PieSeriesDataPoint = NonNullable<
 };
 
 const useEchartsPieConfig = (isInDashboard: boolean) => {
-    const { visualizationConfig, explore } = useVisualizationContext();
+    const { visualizationConfig, itemsMap } = useVisualizationContext();
 
     const chartConfig = useMemo(() => {
         if (!isPieVisualizationConfig(visualizationConfig)) return;
@@ -166,7 +166,7 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
         };
     }, [chartConfig, isInDashboard, pieSeriesOption]);
 
-    if (!explore) return;
+    if (!itemsMap) return;
     if (!eChartsOption || !pieSeriesOption) return;
 
     return { eChartsOption, pieSeriesOption };
