@@ -10,6 +10,7 @@ import { Explore, SummaryExplore } from './types/explore';
 import {
     CompiledField,
     CustomDimension,
+    Dimension,
     DimensionType,
     Field,
     FieldId,
@@ -17,6 +18,8 @@ import {
     FilterableField,
     friendlyName,
     isDimension,
+    isField,
+    isMetric,
     ItemsMap,
     Metric,
     TableCalculation,
@@ -25,6 +28,7 @@ import {
     AdditionalMetric,
     getCustomDimensionId,
     isAdditionalMetric,
+    isCustomDimension,
     MetricQuery,
 } from './types/metricQuery';
 import {
@@ -788,6 +792,27 @@ export function getItemMap(
         {},
     );
 }
+
+export const getDimensionsFromItemsMap = (itemsMap: ItemsMap) =>
+    Object.entries(itemsMap).reduce<
+        Record<string, Dimension | CustomDimension>
+    >((acc, [key, value]) => {
+        if (isDimension(value) || isCustomDimension(value)) {
+            return { ...acc, [key]: value };
+        }
+        return acc;
+    }, {});
+
+export const getMetricsFromItemsMap = (itemsMap: ItemsMap) =>
+    Object.entries(itemsMap).reduce<Record<string, Metric>>(
+        (acc, [key, value]) => {
+            if (isField(value) && isMetric(value)) {
+                return { ...acc, [key]: value };
+            }
+            return acc;
+        },
+        {},
+    );
 
 export function itemsInMetricQuery(
     metricQuery: MetricQuery | undefined,
