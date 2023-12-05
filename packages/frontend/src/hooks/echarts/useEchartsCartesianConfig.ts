@@ -765,7 +765,6 @@ const getEchartAxis = ({
     const xAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.yField?.[0]
         : validCartesianConfig.layout?.xField;
-    const xAxisItem = xAxisItemId ? itemsMap[xAxisItemId] : undefined;
 
     const yAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.xField
@@ -825,9 +824,23 @@ const getEchartAxis = ({
                     return formatItemValue(axisItem, value, true);
                 },
             };
+            axisConfig.axisPointer = {
+                label: {
+                    formatter: (value: any) => {
+                        return formatItemValue(axisItem, value.value, false);
+                    },
+                },
+            };
         } else if (axisLabelFormatter) {
             axisConfig.axisLabel = {
                 formatter: axisLabelFormatter,
+            };
+            axisConfig.axisPointer = {
+                label: {
+                    formatter: (value: any) => {
+                        return formatItemValue(axisItem, value.value, false);
+                    },
+                },
             };
         } else if (axisItem !== undefined && isTableCalculation(axisItem)) {
             axisConfig.axisLabel = {
@@ -928,21 +941,8 @@ const getEchartAxis = ({
         xAxis: [
             {
                 type: bottomAxisType,
-                name: validCartesianConfig.layout.flipAxes
-                    ? getAxisName({
-                          isAxisTheSameForAllSeries,
-                          selectedAxisIndex,
-                          axisIndex: 0,
-                          axisReference: 'yRef',
-                          axisName: xAxisConfiguration?.[0]?.name,
-                          itemsMap,
-                          series: validCartesianConfig.eChartsConfig.series,
-                      })
-                    : xAxisConfiguration?.[0]?.name ||
-                      (xAxisItem
-                          ? getDateGroupLabel(xAxisItem) ||
-                            getItemLabelWithoutTableName(xAxisItem)
-                          : undefined),
+                fontSize: 40,
+                name: 'bhel',
                 min: validCartesianConfig.layout.flipAxes
                     ? xAxisConfiguration?.[0]?.min ||
                       maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange)
@@ -957,6 +957,7 @@ const getEchartAxis = ({
                     fontWeight: 'bold',
                 },
                 ...getAxisFormatter(bottomAxisXField),
+
                 splitLine: {
                     show: validCartesianConfig.layout.flipAxes
                         ? showGridY
