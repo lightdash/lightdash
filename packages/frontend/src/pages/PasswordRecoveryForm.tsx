@@ -25,8 +25,14 @@ export const PasswordRecoveryForm: FC = () => {
         },
         validate: {
             email: (value: string) =>
-                validateEmail(value) ? null : 'Your email address is not valid',
+                validateEmail(value.trim())
+                    ? null
+                    : 'Your email address is not valid',
         },
+        transformValues: (values) => ({
+            ...values,
+            email: values.email.trim(),
+        }),
     });
 
     const { isLoading, isSuccess, mutate, reset } =

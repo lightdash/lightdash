@@ -100,7 +100,7 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
             reset();
             createMutation({
                 role: methods.getValues('role'),
-                email: emailSelected,
+                email: emailSelected.trim(),
                 sendEmail: false,
             });
             setAddNewMember(false);
@@ -122,13 +122,13 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
 
         if (addNewMember) {
             inviteMutation({
-                email: emailSelected,
+                email: emailSelected.trim(),
                 role: OrganizationMemberRole.MEMBER,
             });
         } else {
             createMutation({
                 ...formData,
-                email: emailSelected,
+                email: emailSelected.trim(),
                 sendEmail: true,
             });
         }
