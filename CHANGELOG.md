@@ -1,3 +1,10 @@
+## [0.893.2](https://github.com/lightdash/lightdash/compare/0.893.1...0.893.2) (2023-12-05)
+
+
+### Bug Fixes
+
+* props missing from gsheets api ([#8203](https://github.com/lightdash/lightdash/issues/8203)) ([1f8043b](https://github.com/lightdash/lightdash/commit/1f8043b8f8fba2b70eb628c7b3353f1628c87b61))
+
 ## [0.893.1](https://github.com/lightdash/lightdash/compare/0.893.0...0.893.1) (2023-12-05)
 
 
