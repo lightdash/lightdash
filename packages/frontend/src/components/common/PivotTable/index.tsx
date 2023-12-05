@@ -43,7 +43,7 @@ type PivotTableProps = BoxProps & // TODO: remove this
         conditionalFormattings: ConditionalFormattingConfig[];
         hideRowNumbers: boolean;
         getFieldLabel: (fieldId: string) => string | undefined;
-        getField: (fieldId: string) => ItemsMap[string];
+        getField: (fieldId: string) => ItemsMap[string] | undefined;
     };
 
 const PivotTable: FC<PivotTableProps> = ({
