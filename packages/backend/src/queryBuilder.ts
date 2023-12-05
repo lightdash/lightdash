@@ -215,9 +215,9 @@ export const getCustomDimensionSql = ({
                     SELECT
                         MIN(${dimension.compiledSql}) AS min_id,
                         MAX(${dimension.compiledSql}) AS max_id,
-                        ((MAX(${dimension.compiledSql}) - MIN(${
+                        CAST((MAX(${dimension.compiledSql}) - MIN(${
                     dimension.compiledSql
-                })) / ${customDimension.binNumber}) AS bin_width
+                })) / ${customDimension.binNumber} AS INT) AS bin_width
                     FROM ${baseTable} AS ${fieldQuoteChar}${
                     customDimension.table
                 }${fieldQuoteChar}
