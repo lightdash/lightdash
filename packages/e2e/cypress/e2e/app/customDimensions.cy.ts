@@ -25,10 +25,10 @@ describe('Custom dimensions', () => {
         cy.get('button').contains('Run query').click();
 
         // Check valid results
-        cy.contains('1 - 20');
-        cy.contains('$325.00');
-        cy.contains('20 - 39');
-        cy.contains('$483.00');
+        cy.contains('0 - 6');
+        cy.contains('$267.40');
+        cy.contains('6 - 12');
+        cy.contains('$276.98');
 
         // Show SQL
         cy.findByTestId('Results-card-expand').click(); // Close results
