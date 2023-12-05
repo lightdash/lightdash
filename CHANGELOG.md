@@ -1,3 +1,10 @@
+## [0.891.2](https://github.com/lightdash/lightdash/compare/0.891.1...0.891.2) (2023-12-05)
+
+
+### Bug Fixes
+
+* fix broken link in email for saved schedule delivery ([#8162](https://github.com/lightdash/lightdash/issues/8162)) ([68b27a6](https://github.com/lightdash/lightdash/commit/68b27a6c329ea8d38556bceb8abd5efad78a6afd))
+
 ## [0.891.1](https://github.com/lightdash/lightdash/compare/0.891.0...0.891.1) (2023-12-04)
 
 
