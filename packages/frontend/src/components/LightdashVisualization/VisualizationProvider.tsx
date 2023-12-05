@@ -12,8 +12,10 @@ import {
     fieldId,
     getCustomDimensionId,
     getDimensions,
+    getItemMap,
     getMetrics,
     isNumericItem,
+    ItemsMap,
     Metric,
     TableCalculation,
 } from '@lightdash/common';
@@ -66,6 +68,7 @@ type VisualizationContext = {
     isLoading: boolean;
     columnOrder: string[];
     isSqlRunner: boolean;
+    itemsMap: ItemsMap | undefined;
     dimensions: Dimension[];
     customDimensions: CustomDimension[];
     metrics: Metric[];
@@ -150,6 +153,16 @@ const VisualizationProvider: FC<Props> = ({
     dashboardFilters,
     invalidateCache,
 }) => {
+    const itemsMap = useMemo(() => {
+        if (explore && resultsData)
+            return getItemMap(
+                explore,
+                resultsData.metricQuery.additionalMetrics,
+                resultsData.metricQuery.tableCalculations,
+                resultsData.metricQuery.customDimensions,
+            );
+    }, [explore, resultsData]);
+
     const chartRef = useRef<EChartsReact>(null);
 
     const [lastValidResultsData, setLastValidResultsData] =
@@ -279,7 +292,8 @@ const VisualizationProvider: FC<Props> = ({
         isLoading,
         explore,
         columnOrder,
-        isSqlRunner: isSqlRunner || false,
+        isSqlRunner: isSqlRunner ?? false,
+        itemsMap,
         dimensions,
         metrics,
         customMetrics,

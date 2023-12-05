@@ -8,9 +8,7 @@ import {
 import { DbtCloudIntegration } from './types/dbtCloud';
 import { Explore, SummaryExplore } from './types/explore';
 import {
-    CompiledDimension,
     CompiledField,
-    CompiledMetric,
     CustomDimension,
     DimensionType,
     Field,
@@ -19,6 +17,7 @@ import {
     FilterableField,
     friendlyName,
     isDimension,
+    Item,
     Metric,
     TableCalculation,
 } from './types/field';
@@ -91,6 +90,7 @@ import { TableBase } from './types/table';
 import { LightdashUser, UserAllowedOrganization } from './types/user';
 import { ValidationResponse } from './types/validation';
 import { convertAdditionalMetric } from './utils/additionalMetrics';
+import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 
@@ -154,6 +154,7 @@ export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/conditionalFormatting';
 export * from './utils/email';
+export * from './utils/fields';
 export * from './utils/filters';
 export * from './utils/formatting';
 export * from './utils/github';
@@ -295,19 +296,6 @@ export type ArgumentsOf<F extends Function> = F extends (
     ? A
     : never;
 
-// Helper function to get a list of all dimensions in an explore
-export const getDimensions = (explore: Explore): CompiledDimension[] =>
-    Object.values(explore.tables).flatMap((t) => Object.values(t.dimensions));
-
-// Helper function to get a list of all metrics in an explore
-export const getMetrics = (explore: Explore): CompiledMetric[] =>
-    Object.values(explore.tables).flatMap((t) => Object.values(t.metrics));
-
-export const getFields = (explore: Explore): CompiledField[] => [
-    ...getDimensions(explore),
-    ...getMetrics(explore),
-];
-
 export const getVisibleFields = (explore: Explore): CompiledField[] =>
     getFields(explore).filter(({ hidden }) => !hidden);
 
@@ -335,6 +323,7 @@ export type ApiQueryResults = {
     metricQuery: MetricQuery;
     cacheMetadata: CacheMetadata;
     rows: ResultRow[];
+    fields: Record<string, Item | AdditionalMetric>;
 };
 
 export type ApiChartAndResults = {
@@ -344,6 +333,7 @@ export type ApiChartAndResults = {
     metricQuery: MetricQuery;
     cacheMetadata: CacheMetadata;
     rows: ResultRow[];
+    fields: Record<string, Item | AdditionalMetric>;
 };
 
 export type ApiSqlQueryResults = {
@@ -708,9 +698,7 @@ export const getResultValueArray = (
         }, {}),
     );
 
-export const getDateGroupLabel = (
-    axisItem: Field | TableCalculation | CustomDimension,
-) => {
+export const getDateGroupLabel = (axisItem: ItemsMap[string]) => {
     if (
         isDimension(axisItem) &&
         [DimensionType.DATE, DimensionType.TIMESTAMP].includes(axisItem.type) &&
@@ -728,7 +716,7 @@ export const getAxisName = ({
     axisIndex,
     axisName,
     series,
-    items,
+    itemsMap,
 }: {
     isAxisTheSameForAllSeries: boolean;
     selectedAxisIndex: number;
@@ -736,12 +724,11 @@ export const getAxisName = ({
     axisIndex: number;
     axisName?: string;
     series?: Series[];
-    items: Array<Field | TableCalculation | CustomDimension>;
+    itemsMap: ItemsMap | undefined;
 }): string | undefined => {
-    const defaultItem = items.find(
-        (item) =>
-            getItemId(item) === (series || [])[0]?.encode[axisReference].field,
-    );
+    const defaultItem = itemsMap
+        ? itemsMap[(series || [])[0]?.encode[axisReference].field]
+        : undefined;
     const dateGroupName = defaultItem
         ? getDateGroupLabel(defaultItem)
         : undefined;
@@ -769,12 +756,17 @@ export function getFieldMap(
     );
 }
 
+export type ItemsMap = Record<
+    string,
+    Field | TableCalculation | CustomDimension | Metric
+>;
+
 export function getItemMap(
     explore: Explore,
     additionalMetrics: AdditionalMetric[] = [],
     tableCalculations: TableCalculation[] = [],
     customDimensions: CustomDimension[] = [],
-): Record<string, Field | TableCalculation> {
+): ItemsMap {
     const convertedAdditionalMetrics = (additionalMetrics || []).reduce<
         Metric[]
     >((acc, additionalMetric) => {
@@ -817,13 +809,13 @@ export function itemsInMetricQuery(
 
 export function formatRows(
     rows: { [col: string]: any }[],
-    itemMap: Record<string, Field | TableCalculation>,
+    itemsMap: ItemsMap,
 ): ResultRow[] {
     return rows.map((row) =>
         Object.keys(row).reduce<ResultRow>((acc, columnName) => {
             const col = row[columnName];
 
-            const item = itemMap[columnName];
+            const item = itemsMap[columnName];
             return {
                 ...acc,
                 [columnName]: {

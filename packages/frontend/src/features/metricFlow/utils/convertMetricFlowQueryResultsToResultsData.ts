@@ -45,6 +45,7 @@ export default function convertMetricFlowQueryResultsToResultsData(
                 };
             }, {}),
         ),
+        fields: {},
     };
 
     return {

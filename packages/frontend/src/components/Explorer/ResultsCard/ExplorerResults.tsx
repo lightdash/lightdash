@@ -1,4 +1,4 @@
-import { Field, getItemMap, TableCalculation } from '@lightdash/common';
+import { getItemMap } from '@lightdash/common';
 import { Box, Text } from '@mantine/core';
 import { FC, memo, useCallback, useMemo, useState } from 'react';
 
@@ -70,17 +70,16 @@ export const ExplorerResults = memo(() => {
         setIsExpandModalOpened(true);
     };
 
-    const itemsMap: Record<string, Field | TableCalculation> | undefined =
-        useMemo(() => {
-            if (exploreData) {
-                return getItemMap(
-                    exploreData,
-                    additionalMetrics,
-                    tableCalculations,
-                );
-            }
-            return undefined;
-        }, [exploreData, additionalMetrics, tableCalculations]);
+    const itemsMap = useMemo(() => {
+        if (exploreData) {
+            return getItemMap(
+                exploreData,
+                additionalMetrics,
+                tableCalculations,
+            );
+        }
+        return undefined;
+    }, [exploreData, additionalMetrics, tableCalculations]);
 
     const cellContextMenu = useCallback(
         (props) => (

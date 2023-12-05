@@ -102,7 +102,8 @@ const Context = createContext<DashboardContext | undefined>(undefined);
 
 export const DashboardProvider: React.FC<{
     schedulerFilters?: SchedulerFilterRule[] | undefined;
-}> = ({ schedulerFilters, children }) => {
+    dateZoom?: DateGranularity | undefined;
+}> = ({ schedulerFilters, dateZoom, children }) => {
     const { search, pathname } = useLocation();
     const history = useHistory();
 
@@ -152,7 +153,8 @@ export const DashboardProvider: React.FC<{
 
     const [dateZoomGranularity, setDateZoomGranularity] = useState<
         DateGranularity | undefined
-    >(undefined);
+    >(dateZoom);
+
     const [chartsWithDateZoomApplied, setChartsWithDateZoomApplied] =
         useState<Set<string>>();
 
@@ -288,11 +290,11 @@ export const DashboardProvider: React.FC<{
         // Date zoom
         const dateZoomParam = searchParams.get('dateZoom');
         if (dateZoomParam) {
-            const dateZoom = Object.values(DateGranularity).find(
+            const dateZoomUrl = Object.values(DateGranularity).find(
                 (granularity) =>
                     granularity.toLowerCase() === dateZoomParam?.toLowerCase(),
             );
-            if (dateZoom) setDateZoomGranularity(dateZoom);
+            if (dateZoomUrl) setDateZoomGranularity(dateZoomUrl);
         }
 
         // Temp filters

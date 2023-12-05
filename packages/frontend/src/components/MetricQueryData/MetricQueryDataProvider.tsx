@@ -1,15 +1,14 @@
 import {
     DashboardFilters,
     Explore,
-    Field,
     formatItemValue,
     getItemId,
     hashFieldReference,
     isDimension,
+    ItemsMap,
     MetricQuery,
     PivotReference,
     ResultValue,
-    TableCalculation,
 } from '@lightdash/common';
 import { createContext, FC, useCallback, useContext, useState } from 'react';
 import { EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
@@ -17,7 +16,7 @@ import { useExplore } from '../../hooks/useExplore';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 
 export type UnderlyingDataConfig = {
-    item: Field | TableCalculation | undefined;
+    item: ItemsMap[string] | undefined;
     value: ResultValue;
     fieldValues: Record<string, ResultValue>;
     dimensions?: string[];
@@ -26,7 +25,7 @@ export type UnderlyingDataConfig = {
 };
 
 export type DrillDownConfig = {
-    item: Field | TableCalculation;
+    item: ItemsMap[string];
     fieldValues: Record<string, ResultValue>;
     pivotReference?: PivotReference;
     dashboardFilters?: DashboardFilters;
@@ -50,7 +49,7 @@ type MetricQueryDataContext = {
 
 export const getDataFromChartClick = (
     e: EchartSeriesClickEvent,
-    itemsMap: Record<string, Field | TableCalculation>,
+    itemsMap: ItemsMap,
     series: EChartSeries[],
 ): UnderlyingDataConfig => {
     const pivotReference = series[e.seriesIndex]?.pivotReference;
@@ -70,7 +69,7 @@ export const getDataFromChartClick = (
         (item) => !isDimension(item),
     );
 
-    let selectedField: Field | TableCalculation | undefined = undefined;
+    let selectedField: ItemsMap[string] | undefined = undefined;
     if (selectedMetricsAndTableCalculations.length > 0) {
         selectedField = selectedMetricsAndTableCalculations[0];
     } else if (selectedFields.length > 0) {

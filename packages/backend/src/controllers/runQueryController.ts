@@ -5,6 +5,7 @@ import {
     CacheMetadata,
     CustomDimension,
     FieldId,
+    Item,
     MetricQuery,
     MetricQueryRequest,
     MetricQueryResponse,
@@ -34,6 +35,7 @@ export type ApiRunQueryResponse = {
         metricQuery: MetricQueryResponse; // tsoa doesn't support complex types like MetricQuery
         cacheMetadata: CacheMetadata;
         rows: any[];
+        fields?: Record<string, Item | AdditionalMetric>;
     };
 };
 

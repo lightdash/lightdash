@@ -1,4 +1,5 @@
 import {
+    AdditionalMetric,
     assertUnreachable,
     BinType,
     CompiledDimension,
@@ -18,11 +19,13 @@ import {
     getCustomMetricDimensionId,
     getDateDimension,
     getDimensions,
+    getFieldsFromMetricQuery,
     getFilterRulesFromGroup,
     getMetrics,
     getSqlForTruncatedDate,
     isAndFilterGroup,
     isFilterGroup,
+    Item,
     parseAllReferences,
     renderFilterRuleSql,
     renderTableCalculationFilterRuleSql,
@@ -210,9 +213,9 @@ export const getCustomDimensionSql = ({
                     explore.tables[customDimension.table].sqlTable;
                 const cte = ` ${getCteReference(customDimension)} AS (
                     SELECT
-                        MIN(${dimension.compiledSql}) AS min_id,
-                        MAX(${dimension.compiledSql}) AS max_id,
-                        ((MAX(${dimension.compiledSql}) - MIN(${
+                        FLOOR(MIN(${dimension.compiledSql})) AS min_id,
+                        CEIL(MAX(${dimension.compiledSql})) AS max_id,
+                        FLOOR((MAX(${dimension.compiledSql}) - MIN(${
                     dimension.compiledSql
                 })) / ${customDimension.binNumber}) AS bin_width
                     FROM ${baseTable} AS ${fieldQuoteChar}${
@@ -473,13 +476,20 @@ export const getCustomDimensionSql = ({
     return { ctes, joins, tables: [...new Set(tables)], selects };
 };
 
+export type CompiledQuery = {
+    query: string;
+    hasExampleMetric: boolean;
+    fields: Record<string, Item | AdditionalMetric>;
+};
+
 export const buildQuery = ({
     explore,
     compiledMetricQuery,
     warehouseClient,
     userAttributes = {},
-}: BuildQueryProps): { query: string; hasExampleMetric: boolean } => {
+}: BuildQueryProps): CompiledQuery => {
     let hasExampleMetric: boolean = false;
+    const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
     const adapterType: SupportedDbtAdapter = warehouseClient.getAdapterType();
     const {
         dimensions,
@@ -840,6 +850,7 @@ export const buildQuery = ({
         return {
             query: [cte, finalQuery, sqlOrderBy, sqlLimit].join('\n'),
             hasExampleMetric,
+            fields,
         };
     }
 
@@ -864,5 +875,6 @@ export const buildQuery = ({
     return {
         query: metricQuerySql,
         hasExampleMetric,
+        fields,
     };
 };

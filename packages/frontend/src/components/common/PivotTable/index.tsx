@@ -1,6 +1,5 @@
 import {
     ConditionalFormattingConfig,
-    Field,
     fieldId,
     formatItemValue,
     getConditionalFormattingColor,
@@ -8,9 +7,9 @@ import {
     getConditionalFormattingDescription,
     isField,
     isNumericItem,
+    ItemsMap,
     PivotData,
     ResultValue,
-    TableCalculation,
 } from '@lightdash/common';
 import { BoxProps } from '@mantine/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -44,7 +43,7 @@ type PivotTableProps = BoxProps & // TODO: remove this
         conditionalFormattings: ConditionalFormattingConfig[];
         hideRowNumbers: boolean;
         getFieldLabel: (fieldId: string) => string | undefined;
-        getField: (fieldId: string) => Field | TableCalculation;
+        getField: (fieldId: string) => ItemsMap[string];
     };
 
 const PivotTable: FC<PivotTableProps> = ({

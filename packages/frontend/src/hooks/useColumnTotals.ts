@@ -8,6 +8,7 @@ import {
     isDimension,
     isTableCalculation,
     Item,
+    ItemsMap,
     MetricType,
     ResultRow,
     TableCalculation,
@@ -60,7 +61,7 @@ const getResultColumnTotals = (
 
 const getResultColumnTotalsFromItemsMap = (
     rows: ResultRow[],
-    itemsMap: Record<FieldId, Field | TableCalculation>,
+    itemsMap: ItemsMap,
 ): Record<FieldId, number | undefined> => {
     return getResultColumnTotals(
         rows,

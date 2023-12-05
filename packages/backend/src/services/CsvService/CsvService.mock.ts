@@ -1,10 +1,4 @@
-import {
-    Field,
-    FieldType,
-    Format,
-    MetricQuery,
-    TableCalculation,
-} from '@lightdash/common';
+import { FieldType, Format, ItemsMap, MetricQuery } from '@lightdash/common';
 
 export const metricQuery: MetricQuery = {
     dimensions: ['column_number', 'column_date'],
@@ -23,7 +17,7 @@ export const metricQuery: MetricQuery = {
     additionalMetrics: [],
 };
 
-export const itemMap: Record<string, Field | TableCalculation> = {
+export const itemMap: ItemsMap = {
     column_number: {
         name: 'column_number',
         table: 'table',
@@ -44,10 +38,10 @@ export const itemMap: Record<string, Field | TableCalculation> = {
     column_date: {
         name: 'column_date',
         type: 'date',
-        displayName: 'column date',
+        hidden: false,
+        table: 'table',
         tableLabel: 'table',
         label: 'column date',
-
         fieldType: FieldType.DIMENSION,
         sql: '${TABLE}.column_date',
     },

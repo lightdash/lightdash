@@ -24,6 +24,7 @@ export enum PageName {
     USER_MANAGEMENT_SETTINGS = 'user_management_settings',
     PROJECT_MANAGEMENT_SETTINGS = 'project_management_settings',
     INVITE_MANAGEMENT_SETTINGS = 'invite_management_settings',
+    PROJECT_ADD_USER = 'project_add_user',
     ABOUT_LIGHTDASH = 'about_lightdash',
     CREATE_PROJECT = 'create_project',
     CREATE_PROJECT_SETTINGS = 'create_project_settings',

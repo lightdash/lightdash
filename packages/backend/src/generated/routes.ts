@@ -2344,6 +2344,15 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.Item-or-AdditionalMetric_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiRunQueryResponse: {
         dataType: 'refAlias',
         type: {
@@ -2352,6 +2361,9 @@ const models: TsoaRoute.Models = {
                 results: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        fields: {
+                            ref: 'Record_string.Item-or-AdditionalMetric_',
+                        },
                         rows: {
                             dataType: 'array',
                             array: { dataType: 'any' },

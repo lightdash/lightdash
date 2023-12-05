@@ -7,7 +7,6 @@ import {
     DimensionType,
     DownloadCsvPayload,
     DownloadMetricCsv,
-    Field,
     ForbiddenError,
     formatItemValue,
     friendlyName,
@@ -22,12 +21,12 @@ import {
     isField,
     isMomentInput,
     isTableChartConfig,
+    ItemsMap,
     MetricQuery,
     SchedulerCsvOptions,
     SchedulerFilterRule,
     SchedulerFormat,
     SessionUser,
-    TableCalculation,
 } from '@lightdash/common';
 
 import { stringify } from 'csv-stringify';
@@ -160,7 +159,7 @@ export class CsvService {
 
     static convertRowToCsv(
         row: Record<string, any>,
-        itemMap: Record<string, Field | TableCalculation>,
+        itemMap: ItemsMap,
         onlyRaw: boolean,
         sortedFieldIds: string[],
     ) {
@@ -208,7 +207,7 @@ export class CsvService {
         rows: Record<string, any>[],
         onlyRaw: boolean,
         metricQuery: MetricQuery,
-        itemMap: Record<string, Field | TableCalculation>,
+        itemMap: ItemsMap,
         showTableNames: boolean,
         fileName: string,
         truncated: boolean,

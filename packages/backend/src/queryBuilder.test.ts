@@ -420,9 +420,9 @@ describe('with custom dimensions', () => {
             ctes: [
                 ` age_range_cte AS (
                     SELECT
-                        MIN("table1".dim1) AS min_id,
-                        MAX("table1".dim1) AS max_id,
-                        ((MAX("table1".dim1) - MIN("table1".dim1)) / 3) AS bin_width
+                        FLOOR(MIN("table1".dim1)) AS min_id,
+                        CEIL(MAX("table1".dim1)) AS max_id,
+                        FLOOR((MAX("table1".dim1) - MIN("table1".dim1)) / 3) AS bin_width
                     FROM "db"."schema"."table1" AS \`table1\`
                 )`,
             ],
@@ -466,9 +466,9 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
             ctes: [
                 ` age_range_cte AS (
                     SELECT
-                        MIN("table1".dim1) AS min_id,
-                        MAX("table1".dim1) AS max_id,
-                        ((MAX("table1".dim1) - MIN("table1".dim1)) / 1) AS bin_width
+                        FLOOR(MIN("table1".dim1)) AS min_id,
+                        CEIL(MAX("table1".dim1)) AS max_id,
+                        FLOOR((MAX("table1".dim1) - MIN("table1".dim1)) / 1) AS bin_width
                     FROM "db"."schema"."table1" AS \`table1\`
                 )`,
             ],
@@ -490,9 +490,9 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
             }).query,
         ).toStrictEqual(`WITH  age_range_cte AS (
                     SELECT
-                        MIN("table1".dim1) AS min_id,
-                        MAX("table1".dim1) AS max_id,
-                        ((MAX("table1".dim1) - MIN("table1".dim1)) / 3) AS bin_width
+                        FLOOR(MIN("table1".dim1)) AS min_id,
+                        CEIL(MAX("table1".dim1)) AS max_id,
+                        FLOOR((MAX("table1".dim1) - MIN("table1".dim1)) / 3) AS bin_width
                     FROM "db"."schema"."table1" AS \`table1\`
                 )
 SELECT
@@ -574,9 +574,9 @@ LIMIT 10`);
             }).query,
         ).toStrictEqual(`WITH  age_range_cte AS (
                     SELECT
-                        MIN("table1".dim1) AS min_id,
-                        MAX("table1".dim1) AS max_id,
-                        ((MAX("table1".dim1) - MIN("table1".dim1)) / 3) AS bin_width
+                        FLOOR(MIN("table1".dim1)) AS min_id,
+                        CEIL(MAX("table1".dim1)) AS max_id,
+                        FLOOR((MAX("table1".dim1) - MIN("table1".dim1)) / 3) AS bin_width
                     FROM "db"."schema"."table1" AS \`table1\`
                 ),
 metrics AS (
@@ -619,9 +619,9 @@ LIMIT 10`);
             ctes: [
                 ` age_range_cte AS (
                     SELECT
-                        MIN("table1".dim1) AS min_id,
-                        MAX("table1".dim1) AS max_id,
-                        ((MAX("table1".dim1) - MIN("table1".dim1)) / 3) AS bin_width
+                        FLOOR(MIN("table1".dim1)) AS min_id,
+                        CEIL(MAX("table1".dim1)) AS max_id,
+                        FLOOR((MAX("table1".dim1) - MIN("table1".dim1)) / 3) AS bin_width
                     FROM "db"."schema"."table1" AS \`table1\`
                 )`,
             ],
@@ -658,9 +658,9 @@ ELSE 2
             }).query,
         ).toStrictEqual(`WITH  age_range_cte AS (
                     SELECT
-                        MIN("table1".dim1) AS min_id,
-                        MAX("table1".dim1) AS max_id,
-                        ((MAX("table1".dim1) - MIN("table1".dim1)) / 3) AS bin_width
+                        FLOOR(MIN("table1".dim1)) AS min_id,
+                        CEIL(MAX("table1".dim1)) AS max_id,
+                        FLOOR((MAX("table1".dim1) - MIN("table1".dim1)) / 3) AS bin_width
                     FROM "db"."schema"."table1" AS \`table1\`
                 )
 SELECT
