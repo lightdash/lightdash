@@ -104,7 +104,6 @@ const MetricQueryDataProvider: FC<Props> = ({
     metricQuery,
     children,
 }) => {
-    console.log('MetricQueryDataProvider', metricQuery);
     const [underlyingDataConfig, setUnderlyingDataConfig] =
         useState<UnderlyingDataConfig>();
     const [drillDownConfig, setDrillDownConfig] = useState<DrillDownConfig>();
