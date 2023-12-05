@@ -8,9 +8,7 @@ import {
 import { DbtCloudIntegration } from './types/dbtCloud';
 import { Explore, SummaryExplore } from './types/explore';
 import {
-    CompiledDimension,
     CompiledField,
-    CompiledMetric,
     CustomDimension,
     DimensionType,
     Field,
@@ -19,6 +17,7 @@ import {
     FilterableField,
     friendlyName,
     isDimension,
+    Item,
     Metric,
     TableCalculation,
 } from './types/field';
@@ -91,6 +90,7 @@ import { TableBase } from './types/table';
 import { LightdashUser, UserAllowedOrganization } from './types/user';
 import { ValidationResponse } from './types/validation';
 import { convertAdditionalMetric } from './utils/additionalMetrics';
+import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 
@@ -154,6 +154,7 @@ export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/conditionalFormatting';
 export * from './utils/email';
+export * from './utils/fields';
 export * from './utils/filters';
 export * from './utils/formatting';
 export * from './utils/github';
@@ -295,19 +296,6 @@ export type ArgumentsOf<F extends Function> = F extends (
     ? A
     : never;
 
-// Helper function to get a list of all dimensions in an explore
-export const getDimensions = (explore: Explore): CompiledDimension[] =>
-    Object.values(explore.tables).flatMap((t) => Object.values(t.dimensions));
-
-// Helper function to get a list of all metrics in an explore
-export const getMetrics = (explore: Explore): CompiledMetric[] =>
-    Object.values(explore.tables).flatMap((t) => Object.values(t.metrics));
-
-export const getFields = (explore: Explore): CompiledField[] => [
-    ...getDimensions(explore),
-    ...getMetrics(explore),
-];
-
 export const getVisibleFields = (explore: Explore): CompiledField[] =>
     getFields(explore).filter(({ hidden }) => !hidden);
 
@@ -335,6 +323,7 @@ export type ApiQueryResults = {
     metricQuery: MetricQuery;
     cacheMetadata: CacheMetadata;
     rows: ResultRow[];
+    fields: Record<string, Item | AdditionalMetric>;
 };
 
 export type ApiChartAndResults = {
@@ -344,6 +333,7 @@ export type ApiChartAndResults = {
     metricQuery: MetricQuery;
     cacheMetadata: CacheMetadata;
     rows: ResultRow[];
+    fields: Record<string, Item | AdditionalMetric>;
 };
 
 export type ApiSqlQueryResults = {

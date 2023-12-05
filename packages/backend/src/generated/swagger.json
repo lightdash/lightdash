@@ -2673,10 +2673,18 @@
                 "required": ["cacheHit"],
                 "type": "object"
             },
+            "Record_string.Item-or-AdditionalMetric_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "ApiRunQueryResponse": {
                 "properties": {
                     "results": {
                         "properties": {
+                            "fields": {
+                                "$ref": "#/components/schemas/Record_string.Item-or-AdditionalMetric_"
+                            },
                             "rows": {
                                 "items": {},
                                 "type": "array"
@@ -5439,7 +5447,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.885.3",
+        "version": "0.890.1",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
