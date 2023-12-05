@@ -118,6 +118,7 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
             const unsavedChartVersion = parseExplorerSearchParams(search) || {
                 tableName: '',
                 metricQuery: {
+                    exploreName: '',
                     dimensions: [],
                     metrics: [],
                     filters: {},

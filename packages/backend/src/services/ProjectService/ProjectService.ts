@@ -1778,6 +1778,7 @@ export class ProjectService {
             autocompleteDimensionFilters.push(filters);
         }
         const metricQuery: MetricQuery = {
+            exploreName: explore.name,
             dimensions: [],
             metrics: [getItemId(distinctMetric)],
             filters: {

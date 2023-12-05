@@ -36,6 +36,7 @@ import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 interface Props {}
 
 const defaultMetricQuery: MetricQuery = {
+    exploreName: '',
     dimensions: [],
     metrics: [],
     filters: {},

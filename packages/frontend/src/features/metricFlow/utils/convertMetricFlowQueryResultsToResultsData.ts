@@ -21,6 +21,7 @@ export default function convertMetricFlowQueryResultsToResultsData(
 
     const resultsData: ApiQueryResults = {
         metricQuery: {
+            exploreName: explore.name,
             dimensions: dimensionsInSchema.map(getItemId),
             metrics: metricsInSchema.map(getItemId),
             filters: {},

@@ -64,6 +64,7 @@ export const simpleSeriesMapArgs: GetExpectedSeriesMapArgs = {
     isStacked: false,
     resultsData: {
         metricQuery: {
+            exploreName: '',
             dimensions: ['dimension_x'],
             metrics: [],
             filters: {},
@@ -213,6 +214,7 @@ export const multiPivotSeriesMapArgs: GetExpectedSeriesMapArgs = {
     yFields: ['my_metric'],
     resultsData: {
         metricQuery: {
+            exploreName: '',
             dimensions: ['dimension_x', 'dimension_y'],
             metrics: [],
             filters: {},

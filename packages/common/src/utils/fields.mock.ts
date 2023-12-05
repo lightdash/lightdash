@@ -10,6 +10,7 @@ import {
 } from '../index';
 
 export const metricQuery: MetricQuery = {
+    exploreName: 'table1',
     dimensions: ['table1_dim1', 'table2_dim2'],
     metrics: ['table1_metric1', 'table2_metric2'],
     filters: {},
@@ -122,6 +123,7 @@ export const emptyExplore: Explore = {
 };
 
 export const emptyMetricQuery: MetricQuery = {
+    exploreName: 'test',
     dimensions: [],
     metrics: [],
     filters: {},

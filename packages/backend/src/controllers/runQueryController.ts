@@ -61,6 +61,7 @@ export class RunViewChartQueryController extends Controller {
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {
         const metricQuery: MetricQuery = {
+            exploreName: body.exploreName,
             dimensions: body.dimensions,
             metrics: body.metrics,
             filters: body.filters,
@@ -104,6 +105,7 @@ export class RunViewChartQueryController extends Controller {
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {
         const metricQuery: MetricQuery = {
+            exploreName: body.exploreName,
             dimensions: body.dimensions,
             metrics: body.metrics,
             filters: body.filters,

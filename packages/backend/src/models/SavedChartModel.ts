@@ -767,6 +767,7 @@ export class SavedChartModel {
                     lastName: savedQuery.last_name,
                 },
                 metricQuery: {
+                    exploreName: savedQuery.explore_name,
                     dimensions,
                     metrics,
                     filters: savedQuery.filters,

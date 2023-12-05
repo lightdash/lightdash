@@ -1,6 +1,7 @@
 import { FieldType, Format, ItemsMap, MetricQuery } from '@lightdash/common';
 
 export const metricQuery: MetricQuery = {
+    exploreName: 'test',
     dimensions: ['column_number', 'column_date'],
 
     metrics: [],

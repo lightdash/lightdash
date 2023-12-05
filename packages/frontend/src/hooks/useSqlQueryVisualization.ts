@@ -97,6 +97,7 @@ const useSqlQueryVisualization = ({
             data?.rows
                 ? {
                       metricQuery: {
+                          exploreName: SQL_RESULTS_TABLE_NAME,
                           dimensions: dimensionKeys,
                           metrics: metricKeys,
                           filters: {},

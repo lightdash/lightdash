@@ -108,6 +108,7 @@ export const chart: SavedChart = {
     name: 'chart name',
     tableName: 'table_name',
     metricQuery: {
+        exploreName: 'table_name',
         dimensions: [],
         metrics: [],
         filters: {},

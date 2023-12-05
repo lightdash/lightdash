@@ -302,6 +302,7 @@ const defaultState: ExplorerReduceState = {
     unsavedChartVersion: {
         tableName: '',
         metricQuery: {
+            exploreName: '',
             dimensions: [],
             metrics: [],
             filters: {},

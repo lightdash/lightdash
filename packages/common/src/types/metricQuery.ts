@@ -46,6 +46,7 @@ export const isCustomDimension = (value: any): value is CustomDimension =>
 
 // Object used to query an explore. Queries only happen within a single explore
 export type MetricQuery = {
+    exploreName: string;
     dimensions: FieldId[]; // Dimensions to group by in the explore
     metrics: FieldId[]; // Metrics to compute in the explore
     filters: Filters;
@@ -103,6 +104,7 @@ export type FiltersResponse = {
     tableCalculations?: FilterGroupResponse;
 };
 export type MetricQueryResponse = {
+    exploreName: string;
     dimensions: FieldId[]; // Dimensions to group by in the explore
     metrics: FieldId[]; // Metrics to compute in the explore
     filters: FiltersResponse;
@@ -135,6 +137,7 @@ export const hasCustomDimension = (metricQuery: MetricQuery | undefined) =>
 
 export type MetricQueryRequest = {
     // tsoa doesn't support complex types like MetricQuery, so we simplified it
+    exploreName: string;
     dimensions: FieldId[]; // Dimensions to group by in the explore
     metrics: FieldId[]; // Metrics to compute in the explore
     filters: {
