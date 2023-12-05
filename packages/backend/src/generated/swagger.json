@@ -176,6 +176,9 @@
             },
             "FiltersResponse": {
                 "properties": {
+                    "tableCalculations": {
+                        "$ref": "#/components/schemas/FilterGroupResponse"
+                    },
                     "metrics": {
                         "$ref": "#/components/schemas/FilterGroupResponse"
                     },
@@ -471,8 +474,30 @@
                 "type": "object",
                 "additionalProperties": false
             },
+            "Pick_CompiledDimension.label-or-name_": {
+                "properties": {
+                    "label": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["label", "name"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "MetricQueryResponse": {
                 "properties": {
+                    "metadata": {
+                        "properties": {
+                            "hasADateDimension": {
+                                "$ref": "#/components/schemas/Pick_CompiledDimension.label-or-name_"
+                            }
+                        },
+                        "required": ["hasADateDimension"],
+                        "type": "object"
+                    },
                     "customDimensions": {
                         "items": {
                             "$ref": "#/components/schemas/CustomDimension"
@@ -2557,19 +2582,6 @@
             "DateGranularity": {
                 "enum": ["Day", "Week", "Month", "Quarter", "Year"],
                 "type": "string"
-            },
-            "Pick_CompiledDimension.label-or-name_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    }
-                },
-                "required": ["name", "label"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "MetricQueryRequest": {
                 "properties": {
@@ -5447,7 +5459,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.890.1",
+        "version": "0.893.1",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
