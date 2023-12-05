@@ -3,19 +3,19 @@ import {
     ColumnProperties,
     ConditionalFormattingConfig,
     DashboardFilters,
-    Explore,
     getItemLabel,
-    getItemMap,
     isDimension,
     isField,
     isMetric,
     isTableCalculation,
     itemsInMetricQuery,
+    ItemsMap,
     PivotData,
     ResultRow,
     TableChart,
 } from '@lightdash/common';
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
+import uniq from 'lodash/uniq';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TableColumn, TableHeader } from '../../components/common/Table/types';
 import { useCalculateTotal } from '../useCalculateTotal';
@@ -29,7 +29,8 @@ const createWorker = createWorkerFactory(
 const useTableConfig = (
     tableChartConfig: TableChart | undefined,
     resultsData: ApiQueryResults | undefined,
-    explore: Explore | undefined,
+    exploreName: string | undefined,
+    itemsMap: ItemsMap | undefined,
     columnOrder: string[],
     pivotDimensions: string[] | undefined,
     pivotTableMaxColumnLimit: number,
@@ -70,11 +71,20 @@ const useTableConfig = (
     useEffect(() => {
         if (
             tableChartConfig?.showTableNames === undefined &&
-            explore !== undefined
+            itemsMap !== undefined
         ) {
-            setShowTableNames(explore.joinedTables.length > 0);
+            const hasItemsFromMultipleTables =
+                Object.values(itemsMap).reduce<string[]>((acc, item) => {
+                    if (isField(item)) {
+                        acc.push(item.table);
+                    }
+                    return uniq(acc);
+                }, []).length > 0;
+            if (hasItemsFromMultipleTables) {
+                setShowTableNames(true);
+            }
         }
-    }, [explore, tableChartConfig?.showTableNames]);
+    }, [itemsMap, tableChartConfig?.showTableNames]);
 
     const [columnProperties, setColumnProperties] = useState<
         Record<string, ColumnProperties>
@@ -85,20 +95,11 @@ const useTableConfig = (
             ? itemsInMetricQuery(resultsData.metricQuery)
             : undefined;
     }, [resultsData]);
-    const itemsMap = useMemo(() => {
-        if (!explore) return {};
-
-        return getItemMap(
-            explore,
-            resultsData?.metricQuery.additionalMetrics,
-            resultsData?.metricQuery.tableCalculations,
-            resultsData?.metricQuery.customDimensions,
-        );
-    }, [explore, resultsData]);
 
     const getFieldLabelDefault = useCallback(
         (fieldId: string | null | undefined) => {
-            if (!fieldId || !(fieldId in itemsMap)) return undefined;
+            if (!fieldId || !itemsMap || !(fieldId in itemsMap))
+                return undefined;
 
             const item = itemsMap[fieldId];
 
@@ -119,7 +120,7 @@ const useTableConfig = (
     );
 
     const getField = useCallback(
-        (fieldId: string) => itemsMap[fieldId],
+        (fieldId: string) => itemsMap && itemsMap[fieldId],
         [itemsMap],
     );
 
@@ -175,7 +176,7 @@ const useTableConfig = (
               }
             : {
                   metricQuery: resultsData?.metricQuery,
-                  explore: explore?.baseTable,
+                  explore: exploreName,
                   fieldIds: selectedItemIds,
                   itemsMap,
                   showColumnCalculation:
@@ -187,7 +188,7 @@ const useTableConfig = (
         columns: Array<TableColumn | TableHeader>;
         error?: string;
     }>(() => {
-        if (!resultsData || !selectedItemIds) {
+        if (!resultsData || !selectedItemIds || !itemsMap) {
             return {
                 rows: [],
                 columns: [],
@@ -261,6 +262,7 @@ const useTableConfig = (
 
             return (
                 !isColumnVisible(fieldId) &&
+                field &&
                 ((isField(field) && isMetric(field)) ||
                     isTableCalculation(field))
             );
