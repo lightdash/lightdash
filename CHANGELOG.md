@@ -1,3 +1,10 @@
+## [0.893.1](https://github.com/lightdash/lightdash/compare/0.893.0...0.893.1) (2023-12-05)
+
+
+### Bug Fixes
+
+* binning width type casting ([#8206](https://github.com/lightdash/lightdash/issues/8206)) ([e3af14b](https://github.com/lightdash/lightdash/commit/e3af14bee14f16dfb9a4e2d62f185171817356b5))
+
 # [0.893.0](https://github.com/lightdash/lightdash/compare/0.892.0...0.893.0) (2023-12-05)
 
 
