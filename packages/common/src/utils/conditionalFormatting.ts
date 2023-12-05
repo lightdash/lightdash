@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import type { ItemsMap } from '..';
 import {
     ConditionalFormattingConfig,
     ConditionalFormattingConfigWithColorRange,
@@ -12,13 +13,11 @@ import {
     ConditionalRuleLabels,
 } from '../types/conditionalRule';
 import {
-    Field,
     FilterableItem,
     Format,
     isField,
     isFilterableItem,
     isTableCalculation,
-    TableCalculation,
     TableCalculationFormatType,
 } from '../types/field';
 import { FieldTarget } from '../types/filter';
@@ -57,9 +56,7 @@ export const createConditionalFormattingConfigWithColorRange = (
     },
 });
 
-export const hasPercentageFormat = (
-    field: Field | TableCalculation | undefined,
-) => {
+export const hasPercentageFormat = (field: ItemsMap[string] | undefined) => {
     if (!field) return false;
 
     return (
@@ -71,7 +68,7 @@ export const hasPercentageFormat = (
 
 const convertFormattedValue = (
     value: unknown,
-    field: Field | TableCalculation | undefined,
+    field: ItemsMap[string] | undefined,
 ) => {
     if (!field) return value;
 
@@ -83,7 +80,7 @@ const convertFormattedValue = (
 };
 
 export const hasMatchingConditionalRules = (
-    field: Field | TableCalculation,
+    field: ItemsMap[string],
     value: unknown,
     config: ConditionalFormattingConfig | undefined,
 ) => {
@@ -145,7 +142,7 @@ export const hasMatchingConditionalRules = (
 };
 
 export const getConditionalFormattingConfig = (
-    field: Field | TableCalculation | undefined,
+    field: ItemsMap[string] | undefined,
     value: unknown | undefined,
     conditionalFormattings: ConditionalFormattingConfig[] | undefined,
 ) => {
@@ -162,7 +159,7 @@ export const getConditionalFormattingConfig = (
 };
 
 export const getConditionalFormattingDescription = (
-    field: Field | TableCalculation | undefined,
+    field: ItemsMap[string] | undefined,
     conditionalFormattingConfig: ConditionalFormattingConfig | undefined,
     getConditionalRuleLabel: (
         rule: ConditionalFormattingWithConditionalOperator,
@@ -200,7 +197,7 @@ export const getConditionalFormattingDescription = (
 };
 
 export const getConditionalFormattingColor = (
-    field: Field | TableCalculation | undefined,
+    field: ItemsMap[string] | undefined,
     value: unknown,
     conditionalFormattingConfig: ConditionalFormattingConfig | undefined,
     getColorFromRange: (

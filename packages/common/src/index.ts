@@ -698,9 +698,7 @@ export const getResultValueArray = (
         }, {}),
     );
 
-export const getDateGroupLabel = (
-    axisItem: Field | TableCalculation | CustomDimension,
-) => {
+export const getDateGroupLabel = (axisItem: ItemsMap[string]) => {
     if (
         isDimension(axisItem) &&
         [DimensionType.DATE, DimensionType.TIMESTAMP].includes(axisItem.type) &&
@@ -718,7 +716,7 @@ export const getAxisName = ({
     axisIndex,
     axisName,
     series,
-    items,
+    itemsMap,
 }: {
     isAxisTheSameForAllSeries: boolean;
     selectedAxisIndex: number;
@@ -726,12 +724,11 @@ export const getAxisName = ({
     axisIndex: number;
     axisName?: string;
     series?: Series[];
-    items: Array<Field | TableCalculation | CustomDimension>;
+    itemsMap: ItemsMap | undefined;
 }): string | undefined => {
-    const defaultItem = items.find(
-        (item) =>
-            getItemId(item) === (series || [])[0]?.encode[axisReference].field,
-    );
+    const defaultItem = itemsMap
+        ? itemsMap[(series || [])[0]?.encode[axisReference].field]
+        : undefined;
     const dateGroupName = defaultItem
         ? getDateGroupLabel(defaultItem)
         : undefined;
@@ -759,12 +756,17 @@ export function getFieldMap(
     );
 }
 
+export type ItemsMap = Record<
+    string,
+    Field | TableCalculation | CustomDimension | Metric
+>;
+
 export function getItemMap(
     explore: Explore,
     additionalMetrics: AdditionalMetric[] = [],
     tableCalculations: TableCalculation[] = [],
     customDimensions: CustomDimension[] = [],
-): Record<string, Field | TableCalculation> {
+): ItemsMap {
     const convertedAdditionalMetrics = (additionalMetrics || []).reduce<
         Metric[]
     >((acc, additionalMetric) => {
@@ -807,13 +809,13 @@ export function itemsInMetricQuery(
 
 export function formatRows(
     rows: { [col: string]: any }[],
-    itemMap: Record<string, Field | TableCalculation>,
+    itemsMap: ItemsMap,
 ): ResultRow[] {
     return rows.map((row) =>
         Object.keys(row).reduce<ResultRow>((acc, columnName) => {
             const col = row[columnName];
 
-            const item = itemMap[columnName];
+            const item = itemsMap[columnName];
             return {
                 ...acc,
                 [columnName]: {

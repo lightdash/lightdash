@@ -1,9 +1,14 @@
-import { Field, formatRows, TableCalculation } from '@lightdash/common';
+import {
+    Field,
+    formatRows,
+    ItemsMap,
+    TableCalculation,
+} from '@lightdash/common';
 import { parentPort, workerData } from 'worker_threads';
 
 type Args = {
     rows: Record<string, any>[];
-    itemMap: Record<string, Field | TableCalculation>;
+    itemMap: ItemsMap;
 };
 
 function run() {
