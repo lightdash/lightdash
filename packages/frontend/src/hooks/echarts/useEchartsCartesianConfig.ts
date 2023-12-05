@@ -765,6 +765,7 @@ const getEchartAxis = ({
     const xAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.yField?.[0]
         : validCartesianConfig.layout?.xField;
+    const xAxisItem = xAxisItemId ? itemsMap[xAxisItemId] : undefined;
 
     const yAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.xField
@@ -942,7 +943,21 @@ const getEchartAxis = ({
             {
                 type: bottomAxisType,
                 fontSize: 40,
-                name: 'bhel',
+                name: validCartesianConfig.layout.flipAxes
+                    ? getAxisName({
+                          isAxisTheSameForAllSeries,
+                          selectedAxisIndex,
+                          axisIndex: 0,
+                          axisReference: 'yRef',
+                          axisName: xAxisConfiguration?.[0]?.name,
+                          itemsMap,
+                          series: validCartesianConfig.eChartsConfig.series,
+                      })
+                    : xAxisConfiguration?.[0]?.name ||
+                      (xAxisItem
+                          ? getDateGroupLabel(xAxisItem) ||
+                            getItemLabelWithoutTableName(xAxisItem)
+                          : undefined),
                 min: validCartesianConfig.layout.flipAxes
                     ? xAxisConfiguration?.[0]?.min ||
                       maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange)
@@ -957,7 +972,6 @@ const getEchartAxis = ({
                     fontWeight: 'bold',
                 },
                 ...getAxisFormatter(bottomAxisXField),
-
                 splitLine: {
                     show: validCartesianConfig.layout.flipAxes
                         ? showGridY
