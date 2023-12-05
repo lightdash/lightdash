@@ -5,6 +5,7 @@ import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { Can } from '../../common/Authorization';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
 import ExploreFromHereButton from '../../ExploreFromHereButton';
+import { RefreshButton } from '../../RefreshButton';
 import RefreshDbtButton from '../../RefreshDbtButton';
 import SaveChartButton from '../SaveChartButton';
 
@@ -43,6 +44,7 @@ const ExplorerHeader: FC = memo(() => {
                     <RefreshDbtButton />
                 </Box>
                 <Group spacing="xs">
+                    <RefreshButton minimal />
                     {!savedChart && (
                         <Can I="manage" a="SavedChart">
                             <SaveChartButton isExplorer />
