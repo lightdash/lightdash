@@ -422,7 +422,7 @@ describe('with custom dimensions', () => {
                     SELECT
                         MIN("table1".dim1) AS min_id,
                         MAX("table1".dim1) AS max_id,
-                        ((MAX("table1".dim1) - MIN("table1".dim1)) / 3) AS bin_width
+                        CAST((MAX("table1".dim1) - MIN("table1".dim1)) / 3 AS INT) AS bin_width
                     FROM "db"."schema"."table1" AS \`table1\`
                 )`,
             ],
@@ -468,7 +468,7 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
                     SELECT
                         MIN("table1".dim1) AS min_id,
                         MAX("table1".dim1) AS max_id,
-                        ((MAX("table1".dim1) - MIN("table1".dim1)) / 1) AS bin_width
+                        CAST((MAX("table1".dim1) - MIN("table1".dim1)) / 1 AS INT) AS bin_width
                     FROM "db"."schema"."table1" AS \`table1\`
                 )`,
             ],
@@ -492,7 +492,7 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
                     SELECT
                         MIN("table1".dim1) AS min_id,
                         MAX("table1".dim1) AS max_id,
-                        ((MAX("table1".dim1) - MIN("table1".dim1)) / 3) AS bin_width
+                        CAST((MAX("table1".dim1) - MIN("table1".dim1)) / 3 AS INT) AS bin_width
                     FROM "db"."schema"."table1" AS \`table1\`
                 )
 SELECT
@@ -576,7 +576,7 @@ LIMIT 10`);
                     SELECT
                         MIN("table1".dim1) AS min_id,
                         MAX("table1".dim1) AS max_id,
-                        ((MAX("table1".dim1) - MIN("table1".dim1)) / 3) AS bin_width
+                        CAST((MAX("table1".dim1) - MIN("table1".dim1)) / 3 AS INT) AS bin_width
                     FROM "db"."schema"."table1" AS \`table1\`
                 ),
 metrics AS (
@@ -621,7 +621,7 @@ LIMIT 10`);
                     SELECT
                         MIN("table1".dim1) AS min_id,
                         MAX("table1".dim1) AS max_id,
-                        ((MAX("table1".dim1) - MIN("table1".dim1)) / 3) AS bin_width
+                        CAST((MAX("table1".dim1) - MIN("table1".dim1)) / 3 AS INT) AS bin_width
                     FROM "db"."schema"."table1" AS \`table1\`
                 )`,
             ],
@@ -660,7 +660,7 @@ ELSE 2
                     SELECT
                         MIN("table1".dim1) AS min_id,
                         MAX("table1".dim1) AS max_id,
-                        ((MAX("table1".dim1) - MIN("table1".dim1)) / 3) AS bin_width
+                        CAST((MAX("table1".dim1) - MIN("table1".dim1)) / 3 AS INT) AS bin_width
                     FROM "db"."schema"."table1" AS \`table1\`
                 )
 SELECT
