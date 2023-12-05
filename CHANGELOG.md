@@ -1,3 +1,10 @@
+# [0.892.0](https://github.com/lightdash/lightdash/compare/0.891.2...0.892.0) (2023-12-05)
+
+
+### Features
+
+* minimal dashboard zoom ([#8205](https://github.com/lightdash/lightdash/issues/8205)) ([a743a22](https://github.com/lightdash/lightdash/commit/a743a22ca28a4e244e8d492b6cb45d75a5524a64))
+
 ## [0.891.2](https://github.com/lightdash/lightdash/compare/0.891.1...0.891.2) (2023-12-05)
 
 
