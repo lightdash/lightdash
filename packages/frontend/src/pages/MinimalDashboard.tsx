@@ -18,6 +18,7 @@ import {
     getResponsiveGridLayoutProps,
 } from './Dashboard';
 
+import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
 import '../styles/react-grid.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -26,6 +27,7 @@ const MinimalDashboard: FC = () => {
     const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
     const schedulerUuid = useSearchParams('schedulerUuid');
     const sendNowchedulerFilters = useSearchParams('sendNowchedulerFilters');
+    const dateZoom = useDateZoomGranularitySearch();
 
     const {
         data: dashboard,
@@ -75,7 +77,10 @@ const MinimalDashboard: FC = () => {
     };
 
     return (
-        <DashboardProvider schedulerFilters={schedulerFilters}>
+        <DashboardProvider
+            schedulerFilters={schedulerFilters}
+            dateZoom={dateZoom}
+        >
             <ResponsiveGridLayout
                 {...getResponsiveGridLayoutProps(false)}
                 layouts={layouts}

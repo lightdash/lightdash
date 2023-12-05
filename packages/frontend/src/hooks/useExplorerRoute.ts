@@ -22,7 +22,7 @@ export const getExplorerUrlFromCreateSavedChartVersion = (
         'create_saved_chart_version',
         JSON.stringify(createSavedChart),
     );
-    if (dateZoomGranularity) newParams.set('date_zoom', dateZoomGranularity);
+    if (dateZoomGranularity) newParams.set('dateZoom', dateZoomGranularity);
     return {
         pathname: `/projects/${projectUuid}/tables/${createSavedChart.tableName}`,
         search: newParams.toString(),
@@ -33,7 +33,7 @@ export const useDateZoomGranularitySearch = (): DateGranularity | undefined => {
     const { search } = useLocation();
 
     const searchParams = new URLSearchParams(search);
-    const dateZoomParam = searchParams.get('date_zoom');
+    const dateZoomParam = searchParams.get('dateZoom');
     const dateZoom = Object.values(DateGranularity).find(
         (granularity) =>
             granularity.toLowerCase() === dateZoomParam?.toLowerCase(),
