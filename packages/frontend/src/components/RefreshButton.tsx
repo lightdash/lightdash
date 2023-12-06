@@ -8,10 +8,12 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useHotkeys, useOs } from '@mantine/hooks';
+import { IconPlayerPlay } from '@tabler/icons-react';
 import { FC, memo, useCallback } from 'react';
 import { useExplorerContext } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
+import MantineIcon from './common/MantineIcon';
 import LimitButton from './LimitButton';
 
 export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
@@ -67,8 +69,10 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                 disabled={isLoading || !isValidQuery}
             >
                 <Button
+                    pr="xxs"
                     size={size}
                     disabled={!isValidQuery}
+                    leftIcon={<MantineIcon icon={IconPlayerPlay} />}
                     loading={isLoading}
                     onClick={onClick}
                     sx={{ flex: 1 }}
@@ -76,6 +80,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                     Run query ({limit})
                 </Button>
             </Tooltip>
+
             <LimitButton
                 disabled={!isValidQuery}
                 size={size}

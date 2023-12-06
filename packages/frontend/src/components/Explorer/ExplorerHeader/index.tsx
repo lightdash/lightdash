@@ -54,6 +54,7 @@ const ExplorerHeader: FC = memo(() => {
                 <Box>
                     <RefreshDbtButton />
                 </Box>
+
                 <Group spacing="xs">
                     {showLimitWarning && (
                         <Tooltip
@@ -70,16 +71,17 @@ const ExplorerHeader: FC = memo(() => {
                                     />
                                 }
                                 color="yellow"
-                                variant={'outline'}
-                                sx={{
-                                    textTransform: 'none',
-                                }}
+                                variant="outline"
+                                tt="none"
+                                sx={{ cursor: 'help' }}
                             >
                                 Results may be incomplete
                             </Badge>
                         </Tooltip>
                     )}
-                    <RefreshButton size={'xs'} />
+
+                    <RefreshButton size="xs" />
+
                     {!savedChart && (
                         <Can I="manage" a="SavedChart">
                             <SaveChartButton isExplorer />
