@@ -1,3 +1,15 @@
+# [0.896.0](https://github.com/lightdash/lightdash/compare/0.895.1...0.896.0) (2023-12-06)
+
+
+### Bug Fixes
+
+* set password for users who signed up using social login ([#8224](https://github.com/lightdash/lightdash/issues/8224)) ([da70c20](https://github.com/lightdash/lightdash/commit/da70c20b9be3ab76afd4ae6eb7cfa8551c7f8872))
+
+
+### Features
+
+* move run query button back to the top of the page ([#8222](https://github.com/lightdash/lightdash/issues/8222)) ([6a79fa3](https://github.com/lightdash/lightdash/commit/6a79fa37e99ba84ab4fb908a74fff29b001e9dc7))
+
 ## [0.895.1](https://github.com/lightdash/lightdash/compare/0.895.0...0.895.1) (2023-12-06)
 
 
