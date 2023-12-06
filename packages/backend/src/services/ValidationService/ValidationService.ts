@@ -217,8 +217,6 @@ export class ValidationService {
                 chart.metricQuery.customDimensions?.map(getItemId) || [];
             const availableMetricIds =
                 exploreFields[tableName]?.metricIds || [];
-            const availableTableCalculations =
-                chart.metricQuery.tableCalculations?.map(getItemId) || [];
 
             const allItemIdsAvailableInChart = [
                 ...availableDimensionIds,
@@ -298,7 +296,7 @@ export class ValidationService {
 
             const fieldsWithTableCalculationFilters = [
                 ...allItemIdsAvailableInChart,
-                ...availableTableCalculations.map(
+                ...chartTableCalculationIds.map(
                     (tc) => `table_calculation_${tc}`,
                 ),
             ];
