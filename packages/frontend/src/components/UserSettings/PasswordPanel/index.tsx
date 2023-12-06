@@ -3,6 +3,7 @@ import { Button, PasswordInput, Stack } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { FC } from 'react';
 import { z } from 'zod';
+import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useUserHasPassword,
     useUserUpdatePasswordMutation,
@@ -11,30 +12,58 @@ import PasswordTextInput from '../../PasswordTextInput';
 
 const passwordSchema = getPasswordSchema();
 
-const validationSchema = z.object({
-    currentPassword: passwordSchema,
-    newPassword: passwordSchema,
-});
+const validationSchema = (hasCurrentPassword: boolean) => {
+    return hasCurrentPassword
+        ? z.object({
+              // we check validity of current password on the server
+              currentPassword: z.string().nonempty(),
+              newPassword: passwordSchema,
+          })
+        : z.object({
+              newPassword: passwordSchema,
+          });
+};
 
 const PasswordPanel: FC = () => {
     const { data: hasPassword } = useUserHasPassword();
+    const { showToastSuccess, showToastError } = useToaster();
 
     const form = useForm({
         initialValues: {
             currentPassword: '',
             newPassword: '',
         },
-        validate: zodResolver(validationSchema),
+        validate: zodResolver(validationSchema(!!hasPassword)),
     });
 
     const { isLoading, mutate: updateUserPassword } =
-        useUserUpdatePasswordMutation();
+        useUserUpdatePasswordMutation({
+            onSuccess: () => {
+                showToastSuccess({
+                    title: 'Your password has been updated',
+                });
+
+                window.location.href = '/login';
+            },
+            onError: ({ error }) => {
+                showToastError({
+                    title: 'Failed to update password',
+                    subtitle: error.message,
+                });
+            },
+        });
 
     const handleOnSubmit = form.onSubmit(({ currentPassword, newPassword }) => {
-        updateUserPassword({
-            password: hasPassword ? currentPassword : '',
-            newPassword,
-        });
+        if (hasPassword) {
+            updateUserPassword({
+                password: currentPassword,
+                newPassword,
+            });
+        } else {
+            updateUserPassword({
+                newPassword,
+            });
+        }
     });
 
     return (
