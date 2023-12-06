@@ -12,7 +12,6 @@ import {
     fieldId,
     getCustomDimensionId,
     getDimensions,
-    getItemMap,
     getMetrics,
     isNumericItem,
     ItemsMap,
@@ -154,14 +153,8 @@ const VisualizationProvider: FC<Props> = ({
     invalidateCache,
 }) => {
     const itemsMap = useMemo(() => {
-        if (explore && resultsData)
-            return getItemMap(
-                explore,
-                resultsData.metricQuery.additionalMetrics,
-                resultsData.metricQuery.tableCalculations,
-                resultsData.metricQuery.customDimensions,
-            );
-    }, [explore, resultsData]);
+        return resultsData?.fields;
+    }, [resultsData]);
 
     const chartRef = useRef<EChartsReact>(null);
 

@@ -17,7 +17,7 @@ import {
     FilterableField,
     friendlyName,
     isDimension,
-    Item,
+    ItemsMap,
     Metric,
     TableCalculation,
 } from './types/field';
@@ -323,7 +323,7 @@ export type ApiQueryResults = {
     metricQuery: MetricQuery;
     cacheMetadata: CacheMetadata;
     rows: ResultRow[];
-    fields: Record<string, Item | AdditionalMetric>;
+    fields: ItemsMap;
 };
 
 export type ApiChartAndResults = {
@@ -333,7 +333,7 @@ export type ApiChartAndResults = {
     metricQuery: MetricQuery;
     cacheMetadata: CacheMetadata;
     rows: ResultRow[];
-    fields: Record<string, Item | AdditionalMetric>;
+    fields: ItemsMap;
 };
 
 export type ApiSqlQueryResults = {
@@ -755,11 +755,6 @@ export function getFieldMap(
         {},
     );
 }
-
-export type ItemsMap = Record<
-    string,
-    Field | TableCalculation | CustomDimension | Metric
->;
 
 export function getItemMap(
     explore: Explore,

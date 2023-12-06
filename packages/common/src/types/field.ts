@@ -1,4 +1,4 @@
-import type { AdditionalMetric, ItemsMap } from '..';
+import type { AdditionalMetric } from '..';
 import { CompileError } from './errors';
 import { MetricFilterRule } from './filter';
 import { TimeFrames } from './timeFrames';
@@ -99,6 +99,10 @@ export interface CustomDimension {
     customRange?: BinRange[];
 }
 
+export type ItemsMap = Record<
+    string,
+    Field | TableCalculation | CustomDimension | Metric
+>;
 export type Item = ItemsMap[string];
 
 export enum TableCalculationFormatType {

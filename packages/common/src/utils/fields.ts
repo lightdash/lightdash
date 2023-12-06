@@ -6,15 +6,12 @@ import {
     CustomDimension,
     Dimension,
     fieldId,
-    Item,
+    ItemsMap,
     Metric,
     TableCalculation,
 } from '../types/field';
-import {
-    AdditionalMetric,
-    getCustomDimensionId,
-    MetricQuery,
-} from '../types/metricQuery';
+import { getCustomDimensionId, MetricQuery } from '../types/metricQuery';
+import { convertAdditionalMetric } from './additionalMetrics';
 import { getItemId } from './item';
 
 // Helper function to get a list of all dimensions in an explore
@@ -33,7 +30,7 @@ export const getFields = (explore: Explore): CompiledField[] => [
 export const getFieldsFromMetricQuery = (
     metricQuery: MetricQuery,
     explore: Explore,
-): Record<string, Item | AdditionalMetric> => {
+): ItemsMap => {
     const exploreFields = getFields(explore);
     const fields = [...metricQuery.dimensions, ...metricQuery.metrics].reduce<
         Record<string, Dimension | Metric>
@@ -44,15 +41,19 @@ export const getFieldsFromMetricQuery = (
         }
         return acc;
     }, {});
-    const additionalMetrics = metricQuery.additionalMetrics?.reduce<
-        Record<string, AdditionalMetric>
-    >(
-        (acc, additionalMetric) => ({
-            ...acc,
-            [getItemId(additionalMetric)]: additionalMetric,
-        }),
-        {},
-    );
+    const additionalMetrics = (metricQuery.additionalMetrics || []).reduce<
+        Record<string, Metric>
+    >((acc, additionalMetric) => {
+        const table = explore.tables[additionalMetric.table];
+        if (table) {
+            const metric = convertAdditionalMetric({
+                additionalMetric,
+                table,
+            });
+            return { ...acc, [getItemId(additionalMetric)]: metric };
+        }
+        return acc;
+    }, {});
     const tableCalculations = metricQuery.tableCalculations.reduce<
         Record<string, TableCalculation>
     >(
