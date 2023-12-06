@@ -803,10 +803,13 @@ export const getDimensionsFromItemsMap = (itemsMap: ItemsMap) =>
         return acc;
     }, {});
 
-export const getMetricsFromItemsMap = (itemsMap: ItemsMap) =>
+export const getMetricsFromItemsMap = (
+    itemsMap: ItemsMap,
+    filter: (value: ItemsMap[string]) => boolean = () => true,
+) =>
     Object.entries(itemsMap).reduce<Record<string, Metric>>(
         (acc, [key, value]) => {
-            if (isField(value) && isMetric(value)) {
+            if (isField(value) && isMetric(value) && filter(value)) {
                 return { ...acc, [key]: value };
             }
             return acc;
