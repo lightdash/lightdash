@@ -2,6 +2,7 @@ import {
     ChartType,
     CreateSavedChartVersion,
     DateGranularity,
+    MetricQuery,
 } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
@@ -41,6 +42,14 @@ export const useDateZoomGranularitySearch = (): DateGranularity | undefined => {
     return dateZoom;
 };
 
+// To handle older url params where exploreName wasn't required
+type BackwardsCompatibleCreateSavedChartVersionUrlParam = Omit<
+    CreateSavedChartVersion,
+    'metricQuery'
+> & {
+    metricQuery: Omit<MetricQuery, 'exploreName'> & { exploreName?: string };
+};
+
 export const parseExplorerSearchParams = (
     search: string,
 ): CreateSavedChartVersion | undefined => {
@@ -48,9 +57,19 @@ export const parseExplorerSearchParams = (
     const chartConfigSearchParam = searchParams.get(
         'create_saved_chart_version',
     );
-    return chartConfigSearchParam
-        ? JSON.parse(chartConfigSearchParam)
-        : undefined;
+    if (chartConfigSearchParam) {
+        const parsedValue: BackwardsCompatibleCreateSavedChartVersionUrlParam =
+            JSON.parse(chartConfigSearchParam);
+        return {
+            ...parsedValue,
+            metricQuery: {
+                ...parsedValue.metricQuery,
+                exploreName:
+                    parsedValue.metricQuery.exploreName ||
+                    parsedValue.tableName,
+            },
+        };
+    }
 };
 
 export const useExplorerRoute = () => {
