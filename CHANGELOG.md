@@ -1,3 +1,10 @@
+## [0.895.1](https://github.com/lightdash/lightdash/compare/0.895.0...0.895.1) (2023-12-06)
+
+
+### Bug Fixes
+
+* apply date formatter to axispointer ([#8210](https://github.com/lightdash/lightdash/issues/8210)) ([4af84ed](https://github.com/lightdash/lightdash/commit/4af84ed0da3c9e1865cfe610601447cb5decf5b8))
+
 # [0.895.0](https://github.com/lightdash/lightdash/compare/0.894.0...0.895.0) (2023-12-06)
 
 
