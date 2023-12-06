@@ -2,10 +2,13 @@ import {
     ChartType,
     CustomDimension,
     Dimension,
+    getDimensionsFromItemsMap,
+    getMetricsFromItemsMap,
+    isNumericItem,
+    ItemsMap,
     Metric,
-    TableCalculation,
 } from '@lightdash/common';
-import { FC, useEffect } from 'react';
+import { FC, useEffect, useMemo } from 'react';
 import usePieChartConfig from '../../hooks/usePieChartConfig';
 import {
     VisualizationConfig,
@@ -15,6 +18,8 @@ import {
 export type VisualizationConfigPie = {
     chartType: ChartType.PIE;
     chartConfig: ReturnType<typeof usePieChartConfig>;
+    dimensions: Record<string, CustomDimension | Dimension>;
+    numericMetrics: Record<string, Metric>;
 };
 
 export const isPieVisualizationConfig = (
@@ -25,28 +30,36 @@ export const isPieVisualizationConfig = (
 
 type VisualizationConfigPieProps =
     VisualizationConfigCommon<VisualizationConfigPie> & {
-        dimensions: Dimension[];
-        allNumericMetrics: (Metric | TableCalculation)[];
-        customDimensions: CustomDimension[];
+        // TODO: shared prop once all visualizations are converted
+        itemsMap: ItemsMap | undefined;
     };
 
 const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
     explore,
     resultsData,
-    dimensions,
-    allNumericMetrics,
-    customDimensions,
     initialChartConfig,
     onChartConfigChange,
+    itemsMap,
     children,
 }) => {
+    const { dimensions, numericMetrics } = useMemo(
+        () => ({
+            dimensions: getDimensionsFromItemsMap(itemsMap ?? {}),
+            numericMetrics: getMetricsFromItemsMap(
+                itemsMap ?? {},
+                isNumericItem,
+            ),
+        }),
+        [itemsMap],
+    );
+
     const pieChartConfig = usePieChartConfig(
         explore,
         resultsData,
         initialChartConfig,
+        itemsMap,
         dimensions,
-        allNumericMetrics,
-        customDimensions,
+        numericMetrics,
     );
 
     useEffect(() => {
@@ -62,6 +75,8 @@ const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
         visualizationConfig: {
             chartType: ChartType.PIE,
             chartConfig: pieChartConfig,
+            dimensions,
+            numericMetrics,
         },
     });
 };

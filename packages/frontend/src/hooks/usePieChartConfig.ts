@@ -1,21 +1,20 @@
 import {
     ApiQueryResults,
     CustomDimension,
+    Dimension,
     ECHARTS_DEFAULT_COLORS,
     Explore,
-    Field,
-    fieldId,
     formatItemValue,
-    getCustomDimensionId,
-    isCustomDimension,
     isField,
+    isMetric,
+    ItemsMap,
+    Metric,
     PieChart,
     PieChartLegendPosition,
     PieChartLegendPositionDefault,
     PieChartValueOptions,
     ResultRow,
     ResultValue,
-    TableCalculation,
 } from '@lightdash/common';
 import { useDebouncedValue } from '@mantine/hooks';
 import isEmpty from 'lodash-es/isEmpty';
@@ -37,7 +36,7 @@ type PieChartConfig = {
     groupRemove: (dimensionId: string) => void;
 
     metricId: string | null;
-    selectedMetric: Field | TableCalculation | undefined;
+    selectedMetric: Metric | undefined;
     metricChange: (metricId: string | null) => void;
 
     isDonut: boolean;
@@ -85,22 +84,22 @@ type PieChartConfig = {
     }[];
 };
 
-type PieChartConfigFn = (
+export type PieChartConfigFn = (
     explore: Explore | undefined,
     resultsData: ApiQueryResults | undefined,
     pieChartConfig: PieChart | undefined,
-    dimensions: Field[],
-    allNumericMetrics: (Field | TableCalculation)[],
-    customDimensions: CustomDimension[],
+    itemsMap: ItemsMap | undefined,
+    dimensions: Record<string, CustomDimension | Dimension>,
+    numericMetrics: Record<string, Metric>,
 ) => PieChartConfig;
 
 const usePieChartConfig: PieChartConfigFn = (
     explore,
     resultsData,
     pieChartConfig,
+    itemsMap,
     dimensions,
-    allNumericMetrics,
-    customDimensions,
+    numericMetrics,
 ) => {
     const { data: org } = useOrganization();
 
@@ -163,26 +162,21 @@ const usePieChartConfig: PieChartConfigFn = (
         [org],
     );
 
-    const dimensionIds = useMemo(
-        () =>
-            [...dimensions, ...customDimensions].map((dimension) => {
-                if (isCustomDimension(dimension))
-                    return getCustomDimensionId(dimension);
-                return fieldId(dimension);
-            }),
-        [customDimensions, dimensions],
-    );
+    const dimensionIds = useMemo(() => Object.keys(dimensions), [dimensions]);
 
     const allNumericMetricIds = useMemo(
-        () => allNumericMetrics.map((m) => (isField(m) ? fieldId(m) : m.name)),
-        [allNumericMetrics],
+        () => Object.keys(numericMetrics),
+        [numericMetrics],
     );
 
     const selectedMetric = useMemo(() => {
-        return allNumericMetrics.find((m) =>
-            isField(m) ? fieldId(m) === metricId : m.name === metricId,
-        );
-    }, [allNumericMetrics, metricId]);
+        if (!itemsMap || !metricId) return undefined;
+        const item = itemsMap[metricId];
+
+        if (isField(item) && isMetric(item)) return item;
+
+        return undefined;
+    }, [itemsMap, metricId]);
 
     const isLoading = !explore || !resultsData;
 
