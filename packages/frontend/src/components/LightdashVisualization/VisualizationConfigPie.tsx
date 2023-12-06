@@ -4,6 +4,7 @@ import {
     Dimension,
     getDimensionsFromItemsMap,
     getMetricsFromItemsMap,
+    isNumericItem,
     ItemsMap,
     Metric,
 } from '@lightdash/common';
@@ -17,8 +18,8 @@ import {
 export type VisualizationConfigPie = {
     chartType: ChartType.PIE;
     chartConfig: ReturnType<typeof usePieChartConfig>;
-    dimensions: (Dimension | CustomDimension)[];
-    metrics: Metric[];
+    dimensions: Record<string, CustomDimension | Dimension>;
+    numericMetrics: Record<string, Metric>;
 };
 
 export const isPieVisualizationConfig = (
@@ -41,14 +42,13 @@ const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
     itemsMap,
     children,
 }) => {
-    const { dimensions, metrics } = useMemo(
+    const { dimensions, numericMetrics } = useMemo(
         () => ({
-            dimensions: itemsMap
-                ? Object.values(getDimensionsFromItemsMap(itemsMap))
-                : [],
-            metrics: itemsMap
-                ? Object.values(getMetricsFromItemsMap(itemsMap))
-                : [],
+            dimensions: getDimensionsFromItemsMap(itemsMap ?? {}),
+            numericMetrics: getMetricsFromItemsMap(
+                itemsMap ?? {},
+                isNumericItem,
+            ),
         }),
         [itemsMap],
     );
@@ -59,7 +59,7 @@ const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
         initialChartConfig,
         itemsMap,
         dimensions,
-        metrics,
+        numericMetrics,
     );
 
     useEffect(() => {
@@ -76,7 +76,7 @@ const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
             chartType: ChartType.PIE,
             chartConfig: pieChartConfig,
             dimensions,
-            metrics,
+            numericMetrics,
         },
     });
 };

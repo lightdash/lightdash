@@ -20,7 +20,8 @@ const PieChartLayoutConfig: React.FC = () => {
 
     if (!isPieVisualizationConfig(visualizationConfig)) return null;
 
-    const { dimensions, metrics } = visualizationConfig;
+    const numericMetrics = Object.values(visualizationConfig.numericMetrics);
+    const dimensions = Object.values(visualizationConfig.dimensions);
 
     const {
         groupFieldIds,
@@ -114,16 +115,16 @@ const PieChartLayoutConfig: React.FC = () => {
             </Stack>
 
             <Tooltip
-                disabled={metrics && metrics.length > 0}
+                disabled={numericMetrics && numericMetrics.length > 0}
                 label="You must select at least one numeric metric to create a pie chart"
             >
                 <Box>
                     <FieldSelect<Metric>
                         label="Metric"
                         placeholder="Select metric"
-                        disabled={metrics.length === 0}
+                        disabled={numericMetrics.length === 0}
                         item={selectedMetric}
-                        items={metrics}
+                        items={numericMetrics}
                         onChange={(newField) => {
                             metricChange(
                                 newField && isField(newField)

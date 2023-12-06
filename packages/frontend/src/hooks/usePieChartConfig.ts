@@ -4,13 +4,9 @@ import {
     Dimension,
     ECHARTS_DEFAULT_COLORS,
     Explore,
-    fieldId,
     formatItemValue,
-    getCustomDimensionId,
-    isCustomDimension,
     isField,
     isMetric,
-    isNumericItem,
     ItemsMap,
     Metric,
     PieChart,
@@ -93,8 +89,8 @@ export type PieChartConfigFn = (
     resultsData: ApiQueryResults | undefined,
     pieChartConfig: PieChart | undefined,
     itemsMap: ItemsMap | undefined,
-    dimensions: (Dimension | CustomDimension)[],
-    metrics: Metric[],
+    dimensions: Record<string, CustomDimension | Dimension>,
+    numericMetrics: Record<string, Metric>,
 ) => PieChartConfig;
 
 const usePieChartConfig: PieChartConfigFn = (
@@ -103,7 +99,7 @@ const usePieChartConfig: PieChartConfigFn = (
     pieChartConfig,
     itemsMap,
     dimensions,
-    metrics,
+    numericMetrics,
 ) => {
     const { data: org } = useOrganization();
 
@@ -166,25 +162,11 @@ const usePieChartConfig: PieChartConfigFn = (
         [org],
     );
 
-    const dimensionIds = useMemo(
-        () =>
-            dimensions.map((dimension) => {
-                if (isCustomDimension(dimension))
-                    return getCustomDimensionId(dimension);
-                return fieldId(dimension);
-            }),
-        [dimensions],
-    );
+    const dimensionIds = useMemo(() => Object.keys(dimensions), [dimensions]);
 
     const allNumericMetricIds = useMemo(
-        () =>
-            metrics.reduce<string[]>((acc, metric) => {
-                if (isNumericItem(metric)) {
-                    acc.push(fieldId(metric));
-                }
-                return acc;
-            }, []),
-        [metrics],
+        () => Object.keys(numericMetrics),
+        [numericMetrics],
     );
 
     const selectedMetric = useMemo(() => {
