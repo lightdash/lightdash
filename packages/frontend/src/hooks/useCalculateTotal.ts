@@ -95,12 +95,12 @@ export const useCalculateTotal = ({
     savedChartUuid?: string;
     dashboardFilters?: DashboardFilters;
     invalidateCache?: boolean;
-    itemsMap: ItemsMap;
+    itemsMap: ItemsMap | undefined;
     fieldIds?: string[];
     showColumnCalculation?: boolean;
 }) => {
     const metricsWithTotals = useMemo(() => {
-        if (!fieldIds) return [];
+        if (!fieldIds || !itemsMap) return [];
         if (showColumnCalculation === false) return [];
         return getCalculationColumnFields(fieldIds, itemsMap);
     }, [fieldIds, itemsMap, showColumnCalculation]);

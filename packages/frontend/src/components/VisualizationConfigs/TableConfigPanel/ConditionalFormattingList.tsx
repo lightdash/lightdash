@@ -3,7 +3,6 @@ import {
     ECHARTS_DEFAULT_COLORS,
     FilterableItem,
     getItemId,
-    getItemMap,
     isFilterableItem,
     isNumericItem,
 } from '@lightdash/common';
@@ -21,7 +20,7 @@ const ConditionalFormattingList = ({}) => {
     const { data: org } = useOrganization();
 
     const [isAddingNew, setIsAddingNew] = useState(false);
-    const { explore, resultsData, visualizationConfig } =
+    const { itemsMap, resultsData, visualizationConfig } =
         useVisualizationContext();
 
     const chartConfig = useMemo(() => {
@@ -44,20 +43,14 @@ const ConditionalFormattingList = ({}) => {
     }, [resultsData]);
 
     const visibleActiveNumericFields = useMemo<FilterableItem[]>(() => {
-        if (!explore) return [];
+        if (!itemsMap) return [];
 
-        return Object.values(
-            getItemMap(
-                explore,
-                resultsData?.metricQuery.additionalMetrics,
-                resultsData?.metricQuery.tableCalculations,
-            ),
-        )
+        return Object.values(itemsMap)
             .filter((field) => activeFields.has(getItemId(field)))
             .filter(
                 (field) => isNumericItem(field) && isFilterableItem(field),
             ) as FilterableItem[];
-    }, [explore, resultsData, activeFields]);
+    }, [itemsMap, activeFields]);
 
     const activeConfigs = useMemo(() => {
         if (!chartConfig) return [];

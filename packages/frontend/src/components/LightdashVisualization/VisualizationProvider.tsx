@@ -372,6 +372,8 @@ const VisualizationProvider: FC<Props> = ({
             return (
                 <VisualizationTableConfig
                     explore={explore}
+                    exploreName={explore?.name}
+                    itemsMap={itemsMap}
                     resultsData={lastValidResultsData}
                     columnOrder={defaultColumnOrder}
                     validPivotDimensions={validPivotDimensions}
