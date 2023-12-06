@@ -1,3 +1,10 @@
+# [0.894.0](https://github.com/lightdash/lightdash/compare/0.893.2...0.894.0) (2023-12-06)
+
+
+### Features
+
+* scheduled delivery timeout ([#8200](https://github.com/lightdash/lightdash/issues/8200)) ([5609af2](https://github.com/lightdash/lightdash/commit/5609af244fa470381927b92d6d75a3de64b2c341))
+
 ## [0.893.2](https://github.com/lightdash/lightdash/compare/0.893.1...0.893.2) (2023-12-05)
 
 
