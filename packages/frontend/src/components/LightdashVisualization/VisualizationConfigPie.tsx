@@ -57,6 +57,7 @@ const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
         explore,
         resultsData,
         initialChartConfig,
+        itemsMap,
         dimensions,
         metrics,
     );

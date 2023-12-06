@@ -9,7 +9,9 @@ import {
     getCustomDimensionId,
     isCustomDimension,
     isField,
+    isMetric,
     isNumericItem,
+    ItemsMap,
     Metric,
     PieChart,
     PieChartLegendPosition,
@@ -90,6 +92,7 @@ export type PieChartConfigFn = (
     explore: Explore | undefined,
     resultsData: ApiQueryResults | undefined,
     pieChartConfig: PieChart | undefined,
+    itemsMap: ItemsMap | undefined,
     dimensions: (Dimension | CustomDimension)[],
     metrics: Metric[],
 ) => PieChartConfig;
@@ -98,6 +101,7 @@ const usePieChartConfig: PieChartConfigFn = (
     explore,
     resultsData,
     pieChartConfig,
+    itemsMap,
     dimensions,
     metrics,
 ) => {
@@ -182,13 +186,14 @@ const usePieChartConfig: PieChartConfigFn = (
         [allNumericMetrics],
     );
 
-    const selectedMetric = useMemo(
-        () =>
-            allNumericMetrics.find(
-                (m) => isField(m) && fieldId(m) === metricId,
-            ),
-        [allNumericMetrics, metricId],
-    );
+    const selectedMetric = useMemo(() => {
+        if (!itemsMap || !metricId) return undefined;
+        const item = itemsMap[metricId];
+
+        if (isField(item) && isMetric(item)) return item;
+
+        return undefined;
+    }, [itemsMap, metricId]);
 
     const isLoading = !explore || !resultsData;
 
